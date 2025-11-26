@@ -11,7 +11,7 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibDatabase/Database.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibRequests/CacheSizes.h>
 
 namespace RequestServer {
@@ -23,7 +23,7 @@ class CacheIndex {
         u64 cache_key { 0 };
 
         String url;
-        HTTP::HeaderMap response_headers;
+        NonnullRefPtr<HTTP::HeaderList> response_headers;
         u64 data_size { 0 };
 
         UnixDateTime request_time;
@@ -34,13 +34,13 @@ class CacheIndex {
 public:
     static ErrorOr<CacheIndex> create(Database::Database&);
 
-    void create_entry(u64 cache_key, String url, HTTP::HeaderMap, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
+    void create_entry(u64 cache_key, String url, NonnullRefPtr<HTTP::HeaderList>, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key)> on_entry_removed);
 
     Optional<Entry&> find_entry(u64 cache_key);
 
-    void update_response_headers(u64 cache_key, HTTP::HeaderMap);
+    void update_response_headers(u64 cache_key, NonnullRefPtr<HTTP::HeaderList>);
     void update_last_access_time(u64 cache_key);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since) const;

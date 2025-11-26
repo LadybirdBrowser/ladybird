@@ -181,7 +181,7 @@ Client::Client(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
 {
     m_socket->on_ready_to_read = [this] {
         if (auto result = on_ready_to_read(); result.is_error())
-            handle_error({}, result.release_error());
+            handle_error(HTTP::HttpRequest { HTTP::HeaderList::create() }, result.release_error());
     };
 }
 
@@ -249,7 +249,7 @@ ErrorOr<JsonValue, Client::WrappedError> Client::read_body_as_json(HTTP::HttpReq
     // FIXME: Check the Content-Type is actually application/json.
     size_t content_length = 0;
 
-    for (auto const& header : request.headers().headers()) {
+    for (auto const& header : request.headers()) {
         if (header.name.equals_ignoring_ascii_case("Content-Length"sv)) {
             content_length = header.value.to_number<size_t>(TrimWhitespace::Yes).value_or(0);
             break;

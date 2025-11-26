@@ -7,13 +7,14 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibHTTP/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
 
-[[nodiscard]] bool determine_nosniff(HeaderList const&);
+[[nodiscard]] bool determine_nosniff(HTTP::HeaderList const&);
 [[nodiscard]] WEB_API RequestOrResponseBlocking should_response_to_request_be_blocked_due_to_nosniff(Response const&, Request const&);
 
 }

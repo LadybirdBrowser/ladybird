@@ -28,7 +28,7 @@ NonnullOwnPtr<Request> Request::fetch(
     Resolver& resolver,
     URL::URL url,
     ByteString method,
-    HTTP::HeaderMap request_headers,
+    NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
@@ -69,7 +69,7 @@ Request::Request(
     Resolver& resolver,
     URL::URL url,
     ByteString method,
-    HTTP::HeaderMap request_headers,
+    NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
@@ -85,6 +85,7 @@ Request::Request(
     , m_request_body(move(request_body))
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_proxy_data(proxy_data)
+    , m_response_headers(HTTP::HeaderList::create())
     , m_current_time_offset_for_testing(compute_current_time_offset_for_testing(m_disk_cache, m_request_headers))
 {
     m_request_start_time += m_current_time_offset_for_testing;
@@ -102,6 +103,8 @@ Request::Request(
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
     , m_url(move(url))
+    , m_request_headers(HTTP::HeaderList::create())
+    , m_response_headers(HTTP::HeaderList::create())
     , m_current_time_offset_for_testing(compute_current_time_offset_for_testing(m_disk_cache, m_request_headers))
 {
     m_request_start_time += m_current_time_offset_for_testing;
@@ -123,7 +126,7 @@ Request::~Request()
         curl_slist_free_all(string_list);
 
     if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush(move(m_response_headers));
+        (void)m_cache_entry_writer->flush(m_response_headers);
 }
 
 void Request::notify_request_unblocked(Badge<DiskCache>)
@@ -361,13 +364,13 @@ void Request::handle_fetch_state()
 
         // CURLOPT_POSTFIELDS automatically sets the Content-Type header. Tell curl to remove it by setting a blank
         // value if the headers passed in don't contain a content type.
-        if (!m_request_headers.contains("Content-Type"sv))
+        if (!m_request_headers->contains("Content-Type"sv))
             curl_headers = curl_slist_append(curl_headers, "Content-Type:");
     } else if (m_method == "HEAD"sv) {
         set_option(CURLOPT_NOBODY, 1L);
     }
 
-    for (auto const& header : m_request_headers.headers()) {
+    for (auto const& header : *m_request_headers) {
         if (header.value.is_empty()) {
             // curl will discard the header unless we pass the header name followed by a semicolon (i.e. we need to pass
             // "Content-Type;" instead of "Content-Type: ").
@@ -437,7 +440,7 @@ void Request::handle_complete_state()
         // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
         // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
         // such server. We ignore this error if we were actually able to download some response data.
-        if (m_curl_result_code == CURLE_RECV_ERROR && m_bytes_transferred_to_client != 0 && !m_response_headers.contains("Content-Length"sv))
+        if (m_curl_result_code == CURLE_RECV_ERROR && m_bytes_transferred_to_client != 0 && !m_response_headers->contains("Content-Length"sv))
             m_curl_result_code = CURLE_OK;
 
         if (m_curl_result_code != CURLE_OK) {
@@ -493,7 +496,7 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
         auto name = header_line.substring_view(0, *colon_index).trim_whitespace();
         auto value = header_line.substring_view(*colon_index + 1).trim_whitespace();
-        request.m_response_headers.set(name, value);
+        request.m_response_headers->append({ name, value });
     }
 
     return total_size;
@@ -576,18 +579,18 @@ void Request::transfer_headers_to_client_if_needed()
         case CacheStatus::Unknown:
             break;
         case CacheStatus::NotCached:
-            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "not-cached"sv);
+            m_response_headers->set({ TEST_CACHE_STATUS_HEADER, "not-cached"sv });
             break;
         case CacheStatus::WrittenToCache:
-            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "written-to-cache"sv);
+            m_response_headers->set({ TEST_CACHE_STATUS_HEADER, "written-to-cache"sv });
             break;
         case CacheStatus::ReadFromCache:
-            m_response_headers.set(TEST_CACHE_STATUS_HEADER, "read-from-cache"sv);
+            m_response_headers->set({ TEST_CACHE_STATUS_HEADER, "read-from-cache"sv });
             break;
         }
     }
 
-    m_client.async_headers_became_available(m_request_id, m_response_headers, m_status_code, m_reason_phrase);
+    m_client.async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase);
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()

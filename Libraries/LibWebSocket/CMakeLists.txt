@@ -6,4 +6,4 @@ set(SOURCES
 )
 
 ladybird_lib(LibWebSocket websocket)
-target_link_libraries(LibWebSocket PRIVATE LibCore LibCrypto LibTLS LibURL LibDNS)
+target_link_libraries(LibWebSocket PRIVATE LibCore LibCrypto LibHTTP LibTLS LibURL LibDNS)

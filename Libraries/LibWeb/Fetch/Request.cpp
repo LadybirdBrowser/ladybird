@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/RequestPrototype.h>
@@ -12,9 +13,7 @@
 #include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -188,7 +187,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
     // header list
     //     A copy of request’s header list.
-    auto header_list_copy = Infrastructure::HeaderList::create(vm);
+    auto header_list_copy = HTTP::HeaderList::create();
     for (auto& header : *input_request->header_list())
         header_list_copy->append(header);
     request->set_header_list(header_list_copy);
@@ -370,13 +369,13 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         auto method = *init.method;
 
         // 2. If method is not a method or method is a forbidden method, then throw a TypeError.
-        if (!Infrastructure::is_method(method))
+        if (!HTTP::is_method(method))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method has invalid value"sv };
-        if (Infrastructure::is_forbidden_method(method))
+        if (HTTP::is_forbidden_method(method))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be one of CONNECT, TRACE, or TRACK"sv };
 
         // 3. Normalize method.
-        auto normalized_method = Infrastructure::normalize_method(method);
+        auto normalized_method = HTTP::normalize_method(method);
 
         // 4. Set request’s method to method.
         request->set_method(move(normalized_method));
@@ -410,7 +409,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     // 32. If this’s request’s mode is "no-cors", then:
     if (request_object->request()->mode() == Infrastructure::Request::Mode::NoCORS) {
         // 1. If this’s request’s method is not a CORS-safelisted method, then throw a TypeError.
-        if (!Infrastructure::is_cors_safelisted_method(request_object->request()->method()))
+        if (!HTTP::is_cors_safelisted_method(request_object->request()->method()))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must be one of GET, HEAD, or POST"sv };
 
         // 2. Set this’s headers’s guard to "request-no-cors".
@@ -420,24 +419,28 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     // 33. If init is not empty, then:
     if (!init.is_empty()) {
         // 1. Let headers be a copy of this’s headers and its associated header list.
-        auto headers = Variant<HeadersInit, GC::Ref<Infrastructure::HeaderList>> { request_object->headers()->header_list() };
-
         // 2. If init["headers"] exists, then set headers to init["headers"].
-        if (init.headers.has_value())
-            headers = *init.headers;
+        auto headers = [&]() -> Variant<HeadersInit, NonnullRefPtr<HTTP::HeaderList>> {
+            if (init.headers.has_value())
+                return init.headers.value();
+            return HTTP::HeaderList::create(request_object->headers()->header_list()->headers());
+        }();
 
         // 3. Empty this’s headers’s header list.
         request_object->headers()->header_list()->clear();
 
-        // 4. If headers is a Headers object, then for each header of its header list, append header to this’s headers.
-        if (auto* header_list = headers.get_pointer<GC::Ref<Infrastructure::HeaderList>>()) {
-            for (auto& header : *header_list->ptr())
-                TRY(request_object->headers()->append(Infrastructure::Header::isomorphic_encode(header.name, header.value)));
-        }
-        // 5. Otherwise, fill this’s headers with headers.
-        else {
-            TRY(request_object->headers()->fill(headers.get<HeadersInit>()));
-        }
+        TRY(headers.visit(
+            // 4. If headers is a Headers object, then for each header of its header list, append header to this’s headers.
+            [&](NonnullRefPtr<HTTP::HeaderList> const& headers) -> WebIDL::ExceptionOr<void> {
+                for (auto const& header : *headers)
+                    TRY(request_object->headers()->append(HTTP::Header::isomorphic_encode(header.name, header.value)));
+                return {};
+            },
+            // 5. Otherwise, fill this’s headers with headers.
+            [&](HeadersInit const& headers) -> WebIDL::ExceptionOr<void> {
+                TRY(request_object->headers()->fill(headers));
+                return {};
+            }));
     }
 
     // 34. Let inputBody be input’s request’s body if input is a Request object; otherwise null.
@@ -465,7 +468,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 
         // 4. If type is non-null and this’s headers’s header list does not contain `Content-Type`, then append (`Content-Type`, type) to this’s headers.
         if (type.has_value() && !request_object->headers()->header_list()->contains("Content-Type"sv))
-            TRY(request_object->headers()->append(Infrastructure::Header::isomorphic_encode("Content-Type"sv, *type)));
+            TRY(request_object->headers()->append(HTTP::Header::isomorphic_encode("Content-Type"sv, *type)));
     }
 
     // 38. Let inputOrInitBody be initBody if it is non-null; otherwise inputBody.

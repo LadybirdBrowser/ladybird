@@ -12,6 +12,8 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
+#include <LibHTTP/HTTP.h>
+#include <LibHTTP/Header.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -88,7 +90,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         return OptionalNone {};
 
     // 1. Remove any leading and trailing HTTP whitespace from input.
-    auto trimmed_string = string.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Both);
+    auto trimmed_string = string.trim(HTTP::HTTP_WHITESPACE, TrimMode::Both);
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     GenericLexer lexer(trimmed_string);
@@ -111,7 +113,7 @@ Optional<MimeType> MimeType::parse(StringView string)
     auto subtype = lexer.consume_until(';');
 
     // 8. Remove any trailing HTTP whitespace from subtype.
-    subtype = subtype.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right);
+    subtype = subtype.trim(HTTP::HTTP_WHITESPACE, TrimMode::Right);
 
     // 9. If subtype is the empty string or does not solely contain HTTP token code points, then return failure.
     if (subtype.is_empty() || !contains_only_http_token_code_points(subtype))
@@ -126,7 +128,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         lexer.ignore(1);
 
         // 2. Collect a sequence of code points that are HTTP whitespace from input given position.
-        lexer.ignore_while(is_any_of(Fetch::Infrastructure::HTTP_WHITESPACE));
+        lexer.ignore_while(is_any_of(HTTP::HTTP_WHITESPACE));
 
         // 3. Let parameterName be the result of collecting a sequence of code points that are not U+003B (;) or U+003D (=) from input, given position.
         auto parameter_name_view = lexer.consume_until([](char ch) {
@@ -157,7 +159,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         // 8. If the code point at position within input is U+0022 ("), then:
         if (lexer.peek() == '"') {
             // 1. Set parameterValue to the result of collecting an HTTP quoted string from input, given position and the extract-value flag.
-            parameter_value = Fetch::Infrastructure::collect_an_http_quoted_string(lexer, Fetch::Infrastructure::HttpQuotedStringExtractValue::Yes);
+            parameter_value = HTTP::collect_an_http_quoted_string(lexer, HTTP::HttpQuotedStringExtractValue::Yes);
 
             // 2. Collect a sequence of code points that are not U+003B (;) from input, given position.
             lexer.ignore_until(';');
@@ -169,7 +171,7 @@ Optional<MimeType> MimeType::parse(StringView string)
             parameter_value = String::from_utf8_without_validation(lexer.consume_until(';').bytes());
 
             // 2. Remove any trailing HTTP whitespace from parameterValue.
-            parameter_value = MUST(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));
+            parameter_value = MUST(parameter_value.trim(HTTP::HTTP_WHITESPACE, TrimMode::Right));
 
             // 3. If parameterValue is the empty string, then continue.
             if (parameter_value.is_empty())

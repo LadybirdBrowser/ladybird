@@ -181,11 +181,11 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, HTTP::HeaderMap request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
+void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
-    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), m_alt_svc_cache_path, proxy_data);
+    auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), m_alt_svc_cache_path, proxy_data);
     m_active_requests.set(request_id, move(request));
 }
 
@@ -318,7 +318,7 @@ void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime sinc
         g_disk_cache->remove_entries_accessed_since(since);
 }
 
-void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, HTTP::HeaderMap additional_request_headers)
+void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();
 
@@ -338,7 +338,7 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
             connection_info.set_origin(move(origin));
             connection_info.set_protocols(move(protocols));
             connection_info.set_extensions(move(extensions));
-            connection_info.set_headers(move(additional_request_headers));
+            connection_info.set_headers(HTTP::HeaderList::create(move(additional_request_headers)));
             connection_info.set_dns_result(move(dns_result));
 
             if (auto const& path = default_certificate_path(); !path.is_empty())

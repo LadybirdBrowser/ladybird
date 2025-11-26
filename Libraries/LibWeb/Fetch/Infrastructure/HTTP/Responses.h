@@ -13,13 +13,13 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -81,8 +81,8 @@ public:
     [[nodiscard]] virtual ByteString const& status_message() const { return m_status_message; }
     virtual void set_status_message(ByteString status_message) { m_status_message = move(status_message); }
 
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const { return m_header_list; }
-    virtual void set_header_list(GC::Ref<HeaderList> header_list) { m_header_list = header_list; }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const { return m_header_list; }
+    virtual void set_header_list(NonnullRefPtr<HTTP::HeaderList> header_list) { m_header_list = move(header_list); }
 
     [[nodiscard]] virtual GC::Ptr<Body> body() const { return m_body; }
     virtual void set_body(GC::Ptr<Body> body) { m_body = body; }
@@ -130,7 +130,7 @@ public:
     MonotonicTime response_time() const { return m_response_time; }
 
 protected:
-    explicit Response(GC::Ref<HeaderList>);
+    explicit Response(NonnullRefPtr<HTTP::HeaderList>);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -157,7 +157,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-response-header-list
     // A response has an associated header list (a header list). Unless stated otherwise it is empty.
-    GC::Ref<HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 
     // https://fetch.spec.whatwg.org/#concept-response-body
     // A response has an associated body (null or a body). Unless stated otherwise it is null.
@@ -215,7 +215,7 @@ class FilteredResponse : public Response {
     GC_CELL(FilteredResponse, Response);
 
 public:
-    FilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
+    FilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
     virtual ~FilteredResponse() = 0;
 
     [[nodiscard]] virtual Type type() const override { return m_internal_response->type(); }
@@ -233,8 +233,8 @@ public:
     [[nodiscard]] virtual ByteString const& status_message() const override { return m_internal_response->status_message(); }
     virtual void set_status_message(ByteString status_message) override { m_internal_response->set_status_message(move(status_message)); }
 
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_internal_response->header_list(); }
-    virtual void set_header_list(GC::Ref<HeaderList> header_list) override { m_internal_response->set_header_list(header_list); }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_internal_response->header_list(); }
+    virtual void set_header_list(NonnullRefPtr<HTTP::HeaderList> header_list) override { m_internal_response->set_header_list(header_list); }
 
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return m_internal_response->body(); }
     virtual void set_body(GC::Ptr<Body> body) override { m_internal_response->set_body(body); }
@@ -276,14 +276,12 @@ public:
     [[nodiscard]] static GC::Ref<BasicFilteredResponse> create(JS::VM&, GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::Basic; }
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
 
 private:
-    BasicFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
+    BasicFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
-    GC::Ref<HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-cors
@@ -295,14 +293,12 @@ public:
     [[nodiscard]] static GC::Ref<CORSFilteredResponse> create(JS::VM&, GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::CORS; }
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
 
 private:
-    CORSFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
+    CORSFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
-    GC::Ref<HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-opaque
@@ -318,17 +314,15 @@ public:
     [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_url_list; }
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
 private:
-    OpaqueFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
-
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    OpaqueFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
 
     Vector<URL::URL> m_url_list;
     ByteString const m_method;
-    GC::Ref<HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-opaque-redirect
@@ -342,16 +336,14 @@ public:
     [[nodiscard]] virtual Type type() const override { return Type::OpaqueRedirect; }
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ByteString const& status_message() const override { return m_method; }
-    [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
+    virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
     [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
 private:
-    OpaqueRedirectFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
-
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    OpaqueRedirectFilteredResponse(GC::Ref<Response>, NonnullRefPtr<HTTP::HeaderList>);
 
     ByteString const m_method;
-    GC::Ref<HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 };
 
 }

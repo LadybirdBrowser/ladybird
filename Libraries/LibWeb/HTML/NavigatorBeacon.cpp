@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Beacon URL {} must be either http:// or https://.", url)) };
 
     // 4. Let headerList be an empty list.
-    auto header_list = Fetch::Infrastructure::HeaderList::create(vm);
+    auto header_list = HTTP::HeaderList::create();
 
     // 5. Let corsMode be "no-cors".
     auto cors_mode = Fetch::Infrastructure::Request::Mode::NoCORS;
@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(String const& url,
             cors_mode = Fetch::Infrastructure::Request::Mode::CORS;
 
             // If contentType value is a CORS-safelisted request-header value for the Content-Type header, set corsMode to "no-cors".
-            auto content_type_header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, content_type.value());
+            auto content_type_header = HTTP::Header::isomorphic_encode("Content-Type"sv, content_type.value());
             if (Fetch::Infrastructure::is_cors_safelisted_request_header(content_type_header))
                 cors_mode = Fetch::Infrastructure::Request::Mode::NoCORS;
 

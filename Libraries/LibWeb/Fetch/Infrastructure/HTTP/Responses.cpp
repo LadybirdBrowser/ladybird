@@ -15,6 +15,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -24,8 +25,13 @@ GC_DEFINE_ALLOCATOR(CORSFilteredResponse);
 GC_DEFINE_ALLOCATOR(OpaqueFilteredResponse);
 GC_DEFINE_ALLOCATOR(OpaqueRedirectFilteredResponse);
 
-Response::Response(GC::Ref<HeaderList> header_list)
-    : m_header_list(header_list)
+GC::Ref<Response> Response::create(JS::VM& vm)
+{
+    return vm.heap().allocate<Response>(HTTP::HeaderList::create());
+}
+
+Response::Response(NonnullRefPtr<HTTP::HeaderList> header_list)
+    : m_header_list(move(header_list))
     , m_response_time(MonotonicTime::now())
 {
 }
@@ -33,13 +39,7 @@ Response::Response(GC::Ref<HeaderList> header_list)
 void Response::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
     visitor.visit(m_body);
-}
-
-GC::Ref<Response> Response::create(JS::VM& vm)
-{
-    return vm.heap().allocate<Response>(HeaderList::create(vm));
 }
 
 // https://fetch.spec.whatwg.org/#ref-for-concept-network-error%E2%91%A3
@@ -341,8 +341,8 @@ u64 Response::stale_while_revalidate_lifetime() const
 
 // Non-standard
 
-FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
-    : Response(header_list)
+FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
+    : Response(move(header_list))
     , m_internal_response(internal_response)
 {
 }
@@ -361,25 +361,20 @@ GC::Ref<BasicFilteredResponse> BasicFilteredResponse::create(JS::VM& vm, GC::Ref
 {
     // A basic filtered response is a filtered response whose type is "basic" and header list excludes
     // any headers in internal response’s header list whose name is a forbidden response-header name.
-    auto header_list = HeaderList::create(vm);
+    auto header_list = HTTP::HeaderList::create();
+
     for (auto const& header : *internal_response->header_list()) {
-        if (!is_forbidden_response_header_name(header.name))
+        if (!HTTP::is_forbidden_response_header_name(header.name))
             header_list->append(header);
     }
 
-    return vm.heap().allocate<BasicFilteredResponse>(internal_response, header_list);
+    return vm.heap().allocate<BasicFilteredResponse>(internal_response, move(header_list));
 }
 
-BasicFilteredResponse::BasicFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
+BasicFilteredResponse::BasicFilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
-    , m_header_list(header_list)
+    , m_header_list(move(header_list))
 {
-}
-
-void BasicFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
 }
 
 GC::Ref<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
@@ -393,7 +388,7 @@ GC::Ref<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, GC::Ref<R
     for (auto const& header_name : internal_response->cors_exposed_header_name_list())
         cors_exposed_header_name_list.unchecked_append(header_name);
 
-    auto header_list = HeaderList::create(vm);
+    auto header_list = HTTP::HeaderList::create();
     for (auto const& header : *internal_response->header_list()) {
         if (is_cors_safelisted_response_header_name(header.name, cors_exposed_header_name_list))
             header_list->append(header);
@@ -402,54 +397,36 @@ GC::Ref<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, GC::Ref<R
     return vm.heap().allocate<CORSFilteredResponse>(internal_response, header_list);
 }
 
-CORSFilteredResponse::CORSFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
+CORSFilteredResponse::CORSFilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
-    , m_header_list(header_list)
+    , m_header_list(move(header_list))
 {
-}
-
-void CORSFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
 }
 
 GC::Ref<OpaqueFilteredResponse> OpaqueFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // An opaque filtered response is a filtered response whose type is "opaque", URL list is the empty list,
     // status is 0, status message is the empty byte sequence, header list is empty, and body is null.
-    return vm.heap().allocate<OpaqueFilteredResponse>(internal_response, HeaderList::create(vm));
+    return vm.heap().allocate<OpaqueFilteredResponse>(internal_response, HTTP::HeaderList::create());
 }
 
-OpaqueFilteredResponse::OpaqueFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
+OpaqueFilteredResponse::OpaqueFilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
-    , m_header_list(header_list)
+    , m_header_list(move(header_list))
 {
-}
-
-void OpaqueFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
 }
 
 GC::Ref<OpaqueRedirectFilteredResponse> OpaqueRedirectFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // An opaque-redirect filtered response is a filtered response whose type is "opaqueredirect",
     // status is 0, status message is the empty byte sequence, header list is empty, and body is null.
-    return vm.heap().allocate<OpaqueRedirectFilteredResponse>(internal_response, HeaderList::create(vm));
+    return vm.heap().allocate<OpaqueRedirectFilteredResponse>(internal_response, HTTP::HeaderList::create());
 }
 
-OpaqueRedirectFilteredResponse::OpaqueRedirectFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
+OpaqueRedirectFilteredResponse::OpaqueRedirectFilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
-    , m_header_list(header_list)
+    , m_header_list(move(header_list))
 {
-}
-
-void OpaqueRedirectFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
 }
 
 }

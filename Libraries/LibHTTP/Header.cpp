@@ -1,35 +1,26 @@
 /*
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022, Kenneth Myhra <kennethmyhra@serenityos.org>
- * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/CharacterTypes.h>
-#include <AK/Checked.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
-#include <AK/StringUtils.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibHTTP/HTTP.h>
+#include <LibHTTP/Header.h>
+#include <LibHTTP/Method.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibRegex/Regex.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
-#include <LibWeb/Loader/ResourceLoader.h>
 
-namespace Web::Fetch::Infrastructure {
-
-GC_DEFINE_ALLOCATOR(HeaderList);
+namespace HTTP {
 
 Header Header::isomorphic_encode(StringView name, StringView value)
 {
-    return {
-        .name = TextCodec::isomorphic_encode(name),
-        .value = TextCodec::isomorphic_encode(value),
-    };
+    return { TextCodec::isomorphic_encode(name), TextCodec::isomorphic_encode(value) };
 }
 
 // https://fetch.spec.whatwg.org/#extract-header-values
@@ -56,275 +47,6 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
 
     // This always ignores the ABNF rules for now and returns the header value as a single list item.
     return Vector { value };
-}
-
-GC::Ref<HeaderList> HeaderList::create(JS::VM& vm)
-{
-    return vm.heap().allocate<HeaderList>();
-}
-
-// https://fetch.spec.whatwg.org/#header-list-contains
-bool HeaderList::contains(StringView name) const
-{
-    // A header list list contains a header name name if list contains a header whose name is a byte-case-insensitive
-    // match for name.
-    return any_of(*this, [&](auto const& header) {
-        return header.name.equals_ignoring_ascii_case(name);
-    });
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-get
-Optional<ByteString> HeaderList::get(StringView name) const
-{
-    // To get a header name name from a header list list, run these steps:
-
-    // 1. If list does not contain name, then return null.
-    if (!contains(name))
-        return {};
-
-    // 2. Return the values of all headers in list whose name is a byte-case-insensitive match for name, separated from
-    //    each other by 0x2C 0x20, in order.
-    StringBuilder builder;
-    bool first = true;
-
-    for (auto const& header : *this) {
-        if (!header.name.equals_ignoring_ascii_case(name))
-            continue;
-
-        if (!first)
-            builder.append(", "sv);
-
-        builder.append(header.value);
-        first = false;
-    }
-
-    return builder.to_byte_string();
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-get-decode-split
-Optional<Vector<String>> HeaderList::get_decode_and_split(StringView name) const
-{
-    // To get, decode, and split a header name name from header list list, run these steps:
-
-    // 1. Let value be the result of getting name from list.
-    auto value = get(name);
-
-    // 2. If value is null, then return null.
-    if (!value.has_value())
-        return {};
-
-    // 3. Return the result of getting, decoding, and splitting value.
-    return get_decode_and_split_header_value(*value);
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-append
-void HeaderList::append(Header header)
-{
-    // To append a header (name, value) to a header list list, run these steps:
-
-    // 1. If list contains name, then set name to the first such header’s name.
-    // NOTE: This reuses the casing of the name of the header already in list, if any. If there are multiple matched
-    //       headers their names will all be identical.
-    auto matching_header = first_matching([&](auto const& existing_header) {
-        return existing_header.name.equals_ignoring_ascii_case(header.name);
-    });
-
-    if (matching_header.has_value())
-        header.name = matching_header->name;
-
-    // 2. Append (name, value) to list.
-    Vector::append(move(header));
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-delete
-void HeaderList::delete_(StringView name)
-{
-    // To delete a header name name from a header list list, remove all headers whose name is a byte-case-insensitive
-    // match for name from list.
-    remove_all_matching([&](auto const& header) {
-        return header.name.equals_ignoring_ascii_case(name);
-    });
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-set
-void HeaderList::set(Header header)
-{
-    // To set a header (name, value) in a header list list, run these steps:
-
-    // 1. If list contains name, then set the value of the first such header to value and remove the others.
-    auto it = find_if([&](auto const& existing_header) {
-        return existing_header.name.equals_ignoring_ascii_case(header.name);
-    });
-
-    if (it != end()) {
-        it->value = move(header.value);
-
-        size_t i = 0;
-        remove_all_matching([&](auto const& existing_header) {
-            if (i++ <= it.index())
-                return false;
-
-            return existing_header.name.equals_ignoring_ascii_case(it->name);
-        });
-    }
-    // 2. Otherwise, append header (name, value) to list.
-    else {
-        append(move(header));
-    }
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-combine
-void HeaderList::combine(Header header)
-{
-    // To combine a header (name, value) in a header list list, run these steps:
-
-    // 1. If list contains name, then set the value of the first such header to its value, followed by 0x2C 0x20,
-    //    followed by value.
-    auto matching_header = first_matching([&](auto const& existing_header) {
-        return existing_header.name.equals_ignoring_ascii_case(header.name);
-    });
-
-    if (matching_header.has_value()) {
-        matching_header->value = ByteString::formatted("{}, {}", matching_header->value, header.value);
-    }
-    // 2. Otherwise, append (name, value) to list.
-    else {
-        append(move(header));
-    }
-}
-
-// https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
-Vector<Header> HeaderList::sort_and_combine() const
-{
-    // To sort and combine a header list list, run these steps:
-
-    // 1. Let headers be an empty list of headers with the key being the name and value the value.
-    Vector<Header> headers;
-
-    // 2. Let names be the result of convert header names to a sorted-lowercase set with all the names of the headers
-    //    in list.
-    Vector<ByteString> names_list;
-    names_list.ensure_capacity(size());
-
-    for (auto const& header : *this)
-        names_list.unchecked_append(header.name);
-
-    auto names = convert_header_names_to_a_sorted_lowercase_set(names_list);
-
-    // 3. For each name of names:
-    for (auto& name : names) {
-        // 1. If name is `set-cookie`, then:
-        if (name == "set-cookie"sv) {
-            // 1. Let values be a list of all values of headers in list whose name is a byte-case-insensitive match for
-            //    name, in order.
-            // 2. For each value of values:
-            for (auto const& [header_name, value] : *this) {
-                if (header_name.equals_ignoring_ascii_case(name)) {
-                    // 1. Append (name, value) to headers.
-                    headers.append({ name, value });
-                }
-            }
-        }
-        // 2. Otherwise:
-        else {
-            // 1. Let value be the result of getting name from list.
-            auto value = get(name);
-
-            // 2. Assert: value is not null.
-            VERIFY(value.has_value());
-
-            // 3. Append (name, value) to headers.
-            headers.empend(move(name), value.release_value());
-        }
-    }
-
-    // 4. Return headers.
-    return headers;
-}
-
-// https://fetch.spec.whatwg.org/#extract-header-list-values
-Variant<Empty, Vector<ByteString>, HeaderList::ExtractHeaderParseFailure> HeaderList::extract_header_list_values(StringView name) const
-{
-    // 1. If list does not contain name, then return null.
-    if (!contains(name))
-        return {};
-
-    // FIXME: 2. If the ABNF for name allows a single header and list contains more than one, then return failure.
-    // NOTE: If different error handling is needed, extract the desired header first.
-
-    // 3. Let values be an empty list.
-    Vector<ByteString> values;
-
-    // 4. For each header header list contains whose name is name:
-    for (auto const& header : *this) {
-        if (!header.name.equals_ignoring_ascii_case(name))
-            continue;
-
-        // 1. Let extract be the result of extracting header values from header.
-        auto extract = header.extract_header_values();
-
-        // 2. If extract is failure, then return failure.
-        if (!extract.has_value())
-            return ExtractHeaderParseFailure {};
-
-        // 3. Append each value in extract, in order, to values.
-        values.extend(extract.release_value());
-    }
-
-    // 5. Return values.
-    return values;
-}
-
-// https://fetch.spec.whatwg.org/#header-list-extract-a-length
-Variant<Empty, u64, HeaderList::ExtractLengthFailure> HeaderList::extract_length() const
-{
-    // 1. Let values be the result of getting, decoding, and splitting `Content-Length` from headers.
-    auto values = get_decode_and_split("Content-Length"sv);
-
-    // 2. If values is null, then return null.
-    if (!values.has_value())
-        return {};
-
-    // 3. Let candidateValue be null.
-    Optional<String> candidate_value;
-
-    // 4. For each value of values:
-    for (auto const& value : *values) {
-        // 1. If candidateValue is null, then set candidateValue to value.
-        if (!candidate_value.has_value()) {
-            candidate_value = value;
-        }
-        // 2. Otherwise, if value is not candidateValue, return failure.
-        else if (candidate_value.value() != value) {
-            return ExtractLengthFailure {};
-        }
-    }
-
-    // 5. If candidateValue is the empty string or has a code point that is not an ASCII digit, then return null.
-    // 6. Return candidateValue, interpreted as decimal number.
-    // FIXME: This will return an empty Optional if it cannot fit into a u64, is this correct?
-    auto result = candidate_value->to_number<u64>(TrimWhitespace::No);
-    if (!result.has_value())
-        return {};
-
-    return *result;
-}
-
-// Non-standard
-Vector<ByteString> HeaderList::unique_names() const
-{
-    Vector<ByteString> header_names_set;
-    HashTable<StringView, CaseInsensitiveStringTraits> header_names_seen;
-
-    for (auto const& header : *this) {
-        if (header_names_seen.contains(header.name))
-            continue;
-
-        header_names_set.append(header.name);
-        header_names_seen.set(header.name);
-    }
-
-    return header_names_set;
 }
 
 // https://fetch.spec.whatwg.org/#header-name
@@ -368,7 +90,6 @@ ByteString normalize_header_value(StringView potential_value)
 // https://fetch.spec.whatwg.org/#forbidden-header-name
 bool is_forbidden_request_header(Header const& header)
 {
-    // A header (name, value) is forbidden request-header if these steps return true:
     auto const& [name, value] = header;
 
     // 1. If name is a byte-case-insensitive match for one of:
@@ -441,8 +162,6 @@ bool is_forbidden_response_header_name(StringView header_name)
 // https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
 Vector<String> get_decode_and_split_header_value(StringView value)
 {
-    // To get, decode, and split a header value value, run these steps:
-
     // 1. Let input be the result of isomorphic decoding value.
     auto input = TextCodec::isomorphic_decode(value);
 
@@ -496,8 +215,6 @@ Vector<String> get_decode_and_split_header_value(StringView value)
 // https://fetch.spec.whatwg.org/#convert-header-names-to-a-sorted-lowercase-set
 Vector<ByteString> convert_header_names_to_a_sorted_lowercase_set(ReadonlySpan<ByteString> header_names)
 {
-    // To convert header names to a sorted-lowercase set, given a list of names headerNames, run these steps:
-
     // 1. Let headerNamesSet be a new ordered set.
     HashTable<StringView, CaseInsensitiveStringTraits> header_names_seen;
     Vector<ByteString> header_names_set;
@@ -530,10 +247,10 @@ ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length)
 }
 
 // https://fetch.spec.whatwg.org/#simple-range-header-value
-Optional<RangeHeaderValue> parse_single_range_header_value(StringView const value, bool const allow_whitespace)
+Optional<RangeHeaderValue> parse_single_range_header_value(StringView value, bool allow_whitespace)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto const data = TextCodec::isomorphic_decode(value);
+    auto data = TextCodec::isomorphic_decode(value);
 
     // 2. If data does not start with "bytes", then return failure.
     if (!data.starts_with_bytes("bytes"sv))
@@ -559,7 +276,8 @@ Optional<RangeHeaderValue> parse_single_range_header_value(StringView const valu
     // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits, from data given position.
     auto range_start = lexer.consume_while(is_ascii_digit);
 
-    // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string; otherwise null.
+    // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string;
+    //    otherwise null.
     auto range_start_value = range_start.to_number<u64>();
 
     // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
@@ -589,20 +307,33 @@ Optional<RangeHeaderValue> parse_single_range_header_value(StringView const valu
     if (!range_end_value.has_value() && !range_start_value.has_value())
         return {};
 
-    // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then return failure.
+    // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then
+    //     return failure.
     if (range_start_value.has_value() && range_end_value.has_value() && *range_start_value > *range_end_value)
         return {};
 
     // 19. Return (rangeStartValue, rangeEndValue).
-    return RangeHeaderValue { move(range_start_value), move(range_end_value) };
+    return RangeHeaderValue { range_start_value, range_end_value };
 }
 
-// https://fetch.spec.whatwg.org/#default-user-agent-value
-ByteString const& default_user_agent_value()
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, HTTP::Header const& header)
 {
-    // A default `User-Agent` value is an implementation-defined header value for the `User-Agent` header.
-    static auto user_agent = ResourceLoader::the().user_agent().to_byte_string();
-    return user_agent;
+    TRY(encoder.encode(header.name));
+    TRY(encoder.encode(header.value));
+    return {};
+}
+
+template<>
+ErrorOr<HTTP::Header> decode(Decoder& decoder)
+{
+    auto name = TRY(decoder.decode<ByteString>());
+    auto value = TRY(decoder.decode<ByteString>());
+    return HTTP::Header { move(name), move(value) };
 }
 
 }

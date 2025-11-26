@@ -8,15 +8,15 @@
 
 #include <AK/Checked.h>
 #include <LibHTTP/Header.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#cors-safelisted-request-header
-bool is_cors_safelisted_request_header(Header const& header)
+bool is_cors_safelisted_request_header(HTTP::Header const& header)
 {
     auto const& [name, value] = header;
 
@@ -61,7 +61,7 @@ bool is_cors_safelisted_request_header(Header const& header)
     // `range`
     else if (name.equals_ignoring_ascii_case("range"sv)) {
         // 1. Let rangeValue be the result of parsing a single range header value given value and false.
-        auto range_value = parse_single_range_header_value(value, false);
+        auto range_value = HTTP::parse_single_range_header_value(value, false);
 
         // 2. If rangeValue is failure, then return false.
         if (!range_value.has_value())
@@ -93,7 +93,7 @@ bool is_cors_unsafe_request_header_byte(u8 byte)
 }
 
 // https://fetch.spec.whatwg.org/#cors-unsafe-request-header-names
-Vector<ByteString> get_cors_unsafe_header_names(HeaderList const& headers)
+Vector<ByteString> get_cors_unsafe_header_names(HTTP::HeaderList const& headers)
 {
     // 1. Let unsafeNames be a new list.
     Vector<ByteString> unsafe_names;
@@ -124,7 +124,7 @@ Vector<ByteString> get_cors_unsafe_header_names(HeaderList const& headers)
         unsafe_names.extend(move(potentially_unsafe_names));
 
     // 6. Return the result of convert header names to a sorted-lowercase set with unsafeNames.
-    return convert_header_names_to_a_sorted_lowercase_set(unsafe_names.span());
+    return HTTP::convert_header_names_to_a_sorted_lowercase_set(unsafe_names.span());
 }
 
 // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
@@ -164,7 +164,7 @@ bool is_cors_safelisted_response_header_name(StringView header_name, ReadonlySpa
                "Pragma"sv)
         || any_of(list, [&](auto list_header_name) {
                return header_name.equals_ignoring_ascii_case(list_header_name)
-                   && !is_forbidden_response_header_name(list_header_name);
+                   && !HTTP::is_forbidden_response_header_name(list_header_name);
            });
 }
 
@@ -184,7 +184,7 @@ bool is_no_cors_safelisted_request_header_name(StringView header_name)
 }
 
 // https://fetch.spec.whatwg.org/#no-cors-safelisted-request-header
-bool is_no_cors_safelisted_request_header(Header const& header)
+bool is_no_cors_safelisted_request_header(HTTP::Header const& header)
 {
     // 1. If name is not a no-CORS-safelisted request-header name, then return false.
     if (!is_no_cors_safelisted_request_header_name(header.name))

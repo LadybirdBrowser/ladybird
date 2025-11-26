@@ -72,7 +72,7 @@ void Autocomplete::query_autocomplete_engine(String query)
     m_query = move(query);
 
     m_request->set_buffered_request_finished_callback(
-        [this, engine = engine.release_value()](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
+        [this, engine = engine.release_value()](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (network_error.has_value()) {

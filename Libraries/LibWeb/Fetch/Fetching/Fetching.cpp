@@ -12,6 +12,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTextCodec/Encoder.h>
@@ -33,9 +34,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
@@ -213,7 +212,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         }
 
         // 4. Append (`Accept`, value) to request’s header list.
-        auto header = Infrastructure::Header::isomorphic_encode("Accept"sv, value);
+        auto header = HTTP::Header::isomorphic_encode("Accept"sv, value);
         request.header_list()->append(move(header));
     }
 
@@ -223,7 +222,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         StringBuilder accept_language;
         accept_language.join(","sv, ResourceLoader::the().preferred_languages());
 
-        auto header = Infrastructure::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
+        auto header = HTTP::Header::isomorphic_encode("Accept-Language"sv, accept_language.string_view());
         request.header_list()->append(move(header));
     }
 
@@ -438,7 +437,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         if (
             request->use_cors_preflight()
             || (request->unsafe_request()
-                && (!Infrastructure::is_cors_safelisted_method(request->method())
+                && (!HTTP::is_cors_safelisted_method(request->method())
                     || !Infrastructure::get_cors_unsafe_header_names(request->header_list()).is_empty()))) {
             // 1. Set request’s response tainting to "cors".
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::CORS);
@@ -663,8 +662,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //    The user agent may decide to expose `Server-Timing` headers to non-secure contexts requests as well.
     auto client = fetch_params.request()->client();
     if (!response.is_network_error() && client != nullptr && HTML::is_secure_context(*client)) {
-        auto server_timing_headers = response.header_list()->get_decode_and_split("Server-Timing"sv);
-        if (server_timing_headers.has_value())
+        if (auto server_timing_headers = response.header_list()->get_decode_and_split("Server-Timing"sv); server_timing_headers.has_value())
             timing_info->set_server_timing_headers(server_timing_headers.release_value());
     }
 
@@ -921,10 +919,10 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             response->set_body(body_with_type.body);
 
             // 4. Set response’s header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
-            auto content_length_header = Infrastructure::Header::isomorphic_encode("Content-Length"sv, serialized_full_length);
+            auto content_length_header = HTTP::Header::isomorphic_encode("Content-Length"sv, serialized_full_length);
             response->header_list()->append(move(content_length_header));
 
-            auto content_type_header = Infrastructure::Header::isomorphic_encode("Content-Type"sv, type);
+            auto content_type_header = HTTP::Header::isomorphic_encode("Content-Type"sv, type);
             response->header_list()->append(move(content_type_header));
         }
         // 14. Otherwise:
@@ -936,7 +934,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             auto const range_header = request->header_list()->get("Range"sv).value_or({});
 
             // 3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
-            auto maybe_range_value = Infrastructure::parse_single_range_header_value(range_header, true);
+            auto maybe_range_value = HTTP::parse_single_range_header_value(range_header, true);
 
             // 4. If rangeValue is failure, then return a network error.
             if (!maybe_range_value.has_value())
@@ -979,7 +977,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             auto serialized_sliced_length = String::number(sliced_blob->size());
 
             // 12. Let contentRange be the result of invoking build a content range given rangeStart, rangeEnd, and fullLength.
-            auto content_range = Infrastructure::build_content_range(*range_start, *range_end, full_length);
+            auto content_range = HTTP::build_content_range(*range_start, *range_end, full_length);
 
             // 13. Set response’s status to 206.
             response->set_status(206);
@@ -990,15 +988,15 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             // 15. Set response’s header list to «
 
             // (`Content-Length`, serializedSlicedLength),
-            auto content_length_header = Infrastructure::Header::isomorphic_encode("Content-Length"sv, serialized_sliced_length);
+            auto content_length_header = HTTP::Header::isomorphic_encode("Content-Length"sv, serialized_sliced_length);
             response->header_list()->append(move(content_length_header));
 
             // (`Content-Type`, type),
-            auto content_type_header = Infrastructure::Header::isomorphic_encode("Content-Type"sv, type);
+            auto content_type_header = HTTP::Header::isomorphic_encode("Content-Type"sv, type);
             response->header_list()->append(move(content_type_header));
 
             // (`Content-Range`, contentRange) ».
-            auto content_range_header = Infrastructure::Header::isomorphic_encode("Content-Range"sv, content_range);
+            auto content_range_header = HTTP::Header::isomorphic_encode("Content-Range"sv, content_range);
             response->header_list()->append(move(content_range_header));
         }
 
@@ -1022,7 +1020,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         auto response = Infrastructure::Response::create(vm);
         response->set_status_message("OK"sv);
 
-        auto header = Infrastructure::Header::isomorphic_encode("Content-Type"sv, mime_type);
+        auto header = HTTP::Header::isomorphic_encode("Content-Type"sv, mime_type);
         response->header_list()->append(move(header));
 
         response->set_body(Infrastructure::byte_sequence_as_body(realm, data_url_struct.value().body));
@@ -1137,7 +1135,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 // - There is no method cache entry match for request’s method using request, and either request’s
                 //   method is not a CORS-safelisted method or request’s use-CORS-preflight flag is set.
                 //   FIXME: We currently have no cache, so there will always be no method cache entry.
-                (!Infrastructure::is_cors_safelisted_method(request->method()) || request->use_cors_preflight())
+                (!HTTP::is_cors_safelisted_method(request->method()) || request->use_cors_preflight())
                 // - There is at least one item in the CORS-unsafe request-header names with request’s header list for
                 //   which there is no header-name cache entry match using request.
                 //   FIXME: We currently have no cache, so there will always be no header-name cache entry.
@@ -1418,7 +1416,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
 class CachePartition : public RefCounted<CachePartition> {
 public:
     // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-    GC::Ptr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, StringView method, Vector<Infrastructure::Header> const& headers, Vector<GC::Ptr<Infrastructure::Response>>& initial_set_of_stored_responses) const
+    GC::Ptr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, StringView method, HTTP::HeaderList const& headers, Vector<GC::Ptr<Infrastructure::Response>>& initial_set_of_stored_responses) const
     {
         // When presented with a request, a cache MUST NOT reuse a stored response unless:
 
@@ -1569,7 +1567,7 @@ private:
     }
 
     // https://httpwg.org/specs/rfc9111.html#update
-    void update_stored_header_fields(Infrastructure::Response const& response, Infrastructure::HeaderList& headers)
+    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderList& headers)
     {
         for (auto const& header : *response.header_list()) {
             if (!is_exempted_for_updating(header.name))
@@ -1583,7 +1581,7 @@ private:
     }
 
     // https://httpwg.org/specs/rfc9111.html#storing.fields
-    void store_header_and_trailer_fields(Infrastructure::Response const& response, Web::Fetch::Infrastructure::HeaderList& headers)
+    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderList& headers)
     {
         for (auto const& header : *response.header_list()) {
             if (!is_exempted_for_storage(header.name))
@@ -1922,7 +1920,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
                 // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
                 if (!cookies.is_empty()) {
-                    auto header = Infrastructure::Header::isomorphic_encode("Cookie"sv, cookies);
+                    auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookies);
                     http_request->header_list()->append(move(header));
                 }
             }
@@ -1950,7 +1948,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // 4. If authorizationValue is non-null, then append (`Authorization`, authorizationValue) to
                 //    httpRequest’s header list.
                 if (authorization_value.has_value()) {
-                    auto header = Infrastructure::Header::isomorphic_encode("Authorization"sv, *authorization_value);
+                    auto header = HTTP::Header::isomorphic_encode("Authorization"sv, *authorization_value);
                     http_request->header_list()->append(move(header));
                 }
             }
@@ -2019,12 +2017,12 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
                         // 1. If storedResponse’s header list contains `ETag`, then append (`If-None-Match`, `ETag`'s value) to httpRequest’s header list.
                         if (auto etag = stored_response->header_list()->get("ETag"sv); etag.has_value()) {
-                            http_request->header_list()->append(Infrastructure::Header::isomorphic_encode("If-None-Match"sv, *etag));
+                            http_request->header_list()->append(HTTP::Header::isomorphic_encode("If-None-Match"sv, *etag));
                         }
 
                         // 2. If storedResponse’s header list contains `Last-Modified`, then append (`If-Modified-Since`, `Last-Modified`'s value) to httpRequest’s header list.
                         if (auto last_modified = stored_response->header_list()->get("Last-Modified"sv); last_modified.has_value()) {
-                            http_request->header_list()->append(Infrastructure::Header::isomorphic_encode("If-Modified-Since"sv, *last_modified));
+                            http_request->header_list()->append(HTTP::Header::isomorphic_encode("If-Modified-Since"sv, *last_modified));
                         }
                     }
                     // 3. Otherwise, set response to storedResponse and set response’s cache state to "local".
@@ -2285,14 +2283,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     // NOTE: Using LoadRequest::create_for_url_on_page here will unconditionally add cookies as long as there's a page available.
     //       However, it is up to http_network_or_cache_fetch to determine if cookies should be added to the request.
-    LoadRequest load_request;
+    LoadRequest load_request { request->header_list() };
     load_request.set_url(request->current_url());
     load_request.set_page(page);
     load_request.set_method(request->method());
     load_request.set_store_set_cookie_headers(include_credentials == IncludeCredentials::Yes);
-
-    for (auto const& header : *request->header_list())
-        load_request.set_header(header.name, header.value);
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
         (*body)->source().visit(
@@ -2343,7 +2338,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2430,7 +2425,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     preflight->header_list()->append({ "Accept"sv, "*/*"sv });
 
     // 3. Append (`Access-Control-Request-Method`, request’s method) to preflight’s header list.
-    auto temp_header = Infrastructure::Header::isomorphic_encode("Access-Control-Request-Method"sv, request.method());
+    auto temp_header = HTTP::Header::isomorphic_encode("Access-Control-Request-Method"sv, request.method());
     preflight->header_list()->append(move(temp_header));
 
     // 4. Let headers be the CORS-unsafe request-header names with request’s header list.
@@ -2470,11 +2465,11 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
             auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Allow-Headers"sv);
 
             // 3. If either methods or headerNames is failure, return a network error.
-            if (methods_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
+            if (methods_or_failure.has<HTTP::HeaderList::ExtractHeaderParseFailure>()) {
                 returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "The Access-Control-Allow-Methods in the CORS-preflight response is syntactically invalid"_string));
                 return;
             }
-            if (header_names_or_failure.has<Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
+            if (header_names_or_failure.has<HTTP::HeaderList::ExtractHeaderParseFailure>()) {
                 returned_pending_response->resolve(Infrastructure::Response::network_error(vm, "The Access-Control-Allow-Headers in the CORS-preflight response is syntactically invalid"_string));
                 return;
             }
@@ -2496,7 +2491,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
             // 5. If request’s method is not in methods, request’s method is not a CORS-safelisted method, and request’s credentials mode
             //    is "include" or methods does not contain `*`, then return a network error.
-            if (!methods.contains_slow(request.method()) && !Infrastructure::is_cors_safelisted_method(request.method())) {
+            if (!methods.contains_slow(request.method()) && !HTTP::is_cors_safelisted_method(request.method())) {
                 if (request.credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
                     returned_pending_response->resolve(Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header (the header may be missing). '*' is not allowed as the main request includes credentials.", request.method()))));
                     return;

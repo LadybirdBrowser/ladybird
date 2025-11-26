@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -14,7 +14,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#determine-nosniff
-bool determine_nosniff(HeaderList const& list)
+bool determine_nosniff(HTTP::HeaderList const& list)
 {
     // 1. Let values be the result of getting, decoding, and splitting `X-Content-Type-Options` from list.
     auto values = list.get_decode_and_split("X-Content-Type-Options"sv.bytes());

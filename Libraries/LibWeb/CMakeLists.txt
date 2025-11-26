@@ -380,8 +380,6 @@ set(SOURCES
     Fetch/Infrastructure/HTTP.cpp
     Fetch/Infrastructure/HTTP/Bodies.cpp
     Fetch/Infrastructure/HTTP/CORS.cpp
-    Fetch/Infrastructure/HTTP/Headers.cpp
-    Fetch/Infrastructure/HTTP/Methods.cpp
     Fetch/Infrastructure/HTTP/MIME.cpp
     Fetch/Infrastructure/HTTP/Requests.cpp
     Fetch/Infrastructure/HTTP/Responses.cpp

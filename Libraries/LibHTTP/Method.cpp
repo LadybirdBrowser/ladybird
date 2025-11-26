@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibHTTP/Method.h>
 #include <LibRegex/Regex.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 
-namespace Web::Fetch::Infrastructure {
+namespace HTTP {
 
 // https://fetch.spec.whatwg.org/#concept-method
 bool is_method(StringView method)

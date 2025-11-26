@@ -6,14 +6,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibHTTP/HeaderList.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-header-extract-mime-type
-Optional<MimeSniff::MimeType> extract_mime_type(HeaderList const& headers)
+Optional<MimeSniff::MimeType> extract_mime_type(HTTP::HeaderList const& headers)
 {
     // 1. Let charset be null.
     Optional<String> charset;

@@ -8,12 +8,11 @@
 
 #include <AK/ByteString.h>
 #include <AK/StringView.h>
-#include <LibWeb/Export.h>
 
-namespace Web::Fetch::Infrastructure {
+namespace HTTP {
 
 [[nodiscard]] bool is_method(StringView);
-[[nodiscard]] WEB_API bool is_cors_safelisted_method(StringView);
+[[nodiscard]] bool is_cors_safelisted_method(StringView);
 [[nodiscard]] bool is_forbidden_method(StringView);
 [[nodiscard]] ByteString normalize_method(StringView);
 

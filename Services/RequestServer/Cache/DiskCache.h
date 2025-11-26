@@ -12,6 +12,7 @@
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
+#include <AK/WeakPtr.h>
 #include <LibDatabase/Database.h>
 #include <LibURL/Forward.h>
 #include <RequestServer/Cache/CacheEntry.h>

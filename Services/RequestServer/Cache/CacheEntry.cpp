@@ -117,7 +117,7 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderMap const& response_headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HTTP::HeaderList const& response_headers)
 {
     if (m_marked_for_deletion) {
         close_and_destroy_cache_entry();
@@ -183,7 +183,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap response_headers)
+ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HTTP::HeaderList> response_headers)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -205,7 +205,7 @@ ErrorOr<void> CacheEntryWriter::flush(HTTP::HeaderMap response_headers)
     return {};
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, HTTP::HeaderMap response_headers, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, NonnullRefPtr<HTTP::HeaderList> response_headers, u64 data_size)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
 
@@ -253,7 +253,7 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
     return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
 
-CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, HTTP::HeaderMap response_headers, u64 data_offset, u64 data_size)
+CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, NonnullRefPtr<HTTP::HeaderList> response_headers, u64 data_offset, u64 data_size)
     : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_fd(fd)
@@ -264,7 +264,7 @@ CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-void CacheEntryReader::revalidation_succeeded(HTTP::HeaderMap const& response_headers)
+void CacheEntryReader::revalidation_succeeded(HTTP::HeaderList const& response_headers)
 {
     dbgln("\033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 

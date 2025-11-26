@@ -447,9 +447,9 @@ void Violation::report_a_violation(JS::Realm& realm)
                         // header list
                         //    A header list containing a single header whose name is "Content-Type", and value is
                         //    "application/csp-report"
-                        auto header_list = Fetch::Infrastructure::HeaderList::create(vm);
+                        auto header_list = HTTP::HeaderList::create();
                         header_list->append({ "Content-Type"sv, "application/csp-report"sv });
-                        request->set_header_list(header_list);
+                        request->set_header_list(move(header_list));
 
                         // body
                         //    The result of executing § 5.3 Obtain the deprecated serialization of violation on

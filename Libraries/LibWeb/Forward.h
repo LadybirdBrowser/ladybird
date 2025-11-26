@@ -542,14 +542,12 @@ class FetchController;
 class FetchParams;
 class FetchRecord;
 class FetchTimingInfo;
-class HeaderList;
 class IncrementalReadLoopReadRequest;
 class Request;
 class Response;
 
 struct BodyWithType;
 struct ConnectionTimingInfo;
-struct Header;
 
 }
 

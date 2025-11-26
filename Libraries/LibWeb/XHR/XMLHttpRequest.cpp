@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
+#include <LibHTTP/Method.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -32,7 +33,6 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -62,16 +62,16 @@ GC_DEFINE_ALLOCATOR(XMLHttpRequest);
 WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> XMLHttpRequest::construct_impl(JS::Realm& realm)
 {
     auto upload_object = realm.create<XMLHttpRequestUpload>(realm);
-    auto author_request_headers = Fetch::Infrastructure::HeaderList::create(realm.vm());
+    auto author_request_headers = HTTP::HeaderList::create();
     auto response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Not sent yet"_string);
     auto fetch_controller = Fetch::Infrastructure::FetchController::create(realm.vm());
-    return realm.create<XMLHttpRequest>(realm, *upload_object, *author_request_headers, *response, *fetch_controller);
+    return realm.create<XMLHttpRequest>(realm, *upload_object, move(author_request_headers), *response, *fetch_controller);
 }
 
-XMLHttpRequest::XMLHttpRequest(JS::Realm& realm, XMLHttpRequestUpload& upload_object, Fetch::Infrastructure::HeaderList& author_request_headers, Fetch::Infrastructure::Response& response, Fetch::Infrastructure::FetchController& fetch_controller)
+XMLHttpRequest::XMLHttpRequest(JS::Realm& realm, XMLHttpRequestUpload& upload_object, NonnullRefPtr<HTTP::HeaderList> author_request_headers, Fetch::Infrastructure::Response& response, Fetch::Infrastructure::FetchController& fetch_controller)
     : XMLHttpRequestEventTarget(realm)
     , m_upload_object(upload_object)
-    , m_author_request_headers(author_request_headers)
+    , m_author_request_headers(move(author_request_headers))
     , m_response(response)
     , m_response_type(Bindings::XMLHttpRequestResponseType::Empty)
     , m_fetch_controller(fetch_controller)
@@ -91,7 +91,6 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_upload_object);
-    visitor.visit(m_author_request_headers);
     visitor.visit(m_request_body);
     visitor.visit(m_response);
     visitor.visit(m_fetch_controller);
@@ -424,21 +423,21 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name,
         return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_utf16);
 
     // 3. Normalize value.
-    auto normalized_value = Fetch::Infrastructure::normalize_header_value(value);
+    auto normalized_value = HTTP::normalize_header_value(value);
 
     // 4. If name is not a header name or value is not a header value, then throw a "SyntaxError" DOMException.
-    if (!Fetch::Infrastructure::is_header_name(name))
+    if (!HTTP::is_header_name(name))
         return WebIDL::SyntaxError::create(realm, "Header name contains invalid characters."_utf16);
-    if (!Fetch::Infrastructure::is_header_value(normalized_value))
+    if (!HTTP::is_header_value(normalized_value))
         return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_utf16);
 
-    auto header = Fetch::Infrastructure::Header {
+    auto header = HTTP::Header {
         .name = name.to_byte_string(),
         .value = move(normalized_value),
     };
 
     // 5. If (name, value) is a forbidden request-header, then return.
-    if (Fetch::Infrastructure::is_forbidden_request_header(header))
+    if (HTTP::is_forbidden_request_header(header))
         return {};
 
     // 6. Combine (name, value) in this’s author request headers.
@@ -464,15 +463,15 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     }
 
     // 2. If method is not a method, then throw a "SyntaxError" DOMException.
-    if (!Fetch::Infrastructure::is_method(method))
+    if (!HTTP::is_method(method))
         return WebIDL::SyntaxError::create(realm(), "An invalid or illegal string was specified."_utf16);
 
     // 3. If method is a forbidden method, then throw a "SecurityError" DOMException.
-    if (Fetch::Infrastructure::is_forbidden_method(method))
+    if (HTTP::is_forbidden_method(method))
         return WebIDL::SecurityError::create(realm(), "Forbidden method, must not be 'CONNECT', 'TRACE', or 'TRACK'"_utf16);
 
     // 4. Normalize method.
-    auto normalized_method = Fetch::Infrastructure::normalize_method(method);
+    auto normalized_method = HTTP::normalize_method(method);
 
     // 5. Let parsedURL be the result of parsing url with this’s relevant settings object’s API base URL and this’s relevant settings object’s API URL character encoding.
     auto& relevant_settings_object = HTML::relevant_settings_object(*this);
@@ -604,7 +603,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                         auto new_content_type_serialized = content_type_record->serialized();
 
                         // 3. Set (`Content-Type`, newContentTypeSerialized) in this’s author request headers.
-                        auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, new_content_type_serialized);
+                        auto header = HTTP::Header::isomorphic_encode("Content-Type"sv, new_content_type_serialized);
                         m_author_request_headers->set(move(header));
                     }
                 }
@@ -629,7 +628,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             }
             // 3. Otherwise, if extractedContentType is not null, set (`Content-Type`, extractedContentType) in this’s author request headers.
             else if (extracted_content_type.has_value()) {
-                auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, extracted_content_type.value());
+                auto header = HTTP::Header::isomorphic_encode("Content-Type"sv, extracted_content_type.value());
                 m_author_request_headers->set(move(header));
             }
         }
@@ -995,7 +994,7 @@ String XMLHttpRequest::get_all_response_headers() const
 
     // 3. Let headers be the result of sorting initialHeaders in ascending order, with a being less than b if a’s name is legacy-uppercased-byte less than b’s name.
     // NOTE: Unfortunately, this is needed for compatibility with deployed content.
-    quick_sort(initial_headers, [](Fetch::Infrastructure::Header const& a, Fetch::Infrastructure::Header const& b) {
+    quick_sort(initial_headers, [](HTTP::Header const& a, HTTP::Header const& b) {
         return is_legacy_uppercased_byte_less_than(a.name, b.name);
     });
 
