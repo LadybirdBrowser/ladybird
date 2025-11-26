@@ -179,26 +179,14 @@ public:
     {
         return m_view.visit(
             [](StringView view) { return view.to_byte_string(); },
-            [](Utf16View view) { return view.to_byte_string().release_value_but_fixme_should_propagate_errors(); },
-            [](auto& view) {
-                StringBuilder builder;
-                for (auto it = view.begin(); it != view.end(); ++it)
-                    builder.append_code_point(*it);
-                return builder.to_byte_string();
-            });
+            [](Utf16View view) { return view.to_byte_string().release_value_but_fixme_should_propagate_errors(); });
     }
 
     ErrorOr<String> to_string() const
     {
         return m_view.visit(
             [](StringView view) { return String::from_utf8(view); },
-            [](Utf16View view) { return view.to_utf8(); },
-            [](auto& view) -> ErrorOr<String> {
-                StringBuilder builder;
-                for (auto it = view.begin(); it != view.end(); ++it)
-                    TRY(builder.try_append_code_point(*it));
-                return builder.to_string();
-            });
+            [](Utf16View view) { return view.to_utf8(); });
     }
 
     u32 code_point_at(size_t code_unit_index) const
