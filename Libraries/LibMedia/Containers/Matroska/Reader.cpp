@@ -61,6 +61,7 @@ constexpr u32 TRACK_CODEC_DELAY_ID = 0x56AA;
 constexpr u32 TRACK_SEEK_PRE_ROLL_ID = 0x56BB;
 constexpr u32 TRACK_TIMESTAMP_SCALE_ID = 0x23314F;
 constexpr u32 TRACK_OFFSET_ID = 0x537F;
+constexpr u32 TRACK_DEFAULT_DURATION_ID = 0x23E383;
 constexpr u32 TRACK_VIDEO_ID = 0xE0;
 constexpr u32 TRACK_AUDIO_ID = 0xE1;
 
@@ -84,6 +85,7 @@ constexpr u32 SIMPLE_BLOCK_ID = 0xA3;
 constexpr u32 TIMESTAMP_ID = 0xE7;
 constexpr u32 BLOCK_GROUP_ID = 0xA0;
 constexpr u32 BLOCK_ID = 0xA1;
+constexpr u32 BLOCK_DURATION_ID = 0x9B;
 
 // Cues
 constexpr u32 CUES_ID = 0x1C53BB6B;
@@ -513,6 +515,10 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
             track_entry->set_timestamp_offset(TRY_READ(streamer.read_variable_size_signed_integer()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackOffset attribute: {}", track_entry->timestamp_offset());
             break;
+        case TRACK_DEFAULT_DURATION_ID:
+            track_entry->set_default_duration(TRY_READ(streamer.read_u64()));
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's DefaultDuration attribute: {}", track_entry->default_duration());
+            break;
         case TRACK_VIDEO_ID:
             track_entry->set_video_track(TRY(parse_video_track_information(streamer)));
             break;
@@ -810,9 +816,16 @@ static DecoderErrorOr<Vector<ReadonlyBytes>> parse_frames(Streamer& streamer, Bl
     return frames;
 }
 
+static void set_block_duration_to_default(Block& block, TrackEntry const& track)
+{
+    if (track.default_duration() != 0)
+        block.set_duration(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(track.default_duration())));
+}
+
 static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
 {
     Block block;
+    set_block_duration_to_default(block, track);
 
     auto content_size = TRY_READ(streamer.read_variable_size_integer());
 
@@ -836,8 +849,9 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
 static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
 {
     Block block;
-    auto parsed_a_block = false;
+    set_block_duration_to_default(block, track);
 
+    auto parsed_a_block = false;
     TRY(parse_master_element(streamer, "BlockGroup"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
         switch (element_id) {
         case BLOCK_ID: {
@@ -858,6 +872,14 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
 
             auto remaining_size = content_size - (streamer.position() - position_before_track_number);
             block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+            break;
+        }
+        case BLOCK_DURATION_ID: {
+            auto duration = TRY_READ(streamer.read_u64());
+            auto duration_nanoseconds = Checked<i64>::saturating_mul(duration, segment_timestamp_scale);
+            if (track.timestamp_scale() != 1)
+                duration_nanoseconds = AK::clamp_to<i64>(static_cast<double>(duration_nanoseconds) * track.timestamp_scale());
+            block.set_duration(AK::Duration::from_nanoseconds(duration_nanoseconds));
             break;
         }
         default:
