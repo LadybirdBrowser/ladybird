@@ -31,6 +31,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -366,7 +367,7 @@ MimeSniff::MimeType XMLHttpRequest::get_final_mime_type() const
 MimeSniff::MimeType XMLHttpRequest::get_response_mime_type() const
 {
     // 1. Let mimeType be the result of extracting a MIME type from xhr’s response’s header list.
-    auto mime_type = m_response->header_list()->extract_mime_type();
+    auto mime_type = Fetch::Infrastructure::extract_mime_type(m_response->header_list());
 
     // 2. If mimeType is failure, then set mimeType to text/xml.
     if (!mime_type.has_value())

@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/HeadersPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/Headers.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
 
 namespace Web::Fetch {
 

@@ -21,6 +21,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -778,7 +779,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
     Optional<String> mime_type_charset;
-    auto extracted_mime_type = response.header_list()->extract_mime_type();
+    auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
     if (extracted_mime_type.has_value()) {
         if (!mime_type_string.has_value())
             mime_type_string = extracted_mime_type->essence();

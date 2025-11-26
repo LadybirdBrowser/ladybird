@@ -12,6 +12,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -93,8 +94,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    causes a load event to be fired.
     else {
         // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-        auto process_body = GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [signal_to_continue_session_history_processing, document = document, data = move(data), url = url, mime_type] {
+        auto process_body = GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing, url = navigation_params.response->url().value(), mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list())](ByteBuffer data) mutable {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document->heap(), [signal_to_continue_session_history_processing, document = document, data = move(data), url = url, mime_type = move(mime_type)] {
                 // NB: If document is part of a session history entry's traversal, resolve the signal_to_continue_session_history_processing.
                 signal_to_continue_session_history_processing->resolve({});
                 auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
@@ -362,7 +363,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
     auto& realm = document->realm();
     navigation_params.response->body()->fully_read(
         realm,
-        GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing](ByteBuffer) { 
+        GC::create_function(document->heap(), [document, signal_to_continue_session_history_processing](ByteBuffer) {
             // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
             signal_to_continue_session_history_processing->resolve({});
             HTML::HTMLParser::the_end(document); }),
@@ -418,7 +419,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
 
     // 1. Let type be the computed type of navigationParams's response.
-    auto supplied_type = navigation_params.response->header_list()->extract_mime_type();
+    auto supplied_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
     auto type = MimeSniff::Resource::sniff(
         navigation_params.response->body()->source().visit(
             [](Empty) { return ReadonlyBytes {}; },

@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
@@ -100,7 +101,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
         response = response->unsafe_response();
 
         auto content_type_is_text_event_stream = [&]() {
-            auto content_type = response->header_list()->extract_mime_type();
+            auto content_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             if (!content_type.has_value())
                 return false;
 
