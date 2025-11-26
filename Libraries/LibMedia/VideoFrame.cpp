@@ -21,6 +21,7 @@ namespace Media {
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
     AK::Duration timestamp,
+    AK::Duration duration,
     Gfx::Size<u32> size,
     u8 bit_depth, CodingIndependentCodePoints cicp,
     Subsampling subsampling)
@@ -42,17 +43,18 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
     auto* u_buffer = TRY(alloc_buffer(uv_data_size));
     auto* v_buffer = TRY(alloc_buffer(uv_data_size));
 
-    return adopt_nonnull_own_or_enomem(new (nothrow) SubsampledYUVFrame(timestamp, size, bit_depth, cicp, subsampling, y_buffer, u_buffer, v_buffer));
+    return adopt_nonnull_own_or_enomem(new (nothrow) SubsampledYUVFrame(timestamp, duration, size, bit_depth, cicp, subsampling, y_buffer, u_buffer, v_buffer));
 }
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create_from_data(
     AK::Duration timestamp,
+    AK::Duration duration,
     Gfx::Size<u32> size,
     u8 bit_depth, CodingIndependentCodePoints cicp,
     Subsampling subsampling,
     ReadonlyBytes y_data, ReadonlyBytes u_data, ReadonlyBytes v_data)
 {
-    auto frame = TRY(try_create(timestamp, size, bit_depth, cicp, subsampling));
+    auto frame = TRY(try_create(timestamp, duration, size, bit_depth, cicp, subsampling));
 
     size_t component_size = bit_depth > 8 ? sizeof(u16) : sizeof(u8);
     auto y_data_size = size.to_type<size_t>().area() * component_size;
