@@ -380,7 +380,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     if (flat_capture_group_matches.size() < state.capture_group_count * match_count) {
         flat_capture_group_matches.ensure_capacity(match_count * state.capture_group_count);
         for (size_t i = flat_capture_group_matches.size(); i < match_count * state.capture_group_count; ++i)
-            flat_capture_group_matches.empend();
+            flat_capture_group_matches.unchecked_empend();
     }
 
     Vector<Span<Match>> capture_group_matches;

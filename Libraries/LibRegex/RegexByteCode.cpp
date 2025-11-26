@@ -497,7 +497,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
     };
 
     Vector<DisjunctionState, 4> disjunction_states;
-    disjunction_states.empend();
+    disjunction_states.unchecked_empend();
 
     auto current_disjunction_state = [&]() -> DisjunctionState& { return disjunction_states.last(); };
 
