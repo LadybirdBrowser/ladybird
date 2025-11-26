@@ -15,7 +15,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -61,8 +60,6 @@ public:
     struct ExtractLengthFailure { };
     [[nodiscard]] Variant<Empty, u64, ExtractLengthFailure> extract_length() const;
 
-    [[nodiscard]] Optional<MimeSniff::MimeType> extract_mime_type() const;
-
     [[nodiscard]] Vector<ByteString> unique_names() const;
 };
 
@@ -78,21 +75,11 @@ struct RangeHeaderValue {
 [[nodiscard]] bool is_forbidden_request_header(Header const&);
 [[nodiscard]] bool is_forbidden_response_header_name(StringView);
 
-[[nodiscard]] WEB_API StringView legacy_extract_an_encoding(Optional<MimeSniff::MimeType> const& mime_type, StringView fallback_encoding);
 [[nodiscard]] Vector<String> get_decode_and_split_header_value(StringView);
 [[nodiscard]] Vector<ByteString> convert_header_names_to_a_sorted_lowercase_set(ReadonlySpan<ByteString>);
 
 [[nodiscard]] WEB_API ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length);
 [[nodiscard]] WEB_API Optional<RangeHeaderValue> parse_single_range_header_value(StringView, bool);
-
-[[nodiscard]] bool is_cors_safelisted_request_header(Header const&);
-[[nodiscard]] bool is_cors_unsafe_request_header_byte(u8);
-[[nodiscard]] WEB_API Vector<ByteString> get_cors_unsafe_header_names(HeaderList const&);
-[[nodiscard]] WEB_API bool is_cors_non_wildcard_request_header_name(StringView);
-[[nodiscard]] bool is_privileged_no_cors_request_header_name(StringView);
-[[nodiscard]] bool is_cors_safelisted_response_header_name(StringView, ReadonlySpan<StringView>);
-[[nodiscard]] bool is_no_cors_safelisted_request_header_name(StringView);
-[[nodiscard]] bool is_no_cors_safelisted_request_header(Header const&);
 
 [[nodiscard]] WEB_API ByteString const& default_user_agent_value();
 

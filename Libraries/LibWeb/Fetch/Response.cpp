@@ -11,6 +11,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Fetch/Response.h>
@@ -48,7 +49,7 @@ Optional<MimeSniff::MimeType> Response::mime_type_impl() const
 {
     // Objects including the Body interface mixin need to define an associated MIME type algorithm which takes no arguments and returns failure or a MIME type.
     // A Response object’s MIME type is to return the result of extracting a MIME type from its response’s header list.
-    return m_response->header_list()->extract_mime_type();
+    return Infrastructure::extract_mime_type(m_response->header_list());
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-body

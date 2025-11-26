@@ -12,6 +12,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
@@ -444,7 +445,7 @@ Optional<ByteString> run_bom_sniff(ReadonlyBytes input)
         // Byte order mark  Encoding
         // 0xEF 0xBB 0xBF   UTF-8
         // 0xFE 0xFF        UTF-16BE
-        // 0xFF 0xFE 	    UTF-16LE
+        // 0xFF 0xFE        UTF-16LE
         if (input[0] == 0xEF && input[1] == 0xBB && input[2] == 0xBF) {
             return "UTF-8";
         }
