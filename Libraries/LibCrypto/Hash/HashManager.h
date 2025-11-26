@@ -14,6 +14,7 @@
 #include <LibCrypto/Hash/MD5.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/SHA3.h>
 
 namespace Crypto::Hash {
 
@@ -26,6 +27,9 @@ enum class HashKind {
     SHA256,
     SHA384,
     SHA512,
+    SHA3_256,
+    SHA3_384,
+    SHA3_512
 };
 
 struct MultiHashDigestVariant {
@@ -157,6 +161,15 @@ public:
         case HashKind::SHA512:
             m_algorithm = SHA512::create();
             break;
+        case HashKind::SHA3_256:
+            m_algorithm = SHA3_256::create();
+            break;
+        case HashKind::SHA3_384:
+            m_algorithm = SHA3_384::create();
+            break;
+        case HashKind::SHA3_512:
+            m_algorithm = SHA3_512::create();
+            break;
         default:
         case HashKind::None:
             m_algorithm = Empty {};
@@ -232,7 +245,16 @@ public:
     }
 
 private:
-    using AlgorithmVariant = Variant<Empty, NonnullOwnPtr<BLAKE2b>, NonnullOwnPtr<MD5>, NonnullOwnPtr<SHA1>, NonnullOwnPtr<SHA256>, NonnullOwnPtr<SHA384>, NonnullOwnPtr<SHA512>>;
+    using AlgorithmVariant = Variant<Empty,
+        NonnullOwnPtr<BLAKE2b>,
+        NonnullOwnPtr<MD5>,
+        NonnullOwnPtr<SHA1>,
+        NonnullOwnPtr<SHA256>,
+        NonnullOwnPtr<SHA384>,
+        NonnullOwnPtr<SHA512>,
+        NonnullOwnPtr<SHA3_256>,
+        NonnullOwnPtr<SHA3_384>,
+        NonnullOwnPtr<SHA3_512>>;
     AlgorithmVariant m_algorithm {};
     HashKind m_kind { HashKind::None };
     ByteBuffer m_pre_init_buffer;
