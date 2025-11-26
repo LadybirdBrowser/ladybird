@@ -20,7 +20,7 @@ public:
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegVideoDecoder() override;
 
-    virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
+    virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data) override;
     virtual void signal_end_of_stream() override;
     virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
 
