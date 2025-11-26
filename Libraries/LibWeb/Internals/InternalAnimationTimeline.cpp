@@ -14,15 +14,14 @@ namespace Web::Internals {
 
 GC_DEFINE_ALLOCATOR(InternalAnimationTimeline);
 
-void InternalAnimationTimeline::set_current_time(Optional<double> current_time)
+void InternalAnimationTimeline::update_current_time(double)
 {
     // Do nothing
-    (void)current_time;
 }
 
 void InternalAnimationTimeline::set_time(Optional<double> time)
 {
-    Base::set_current_time(time);
+    set_current_time(time);
 }
 
 InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
