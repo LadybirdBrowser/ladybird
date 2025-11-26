@@ -78,6 +78,7 @@ public:
     void set_volume(double);
 
     Function<void()> on_playback_state_change;
+    Function<void(AK::Duration)> on_duration_change;
     Function<void(DecoderError&&)> on_error;
 
 private:
@@ -119,7 +120,8 @@ private:
 
     PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
 
-    void set_up_error_handlers();
+    void set_up_data_providers();
+    void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
     VideoTrackData& get_video_data_for_track(Track const& track);
@@ -135,6 +137,7 @@ private:
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
+    AK::Duration m_duration;
 
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;

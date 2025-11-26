@@ -84,7 +84,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
 
     auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
     weak_playback_manager->m_manager = playback_manager;
-    playback_manager->set_up_error_handlers();
+    playback_manager->set_up_data_providers();
     playback_manager->m_handler = DECODER_TRY_ALLOC(try_make<PausedStateHandler>(*playback_manager));
     return playback_manager;
 }
@@ -106,14 +106,22 @@ PlaybackManager::~PlaybackManager()
     m_weak_wrapper->revoke();
 }
 
-void PlaybackManager::set_up_error_handlers()
+void PlaybackManager::set_up_data_providers()
 {
+    m_duration = m_demuxer->total_duration().value_or(AK::Duration::zero());
+
     for (auto const& video_track_data : m_video_track_datas) {
         video_track_data.provider->set_error_handler([weak_self = m_weak_wrapper](DecoderError&& error) {
             auto self = weak_self->take_strong();
             if (!self)
                 return;
             self->dispatch_error(move(error));
+        });
+        video_track_data.provider->set_frame_end_time_handler([weak_self = m_weak_wrapper](AK::Duration time) {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->check_for_duration_change(time);
         });
     }
 
@@ -124,7 +132,22 @@ void PlaybackManager::set_up_error_handlers()
                 return;
             self->dispatch_error(move(error));
         });
+        audio_track_data.provider->set_block_end_time_handler([weak_self = m_weak_wrapper](AK::Duration time) {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->check_for_duration_change(time);
+        });
     }
+}
+
+void PlaybackManager::check_for_duration_change(AK::Duration duration)
+{
+    if (m_duration >= duration)
+        return;
+    m_duration = duration;
+    if (on_duration_change)
+        on_duration_change(m_duration);
 }
 
 void PlaybackManager::dispatch_error(DecoderError&& error)
@@ -138,7 +161,7 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
 
 AK::Duration PlaybackManager::duration() const
 {
-    return m_demuxer->total_duration().value_or(AK::Duration::zero());
+    return m_duration;
 }
 
 Optional<Track> PlaybackManager::preferred_video_track()

@@ -53,6 +53,11 @@ void AudioDataProvider::set_error_handler(ErrorHandler&& handler)
     m_thread_data->set_error_handler(move(handler));
 }
 
+void AudioDataProvider::set_block_end_time_handler(BlockEndTimeHandler&& handler)
+{
+    m_thread_data->set_block_end_time_handler(move(handler));
+}
+
 void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& completion_handler)
 {
     m_thread_data->seek(timestamp, move(completion_handler));
@@ -73,6 +78,11 @@ void AudioDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
     auto locker = take_lock();
     m_error_handler = move(handler);
     m_wait_condition.broadcast();
+}
+
+void AudioDataProvider::ThreadData::set_block_end_time_handler(BlockEndTimeHandler&& handler)
+{
+    m_frame_end_time_handler = move(handler);
 }
 
 AudioBlock AudioDataProvider::retrieve_block()
@@ -103,6 +113,25 @@ void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionH
 bool AudioDataProvider::ThreadData::should_thread_exit() const
 {
     return m_exit;
+}
+
+void AudioDataProvider::ThreadData::dispatch_block_end_time(AudioBlock const& block)
+{
+    auto end_time = block.end_timestamp();
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), end_time] {
+        if (self->m_frame_end_time_handler)
+            self->m_frame_end_time_handler(end_time);
+    });
+}
+
+void AudioDataProvider::ThreadData::queue_block(AudioBlock&& block)
+{
+    // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
+
+    VERIFY(!block.is_empty());
+    dispatch_block_end_time(block);
+    m_queue.enqueue(move(block));
+    VERIFY(!m_queue.tail().is_empty());
 }
 
 void AudioDataProvider::ThreadData::flush_decoder()
@@ -225,9 +254,9 @@ bool AudioDataProvider::ThreadData::handle_seek()
                     m_queue.clear();
 
                     if (!last_block.is_empty())
-                        m_queue.enqueue(move(last_block));
+                        queue_block(move(last_block));
 
-                    m_queue.enqueue(move(current_block));
+                    queue_block(move(current_block));
 
                     resolve_seek(seek_id);
                     return true;
@@ -314,12 +343,8 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
             break;
         }
 
-        // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
-
         auto locker = take_lock();
-        VERIFY(!block.is_empty());
-        m_queue.enqueue(move(block));
-        VERIFY(!m_queue.tail().is_empty());
+        queue_block(move(block));
     }
 }
 
