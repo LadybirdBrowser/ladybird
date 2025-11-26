@@ -8290,4 +8290,10 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& param
     return JS::Value(length);
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
+WebIDL::ExceptionOr<JS::Value> Argon2::get_key_length(AlgorithmParams const&)
+{
+    return JS::js_null();
+}
+
 }
