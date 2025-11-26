@@ -3639,6 +3639,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(AlgorithmParams const&
         hash_kind = ::Crypto::Hash::HashKind::SHA384;
     } else if (algorithm_name == "SHA-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
+    } else if (algorithm_name == "SHA3-256") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA3_256;
+    } else if (algorithm_name == "SHA3-384") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA3_384;
+    } else if (algorithm_name == "SHA3-512") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA3_512;
     } else {
         return WebIDL::NotSupportedError::create(m_realm, Utf16String::formatted("Invalid hash function '{}'", algorithm_name));
     }
