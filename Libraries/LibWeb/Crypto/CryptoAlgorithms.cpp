@@ -8930,4 +8930,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
     return GC::Ref { *result };
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
+WebIDL::ExceptionOr<JS::Value> Argon2::get_key_length(AlgorithmParams const&)
+{
+    return JS::js_null();
+}
+
 }
