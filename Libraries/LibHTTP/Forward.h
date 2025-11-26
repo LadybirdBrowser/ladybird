@@ -8,7 +8,10 @@
 
 namespace HTTP {
 
+class HeaderList;
 class HttpRequest;
 class HttpResponse;
+
+struct Header;
 
 }

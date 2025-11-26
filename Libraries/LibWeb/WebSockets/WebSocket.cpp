@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CloseEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -198,7 +199,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     for (auto const& protocol : protocols)
         TRY(protocol_byte_strings.try_append(protocol.to_byte_string()));
 
-    HTTP::HeaderMap additional_headers;
+    auto additional_headers = HTTP::HeaderList::create();
 
     auto cookies = ([&] {
         auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm()));
@@ -206,10 +207,10 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     })();
 
     if (!cookies.is_empty()) {
-        additional_headers.set("Cookie", cookies.to_byte_string());
+        additional_headers->append({ "Cookie"sv, cookies.to_byte_string() });
     }
 
-    additional_headers.set("User-Agent", ResourceLoader::the().user_agent().to_byte_string());
+    additional_headers->append({ "User-Agent"sv, Fetch::Infrastructure::default_user_agent_value() });
 
     auto request_client = ResourceLoader::the().request_client();
 

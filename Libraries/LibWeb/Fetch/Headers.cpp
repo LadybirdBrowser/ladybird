@@ -19,10 +19,8 @@ GC_DEFINE_ALLOCATOR(Headers);
 // https://fetch.spec.whatwg.org/#dom-headers
 WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, Optional<HeadersInit> const& init)
 {
-    auto& vm = realm.vm();
-
     // The new Headers(init) constructor steps are:
-    auto headers = realm.create<Headers>(realm, Infrastructure::HeaderList::create(vm));
+    auto headers = realm.create<Headers>(realm, HTTP::HeaderList::create());
 
     // 1. Set this’s guard to "none".
     headers->m_guard = Guard::None;
@@ -34,9 +32,9 @@ WebIDL::ExceptionOr<GC::Ref<Headers>> Headers::construct_impl(JS::Realm& realm, 
     return headers;
 }
 
-Headers::Headers(JS::Realm& realm, GC::Ref<Infrastructure::HeaderList> header_list)
+Headers::Headers(JS::Realm& realm, NonnullRefPtr<HTTP::HeaderList> header_list)
     : PlatformObject(realm)
-    , m_header_list(header_list)
+    , m_header_list(move(header_list))
 {
 }
 
@@ -48,17 +46,11 @@ void Headers::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void Headers::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
-}
-
 // https://fetch.spec.whatwg.org/#dom-headers-append
 WebIDL::ExceptionOr<void> Headers::append(String const& name_string, String const& value_string)
 {
     // The append(name, value) method steps are to append (name, value) to this.
-    auto header = Infrastructure::Header::isomorphic_encode(name_string, value_string);
+    auto header = HTTP::Header::isomorphic_encode(name_string, value_string);
     TRY(append(move(header)));
     return {};
 }
@@ -70,7 +62,7 @@ WebIDL::ExceptionOr<void> Headers::delete_(String const& name)
 
     // 1. If validating (name, ``) for headers returns false, then return.
     // NOTE: Passing a dummy header value ought not to have any negative repercussions.
-    auto header = Infrastructure::Header::isomorphic_encode(name, ""sv);
+    auto header = HTTP::Header::isomorphic_encode(name, ""sv);
     if (!TRY(validate(header)))
         return {};
 
@@ -98,7 +90,7 @@ WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name)
     // The get(name) method steps are:
 
     // 1. If name is not a header name, then throw a TypeError.
-    if (!Infrastructure::is_header_name(name))
+    if (!HTTP::is_header_name(name))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
 
     // 2. Return the result of getting name from this’s header list.
@@ -131,7 +123,7 @@ WebIDL::ExceptionOr<bool> Headers::has(String const& name)
     // The has(name) method steps are:
 
     // 1. If name is not a header name, then throw a TypeError.
-    if (!Infrastructure::is_header_name(name))
+    if (!HTTP::is_header_name(name))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
 
     // 2. Return true if this’s header list contains name; otherwise false.
@@ -144,9 +136,9 @@ WebIDL::ExceptionOr<void> Headers::set(String const& name, String const& value)
     // The set(name, value) method steps are:
 
     // 1. Normalize value.
-    auto normalized_value = Infrastructure::normalize_header_value(value);
+    auto normalized_value = HTTP::normalize_header_value(value);
 
-    auto header = Infrastructure::Header::isomorphic_encode(name, normalized_value);
+    auto header = HTTP::Header::isomorphic_encode(name, normalized_value);
 
     // 2. If validating (name, value) for headers returns false, then return.
     if (!TRY(validate(header)))
@@ -201,15 +193,15 @@ JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
 }
 
 // https://fetch.spec.whatwg.org/#headers-validate
-WebIDL::ExceptionOr<bool> Headers::validate(Infrastructure::Header const& header) const
+WebIDL::ExceptionOr<bool> Headers::validate(HTTP::Header const& header) const
 {
     // To validate a header (name, value) for a Headers object headers:
     auto const& [name, value] = header;
 
     // 1. If name is not a header name or value is not a header value, then throw a TypeError.
-    if (!Infrastructure::is_header_name(name))
+    if (!HTTP::is_header_name(name))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header name"sv };
-    if (!Infrastructure::is_header_value(value))
+    if (!HTTP::is_header_value(value))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid header value"sv };
 
     // 2. If headers’s guard is "immutable", then throw a TypeError.
@@ -217,11 +209,11 @@ WebIDL::ExceptionOr<bool> Headers::validate(Infrastructure::Header const& header
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Headers object is immutable"sv };
 
     // 3. If headers’s guard is "request" and (name, value) is a forbidden request-header, then return false.
-    if (m_guard == Guard::Request && Infrastructure::is_forbidden_request_header(header))
+    if (m_guard == Guard::Request && HTTP::is_forbidden_request_header(header))
         return false;
 
     // 4. If headers’s guard is "response" and name is a forbidden response-header name, then return false.
-    if (m_guard == Guard::Response && Infrastructure::is_forbidden_response_header_name(name))
+    if (m_guard == Guard::Response && HTTP::is_forbidden_response_header_name(name))
         return false;
 
     // 5. Return true.
@@ -229,13 +221,13 @@ WebIDL::ExceptionOr<bool> Headers::validate(Infrastructure::Header const& header
 }
 
 // https://fetch.spec.whatwg.org/#concept-headers-append
-WebIDL::ExceptionOr<void> Headers::append(Infrastructure::Header header)
+WebIDL::ExceptionOr<void> Headers::append(HTTP::Header header)
 {
     // To append a header (name, value) to a Headers object headers, run these steps:
     auto& [name, value] = header;
 
     // 1. Normalize value.
-    value = Infrastructure::normalize_header_value(value);
+    value = HTTP::normalize_header_value(value);
 
     // 2. If validating (name, value) for headers returns false, then return.
     if (!TRY(validate(header)))
@@ -255,7 +247,7 @@ WebIDL::ExceptionOr<void> Headers::append(Infrastructure::Header header)
             temporary_value = ByteString::formatted("{}, {}", *temporary_value, value);
         }
 
-        auto temporary_header = Infrastructure::Header {
+        auto temporary_header = HTTP::Header {
             .name = name,
             .value = temporary_value.release_value(),
         };
@@ -288,7 +280,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Array must contain header key/value pair"sv };
 
                 // 2. Append (header[0], header[1]) to headers.
-                auto header = Infrastructure::Header::isomorphic_encode(entry[0], entry[1]);
+                auto header = HTTP::Header::isomorphic_encode(entry[0], entry[1]);
                 TRY(append(move(header)));
             }
             return {};
@@ -296,7 +288,7 @@ WebIDL::ExceptionOr<void> Headers::fill(HeadersInit const& object)
         // 2. Otherwise, object is a record, then for each key → value of object, append (key, value) to headers.
         [&](OrderedHashMap<String, String> const& object) -> WebIDL::ExceptionOr<void> {
             for (auto const& entry : object) {
-                auto header = Infrastructure::Header::isomorphic_encode(entry.key, entry.value);
+                auto header = HTTP::Header::isomorphic_encode(entry.key, entry.value);
                 TRY(append(move(header)));
             }
             return {};

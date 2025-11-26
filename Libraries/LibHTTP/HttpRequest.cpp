@@ -11,6 +11,11 @@
 
 namespace HTTP {
 
+HttpRequest::HttpRequest(NonnullRefPtr<HeaderList> headers)
+    : m_headers(move(headers))
+{
+}
+
 StringView to_string_view(HttpRequest::Method method)
 {
     switch (method) {
@@ -60,8 +65,8 @@ ErrorOr<ByteBuffer> HttpRequest::to_raw_request() const
         TRY(builder.try_appendff(":{}", *m_url.port()));
     TRY(builder.try_append("\r\n"sv));
     // Start headers.
-    bool has_content_length = m_headers.contains("Content-Length"sv);
-    for (auto const& [name, value] : m_headers.headers()) {
+    bool has_content_length = m_headers->contains("Content-Length"sv);
+    for (auto const& [name, value] : *m_headers) {
         TRY(builder.try_append(name));
         TRY(builder.try_append(": "sv));
         TRY(builder.try_append(value));
@@ -113,7 +118,7 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
     ByteString method;
     ByteString resource;
     ByteString protocol;
-    HeaderMap headers;
+    auto headers = HeaderList::create();
     Header current_header;
     ByteBuffer body;
 
@@ -180,7 +185,7 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
                 if (current_header.name.equals_ignoring_ascii_case("Content-Length"sv))
                     content_length = current_header.value.to_number<unsigned>();
 
-                headers.set(move(current_header.name), move(current_header.value));
+                headers->append({ move(current_header.name), move(current_header.value) });
                 break;
             }
             buffer.append(consume());
@@ -207,7 +212,7 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
     if (content_length.has_value() && content_length.value() != body.size())
         return ParseError::RequestIncomplete;
 
-    HttpRequest request;
+    HttpRequest request { move(headers) };
     if (method == "GET")
         request.m_method = Method::GET;
     else if (method == "HEAD")
@@ -229,7 +234,6 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
     else
         return ParseError::UnsupportedMethod;
 
-    request.m_headers = move(headers);
     auto url_parts = resource.split_limit('?', 2, SplitBehavior::KeepEmpty);
 
     auto url_part_to_string = [](ByteString const& url_part) -> ErrorOr<String, ParseError> {
@@ -256,11 +260,6 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
     request.set_body(move(body));
 
     return request;
-}
-
-void HttpRequest::set_headers(HTTP::HeaderMap headers)
-{
-    m_headers = move(headers);
 }
 
 Optional<Header> HttpRequest::get_http_basic_authentication_header(URL::URL const& url)

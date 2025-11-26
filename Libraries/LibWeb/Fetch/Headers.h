@@ -11,9 +11,9 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Fetch {
@@ -38,14 +38,14 @@ public:
 
     virtual ~Headers() override;
 
-    [[nodiscard]] GC::Ref<Infrastructure::HeaderList> header_list() const { return m_header_list; }
-    void set_header_list(GC::Ref<Infrastructure::HeaderList> header_list) { m_header_list = header_list; }
+    [[nodiscard]] NonnullRefPtr<HTTP::HeaderList> const& header_list() const { return m_header_list; }
+    void set_header_list(NonnullRefPtr<HTTP::HeaderList> header_list) { m_header_list = move(header_list); }
 
     [[nodiscard]] Guard guard() const { return m_guard; }
     void set_guard(Guard guard) { m_guard = guard; }
 
     WebIDL::ExceptionOr<void> fill(HeadersInit const&);
-    WebIDL::ExceptionOr<void> append(Infrastructure::Header);
+    WebIDL::ExceptionOr<void> append(HTTP::Header);
 
     // JS API functions
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
@@ -61,17 +61,16 @@ public:
 private:
     friend class HeadersIterator;
 
-    Headers(JS::Realm&, GC::Ref<Infrastructure::HeaderList>);
+    Headers(JS::Realm&, NonnullRefPtr<HTTP::HeaderList>);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<bool> validate(Infrastructure::Header const&) const;
+    WebIDL::ExceptionOr<bool> validate(HTTP::Header const&) const;
     void remove_privileged_no_cors_request_headers();
 
     // https://fetch.spec.whatwg.org/#concept-headers-header-list
     // A Headers object has an associated header list (a header list), which is initially empty.
-    GC::Ref<Infrastructure::HeaderList> m_header_list;
+    NonnullRefPtr<HTTP::HeaderList> m_header_list;
 
     // https://fetch.spec.whatwg.org/#concept-headers-guard
     // A Headers object also has an associated guard, which is a headers guard. A headers guard is "immutable", "request", "request-no-cors", "response" or "none".

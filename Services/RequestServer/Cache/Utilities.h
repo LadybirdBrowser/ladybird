@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibURL/Forward.h>
 #include <RequestServer/Forward.h>
 
@@ -25,28 +25,28 @@ u64 create_cache_key(StringView url, StringView method);
 LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key);
 
 bool is_cacheable(StringView method);
-bool is_cacheable(u32 status_code, HTTP::HeaderMap const&);
+bool is_cacheable(u32 status_code, HTTP::HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);
 
-AK::Duration calculate_freshness_lifetime(u32 status_code, HTTP::HeaderMap const&, AK::Duration current_time_offset_for_testing);
-AK::Duration calculate_age(HTTP::HeaderMap const&, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing);
+AK::Duration calculate_freshness_lifetime(u32 status_code, HTTP::HeaderList const&, AK::Duration current_time_offset_for_testing);
+AK::Duration calculate_age(HTTP::HeaderList const&, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing);
 
 enum class CacheLifetimeStatus {
     Fresh,
     Expired,
     MustRevalidate,
 };
-CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderMap const&, AK::Duration freshness_lifetime, AK::Duration current_age);
+CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderList const&, AK::Duration freshness_lifetime, AK::Duration current_age);
 
 struct RevalidationAttributes {
-    static RevalidationAttributes create(HTTP::HeaderMap const&);
+    static RevalidationAttributes create(HTTP::HeaderList const&);
 
     Optional<ByteString> etag;
     Optional<UnixDateTime> last_modified;
 };
 
-void update_header_fields(HTTP::HeaderMap&, HTTP::HeaderMap const&);
+void update_header_fields(HTTP::HeaderList&, HTTP::HeaderList const&);
 
-AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&>, HTTP::HeaderMap const& request_headers);
+AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&>, HTTP::HeaderList const& request_headers);
 
 }

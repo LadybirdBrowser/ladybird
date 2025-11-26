@@ -14,7 +14,7 @@
 #include <AK/Weakable.h>
 #include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -36,7 +36,7 @@ public:
         Resolver& resolver,
         URL::URL url,
         ByteString method,
-        HTTP::HeaderMap request_headers,
+        NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         ByteString alt_svc_cache_path,
         Core::ProxyData proxy_data);
@@ -53,7 +53,7 @@ public:
 
     URL::URL const& url() const { return m_url; }
     ByteString const& method() const { return m_method; }
-    HTTP::HeaderMap const& request_headers() const { return m_request_headers; }
+    HTTP::HeaderList const& request_headers() const { return m_request_headers; }
     UnixDateTime request_start_time() const { return m_request_start_time; }
     AK::Duration current_time_offset_for_testing() const { return m_current_time_offset_for_testing; }
 
@@ -92,7 +92,7 @@ private:
         Resolver& resolver,
         URL::URL url,
         ByteString method,
-        HTTP::HeaderMap request_headers,
+        NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         ByteString alt_svc_cache_path,
         Core::ProxyData proxy_data);
@@ -147,7 +147,7 @@ private:
     ByteString m_method;
 
     UnixDateTime m_request_start_time { UnixDateTime::now() };
-    HTTP::HeaderMap m_request_headers;
+    NonnullRefPtr<HTTP::HeaderList> m_request_headers;
     ByteBuffer m_request_body;
 
     ByteString m_alt_svc_cache_path;
@@ -156,7 +156,7 @@ private:
     u32 m_status_code { 0 };
     Optional<String> m_reason_phrase;
 
-    HTTP::HeaderMap m_response_headers;
+    NonnullRefPtr<HTTP::HeaderList> m_response_headers;
     bool m_sent_response_headers_to_client { false };
 
     AllocatingMemoryStream m_response_buffer;

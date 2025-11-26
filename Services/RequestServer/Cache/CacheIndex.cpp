@@ -13,11 +13,11 @@ namespace RequestServer {
 
 static constexpr u32 CACHE_METADATA_KEY = 12389u;
 
-static ByteString serialize_headers(HTTP::HeaderMap const& headers)
+static ByteString serialize_headers(HTTP::HeaderList const& headers)
 {
     StringBuilder builder;
 
-    for (auto const& header : headers.headers()) {
+    for (auto const& header : headers) {
         builder.append(header.name);
         builder.append(':');
         builder.append(header.value);
@@ -27,9 +27,9 @@ static ByteString serialize_headers(HTTP::HeaderMap const& headers)
     return builder.to_byte_string();
 }
 
-static HTTP::HeaderMap deserialize_headers(StringView serialized_headers)
+static NonnullRefPtr<HTTP::HeaderList> deserialize_headers(StringView serialized_headers)
 {
-    HTTP::HeaderMap headers;
+    auto headers = HTTP::HeaderList::create();
 
     serialized_headers.for_each_split_view('\n', SplitBehavior::Nothing, [&](StringView serialized_header) {
         auto index = serialized_header.find(':');
@@ -41,7 +41,7 @@ static HTTP::HeaderMap deserialize_headers(StringView serialized_headers)
             return;
 
         auto value = serialized_header.substring_view(*index + 1).trim_whitespace();
-        headers.set(name, value);
+        headers->append({ name, value });
     });
 
     return headers;
@@ -110,15 +110,15 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements)
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, String url, HTTP::HeaderMap response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HTTP::HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
-    for (size_t i = 0; i < response_headers.headers().size();) {
-        auto const& header = response_headers.headers()[i];
+    for (size_t i = 0; i < response_headers->headers().size();) {
+        auto const& header = response_headers->headers()[i];
 
         if (is_header_exempted_from_storage(header.name))
-            response_headers.remove(header.name);
+            response_headers->delete_(header.name);
         else
             ++i;
     }
@@ -156,7 +156,7 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         since);
 }
 
-void CacheIndex::update_response_headers(u64 cache_key, HTTP::HeaderMap response_headers)
+void CacheIndex::update_response_headers(u64 cache_key, NonnullRefPtr<HTTP::HeaderList> response_headers)
 {
     auto entry = m_entries.get(cache_key);
     if (!entry.has_value())

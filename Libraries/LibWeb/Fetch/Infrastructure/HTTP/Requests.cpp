@@ -20,15 +20,19 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(Request);
 
-Request::Request(GC::Ref<HeaderList> header_list)
-    : m_header_list(header_list)
+GC::Ref<Request> Request::create(JS::VM& vm)
+{
+    return vm.heap().allocate<Request>(HTTP::HeaderList::create());
+}
+
+Request::Request(NonnullRefPtr<HTTP::HeaderList> header_list)
+    : m_header_list(move(header_list))
 {
 }
 
 void Request::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_header_list);
     visitor.visit(m_client);
     m_body.visit(
         [&](GC::Ref<Body>& body) { visitor.visit(body); },
@@ -42,11 +46,6 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
     m_policy_container.visit(
         [&](GC::Ref<HTML::PolicyContainer> const& policy_container) { visitor.visit(policy_container); },
         [](auto const&) {});
-}
-
-GC::Ref<Request> Request::create(JS::VM& vm)
-{
-    return vm.heap().allocate<Request>(HeaderList::create(vm));
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-url

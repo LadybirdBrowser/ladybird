@@ -7,6 +7,8 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/TypeCasts.h>
+#include <LibHTTP/HTTP.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
@@ -19,7 +21,6 @@
 #include <LibWeb/Fetch/Body.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -301,10 +302,10 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
         auto header_name = lexer.consume_until(is_any_of("\n\r:"sv));
 
         // 3. Remove any HTTP tab or space bytes from the start or end of header name.
-        header_name = header_name.trim(Infrastructure::HTTP_TAB_OR_SPACE, TrimMode::Both);
+        header_name = header_name.trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Both);
 
         // 4. If header name does not match the field-name token production, return failure.
-        if (!Infrastructure::is_header_name(header_name.bytes()))
+        if (!HTTP::is_header_name(header_name.bytes()))
             return MultipartParsingError { MUST(String::formatted("Invalid header name {}", header_name)) };
 
         // 5. If the byte at position is not 0x3A (:), return failure.
@@ -313,7 +314,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
             return MultipartParsingError { MUST(String::formatted("Expected : at position {}", lexer.tell())) };
 
         // 7. Collect a sequence of bytes that are HTTP tab or space bytes given position. (Do nothing with those bytes.)
-        lexer.ignore_while(Infrastructure::is_http_tab_or_space);
+        lexer.ignore_while(HTTP::is_http_tab_or_space);
 
         // 8. Byte-lowercase header name and switch on the result:
         // -> `content-disposition`
@@ -346,10 +347,10 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
         // -> `content-type`
         else if (header_name.equals_ignoring_ascii_case("content-type"sv)) {
             // 1. Let header value be the result of collecting a sequence of bytes that are not 0x0A (LF) or 0x0D (CR), given position.
-            auto header_value = lexer.consume_until(Infrastructure::is_http_newline);
+            auto header_value = lexer.consume_until(HTTP::is_http_newline);
 
             // 2. Remove any HTTP tab or space bytes from the end of header value.
-            header_value = header_value.trim(Infrastructure::HTTP_TAB_OR_SPACE, TrimMode::Right);
+            header_value = header_value.trim(HTTP::HTTP_TAB_OR_SPACE, TrimMode::Right);
 
             // 3. Set contentType to the isomorphic decoding of header value.
             header.content_type = TextCodec::isomorphic_decode(header_value);
@@ -357,7 +358,7 @@ static MultipartParsingErrorOr<MultiPartFormDataHeader> parse_multipart_form_dat
         // -> Otherwise
         else {
             // 1. Collect a sequence of bytes that are not 0x0A (LF) or 0x0D (CR), given position. (Do nothing with those bytes.)
-            lexer.ignore_until(Infrastructure::is_http_newline);
+            lexer.ignore_until(HTTP::is_http_newline);
         }
 
         // 9. If position does not point to a sequence of bytes starting with 0x0D 0x0A (CR LF), return failure. Otherwise, advance position by 2 (past the newline).

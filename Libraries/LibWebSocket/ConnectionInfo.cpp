@@ -10,6 +10,7 @@ namespace WebSocket {
 
 ConnectionInfo::ConnectionInfo(URL::URL url)
     : m_url(move(url))
+    , m_headers(HTTP::HeaderList::create())
 {
 }
 

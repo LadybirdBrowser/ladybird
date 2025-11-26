@@ -1,4 +1,4 @@
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/Header.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -8,7 +8,7 @@ endpoint RequestClient
 {
     request_started(i32 request_id, IPC::File fd) =|
     request_finished(i32 request_id, u64 total_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
-    headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code, Optional<String> reason_phrase) =|
+    headers_became_available(i32 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase) =|
 
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs

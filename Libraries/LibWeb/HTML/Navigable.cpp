@@ -1154,7 +1154,7 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
             request_content_type = request_content_type_buffer.string_view();
         }
 
-        auto header = Fetch::Infrastructure::Header::isomorphic_encode("Content-Type"sv, request_content_type);
+        auto header = HTTP::Header::isomorphic_encode("Content-Type"sv, request_content_type);
         request->header_list()->append(move(header));
     }
 

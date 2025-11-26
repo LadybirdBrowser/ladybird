@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/HashMap.h>
 #include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -19,7 +19,10 @@ namespace Web {
 
 class WEB_API LoadRequest {
 public:
-    LoadRequest() = default;
+    explicit LoadRequest(NonnullRefPtr<HTTP::HeaderList> headers)
+        : m_headers(move(headers))
+    {
+    }
 
     Optional<URL::URL> const& url() const { return m_url; }
     void set_url(Optional<URL::URL> url) { m_url = move(url); }
@@ -39,13 +42,12 @@ public:
     GC::Ptr<Page> page() const { return m_page.ptr(); }
     void set_page(Page& page) { m_page = page; }
 
-    void set_header(ByteString const& name, ByteString const& value) { m_headers.set(name, value); }
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> const& headers() const { return m_headers; }
+    HTTP::HeaderList const& headers() const { return m_headers; }
 
 private:
     Optional<URL::URL> m_url;
     ByteString m_method { "GET" };
-    HashMap<ByteString, ByteString, CaseInsensitiveStringTraits> m_headers;
+    NonnullRefPtr<HTTP::HeaderList> m_headers;
     ByteBuffer m_body;
     Core::ElapsedTimer m_load_timer;
     GC::Root<Page> m_page;

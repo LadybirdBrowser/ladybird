@@ -200,7 +200,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
     auto value = parsed_url->serialize();
 
     // 7. Append (`Location`, value) to responseObject’s response’s header list.
-    auto header = Infrastructure::Header::isomorphic_encode("Location"sv, value);
+    auto header = HTTP::Header::isomorphic_encode("Location"sv, value);
     response_object->response()->header_list()->append(move(header));
 
     // 8. Return responseObject.

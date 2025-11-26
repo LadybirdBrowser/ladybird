@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -31,9 +31,9 @@ public:
     explicit RequestClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~RequestClient() override;
 
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
 
-    RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin = {}, Vector<ByteString> const& protocols = {}, Vector<ByteString> const& extensions = {}, HTTP::HeaderMap const& request_headers = {});
+    RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
     void ensure_connection(URL::URL const&, ::RequestServer::CacheLevel);
 
@@ -50,7 +50,7 @@ private:
     virtual void request_started(i32, IPC::File) override;
     virtual void request_finished(i32, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, HTTP::HeaderMap, Optional<u32>, Optional<String>) override;
+    virtual void headers_became_available(i32, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
 
     virtual void websocket_connected(i64 websocket_id) override;
     virtual void websocket_received(i64 websocket_id, bool, ByteBuffer) override;

@@ -12,7 +12,7 @@
 #include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
 #include <LibGC/Function.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
@@ -30,7 +30,7 @@ public:
 
     void set_client(NonnullRefPtr<Requests::RequestClient>);
 
-    using OnHeadersReceived = GC::Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
+    using OnHeadersReceived = GC::Function<void(HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
     using OnDataReceived = GC::Function<void(ReadonlyBytes data)>;
     using OnComplete = GC::Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message)>;
 
@@ -69,8 +69,8 @@ private:
 
     struct FileLoadResult {
         ReadonlyBytes data;
-        HTTP::HeaderMap response_headers;
-        Requests::RequestTimingInfo timing_info;
+        NonnullRefPtr<HTTP::HeaderList> response_headers;
+        Requests::RequestTimingInfo timing_info {};
     };
     template<typename FileHandler, typename ErrorHandler>
     void handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error);
@@ -80,7 +80,7 @@ private:
     void handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&);
-    void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
+    void handle_network_response_headers(LoadRequest const&, HTTP::HeaderList const&);
     void finish_network_request(NonnullRefPtr<Requests::Request>);
 
     int m_pending_loads { 0 };

@@ -8,7 +8,7 @@
 
 #include <AK/Vector.h>
 #include <LibDNS/Resolver.h>
-#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 
 namespace WebSocket {
@@ -28,8 +28,8 @@ public:
     Vector<ByteString> const& extensions() const { return m_extensions; }
     void set_extensions(Vector<ByteString> extensions) { m_extensions = move(extensions); }
 
-    HTTP::HeaderMap const& headers() const { return m_headers; }
-    void set_headers(HTTP::HeaderMap headers) { m_headers = move(headers); }
+    HTTP::HeaderList const& headers() const { return m_headers; }
+    void set_headers(NonnullRefPtr<HTTP::HeaderList> headers) { m_headers = move(headers); }
 
     Optional<ByteString> const& root_certificates_path() const { return m_root_certificates_path; }
     void set_root_certificates_path(Optional<ByteString> root_certificates_path) { m_root_certificates_path = move(root_certificates_path); }
@@ -48,7 +48,7 @@ private:
     ByteString m_origin;
     Vector<ByteString> m_protocols {};
     Vector<ByteString> m_extensions {};
-    HTTP::HeaderMap m_headers;
+    NonnullRefPtr<HTTP::HeaderList> m_headers;
     Optional<ByteString> m_root_certificates_path;
     RefPtr<DNS::LookupResult const> m_dns_result;
 };

@@ -217,7 +217,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
 
         // 1. Append `Service-Worker`/`script` to request’s header list.
         // Note: See https://w3c.github.io/ServiceWorker/#service-worker
-        request->header_list()->append(Fetch::Infrastructure::Header::isomorphic_encode("Service-Worker"sv, "script"sv));
+        request->header_list()->append(HTTP::Header::isomorphic_encode("Service-Worker"sv, "script"sv));
 
         // 2. Set request’s cache mode to "no-cache" if any of the following are true:
         //  - registration’s update via cache mode is not "all".
@@ -273,7 +273,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // FIXME: CSP not implemented yet
 
             // 10. If serviceWorkerAllowed is failure, then:
-            if (service_worker_allowed.has<Fetch::Infrastructure::HeaderList::ExtractHeaderParseFailure>()) {
+            if (service_worker_allowed.has<HTTP::HeaderList::ExtractHeaderParseFailure>()) {
                 // FIXME: Should we reject the job promise with a security error here?
 
                 // 1. Asynchronously complete these steps with a network error.

@@ -15,7 +15,6 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -319,7 +318,7 @@ void EventSource::reestablish_the_connection()
         if (!m_last_event_id.is_empty()) {
             // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
             // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-            auto header = Fetch::Infrastructure::Header::isomorphic_encode("Last-Event-ID"sv, m_last_event_id);
+            auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, m_last_event_id);
             request->header_list()->set(move(header));
         }
 

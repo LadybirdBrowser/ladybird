@@ -109,19 +109,20 @@ static void store_response_cookies(Page& page, URL::URL const& url, ByteString c
     page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http); // FIXME: Determine cookie source correctly
 }
 
-static HTTP::HeaderMap response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
+static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
 {
     // For file:// and resource:// URLs, we have to guess the MIME type, since there's no HTTP header to tell us what
     // it is. We insert a fake Content-Type header here, so that clients can use it to learn the MIME type.
     auto mime_type = Core::guess_mime_type_based_on_filename(path);
 
-    HTTP::HeaderMap response_headers;
-    response_headers.set("Access-Control-Allow-Origin"sv, "null"sv);
-    response_headers.set("Content-Type"sv, mime_type);
+    auto response_headers = HTTP::HeaderList::create({
+        { "Access-Control-Allow-Origin"sv, "null"sv },
+        { "Content-Type"sv, mime_type },
+    });
 
     if (modified_time.has_value()) {
         auto const datetime = AK::UnixDateTime::from_seconds_since_epoch(modified_time.value());
-        response_headers.set("Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, AK::UnixDateTime::LocalTime::No));
+        response_headers->set({ "Last-Modified"sv, datetime.to_byte_string("%a, %d %b %Y %H:%M:%S GMT"sv, AK::UnixDateTime::LocalTime::No) });
     }
 
     return response_headers;
@@ -217,9 +218,10 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
                 return;
             }
 
-            FileLoadResult load_result;
-            load_result.data = maybe_response.value().bytes();
-            load_result.response_headers.set("Content-Type"sv, "text/html"sv);
+            FileLoadResult load_result {
+                .data = maybe_response.value().bytes(),
+                .response_headers = HTTP::HeaderList::create({ { "Content-Type"sv, "text/html"sv } }),
+            };
             on_file(load_result);
             return;
         }
@@ -243,9 +245,10 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
             return;
         }
 
-        FileLoadResult load_result;
-        load_result.data = maybe_data.value().bytes();
-        load_result.response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime);
+        FileLoadResult load_result {
+            .data = maybe_data.value().bytes(),
+            .response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime),
+        };
         on_file(load_result);
     });
 
@@ -263,8 +266,9 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callb
 
     dbgln_if(SPAM_DEBUG, "Loading about: URL {}", url);
 
-    HTTP::HeaderMap response_headers;
-    response_headers.set("Content-Type"sv, "text/html; charset=UTF-8"sv);
+    auto response_headers = HTTP::HeaderList::create({
+        { "Content-Type"sv, "text/html; charset=UTF-8"sv },
+    });
 
     // FIXME: Implement timing info for about requests.
     Requests::RequestTimingInfo timing_info {};
@@ -324,23 +328,22 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
             return;
         }
 
-        FileLoadResult load_result;
-        load_result.data = maybe_response.value().bytes();
-        load_result.response_headers.set("Content-Type"sv, "text/html"sv);
+        FileLoadResult load_result {
+            .data = maybe_response.value().bytes(),
+            .response_headers = HTTP::HeaderList::create({ { "Content-Type"sv, "text/html"sv } }),
+        };
         on_resource(load_result);
         return;
     }
 
-    auto const& buffer = resource_value->data();
-    auto response_headers = response_headers_for_file(url.file_path(), resource_value->modified_time());
-
     // FIXME: Implement timing info for resource requests.
     Requests::RequestTimingInfo timing_info {};
 
-    FileLoadResult load_result;
-    load_result.data = buffer;
-    load_result.response_headers = move(response_headers);
-    load_result.timing_info = timing_info;
+    FileLoadResult load_result {
+        .data = resource_value->data(),
+        .response_headers = response_headers_for_file(url.file_path(), resource_value->modified_time()),
+        .timing_info = timing_info,
+    };
     on_resource(load_result);
 }
 
@@ -357,7 +360,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
     }
 
     if (url.scheme() == "about"sv) {
-        handle_about_load_request(request, [on_headers_received, on_data_received, on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderMap const& response_headers) {
+        handle_about_load_request(request, [on_headers_received, on_data_received, on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
             log_success(request);
             on_headers_received->function()(response_headers, {}, {});
             on_data_received->function()(data);
@@ -439,22 +442,13 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
 {
     auto proxy = ProxyMappings::the().proxy_for_url(request.url().value());
 
-    HTTP::HeaderMap headers;
-
-    for (auto const& it : request.headers()) {
-        headers.set(it.key, it.value);
-    }
-
-    if (!headers.contains("User-Agent"))
-        headers.set("User-Agent", m_user_agent.to_byte_string());
-
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (!m_request_client) {
         log_failure(request, "RequestServer is currently unavailable"sv);
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), headers, request.body(), proxy);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), proxy);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
@@ -472,7 +466,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     return protocol_request;
 }
 
-void ResourceLoader::handle_network_response_headers(LoadRequest const& request, HTTP::HeaderMap const& response_headers)
+void ResourceLoader::handle_network_response_headers(LoadRequest const& request, HTTP::HeaderList const& response_headers)
 {
     if (!request.page())
         return;
@@ -481,7 +475,7 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
         // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
         // 15. If includeCredentials is true, then the user agent should parse and store response
         //     `Set-Cookie` headers given request and response.
-        for (auto const& [header, value] : response_headers.headers()) {
+        for (auto const& [header, value] : response_headers) {
             if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
                 store_response_cookies(*request.page(), request.url().value(), value);
             }
