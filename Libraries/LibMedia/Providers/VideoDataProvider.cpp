@@ -320,7 +320,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
                 if (!found_desired_keyframe)
                     continue;
 
-                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
                 if (decode_result.is_error()) {
                     handle_error(decode_result.release_error());
                     return true;
@@ -406,7 +406,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
     } else {
         auto coded_frame = sample_result.release_value();
-        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+        auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
         if (decode_result.is_error()) {
             set_error_and_wait_for_seek(decode_result.release_error());
             return;

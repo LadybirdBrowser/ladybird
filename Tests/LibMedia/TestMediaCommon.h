@@ -47,7 +47,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
 
         auto block = block_result.release_value();
         for (auto const& frame : block.frames()) {
-            MUST(decoder->receive_coded_data(block.timestamp(), frame));
+            MUST(decoder->receive_coded_data(block.timestamp(), block.duration().value_or(AK::Duration::zero()), frame));
             while (true) {
                 auto frame_result = decoder->get_decoded_frame();
                 if (frame_result.is_error()) {
