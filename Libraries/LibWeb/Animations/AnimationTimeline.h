@@ -17,7 +17,8 @@ class AnimationTimeline : public Bindings::PlatformObject {
 
 public:
     Optional<double> current_time() const;
-    virtual void set_current_time(Optional<double>);
+
+    virtual void update_current_time(double timestamp) = 0;
 
     GC::Ptr<DOM::Document> associated_document() const { return m_associated_document; }
     void set_associated_document(GC::Ptr<DOM::Document>);
@@ -39,6 +40,8 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
+
+    void set_current_time(Optional<double> value);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animationtimeline-currenttime
     Optional<double> m_current_time {};

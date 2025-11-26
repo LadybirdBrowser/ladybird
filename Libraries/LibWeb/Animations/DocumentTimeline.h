@@ -26,7 +26,7 @@ public:
     static GC::Ref<DocumentTimeline> create(JS::Realm&, DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
     static WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> construct_impl(JS::Realm&, DocumentTimelineOptions options = {});
 
-    virtual void set_current_time(Optional<double> current_time) override;
+    virtual void update_current_time(double timestamp) override;
     virtual bool is_inactive() const override;
 
     virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<double>) override;
