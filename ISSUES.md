@@ -1,76 +1,96 @@
-# Issue-reporting guidelines
+# Issues: Hunting Down Unexpected Behaviours
 
-Report problems using our detailed [bug-reporting
-form](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml), which helps to ensure that, for us to reproduce and investigate the problem, your bug report includes the information needed — including a reduced test case.
+Browsers have an enormous number of edge cases, if you can find one, and isolate exactly where the unexpected behaviour is coming from, that can already help a lot!
 
-## How you can write a reduced test case
+That's where reduced test cases and issue raising comes in. By the end of this guide you'll know how to isolate an unexpected behaviour in a reduced test case, and you'll know where, when, and how to raise an issue.
 
-When raising an issue, the single-most important thing you can provide is a reduced test others can use to reproduce the problem.
+>[!CAUTION]
+> - No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord. Do not create an issue.
+> - One bug per issue. Putting multiple things in the same issue makes both discussion and completion unnecessarily complicated.
+>- Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
+>- If you can't to reduce the test case (see bellow), please go to the discord before raising an issue!
 
-You can create a reduced test case for a problem by starting from the HTML/JS/CSS source for a particular website/page which causes the problem, and removing as much content as possible while still having a document that reproduces the problem.
+If you've been here before and you're just looking for the link to the form, [here it is](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml).
 
-Here’s how you can do that:
+>[!NOTE]
+> The following guide assumes:
+> - You have some web development knowledge (comfortable in the inspector).
+> - You have followed the [getting started guide]() (ladybird is running on your device).
+> - You have joined the discord server.
 
-1. Create a local `REDUCTION.html` (or whatever name) copy of the page — ideally by using something like the [SingleFile](https://addons.mozilla.org/en-US/firefox/addon/single-file/) extension for Firefox or Chrome to save a canned copy of the page as it currently exists (post-JS-execution).
+Ladybird developers are looking for reduced test cases; 
+the simplest code that can reproduce **_just one_** unexpected behaviour. 
 
-   That also allows you to use Firefox/Chrome devtools to quickly strip out irrelevant elements from the page before saving a copy.
 
-2. If you’re *not* using something like SingleFile, then: To ensure any images,external style sheets, or external scripts that use a relative path will get loaded by your local `REDUCTION.html` document, put a `base` element into the document — like this:
+# How to Reduce the Test Case
+Put very plainly, your aim is to keep removing things until only the source of the unexpected behaviour is left.
 
-   ```html
-   <base href="https://ladybird.org/">
-   ```
+```mermaid
+flowchart LR
 
-    However, if the problem appears to be caused not by anything in the source of the document itself, but instead by something in an external script or external stylesheet, then you’ll also need to create a local copy of the problem script or problem stylesheet.
+A[Find behaviour] --> B{Use SingleFile?}
 
-3. Open/load the `REDUCTION.html` file in Ladybird, and verify that the same problem occurs with it as occurs with the original website/page you copied it from.
+B -->|Yes| C[Capture & clean with SingleFile]
+B -->|No| D[Put needed content & resources<br>into one .html]
 
-4. **Script-related problems:** Especially if you believe the problem is related to any JavaScript that the document is executing, then temporarily disable scripting by unchecking **Enable Scripting** option in the **Debug** menu in Ladybird, and then reload the `REDUCTION.html` file in Ladybird.
+C --> E[Load .html in Ladybird]
+D --> E
 
-   * If the problem still happens after you’ve disabled scripting, then you can remove any and all `script` elements from the document, and you can continue on from there.
+E --> F{Does the error still occur?}
 
-   * If the problem does not happen any longer after you’ve disabled scripting, then that tells you the cause is related to the contents from one or more of the `script` elements, and you can check the **Enable Scripting** option to turn scripting back on, and you can continue on from there.
+F -->|No| H[Include more] --> E
+F -->|Yes| G[Remove content]
 
-5. **CSS-related problems**: Especially if you believe that the problem is related to any CSS stylesheets the document is using, then:
+G --> I{Does behaviour persist?}
 
-   1. [If you’ve not used something like the [SingleFile](https://addons.mozilla.org/en-US/firefox/addon/single-file/) extension for Firefox or Chrome] Add a `style` element in the `REDUCTION.html` file, and then for each external style sheet the document has, paste the contents from that external stylesheet into that `style` element.
+I -->|Yes| J[You found a culprit!]
+I -->|No| G
+```
+1. Find a behaviour on a web page in ladybird that isn't what you'd expect in Chrome/Firefox.
 
-   2. Start removing CSS rules from any and all `style` elements in the document, and reload the `REDUCTION.html` file in Ladybird.
+2. Get a .html file (eg. REDUCTION.html) containing your unexpected behaviour.
 
-      * If the problem does not happen any longer after you’ve removed a particular CSS rule, then you may have isolated the cause. Re-add that CSS rule to the document, and continue on from there.
+	- Often the easiest way is to open the page in Chrome/Firefox; use the [SingleFile](https://addons.mozilla.org/en-US/firefox/addon/single-file/) extension to save a canned copy of the page as it currently exists (post-JS-execution). In SingleFile you can already remove a considerable amount that probably has nothing to do with the unexpected behaviour.
 
-      * If the problem does continue to happen after you’ve removed a CSS rule, then you’ve successfully reduced the test case by one CSS rule, and you can continue on from there.
+	- If you aren't using something like SingleFile you may need external scripts, stylesheets, and/or anything else that rely on a relative path to reproduce the behaviour. Either: 
+		- paste relevant stylesheets, svgs, scripts, etc.. directly in the html document,
+		- create a local copy of the resource,
+		- put a [`<base>`](https://www.w3schools.com/TAGs/tag_base.asp)element in the document like this: `<base href="https://your.webpage.url/">`
 
-   Either way, keep repeating the two steps above, removing CSS rules one by one, and with each removal, checking whether the problem still happens — and if it does, putting the CSS rule you removed back into the document, or otherwise, leaving the CSS rule out and moving on.
 
-6. **HTML-related problems:** Begin removing one *element* at time from the `REDUCTION.html` file, starting with the elements in the document `head`.
+3. Verify that the behaviour still occurs by loading your `REDUCTION.html` file in Ladybird.
 
-7. Reload the `REDUCTION.html` file in Ladybird, and verify whether the problem is still happening.
+4. By process of elimination, you're going to find the source of the behaviour within REDUCTION.html; If the issue is in:
+	- a **script**, then unchecking **Enable Scripting** option in the **Debug** menu in Ladybird would stop the behaviour.
+	- a **stylesheet**, removing the rule would stop the behaviour. 
+	- the **html**, removing the element would stop the behaviour.
+	So just keep removing anything that doesn't stop the behaviour and eventually all you'll have left are the culprits of the one unexpected behaviour.
 
-   * If the problem does not happen any longer after you’ve removed a particular element, then you may have isolated the cause. Re-add that element to the document, and continue on from there.
+	To pinpoint the unexpected behaviour, it may be helpful to use the `--enable-idl-tracing` command-line flag when running Ladybird. This will output detailed information about the calls being made to the browser's internal interfaces.
 
-   * If the problem does continue to happen after you’ve removed a particular element, then you’ve successfully reduced the test case by one element, and you can continue on from there.
-
-   Either way, keep repeating the steps: removing elements one by one, and with each removal, checking whether the problem still happens — and if it does, putting the element you removed back into the document, or otherwise, leaving the element out and moving on.
-
-In the end, after following the steps above and removing elements and CSS rules, you’ll have a reduced test case that you can include when you raise an issue for the problem.
-
-## How to share/publish your reduced test case at a URL
-
-You can take your reduced test case and post it online at a site such as the following:
-
-* https://codepen.io/pen/
-* https://jsbin.com
-* https://jsfiddle.net
-
-That will give you a URL which you can then include in the issue you raise for the problem.
-
-*[Credits: The “How you can write a reduced test case” details above are largely taken from https://webkit.org/test-case-reduction/.]*
-
-## Debugging
-
-When investigating a bug, it can be helpful to use the `--enable-idl-tracing` command-line flag when running Ladybird. This will output detailed information about the calls being made to the browser's internal interfaces, which can help pinpoint where a problem is occurring.
-
-```bash
+```
 ./Meta/ladybird.py run ladybird --enable-idl-tracing
 ```
+
+If you get stuck, remember there's very active community around you. Throw what you're stuck on in the discord, we're excited to learn what you've found so far!
+
+
+# How to Raise the Issue
+Once you've honed in your reduced test case, 
+- You can share your test case at a URL using one of the following:
+	- [https://codepen.io/pen/](https://codepen.io/pen/)
+	- [https://jsbin.com](https://jsbin.com)
+	- [https://jsfiddle.net](https://jsfiddle.net)
+
+- Fill in [the bug-reporting form](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml). Include your link or put the your reduced test case directly in the form's section titled "HTML/SVG/etc. source for a reduced test case".
+
+# Examples
+This might seem a little intimidating, so here are a few examples that are easy enough to follow and might serve as inspiration!
+
+[issue #6193](https://github.com/LadybirdBrowser/ladybird/issues/6193)<br>
+[issue #6085](https://github.com/LadybirdBrowser/ladybird/issues/6085)<br>
+[issue #6275](https://github.com/LadybirdBrowser/ladybird/issues/6275)
+
+# Going Further
+Want to patch to your issue? 
+[Getting Started Contributing]() is your friend.
