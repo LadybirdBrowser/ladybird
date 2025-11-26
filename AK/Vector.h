@@ -382,6 +382,27 @@ public:
         MUST(try_empend(forward<Args>(args)...));
     }
 
+    template<class... Args>
+    ALWAYS_INLINE void unchecked_empend(Args&&... args)
+    requires(!contains_reference)
+    {
+        VERIFY(m_size < capacity());
+        if constexpr (want_fast_last_access) {
+            ++m_metadata.last_slot;
+            ++m_size;
+        } else {
+            ++m_size;
+        }
+
+        StorageType* last_slot;
+        if constexpr (want_fast_last_access)
+            last_slot = m_metadata.last_slot;
+        else
+            last_slot = slot(m_size - 1);
+
+        new (last_slot) StorageType(forward<Args>(args)...);
+    }
+
     template<typename U = T>
     void prepend(U&& value)
     requires(CanBePlacedInsideVector<U>)
