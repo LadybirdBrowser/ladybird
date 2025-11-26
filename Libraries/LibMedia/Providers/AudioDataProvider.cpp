@@ -341,11 +341,11 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
 
         auto block = AudioBlock();
-        auto timestamp_result = retrieve_next_block(block);
-        if (timestamp_result.is_error()) {
-            if (timestamp_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
+        auto block_result = retrieve_next_block(block);
+        if (block_result.is_error()) {
+            if (block_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;
-            set_error_and_wait_for_seek(timestamp_result.release_error());
+            set_error_and_wait_for_seek(block_result.release_error());
             break;
         }
 
