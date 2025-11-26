@@ -88,6 +88,7 @@ public:
     WebIDL::UnsignedLong get_error();
     JS::Value get_program_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong pname);
     Optional<String> get_program_info_log(GC::Root<WebGLProgram> program);
+    JS::Value get_renderbuffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_shader_parameter(GC::Root<WebGLShader> shader, WebIDL::UnsignedLong pname);
     GC::Root<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
