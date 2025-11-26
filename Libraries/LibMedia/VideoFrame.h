@@ -29,14 +29,14 @@ public:
         return bitmap;
     }
 
-    inline AK::Duration timestamp() const { return m_timestamp; }
+    AK::Duration timestamp() const { return m_timestamp; }
 
-    inline Gfx::Size<u32> size() const { return m_size; }
-    inline u32 width() const { return size().width(); }
-    inline u32 height() const { return size().height(); }
+    Gfx::Size<u32> size() const { return m_size; }
+    u32 width() const { return size().width(); }
+    u32 height() const { return size().height(); }
 
-    inline u8 bit_depth() const { return m_bit_depth; }
-    inline CodingIndependentCodePoints& cicp() { return m_cicp; }
+    u8 bit_depth() const { return m_bit_depth; }
+    CodingIndependentCodePoints& cicp() { return m_cicp; }
 
 protected:
     VideoFrame(AK::Duration timestamp,
