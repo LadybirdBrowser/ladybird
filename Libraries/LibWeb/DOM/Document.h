@@ -757,7 +757,7 @@ public:
         Optional<double> scheduled_event_time;
     };
     void append_pending_animation_event(PendingAnimationEvent const&);
-    void update_animations_and_send_events(Optional<double> const& timestamp);
+    void update_animations_and_send_events(double timestamp);
     void remove_replaced_animations();
 
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
