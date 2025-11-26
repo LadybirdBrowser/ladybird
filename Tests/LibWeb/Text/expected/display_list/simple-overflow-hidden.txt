@@ -2,8 +2,8 @@ Save
   ApplyTransform matrix=[1 0 0 1 0 0]
   SaveLayer
     FillPath path_bounding_rect=[8,8 204x104]
-    FillRect rect=[10,10 300x150] color=rgb(240, 128, 128)
-    DrawGlyphRun rect=[10,10 38x18] translation=[10,23.796875] color=rgb(0, 0, 0) scale=1
+    FillRect rect=[10,10 300x150] color=rgb(240, 128, 128), clip_rects=[[10,10 200x100]]
+    DrawGlyphRun rect=[10,10 38x18] translation=[10,23.796875] color=rgb(0, 0, 0) scale=1, clip_rects=[[10,10 200x100]]
   Restore
 Restore
 
