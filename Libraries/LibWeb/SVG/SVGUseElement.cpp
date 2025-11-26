@@ -105,11 +105,6 @@ Gfx::AffineTransform SVGUseElement::element_transform() const
     return Base::element_transform().translate(m_x.value_or(0), m_y.value_or(0));
 }
 
-void SVGUseElement::inserted()
-{
-    Base::inserted();
-}
-
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 {
     auto to_clone = referenced_element();
