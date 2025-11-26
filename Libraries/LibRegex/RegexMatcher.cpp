@@ -178,17 +178,19 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     for (auto const& view : views)
         const_cast<RegexStringView&>(view).set_unicode(unicode);
 
-    if (input.regex_options.has_flag_set(AllFlags::Internal_Stateful)) {
-        if (views.size() > 1 && input.start_offset > views.first().length()) {
-            dbgln_if(REGEX_DEBUG, "Started with start={}, goff={}, skip={}", input.start_offset, input.global_offset, lines_to_skip);
-            for (auto const& view : views) {
-                if (input.start_offset < view.length() + 1)
-                    break;
-                ++lines_to_skip;
-                input.start_offset -= view.length() + 1;
-                input.global_offset += view.length() + 1;
+    if constexpr (REGEX_DEBUG) {
+        if (input.regex_options.has_flag_set(AllFlags::Internal_Stateful)) {
+            if (views.size() > 1 && input.start_offset > views.first().length()) {
+                dbgln("Started with start={}, goff={}, skip={}", input.start_offset, input.global_offset, lines_to_skip);
+                for (auto const& view : views) {
+                    if (input.start_offset < view.length() + 1)
+                        break;
+                    ++lines_to_skip;
+                    input.start_offset -= view.length() + 1;
+                    input.global_offset += view.length() + 1;
+                }
+                dbgln("Ended with start={}, goff={}, skip={}", input.start_offset, input.global_offset, lines_to_skip);
             }
-            dbgln_if(REGEX_DEBUG, "Ended with start={}, goff={}, skip={}", input.start_offset, input.global_offset, lines_to_skip);
         }
     }
 
