@@ -87,9 +87,10 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
         playback_manager->m_audio_track_datas.extend(move(audio_track_datas));
         playback_manager->m_preferred_video_track = preferred_video_track;
         playback_manager->m_preferred_audio_track = preferred_audio_track;
-        playback_manager->m_duration = move(duration);
 
-        playback_manager->set_up_error_handlers();
+        playback_manager->check_for_duration_change(duration);
+
+        playback_manager->set_up_data_providers();
 
         if (!playback_manager->m_audio_tracks.is_empty()) {
             playback_manager->m_audio_sink = MUST(AudioMixingSink::try_create());
@@ -152,7 +153,7 @@ void PlaybackManager::add_media_source(ReadonlyBytes media_data)
     thread->detach();
 }
 
-void PlaybackManager::set_up_error_handlers()
+void PlaybackManager::set_up_data_providers()
 {
     for (auto const& video_track_data : m_video_track_datas) {
         video_track_data.provider->set_error_handler([weak_self = m_weak_wrapper](DecoderError&& error) {
@@ -160,6 +161,12 @@ void PlaybackManager::set_up_error_handlers()
             if (!self)
                 return;
             self->dispatch_error(move(error));
+        });
+        video_track_data.provider->set_frame_end_time_handler([weak_self = m_weak_wrapper](AK::Duration time) {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->check_for_duration_change(time);
         });
     }
 
@@ -170,7 +177,22 @@ void PlaybackManager::set_up_error_handlers()
                 return;
             self->dispatch_error(move(error));
         });
+        audio_track_data.provider->set_block_end_time_handler([weak_self = m_weak_wrapper](AK::Duration time) {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->check_for_duration_change(time);
+        });
     }
+}
+
+void PlaybackManager::check_for_duration_change(AK::Duration duration)
+{
+    if (m_duration >= duration)
+        return;
+    m_duration = duration;
+    if (on_duration_change)
+        on_duration_change(m_duration);
 }
 
 void PlaybackManager::dispatch_error(DecoderError&& error)

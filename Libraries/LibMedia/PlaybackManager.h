@@ -80,6 +80,7 @@ public:
     Function<void(DecoderError&&)> on_unsupported_format_error;
     Function<void(TrackType, Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
+    Function<void(AK::Duration)> on_duration_change;
     Function<void(DecoderError&&)> on_error;
 
     void add_media_source(ReadonlyBytes media_data);
@@ -123,7 +124,8 @@ private:
 
     PlaybackManager();
 
-    void set_up_error_handlers();
+    void set_up_data_providers();
+    void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
     VideoTrackData& get_video_data_for_track(Track const& track);

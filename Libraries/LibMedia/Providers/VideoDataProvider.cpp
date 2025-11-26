@@ -55,6 +55,11 @@ void VideoDataProvider::set_error_handler(ErrorHandler&& handler)
     m_thread_data->set_error_handler(move(handler));
 }
 
+void VideoDataProvider::set_frame_end_time_handler(FrameEndTimeHandler&& handler)
+{
+    m_thread_data->set_frame_end_time_handler(move(handler));
+}
+
 void VideoDataProvider::start()
 {
     m_thread_data->start();
@@ -98,6 +103,11 @@ void VideoDataProvider::ThreadData::start()
         return;
     m_requested_state = RequestedState::Running;
     wake();
+}
+
+void VideoDataProvider::ThreadData::set_frame_end_time_handler(FrameEndTimeHandler&& handler)
+{
+    m_frame_end_time_handler = move(handler);
 }
 
 void VideoDataProvider::ThreadData::exit()
@@ -158,6 +168,15 @@ void VideoDataProvider::ThreadData::invoke_on_main_thread(Invokee invokee)
 {
     auto locker = take_lock();
     invoke_on_main_thread_while_locked(move(invokee));
+}
+
+void VideoDataProvider::ThreadData::dispatch_frame_end_time(CodedFrame const& frame)
+{
+    auto end_time = frame.timestamp() + frame.duration();
+    invoke_on_main_thread([end_time](auto const& self) {
+        if (self->m_frame_end_time_handler)
+            self->m_frame_end_time_handler(end_time);
+    });
 }
 
 void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame)
@@ -313,6 +332,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
                 }
             } else {
                 auto coded_frame = coded_frame_result.release_value();
+                dispatch_frame_end_time(coded_frame);
 
                 if (!found_desired_keyframe)
                     found_desired_keyframe = is_desired_coded_frame(coded_frame);
@@ -406,6 +426,8 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
     } else {
         auto coded_frame = sample_result.release_value();
+        dispatch_frame_end_time(coded_frame);
+
         auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
         if (decode_result.is_error()) {
             set_error_and_wait_for_seek(decode_result.release_error());
