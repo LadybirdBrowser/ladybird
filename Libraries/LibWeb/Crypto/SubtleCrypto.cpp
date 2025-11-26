@@ -1597,6 +1597,11 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<MLKEM>("encapsulate"_string, name);
     }
 
+    // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration
+    for (auto const& algorithm : { "Argon2d"_string, "Argon2i"_string, "Argon2id"_string }) {
+        define_an_algorithm<Argon2>("get key length"_string, algorithm);
+    }
+
     return internal_object;
 }
 
