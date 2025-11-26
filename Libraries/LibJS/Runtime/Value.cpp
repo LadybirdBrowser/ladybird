@@ -257,7 +257,7 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
 
 Array& Value::as_array()
 {
-    VERIFY(is_object() && is<Array>(as_object()));
+    ASSERT(is_object() && is<Array>(as_object()));
     return static_cast<Array&>(as_object());
 }
 
@@ -272,13 +272,13 @@ bool Value::is_function() const
 
 FunctionObject& Value::as_function()
 {
-    VERIFY(is_function());
+    ASSERT(is_function());
     return static_cast<FunctionObject&>(as_object());
 }
 
 FunctionObject const& Value::as_function() const
 {
-    VERIFY(is_function());
+    ASSERT(is_function());
     return static_cast<FunctionObject const&>(as_object());
 }
 

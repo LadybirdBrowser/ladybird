@@ -271,19 +271,19 @@ public:
 
     Cell& as_cell()
     {
-        VERIFY(is_cell());
+        ASSERT(is_cell());
         return *extract_pointer<Cell>();
     }
 
     Cell& as_cell() const
     {
-        VERIFY(is_cell());
+        ASSERT(is_cell());
         return *extract_pointer<Cell>();
     }
 
     double as_double() const
     {
-        VERIFY(is_number());
+        ASSERT(is_number());
         if (is_int32())
             return as_i32();
         return m_value.as_double;
@@ -291,61 +291,61 @@ public:
 
     bool as_bool() const
     {
-        VERIFY(is_boolean());
+        ASSERT(is_boolean());
         return static_cast<bool>(m_value.encoded & 0x1);
     }
 
     Object& as_object()
     {
-        VERIFY(is_object());
+        ASSERT(is_object());
         return *extract_pointer<Object>();
     }
 
     Object const& as_object() const
     {
-        VERIFY(is_object());
+        ASSERT(is_object());
         return *extract_pointer<Object>();
     }
 
     PrimitiveString& as_string()
     {
-        VERIFY(is_string());
+        ASSERT(is_string());
         return *extract_pointer<PrimitiveString>();
     }
 
     PrimitiveString const& as_string() const
     {
-        VERIFY(is_string());
+        ASSERT(is_string());
         return *extract_pointer<PrimitiveString>();
     }
 
     Symbol& as_symbol()
     {
-        VERIFY(is_symbol());
+        ASSERT(is_symbol());
         return *extract_pointer<Symbol>();
     }
 
     Symbol const& as_symbol() const
     {
-        VERIFY(is_symbol());
+        ASSERT(is_symbol());
         return *extract_pointer<Symbol>();
     }
 
     Accessor& as_accessor()
     {
-        VERIFY(is_accessor());
+        ASSERT(is_accessor());
         return *extract_pointer<Accessor>();
     }
 
     BigInt const& as_bigint() const
     {
-        VERIFY(is_bigint());
+        ASSERT(is_bigint());
         return *extract_pointer<BigInt>();
     }
 
     BigInt& as_bigint()
     {
-        VERIFY(is_bigint());
+        ASSERT(is_bigint());
         return *extract_pointer<BigInt>();
     }
 
@@ -404,13 +404,13 @@ public:
 
     i32 as_i32() const
     {
-        VERIFY(is_int32());
+        ASSERT(is_int32());
         return static_cast<i32>(m_value.encoded & 0xFFFFFFFF);
     }
 
     i32 as_i32_clamped_integral_number() const
     {
-        VERIFY(is_int32() || is_finite_number());
+        ASSERT(is_int32() || is_finite_number());
         if (is_int32())
             return as_i32();
         double value = trunc(as_double());
