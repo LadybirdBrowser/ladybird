@@ -1302,6 +1302,13 @@ void HTMLMediaElement::on_metadata_parsed()
     // FIXME: Handle unbounded media resources.
     set_duration(m_playback_manager->duration().to_seconds_f64());
 
+    // NB: Register the duration change handler here so that we don't set the duration when the
+    //     playback manager updates the duration after parsing.
+    m_playback_manager->on_duration_change = [weak_self = GC::Weak(*this)](AK::Duration duration) {
+        if (weak_self)
+            weak_self->set_duration(duration.to_seconds_f64());
+    };
+
     // 5. For video elements, set the videoWidth and videoHeight attributes, and queue a media element task given the media element to fire an event
     //    named resize at the media element.
     auto* video_element = as_if<HTMLVideoElement>(*this);
