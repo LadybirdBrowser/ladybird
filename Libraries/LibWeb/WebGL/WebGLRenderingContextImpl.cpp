@@ -1604,6 +1604,32 @@ Optional<String> WebGLRenderingContextImpl::get_program_info_log(GC::Root<WebGLP
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 }
 
+JS::Value WebGLRenderingContextImpl::get_renderbuffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+
+    switch (pname) {
+    case GL_RENDERBUFFER_WIDTH:
+    case GL_RENDERBUFFER_HEIGHT:
+    case GL_RENDERBUFFER_INTERNAL_FORMAT:
+    case GL_RENDERBUFFER_RED_SIZE:
+    case GL_RENDERBUFFER_GREEN_SIZE:
+    case GL_RENDERBUFFER_BLUE_SIZE:
+    case GL_RENDERBUFFER_ALPHA_SIZE:
+    case GL_RENDERBUFFER_DEPTH_SIZE:
+    case GL_RENDERBUFFER_SAMPLES:
+    case GL_RENDERBUFFER_STENCIL_SIZE: {
+        GLint result = 0;
+        glGetRenderbufferParameteriv(target, pname, &result);
+        return JS::Value(result);
+    }
+    default:
+        // If pname is not in the table above, generates an INVALID_ENUM error.
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
 JS::Value WebGLRenderingContextImpl::get_shader_parameter(GC::Root<WebGLShader> shader, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();

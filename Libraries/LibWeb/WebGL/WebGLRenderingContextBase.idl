@@ -118,7 +118,7 @@ interface mixin WebGLRenderingContextBase {
     [FIXME] any getFramebufferAttachmentParameter(GLenum target, GLenum attachment, GLenum pname);
     any getProgramParameter(WebGLProgram program, GLenum pname);
     DOMString? getProgramInfoLog(WebGLProgram program);
-    [FIXME] any getRenderbufferParameter(GLenum target, GLenum pname);
+    any getRenderbufferParameter(GLenum target, GLenum pname);
     any getShaderParameter(WebGLShader shader, GLenum pname);
     WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
     DOMString? getShaderInfoLog(WebGLShader shader);
