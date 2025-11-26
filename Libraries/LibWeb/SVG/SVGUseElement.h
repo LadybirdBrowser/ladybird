@@ -25,8 +25,6 @@ public:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    virtual void inserted() override;
-
     void svg_element_changed(SVGElement&);
     void svg_element_removed(SVGElement&);
 
