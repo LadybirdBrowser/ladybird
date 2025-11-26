@@ -5309,7 +5309,7 @@ void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimati
 }
 
 // https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
-void Document::update_animations_and_send_events(Optional<double> const& timestamp)
+void Document::update_animations_and_send_events(double timestamp)
 {
     // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
     //
