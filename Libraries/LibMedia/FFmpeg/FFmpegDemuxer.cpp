@@ -253,6 +253,7 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         auto flags = (packet.flags & AV_PKT_FLAG_KEY) != 0 ? FrameFlags::Keyframe : FrameFlags::None;
         auto sample = CodedFrame(
             time_units_to_duration(packet.pts, stream.time_base),
+            time_units_to_duration(packet.duration, stream.time_base),
             flags,
             move(packet_data),
             auxiliary_data);
