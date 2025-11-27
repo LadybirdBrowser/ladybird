@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestAES.cpp
+    TestArgon2.cpp
     TestASN1.cpp
     TestBigFraction.cpp
     TestBigInteger.cpp
