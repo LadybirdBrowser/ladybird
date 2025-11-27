@@ -124,6 +124,7 @@ public:
     [[nodiscard]] bool is_fresh() const;
     [[nodiscard]] bool is_stale_while_revalidate() const;
     [[nodiscard]] bool is_stale() const;
+    [[nodiscard]] bool has_explicit_cacheability_indicator() const;
 
     // Non-standard
     [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
