@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/ErrorEvent.h>
+#include <LibWeb/HTML/ErrorInformation.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -767,37 +768,51 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
     if (event->dispatched())
         event->set_cancelled(true);
 
-    // 7. Signal abort on event's abort controller given error.
-    event->abort_controller()->abort(error);
+    // 7. Abort event given error.
+    abort_a_navigate_event(*event, *error);
+}
 
-    // 8. Set navigation's ongoing navigate event to null.
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#abort-a-navigateevent
+void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<WebIDL::DOMException> reason)
+{
+    // 1. Let navigation be event's relevant global object's navigation API.
+    // NB: Navigation is `this`.
+
+    // 2. Signal abort on event's abort controller given reason.
+    event->abort_controller()->abort(reason);
+
+    // 3. Let errorInfo be the result of extracting error information from reason.
+    auto error_info = extract_error_information(vm(), reason);
+
+    // 4. Set navigation's ongoing navigate event to null.
     m_ongoing_navigate_event = nullptr;
 
-    // 9. Fire an event named navigateerror at navigation using ErrorEvent, with error initialized to error,
-    //   and message, filename, lineno, and colno initialized to appropriate values that can be extracted
-    //   from error and the current JavaScript stack in the same underspecified way that the report the exception algorithm does.
+    // 5. If navigation's ongoing API method tracker is non-null, then reject the finished promise for apiMethodTracker with reason.
+    if (m_ongoing_api_method_tracker)
+        WebIDL::reject_promise(realm(), m_ongoing_api_method_tracker->finished_promise, reason);
+
+    // 6. Fire an event named navigateerror at navigation using ErrorEvent, with additional attributes initialized
+    //    according to errorInfo.
     ErrorEventInit event_init = {};
-    event_init.error = error;
-    // FIXME: Extract information from the exception and the JS context in the wishy-washy way the spec says here.
-    event_init.filename = String {};
-    event_init.colno = 0;
-    event_init.lineno = 0;
-    event_init.message = String {};
+    event_init.filename = error_info.filename;
+    event_init.message = error_info.message;
+    event_init.lineno = error_info.lineno;
+    event_init.colno = error_info.colno;
+    event_init.error = error_info.error;
 
-    dispatch_event(ErrorEvent::create(realm, EventNames::navigateerror, event_init));
+    dispatch_event(ErrorEvent::create(realm(), EventNames::navigateerror, event_init));
 
-    // 10. If navigation's ongoing API method tracker is non-null, then reject the finished promise for apiMethodTracker with error.
-    if (m_ongoing_api_method_tracker != nullptr)
-        WebIDL::reject_promise(realm, m_ongoing_api_method_tracker->finished_promise, error);
+    // 7. If navigation's transition is null, then return.
+    if (!m_transition)
+        return;
 
-    // 11. If navigation's transition is not null, then:
-    if (m_transition != nullptr) {
-        // 1. Reject navigation's transition's finished promise with error.
-        WebIDL::reject_promise(realm, m_transition->finished(), error);
+    // FIXME: 8. Reject navigation's transition's committed promise with error.
 
-        // 2. Set navigation's transition to null.
-        m_transition = nullptr;
-    }
+    // 9. Reject navigation's transition's finished promise with reason.
+    WebIDL::reject_promise(realm(), m_transition->finished(), reason);
+
+    // 10. Set navigation's transition to null.
+    m_transition = nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#promote-an-upcoming-api-method-tracker-to-ongoing
