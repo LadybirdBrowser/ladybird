@@ -25,8 +25,17 @@ void HTMLTemplateElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTemplateElement);
     Base::initialize(realm);
 
-    m_content = realm.create<DOM::DocumentFragment>(m_document->appropriate_template_contents_owner_document());
-    m_content->set_host(this);
+    // https://html.spec.whatwg.org/multipage/scripting.html#template-contents
+    // When a template element is created, the user agent must run the following steps to establish the template contents:
+    // 1. Let document be the template element's node document's appropriate template contents owner document.
+    auto document = m_document->appropriate_template_contents_owner_document();
+
+    // 2. Create a DocumentFragment object whose node document is document and host is the template element.
+    auto document_fragment = realm.create<DOM::DocumentFragment>(document);
+    document_fragment->set_host(this);
+
+    // 3. Set the template element's template contents to the newly created DocumentFragment object.
+    m_content = document_fragment;
 }
 
 void HTMLTemplateElement::visit_edges(Cell::Visitor& visitor)
@@ -38,11 +47,11 @@ void HTMLTemplateElement::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-adopt-ext
 void HTMLTemplateElement::adopted_from(DOM::Document&)
 {
-    // 1. Let doc be node's node document's appropriate template contents owner document.
-    auto doc = document().appropriate_template_contents_owner_document();
+    // 1. Let document be node's node document's appropriate template contents owner document.
+    auto document = this->document().appropriate_template_contents_owner_document();
 
-    // 2. Adopt node's template contents (a DocumentFragment object) into doc.
-    doc->adopt_node(content());
+    // 2. Adopt node's template contents (a DocumentFragment object) into document.
+    document->adopt_node(content());
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-clone-ext
