@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script type="text/javascript">
+    test(() => {
+        {
+            let headers = new Headers({ "X-Foo": "" });
+            println(`X-Foo: "${headers.get("X-Foo")}"`);
+
+            headers.append("X-Foo", "a");
+            println(`X-Foo: "${headers.get("X-Foo")}"`);
+        }
+        {
+            let headers = new Headers({ "X-Foo": "a" });
+            println(`X-Foo: "${headers.get("X-Foo")}"`);
+
+            headers.append("X-Foo", "");
+            println(`X-Foo: "${headers.get("X-Foo")}"`);
+        }
+    });
+</script>
