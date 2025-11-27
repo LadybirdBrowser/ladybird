@@ -10,11 +10,11 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/PopoverInvokerElement.h>
+#include <LibWeb/HTML/PopoverTargetAttributes.h>
 
 namespace Web::HTML {
 
-void PopoverInvokerElement::associated_attribute_changed(FlyString const& name, Optional<String> const&, Optional<FlyString> const& namespace_)
+void PopoverTargetAttributes::associated_attribute_changed(FlyString const& name, Optional<String> const&, Optional<FlyString> const& namespace_)
 {
     // From: https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributess
     // For element reflected targets only: the following attribute change steps, given element, localName, oldValue, value, and namespace,
@@ -28,19 +28,19 @@ void PopoverInvokerElement::associated_attribute_changed(FlyString const& name, 
     m_popover_target_element = nullptr;
 }
 
-void PopoverInvokerElement::visit_edges(JS::Cell::Visitor& visitor)
+void PopoverTargetAttributes::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_popover_target_element);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#popover-target-attribute-activation-behavior
 // https://whatpr.org/html/9457/popover.html#popover-target-attribute-activation-behavior
-void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> event_target)
+void PopoverTargetAttributes::popover_target_activation_behaviour(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> event_target)
 {
     // To run the popover target attribute activation behavior given a Node node and a Node eventTarget:
 
     // 1. Let popover be node's popover target element.
-    auto popover = PopoverInvokerElement::get_the_popover_target_element(node);
+    auto popover = PopoverTargetAttributes::get_the_popover_target_element(node);
 
     // 2. If popover is null, then return.
     if (!popover)
@@ -74,7 +74,7 @@ void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Nod
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#popover-target-element
-GC::Ptr<HTMLElement> PopoverInvokerElement::get_the_popover_target_element(GC::Ref<DOM::Node> node)
+GC::Ptr<HTMLElement> PopoverTargetAttributes::get_the_popover_target_element(GC::Ref<DOM::Node> node)
 {
     // To get the popover target element given a Node node, perform the following steps. They return an HTML element or null.
 
@@ -95,7 +95,7 @@ GC::Ptr<HTMLElement> PopoverInvokerElement::get_the_popover_target_element(GC::R
         return {};
 
     // 4. Let popoverElement be the result of running node's get the popovertarget-associated element.
-    auto const* popover_invoker_element = as_if<PopoverInvokerElement>(*node);
+    auto const* popover_invoker_element = as_if<PopoverTargetAttributes>(*node);
     GC::Ptr<HTMLElement> popover_element = as<HTMLElement>(popover_invoker_element->m_popover_target_element.ptr());
     if (!popover_element) {
         auto target_id = as<HTMLElement>(*node).attribute("popovertarget"_fly_string);

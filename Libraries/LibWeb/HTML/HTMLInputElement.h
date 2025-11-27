@@ -19,7 +19,7 @@
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/PopoverInvokerElement.h>
+#include <LibWeb/HTML/PopoverTargetAttributes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -55,7 +55,7 @@ class WEB_API HTMLInputElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public Layout::ImageProvider
-    , public PopoverInvokerElement
+    , public PopoverTargetAttributes
     , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);

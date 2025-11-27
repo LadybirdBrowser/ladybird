@@ -1414,7 +1414,7 @@ void HTMLInputElement::did_lose_focus()
 
 void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    PopoverInvokerElement::associated_attribute_changed(name, value, namespace_);
+    PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 
     if (name == HTML::AttributeNames::checked) {
         // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-input-checked-dirty-2
@@ -3094,7 +3094,7 @@ void HTMLInputElement::activation_behavior(DOM::Event const& event)
 
     // 4. Run the popover target attribute activation behavior given element and event's target.
     if (event.target() && event.target()->is_dom_node())
-        PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
+        PopoverTargetAttributes::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
 bool HTMLInputElement::has_input_activation_behavior() const

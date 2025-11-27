@@ -12,10 +12,10 @@
 
 namespace Web::HTML {
 
-class PopoverInvokerElement {
+class PopoverTargetAttributes {
 
 public:
-    PopoverInvokerElement() { }
+    PopoverTargetAttributes() { }
 
     GC::Ptr<DOM::Element> popover_target_element() { return m_popover_target_element; }
 

@@ -6,8 +6,8 @@ enum PopoverTargetActionAttribute {
     "hide"
 };
 
-// https://html.spec.whatwg.org/multipage/popover.html#popoverinvokerelement
-interface mixin PopoverInvokerElement {
+// https://html.spec.whatwg.org/multipage/popover.html#popovertargetattributes
+interface mixin PopoverTargetAttributes {
     [Reflect=popovertarget, CEReactions] attribute Element? popoverTargetElement;
     [Reflect=popovertargetaction, Enumerated=PopoverTargetActionAttribute, CEReactions] attribute DOMString popoverTargetAction;
 };

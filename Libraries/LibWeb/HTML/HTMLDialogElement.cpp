@@ -484,8 +484,8 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
     invalidate_style(DOM::StyleInvalidationReason::HTMLDialogElementSetIsModal);
 }
 
-// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-invoker-command-steps
-bool HTMLDialogElement::is_valid_invoker_command(String& command)
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-command-steps
+bool HTMLDialogElement::is_valid_command(String& command)
 {
     // 1. If command is in the Close state, the Request Close state, or the Show Modal state, then return true.
     if (command == "close" || command == "request-close" || command == "show-modal")
@@ -495,8 +495,8 @@ bool HTMLDialogElement::is_valid_invoker_command(String& command)
     return false;
 }
 
-// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:invoker-command-steps
-void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& command)
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:command-steps
+void HTMLDialogElement::command_steps(DOM::Element& source, String& command)
 {
     // 1. If element is in the popover showing state, then return.
     if (popover_visibility_state() == PopoverVisibilityState::Showing) {
@@ -504,22 +504,22 @@ void HTMLDialogElement::invoker_command_steps(DOM::Element& invoker, String& com
     }
 
     // 2. If command is in the Close state and element has an open attribute,
-    //    then close the dialog given element with invoker's optional value and invoker.
+    //    then close the dialog given element with source's optional value and source.
     if (command == "close" && has_attribute(AttributeNames::open)) {
-        auto const optional_value = as<FormAssociatedElement>(invoker).optional_value();
-        close_the_dialog(optional_value, invoker);
+        auto const optional_value = as<FormAssociatedElement>(source).optional_value();
+        close_the_dialog(optional_value, source);
     }
 
     // 3. If command is in the Request Close state and element has an open attribute,
-    //    then request to close the dialog element with invoker's optional value and invoker.
+    //    then request to close the dialog element with source's optional value and source.
     if (command == "request-close" && has_attribute(AttributeNames::open)) {
-        auto const optional_value = as<FormAssociatedElement>(invoker).optional_value();
-        request_close_the_dialog(optional_value, invoker);
+        auto const optional_value = as<FormAssociatedElement>(source).optional_value();
+        request_close_the_dialog(optional_value, source);
     }
 
-    // 4. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element and invoker.
+    // 4. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element and source.
     if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
-        MUST(show_a_modal_dialog(*this, invoker));
+        MUST(show_a_modal_dialog(*this, source));
     }
 }
 
