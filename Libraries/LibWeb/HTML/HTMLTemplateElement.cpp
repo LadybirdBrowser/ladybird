@@ -76,6 +76,16 @@ WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool subtree) 
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/scripting.html#dom-template-content
+GC::Ref<DOM::DocumentFragment> HTMLTemplateElement::content_for_bindings() const
+{
+    // 1. Assert: this's template contents is not a ShadowRoot node.
+    VERIFY(!m_content->is_shadow_root());
+
+    // 2. Return this's template contents.
+    return *m_content;
+}
+
 void HTMLTemplateElement::set_template_contents(GC::Ref<DOM::DocumentFragment> contents)
 {
     m_content = contents;

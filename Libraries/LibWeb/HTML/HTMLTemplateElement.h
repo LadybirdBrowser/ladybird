@@ -21,6 +21,8 @@ public:
     GC::Ref<DOM::DocumentFragment> content() { return *m_content; }
     GC::Ref<DOM::DocumentFragment> const content() const { return *m_content; }
 
+    GC::Ref<DOM::DocumentFragment> content_for_bindings() const;
+
     void set_template_contents(GC::Ref<DOM::DocumentFragment>);
 
     virtual void adopted_from(DOM::Document&) override;
