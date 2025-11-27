@@ -7,7 +7,7 @@ interface HTMLTemplateElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    readonly attribute DocumentFragment content;
+    [ImplementedAs=content_for_bindings] readonly attribute DocumentFragment content;
     [Reflect=shadowrootmode, Enumerated=ShadowRootMode, CEReactions] attribute DOMString shadowRootMode;
     [Reflect=shadowrootdelegatesfocus, CEReactions] attribute boolean shadowRootDelegatesFocus;
     [Reflect=shadowrootclonable, CEReactions] attribute boolean shadowRootClonable;
