@@ -2255,15 +2255,15 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
 {
     // The autocapitalization processing model is based on selecting among five autocapitalization hints, defined as follows:
     //
-    // default
+    // Default
     //     The user agent and input method should make their own determination of whether or not to enable autocapitalization.
     // none
     //     No autocapitalization should be applied (all letters should default to lowercase).
-    // sentences
+    // Sentences
     //     The first letter of each sentence should default to a capital letter; all other letters should default to lowercase.
-    // words
+    // Words
     //     The first letter of each word should default to a capital letter; all other letters should default to lowercase.
-    // characters
+    // Characters
     //     All letters should default to uppercase.
 
     // The autocapitalize attribute is an enumerated attribute whose states are the possible autocapitalization hints.
@@ -2272,14 +2272,14 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
     // their state mappings are as follows:
 
     // Keyword    | State
-    // off        | none
+    // off        | None
     // none       |
-    // on         | sentences
+    // on         | Sentences
     // sentences  |
-    // words      | words
-    // characters | characters
+    // words      | Words
+    // characters | Characters
 
-    // The attribute's missing value default is the default state, and its invalid value default is the sentences state.
+    // The attribute's missing value default is the Default state, and its invalid value default is the Sentences state.
 
     // To compute the own autocapitalization hint of an element element, run the following steps:
     // 1. If the autocapitalize content attribute is present on element, and its value is not the empty string, return the
@@ -2301,12 +2301,13 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
         return AutocapitalizationHint::Sentences;
     }
 
-    // If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, return the own autocapitalization hint of element's form owner.
+    // 2. If element is an autocapitalize-and-autocorrect inheriting element and has a non-null form owner, return the
+    //    own autocapitalization hint of element's form owner.
     auto const* form_associated_element = as_if<FormAssociatedElement>(this);
     if (form_associated_element && form_associated_element->is_autocapitalize_and_autocorrect_inheriting() && form_associated_element->form())
         return form_associated_element->form()->own_autocapitalization_hint();
 
-    // 3. Return default.
+    // 3. Return Default.
     return AutocapitalizationHint::Default;
 }
 
@@ -2317,9 +2318,9 @@ String HTMLElement::autocapitalize() const
     // 1. Let state be the own autocapitalization hint of this.
     auto state = own_autocapitalization_hint();
 
-    // 2. If state is default, then return the empty string.
-    // 3. If state is none, then return "none".
-    // 4. If state is sentences, then return "sentences".
+    // 2. If state is Default, then return the empty string.
+    // 3. If state is None, then return "none".
+    // 4. If state is Sentences, then return "sentences".
     // 5. Return the keyword value corresponding to state.
     switch (state) {
     case AutocapitalizationHint::Default:
@@ -2348,12 +2349,12 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
 {
     // The autocorrect attribute is an enumerated attribute with the following keywords and states:
     // Keyword            | State | Brief description
-    // on                 | on    | The user agent is permitted to automatically correct spelling errors while the user
+    // on                 | On    | The user agent is permitted to automatically correct spelling errors while the user
     // (the empty string) |       | types. Whether spelling is automatically corrected while typing left is for the user
     //                    |       | agent to decide, and may depend on the element as well as the user's preferences.
-    // off                | off   | The user agent is not allowed to automatically correct spelling while the user types.
+    // off                | Off   | The user agent is not allowed to automatically correct spelling while the user types.
 
-    // The attribute's invalid value default and missing value default are both the on state.
+    // The attribute's invalid value default and missing value default are both the On state.
 
     auto autocorrect_attribute_state = [](Optional<String> attribute) {
         if (attribute.has_value() && attribute.value().equals_ignoring_ascii_case("off"sv))
@@ -2363,7 +2364,8 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
     };
 
     // To compute the used autocorrection state of an element element, run these steps:
-    // 1. If element is an input element whose type attribute is in one of the URL, E-mail, or Password states, then return off.
+    // 1. If element is an input element whose type attribute is in one of the URL, E-mail, or Password states, then
+    //    return Off.
     if (auto const* input_element = as_if<HTMLInputElement>(this)) {
         if (first_is_one_of(input_element->type_state(), HTMLInputElement::TypeAttributeState::URL, HTMLInputElement::TypeAttributeState::Email, HTMLInputElement::TypeAttributeState::Password))
             return AutocorrectionState::Off;
@@ -2382,21 +2384,23 @@ HTMLElement::AutocorrectionState HTMLElement::used_autocorrection_state() const
             return autocorrect_attribute_state(form_associated_element->form()->attribute(HTML::AttributeNames::autocorrect));
     }
 
-    // 4. Return on.
+    // 4. Return On.
     return AutocorrectionState::On;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
 bool HTMLElement::autocorrect() const
 {
-    // The autocorrect getter steps are: return true if the element's used autocorrection state is on and false if the element's used autocorrection state is off.
+    // The autocorrect getter steps are: return true if the element's used autocorrection state is On and false if the
+    // element's used autocorrection state is Off.
     return used_autocorrection_state() == AutocorrectionState::On;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-autocorrect
 void HTMLElement::set_autocorrect(bool given_value)
 {
-    // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on"; otherwise it must be set to "off".
+    // The setter steps are: if the given value is true, then the element's autocorrect attribute must be set to "on";
+    // otherwise it must be set to "off".
     if (given_value)
         set_attribute_value(HTML::AttributeNames::autocorrect, "on"_string);
     else
