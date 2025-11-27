@@ -1600,6 +1600,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration
     for (auto const& algorithm : { "Argon2d"_string, "Argon2i"_string, "Argon2id"_string }) {
         define_an_algorithm<Argon2>("importKey"_string, algorithm);
+        define_an_algorithm<Argon2, Argon2Params>("deriveBits"_string, algorithm);
         define_an_algorithm<Argon2>("get key length"_string, algorithm);
     }
 
