@@ -101,13 +101,13 @@ void HTMLButtonElement::set_type_for_bindings(String const& type)
 
 void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    PopoverInvokerElement::associated_attribute_changed(name, value, namespace_);
+    PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 }
 
 void HTMLButtonElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    PopoverInvokerElement::visit_edges(visitor);
+    PopoverTargetAttributes::visit_edges(visitor);
     visitor.visit(m_command_for_element);
 }
 
@@ -217,9 +217,9 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             // 1. Assert: target's namespace is the HTML namespace.
             VERIFY(target->namespace_uri() == Namespace::HTML);
 
-            // 2. If this standard does not define is valid invoker command steps for target's local name, then return.
-            // 3. Otherwise, if the result of running target's corresponding is valid invoker command steps given command is false, then return.
-            if (!target->is_valid_invoker_command(command))
+            // 2. If this standard does not define is valid command steps for target's local name, then return.
+            // 3. Otherwise, if the result of running target's corresponding is valid command steps given command is false, then return.
+            if (!target->is_valid_command(command))
                 return;
         }
 
@@ -284,16 +284,16 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
             }
         }
 
-        // 12. Otherwise, if this standard defines invoker command steps for target's local name,
-        //     then run the corresponding invoker command steps given target, element, and command.
+        // 12. Otherwise, if this standard defines command steps for target's local name,
+        //     then run the corresponding command steps given target, element, and command.
         else {
-            target->invoker_command_steps(*this, command);
+            target->command_steps(*this, command);
         }
     }
 
     // 6. Otherwise, run the popover target attribute activation behavior given element and event's target.
     else if (event.target() && event.target()->is_dom_node())
-        PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
+        PopoverTargetAttributes::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
 bool HTMLButtonElement::is_focusable() const

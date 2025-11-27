@@ -735,7 +735,7 @@ class PageTransitionEvent;
 class Path2D;
 class Plugin;
 class PluginArray;
-class PopoverInvokerElement;
+class PopoverTargetAttributes;
 class PromiseRejectionEvent;
 class RadioNodeList;
 class SelectedFile;

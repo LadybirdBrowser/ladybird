@@ -1,6 +1,6 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
-#import <HTML/PopoverInvokerElement.idl>
+#import <HTML/PopoverTargetAttributes.idl>
 #import <HTML/ValidityState.idl>
 
 [MissingValueDefault=submit, InvalidValueDefault=submit]
@@ -37,4 +37,4 @@ interface HTMLButtonElement : HTMLElement {
 
     readonly attribute NodeList labels;
 };
-HTMLButtonElement includes PopoverInvokerElement;
+HTMLButtonElement includes PopoverTargetAttributes;

@@ -175,11 +175,11 @@ public:
     WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
 
     WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>, IgnoreDomState ignore_dom_state);
-    WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
+    WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> source);
     WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state, GC::Ptr<HTMLElement> source);
 
     static void hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> endpoint, FocusPreviousElement focus_previous_element, FireEvents fire_events);
-    static GC::Ptr<HTMLElement> topmost_popover_ancestor(GC::Ptr<DOM::Node> new_popover_or_top_layer_element, Vector<GC::Ref<HTMLElement>> const& popover_list, GC::Ptr<HTMLElement> invoker, IsPopover is_popover);
+    static GC::Ptr<HTMLElement> topmost_popover_ancestor(GC::Ptr<DOM::Node> new_popover_or_top_layer_element, Vector<GC::Ref<HTMLElement>> const& popover_list, GC::Ptr<HTMLElement> source, IsPopover is_popover);
 
     static void light_dismiss_open_popovers(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
 
@@ -188,8 +188,8 @@ public:
     bool draggable() const;
     void set_draggable(bool draggable);
 
-    virtual bool is_valid_invoker_command(String&) { return false; }
-    virtual void invoker_command_steps(DOM::Element&, String&) { }
+    virtual bool is_valid_command(String&) { return false; }
+    virtual void command_steps(DOM::Element&, String&) { }
 
     bool is_form_associated_custom_element();
 
@@ -240,7 +240,7 @@ private:
     static Optional<String> popover_value_to_state(Optional<String> value);
     void hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     GC::Ptr<HTMLElement> nearest_inclusive_open_popover();
-    GC::Ptr<HTMLElement> nearest_inclusive_target_popover_for_invoker();
+    GC::Ptr<HTMLElement> nearest_inclusive_target_popover();
     static void close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     static GC::Ptr<HTMLElement> topmost_clicked_popover(GC::Ptr<DOM::Node> node);
     size_t popover_stack_position();
@@ -264,8 +264,8 @@ private:
     // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
     bool m_popover_showing_or_hiding { false };
 
-    // https://html.spec.whatwg.org/multipage/popover.html#popover-invoker
-    GC::Ptr<HTMLElement> m_popover_invoker;
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-trigger
+    GC::Ptr<HTMLElement> m_popover_trigger;
 
     // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:toggle-task-tracker
     Optional<ToggleTaskTracker> m_popover_toggle_task_tracker;
