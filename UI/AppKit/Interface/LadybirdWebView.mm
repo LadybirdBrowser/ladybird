@@ -62,6 +62,9 @@ struct HideCursor {
 // event ourselves to prevent indefinitely repeating the event.
 @property (nonatomic, strong) NSEvent* event_being_redispatched;
 
+// To handle key events after dead key processing, we need to hold onto the originating key-down event.
+@property (nonatomic, strong) NSEvent* current_key_down_event;
+
 @end
 
 @implementation LadybirdWebView
@@ -842,6 +845,17 @@ struct HideCursor {
     };
 }
 
+- (void)handleCurrentKeyDownEvent
+{
+    if (!self.current_key_down_event)
+        return;
+
+    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, self.current_key_down_event);
+    m_web_view_bridge->enqueue_input_event(move(key_event));
+
+    self.current_key_down_event = nil;
+}
+
 - (void)selectDropdownAction:(NSMenuItem*)menuItem
 {
     NSNumber* data = [menuItem representedObject];
@@ -1072,6 +1086,7 @@ struct HideCursor {
         return;
     }
 
+    self.current_key_down_event = event;
     [self interpretKeyEvents:@[ event ]];
 }
 
@@ -1138,20 +1153,12 @@ struct HideCursor {
 
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange
 {
-    auto* event = [NSApp currentEvent];
-    if (event && event.type == NSEventTypeKeyDown) {
-        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
-        m_web_view_bridge->enqueue_input_event(move(key_event));
-    }
+    [self handleCurrentKeyDownEvent];
 }
 
 - (void)doCommandBySelector:(SEL)selector
 {
-    auto* event = [NSApp currentEvent];
-    if (event && event.type == NSEventTypeKeyDown) {
-        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
-        m_web_view_bridge->enqueue_input_event(move(key_event));
-    }
+    [self handleCurrentKeyDownEvent];
 }
 
 - (BOOL)hasMarkedText
