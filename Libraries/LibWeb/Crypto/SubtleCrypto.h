@@ -44,6 +44,7 @@ public:
     GC::Ref<WebIDL::Promise> unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier unwrap_algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
     GC::Ref<WebIDL::Promise> encapsulate_key(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+    GC::Ref<WebIDL::Promise> encapsulate_bits(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key);
 
 private:
     explicit SubtleCrypto(JS::Realm&);

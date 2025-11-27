@@ -1138,6 +1138,74 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
     return promise;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-encapsulateBits
+GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key)
+{
+    auto& realm = this->realm();
+
+    // 1. Let encapsulationAlgorithm and encapsulationKey be the encapsulationAlgorithm and encapsulationKey
+    //    parameters passed to the encapsulateBits() method, respectively.
+
+    // 2. Let normalizedEncapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
+    //    encapsulationAlgorithm and op set to "encapsulate".
+    auto maybe_normalized_encapsulation_algorithm = normalize_an_algorithm(realm, encapsulation_algorithm, "encapsulate"_string);
+
+    // 3. If an error occurred, return a Promise rejected with normalizedEncapsulationAlgorithm.
+    if (maybe_normalized_encapsulation_algorithm.is_error()) {
+        return WebIDL::create_rejected_promise_from_exception(realm, maybe_normalized_encapsulation_algorithm.release_error());
+    }
+    auto normalized_encapsulation_algorithm = maybe_normalized_encapsulation_algorithm.release_value();
+
+    // 4. Let realm be the relevant realm of this.
+
+    // 5. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 6. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_encapsulation_algorithm = move(normalized_encapsulation_algorithm), promise, encapsulation_key = encapsulation_key]() mutable -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
+        //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
+
+        // 8. If the name member of normalizedEncapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
+        //    internal slot of encapsulationKey then throw an InvalidAccessError.
+        if (normalized_encapsulation_algorithm.parameter->name != encapsulation_key->algorithm_name()) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key algorithm"_utf16));
+            return;
+        }
+
+        // 9. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateBits", then
+        //    throw an InvalidAccessError.
+        if (encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatebits)) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key usages"_utf16));
+            return;
+        }
+
+        // 10. Let encapsulatedBits be the result of performing the encapsulate operation specified by the [[algorithm]]
+        //     internal slot of encapsulationKey using encapsulationKey.
+        auto maybe_encapsulated_bits = normalized_encapsulation_algorithm.methods->encapsulate(*normalized_encapsulation_algorithm.parameter, encapsulation_key);
+        if (maybe_encapsulated_bits.is_error()) {
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_encapsulated_bits.release_error()).release_value());
+            return;
+        }
+        auto encapsulated_bits = maybe_encapsulated_bits.release_value();
+
+        // 11. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // 12. Let result be the result of converting encapsulatedBits to an ECMAScript Object in realm, as defined by [WebIDL].
+        auto maybe_result = encapsulated_bits->to_object(realm);
+        if (maybe_result.is_error()) {
+            WebIDL::reject_promise(realm, promise, maybe_result.release_error().value());
+            return;
+        }
+        auto const result = maybe_result.release_value();
+
+        // 13. Resolve promise with result.
+        WebIDL::resolve_promise(realm, promise, result);
+    }));
+
+    return promise;
+}
+
 SupportedAlgorithmsMap& supported_algorithms_internal()
 {
     static SupportedAlgorithmsMap s_supported_algorithms;
