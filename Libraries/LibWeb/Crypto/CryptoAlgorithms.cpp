@@ -9146,6 +9146,47 @@ WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(AlgorithmParams const& 
     return result;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // 1. Let keyData be the key data to be imported.
+    // 2. If format is not "raw-secret", throw a NotSupportedError
+    if (format != Bindings::KeyFormat::RawSecret)
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+
+    // 3. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+    for (auto const usage : usages) {
+        if (!(usage == Bindings::KeyUsage::Derivekey || usage == Bindings::KeyUsage::Derivebits))
+            return WebIDL::SyntaxError::create(m_realm, "Invalid key usage"_utf16);
+    }
+
+    // 4. If extractable is not false, then throw a SyntaxError.
+    if (extractable) {
+        return WebIDL::SyntaxError::create(m_realm, "Key cannot be extractable"_utf16);
+    }
+
+    // 5. Let key be a new CryptoKey representing keyData.
+    auto key = CryptoKey::create(m_realm, key_data);
+
+    // 6. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 7. Set the [[extractable]] internal slot of key to false.
+    key->set_extractable(false);
+
+    // 8. Let algorithm be a new KeyAlgorithm object.
+    auto algorithm = KeyAlgorithm::create(m_realm);
+
+    // 9. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+    algorithm->set_name(params.name);
+
+    // 10. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 11. Return key.
+    return key;
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-get-key-length
 WebIDL::ExceptionOr<JS::Value> Argon2::get_key_length(AlgorithmParams const&)
 {
