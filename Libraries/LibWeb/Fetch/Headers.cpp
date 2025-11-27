@@ -247,7 +247,7 @@ WebIDL::ExceptionOr<void> Headers::append(Infrastructure::Header header)
 
         // 2. If temporaryValue is null, then set temporaryValue to value.
         if (!temporary_value.has_value()) {
-            temporary_value = move(value);
+            temporary_value = value;
         }
         // 3. Otherwise, set temporaryValue to temporaryValue, followed by 0x2C 0x20, followed by value.
         else {
@@ -255,7 +255,7 @@ WebIDL::ExceptionOr<void> Headers::append(Infrastructure::Header header)
         }
 
         auto temporary_header = Infrastructure::Header {
-            .name = move(name),
+            .name = name,
             .value = temporary_value.release_value(),
         };
 
