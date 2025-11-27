@@ -1263,7 +1263,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 // 4. Set shadow's declarative to true.
                 shadow.set_declarative(true);
 
-                // 5. Set template's template contents property to shadow.
+                // 5. Set template's template contents to shadow.
                 as<HTMLTemplateElement>(*template_).set_template_contents(shadow);
 
                 // 6. Set shadow's available to element internals to true.

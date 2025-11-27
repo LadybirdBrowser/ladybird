@@ -4499,15 +4499,16 @@ void Document::decrement_throw_on_dynamic_markup_insertion_counter(Badge<HTML::H
 // https://html.spec.whatwg.org/multipage/scripting.html#appropriate-template-contents-owner-document
 GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
 {
-    // 1. If doc is not a Document created by this algorithm, then:
+    // 1. If document is not a Document created by this algorithm:
     if (!created_for_appropriate_template_contents()) {
-        // 1. If doc does not yet have an associated inert template document, then:
+        // 1. If document does not yet have an associated inert template document:
         if (!m_associated_inert_template_document) {
-            // 1. Let new doc be a new Document (whose browsing context is null). This is "a Document created by this algorithm" for the purposes of the step above.
+            // 1. Let newDocument be a new Document (whose browsing context is null). This is "a Document created by
+            //    this algorithm" for the purposes of the step above.
             auto new_document = HTML::HTMLDocument::create(realm());
             new_document->m_created_for_appropriate_template_contents = true;
 
-            // 2. If doc is an HTML document, mark new doc as an HTML document also.
+            // 2. If document is an HTML document, then mark newDocument as an HTML document also.
             if (document_type() == Type::HTML)
                 new_document->set_document_type(Type::HTML);
 
@@ -4516,13 +4517,13 @@ GC::Ref<DOM::Document> Document::appropriate_template_contents_owner_document()
             // Spec issue: https://github.com/whatwg/html/issues/11955
             new_document->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
 
-            // 3. Set doc's associated inert template document to new doc.
+            // 3. Set document's associated inert template document to newDocument.
             m_associated_inert_template_document = new_document;
         }
-        // 2. Set doc to doc's associated inert template document.
+        // 2. Set document to document's associated inert template document.
         return *m_associated_inert_template_document;
     }
-    // 2. Return doc.
+    // 2. Return document.
     return *this;
 }
 
