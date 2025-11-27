@@ -8,7 +8,7 @@
 
 #include <AK/Forward.h>
 #include <LibMedia/DecoderError.h>
-#include <LibThreading/MutexProtected.h>
+#include <LibSync/MutexProtected.h>
 
 #include "Demuxer.h"
 
@@ -83,7 +83,7 @@ public:
     }
 
 private:
-    Threading::MutexProtected<NonnullRefPtr<Demuxer>> m_demuxer;
+    Sync::MutexProtected<NonnullRefPtr<Demuxer>> m_demuxer;
 };
 
 }
