@@ -30,7 +30,7 @@
     assert_true(event instanceof CommandEvent, "event is CommandEvent");
     assert_equals(event.type, "command", "type");
     assert_equals(event.bubbles, false, "bubbles");
-    assert_equals(event.composed, true, "composed");
+    assert_equals(event.composed, false, "composed");
     assert_equals(event.isTrusted, true, "isTrusted");
     assert_equals(event.command, "--custom-command", "command");
     assert_equals(event.target, invokee, "target");
@@ -47,7 +47,7 @@
     assert_true(event instanceof CommandEvent, "event is CommandEvent");
     assert_equals(event.type, "command", "type");
     assert_equals(event.bubbles, false, "bubbles");
-    assert_equals(event.composed, true, "composed");
+    assert_equals(event.composed, false, "composed");
     assert_equals(event.isTrusted, true, "isTrusted");
     assert_equals(event.command, "--custom-command", "command");
     assert_equals(event.target, invokee, "target");
@@ -66,7 +66,7 @@
         assert_true(event instanceof CommandEvent, "event is CommandEvent");
         assert_equals(event.type, "command", "type");
         assert_equals(event.bubbles, false, "bubbles");
-        assert_equals(event.composed, true, "composed");
+        assert_equals(event.composed, false, "composed");
         assert_equals(event.isTrusted, true, "isTrusted");
         assert_equals(event.command, command, "command");
         assert_equals(event.target, invokee, "target");
@@ -82,7 +82,7 @@
         assert_true(event instanceof CommandEvent, "event is CommandEvent");
         assert_equals(event.type, "command", "type");
         assert_equals(event.bubbles, false, "bubbles");
-        assert_equals(event.composed, true, "composed");
+        assert_equals(event.composed, false, "composed");
         assert_equals(event.isTrusted, true, "isTrusted");
         assert_equals(event.command, command, "command");
         assert_equals(event.target, invokee, "target");
@@ -178,7 +178,7 @@
     assert_true(event instanceof CommandEvent, "event is CommandEvent");
     assert_equals(event.type, "command", "type");
     assert_equals(event.bubbles, false, "bubbles");
-    assert_equals(event.composed, true, "composed");
+    assert_equals(event.composed, false, "composed");
     assert_equals(event.isTrusted, true, "isTrusted");
     assert_equals(event.command, "--custom-command", "command");
     assert_equals(event.target, invokee, "target");
