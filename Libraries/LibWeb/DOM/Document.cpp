@@ -4055,10 +4055,10 @@ void Document::run_unloading_cleanup_steps()
     auto& window = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
 
     // 2. For each WebSocket object webSocket whose relevant global object is window, make disappear webSocket.
-    //    If this affected any WebSocket objects, then set document's salvageable state to false.
+    //    If this affected any WebSocket objects, then make document unsalvageable given document and "websocket".
     auto affected_any_web_sockets = window.make_disappear_all_web_sockets();
     if (affected_any_web_sockets == HTML::WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets::Yes)
-        m_salvageable = false;
+        make_unsalvageable("websocket"_string);
 
     // FIXME: 3. For each WebTransport object transport whose relevant global object is window, run the context cleanup steps given transport.
 
@@ -4191,10 +4191,15 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
 {
     // 1. If document is not fully active, then:
     if (!is_fully_active()) {
-        // 1. Make document unsalvageable given document and "masked".
-        make_unsalvageable("masked"_string);
+        // 1. Let reason be a string from user-agent specific blocking reasons.
+        //    If none apply, then let reason be "masked".
+        // FIXME: user-agent specific blocking reasons.
+        auto reason = "masked"_string;
 
-        // FIXME: 2. If document's node navigable is a top-level traversable,
+        // 2. Make document unsalvageable given document and reason.
+        make_unsalvageable(reason);
+
+        // FIXME: 3. If document's node navigable is a top-level traversable,
         //           build not restored reasons for a top-level traversable and its descendants given document's node navigable.
     }
 
@@ -4243,7 +4248,7 @@ void Document::abort()
     //           discarding any tasks queued for them, and discarding any further data received from the network for them.
     //           If this resulted in any instances of the fetch algorithm being canceled
     //           or any queued tasks or any network data getting discarded,
-    //           then set document's salvageable state to false.
+    //           then make document unsalvageable given document and "fetch".
 
     // 3. If document's during-loading navigation ID for WebDriver BiDi is non-null, then:
     if (m_navigation_id.has_value()) {
@@ -4263,8 +4268,8 @@ void Document::abort()
         // 2. Abort that parser.
         parser->abort();
 
-        // 3. Set document's salvageable state to false.
-        m_salvageable = false;
+        // 3. Make document unsalvageable given document and "parser-aborted".
+        make_unsalvageable("parser-aborted"_string);
     }
 }
 
