@@ -2894,21 +2894,19 @@ void Document::scroll_to_the_fragment()
         // 3. Set document's target element to target.
         set_target_element(target);
 
-        // FIXME: 4. Run the ancestor details revealing algorithm on target.
+        // FIXME: 4. Run the ancestor revealing algorithm on target.
 
-        // FIXME: 5. Run the ancestor hidden-until-found revealing algorithm on target.
-
-        // 6. Scroll target into view, with behavior set to "auto", block set to "start", and inline set to "nearest". [CSSOMVIEW]
+        // 5. Scroll target into view, with behavior set to "auto", block set to "start", and inline set to "nearest". [CSSOMVIEW]
         ScrollIntoViewOptions scroll_options;
         scroll_options.block = Bindings::ScrollLogicalPosition::Start;
         scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
         (void)target->scroll_into_view(scroll_options);
 
-        // 7. Run the focusing steps for target, with the Document's viewport as the fallback target.
+        // 6. Run the focusing steps for target, with the Document's viewport as the fallback target.
         // FIXME: Pass the Document's viewport somehow.
         HTML::run_focusing_steps(target);
 
-        // FIXME: 8. Move the sequential focus navigation starting point to target.
+        // FIXME: 7. Move the sequential focus navigation starting point to target.
     }
 }
 
