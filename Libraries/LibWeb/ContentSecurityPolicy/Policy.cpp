@@ -118,7 +118,7 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
     //    response’s header list:
     auto report_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv);
 
-    if (auto const* report_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
+    if (auto const* report_policy_tokens = report_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& report_policy_token : *report_policy_tokens) {
             // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
             auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
