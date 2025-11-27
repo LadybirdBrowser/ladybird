@@ -1201,6 +1201,11 @@ void Document::respond_to_base_url_changes()
 
     // 2. Ensure that the CSS :link/:visited/etc. pseudo-classes are updated appropriately.
     invalidate_style(StyleInvalidationReason::BaseURLChanged);
+
+    // FIXME: 3. For each descendant of document's shadow-including descendants:
+    //        ...
+
+    // FIXME: 4. Consider speculative loads given document.
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#set-the-url
