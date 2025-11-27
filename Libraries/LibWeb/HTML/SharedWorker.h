@@ -27,7 +27,12 @@ public:
 
     virtual ~SharedWorker();
 
-    GC::Ref<MessagePort> port() { return m_port; }
+    // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker-port
+    GC::Ref<MessagePort> port()
+    {
+        // The port getter steps are to return this's port.
+        return m_port;
+    }
 
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
 
@@ -42,7 +47,11 @@ private:
 
     URL::URL m_script_url;
     WorkerOptions m_options;
+
+    // Each SharedWorker has a port, a MessagePort set when the object is created.
+    // https://html.spec.whatwg.org/multipage/workers.html#concept-sharedworker-port
     GC::Ref<MessagePort> m_port;
+
     GC::Ptr<WorkerAgentParent> m_agent;
 };
 
