@@ -29,13 +29,18 @@ public:
     virtual ~Promise() = default;
     static NonnullRefPtr<Promise> construct() { return adopt_ref(*new Promise()); }
 
-    Function<ErrorOr<void, TError>(Result&)> on_resolution;
+    Function<ErrorOr<void, ErrorType>(Result&)> on_resolution;
     Function<void(ErrorType&)> on_rejection;
 
-    template<typename U>
-    static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U>>> promises)
+    template<typename U, typename E>
+    static NonnullRefPtr<Promise> after(Vector<NonnullRefPtr<Promise<U, E>>> promises)
     {
         auto promise = Promise::construct();
+        if (promises.is_empty()) {
+            promise->resolve({});
+            return promise;
+        }
+
         struct Resolved : RefCounted<Resolved> {
             explicit Resolved(size_t n)
                 : needed(n)
@@ -44,13 +49,13 @@ public:
 
             size_t count { 0 };
             size_t needed { 0 };
-            Optional<Error> error;
+            Optional<E> error;
         };
 
         auto resolved = make_ref_counted<Resolved>(promises.size());
         auto weak_promise = promise->template make_weak_ptr<Promise>();
         for (auto p : promises) {
-            p->when_resolved([weak_promise, resolved](auto&&) -> ErrorOr<void> {
+            p->when_resolved([weak_promise, resolved](auto&&) -> ErrorOr<void, ErrorType> {
                 if (!weak_promise || weak_promise->is_rejected())
                     return {};
 
@@ -125,7 +130,7 @@ public:
         if (is_rejected())
             new_promise->reject(m_result_or_rejection->release_error());
 
-        on_resolution = [new_promise, func = move(func)](Result& result) -> ErrorOr<void> {
+        on_resolution = [new_promise, func = move(func)](Result& result) -> ErrorOr<void, ErrorType> {
             new_promise->resolve(func(result));
             return {};
         };
@@ -138,13 +143,13 @@ public:
     template<CallableAs<void, Result&> F>
     Promise& when_resolved(F handler)
     {
-        return when_resolved([handler = move(handler)](Result& result) mutable -> ErrorOr<void> {
+        return when_resolved([handler = move(handler)](Result& result) mutable -> ErrorOr<void, ErrorType> {
             handler(result);
             return {};
         });
     }
 
-    template<CallableAs<ErrorOr<void>, Result&> F>
+    template<CallableAs<ErrorOr<void, ErrorType>, Result&> F>
     Promise& when_resolved(F handler)
     {
         on_resolution = move(handler);
@@ -170,7 +175,7 @@ public:
 
 private:
     template<typename T>
-    void possibly_handle_rejection(ErrorOr<T, TError>& result)
+    void possibly_handle_rejection(ErrorOr<T, ErrorType>& result)
     {
         if (result.is_error() && on_rejection)
             on_rejection(result.error());
