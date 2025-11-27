@@ -52,7 +52,7 @@ For example, boolean options such as `ENABLE_<setting>` or `<component_name>_DEB
 
 ```console
 # Reconfigure an existing binary directory with process debug enabled
-$ cmake -B Build/ladbyird -DPROCESS_DEBUG=ON
+$ cmake -B Build/ladybird -DPROCESS_DEBUG=ON
 ```
 
 For more information on how the CMake cache works, see the CMake guide for [Running CMake](https://cmake.org/runningcmake/). Additional context is available in the CMake documentation for
