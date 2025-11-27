@@ -12,6 +12,8 @@
 namespace Crypto::Hash {
 
 class PBKDF2 {
+    AK_MAKE_NONCOPYABLE(PBKDF2);
+
 public:
     PBKDF2(HashKind hash_kind);
 
