@@ -630,6 +630,56 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS
     return adopt_own<AlgorithmParams>(*new Ed448Params { maybe_context });
 }
 
+Argon2Params::~Argon2Params() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(JS::VM& vm, JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+
+    if (!MUST(object.has_property("nonce"_utf16_fly_string))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "nonce");
+    }
+    auto nonce_value = TRY(object.get("nonce"_utf16_fly_string));
+    if (!nonce_value.is_object() || !(is<JS::TypedArrayBase>(nonce_value.as_object()) || is<JS::ArrayBuffer>(nonce_value.as_object()) || is<JS::DataView>(nonce_value.as_object())))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+    auto const nonce = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(nonce_value.as_object()));
+
+    auto const extract_u32_value = [&](auto const& name) -> JS::ThrowCompletionOr<WebIDL::UnsignedLong> {
+        if (!MUST(object.has_property(name))) {
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, name);
+        }
+        auto key_value = TRY(object.get(name));
+        return WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, key_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No);
+    };
+
+    auto const parallelism = TRY(extract_u32_value("parallelism"_utf16_fly_string));
+    auto const memory = TRY(extract_u32_value("memory"_utf16_fly_string));
+    auto const passes = TRY(extract_u32_value("passes"_utf16_fly_string));
+
+    auto maybe_version = Optional<u8> {};
+    if (MUST(object.has_property("version"_utf16_fly_string))) {
+        auto version_value = TRY(object.get("version"_utf16_fly_string));
+        maybe_version = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, version_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
+    }
+
+    auto const extract_optional_buffer_source_value = [&](auto const& name) -> JS::ThrowCompletionOr<Optional<ByteBuffer>> {
+        auto maybe_buffer = Optional<ByteBuffer> {};
+        if (MUST(object.has_property(name))) {
+            auto key_value = TRY(object.get(name));
+            if (!key_value.is_object() || !(is<JS::TypedArrayBase>(key_value.as_object()) || is<JS::ArrayBuffer>(key_value.as_object()) || is<JS::DataView>(key_value.as_object())))
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+            maybe_buffer = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(key_value.as_object()));
+        }
+        return maybe_buffer;
+    };
+
+    auto const secret_value = TRY(extract_optional_buffer_source_value("secretValue"_utf16_fly_string));
+    auto const associated_data = TRY(extract_optional_buffer_source_value("associatedData"_utf16_fly_string));
+
+    return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, parallelism, memory, passes, maybe_version, secret_value, associated_data });
+}
+
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
