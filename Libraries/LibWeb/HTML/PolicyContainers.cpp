@@ -85,7 +85,10 @@ GC::Ref<PolicyContainer> PolicyContainer::clone(GC::Heap& heap) const
     // 4. Set clone's referrer policy to policyContainer's referrer policy.
     clone->referrer_policy = referrer_policy;
 
-    // 5. Return clone.
+    // 5. Set clone's integrity policy to a copy of policyContainer's integrity policy.
+    clone->integrity_policy = integrity_policy;
+
+    // 6. Return clone.
     return clone;
 }
 
