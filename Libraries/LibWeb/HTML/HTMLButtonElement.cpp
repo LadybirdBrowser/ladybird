@@ -225,7 +225,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 
         // 5. Let continue be the result of firing an event named command at target, using CommandEvent, with its
         //    command attribute initialized to command, its source attribute initialized to element, and its cancelable
-        //    and composed attributes initialized to true.
+        //    attribute initialized to true.
         // NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes
         //       sense on Events. Currently an event attribute initialized to a value cannot also have a getter, and so
         //       an internal slot (or map of additional fields) is required to properly specify this.
@@ -233,7 +233,6 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         event_init.command = command;
         event_init.source = this;
         event_init.cancelable = true;
-        event_init.composed = true;
 
         auto event = CommandEvent::create(realm(), HTML::EventNames::command, move(event_init));
         event->set_is_trusted(true);
