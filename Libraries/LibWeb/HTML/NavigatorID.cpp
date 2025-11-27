@@ -15,24 +15,27 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-appversion
 String NavigatorIDMixin::app_version() const
 {
+    // 1. Let userAgent be this's relevant settings object's environment default `User-Agent` value.
+    // FIXME: Store that on the settings object?
+    auto user_agent = ResourceLoader::the().user_agent();
+
+    // 2. If userAgent does not start with `Mozilla/5.0 (`, then return the empty string.
+    if (!user_agent.starts_with_bytes("Mozilla/5.0 ("sv))
+        return {};
+
+    // 3. Let trail be the substring of userAgent, isomorphic decoded, that follows the "Mozilla/" prefix.
+    auto trail = MUST(user_agent.substring_from_byte_offset("Mozilla/"sv.length()));
+
+    // 4. -> If the navigator compatibility mode is Chrome or WebKit
     auto navigator_compatibility_mode = ResourceLoader::the().navigator_compatibility_mode();
-
-    // Must return the appropriate string that starts with "5.0 (", as follows:
-
-    // Let trail be the substring of default `User-Agent` value that follows the "Mozilla/" prefix.
-    auto user_agent_string = ResourceLoader::the().user_agent();
-    auto trail = MUST(user_agent_string.substring_from_byte_offset(strlen("Mozilla/"), user_agent_string.bytes().size() - strlen("Mozilla/")));
-
-    // If the navigator compatibility mode is Chrome or WebKit
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Chrome || navigator_compatibility_mode == NavigatorCompatibilityMode::WebKit) {
         // Return trail.
         return trail;
     }
-
-    // If the navigator compatibility mode is Gecko
+    //    -> If the navigator compatibility mode is Gecko
     if (navigator_compatibility_mode == NavigatorCompatibilityMode::Gecko) {
         // If trail starts with "5.0 (Windows", then return "5.0 (Windows)".
-        if (trail.starts_with_bytes("5.0 (Windows"sv, CaseSensitivity::CaseSensitive))
+        if (trail.starts_with_bytes("5.0 (Windows"sv))
             return "5.0 (Windows)"_string;
 
         // Otherwise, return the prefix of trail up to but not including the first U+003B (;), concatenated with the
