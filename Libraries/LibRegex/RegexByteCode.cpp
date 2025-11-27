@@ -1239,7 +1239,8 @@ Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
         } else if (compare_type == CharacterCompareType::GeneralCategory
             || compare_type == CharacterCompareType::Property
             || compare_type == CharacterCompareType::Script
-            || compare_type == CharacterCompareType::ScriptExtension) {
+            || compare_type == CharacterCompareType::ScriptExtension
+            || compare_type == CharacterCompareType::StringSet) {
             auto value = m_bytecode->at(offset++);
             result.append({ compare_type, value });
         } else {
@@ -1366,8 +1367,8 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
         } else if (compare_type == CharacterCompareType::GeneralCategory
             || compare_type == CharacterCompareType::Property
             || compare_type == CharacterCompareType::Script
-            || compare_type == CharacterCompareType::ScriptExtension) {
-
+            || compare_type == CharacterCompareType::ScriptExtension
+            || compare_type == CharacterCompareType::StringSet) {
             auto value = m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" value={}", value));
         }
