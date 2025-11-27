@@ -42,6 +42,18 @@ dictionary JsonWebKey {
     DOMString k;
 };
 
+// https://wicg.github.io/webcrypto-modern-algos/#encapsulation
+dictionary EncapsulatedKey {
+    CryptoKey sharedKey;
+    ArrayBuffer ciphertext;
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#encapsulation
+dictionary EncapsulatedBits {
+    ArrayBuffer sharedKey;
+    ArrayBuffer ciphertext;
+};
+
 // https://w3c.github.io/webcrypto/#subtlecrypto-interface
 [SecureContext,Exposed=(Window,Worker)]
 interface SubtleCrypto {

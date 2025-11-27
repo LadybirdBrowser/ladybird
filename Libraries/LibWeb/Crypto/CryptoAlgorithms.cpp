@@ -274,6 +274,32 @@ static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const
     return key_buffer;
 }
 
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedKey::to_object(JS::Realm& realm)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+    if (shared_key.has_value())
+        TRY(object->create_data_property("shared_key"_utf16_fly_string, shared_key.value()));
+
+    if (ciphertext.has_value())
+        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
+
+    return object;
+}
+
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedBits::to_object(JS::Realm& realm)
+{
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+    if (shared_key.has_value())
+        TRY(object->create_data_property("shared_key"_utf16_fly_string, JS::ArrayBuffer::create(realm, shared_key.value())));
+
+    if (ciphertext.has_value())
+        TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
+
+    return object;
+}
+
 AlgorithmParams::~AlgorithmParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_value(JS::VM&, JS::Value)
