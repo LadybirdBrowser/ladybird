@@ -63,7 +63,7 @@ void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String
     } else if (name == HTML::AttributeNames::referrerpolicy) {
         m_referrer_policy = ReferrerPolicy::from_string(value.value_or(""_string)).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     } else if (name == HTML::AttributeNames::src) {
-        // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:html-element-post-connection-steps-6
+        // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:concept-element-attributes-change-ext
         // 1. If namespace is not null, then return.
         if (namespace_.has_value())
             return;
@@ -73,8 +73,9 @@ void HTMLScriptElement::attribute_changed(FlyString const& name, Optional<String
         if (!value.has_value())
             return;
 
-        // 2. If localName is src, then run the script HTML element post-connection steps, given element.
-        post_connection();
+        // 2. If localName is src and element is connected, then run the script HTML element post-connection steps, given element.
+        if (is_connected())
+            post_connection();
     } else if (name == HTML::AttributeNames::async) {
         // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:script-force-async
         // When an async attribute is added to a script element el, the user agent must set el's force async to false.
@@ -631,27 +632,27 @@ void HTMLScriptElement::prepare_script()
     }
 }
 
-// https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:html-element-post-connection-steps-4
+// https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:children-changed-steps
 void HTMLScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Base::children_changed(metadata);
 
-    // 1. Run the script HTML element post-connection steps, given the script element.
-    post_connection();
-}
-
-// https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:prepare-the-script-element-5
-void HTMLScriptElement::post_connection()
-{
-    // 1. If insertedNode is not connected, then return.
+    // 1. If the script element is not connected, then return.
     if (!is_connected())
         return;
 
-    // 2. If insertedNode is parser-inserted, then return.
+    // 2. Run the script HTML element post-connection steps, given the script element.
+    post_connection();
+}
+
+// https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:html-element-post-connection-steps
+void HTMLScriptElement::post_connection()
+{
+    // 1. If insertedNode is parser-inserted, then return.
     if (is_parser_inserted())
         return;
 
-    // 3. Prepare the script element given insertedNode.
+    // 2. Prepare the script element given insertedNode.
     prepare_script();
 }
 
