@@ -474,6 +474,7 @@ set(SOURCES
     HTML/ElementInternals.cpp
     HTML/EmbedderPolicy.cpp
     HTML/ErrorEvent.cpp
+    HTML/ErrorInformation.cpp
     HTML/EventHandler.cpp
     HTML/EventLoop/EventLoop.cpp
     HTML/EventLoop/Task.cpp
