@@ -129,13 +129,14 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
 // https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
 WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
 {
+    // If the current cell has a colspan attribute, then parse that attribute's value, and let colspan be the result.
+    // If parsing that value failed, or returned zero, or if the attribute is absent, then let colspan be 1, instead.
     auto col_span_attribute = get_attribute(HTML::AttributeNames::colspan);
     if (!col_span_attribute.has_value())
         return 1;
 
     auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*col_span_attribute);
 
-    // If parsing that value failed, or returned zero, or if the attribute is absent, then let colspan be 1, instead.
     if (!optional_value_digits.has_value())
         return 1;
 
@@ -143,7 +144,7 @@ WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
     if (optional_value == 0)
         return 1;
 
-    // NOTE: If there is no value at this point the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 1000.
+    // NB: If there is no value at this point the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 1000.
     if (!optional_value.has_value())
         return 1000;
 
@@ -168,11 +169,12 @@ void HTMLTableCellElement::set_col_span(WebIDL::UnsignedLong value)
 // https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
 WebIDL::UnsignedLong HTMLTableCellElement::row_span() const
 {
+    // If the current cell has a rowspan attribute, then parse that attribute's value, and let rowspan be the result.
+    // If parsing that value failed or if the attribute is absent, then let rowspan be 1, instead.
     auto row_span_attribute = get_attribute(HTML::AttributeNames::rowspan);
     if (!row_span_attribute.has_value())
         return 1;
 
-    // If parsing that value failed or if the attribute is absent, then let rowspan be 1, instead.
     auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*row_span_attribute);
     if (!optional_value_digits.has_value())
         return 1;
@@ -180,7 +182,7 @@ WebIDL::UnsignedLong HTMLTableCellElement::row_span() const
     auto optional_value = optional_value_digits->to_number<i64>(TrimWhitespace::No);
 
     // If rowspan is greater than 65534, let it be 65534 instead.
-    // NOTE: If there is no value at this point the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 65534.
+    // NB: If there is no value at this point the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 65534.
     if (!optional_value.has_value() || *optional_value > 65534)
         return 65534;
 
