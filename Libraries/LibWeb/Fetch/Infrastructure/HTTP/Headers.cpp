@@ -86,14 +86,17 @@ Optional<ByteString> HeaderList::get(StringView name) const
     // 2. Return the values of all headers in list whose name is a byte-case-insensitive match for name, separated from
     //    each other by 0x2C 0x20, in order.
     StringBuilder builder;
+    bool first = true;
 
     for (auto const& header : *this) {
         if (!header.name.equals_ignoring_ascii_case(name))
             continue;
 
-        if (!builder.is_empty())
+        if (!first)
             builder.append(", "sv);
+
         builder.append(header.value);
+        first = false;
     }
 
     return builder.to_byte_string();
