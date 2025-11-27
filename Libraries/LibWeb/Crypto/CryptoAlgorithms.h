@@ -377,6 +377,11 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "unwwrapKey is not supported"_utf16);
     }
 
+    virtual WebIDL::ExceptionOr<GC::Ref<EncapsulatedBits>> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>)
+    {
+        return WebIDL::NotSupportedError::create(m_realm, "encapsulate is not supported"_utf16);
+    }
+
     static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new AlgorithmMethods(realm)); }
 
 protected:
