@@ -1263,12 +1263,16 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             m_popover_showing_or_hiding = false;
     };
 
-    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to "open" at element, and the source attribute initialized to source at element is false, then run cleanupShowingFlag and return.
+    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute
+    //    initialized to true, the oldState attribute initialized to "closed", the newState attribute initialized to
+    //    "open" at element, and the source attribute initialized to source at element is false,
+    //    then run cleanupShowingFlag and return.
     ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
-    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), source))) {
+    event_init.source = source;
+    if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
         cleanup_showing_flag();
         return {};
     }
@@ -1500,25 +1504,30 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
 
     // 9. If fireEvents is true:
     if (fire_events == FireEvents::Yes) {
-        // 9.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the newState attribute initialized to "closed", and the source attribute set to source at element.
+        // 1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open",
+        //    the newState attribute initialized to "closed", and the source attribute set to source at element.
         ToggleEventInit event_init {};
         event_init.old_state = "open"_string;
         event_init.new_state = "closed"_string;
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), source));
+        event_init.source = source;
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
-        // 9.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
+        // 2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not
+        //    element, then run hide all popovers until given element, focusPreviousElement, and false.
         if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
             hide_all_popovers_until(GC::Ptr(this), focus_previous_element, FireEvents::No);
 
-        // 9.3. If the result of running check popover validity given element, true, throwExceptions, null, and ignoreDomState is false, then run cleanupSteps and return.
+        // 3. If the result of running check popover validity given element, true, throwExceptions, null, and
+        //    ignoreDomState is false, then run cleanupSteps and return.
         if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state))) {
             cleanup_steps();
             return {};
         }
         // 9.4. Request an element to be removed from the top layer given element.
         document.request_an_element_to_be_remove_from_the_top_layer(*this);
-    } else {
-        // 10. Otherwise, remove an element from the top layer immediately given element.
+    }
+    // 10. Otherwise, remove an element from the top layer immediately given element.
+    else {
         document.remove_an_element_from_the_top_layer_immediately(*this);
     }
 
@@ -1901,8 +1910,9 @@ void HTMLElement::queue_a_popover_toggle_event_task(String old_state, String new
         ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
+        event_init.source = source;
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init), source));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
 
         // 2. Set element's popover toggle task tracker to null.
         m_popover_toggle_task_tracker = {};

@@ -156,6 +156,13 @@ test(function() {
 }, "ToggleEventInit properties set value 4");
 
 test(function() {
+  const div = document.createElement('div');
+  const eventInit = {source: div};
+  const event = new ToggleEvent('beforetoggle', eventInit);
+  assert_equals(event.source, div);
+}, 'ToggleEventInit with source.');
+
+test(function() {
   var event = new ToggleEvent("test", {newState: "sample"});
   assert_equals(event.newState, "sample");
 }, "newState set to 'sample'");

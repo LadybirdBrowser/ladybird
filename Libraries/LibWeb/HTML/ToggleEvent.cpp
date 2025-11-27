@@ -12,9 +12,9 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ToggleEvent);
 
-GC::Ref<ToggleEvent> ToggleEvent::create(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init, GC::Ptr<DOM::Element> source)
+GC::Ref<ToggleEvent> ToggleEvent::create(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
 {
-    return realm.create<ToggleEvent>(realm, event_name, move(event_init), source);
+    return realm.create<ToggleEvent>(realm, event_name, move(event_init));
 }
 
 WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> ToggleEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
@@ -22,11 +22,11 @@ WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> ToggleEvent::construct_impl(JS::Realm&
     return create(realm, event_name, move(event_init));
 }
 
-ToggleEvent::ToggleEvent(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init, GC::Ptr<DOM::Element> source)
+ToggleEvent::ToggleEvent(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_old_state(move(event_init.old_state))
     , m_new_state(move(event_init.new_state))
-    , m_source(source)
+    , m_source(event_init.source)
 {
 }
 
