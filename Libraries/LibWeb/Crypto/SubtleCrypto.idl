@@ -74,4 +74,7 @@ interface SubtleCrypto {
 
     Promise<any> wrapKey(KeyFormat format, CryptoKey key, CryptoKey wrappingKey, AlgorithmIdentifier wrapAlgorithm);
     Promise<CryptoKey> unwrapKey(KeyFormat format, BufferSource wrappedKey, CryptoKey unwrappingKey, AlgorithmIdentifier unwrapAlgorithm, AlgorithmIdentifier unwrappedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
+
+    // https://wicg.github.io/webcrypto-modern-algos/#partial-subtlecrypto-interface
+    Promise<EncapsulatedKey> encapsulateKey(AlgorithmIdentifier encapsulationAlgorithm, CryptoKey encapsulationKey, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
 };

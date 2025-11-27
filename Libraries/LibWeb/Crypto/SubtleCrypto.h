@@ -43,6 +43,8 @@ public:
     GC::Ref<WebIDL::Promise> wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier wrap_algorithm);
     GC::Ref<WebIDL::Promise> unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier unwrap_algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
 
+    GC::Ref<WebIDL::Promise> encapsulate_key(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+
 private:
     explicit SubtleCrypto(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
