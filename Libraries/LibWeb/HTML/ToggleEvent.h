@@ -17,6 +17,7 @@ namespace Web::HTML {
 struct ToggleEventInit : public DOM::EventInit {
     String old_state;
     String new_state;
+    GC::Ptr<DOM::Element> source;
 };
 
 class ToggleEvent : public DOM::Event {
@@ -24,7 +25,7 @@ class ToggleEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, FlyString const& event_name, ToggleEventInit = {}, GC::Ptr<DOM::Element> source = {});
+    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, FlyString const& event_name, ToggleEventInit = {});
     static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ToggleEventInit);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
@@ -43,7 +44,7 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    ToggleEvent(JS::Realm&, FlyString const& event_name, ToggleEventInit event_init, GC::Ptr<DOM::Element> source);
+    ToggleEvent(JS::Realm&, FlyString const& event_name, ToggleEventInit event_init);
 
     virtual void initialize(JS::Realm&) override;
 

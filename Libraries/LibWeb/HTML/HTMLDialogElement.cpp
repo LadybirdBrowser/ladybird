@@ -88,8 +88,9 @@ void HTMLDialogElement::queue_a_dialog_toggle_event_task(AK::String old_state, A
         ToggleEventInit event_init {};
         event_init.old_state = move(old_state);
         event_init.new_state = move(new_state);
+        event_init.source = source;
 
-        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init), source));
+        dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::toggle, move(event_init)));
 
         // 2. Set element's dialog toggle task tracker to null.
         m_dialog_toggle_task_tracker = {};
@@ -177,6 +178,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     return show_a_modal_dialog(*this, nullptr);
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#show-a-modal-dialog
 WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogElement& subject, GC::Ptr<DOM::Element> source)
 {
     // To show a modal dialog given a dialog element subject:
@@ -203,14 +205,16 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
         return WebIDL::InvalidStateError::create(realm, "Dialog already open as popover"_utf16);
 
     // 6. If the result of firing an event named beforetoggle, using ToggleEvent,
-    //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
-    //  the newState attribute initialized to "open", and the source attribute initialized to source at subject is false, then return.
+    //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
+    //    the newState attribute initialized to "open", and the source attribute initialized to source at subject is
+    //    false, then return.
     ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
+    event_init.source = source;
 
-    auto beforetoggle_result = subject.dispatch_event(ToggleEvent::create(realm, EventNames::beforetoggle, move(event_init), source));
+    auto beforetoggle_result = subject.dispatch_event(ToggleEvent::create(realm, EventNames::beforetoggle, move(event_init)));
     if (!beforetoggle_result)
         return {};
 
@@ -344,8 +348,9 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
     ToggleEventInit event_init {};
     event_init.old_state = "open"_string;
     event_init.new_state = "closed"_string;
+    event_init.source = source;
 
-    dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init), source));
+    dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
     // 3. If subject does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
