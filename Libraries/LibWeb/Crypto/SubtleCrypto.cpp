@@ -365,7 +365,13 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
 
     Variant<ByteBuffer, Bindings::JsonWebKey, Empty> real_key_data;
     // 2. If format is equal to the string "raw", "pkcs8", or "spki":
-    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::Pkcs8 || format == Bindings::KeyFormat::Spki) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawPublic
+        || format == Bindings::KeyFormat::RawPrivate
+        || format == Bindings::KeyFormat::RawSeed
+        || format == Bindings::KeyFormat::RawSecret
+        || format == Bindings::KeyFormat::Pkcs8
+        || format == Bindings::KeyFormat::Spki) {
         // 1. If the keyData parameter passed to the importKey() method is a JsonWebKey dictionary, throw a TypeError.
         if (key_data.has<Bindings::JsonWebKey>()) {
             return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
