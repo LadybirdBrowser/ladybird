@@ -26,6 +26,22 @@ using AlgorithmIdentifier = Variant<GC::Root<JS::Object>, String>;
 using NamedCurve = String;
 using KeyDataType = Variant<GC::Root<WebIDL::BufferSource>, Bindings::JsonWebKey>;
 
+// https://wicg.github.io/webcrypto-modern-algos/#encapsulation
+struct EncapsulatedKey {
+    Optional<GC::Root<CryptoKey>> shared_key;
+    Optional<ByteBuffer> ciphertext;
+
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#encapsulation
+struct EncapsulatedBits {
+    Optional<ByteBuffer> shared_key;
+    Optional<ByteBuffer> ciphertext;
+
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
+};
+
 struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
     using AlgorithmIdentifier::AlgorithmIdentifier;
 
