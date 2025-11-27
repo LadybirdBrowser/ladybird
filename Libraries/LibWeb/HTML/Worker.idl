@@ -19,9 +19,9 @@ interface Worker : EventTarget {
 };
 
 dictionary WorkerOptions {
+    DOMString name = "";
     WorkerType type = "classic";
     RequestCredentials credentials = "same-origin";
-    DOMString name = "";
 };
 
 enum WorkerType { "classic", "module" };
