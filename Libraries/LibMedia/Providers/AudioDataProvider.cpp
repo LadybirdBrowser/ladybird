@@ -72,7 +72,7 @@ void AudioDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     auto locker = take_lock();
     m_error_handler = move(handler);
-    m_wait_condition.broadcast();
+    wake();
 }
 
 AudioBlock AudioDataProvider::retrieve_block()
@@ -88,7 +88,7 @@ AudioBlock AudioDataProvider::retrieve_block()
 void AudioDataProvider::ThreadData::exit()
 {
     m_exit = true;
-    m_wait_condition.broadcast();
+    wake();
 }
 
 void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionHandler&& completion_handler)
@@ -97,7 +97,7 @@ void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionH
     m_seek_completion_handler = move(completion_handler);
     m_seek_id++;
     m_seek_timestamp = timestamp;
-    m_wait_condition.broadcast();
+    wake();
 }
 
 bool AudioDataProvider::ThreadData::should_thread_exit() const
@@ -137,7 +137,7 @@ void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
         {
             auto locker = self->take_lock();
             self->m_is_in_error_state = false;
-            self->m_wait_condition.broadcast();
+            self->wake();
         }
         auto handler = move(self->m_seek_completion_handler);
         if (handler)
