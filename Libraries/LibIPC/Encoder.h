@@ -9,6 +9,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/HashMap.h>
+#include <AK/IPv4Address.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
@@ -107,6 +108,12 @@ ErrorOr<void> encode(Encoder&, AK::Duration const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, UnixDateTime const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, IPv4Address const&);
+
+template<>
+ErrorOr<void> encode(Encoder&, IPv6Address const&);
 
 template<>
 ErrorOr<void> encode(Encoder&, URL::URL const&);

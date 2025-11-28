@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/BitCast.h>
 #include <AK/Endian.h>
 #include <AK/Format.h>
 #include <AK/IPv4Address.h>
@@ -36,6 +37,15 @@ public:
             m_data[i] = data[i];
     }
 
+    constexpr IPv6Address(Array<u16, 8> const& data)
+    {
+        for (size_t i = 0; i < 8; i++) {
+            auto piece = data[i];
+            m_data[2 * i] = static_cast<u8>(piece >> 8);
+            m_data[(2 * i) + 1] = static_cast<u8>(piece & 0xff);
+        }
+    }
+
     template<SameAs<char const*> T>
     constexpr IPv6Address(T const&) = delete; // Disable implicit conversion of char const* -> ipv4 -> ipv6
 
@@ -50,7 +60,7 @@ public:
         m_data[15] = ipv4_address[3];
     }
 
-    constexpr u16 operator[](int i) const { return group(i); }
+    constexpr u16 operator[](size_t i) const { return piece(i); }
 
     ErrorOr<String> to_string() const
     {
@@ -68,13 +78,13 @@ public:
         Optional<int> longest_zero_span_start;
         int zero_span_length = 0;
         for (int i = 0; i < 8;) {
-            if (group(i) != 0) {
+            if (piece(i) != 0) {
                 i++;
                 continue;
             }
             int contiguous_zeros = 1;
             for (int j = i + 1; j < 8; j++) {
-                if (group(j) != 0)
+                if (piece(j) != 0)
                     break;
                 contiguous_zeros++;
             }
@@ -98,9 +108,9 @@ public:
             }
 
             if (i == 0)
-                TRY(builder.try_appendff("{:x}", group(i)));
+                TRY(builder.try_appendff("{:x}", piece(i)));
             else
-                TRY(builder.try_appendff(":{:x}", group(i)));
+                TRY(builder.try_appendff(":{:x}", piece(i)));
 
             i++;
         }
@@ -186,8 +196,8 @@ public:
         }
 
         in6_addr_t addr {};
-        int group = 0;
-        int have_groups = 0;
+        int piece = 0;
+        int have_pieces = 0;
         bool found_compressed = false;
         for (size_t i = 0; i < parts.size();) {
             auto trimmed_part = parts[i].trim_whitespace();
@@ -216,10 +226,10 @@ public:
                     return {};
                 }
 
-                int remaining_parts = parts.size() - empty_parts - have_groups;
+                int remaining_parts = parts.size() - empty_parts - have_pieces;
                 found_compressed = true;
-                group = 8 - remaining_parts;
-                VERIFY(group >= 0);
+                piece = 8 - remaining_parts;
+                VERIFY(piece >= 0);
                 i += empty_parts;
                 continue;
             } else {
@@ -229,13 +239,13 @@ public:
             if (!part.has_value() || part.value() > 0xffff)
                 return {};
 
-            if (++have_groups > 8)
+            if (++have_pieces > 8)
                 return {};
 
-            VERIFY(group < 8);
-            addr[group * sizeof(u16)] = (u8)(part.value() >> 8);
-            addr[group * sizeof(u16) + 1] = (u8)part.value();
-            group++;
+            VERIFY(piece < 8);
+            addr[piece * sizeof(u16)] = (u8)(part.value() >> 8);
+            addr[piece * sizeof(u16) + 1] = (u8)part.value();
+            piece++;
         }
 
         return IPv6Address(addr);
@@ -278,7 +288,7 @@ public:
     }
 
 private:
-    constexpr u16 group(unsigned i) const
+    constexpr u16 piece(size_t i) const
     {
         VERIFY(i < 8);
         return ((u16)m_data[i * sizeof(u16)] << 8) | m_data[i * sizeof(u16) + 1];
