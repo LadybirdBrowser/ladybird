@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
+#include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationEffectPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/EasingFunction.h>
@@ -16,7 +17,8 @@
 
 namespace Web::Animations {
 
-// // https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
+// https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
+// https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
 struct OptionalEffectTiming {
     Optional<double> delay {};
     Optional<double> end_delay {};
@@ -28,7 +30,7 @@ struct OptionalEffectTiming {
     Optional<String> easing {};
 };
 
-// // https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
+// https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
 struct EffectTiming {
     double delay { 0 };
     double end_delay { 0 };
@@ -85,11 +87,11 @@ public:
     ComputedEffectTiming get_computed_timing() const;
     WebIDL::ExceptionOr<void> update_timing(OptionalEffectTiming timing = {});
 
-    double start_delay() const { return m_start_delay; }
-    void set_start_delay(double start_delay) { m_start_delay = start_delay; }
+    TimeValue start_delay() const { return m_start_delay; }
+    void set_specified_start_delay(double start_delay) { m_specified_start_delay = start_delay; }
 
-    double end_delay() const { return m_end_delay; }
-    void set_end_delay(double end_delay) { m_end_delay = end_delay; }
+    TimeValue end_delay() const { return m_end_delay; }
+    void set_specified_end_delay(double end_delay) { m_specified_end_delay = end_delay; }
 
     Bindings::FillMode fill_mode() const { return m_fill_mode; }
     void set_fill_mode(Bindings::FillMode fill_mode) { m_fill_mode = fill_mode; }
@@ -100,8 +102,8 @@ public:
     double iteration_count() const { return m_iteration_count; }
     void set_iteration_count(double iteration_count) { m_iteration_count = iteration_count; }
 
-    Variant<double, String> const& iteration_duration() const { return m_iteration_duration; }
-    void set_iteration_duration(Variant<double, String> iteration_duration) { m_iteration_duration = move(iteration_duration); }
+    TimeValue const& iteration_duration() const { return m_iteration_duration; }
+    void set_specified_iteration_duration(Variant<double, String> iteration_duration) { m_specified_iteration_duration = move(iteration_duration); }
 
     Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
     void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
@@ -153,6 +155,8 @@ public:
     Optional<double> current_iteration() const;
     Optional<double> transformed_progress() const;
 
+    void normalize_specified_timing();
+
     HashTable<CSS::PropertyID> const& target_properties() const { return m_target_properties; }
 
     virtual DOM::Element* target() const { return {}; }
@@ -168,11 +172,21 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
+    TimeValue intrinsic_iteration_duration() const;
+    GC::Ptr<AnimationTimeline> associated_timeline() const;
+    Optional<TimeValue> timeline_duration() const;
+
+    // https://drafts.csswg.org/web-animations-2/#specified-start-delay
+    double m_specified_start_delay { 0.0 };
+
     // https://www.w3.org/TR/web-animations-1/#start-delay
-    double m_start_delay { 0.0 };
+    TimeValue m_start_delay { TimeValue::Type::Milliseconds, 0.0 };
+
+    // https://drafts.csswg.org/web-animations-2/#specified-end-delay
+    double m_specified_end_delay { 0.0 };
 
     // https://www.w3.org/TR/web-animations-1/#end-delay
-    double m_end_delay { 0.0 };
+    TimeValue m_end_delay { TimeValue::Type::Milliseconds, 0.0 };
 
     // https://www.w3.org/TR/web-animations-1/#fill-mode
     Bindings::FillMode m_fill_mode { Bindings::FillMode::Auto };
@@ -183,8 +197,15 @@ protected:
     // https://www.w3.org/TR/web-animations-1/#iteration-count
     double m_iteration_count { 1.0 };
 
+    // https://drafts.csswg.org/web-animations-2/#specified-iteration-duration
+    Variant<double, String> m_specified_iteration_duration { "auto"_string };
+
     // https://www.w3.org/TR/web-animations-1/#iteration-duration
-    Variant<double, String> m_iteration_duration { 0.0 };
+    // https://drafts.csswg.org/web-animations-2/#iteration-intervals
+    // The initial iteration duration of an animation effect is simply its intrinsic iteration duration
+    // NB: 0ms is the intrinsic iteration duration of an effect with no associated animation - we then update this value
+    //     when an animation is associated for the first time.
+    TimeValue m_iteration_duration = { TimeValue::Type::Milliseconds, 0.0 };
 
     // https://www.w3.org/TR/web-animations-1/#playback-direction
     Bindings::PlaybackDirection m_playback_direction { Bindings::PlaybackDirection::Normal };

@@ -12,12 +12,27 @@
 namespace Web::Animations {
 
 struct TimeValue {
+    static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline)
+    {
+        // FIXME: Return 0% rather than 0ms for progress based timelines
+        (void)timeline;
+
+        return TimeValue { Type::Milliseconds, 0.0 };
+    }
+
     enum class Type : u8 {
         Milliseconds,
         // FIXME: Support percentages
     };
     Type type;
     double value;
+
+    // FIXME: This method is temporary as we migrate all CSS timing to use TimeValue.
+    double as_milliseconds() const
+    {
+        VERIFY(type == Type::Milliseconds);
+        return value;
+    }
 
     CSS::CSSNumberish as_css_numberish() const
     {

@@ -2679,9 +2679,9 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
         double elapsed_time = [&]() {
             if (interval == Interval::Start)
-                return max(min(-effect->start_delay(), effect->active_duration()), 0) / 1000;
+                return max(min(-effect->start_delay().as_milliseconds(), effect->active_duration()), 0) / 1000;
             if (interval == Interval::End)
-                return max(min(transition->associated_effect_end() - effect->start_delay(), effect->active_duration()), 0) / 1000;
+                return max(min(transition->associated_effect_end() - effect->start_delay().as_milliseconds(), effect->active_duration()), 0) / 1000;
             if (interval == Interval::ActiveTime) {
                 // The active time of the animation at the moment it was canceled calculated using a fill mode of both.
                 // FIXME: Compute this properly.
@@ -2807,10 +2807,10 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     // For calculating the elapsedTime of each event, the following definitions are used:
 
     // - interval start = max(min(-start delay, active duration), 0)
-    auto interval_start = max(min(-effect->start_delay(), effect->active_duration()), 0.0);
+    auto interval_start = max(min(-effect->start_delay().as_milliseconds(), effect->active_duration()), 0.0);
 
     // - interval end = max(min(associated effect end - start delay, active duration), 0)
-    auto interval_end = max(min(effect->end_time() - effect->start_delay(), effect->active_duration()), 0.0);
+    auto interval_end = max(min(effect->end_time() - effect->start_delay().as_milliseconds(), effect->active_duration()), 0.0);
 
     switch (previous_phase) {
     case Animations::AnimationEffect::Phase::Before:
@@ -2839,7 +2839,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
                 // 3. The elapsed time is the result of evaluating (iteration boundary - iteration start) × iteration duration).
                 auto iteration_duration_variant = effect->iteration_duration();
-                auto iteration_duration = iteration_duration_variant.has<String>() ? 0.0 : iteration_duration_variant.get<double>();
+                auto iteration_duration = iteration_duration_variant.as_milliseconds();
                 auto elapsed_time = (iteration_boundary - effect->iteration_start()) * iteration_duration;
 
                 dispatch_event(HTML::EventNames::animationiteration, elapsed_time);
