@@ -12,9 +12,9 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <RequestServer/Cache/DiskCache.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 
@@ -24,7 +24,7 @@
 
 namespace RequestServer {
 
-extern Optional<DiskCache> g_disk_cache;
+extern Optional<HTTP::DiskCache> g_disk_cache;
 
 }
 
@@ -60,10 +60,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (http_disk_cache_mode.is_one_of("enabled"sv, "testing"sv)) {
         auto mode = http_disk_cache_mode == "enabled"sv
-            ? RequestServer::DiskCache::Mode::Normal
-            : RequestServer::DiskCache::Mode::Testing;
+            ? HTTP::DiskCache::Mode::Normal
+            : HTTP::DiskCache::Mode::Testing;
 
-        if (auto cache = RequestServer::DiskCache::create(mode); cache.is_error())
+        if (auto cache = HTTP::DiskCache::create(mode); cache.is_error())
             warnln("Unable to create disk cache: {}", cache.error());
         else
             RequestServer::g_disk_cache = cache.release_value();

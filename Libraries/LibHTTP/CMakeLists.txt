@@ -1,4 +1,8 @@
 set(SOURCES
+    Cache/CacheEntry.cpp
+    Cache/CacheIndex.cpp
+    Cache/DiskCache.cpp
+    Cache/Utilities.cpp
     Header.cpp
     HeaderList.cpp
     HTTP.cpp
@@ -7,4 +11,4 @@ set(SOURCES
 )
 
 ladybird_lib(LibHTTP http)
-target_link_libraries(LibHTTP PRIVATE LibCompress LibCore LibIPC LibRegex LibTextCodec LibTLS LibURL)
+target_link_libraries(LibHTTP PRIVATE LibCompress LibCore LibCrypto LibDatabase LibFileSystem LibIPC LibRegex LibTextCodec LibTLS LibURL)

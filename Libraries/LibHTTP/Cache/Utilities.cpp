@@ -5,11 +5,11 @@
  */
 
 #include <LibCrypto/Hash/SHA1.h>
+#include <LibHTTP/Cache/DiskCache.h>
+#include <LibHTTP/Cache/Utilities.h>
 #include <LibURL/URL.h>
-#include <RequestServer/Cache/DiskCache.h>
-#include <RequestServer/Cache/Utilities.h>
 
-namespace RequestServer {
+namespace HTTP {
 
 static Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive)
 {
@@ -111,7 +111,7 @@ static bool is_heuristically_cacheable_status(u32 status_code)
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
-bool is_cacheable(u32 status_code, HTTP::HeaderList const& headers)
+bool is_cacheable(u32 status_code, HeaderList const& headers)
 {
     // A cache MUST NOT store a response to a request unless:
 
@@ -213,7 +213,7 @@ bool is_header_exempted_from_storage(StringView name)
 }
 
 // https://httpwg.org/specs/rfc9111.html#heuristic.freshness
-static AK::Duration calculate_heuristic_freshness_lifetime(HTTP::HeaderList const& headers, AK::Duration current_time_offset_for_testing)
+static AK::Duration calculate_heuristic_freshness_lifetime(HeaderList const& headers, AK::Duration current_time_offset_for_testing)
 {
     // Since origin servers do not always provide explicit expiration times, a cache MAY assign a heuristic expiration
     // time when an explicit time is not specified, employing algorithms that use other field values (such as the
@@ -245,7 +245,7 @@ static AK::Duration calculate_heuristic_freshness_lifetime(HTTP::HeaderList cons
 }
 
 // https://httpwg.org/specs/rfc9111.html#calculating.freshness.lifetime
-AK::Duration calculate_freshness_lifetime(u32 status_code, HTTP::HeaderList const& headers, AK::Duration current_time_offset_for_testing)
+AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const& headers, AK::Duration current_time_offset_for_testing)
 {
     // A cache can calculate the freshness lifetime (denoted as freshness_lifetime) of a response by evaluating the
     // following rules and using the first match:
@@ -296,7 +296,7 @@ AK::Duration calculate_freshness_lifetime(u32 status_code, HTTP::HeaderList cons
 }
 
 // https://httpwg.org/specs/rfc9111.html#age.calculations
-AK::Duration calculate_age(HTTP::HeaderList const& headers, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing)
+AK::Duration calculate_age(HeaderList const& headers, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing)
 {
     // The term "age_value" denotes the value of the Age header field (Section 5.1), in a form appropriate for arithmetic
     // operation; or 0, if not available.
@@ -328,7 +328,7 @@ AK::Duration calculate_age(HTTP::HeaderList const& headers, UnixDateTime request
     return current_age;
 }
 
-CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderList const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
+CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
 {
     auto revalidation_status = [&]() {
         // In order to revalidate a cache entry, we must have one of these headers to attach to the revalidation request.
@@ -365,7 +365,7 @@ CacheLifetimeStatus cache_lifetime_status(HTTP::HeaderList const& headers, AK::D
 }
 
 // https://httpwg.org/specs/rfc9111.html#validation.sent
-RevalidationAttributes RevalidationAttributes::create(HTTP::HeaderList const& headers)
+RevalidationAttributes RevalidationAttributes::create(HeaderList const& headers)
 {
     RevalidationAttributes attributes;
     attributes.etag = headers.get("ETag"sv).map([](auto const& etag) { return etag; });
@@ -375,7 +375,7 @@ RevalidationAttributes RevalidationAttributes::create(HTTP::HeaderList const& he
 }
 
 // https://httpwg.org/specs/rfc9111.html#update
-void update_header_fields(HTTP::HeaderList& stored_headers, HTTP::HeaderList const& updated_headers)
+void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_headers)
 {
     // Caches are required to update a stored response's header fields from another (typically newer) response in
     // several situations; for example, see Sections 3.4, 4.3.4, and 4.3.5.
@@ -408,7 +408,7 @@ void update_header_fields(HTTP::HeaderList& stored_headers, HTTP::HeaderList con
     }
 }
 
-AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&> disk_cache, HTTP::HeaderList const& request_headers)
+AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&> disk_cache, HeaderList const& request_headers)
 {
     if (disk_cache.has_value() && disk_cache->mode() == DiskCache::Mode::Testing) {
         if (auto header = request_headers.get(TEST_CACHE_REQUEST_TIME_OFFSET); header.has_value()) {

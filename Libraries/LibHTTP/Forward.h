@@ -8,6 +8,12 @@
 
 namespace HTTP {
 
+class CacheEntry;
+class CacheEntryReader;
+class CacheEntryWriter;
+class CacheIndex;
+class CacheRequest;
+class DiskCache;
 class HeaderList;
 class HttpRequest;
 class HttpResponse;

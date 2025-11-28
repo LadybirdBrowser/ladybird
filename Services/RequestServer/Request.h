@@ -11,9 +11,9 @@
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
-#include <AK/Weakable.h>
 #include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
+#include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -26,11 +26,11 @@ struct curl_slist;
 
 namespace RequestServer {
 
-class Request : public Weakable<Request> {
+class Request : public HTTP::CacheRequest {
 public:
     static NonnullOwnPtr<Request> fetch(
         i32 request_id,
-        Optional<DiskCache&> disk_cache,
+        Optional<HTTP::DiskCache&> disk_cache,
         ConnectionFromClient& client,
         void* curl_multi,
         Resolver& resolver,
@@ -49,15 +49,14 @@ public:
         URL::URL url,
         CacheLevel cache_level);
 
-    ~Request();
+    virtual ~Request() override;
 
     URL::URL const& url() const { return m_url; }
     ByteString const& method() const { return m_method; }
     HTTP::HeaderList const& request_headers() const { return m_request_headers; }
     UnixDateTime request_start_time() const { return m_request_start_time; }
-    AK::Duration current_time_offset_for_testing() const { return m_current_time_offset_for_testing; }
 
-    void notify_request_unblocked(Badge<DiskCache>);
+    virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
@@ -77,16 +76,9 @@ private:
         Error,        // Any error occured during the request's lifetime.
     };
 
-    enum class CacheStatus : u8 {
-        Unknown,
-        NotCached,
-        WrittenToCache,
-        ReadFromCache,
-    };
-
     Request(
         i32 request_id,
-        Optional<DiskCache&> disk_cache,
+        Optional<HTTP::DiskCache&> disk_cache,
         ConnectionFromClient& client,
         void* curl_multi,
         Resolver& resolver,
@@ -132,7 +124,7 @@ private:
     Type m_type { Type::Fetch };
     State m_state { State::Init };
 
-    Optional<DiskCache&> m_disk_cache;
+    Optional<HTTP::DiskCache&> m_disk_cache;
     ConnectionFromClient& m_client;
 
     void* m_curl_multi_handle { nullptr };
@@ -164,13 +156,7 @@ private:
     Optional<RequestPipe> m_client_request_pipe;
     size_t m_bytes_transferred_to_client { 0 };
 
-    Optional<CacheEntryReader&> m_cache_entry_reader;
-    Optional<CacheEntryWriter&> m_cache_entry_writer;
-    CacheStatus m_cache_status { CacheStatus::Unknown };
-
     Optional<Requests::NetworkError> m_network_error;
-
-    AK::Duration m_current_time_offset_for_testing;
 };
 
 }
