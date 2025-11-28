@@ -1118,12 +1118,19 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
         }
         auto shared_key = maybe_shared_key.release_value();
 
-        // 14. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
+        // 14. Set the [[extractable]] internal slot of sharedKey to extractable.
+        shared_key->set_extractable(extractable);
+
+        // 15. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
+        normalize_key_usages(usages);
+        shared_key->set_usages(usages);
+
+        // 16. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
         //     to the ciphertext field of encapsulatedBits.
         auto encapsulated_key = EncapsulatedKey { shared_key, encapsulated_bits.ciphertext };
 
-        // 15. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        // 16. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
+        // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // 18. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
         auto maybe_result = encapsulated_key.to_object(realm);
         if (maybe_result.is_error()) {
             WebIDL::reject_promise(realm, promise, maybe_result.release_error().value());
@@ -1131,7 +1138,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
         }
         auto const result = maybe_result.release_value();
 
-        // 17. Resolve promise with result.
+        // 19. Resolve promise with result.
         WebIDL::resolve_promise(realm, promise, result);
     }));
 
