@@ -27,6 +27,7 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
+        thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
             thread_data->handle_seek();
             thread_data->push_data_and_decode_some_frames();
@@ -60,6 +61,11 @@ void VideoDataProvider::set_error_handler(ErrorHandler&& handler)
     m_thread_data->set_error_handler(move(handler));
 }
 
+void VideoDataProvider::start()
+{
+    m_thread_data->start();
+}
+
 TimedImage VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
@@ -88,14 +94,21 @@ VideoDataProvider::ThreadData::~ThreadData() = default;
 
 void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
-    auto locker = take_lock();
     m_error_handler = move(handler);
+}
+
+void VideoDataProvider::ThreadData::start()
+{
+    auto locker = take_lock();
+    VERIFY(m_requested_state == RequestedState::None);
+    m_requested_state = RequestedState::Running;
     wake();
 }
 
 void VideoDataProvider::ThreadData::exit()
 {
-    m_exit = true;
+    auto locker = take_lock();
+    m_requested_state = RequestedState::Exit;
     wake();
 }
 
@@ -119,9 +132,17 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     wake();
 }
 
+void VideoDataProvider::ThreadData::wait_for_start()
+{
+    auto locker = take_lock();
+    while (m_requested_state == RequestedState::None)
+        m_wait_condition.wait();
+}
+
 bool VideoDataProvider::ThreadData::should_thread_exit() const
 {
-    return m_exit;
+    auto locker = take_lock();
+    return m_requested_state == RequestedState::Exit;
 }
 
 void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame)
@@ -199,7 +220,8 @@ bool VideoDataProvider::ThreadData::handle_seek()
         }
         process_seek_on_main_thread(seek_id,
             [self = NonnullRefPtr(*this), error = move(error)] mutable {
-                self->m_error_handler(move(error));
+                if (self->m_error_handler)
+                    self->m_error_handler(move(error));
                 self->m_seek_completion_handler = nullptr;
             });
     };
@@ -344,10 +366,9 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         {
             auto locker = take_lock();
             m_is_in_error_state = true;
-            while (!m_error_handler)
-                m_wait_condition.wait();
             m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), error = move(error)] mutable {
-                self->m_error_handler(move(error));
+                if (self->m_error_handler)
+                    self->m_error_handler(move(error));
             });
         }
 
