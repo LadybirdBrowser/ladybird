@@ -24,7 +24,6 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
 
     auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(demuxer, track, move(decoder), time_provider));
-    auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
         while (!thread_data->should_thread_exit()) {
@@ -33,26 +32,33 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
         }
         return 0;
     }));
-    thread->start();
-    thread->detach();
 
+    auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread, thread_data));
     return provider;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
-{
-    auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
-    return try_create(mutexed_demuxer, track, time_provider);
-}
+// DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
+// {
+//     auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
+//     return try_create(mutexed_demuxer, track, time_provider);
+// }
 
-VideoDataProvider::VideoDataProvider(NonnullRefPtr<ThreadData> const& thread_state)
-    : m_thread_data(thread_state)
+VideoDataProvider::VideoDataProvider(NonnullRefPtr<Threading::Thread> const& thread, NonnullRefPtr<ThreadData> const& thread_state)
+    : m_thread(thread)
+    , m_thread_data(thread_state)
 {
 }
 
 VideoDataProvider::~VideoDataProvider()
 {
     m_thread_data->exit();
+}
+
+void VideoDataProvider::start()
+{
+    VERIFY(!m_thread->is_started());
+    m_thread->start();
+    m_thread->detach();
 }
 
 void VideoDataProvider::set_error_handler(ErrorHandler&& handler)
@@ -72,6 +78,8 @@ TimedImage VideoDataProvider::retrieve_frame()
 
 void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCompletionHandler&& completion_handler)
 {
+    if (m_seek_begin_handler)
+        m_seek_begin_handler();
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 

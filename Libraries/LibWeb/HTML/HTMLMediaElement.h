@@ -197,7 +197,7 @@ private:
     WebIDL::ExceptionOr<void> load_element();
     WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
-    WebIDL::ExceptionOr<void> create_playback_manager(NonnullRefPtr<Media::MutexedDemuxer>, Function<void(String)> const& failure_callback);
+    WebIDL::ExceptionOr<void> create_playback_manager(NonnullRefPtr<Media::MutexedDemuxer>, NonnullRefPtr<Media::IncrementallyPopulatedStream>, Function<void(String)> const& failure_callback);
     enum class FetchingStatus {
         Ongoing,
         Complete,

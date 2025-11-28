@@ -1311,7 +1311,7 @@ DecoderErrorOr<void> Streamer::read_unknown_element()
 DecoderErrorOr<void> Streamer::seek_to_position(size_t position)
 {
     if (position >= m_stream->size()) {
-        if (m_stream->complete())
+        if (m_stream->is_complete())
             return DecoderError::corrupted("Tried to read past end of complete stream"sv);
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Not enough data in stream"sv);
     }

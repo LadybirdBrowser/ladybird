@@ -10,6 +10,7 @@
 #include <AK/EnumBits.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventReceiver.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "CodecID.h"
 #include "CodedFrame.h"

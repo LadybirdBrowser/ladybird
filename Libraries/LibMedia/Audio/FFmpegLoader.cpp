@@ -17,7 +17,7 @@
 
 namespace Audio {
 
-static constexpr int BUFFER_MAX_PROBE_SIZE = 64 * KiB;
+[[maybe_unused]] static constexpr int BUFFER_MAX_PROBE_SIZE = 64 * KiB;
 
 FFmpegLoaderPlugin::FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> io_context)
     : LoaderPlugin(move(stream))
@@ -37,13 +37,13 @@ FFmpegLoaderPlugin::~FFmpegLoaderPlugin()
         avformat_close_input(&m_format_context);
 }
 
-ErrorOr<NonnullOwnPtr<LoaderPlugin>> FFmpegLoaderPlugin::create(NonnullOwnPtr<SeekableStream> stream)
-{
-    auto io_context = TRY(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto loader = make<FFmpegLoaderPlugin>(move(stream), move(io_context));
-    TRY(loader->initialize());
-    return loader;
-}
+// ErrorOr<NonnullOwnPtr<LoaderPlugin>> FFmpegLoaderPlugin::create(NonnullOwnPtr<SeekableStream> stream)
+// {
+//     auto io_context = TRY(Media::FFmpeg::FFmpegIOContext::create(stream));
+//     auto loader = make<FFmpegLoaderPlugin>(move(stream), move(io_context));
+//     TRY(loader->initialize());
+//     return loader;
+// }
 
 ErrorOr<void> FFmpegLoaderPlugin::initialize()
 {
@@ -123,17 +123,17 @@ double FFmpegLoaderPlugin::time_base() const
     return av_q2d(m_audio_stream->time_base);
 }
 
-bool FFmpegLoaderPlugin::sniff(SeekableStream& stream)
-{
-    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream));
-#ifdef USE_CONSTIFIED_POINTERS
-    AVInputFormat const* detected_format {};
-#else
-    AVInputFormat* detected_format {};
-#endif
-    auto score = av_probe_input_buffer2(io_context->avio_context(), &detected_format, nullptr, nullptr, 0, BUFFER_MAX_PROBE_SIZE);
-    return score > 0;
-}
+// bool FFmpegLoaderPlugin::sniff(SeekableStream& stream)
+// {
+//     auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream));
+// #ifdef USE_CONSTIFIED_POINTERS
+//     AVInputFormat const* detected_format {};
+// #else
+//     AVInputFormat* detected_format {};
+// #endif
+//     auto score = av_probe_input_buffer2(io_context->avio_context(), &detected_format, nullptr, nullptr, 0, BUFFER_MAX_PROBE_SIZE);
+//     return score > 0;
+// }
 
 static ErrorOr<FixedArray<Sample>> extract_samples_from_frame(AVFrame& frame)
 {

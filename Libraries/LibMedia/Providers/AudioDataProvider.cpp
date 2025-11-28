@@ -23,7 +23,6 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
     auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, codec_initialization_data));
 
     auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(demuxer, track, move(decoder)));
-    auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
         while (!thread_data->should_thread_exit()) {
@@ -32,20 +31,27 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
         }
         return 0;
     }));
-    thread->start();
-    thread->detach();
 
+    auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread, thread_data));
     return provider;
 }
 
-AudioDataProvider::AudioDataProvider(NonnullRefPtr<ThreadData> const& thread_data)
-    : m_thread_data(thread_data)
+AudioDataProvider::AudioDataProvider(NonnullRefPtr<Threading::Thread> const& thread, NonnullRefPtr<ThreadData> const& thread_data)
+    : m_thread(thread)
+    , m_thread_data(thread_data)
 {
 }
 
 AudioDataProvider::~AudioDataProvider()
 {
     m_thread_data->exit();
+}
+
+void AudioDataProvider::start()
+{
+    VERIFY(!m_thread->is_started());
+    m_thread->start();
+    m_thread->detach();
 }
 
 void AudioDataProvider::set_error_handler(ErrorHandler&& handler)

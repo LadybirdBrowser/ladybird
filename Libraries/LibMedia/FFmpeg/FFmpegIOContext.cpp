@@ -13,8 +13,9 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegIOContext::FFmpegIOContext(AVIOContext* avio_context)
-    : m_avio_context(avio_context)
+FFmpegIOContext::FFmpegIOContext(NonnullRefPtr<IncrementallyPopulatedStream::Seekable> stream, AVIOContext* avio_context)
+    : m_stream(stream)
+    , m_avio_context(avio_context)
 {
 }
 
@@ -25,7 +26,7 @@ FFmpegIOContext::~FFmpegIOContext()
     avio_context_free(&m_avio_context);
 }
 
-ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStream& stream)
+ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<IncrementallyPopulatedStream::Seekable> stream)
 {
     auto* avio_buffer = av_malloc(PAGE_SIZE);
     if (avio_buffer == nullptr)
@@ -36,39 +37,69 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStre
         static_cast<unsigned char*>(avio_buffer),
         PAGE_SIZE,
         0,
-        &stream,
+        stream.ptr(),
         [](void* opaque, u8* buffer, int size) -> int {
-            auto& stream = *static_cast<SeekableStream*>(opaque);
-            AK::Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
-            auto read_bytes_or_error = stream.read_some(buffer_bytes);
-            if (read_bytes_or_error.is_error()) {
-                if (read_bytes_or_error.error().code() == EOF)
+            auto& stream = *static_cast<IncrementallyPopulatedStream::Seekable*>(opaque);
+
+            // AK::Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
+            // auto read_bytes_or_error = stream.read_bytes(buffer_bytes);
+            auto buffer_bytes_or_error = stream.read_bytes(AK::min<size_t>(size, PAGE_SIZE));
+            if (buffer_bytes_or_error.is_error()) {
+                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::EndOfStream)
                     return AVERROR_EOF;
+                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::NeedsMoreInput)
+                    return AVERROR(EAGAIN);
                 return AVERROR_UNKNOWN;
             }
-            int number_of_bytes_read = read_bytes_or_error.value().size();
-            if (number_of_bytes_read == 0)
+            VERIFY(buffer_bytes_or_error.value().size() > 0);
+            memcpy(buffer, buffer_bytes_or_error.value().data(), buffer_bytes_or_error.value().size());
+            if (buffer_bytes_or_error.value().size() == 0)
                 return AVERROR_EOF;
-            return number_of_bytes_read;
+            return static_cast<int>(buffer_bytes_or_error.value().size());
         },
         nullptr,
         [](void* opaque, int64_t offset, int whence) -> int64_t {
             whence &= ~AVSEEK_FORCE;
 
-            auto& stream = *static_cast<SeekableStream*>(opaque);
-            if (whence == AVSEEK_SIZE)
-                return static_cast<int64_t>(stream.size().value());
+            auto& stream = *static_cast<IncrementallyPopulatedStream::Seekable*>(opaque);
+            if (whence == AVSEEK_SIZE) {
+                return stream.size();
+            }
 
             auto seek_mode_from_whence = [](int origin) -> SeekMode {
-                if (origin == SEEK_CUR)
+                if (origin == SEEK_CUR) {
+                    VERIFY_NOT_REACHED();
                     return SeekMode::FromCurrentPosition;
-                if (origin == SEEK_END)
+                }
+                if (origin == SEEK_END) {
+                    VERIFY_NOT_REACHED();
                     return SeekMode::FromEndPosition;
+                }
                 return SeekMode::SetPosition;
             };
-            auto offset_or_error = stream.seek(offset, seek_mode_from_whence(whence));
-            if (offset_or_error.is_error())
-                return -EIO;
+
+            auto seek_mode = seek_mode_from_whence(whence);
+            VERIFY(seek_mode == SeekMode::SetPosition);
+            // switch (seek_mode_from_whence(whence)) {
+            // case SeekMode::FromCurrentPosition:
+            //     dbgln(">FromCurrentPosition by {}", offset);
+            //     break;
+            // case SeekMode::FromEndPosition:
+            //     dbgln(">FromEndPosition by {}", offset);
+            //     break;
+            // case SeekMode::SetPosition:
+            //     dbgln(">SetPosition to {}", offset);
+            //     break;
+            // default:
+            //     VERIFY_NOT_REACHED();
+            // }
+
+            stream.seek(offset);
+
+            // auto offset_or_error = stream.seek(offset, seek_mode_from_whence(whence));
+            // if (offset_or_error.is_error())
+            //     return -EIO;
+            // return 0;
             return 0;
         });
     if (avio_context == nullptr) {
@@ -76,7 +107,7 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStre
         return Error::from_string_literal("Failed to allocate AVIO context");
     }
 
-    return make<FFmpegIOContext>(avio_context);
+    return make<FFmpegIOContext>(stream, avio_context);
 }
 
 }

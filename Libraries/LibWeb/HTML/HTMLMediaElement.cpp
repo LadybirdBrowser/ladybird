@@ -1060,13 +1060,17 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
                 return;
             }
 
-            m_media_data_stream = Media::IncrementallyPopulatedStream::create();
+            m_media_data_stream = Media::IncrementallyPopulatedStream::create_empty();
+            if (auto length = response->header_list()->extract_length(); length.template has<u64>()) {
+                auto value = length.template get<u64>();
+                m_media_data_stream->set_full_size(value);
+            }
 
             auto queue_task_to_process_media_data = GC::create_function(heap(), [this, failure_callback = move(failure_callback)](ByteBuffer media_data, FetchingStatus fetching_status) mutable {
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
                 //    a canvas gets tainted when the video is drawn on it.
-                m_media_data_stream->append(move(media_data));
+                m_media_data_stream->append_chunk(move(media_data));
                 queue_a_media_element_task([this, &failure_callback, fetching_status]() mutable {
                     process_media_data(failure_callback, fetching_status).release_value_but_fixme_should_propagate_errors();
                     // NOTE: The spec does not say exactly when to update the readyState attribute. Rather, it describes what
@@ -1094,7 +1098,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             //    ability to cache data.
             VERIFY(response->body());
             auto process_end_of_media = GC::create_function(heap(), [this, queue_task_to_process_media_data] {
-                m_media_data_stream->set_complete();
+                m_media_data_stream->mark_complete();
                 queue_task_to_process_media_data->function()({}, FetchingStatus::Complete);
             });
 
@@ -1199,11 +1203,11 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         paintable()->set_needs_display();
 }
 
-WebIDL::ExceptionOr<void> HTMLMediaElement::create_playback_manager(NonnullRefPtr<Media::MutexedDemuxer> demuxer, Function<void(String)> const& failure_callback)
+WebIDL::ExceptionOr<void> HTMLMediaElement::create_playback_manager(NonnullRefPtr<Media::MutexedDemuxer> demuxer, NonnullRefPtr<Media::IncrementallyPopulatedStream> stream, Function<void(String)> const& failure_callback)
 {
     auto& realm = this->realm();
 
-    auto playback_manager_result = Media::PlaybackManager::try_create(demuxer);
+    auto playback_manager_result = Media::PlaybackManager::try_create(demuxer, stream);
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
     if (playback_manager_result.is_error()) {
@@ -1410,22 +1414,30 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 {
     if (!m_playback_manager) {
         if (fetching_status == FetchingStatus::Ongoing) {
-            auto matroska_result = Media::Matroska::MatroskaDemuxer::from_incrementally_populated_stream(*m_media_data_stream);
-            if (!matroska_result.is_error()) {
-                auto mutex_demuxer = make_ref_counted<Media::MutexedDemuxer>(matroska_result.release_value());
-                MUST(create_playback_manager(mutex_demuxer, failure_callback));
+            // auto matroska_result = Media::Matroska::MatroskaDemuxer::from_incrementally_populated_stream(*m_media_data_stream);
+            // if (!matroska_result.is_error()) {
+            //     auto mutex_demuxer = make_ref_counted<Media::MutexedDemuxer>(matroska_result.release_value());
+            //     MUST(create_playback_manager(mutex_demuxer, failure_callback));
+            // }
+            auto ffmpeg_result = Media::FFmpeg::FFmpegDemuxer::from_stream(*m_media_data_stream);
+            if (!ffmpeg_result.is_error()) {
+                dbgln(">did manage to construct ffmpeg demuxer");
+                auto mutex_demuxer = make_ref_counted<Media::MutexedDemuxer>(ffmpeg_result.release_value());
+                MUST(create_playback_manager(mutex_demuxer, *m_media_data_stream, failure_callback));
+            } else {
+                dbgln(">failed to construct ffmpeg demuxer");
             }
         } else if (fetching_status == FetchingStatus::Complete) {
-            auto data = m_media_data_stream->data();
+            // auto data = m_media_data_stream->data();
             auto inner_demuxer = [&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
                 auto matroska_result = Media::Matroska::MatroskaDemuxer::from_incrementally_populated_stream(*m_media_data_stream);
                 if (!matroska_result.is_error())
                     return matroska_result.release_value();
-                return TRY(Media::FFmpeg::FFmpegDemuxer::from_data(data));
+                return TRY(Media::FFmpeg::FFmpegDemuxer::from_stream(*m_media_data_stream));
             }();
             if (!inner_demuxer.is_error()) {
                 auto mutex_demuxer = make_ref_counted<Media::MutexedDemuxer>(inner_demuxer.release_value());
-                MUST(create_playback_manager(mutex_demuxer, failure_callback));
+                MUST(create_playback_manager(mutex_demuxer, *m_media_data_stream, failure_callback));
             } else {
                 // 1. The user agent should cancel the fetching process.
                 m_fetch_controller->stop_fetch();

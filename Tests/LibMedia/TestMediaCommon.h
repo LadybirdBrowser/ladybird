@@ -75,7 +75,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
         auto matroska_result = Media::Matroska::MatroskaDemuxer::from_incrementally_populated_stream(stream);
         if (!matroska_result.is_error())
             return matroska_result.release_value();
-        return Media::FFmpeg::FFmpegDemuxer::from_data(stream->data());
+        return Media::FFmpeg::FFmpegDemuxer::from_stream(stream);
     }());
     auto mutexed_demuxer = make_ref_counted<Media::MutexedDemuxer>(demuxer);
     auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));

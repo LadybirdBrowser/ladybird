@@ -35,7 +35,7 @@ public:
     using SeekCompletionHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track);
-    AudioDataProvider(NonnullRefPtr<ThreadData> const&);
+    AudioDataProvider(NonnullRefPtr<Threading::Thread> const&, NonnullRefPtr<ThreadData> const&);
     ~AudioDataProvider();
 
     void set_error_handler(ErrorHandler&&);
@@ -45,6 +45,8 @@ public:
     void seek(AK::Duration timestamp, SeekCompletionHandler&& = nullptr);
 
     void notify_stream_has_new_data();
+
+    void start();
 
 private:
     enum class ThreadState {
@@ -105,6 +107,7 @@ private:
         Atomic<ThreadState> m_state { ThreadState::Running };
     };
 
+    NonnullRefPtr<Threading::Thread> m_thread;
     NonnullRefPtr<ThreadData> m_thread_data;
 };
 

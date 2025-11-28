@@ -18,9 +18,8 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer(ReadonlyBytes data, NonnullOwnPtr<SeekableStream>&& stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
-    : m_data(data)
-    , m_stream(move(stream))
+FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
+    : m_stream(stream)
     , m_io_context(move(io_context))
 {
 }
@@ -47,13 +46,15 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     return {};
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_data(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream> stream)
 {
-    auto stream = DECODER_TRY_ALLOC(try_make<FixedMemoryStream>(data));
-    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(data, move(stream), move(io_context))));
+    // auto stream = DECODER_TRY_ALLOC(try_make<FixedMemoryStream>(data));
+    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_seekable(false)));
+    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream, move(io_context))));
 
     TRY(initialize_format_context(demuxer->m_format_context, *demuxer->m_io_context->avio_context()));
+
+    demuxer->m_io_context->do_blocked_reads();
 
     return demuxer;
 }
@@ -61,10 +62,9 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_data(ReadonlyBy
 FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
 {
     return *m_track_contexts.ensure(track, [&] {
-        auto stream = MUST(try_make<FixedMemoryStream>(m_data));
-        auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(*stream));
+        auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(m_stream->create_seekable(true)));
 
-        auto track_context = make<TrackContext>(move(stream), move(io_context));
+        auto track_context = make<TrackContext>(move(io_context));
 
         // We've already initialized a format context, so the only way this can fail is OOM.
         MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
@@ -226,9 +226,16 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
     for (;;) {
         auto read_frame_error = av_read_frame(&format_context, &packet);
         if (read_frame_error < 0) {
-            if (read_frame_error == AVERROR_EOF)
+            if (read_frame_error == AVERROR(EAGAIN)) {
+                dbgln(">return NEEDS MORE INPUT track.id={}", track.identifier());
+                return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Need more input to read frame"sv);
+            }
+            if (read_frame_error == AVERROR_EOF) {
+                dbgln(">reached end of stream track.id={}", track.identifier());
                 return DecoderError::format(DecoderErrorCategory::EndOfStream, "End of stream");
+            }
 
+            dbgln(">Unknown error");
             return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to read frame");
         }
         if (packet.stream_index != stream.index) {

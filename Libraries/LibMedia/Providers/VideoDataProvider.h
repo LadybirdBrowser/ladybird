@@ -21,6 +21,7 @@
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
+#include <LibThreading/Thread.h>
 
 namespace Media {
 
@@ -33,12 +34,13 @@ public:
     using ImageQueue = Queue<TimedImage, QUEUE_CAPACITY>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
+    using SeekBeginHandler = Function<void()>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
 
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    // static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
-    VideoDataProvider(NonnullRefPtr<ThreadData> const&);
+    VideoDataProvider(NonnullRefPtr<Threading::Thread> const&, NonnullRefPtr<ThreadData> const&);
     ~VideoDataProvider();
 
     void set_error_handler(ErrorHandler&&);
@@ -50,6 +52,10 @@ public:
     void notify_stream_has_new_data();
 
     bool is_buffering() const;
+
+    void start();
+
+    void set_seek_begin_handler(SeekBeginHandler&& handler) { m_seek_begin_handler = move(handler); }
 
 private:
     enum class ThreadState {
@@ -113,7 +119,10 @@ private:
         Atomic<ThreadState> m_state { ThreadState::Running };
     };
 
+    NonnullRefPtr<Threading::Thread> m_thread;
     NonnullRefPtr<ThreadData> m_thread_data;
+
+    SeekBeginHandler m_seek_begin_handler;
 };
 
 }
