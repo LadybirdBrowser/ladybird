@@ -266,6 +266,14 @@ Optional<Header> HttpRequest::get_http_basic_authentication_header(URL::URL cons
 {
     if (!url.includes_credentials())
         return {};
+    
+    // Security check: Basic Auth requires HTTPS/TLS to prevent credential transmission in cleartext
+    // Base64 encoding is not encryption and does not provide security without TLS
+    if (!url.scheme().equals_ignoring_ascii_case("https"sv)) {
+        dbgln("Warning: HTTP Basic Authentication used over non-HTTPS connection. Credentials are not secure.");
+        return {};
+    }
+    
     StringBuilder builder;
     builder.append(URL::percent_decode(url.username()));
     builder.append(':');
