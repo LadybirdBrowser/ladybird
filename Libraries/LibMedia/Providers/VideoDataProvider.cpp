@@ -361,8 +361,6 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
     //        before this functionality can exist.
 
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
-        auto is_in_error_state = true;
-
         {
             auto locker = take_lock();
             m_is_in_error_state = true;
@@ -373,14 +371,12 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
 
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Video Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (is_in_error_state) {
+        while (m_is_in_error_state) {
             if (handle_seek())
                 break;
-
             {
                 auto locker = take_lock();
                 m_wait_condition.wait();
-                is_in_error_state = m_is_in_error_state;
             }
         }
     };

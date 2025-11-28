@@ -154,12 +154,8 @@ void AudioDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, T&&
 
 void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
 {
+    m_is_in_error_state = false;
     process_seek_on_main_thread(seek_id, [self = NonnullRefPtr(*this)] {
-        {
-            auto locker = self->take_lock();
-            self->m_is_in_error_state = false;
-            self->wake();
-        }
         auto handler = move(self->m_seek_completion_handler);
         if (handler)
             handler();
@@ -173,11 +169,11 @@ bool AudioDataProvider::ThreadData::handle_seek()
         return false;
 
     auto handle_error = [&](DecoderError&& error) {
+        m_is_in_error_state = true;
         {
             auto locker = take_lock();
             m_queue.clear();
         }
-
         process_seek_on_main_thread(seek_id,
             [self = NonnullRefPtr(*this), error = move(error)] mutable {
                 if (self->m_error_handler)
@@ -266,8 +262,6 @@ bool AudioDataProvider::ThreadData::handle_seek()
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
     auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
-        auto is_in_error_state = true;
-
         {
             auto locker = take_lock();
             m_is_in_error_state = true;
@@ -278,14 +272,12 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
 
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Audio Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (is_in_error_state) {
+        while (m_is_in_error_state) {
             if (handle_seek())
                 break;
-
             {
                 auto locker = take_lock();
                 m_wait_condition.wait();
-                is_in_error_state = m_is_in_error_state;
             }
         }
     };
