@@ -288,7 +288,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedKey::to_object(JS::Realm&
     return object;
 }
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedBits::to_object(JS::Realm& realm)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedBits::to_object(JS::Realm& realm) const
 {
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
