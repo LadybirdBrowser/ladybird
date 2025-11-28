@@ -9009,4 +9009,48 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
     return WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>>(result);
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate
+WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(AlgorithmParams const& params, GC::Ref<CryptoKey> key)
+{
+    // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(m_realm, "Invalid key type"_utf16);
+
+    // 2. Perform the encapsulation key check described in Section 7.2 of [FIPS-203] with the parameter set indicated
+    //    by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as the ek
+    //    input parameter.
+    // 3. If the encapsulation key check failed, return an OperationError.
+    // NOTE: Presumably done by OpenSSL for us
+
+    // 4. Let sharedKey and ciphertext be the outputs that result from performing the ML-KEM.Encaps function
+    //    described in Section 7.2 of [FIPS-203] with the parameter set indicated by the name member of algorithm,
+    //    using the key represented by the [[handle]] internal slot of key as the ek input parameter.
+    VERIFY(key->handle().has<::Crypto::PK::MLKEMPublicKey>());
+    auto maybe_encapsulation = [&]() {
+        if (params.name == "ML-KEM-512") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEMSize::MLKEM512, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        if (params.name == "ML-KEM-768") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEMSize::MLKEM768, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        if (params.name == "ML-KEM-1024") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEMSize::MLKEM1024, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 5. If the ML-KEM.Encaps function returned an error, return an OperationError.
+    if (maybe_encapsulation.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Key encapsulation failed: {}", maybe_encapsulation.release_error()));
+    auto const [shared_key, ciphertext] = maybe_encapsulation.release_value();
+
+    // 6. Let result be a new EncapsulatedBits dictionary.
+    // 7. Set the sharedKey attribute of result to the result of creating an ArrayBuffer containing sharedKey.
+    // 8. Set the ciphertext attribute of result to the result of creating an ArrayBuffer containing ciphertext.
+    auto result = EncapsulatedBits { shared_key, ciphertext };
+
+    // 9. Return result.
+    return result;
+}
+
 }
