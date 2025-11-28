@@ -127,7 +127,7 @@ public:
 
     // Non-standard
     [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
-    MonotonicTime response_time() const { return m_response_time; }
+    MonotonicTime monotonic_response_time() const { return m_monotonic_response_time; }
 
 protected:
     explicit Response(NonnullRefPtr<HTTP::HeaderList>);
@@ -135,6 +135,10 @@ protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
+    AK::Duration current_age() const;
+    AK::Duration freshness_lifetime() const;
+    AK::Duration stale_while_revalidate_lifetime() const;
+
     // https://fetch.spec.whatwg.org/#concept-response-type
     // A response has an associated type which is "basic", "cors", "default", "error", "opaque", or "opaqueredirect". Unless stated otherwise, it is "default".
     Type m_type { Type::Default };
@@ -194,14 +198,10 @@ private:
     // A response has an associated redirect taint ("same-origin", "same-site", or "cross-site"), which is initially "same-origin".
     RedirectTaint m_redirect_taint { RedirectTaint::SameOrigin };
 
-    // FIXME: is the type correct?
-    u64 current_age() const;
-    u64 freshness_lifetime() const;
-    u64 stale_while_revalidate_lifetime() const;
-
     // Non-standard
     ByteString m_method;
-    MonotonicTime m_response_time;
+    UnixDateTime m_response_time;
+    MonotonicTime m_monotonic_response_time;
 
     Optional<String> m_network_error_message;
 

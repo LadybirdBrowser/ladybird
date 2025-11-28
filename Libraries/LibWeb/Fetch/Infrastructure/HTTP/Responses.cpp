@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
+#include <LibHTTP/Cache/Utilities.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -32,7 +33,8 @@ GC::Ref<Response> Response::create(JS::VM& vm)
 
 Response::Response(NonnullRefPtr<HTTP::HeaderList> header_list)
     : m_header_list(move(header_list))
-    , m_response_time(MonotonicTime::now())
+    , m_response_time(UnixDateTime::now())
+    , m_monotonic_response_time(MonotonicTime::now())
 {
 }
 
@@ -242,82 +244,25 @@ bool Response::is_stale() const
     return !is_fresh() && !is_stale_while_revalidate();
 }
 
-// https://httpwg.org/specs/rfc9111.html#age.calculations
-u64 Response::current_age() const
+AK::Duration Response::current_age() const
 {
-    // The term "age_value" denotes the value of the Age header field (Section 5.1), in a form appropriate for arithmetic operation; or 0, if not available.
-    Optional<AK::Duration> age;
-    if (auto const age_header = header_list()->get("Age"sv); age_header.has_value()) {
-        if (auto converted_age = age_header->to_number<u64>(); converted_age.has_value())
-            age = AK::Duration::from_seconds(converted_age.value());
-    }
-
-    auto const age_value = age.value_or(AK::Duration::from_seconds(0));
-
-    // The term "date_value" denotes the value of the Date header field, in a form appropriate for arithmetic operations. See Section 6.6.1 of [HTTP] for the definition of the Date header field and for requirements regarding responses without it.
-    // FIXME: Do we have a parser for HTTP-date?
-    auto const date_value = MonotonicTime::now() - AK::Duration::from_seconds(5);
-
-    // The term "now" means the current value of this implementation's clock (Section 5.6.7 of [HTTP]).
-    auto const now = MonotonicTime::now();
-
-    // The value of the clock at the time of the request that resulted in the stored response.
     // FIXME: Let's get the correct time.
-    auto const request_time = MonotonicTime::now() - AK::Duration::from_seconds(5);
+    auto const request_time = UnixDateTime::now() - AK::Duration::from_seconds(5);
 
-    // The value of the clock at the time the response was received.
-    auto const response_time = m_response_time;
-
-    auto const apparent_age = max(0, (response_time - date_value).to_seconds());
-
-    auto const response_delay = response_time - request_time;
-    auto const corrected_age_value = age_value + response_delay;
-
-    auto const corrected_initial_age = max(apparent_age, corrected_age_value.to_seconds());
-
-    auto const resident_time = (now - response_time).to_seconds();
-    return corrected_initial_age + resident_time;
+    return HTTP::calculate_age(m_header_list, request_time, m_response_time);
 }
 
-// https://httpwg.org/specs/rfc9111.html#calculating.freshness.lifetime
-u64 Response::freshness_lifetime() const
+AK::Duration Response::freshness_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv);
-    if (!elem.has_value())
-        return 0;
-
-    // FIXME: If the cache is shared and the s-maxage response directive (Section 5.2.2.10) is present, use its value
-
-    // If the max-age response directive (Section 5.2.2.1) is present, use its value, or
-    for (auto const& directive : *elem) {
-        if (directive.starts_with_bytes("max-age"sv)) {
-            auto equal_offset = directive.find_byte_offset('=');
-            if (!equal_offset.has_value()) {
-                dbgln("Bogus directive: '{}'", directive);
-                continue;
-            }
-            auto const value_string = directive.bytes_as_string_view().substring_view(equal_offset.value() + 1);
-            auto maybe_value = value_string.to_number<u64>();
-            if (!maybe_value.has_value()) {
-                dbgln("Bogus directive: '{}'", directive);
-                continue;
-            }
-            return maybe_value.value();
-        }
-    }
-
-    // FIXME: If the Expires response header field (Section 5.3) is present, use its value minus the value of the Date response header field (using the time the message was received if it is not present, as per Section 6.6.1 of [HTTP]), or
-    // FIXME: Otherwise, no explicit expiration time is present in the response. A heuristic freshness lifetime might be applicable; see Section 4.2.2.
-
-    return 0;
+    return HTTP::calculate_freshness_lifetime(m_status, m_header_list);
 }
 
 // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
-u64 Response::stale_while_revalidate_lifetime() const
+AK::Duration Response::stale_while_revalidate_lifetime() const
 {
     auto const elem = header_list()->get_decode_and_split("Cache-Control"sv);
     if (!elem.has_value())
-        return 0;
+        return {};
 
     for (auto const& directive : *elem) {
         if (directive.starts_with_bytes("stale-while-revalidate"sv)) {
@@ -327,16 +272,16 @@ u64 Response::stale_while_revalidate_lifetime() const
                 continue;
             }
             auto const value_string = directive.bytes_as_string_view().substring_view(equal_offset.value() + 1);
-            auto maybe_value = value_string.to_number<u64>();
+            auto maybe_value = value_string.to_number<i64>();
             if (!maybe_value.has_value()) {
                 dbgln("Bogus directive: '{}'", directive);
                 continue;
             }
-            return maybe_value.value();
+            return AK::Duration::from_seconds(*maybe_value);
         }
     }
 
-    return 0;
+    return {};
 }
 
 // Non-standard
