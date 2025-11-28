@@ -39,7 +39,7 @@ struct EncapsulatedBits {
     Optional<ByteBuffer> shared_key;
     Optional<ByteBuffer> ciphertext;
 
-    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&) const;
 };
 
 struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
@@ -377,7 +377,7 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "unwwrapKey is not supported"_utf16);
     }
 
-    virtual WebIDL::ExceptionOr<GC::Ref<EncapsulatedBits>> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>)
+    virtual WebIDL::ExceptionOr<EncapsulatedBits> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>)
     {
         return WebIDL::NotSupportedError::create(m_realm, "encapsulate is not supported"_utf16);
     }
