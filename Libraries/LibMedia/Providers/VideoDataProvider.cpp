@@ -90,13 +90,13 @@ void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     auto locker = take_lock();
     m_error_handler = move(handler);
-    m_wait_condition.broadcast();
+    wake();
 }
 
 void VideoDataProvider::ThreadData::exit()
 {
     m_exit = true;
-    m_wait_condition.broadcast();
+    wake();
 }
 
 VideoDataProvider::ImageQueue& VideoDataProvider::ThreadData::queue()
@@ -116,7 +116,7 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
     m_seek_mode = seek_mode;
-    m_wait_condition.broadcast();
+    wake();
 }
 
 bool VideoDataProvider::ThreadData::should_thread_exit() const
