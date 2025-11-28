@@ -10,7 +10,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
-#include <AK/Optional.h>
 #include <LibCore/Forward.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
@@ -56,11 +55,6 @@ public:
         PUT,
     };
 
-    struct BasicAuthenticationCredentials {
-        ByteString username;
-        ByteString password;
-    };
-
     explicit HttpRequest(NonnullRefPtr<HeaderList>);
     ~HttpRequest() = default;
 
@@ -82,8 +76,6 @@ public:
     ErrorOr<ByteBuffer> to_raw_request() const;
 
     static ErrorOr<HttpRequest, HttpRequest::ParseError> from_raw_request(ReadonlyBytes);
-    static Optional<Header> get_http_basic_authentication_header(URL::URL const&);
-    static Optional<BasicAuthenticationCredentials> parse_http_basic_authentication_header(ByteString const&);
 
 private:
     URL::URL m_url;

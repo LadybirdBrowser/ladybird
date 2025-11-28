@@ -262,40 +262,4 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
     return request;
 }
 
-Optional<Header> HttpRequest::get_http_basic_authentication_header(URL::URL const& url)
-{
-    if (!url.includes_credentials())
-        return {};
-    StringBuilder builder;
-    builder.append(URL::percent_decode(url.username()));
-    builder.append(':');
-    builder.append(URL::percent_decode(url.password()));
-
-    // FIXME: change to TRY() and make method fallible
-    auto token = MUST(encode_base64(builder.string_view().bytes()));
-    builder.clear();
-    builder.append("Basic "sv);
-    builder.append(token);
-    return Header { "Authorization", builder.to_byte_string() };
-}
-
-Optional<HttpRequest::BasicAuthenticationCredentials> HttpRequest::parse_http_basic_authentication_header(ByteString const& value)
-{
-    if (!value.starts_with("Basic "sv, AK::CaseSensitivity::CaseInsensitive))
-        return {};
-    auto token = value.substring_view(6);
-    if (token.is_empty())
-        return {};
-    auto decoded_token_bb = decode_base64(token);
-    if (decoded_token_bb.is_error())
-        return {};
-    auto decoded_token = ByteString::copy(decoded_token_bb.value());
-    auto colon_index = decoded_token.find(':');
-    if (!colon_index.has_value())
-        return {};
-    auto username = decoded_token.substring_view(0, colon_index.value());
-    auto password = decoded_token.substring_view(colon_index.value() + 1);
-    return BasicAuthenticationCredentials { username, password };
-}
-
 }
