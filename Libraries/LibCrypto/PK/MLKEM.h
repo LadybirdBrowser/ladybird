@@ -26,6 +26,8 @@ public:
 
     MLKEMPublicKey() = default;
 
+    ByteBuffer public_key() const { return m_public_key; }
+
 private:
     ByteBuffer m_public_key;
 };
@@ -53,6 +55,11 @@ struct MLKEMKeyPair {
     PrivKey private_key;
 };
 
+struct MLKEMEncapsulation {
+    ByteBuffer shared_key;
+    ByteBuffer ciphertext;
+};
+
 class MLKEM {
     using PublicKeyType = MLKEMPublicKey;
     using PrivateKeyType = MLKEMPrivateKey;
@@ -60,6 +67,7 @@ class MLKEM {
 public:
     using KeyPairType = MLKEMKeyPair<PublicKeyType, PrivateKeyType>;
 
+    static ErrorOr<MLKEMEncapsulation> encapsulate(MLKEMSize size, MLKEMPublicKey const& key);
     static ErrorOr<KeyPairType> generate_key_pair(MLKEMSize size, ByteBuffer seed = {});
 };
 
