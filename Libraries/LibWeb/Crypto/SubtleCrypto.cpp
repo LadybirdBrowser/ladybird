@@ -1586,6 +1586,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
     for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
         define_an_algorithm<MLKEM>("generateKey"_string, name);
+        define_an_algorithm<MLKEM>("importKey"_string, name);
         define_an_algorithm<MLKEM>("encapsulate"_string, name);
     }
 
