@@ -14,11 +14,11 @@
 #include <AK/Types.h>
 #include <AK/WeakPtr.h>
 #include <LibDatabase/Database.h>
+#include <LibHTTP/Cache/CacheEntry.h>
+#include <LibHTTP/Cache/CacheIndex.h>
 #include <LibURL/Forward.h>
-#include <RequestServer/Cache/CacheEntry.h>
-#include <RequestServer/Cache/CacheIndex.h>
 
-namespace RequestServer {
+namespace HTTP {
 
 class DiskCache {
 public:
@@ -31,13 +31,18 @@ public:
     };
     static ErrorOr<DiskCache> create(Mode);
 
+    DiskCache(DiskCache&&);
+    DiskCache& operator=(DiskCache&&);
+
+    ~DiskCache();
+
     Mode mode() const { return m_mode; }
 
     struct CacheHasOpenEntry { };
-    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(Request&);
-    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(Request&);
+    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time);
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers);
 
-    Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since) const;
+    Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
     LexicalPath const& cache_directory() { return m_cache_directory; }
@@ -51,14 +56,14 @@ private:
         No,
         Yes,
     };
-    bool check_if_cache_has_open_entry(Request&, u64 cache_key, CheckReaderEntries);
+    bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
 
     Mode m_mode;
 
     NonnullRefPtr<Database::Database> m_database;
 
     HashMap<u64, Vector<NonnullOwnPtr<CacheEntry>, 1>> m_open_cache_entries;
-    HashMap<u64, Vector<WeakPtr<Request>, 1>> m_requests_waiting_completion;
+    HashMap<u64, Vector<WeakPtr<CacheRequest>, 1>> m_requests_waiting_completion;
 
     LexicalPath m_cache_directory;
     CacheIndex m_index;

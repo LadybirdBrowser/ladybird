@@ -5,15 +5,15 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <RequestServer/Cache/CacheIndex.h>
-#include <RequestServer/Cache/Utilities.h>
-#include <RequestServer/Cache/Version.h>
+#include <LibHTTP/Cache/CacheIndex.h>
+#include <LibHTTP/Cache/Utilities.h>
+#include <LibHTTP/Cache/Version.h>
 
-namespace RequestServer {
+namespace HTTP {
 
 static constexpr u32 CACHE_METADATA_KEY = 12389u;
 
-static ByteString serialize_headers(HTTP::HeaderList const& headers)
+static ByteString serialize_headers(HeaderList const& headers)
 {
     StringBuilder builder;
 
@@ -27,9 +27,9 @@ static ByteString serialize_headers(HTTP::HeaderList const& headers)
     return builder.to_byte_string();
 }
 
-static NonnullRefPtr<HTTP::HeaderList> deserialize_headers(StringView serialized_headers)
+static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_headers)
 {
-    auto headers = HTTP::HeaderList::create();
+    auto headers = HeaderList::create();
 
     serialized_headers.for_each_split_view('\n', SplitBehavior::Nothing, [&](StringView serialized_header) {
         auto index = serialized_header.find(':');
@@ -110,7 +110,7 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements)
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HTTP::HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
@@ -133,22 +133,22 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HTTP::Hea
         .last_access_time = now,
     };
 
-    m_database.execute_statement(m_statements.insert_entry, {}, entry.cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_database->execute_statement(m_statements.insert_entry, {}, entry.cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
     m_entries.set(cache_key, move(entry));
 }
 
 void CacheIndex::remove_entry(u64 cache_key)
 {
-    m_database.execute_statement(m_statements.remove_entry, {}, cache_key);
+    m_database->execute_statement(m_statements.remove_entry, {}, cache_key);
     m_entries.remove(cache_key);
 }
 
 void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key)> on_entry_removed)
 {
-    m_database.execute_statement(
+    m_database->execute_statement(
         m_statements.remove_entries_accessed_since,
         [&](auto statement_id) {
-            auto cache_key = m_database.result_column<u64>(statement_id, 0);
+            auto cache_key = m_database->result_column<u64>(statement_id, 0);
             m_entries.remove(cache_key);
 
             on_entry_removed(cache_key);
@@ -156,13 +156,13 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         since);
 }
 
-void CacheIndex::update_response_headers(u64 cache_key, NonnullRefPtr<HTTP::HeaderList> response_headers)
+void CacheIndex::update_response_headers(u64 cache_key, NonnullRefPtr<HeaderList> response_headers)
 {
     auto entry = m_entries.get(cache_key);
     if (!entry.has_value())
         return;
 
-    m_database.execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key);
+    m_database->execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key);
     entry->response_headers = move(response_headers);
 }
 
@@ -174,7 +174,7 @@ void CacheIndex::update_last_access_time(u64 cache_key)
 
     auto now = UnixDateTime::now();
 
-    m_database.execute_statement(m_statements.update_last_access_time, {}, now, cache_key);
+    m_database->execute_statement(m_statements.update_last_access_time, {}, now, cache_key);
     entry->last_access_time = now;
 }
 
@@ -183,17 +183,17 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
     if (auto entry = m_entries.get(cache_key); entry.has_value())
         return entry;
 
-    m_database.execute_statement(
+    m_database->execute_statement(
         m_statements.select_entry, [&](auto statement_id) {
             int column = 0;
 
-            auto cache_key = m_database.result_column<u64>(statement_id, column++);
-            auto url = m_database.result_column<String>(statement_id, column++);
-            auto response_headers = m_database.result_column<ByteString>(statement_id, column++);
-            auto data_size = m_database.result_column<u64>(statement_id, column++);
-            auto request_time = m_database.result_column<UnixDateTime>(statement_id, column++);
-            auto response_time = m_database.result_column<UnixDateTime>(statement_id, column++);
-            auto last_access_time = m_database.result_column<UnixDateTime>(statement_id, column++);
+            auto cache_key = m_database->result_column<u64>(statement_id, column++);
+            auto url = m_database->result_column<String>(statement_id, column++);
+            auto response_headers = m_database->result_column<ByteString>(statement_id, column++);
+            auto data_size = m_database->result_column<u64>(statement_id, column++);
+            auto request_time = m_database->result_column<UnixDateTime>(statement_id, column++);
+            auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
+            auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
             Entry entry { cache_key, move(url), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
             m_entries.set(cache_key, move(entry));
@@ -203,18 +203,18 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
     return m_entries.get(cache_key);
 }
 
-Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime since) const
+Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime since)
 {
     Requests::CacheSizes sizes;
 
-    m_database.execute_statement(
+    m_database->execute_statement(
         m_statements.estimate_cache_size_accessed_since,
-        [&](auto statement_id) { sizes.since_requested_time = m_database.result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) { sizes.since_requested_time = m_database->result_column<u64>(statement_id, 0); },
         since);
 
-    m_database.execute_statement(
+    m_database->execute_statement(
         m_statements.estimate_cache_size_accessed_since,
-        [&](auto statement_id) { sizes.total = m_database.result_column<u64>(statement_id, 0); },
+        [&](auto statement_id) { sizes.total = m_database->result_column<u64>(statement_id, 0); },
         UnixDateTime::earliest());
 
     return sizes;
