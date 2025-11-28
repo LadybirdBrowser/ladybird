@@ -10,6 +10,7 @@
 
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
+#include <openssl/param_build.h>
 
 namespace Crypto::PK {
 
@@ -25,6 +26,26 @@ static char const* mlkem_size_to_openssl_name(MLKEMSize size)
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+ErrorOr<MLKEMEncapsulation> MLKEM::encapsulate(MLKEMSize size, MLKEMPublicKey const& key)
+{
+    auto public_key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_new_raw_public_key_ex(nullptr, mlkem_size_to_openssl_name(size), nullptr, key.public_key().data(), key.public_key().size())));
+
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, public_key.ptr(), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_encapsulate_init(ctx.ptr(), nullptr));
+
+    size_t shared_key_size;
+    size_t ciphertext_length;
+    OPENSSL_TRY(EVP_PKEY_encapsulate(ctx.ptr(), nullptr, &ciphertext_length, nullptr, &shared_key_size));
+
+    auto shared_key = TRY(ByteBuffer::create_uninitialized(shared_key_size));
+    auto ciphertext = TRY(ByteBuffer::create_uninitialized(ciphertext_length));
+
+    OPENSSL_TRY(EVP_PKEY_encapsulate(ctx.ptr(), ciphertext.data(), &ciphertext_length, shared_key.data(), &shared_key_size));
+
+    return MLKEMEncapsulation { shared_key, ciphertext };
 }
 
 ErrorOr<MLKEM::KeyPairType> MLKEM::generate_key_pair(MLKEMSize size, ByteBuffer seed)
