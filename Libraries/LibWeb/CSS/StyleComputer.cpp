@@ -875,8 +875,12 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
 
     auto& effect = as<Animations::KeyframeEffect>(*animation.effect());
 
-    effect.set_iteration_duration(animation_properties.duration);
-    effect.set_start_delay(animation_properties.delay);
+    effect.set_specified_iteration_duration(animation_properties.duration);
+    effect.set_specified_start_delay(animation_properties.delay);
+    // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
+    // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
+    // timing requires rerunning the procedure to normalize specified timing.
+    effect.normalize_specified_timing();
     effect.set_iteration_count(animation_properties.iteration_count);
     effect.set_timing_function(animation_properties.timing_function);
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));

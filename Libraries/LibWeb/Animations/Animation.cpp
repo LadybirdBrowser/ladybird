@@ -123,6 +123,10 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     if (m_start_time.has_value())
         m_hold_time = {};
 
+    // AD-HOC: The normalization of the specified timing of the associated effect depends on the associated timeline.
+    if (m_effect)
+        m_effect->normalize_specified_timing();
+
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);

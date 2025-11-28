@@ -744,11 +744,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::
 
     //   - all specified timing properties:
 
-    //     - start delay,
-    effect->m_start_delay = source->m_start_delay;
+    // AD-HOC: This is defined in the web-animations level 1 spec so doesn't explicitly mention the level 2 properties
+    //         (specified start delay, specified end delay, specified iteration duration) but it is required that we
+    //         copy these and then normalize them as opposed to copying the already normalized values which may be
+    //         invalid in this context i.e. if the existing effect was associated with a progress-based timeline
 
-    //     - end delay,
-    effect->m_end_delay = source->m_end_delay;
+    //     - specified start delay,
+    effect->m_specified_start_delay = source->m_specified_start_delay;
+
+    //     - specified end delay,
+    effect->m_specified_end_delay = source->m_specified_end_delay;
 
     //     - fill mode,
     effect->m_fill_mode = source->m_fill_mode;
@@ -759,14 +764,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::
     //     - iteration count,
     effect->m_iteration_count = source->m_iteration_count;
 
-    //     - iteration duration,
-    effect->m_iteration_duration = source->m_iteration_duration;
+    //     - specified iteration duration,
+    effect->m_specified_iteration_duration = source->m_specified_iteration_duration;
 
     //     - playback direction, and
     effect->m_playback_direction = source->m_playback_direction;
 
     //     - timing function.
     effect->m_timing_function = source->m_timing_function;
+
+    effect->normalize_specified_timing();
 
     return effect;
 }
