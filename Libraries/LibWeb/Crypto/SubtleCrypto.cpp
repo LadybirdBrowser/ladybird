@@ -1443,6 +1443,8 @@ SupportedAlgorithmsMap const& supported_algorithms()
         "importKey"_string,
         "exportKey"_string,
         "get key length"_string,
+        "encapsulate"_string,
+        "decapsulate"_string
     };
 
     for (auto& operation : supported_operations) {
@@ -1584,6 +1586,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
     for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
         define_an_algorithm<MLKEM>("generateKey"_string, name);
+        define_an_algorithm<MLKEM>("encapsulate"_string, name);
     }
 
     return internal_object;
