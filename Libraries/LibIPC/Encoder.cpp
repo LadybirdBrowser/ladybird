@@ -112,6 +112,19 @@ ErrorOr<void> encode(Encoder& encoder, UnixDateTime const& value)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, IPv4Address const& ipv4)
+{
+    return encoder.encode(ipv4.to_u32());
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, IPv6Address const& ipv6)
+{
+    auto const& data = ipv6.to_in6_addr_t();
+    return encoder.encode(ReadonlySpan<u8>(data));
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 {
     TRY(encoder.encode(value.serialize()));

@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
@@ -88,6 +90,20 @@ ErrorOr<UnixDateTime> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<IPv4Address> decode(Decoder& decoder)
+{
+    auto ipv4 = TRY(decoder.decode<u32>());
+    return IPv4Address(ipv4);
+}
+
+template<>
+ErrorOr<IPv6Address> decode(Decoder& decoder)
+{
+    auto ipv6 = TRY(decoder.decode<Array<u8, 16>>());
+    return IPv6Address(ipv6);
+}
+
+template<>
 ErrorOr<URL::URL> decode(Decoder& decoder)
 {
     auto url_string = TRY(decoder.decode<ByteString>());
@@ -153,7 +169,7 @@ template<>
 ErrorOr<Core::ProxyData> decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<Core::ProxyData::Type>());
-    auto host_ipv4 = TRY(decoder.decode<u32>());
+    auto host_ipv4 = IPv4Address(TRY(decoder.decode<u32>()));
     auto port = TRY(decoder.decode<int>());
 
     return Core::ProxyData { type, host_ipv4, port };

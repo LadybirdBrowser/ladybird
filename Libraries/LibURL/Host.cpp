@@ -30,7 +30,7 @@ static String serialize_ipv4_address(IPv4Address address)
     Array<u8, 4> output;
 
     // 2. Let n be the value of address.
-    u32 n = address;
+    u32 n = address.to_u32();
 
     // 3. For each i in the range 1 to 4, inclusive:
     for (size_t i = 0; i <= 3; ++i) {
@@ -64,7 +64,7 @@ static Optional<size_t> find_the_ipv6_address_compressed_piece_index(IPv6Address
     size_t found_size = 0;
 
     // 5. For each pieceIndex of address’s pieces’s indices:
-    for (size_t piece_index = 0; piece_index < address.size(); ++piece_index) {
+    for (size_t piece_index = 0; piece_index < 8; ++piece_index) {
         // 1. If address’s pieces[pieceIndex] is not 0:
         if (address[piece_index] != 0) {
             // 1. If foundSize is greater than longestSize, then set longestIndex to foundIndex and longestSize to foundSize.
@@ -110,7 +110,7 @@ static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& ou
     auto ignore0 = false;
 
     // 4. For each pieceIndex of address’s pieces’s indices:
-    for (size_t piece_index = 0; piece_index < address.size(); ++piece_index) {
+    for (size_t piece_index = 0; piece_index < 8; ++piece_index) {
         // 1. If ignore0 is true and address[pieceIndex] is 0, then continue.
         if (ignore0 && address[piece_index] == 0)
             continue;
