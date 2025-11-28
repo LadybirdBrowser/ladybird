@@ -18,8 +18,7 @@
 
 namespace Web::CSS::Parser {
 
-template<typename TElement>
-Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position)
+Optional<Vector<ColorStopListElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position)
 {
     enum class ElementType {
         Garbage,
@@ -27,20 +26,20 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         ColorHint
     };
 
-    auto parse_color_stop_list_element = [&](TElement& element) -> ElementType {
+    auto parse_color_stop_list_element = [&](auto& element) -> ElementType {
         tokens.discard_whitespace();
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
         RefPtr<StyleValue const> color;
-        Optional<typename TElement::PositionType> position;
-        Optional<typename TElement::PositionType> second_position;
-        if (position = parse_position(tokens); position.has_value()) {
+        RefPtr<StyleValue const> position;
+        RefPtr<StyleValue const> second_position;
+        if (position = parse_position(tokens); position) {
             // [<T-percentage> <color>] or [<T-percentage>]
             tokens.discard_whitespace();
             // <T-percentage>
             if (!tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma)) {
-                element.transition_hint = typename TElement::ColorHint { *position };
+                element.transition_hint = ColorStopListElement::ColorHint { *position };
                 return ElementType::ColorHint;
             }
             // <T-percentage> <color>
@@ -60,24 +59,24 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
             for (auto stop_position : Array { &position, &second_position }) {
                 if (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
                     *stop_position = parse_position(tokens);
-                    if (!stop_position->has_value())
+                    if (!stop_position)
                         return ElementType::Garbage;
                     tokens.discard_whitespace();
                 }
             }
         }
 
-        element.color_stop = typename TElement::ColorStop { color, position, second_position };
+        element.color_stop = ColorStopListElement::ColorStop { color, position, second_position };
         return ElementType::ColorStop;
     };
 
-    TElement first_element {};
+    ColorStopListElement first_element {};
     if (parse_color_stop_list_element(first_element) != ElementType::ColorStop)
         return {};
 
-    Vector<TElement> color_stops { first_element };
+    Vector<ColorStopListElement> color_stops { first_element };
     while (tokens.has_next_token()) {
-        TElement list_element {};
+        ColorStopListElement list_element {};
         tokens.discard_whitespace();
         if (!tokens.consume_a_token().is(Token::Type::Comma))
             return {};
@@ -110,34 +109,34 @@ static StringView consume_if_starts_with(StringView str, StringView start, auto 
     return str;
 }
 
-Optional<Vector<LinearColorStopListElement>> Parser::parse_linear_color_stop_list(TokenStream<ComponentValue>& tokens)
+Optional<Vector<ColorStopListElement>> Parser::parse_linear_color_stop_list(TokenStream<ComponentValue>& tokens)
 {
     // <color-stop-list> =
     //   <linear-color-stop> , [ <linear-color-hint>? , <linear-color-stop> ]#
-    return parse_color_stop_list<LinearColorStopListElement>(
+    return parse_color_stop_list(
         tokens,
-        [&](auto& it) { return parse_length_percentage(it); });
+        [&](auto& it) { return parse_length_percentage_value(it); });
 }
 
-Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
+Optional<Vector<ColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
 {
     auto context_guard = push_temporary_value_parsing_context(SpecialContext::AngularColorStopList);
 
     // <angular-color-stop-list> =
     //   <angular-color-stop> , [ <angular-color-hint>? , <angular-color-stop> ]#
-    return parse_color_stop_list<AngularColorStopListElement>(
+    return parse_color_stop_list(
         tokens,
-        [&](TokenStream<ComponentValue>& it) -> Optional<AnglePercentage> {
+        [&](TokenStream<ComponentValue>& it) -> RefPtr<StyleValue const> {
             if (tokens.next_token().is(Token::Type::Number)) {
                 auto transaction = tokens.begin_transaction();
                 auto numeric_value = tokens.consume_a_token().token().number_value();
                 if (numeric_value == 0) {
                     transaction.commit();
-                    return Angle::make_degrees(0);
+                    return AngleStyleValue::create(Angle::make_degrees(0));
                 }
             }
 
-            return parse_angle_percentage(it);
+            return parse_angle_percentage_value(it);
         });
 }
 
