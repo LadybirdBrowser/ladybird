@@ -55,7 +55,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     READ_OBJECT(ObjectIdentifier, Vector<int>, algorithm);
     POP_SCOPE();
 
-    constexpr static Array<Span<int const>, 13> known_algorithm_identifiers {
+    constexpr static Array<Span<int const>, 16> known_algorithm_identifiers {
         ASN1::rsa_encryption_oid,
         ASN1::rsa_md5_encryption_oid,
         ASN1::rsa_sha1_encryption_oid,
@@ -69,6 +69,9 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
         ASN1::ed25519_oid,
         ASN1::x448_oid,
         ASN1::ed448_oid,
+        ASN1::ml_kem_512_oid,
+        ASN1::ml_kem_768_oid,
+        ASN1::ml_kem_1024_oid
     };
 
     bool is_known_algorithm = false;
@@ -128,7 +131,10 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    constexpr static Array<Span<int const>, 8> no_parameter_algorithms = {
+
+    // https://datatracker.ietf.org/doc/html/rfc8410#section-9
+    // For all of the OIDs, the parameters MUST be absent.
+    constexpr static Array<Span<int const>, 12> no_parameter_algorithms = {
         ASN1::ecdsa_with_sha224_encryption_oid,
         ASN1::ecdsa_with_sha256_encryption_oid,
         ASN1::ecdsa_with_sha384_encryption_oid,
@@ -136,7 +142,10 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
         ASN1::x25519_oid,
         ASN1::x448_oid,
         ASN1::ed25519_oid,
-        ASN1::ed448_oid
+        ASN1::ed448_oid,
+        ASN1::ml_kem_512_oid,
+        ASN1::ml_kem_768_oid,
+        ASN1::ml_kem_1024_oid
     };
 
     bool is_no_parameter_algorithm = false;
@@ -226,12 +235,18 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
+
+    // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
+    // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
+    constexpr static Array<Span<int const>, 8> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
         ASN1::ed25519_oid,
-        ASN1::ed448_oid
+        ASN1::ed448_oid,
+        ASN1::ml_kem_512_oid,
+        ASN1::ml_kem_768_oid,
+        ASN1::ml_kem_1024_oid
     };
 
     for (auto const& inner : no_parameter_algorithms) {
@@ -296,12 +311,18 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
+
+    // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
+    // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
+    constexpr static Array<Span<int const>, 8> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
         ASN1::ed25519_oid,
-        ASN1::ed448_oid
+        ASN1::ed448_oid,
+        ASN1::ml_kem_512_oid,
+        ASN1::ml_kem_768_oid,
+        ASN1::ml_kem_1024_oid
     };
 
     for (auto const& inner : no_parameter_algorithms) {
