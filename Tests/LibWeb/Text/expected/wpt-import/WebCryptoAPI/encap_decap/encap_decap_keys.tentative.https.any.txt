@@ -1,0 +1,66 @@
+Harness status: OK
+
+Found 60 tests
+
+15 Pass
+45 Fail
+Pass	ML-KEM-512 encapsulateKey with AES-GCM-256
+Fail	ML-KEM-512 decapsulateKey with AES-GCM-256
+Fail	ML-KEM-512 encapsulateKey/decapsulateKey round-trip with AES-GCM-256
+Pass	ML-KEM-512 encapsulateKey with AES-CBC-256
+Fail	ML-KEM-512 decapsulateKey with AES-CBC-256
+Fail	ML-KEM-512 encapsulateKey/decapsulateKey round-trip with AES-CBC-256
+Pass	ML-KEM-512 encapsulateKey with AES-CTR-256
+Fail	ML-KEM-512 decapsulateKey with AES-CTR-256
+Fail	ML-KEM-512 encapsulateKey/decapsulateKey round-trip with AES-CTR-256
+Pass	ML-KEM-512 encapsulateKey with AES-KW-256
+Fail	ML-KEM-512 decapsulateKey with AES-KW-256
+Fail	ML-KEM-512 encapsulateKey/decapsulateKey round-trip with AES-KW-256
+Pass	ML-KEM-512 encapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-512 decapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-512 encapsulateKey/decapsulateKey round-trip with HMAC-SHA-256
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation with AES-GCM-256
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation with AES-CBC-256
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation with AES-CTR-256
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation with AES-KW-256
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation with HMAC-SHA-256
+Pass	ML-KEM-768 encapsulateKey with AES-GCM-256
+Fail	ML-KEM-768 decapsulateKey with AES-GCM-256
+Fail	ML-KEM-768 encapsulateKey/decapsulateKey round-trip with AES-GCM-256
+Pass	ML-KEM-768 encapsulateKey with AES-CBC-256
+Fail	ML-KEM-768 decapsulateKey with AES-CBC-256
+Fail	ML-KEM-768 encapsulateKey/decapsulateKey round-trip with AES-CBC-256
+Pass	ML-KEM-768 encapsulateKey with AES-CTR-256
+Fail	ML-KEM-768 decapsulateKey with AES-CTR-256
+Fail	ML-KEM-768 encapsulateKey/decapsulateKey round-trip with AES-CTR-256
+Pass	ML-KEM-768 encapsulateKey with AES-KW-256
+Fail	ML-KEM-768 decapsulateKey with AES-KW-256
+Fail	ML-KEM-768 encapsulateKey/decapsulateKey round-trip with AES-KW-256
+Pass	ML-KEM-768 encapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-768 decapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-768 encapsulateKey/decapsulateKey round-trip with HMAC-SHA-256
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation with AES-GCM-256
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation with AES-CBC-256
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation with AES-CTR-256
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation with AES-KW-256
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation with HMAC-SHA-256
+Pass	ML-KEM-1024 encapsulateKey with AES-GCM-256
+Fail	ML-KEM-1024 decapsulateKey with AES-GCM-256
+Fail	ML-KEM-1024 encapsulateKey/decapsulateKey round-trip with AES-GCM-256
+Pass	ML-KEM-1024 encapsulateKey with AES-CBC-256
+Fail	ML-KEM-1024 decapsulateKey with AES-CBC-256
+Fail	ML-KEM-1024 encapsulateKey/decapsulateKey round-trip with AES-CBC-256
+Pass	ML-KEM-1024 encapsulateKey with AES-CTR-256
+Fail	ML-KEM-1024 decapsulateKey with AES-CTR-256
+Fail	ML-KEM-1024 encapsulateKey/decapsulateKey round-trip with AES-CTR-256
+Pass	ML-KEM-1024 encapsulateKey with AES-KW-256
+Fail	ML-KEM-1024 decapsulateKey with AES-KW-256
+Fail	ML-KEM-1024 encapsulateKey/decapsulateKey round-trip with AES-KW-256
+Pass	ML-KEM-1024 encapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-1024 decapsulateKey with HMAC-SHA-256
+Fail	ML-KEM-1024 encapsulateKey/decapsulateKey round-trip with HMAC-SHA-256
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation with AES-GCM-256
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation with AES-CBC-256
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation with AES-CTR-256
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation with AES-KW-256
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation with HMAC-SHA-256
