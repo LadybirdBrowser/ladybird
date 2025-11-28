@@ -1365,6 +1365,11 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
     define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
 
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
+    for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
+        define_an_algorithm<MLKEM>("generateKey"_string, name);
+    }
+
     return internal_object;
 }
 
