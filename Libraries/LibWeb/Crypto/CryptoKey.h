@@ -8,6 +8,7 @@
 
 #include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/MLDSA.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
@@ -26,7 +27,7 @@ class CryptoKey final
     GC_DECLARE_ALLOCATOR(CryptoKey);
 
 public:
-    using InternalKeyData = Variant<ByteBuffer, Bindings::JsonWebKey, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey>;
+    using InternalKeyData = Variant<ByteBuffer, Bindings::JsonWebKey, ::Crypto::PK::RSAPublicKey, ::Crypto::PK::RSAPrivateKey, ::Crypto::PK::ECPublicKey, ::Crypto::PK::ECPrivateKey, ::Crypto::PK::MLDSAPublicKey, ::Crypto::PK::MLDSAPrivateKey, ::Crypto::PK::MLKEMPublicKey, ::Crypto::PK::MLKEMPrivateKey>;
 
     [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&, InternalKeyData);
     [[nodiscard]] static GC::Ref<CryptoKey> create(JS::Realm&);
@@ -42,7 +43,7 @@ public:
 
     void set_extractable(bool extractable) { m_extractable = extractable; }
     void set_type(Bindings::KeyType type) { m_type = type; }
-    void set_algorithm(GC::Ref<Object> algorithm) { m_algorithm = move(algorithm); }
+    void set_algorithm(GC::Ref<Object> algorithm) { m_algorithm = algorithm; }
     void set_usages(Vector<Bindings::KeyUsage>);
 
     InternalKeyData const& handle() const { return m_key_data; }

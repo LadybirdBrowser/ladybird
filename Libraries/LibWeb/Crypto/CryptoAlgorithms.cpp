@@ -25,6 +25,7 @@
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/MLDSA.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/Array.h>
@@ -8928,6 +8929,84 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
 
     // 4. Return result.
     return GC::Ref { *result };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // 1. If usages contains any entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
+    //    "decapsulateBits", then throw a SyntaxError.
+    for (auto const usage : usages) {
+        if (usage != Bindings::KeyUsage::Encapsulatekey
+            && usage != Bindings::KeyUsage::Encapsulatebits
+            && usage != Bindings::KeyUsage::Decapsulatekey
+            && usage != Bindings::KeyUsage::Decapsulatebits) {
+            return WebIDL::SyntaxError::create(m_realm, "Invalid key usage"_utf16);
+        }
+    }
+
+    // 2. Generate an ML-KEM key pair, as described in Section 7.1 of [FIPS-203], with the parameter set indicated
+    //    by the name member of normalizedAlgorithm.
+    auto maybe_key_pair = [&] {
+        if (params.name == "ML-KEM-512")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEMSize::MLKEM512);
+        if (params.name == "ML-KEM-768")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEMSize::MLKEM768);
+        if (params.name == "ML-KEM-1024")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEMSize::MLKEM1024);
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 3. If the key generation step fails, then throw an OperationError.
+    if (maybe_key_pair.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
+    auto const key_pair = maybe_key_pair.release_value();
+
+    // 4. Let algorithm be a new KeyAlgorithm object.
+    auto algorithm = KeyAlgorithm::create(m_realm);
+
+    // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+    algorithm->set_name(params.name);
+
+    // 6. Let publicKey be a new CryptoKey representing the encapsulation key of the generated key pair.
+    auto public_key = CryptoKey::create(m_realm, key_pair.public_key);
+
+    // 7. Set the [[type]] internal slot of publicKey to "public".
+    public_key->set_type(Bindings::KeyType::Public);
+
+    // 8. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    public_key->set_algorithm(algorithm);
+
+    // 9. Set the [[extractable]] internal slot of publicKey to true.
+    public_key->set_extractable(true);
+
+    // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encapsulateKey",
+    //     "encapsulateBits" ].
+    public_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+
+    // 11. Let privateKey be a new CryptoKey representing the decapsulation key of the generated key pair.
+    auto private_key = CryptoKey::create(m_realm, key_pair.private_key);
+
+    // 12. Set the [[type]] internal slot of privateKey to "private".
+    private_key->set_type(Bindings::KeyType::Private);
+
+    // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    private_key->set_algorithm(algorithm);
+
+    // 14. Set the [[extractable]] internal slot of privateKey to extractable.
+    private_key->set_extractable(extractable);
+
+    // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decapsulateKey",
+    //     "decapsulateBits" ].
+    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+
+    // 16. Let result be a new CryptoKeyPair dictionary.
+    // 17. Set the publicKey attribute of result to be publicKey.
+    // 18. Set the privateKey attribute of result to be privateKey.
+    auto result = CryptoKeyPair::create(m_realm, public_key, private_key);
+
+    // 19. Return result.
+    return WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>>(result);
 }
 
 }

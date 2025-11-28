@@ -707,6 +707,19 @@ private:
     }
 };
 
+class MLKEM : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new MLKEM(realm)); }
+
+private:
+    explicit MLKEM(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
