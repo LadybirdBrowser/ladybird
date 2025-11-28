@@ -46,6 +46,11 @@ constexpr static Array<int, 9>
     ml_dsa_65_oid { 2, 16, 840, 1, 101, 3, 4, 3, 18 },
     ml_dsa_87_oid { 2, 16, 840, 1, 101, 3, 4, 3, 19 };
 
+constexpr static Array<int, 9>
+    ml_kem_512_oid { 2, 16, 840, 1, 101, 3, 4, 4, 1 },
+    ml_kem_768_oid { 2, 16, 840, 1, 101, 3, 4, 4, 2 },
+    ml_kem_1024_oid { 2, 16, 840, 1, 101, 3, 4, 4, 3 };
+
 #define _ENUM(key, value) key,
 
 #define __ENUM_OBJECT_CLASS                   \
