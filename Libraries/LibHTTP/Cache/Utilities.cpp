@@ -374,6 +374,15 @@ RevalidationAttributes RevalidationAttributes::create(HeaderList const& headers)
     return attributes;
 }
 
+// https://httpwg.org/specs/rfc9111.html#storing.fields
+void store_header_and_trailer_fields(HeaderList& stored_headers, HeaderList const& response_headers)
+{
+    for (auto const& header : response_headers) {
+        if (!is_header_exempted_from_storage(header.name))
+            stored_headers.append(header);
+    }
+}
+
 // https://httpwg.org/specs/rfc9111.html#update
 void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_headers)
 {
