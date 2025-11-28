@@ -2440,7 +2440,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const
 
     // 2.
     ByteBuffer data;
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // -> If format is "raw":
         //    1. Let data be the octet string contained in keyData.
         //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
@@ -2681,7 +2682,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -2993,7 +2995,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -3338,7 +3341,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -8028,7 +8032,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
 
     // 4. If format is "raw":
     AK::ByteBuffer data;
-    if (key_format == Bindings::KeyFormat::Raw) {
+    if (key_format == Bindings::KeyFormat::Raw
+        || key_format == Bindings::KeyFormat::RawSecret) {
         // 4.1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
