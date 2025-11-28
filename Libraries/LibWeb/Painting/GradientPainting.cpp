@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,7 +8,10 @@
 #include <AK/Math.h>
 #include <LibGfx/Gradients.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -16,13 +20,13 @@
 
 namespace Web::Painting {
 
-static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, auto const& color_stop_list, auto resolve_position_to_float, bool repeating)
+static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, Vector<CSS::ColorStopListElement> const& color_stop_list, auto resolve_position_to_float, bool repeating)
 {
     VERIFY(!color_stop_list.is_empty());
     ColorStopList resolved_color_stops;
 
     auto color_stop_length = [&](auto& stop) {
-        return stop.color_stop.second_position.has_value() ? 2 : 1;
+        return stop.color_stop.second_position ? 2 : 1;
     };
 
     size_t expanded_size = 0;
@@ -46,7 +50,7 @@ static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& n
     //    set its position to be equal to the largest specified position of any color stop
     //    or transition hint before it.
     auto max_previous_color_stop_or_hint = resolved_color_stops[0].position;
-    auto resolve_stop_position = [&](auto& position) {
+    auto resolve_stop_position = [&](CSS::StyleValue const& position) {
         float value = resolve_position_to_float(position);
         value = max(value, max_previous_color_stop_or_hint);
         max_previous_color_stop_or_hint = value;
@@ -55,10 +59,10 @@ static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& n
     size_t resolved_index = 0;
     for (auto& stop : color_stop_list) {
         if (stop.transition_hint.has_value())
-            resolved_color_stops[resolved_index].transition_hint = resolve_stop_position(stop.transition_hint->value);
-        if (stop.color_stop.position.has_value())
+            resolved_color_stops[resolved_index].transition_hint = resolve_stop_position(*stop.transition_hint->value);
+        if (stop.color_stop.position)
             resolved_color_stops[resolved_index].position = resolve_stop_position(*stop.color_stop.position);
-        if (stop.color_stop.second_position.has_value())
+        if (stop.color_stop.second_position)
             resolved_color_stops[++resolved_index].position = resolve_stop_position(*stop.color_stop.second_position);
         ++resolved_index;
     }
@@ -116,9 +120,17 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
     auto gradient_angle = linear_gradient.angle_degrees(gradient_size);
     auto gradient_length_px = Gfx::calculate_gradient_length(gradient_size.to_type<float>(), gradient_angle);
 
+    CSS::CalculationResolutionContext context {
+        .percentage_basis = CSS::Length::make_px(gradient_length_px),
+        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
+    };
     auto resolved_color_stops = resolve_color_stop_positions(
-        node, linear_gradient.color_stop_list(), [&](auto const& length_percentage) {
-            return length_percentage.to_px(node, CSSPixels::nearest_value_for(gradient_length_px)).to_float() / static_cast<float>(gradient_length_px);
+        node, linear_gradient.color_stop_list(), [&](auto const& position) -> float {
+            if (position.is_length())
+                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_length_px;
+            if (position.is_percentage())
+                return position.as_percentage().percentage().as_fraction();
+            return position.as_calculated().resolve_length(context)->to_px_without_rounding(*context.length_resolution_context) / gradient_length_px;
         },
         linear_gradient.is_repeating());
 
@@ -127,24 +139,38 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
 
 ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
 {
-    CSS::Angle one_turn(360.0f, CSS::AngleUnit::Deg);
-    auto resolved_color_stops = resolve_color_stop_positions(
-        node, conic_gradient.color_stop_list(), [&](auto const& angle_percentage) {
-            return angle_percentage.resolved(node, one_turn).to_degrees() / one_turn.to_degrees();
-        },
-        conic_gradient.is_repeating());
+    CSS::Angle const one_turn { 360.0f, CSS::AngleUnit::Deg };
     CSS::CalculationResolutionContext context {
+        .percentage_basis = one_turn,
         .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
+    auto resolved_color_stops = resolve_color_stop_positions(
+        node, conic_gradient.color_stop_list(), [&](auto const& position) -> float {
+            if (position.is_angle())
+                return position.as_angle().angle().to_degrees() / one_turn.to_degrees();
+            if (position.is_percentage())
+                return position.as_percentage().percentage().as_fraction();
+            return position.as_calculated().resolve_angle(context)->to_degrees() / one_turn.to_degrees();
+        },
+        conic_gradient.is_repeating());
     return { conic_gradient.angle_degrees(context), resolved_color_stops, conic_gradient.interpolation_method() };
 }
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
 {
+    CSS::CalculationResolutionContext context {
+        .percentage_basis = CSS::Length::make_px(gradient_size.width()),
+        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
+    };
+
     // Start center, goes right to ending point, where the gradient line intersects the ending shape
     auto resolved_color_stops = resolve_color_stop_positions(
-        node, radial_gradient.color_stop_list(), [&](auto const& length_percentage) {
-            return length_percentage.to_px(node, gradient_size.width()).to_float() / gradient_size.width().to_float();
+        node, radial_gradient.color_stop_list(), [&](auto const& position) -> float {
+            if (position.is_length())
+                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_size.width().to_float();
+            if (position.is_percentage())
+                return position.as_percentage().percentage().as_fraction();
+            return position.as_calculated().resolve_length(context)->to_px_without_rounding(*context.length_resolution_context) / gradient_size.width().to_float();
         },
         radial_gradient.is_repeating());
     return { resolved_color_stops, radial_gradient.interpolation_method() };
