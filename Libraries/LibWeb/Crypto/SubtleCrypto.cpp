@@ -1089,7 +1089,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
 
         // 11. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateKey", then
         //     throw an InvalidAccessError.
-        if (encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatekey)) {
+        if (!encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatekey)) {
             WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key usage"_utf16));
             return;
         }
@@ -1176,7 +1176,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 
         // 9. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateBits", then
         //    throw an InvalidAccessError.
-        if (encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatebits)) {
+        if (!encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatebits)) {
             WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key usages"_utf16));
             return;
         }
