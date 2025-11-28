@@ -86,6 +86,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
         }
         FAIL("An error occurred while decoding.");
     });
+    provider->start();
 
     auto time_limit = AK::Duration::from_seconds(1);
     auto start_time = MonotonicTime::now_coarse();
