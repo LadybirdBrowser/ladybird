@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::Animations {
@@ -19,6 +20,9 @@ public:
     Optional<double> current_time() const;
 
     virtual void update_current_time(double timestamp) = 0;
+
+    NullableCSSNumberish duration_for_bindings() const;
+    virtual Optional<TimeValue> duration() const = 0;
 
     GC::Ptr<DOM::Document> associated_document() const { return m_associated_document; }
     void set_associated_document(GC::Ptr<DOM::Document>);
