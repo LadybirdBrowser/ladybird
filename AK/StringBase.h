@@ -52,6 +52,8 @@ public:
         other.m_impl = { .short_string = ShortString::create_empty() };
     }
 
+    explicit StringBase(NonnullRefPtr<Detail::StringData const>);
+
     StringBase& operator=(StringBase&&);
     StringBase& operator=(StringBase const&);
 
@@ -122,8 +124,6 @@ private:
     friend class ::AK::String;
     friend class ::AK::FlyString;
     friend struct ::AK::Detail::ShortString;
-
-    explicit StringBase(NonnullRefPtr<Detail::StringData const>);
 
     explicit constexpr StringBase(nullptr_t)
         : m_impl { .data = nullptr }
