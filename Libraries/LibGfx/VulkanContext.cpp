@@ -344,7 +344,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        .sharingMode = VK_SHARING_MODE_CONCURRENT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = queue_families.size(),
         .pQueueFamilyIndices = queue_families.data(),
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
