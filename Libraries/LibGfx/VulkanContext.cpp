@@ -6,22 +6,24 @@
  */
 
 #include <AK/Format.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
 
 namespace Gfx {
 
-ErrorOr<VulkanContext> VulkanContext::create()
+ErrorOr<NonnullRefPtr<VulkanContext>> VulkanContext::create()
 {
-    VulkanContext context;
-    TRY(context.create_instance());
-    TRY(context.pick_physical_device());
-    TRY(context.create_logical_device_and_queue());
+    auto context = adopt_ref(*new VulkanContext());
+
+    TRY(context->create_instance());
+    TRY(context->pick_physical_device());
+    TRY(context->create_logical_device_and_queue());
 
 #ifdef USE_VULKAN_IMAGES
-    TRY(context.create_command_pool());
-    TRY(context.allocate_command_buffer());
-    TRY(context.get_extensions());
+    TRY(context->create_command_pool());
+    TRY(context->allocate_command_buffer());
+    TRY(context->get_extensions());
 #endif
 
     return context;

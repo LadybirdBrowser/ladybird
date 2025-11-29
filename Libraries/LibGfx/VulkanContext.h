@@ -19,11 +19,11 @@
 
 namespace Gfx {
 
-class VulkanContext {
+class VulkanContext : public RefCounted<VulkanContext> {
     friend class VulkanImage;
 
 public:
-    static ErrorOr<VulkanContext> create();
+    static ErrorOr<NonnullRefPtr<VulkanContext>> create();
 
     uint32_t api_version() const { return m_api_version; }
     VkInstance instance() const { return m_instance; }
