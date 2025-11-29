@@ -126,12 +126,7 @@ RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenSt
 
         for (auto const& longhand_id : longhand_ids)
             longhand_vectors.ensure(longhand_id).append(*parsed_values.get(longhand_id).value_or_lazy_evaluated([&]() -> ValueComparingNonnullRefPtr<StyleValue const> {
-                auto initial_value = property_initial_value(longhand_id);
-
-                if (initial_value->is_value_list())
-                    return initial_value->as_value_list().values()[0];
-
-                return initial_value;
+                return property_initial_value(longhand_id)->as_value_list().values()[0];
             }));
 
         if (tokens.has_next_token()) {
