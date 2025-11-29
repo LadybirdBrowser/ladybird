@@ -100,10 +100,11 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 #ifdef USE_VULKAN_IMAGES
-    Array<char const*, 3> device_extensions = {
+    Array<char const*, 4> device_extensions = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
         VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+        VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
     };
 #else
     Array<char const*, 0> device_extensions;
