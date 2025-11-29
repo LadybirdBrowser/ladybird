@@ -42,6 +42,11 @@ VulkanContext::~VulkanContext()
         vkDestroyDevice(m_logical_device, nullptr);
     }
 
+    if (m_debug_messenger != VK_NULL_HANDLE) {
+        auto pfn_destroy_debug_messenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
+        pfn_destroy_debug_messenger(m_instance, m_debug_messenger, nullptr);
+    }
+
     if (m_instance != VK_NULL_HANDLE) {
         vkDestroyInstance(m_instance, nullptr);
     }
@@ -57,15 +62,52 @@ ErrorOr<void> VulkanContext::create_instance()
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = m_api_version;
 
+#ifdef VULKAN_DEBUG
+    Array<char const*, 1> layers = { "VK_LAYER_KHRONOS_validation" };
+    Array<char const*, 1> extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+
+    if (!check_layer_support("VK_LAYER_KHRONOS_validation"sv)) {
+        return Error::from_string_literal("Request Vulkan validation layer not supported");
+    }
+#endif
+
     VkInstanceCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
+#ifdef VULKAN_DEBUG
+    create_info.enabledLayerCount = layers.size();
+    create_info.ppEnabledLayerNames = layers.data();
+    create_info.enabledExtensionCount = extensions.size();
+    create_info.ppEnabledExtensionNames = extensions.data();
+
+    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info {};
+    debug_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debug_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debug_messenger_create_info.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT,
+                                                      VkDebugUtilsMessageTypeFlagsEXT,
+                                                      VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
+                                                      void*) {
+        dbgln("Vulkan validation layer: {}", pCallbackData->pMessage);
+        return VK_FALSE;
+    };
+
+    create_info.pNext = &debug_messenger_create_info;
+#endif
 
     auto result = vkCreateInstance(&create_info, nullptr, &m_instance);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateInstance returned {}", to_underlying(result));
         return Error::from_string_literal("Application instance creation failed");
     }
+
+#ifdef VULKAN_DEBUG
+    auto pfn_create_debug_messenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT"));
+    result = pfn_create_debug_messenger(m_instance, &debug_messenger_create_info, nullptr, &m_debug_messenger);
+    if (result != VK_SUCCESS) {
+        dbgln("vkCreateDebugUtilsMessengerEXT returned {}", to_underlying(result));
+    }
+#endif
 
     return {};
 }
@@ -211,6 +253,29 @@ ErrorOr<void> VulkanContext::get_extensions()
 
     return {};
 }
+
+#endif
+
+#ifdef VULKAN_DEBUG
+
+bool VulkanContext::check_layer_support(StringView layer)
+{
+    uint32_t layer_count = 0;
+    vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+
+    Vector<VkLayerProperties> layers;
+    layers.resize(layer_count);
+    vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+
+    for (auto const& layer_properties : layers) {
+        if (layer == layer_properties.layerName) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 #endif
 
 #ifdef USE_VULKAN_IMAGES
