@@ -21,6 +21,10 @@
 
 namespace JS {
 
+// Strings shorter than or equal to this length are cached in the VM and deduplicated.
+// Longer strings are not cached to avoid excessive hashing and lookup costs.
+static constexpr size_t MAX_LENGTH_FOR_STRING_CACHE = 256;
+
 GC_DEFINE_ALLOCATOR(PrimitiveString);
 GC_DEFINE_ALLOCATOR(RopeString);
 
@@ -29,9 +33,15 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& stri
     if (string.is_empty())
         return vm.empty_string();
 
-    if (string.length_in_code_units() == 1) {
+    auto const length_in_code_units = string.length_in_code_units();
+
+    if (length_in_code_units == 1) {
         if (auto code_unit = string.code_unit_at(0); is_ascii(code_unit))
             return vm.single_ascii_character_string(static_cast<u8>(code_unit));
+    }
+
+    if (length_in_code_units > MAX_LENGTH_FOR_STRING_CACHE) {
+        return vm.heap().allocate<PrimitiveString>(string);
     }
 
     auto& string_cache = vm.utf16_string_cache();
@@ -58,9 +68,16 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
     if (string.is_empty())
         return vm.empty_string();
 
-    if (auto bytes = string.bytes_as_string_view(); bytes.length() == 1) {
-        if (auto ch = static_cast<u8>(bytes[0]); is_ascii(ch))
+    auto const length_in_code_units = string.length_in_code_units();
+
+    if (length_in_code_units == 1) {
+        auto bytes = string.bytes();
+        if (auto ch = bytes[0]; is_ascii(ch))
             return vm.single_ascii_character_string(ch);
+    }
+
+    if (string.length_in_code_units() > MAX_LENGTH_FOR_STRING_CACHE) {
+        return vm.heap().allocate<PrimitiveString>(string);
     }
 
     auto& string_cache = vm.string_cache();
@@ -125,10 +142,16 @@ PrimitiveString::PrimitiveString(String string)
 
 PrimitiveString::~PrimitiveString()
 {
-    if (has_utf16_string())
-        vm().utf16_string_cache().remove(*m_utf16_string);
-    if (has_utf8_string())
-        vm().string_cache().remove(*m_utf8_string);
+    if (has_utf16_string()) {
+        auto const& string = *m_utf16_string;
+        if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
+            vm().utf16_string_cache().remove(string);
+    }
+    if (has_utf8_string()) {
+        auto const& string = *m_utf8_string;
+        if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
+            vm().string_cache().remove(*m_utf8_string);
+    }
 }
 
 bool PrimitiveString::is_empty() const
