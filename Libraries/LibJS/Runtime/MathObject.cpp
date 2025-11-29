@@ -89,8 +89,11 @@ void MathObject::initialize(Realm& realm)
 ThrowCompletionOr<Value> MathObject::abs_impl(VM& vm, Value x)
 {
     // OPTIMIZATION: Fast path for Int32 values.
-    if (x.is_int32())
-        return Value(AK::abs(x.as_i32()));
+    if (x.is_int32()) {
+        if (auto x_int32 = x.as_i32(); x_int32 != NumericLimits<i32>::min()) [[likely]]
+            return Value(AK::abs(x_int32));
+        return Value(static_cast<u32>(NumericLimits<i32>::max()) + 1);
+    }
 
     // Let n be ? ToNumber(x).
     auto number = TRY(x.to_number(vm));
