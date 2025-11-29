@@ -1381,29 +1381,21 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
         };
     };
 
-    if (value.is_value_list()) {
-        auto const& value_list = value.as_value_list();
+    if (value.to_keyword() == Keyword::None)
+        return {};
 
-        Vector<ShadowData> shadow_data;
-        shadow_data.ensure_capacity(value_list.size());
-        for (auto const& layer_value : value_list.values()) {
-            auto maybe_shadow_data = make_shadow_data(layer_value->as_shadow());
-            if (!maybe_shadow_data.has_value())
-                return {};
-            shadow_data.append(maybe_shadow_data.release_value());
-        }
+    auto const& value_list = value.as_value_list();
 
-        return shadow_data;
-    }
-
-    if (value.is_shadow()) {
-        auto maybe_shadow_data = make_shadow_data(value.as_shadow());
+    Vector<ShadowData> shadow_data;
+    shadow_data.ensure_capacity(value_list.size());
+    for (auto const& layer_value : value_list.values()) {
+        auto maybe_shadow_data = make_shadow_data(layer_value->as_shadow());
         if (!maybe_shadow_data.has_value())
             return {};
-        return { maybe_shadow_data.release_value() };
+        shadow_data.append(maybe_shadow_data.release_value());
     }
 
-    return {};
+    return shadow_data;
 }
 
 Vector<ShadowData> ComputedProperties::box_shadow(Layout::Node const& layout_node) const

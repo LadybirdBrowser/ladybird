@@ -1341,19 +1341,11 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
     //                 (transparent 0 0 0 0) with a corresponding inset keyword as needed to match the longer list if
     //                 the shorter list is otherwise compatible with the longer one
 
-    static constexpr auto process_list = [](StyleValue const& value) {
-        StyleValueVector shadows;
-        if (value.is_value_list()) {
-            for (auto const& element : value.as_value_list().values()) {
-                if (element->is_shadow())
-                    shadows.append(element);
-            }
-        } else if (value.is_shadow()) {
-            shadows.append(value);
-        } else if (!value.is_keyword() || value.as_keyword().keyword() != Keyword::None) {
-            VERIFY_NOT_REACHED();
-        }
-        return shadows;
+    static constexpr auto process_list = [](StyleValue const& value) -> StyleValueVector {
+        if (value.to_keyword() == Keyword::None)
+            return {};
+
+        return value.as_value_list().values();
     };
 
     static constexpr auto extend_list_if_necessary = [](StyleValueVector& values, StyleValueVector const& other) {
