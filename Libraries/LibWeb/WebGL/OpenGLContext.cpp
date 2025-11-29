@@ -24,6 +24,10 @@ extern "C" {
 }
 #include <GLES3/gl3.h>
 
+#if defined(USE_VULKAN_IMAGES)
+#    include <LibGfx/VulkanContext.h>
+#endif
+
 // Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_IMAGES)
 #    define ENABLE_WEBGL 1

@@ -17,6 +17,7 @@
 #ifdef AK_OS_MACOS
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
 #elif defined(USE_VULKAN_IMAGES)
+#    include <LibGfx/VulkanContext.h>
 #    include <gpu/ganesh/vk/GrVkBackendSurface.h>
 #    include <gpu/vk/GrVkTypes.h>
 #endif
