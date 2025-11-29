@@ -1901,28 +1901,18 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     };
 
     auto font_list = Gfx::FontCascadeList::create();
-    if (font_family.is_value_list()) {
-        auto const& family_list = static_cast<StyleValueList const&>(font_family).values();
-        for (auto const& family : family_list) {
-            RefPtr<Gfx::FontCascadeList const> other_font_list;
-            if (family->is_keyword()) {
-                other_font_list = find_generic_font(family->to_keyword());
-            } else if (family->is_string()) {
-                other_font_list = find_font(family->as_string().string_value());
-            } else if (family->is_custom_ident()) {
-                other_font_list = find_font(family->as_custom_ident().custom_ident());
-            }
-            if (other_font_list)
-                font_list->extend(*other_font_list);
+
+    for (auto const& family : font_family.as_value_list().values()) {
+        RefPtr<Gfx::FontCascadeList const> other_font_list;
+        if (family->is_keyword()) {
+            other_font_list = find_generic_font(family->to_keyword());
+        } else if (family->is_string()) {
+            other_font_list = find_font(family->as_string().string_value());
+        } else if (family->is_custom_ident()) {
+            other_font_list = find_font(family->as_custom_ident().custom_ident());
         }
-    } else if (font_family.is_keyword()) {
-        if (auto other_font_list = find_generic_font(font_family.to_keyword()))
-            font_list->extend(*other_font_list);
-    } else if (font_family.is_string()) {
-        if (auto other_font_list = find_font(font_family.as_string().string_value()))
-            font_list->extend(*other_font_list);
-    } else if (font_family.is_custom_ident()) {
-        if (auto other_font_list = find_font(font_family.as_custom_ident().custom_ident()))
+
+        if (other_font_list)
             font_list->extend(*other_font_list);
     }
 
@@ -2430,14 +2420,12 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
 static bool is_monospace(StyleValue const& value)
 {
-    if (value.to_keyword() == Keyword::Monospace)
-        return true;
-    if (value.is_value_list()) {
-        auto const& values = value.as_value_list().values();
-        if (values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace)
-            return true;
-    }
-    return false;
+    if (!value.is_value_list())
+        return false;
+
+    auto const& values = value.as_value_list().values();
+
+    return values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace;
 }
 
 // HACK: This function implements time-travelling inheritance for the font-size property
