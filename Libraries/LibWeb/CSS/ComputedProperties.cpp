@@ -2531,20 +2531,14 @@ WillChange ComputedProperties::will_change() const
         return property_id.release_value();
     };
 
-    if (value.is_value_list()) {
-        auto const& value_list = value.as_value_list();
-        Vector<WillChange::WillChangeEntry> will_change_entries;
-        for (auto const& style_value : value_list.values()) {
-            if (auto entry = to_will_change_entry(*style_value); entry.has_value())
-                will_change_entries.append(*entry);
-        }
-        return WillChange(move(will_change_entries));
+    auto const& value_list = value.as_value_list();
+    Vector<WillChange::WillChangeEntry> will_change_entries;
+    for (auto const& style_value : value_list.values()) {
+        if (auto entry = to_will_change_entry(*style_value); entry.has_value())
+            will_change_entries.append(*entry);
     }
 
-    auto will_change_entry = to_will_change_entry(value);
-    if (will_change_entry.has_value())
-        return WillChange({ *will_change_entry });
-    return WillChange::make_auto();
+    return WillChange(move(will_change_entries));
 }
 
 CSSPixels ComputedProperties::font_size() const
