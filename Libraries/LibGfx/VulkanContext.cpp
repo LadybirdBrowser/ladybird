@@ -36,6 +36,17 @@ VulkanContext::VulkanContext()
     m_api_version = VK_API_VERSION_1_1;
 }
 
+VulkanContext::~VulkanContext()
+{
+    if (m_logical_device != VK_NULL_HANDLE) {
+        vkDestroyDevice(m_logical_device, nullptr);
+    }
+
+    if (m_instance != VK_NULL_HANDLE) {
+        vkDestroyInstance(m_instance, nullptr);
+    }
+}
+
 ErrorOr<void> VulkanContext::create_instance()
 {
     VkApplicationInfo app_info {};

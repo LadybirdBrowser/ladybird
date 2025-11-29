@@ -25,6 +25,8 @@ class VulkanContext : public RefCounted<VulkanContext> {
 public:
     static ErrorOr<NonnullRefPtr<VulkanContext>> create();
 
+    ~VulkanContext();
+
     uint32_t api_version() const { return m_api_version; }
     VkInstance instance() const { return m_instance; }
     VkPhysicalDevice physical_device() const { return m_physical_device; }
