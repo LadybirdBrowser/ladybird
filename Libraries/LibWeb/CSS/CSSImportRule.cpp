@@ -40,6 +40,8 @@ CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> d
 {
 }
 
+CSSImportRule::~CSSImportRule() = default;
+
 void CSSImportRule::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSImportRule);
