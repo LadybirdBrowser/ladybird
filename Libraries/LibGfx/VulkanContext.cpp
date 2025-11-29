@@ -179,9 +179,10 @@ ErrorOr<void> VulkanContext::create_logical_device_and_queue()
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 #ifdef USE_VULKAN_IMAGES
-    Array<const char*, 2> device_extensions = {
+    Array<const char*, 3> device_extensions = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
+        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
+        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
     };
 #else
     Array<const char*, 0> device_extensions = {};
