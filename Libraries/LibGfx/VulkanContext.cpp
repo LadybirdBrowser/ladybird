@@ -100,22 +100,21 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 #ifdef USE_VULKAN_IMAGES
-    char const* device_extensions[] = {
+    Array<char const*, 3> device_extensions = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
+        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
+        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
     };
-    uint32_t device_extension_count = array_size(device_extensions);
 #else
-    const char** device_extensions = nullptr;
-    uint32_t device_extension_count = 0;
+    Array<char const*, 0> device_extensions;
 #endif
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = device_extension_count;
-    create_device_info.ppEnabledExtensionNames = device_extensions;
+    create_device_info.enabledExtensionCount = device_extensions.size();
+    create_device_info.ppEnabledExtensionNames = device_extensions.data();
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
