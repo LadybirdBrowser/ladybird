@@ -12,3 +12,7 @@ test("basic functionality", () => {
     expect(Math.abs("string")).toBeNaN();
     expect(Math.abs()).toBeNaN();
 });
+
+test("i32 min value", () => {
+    expect(Math.abs(-2_147_483_648)).toBe(2_147_483_648);
+});
