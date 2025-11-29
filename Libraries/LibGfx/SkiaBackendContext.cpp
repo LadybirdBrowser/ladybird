@@ -34,7 +34,7 @@ class SkiaVulkanBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
 
 public:
-    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, VulkanContext const& vulkan_context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
+    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullRefPtr<VulkanContext> vulkan_context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
         : m_context(move(context))
         , m_extensions(move(extensions))
         , m_vulkan_context(vulkan_context)
@@ -61,19 +61,19 @@ public:
 private:
     sk_sp<GrDirectContext> m_context;
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
-    VulkanContext const m_vulkan_context;
+    NonnullRefPtr<VulkanContext> const m_vulkan_context;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanContext const& vulkan_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(NonnullRefPtr<VulkanContext> vulkan_context)
 {
     skgpu::VulkanBackendContext backend_context;
 
-    backend_context.fInstance = vulkan_context.instance();
-    backend_context.fDevice = vulkan_context.logical_device();
-    backend_context.fQueue = vulkan_context.graphics_queue();
-    backend_context.fGraphicsQueueIndex = vulkan_context.graphics_queue_family();
-    backend_context.fPhysicalDevice = vulkan_context.physical_device();
-    backend_context.fMaxAPIVersion = vulkan_context.api_version();
+    backend_context.fInstance = vulkan_context->instance();
+    backend_context.fDevice = vulkan_context->logical_device();
+    backend_context.fQueue = vulkan_context->graphics_queue();
+    backend_context.fGraphicsQueueIndex = vulkan_context->graphics_queue_family();
+    backend_context.fPhysicalDevice = vulkan_context->physical_device();
+    backend_context.fMaxAPIVersion = vulkan_context->api_version();
     backend_context.fGetProc = [](char const* proc_name, VkInstance instance, VkDevice device) {
         if (device != VK_NULL_HANDLE) {
             return vkGetDeviceProcAddr(device, proc_name);

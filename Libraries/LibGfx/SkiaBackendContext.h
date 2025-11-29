@@ -28,7 +28,7 @@ class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
 
 public:
 #ifdef USE_VULKAN
-    static RefPtr<SkiaBackendContext> create_vulkan_context(const VulkanContext& vulkan_context);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(NonnullRefPtr<VulkanContext> vulkan_context);
 #endif
 
 #ifdef AK_OS_MACOS
