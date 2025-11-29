@@ -88,7 +88,7 @@ RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<C
     return keyword_value;
 }
 
-RefPtr<StyleValue const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValueList const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<StyleValue const> {
         if (auto value = parse_css_value_for_property(property_id, tokens))
@@ -149,15 +149,8 @@ RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenSt
     longhand_ids_including_reset_only_longhands.extend(reset_only_longhand_ids);
     StyleValueVector longhand_values {};
 
-    // FIXME: This is for compatibility with parse_comma_separated_value_list(), which returns a single value directly
-    //        instead of a list if there's only one, it would be nicer if we always returned a list.
-    if (longhand_vectors.get(longhand_ids[0])->size() == 1) {
-        for (auto const& longhand_id : longhand_ids)
-            longhand_values.append((*longhand_vectors.get(longhand_id))[0]);
-    } else {
-        for (auto const& longhand_id : longhand_ids)
-            longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
-    }
+    for (auto const& longhand_id : longhand_ids)
+        longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
 
     for (auto reset_only_longhand_id : reset_only_longhand_ids)
         longhand_values.append(property_initial_value(reset_only_longhand_id));
@@ -5079,7 +5072,7 @@ RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<Com
 
     // none
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return none;
+        return StyleValueList::create({ none.release_nonnull() }, StyleValueList::Separator::Comma);
 
     // <single-transition-property>#
     // <single-transition-property> = all | <custom-ident>
