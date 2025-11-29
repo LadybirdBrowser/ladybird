@@ -5167,6 +5167,8 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
     auto transaction = tokens.begin_transaction();
 
     do {
+        static auto default_axis = property_initial_value(PropertyID::ScrollTimelineAxis)->as_value_list().values()[0];
+
         tokens.discard_whitespace();
 
         auto maybe_name = parse_css_value_for_property(PropertyID::ScrollTimelineName, tokens);
@@ -5179,7 +5181,7 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
         tokens.discard_whitespace();
 
         if (tokens.next_token().is(Token::Type::Comma)) {
-            axes.append(KeywordStyleValue::create(Keyword::Block));
+            axes.append(default_axis);
             tokens.discard_a_token();
 
             // Disallow trailing commas
@@ -5190,7 +5192,7 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
         }
 
         if (!tokens.has_next_token()) {
-            axes.append(KeywordStyleValue::create(Keyword::Block));
+            axes.append(default_axis);
             break;
         }
 
@@ -6333,17 +6335,11 @@ RefPtr<StyleValue const> Parser::parse_view_timeline_value(TokenStream<Component
             VERIFY(name);
             names.append(name.release_nonnull());
 
-            // FIXME: Use the first entry in property_initial_value() to get the initial values for these longhands once
-            //        we always parse them as lists.
-            if (axis)
-                axes.append(axis.release_nonnull());
-            else
-                axes.append(KeywordStyleValue::create(Keyword::Block));
+            static auto default_axis = property_initial_value(PropertyID::ViewTimelineAxis)->as_value_list().values()[0];
+            static auto default_inset = property_initial_value(PropertyID::ViewTimelineInset)->as_value_list().values()[0];
 
-            if (inset)
-                insets.append(inset.release_nonnull());
-            else
-                insets.append(StyleValueList::create({ KeywordStyleValue::create(Keyword::Auto), KeywordStyleValue::create(Keyword::Auto) }, StyleValueList::Separator::Space));
+            axes.append(axis ? axis.release_nonnull() : default_axis);
+            insets.append(inset ? inset.release_nonnull() : default_inset);
         };
 
         tokens.discard_whitespace();
