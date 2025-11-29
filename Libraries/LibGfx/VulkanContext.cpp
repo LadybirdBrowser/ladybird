@@ -316,7 +316,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .pNext = &image_drm_format_modifier_list_info,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
-    uint32_t queue_families[] = { context.graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
+    Array<uint32_t, 1> queue_families = { context.graphics_queue_family };
     VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = &external_mem_image_info,
@@ -334,8 +334,8 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .sharingMode = VK_SHARING_MODE_CONCURRENT,
-        .queueFamilyIndexCount = array_size(queue_families),
-        .pQueueFamilyIndices = queue_families,
+        .queueFamilyIndexCount = queue_families.size(),
+        .pQueueFamilyIndices = queue_families.data(),
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
     auto result = vkCreateImage(context.logical_device, &image_info, nullptr, &image->image);
