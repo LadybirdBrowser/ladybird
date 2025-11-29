@@ -327,7 +327,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .pNext = &image_drm_format_modifier_list_info,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
-    Array<uint32_t, 2> queue_families = { context.m_graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
+    Array<uint32_t, 1> queue_families = { context.m_graphics_queue_family };
     VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = &external_mem_image_info,
