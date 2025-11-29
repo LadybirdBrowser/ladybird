@@ -71,25 +71,25 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
         context->unlock();
     });
 
-    IntSize size(vulkan_image->info.extent.width, vulkan_image->info.extent.height);
+    IntSize size(vulkan_image->info().extent.width, vulkan_image->info().extent.height);
     GrVkImageInfo info = {
-        .fImage = vulkan_image->image,
+        .fImage = vulkan_image->image(),
         .fAlloc = {}, // we're managing the memory ourselves
-        .fImageTiling = vulkan_image->info.tiling,
-        .fImageLayout = vulkan_image->info.layout,
-        .fFormat = vulkan_image->info.format,
-        .fImageUsageFlags = vulkan_image->info.usage,
+        .fImageTiling = vulkan_image->info().tiling,
+        .fImageLayout = vulkan_image->info().layout,
+        .fFormat = vulkan_image->info().format,
+        .fImageUsageFlags = vulkan_image->info().usage,
         .fSampleCount = 1,
         .fLevelCount = 1,
         .fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED,
         .fProtected = skgpu::Protected::kNo,
         .fYcbcrConversionInfo = {},
-        .fSharingMode = vulkan_image->info.sharing_mode,
+        .fSharingMode = vulkan_image->info().sharing_mode,
     };
     GrBackendRenderTarget rt = GrBackendRenderTargets::MakeVk(size.width(), size.height(), info);
     // Note, we're implicitly giving Skia a reference to vulkan_image. It will eventually be released by the callback function.
     vulkan_image->ref();
-    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
+    sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info().format),
         nullptr, nullptr, release_vulkan_image, vulkan_image.ptr());
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
 }

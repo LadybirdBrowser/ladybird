@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Undefine <undefine@undefine.pl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -205,79 +206,8 @@ ErrorOr<VulkanContext> create_vulkan_context()
 }
 
 #ifdef USE_VULKAN_IMAGES
-VulkanImage::~VulkanImage()
-{
-    if (image != VK_NULL_HANDLE) {
-        vkDestroyImage(context.logical_device, image, nullptr);
-    }
-    if (memory != VK_NULL_HANDLE) {
-        vkFreeMemory(context.logical_device, memory, nullptr);
-    }
-}
 
-void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_layout)
-{
-    vkResetCommandBuffer(context.command_buffer, 0);
-    VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext = nullptr,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        .pInheritanceInfo = nullptr,
-    };
-    vkBeginCommandBuffer(context.command_buffer, &begin_info);
-    VkImageMemoryBarrier imageMemoryBarrier = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .pNext = nullptr,
-        .srcAccessMask = 0,
-        .dstAccessMask = 0,
-        .oldLayout = old_layout,
-        .newLayout = new_layout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
-    };
-    vkCmdPipelineBarrier(context.command_buffer,
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &imageMemoryBarrier);
-    vkEndCommandBuffer(context.command_buffer);
-    VkSubmitInfo submit_info = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .pNext = nullptr,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = nullptr,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &context.command_buffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr,
-    };
-    vkQueueSubmit(context.graphics_queue, 1, &submit_info, nullptr);
-    vkQueueWaitIdle(context.graphics_queue);
-}
-
-int VulkanImage::get_dma_buf_fd()
-{
-    VkMemoryGetFdInfoKHR get_fd_info = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
-        .pNext = nullptr,
-        .memory = memory,
-        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-    };
-    int fd = -1;
-    VkResult result = context.ext_procs.get_memory_fd(context.logical_device, &get_fd_info, &fd);
-    if (result != VK_SUCCESS) {
-        dbgln("vkGetMemoryFdKHR returned {}", to_underlying(result));
-        return -1;
-    }
-    return fd;
-}
-
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers)
+ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers)
 {
     VkDrmFormatModifierPropertiesListEXT format_mod_props_list = {};
     format_mod_props_list.sType = VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT;
@@ -304,7 +234,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         }
     }
 
-    NonnullRefPtr<VulkanImage> image = make_ref_counted<VulkanImage>(context);
+    NonnullRefPtr<VulkanImage> image = adopt_ref(*new VulkanImage(context));
     VkImageDrmFormatModifierListCreateInfoEXT image_drm_format_modifier_list_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT,
         .pNext = nullptr,
@@ -338,14 +268,14 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .pQueueFamilyIndices = queue_families,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
-    auto result = vkCreateImage(context.logical_device, &image_info, nullptr, &image->image);
+    auto result = vkCreateImage(context.logical_device, &image_info, nullptr, &image->m_image);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateImage returned {}", to_underlying(result));
         return Error::from_string_literal("image creation failed");
     }
 
     VkMemoryRequirements mem_reqs;
-    vkGetImageMemoryRequirements(context.logical_device, image->image, &mem_reqs);
+    vkGetImageMemoryRequirements(context.logical_device, image->m_image, &mem_reqs);
     VkPhysicalDeviceMemoryProperties mem_props;
     vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_props);
     uint32_t mem_type_idx;
@@ -369,13 +299,13 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .allocationSize = mem_reqs.size,
         .memoryTypeIndex = mem_type_idx,
     };
-    result = vkAllocateMemory(context.logical_device, &mem_alloc_info, nullptr, &image->memory);
+    result = vkAllocateMemory(context.logical_device, &mem_alloc_info, nullptr, &image->m_memory);
     if (result != VK_SUCCESS) {
         dbgln("vkAllocateMemory returned {}", to_underlying(result));
         return Error::from_string_literal("image memory allocation failed");
     }
 
-    result = vkBindImageMemory(context.logical_device, image->image, image->memory, 0);
+    result = vkBindImageMemory(context.logical_device, image->m_image, image->m_memory, 0);
     if (result != VK_SUCCESS) {
         dbgln("vkBindImageMemory returned {}", to_underlying(result));
         return Error::from_string_literal("bind image memory failed");
@@ -383,12 +313,12 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
 
     VkImageSubresource subresource = { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
     VkSubresourceLayout subresource_layout = {};
-    vkGetImageSubresourceLayout(context.logical_device, image->image, &subresource, &subresource_layout);
+    vkGetImageSubresourceLayout(context.logical_device, image->m_image, &subresource, &subresource_layout);
 
     VkImageDrmFormatModifierPropertiesEXT image_format_mod_props = {};
     image_format_mod_props.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT;
     image_format_mod_props.pNext = nullptr;
-    result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->image, &image_format_mod_props);
+    result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->m_image, &image_format_mod_props);
     if (result != VK_SUCCESS) {
         dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned {}", to_underlying(result));
         return Error::from_string_literal("image format modifier retrieval failed");
@@ -398,7 +328,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     VkImageLayout layout = VK_IMAGE_LAYOUT_GENERAL;
     image->transition_layout(VK_IMAGE_LAYOUT_UNDEFINED, layout);
 
-    image->info = {
+    image->m_info = {
         .format = image_info.format,
         .extent = image_info.extent,
         .tiling = image_info.tiling,
@@ -410,6 +340,84 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     };
     return image;
 }
+
+VulkanImage::VulkanImage(VulkanContext const& context)
+    : m_context(context)
+{
+}
+
+VulkanImage::~VulkanImage()
+{
+    if (m_image != VK_NULL_HANDLE) {
+        vkDestroyImage(m_context.logical_device, m_image, nullptr);
+    }
+    if (m_memory != VK_NULL_HANDLE) {
+        vkFreeMemory(m_context.logical_device, m_memory, nullptr);
+    }
+}
+
+void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_layout)
+{
+    vkResetCommandBuffer(m_context.command_buffer, 0);
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo = nullptr,
+    };
+    vkBeginCommandBuffer(m_context.command_buffer, &begin_info);
+    VkImageMemoryBarrier imageMemoryBarrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = 0,
+        .dstAccessMask = 0,
+        .oldLayout = old_layout,
+        .newLayout = new_layout,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = m_image,
+        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+    };
+    vkCmdPipelineBarrier(m_context.command_buffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &imageMemoryBarrier);
+    vkEndCommandBuffer(m_context.command_buffer);
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = nullptr,
+        .waitSemaphoreCount = 0,
+        .pWaitSemaphores = nullptr,
+        .pWaitDstStageMask = nullptr,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &m_context.command_buffer,
+        .signalSemaphoreCount = 0,
+        .pSignalSemaphores = nullptr,
+    };
+    vkQueueSubmit(m_context.graphics_queue, 1, &submit_info, nullptr);
+    vkQueueWaitIdle(m_context.graphics_queue);
+}
+
+int VulkanImage::get_dma_buf_fd()
+{
+    VkMemoryGetFdInfoKHR get_fd_info = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
+        .pNext = nullptr,
+        .memory = m_memory,
+        .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+    };
+    int fd = -1;
+    VkResult result = m_context.ext_procs.get_memory_fd(m_context.logical_device, &get_fd_info, &fd);
+    if (result != VK_SUCCESS) {
+        dbgln("vkGetMemoryFdKHR returned {}", to_underlying(result));
+        return -1;
+    }
+    return fd;
+}
+
 #endif
 
 }

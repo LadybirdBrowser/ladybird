@@ -349,7 +349,7 @@ void OpenGLContext::allocate_vkimage_painting_surface()
         }
     }
 
-    auto vulkan_image = MUST(Gfx::create_shared_vulkan_image(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers.size(), renderable_modifiers.data()));
+    auto vulkan_image = MUST(Gfx::VulkanImage::create_shared(m_skia_backend_context->vulkan_context(), m_size.width(), m_size.height(), vulkan_format, renderable_modifiers.size(), renderable_modifiers.data()));
     m_painting_surface = Gfx::PaintingSurface::create_from_vkimage(m_skia_backend_context, vulkan_image, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLAttrib attribs[] = {
@@ -364,11 +364,11 @@ void OpenGLContext::allocate_vkimage_painting_surface()
         EGL_DMA_BUF_PLANE0_OFFSET_EXT,
         0,
         EGL_DMA_BUF_PLANE0_PITCH_EXT,
-        static_cast<uint32_t>(vulkan_image->info.row_pitch),
+        static_cast<uint32_t>(vulkan_image->info().row_pitch),
         EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
-        static_cast<uint32_t>(vulkan_image->info.modifier & 0xffffffff),
+        static_cast<uint32_t>(vulkan_image->info().modifier & 0xffffffff),
         EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
-        static_cast<uint32_t>(vulkan_image->info.modifier >> 32),
+        static_cast<uint32_t>(vulkan_image->info().modifier >> 32),
         EGL_NONE,
     };
     m_impl->egl_image = eglCreateImage(m_impl->display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, nullptr, attribs);
