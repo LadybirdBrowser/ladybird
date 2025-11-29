@@ -10,6 +10,7 @@
 #ifdef USE_VULKAN
 
 #    include <AK/Assertions.h>
+#    include <AK/Debug.h>
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
 #    include <vulkan/vulkan.h>
@@ -47,12 +48,17 @@ private:
     ErrorOr<void> get_extensions();
 #    endif
 
+#    if VULKAN_DEBUG
+    bool check_layer_support(StringView layer);
+#    endif
+
     uint32_t m_api_version { VK_API_VERSION_1_0 };
     VkInstance m_instance { VK_NULL_HANDLE };
     VkPhysicalDevice m_physical_device { VK_NULL_HANDLE };
     VkDevice m_logical_device { VK_NULL_HANDLE };
     VkQueue m_graphics_queue { VK_NULL_HANDLE };
     uint32_t m_graphics_queue_family { 0 };
+
 #    ifdef USE_VULKAN_IMAGES
     VkCommandPool m_command_pool { VK_NULL_HANDLE };
     VkCommandBuffer m_command_buffer { VK_NULL_HANDLE };
@@ -61,6 +67,10 @@ private:
         PFN_vkGetMemoryFdKHR get_memory_fd { nullptr };
         PFN_vkGetImageDrmFormatModifierPropertiesEXT get_image_drm_format_modifier_properties { nullptr };
     } m_ext_procs;
+#    endif
+
+#    if VULKAN_DEBUG
+    VkDebugUtilsMessengerEXT m_debug_messenger { VK_NULL_HANDLE };
 #    endif
 };
 
