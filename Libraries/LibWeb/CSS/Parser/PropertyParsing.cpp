@@ -2865,9 +2865,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
 RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <family-name> | <generic-family> ]#
-    // FIXME: We currently require font-family to always be a list, even with one item.
-    //        Maybe change that?
-    auto result = parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<StyleValue const> {
+    return parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<StyleValue const> {
         inner_tokens.discard_whitespace();
 
         // <generic-family>
@@ -2883,15 +2881,6 @@ RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentVa
         // <family-name>
         return parse_family_name_value(inner_tokens);
     });
-
-    if (!result)
-        return nullptr;
-
-    if (result->is_value_list())
-        return result.release_nonnull();
-
-    // It's a single value, so wrap it in a list - see FIXME above.
-    return StyleValueList::create(StyleValueVector { result.release_nonnull() }, StyleValueList::Separator::Comma);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
