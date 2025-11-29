@@ -89,18 +89,23 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     if (!string_value.is_string())
         return vm.throw_completion<TypeError>(ErrorType::NotAString, string_value);
 
-    // 2. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
+    // OPTIMIZATION: Avoid allocating an empty options object if none was provided.
+    Alphabet alphabet = Alphabet::Base64;
+    AK::LastChunkHandling last_chunk_handling = AK::LastChunkHandling::Loose;
+    if (!options_value.is_undefined()) {
+        // 2. Let opts be ? GetOptionsObject(options).
+        auto options = TRY(get_options_object(vm, options_value));
 
-    // 3. Let alphabet be ? Get(opts, "alphabet").
-    // 4. If alphabet is undefined, set alphabet to "base64".
-    // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
-    auto alphabet = TRY(parse_alphabet(vm, *options));
+        // 3. Let alphabet be ? Get(opts, "alphabet").
+        // 4. If alphabet is undefined, set alphabet to "base64".
+        // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
+        alphabet = TRY(parse_alphabet(vm, *options));
 
-    // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
-    // 7. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
-    // 8. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
-    auto last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
+        // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
+        // 7. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
+        // 8. If lastChunkHandling is not one of "loose", "strict", or "stop-before-partial", throw a TypeError exception.
+        last_chunk_handling = TRY(parse_last_chunk_handling(vm, *options));
+    }
 
     // 9. Let result be FromBase64(string, alphabet, lastChunkHandling).
     auto result = JS::from_base64(vm, string_value.as_string().utf8_string_view(), alphabet, last_chunk_handling);
@@ -310,17 +315,22 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::to_base64)
     // 2. Perform ? ValidateUint8Array(O).
     auto typed_array = TRY(validate_uint8_array(vm));
 
-    // 3. Let opts be ? GetOptionsObject(options).
-    auto options = TRY(get_options_object(vm, options_value));
+    // OPTIMIZATION: Avoid allocating an empty options object if none was provided.
+    Alphabet alphabet = Alphabet::Base64;
+    AK::OmitPadding omit_padding = AK::OmitPadding::No;
+    if (!options_value.is_undefined()) {
+        // 3. Let opts be ? GetOptionsObject(options).
+        auto options = TRY(get_options_object(vm, options_value));
 
-    // 4. Let alphabet be ? Get(opts, "alphabet").
-    // 5. If alphabet is undefined, set alphabet to "base64".
-    // 6. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
-    auto alphabet = TRY(parse_alphabet(vm, *options));
+        // 4. Let alphabet be ? Get(opts, "alphabet").
+        // 5. If alphabet is undefined, set alphabet to "base64".
+        // 6. If alphabet is neither "base64" nor "base64url", throw a TypeError exception.
+        alphabet = TRY(parse_alphabet(vm, *options));
 
-    // 7. Let omitPadding be ToBoolean(? Get(opts, "omitPadding")).
-    auto omit_padding_value = TRY(options->get(vm.names.omitPadding)).to_boolean();
-    auto omit_padding = omit_padding_value ? AK::OmitPadding::Yes : AK::OmitPadding::No;
+        // 7. Let omitPadding be ToBoolean(? Get(opts, "omitPadding")).
+        auto omit_padding_value = TRY(options->get(vm.names.omitPadding)).to_boolean();
+        omit_padding = omit_padding_value ? AK::OmitPadding::Yes : AK::OmitPadding::No;
+    }
 
     // 8. Let toEncode be ? GetUint8ArrayBytes(O).
     auto to_encode = TRY(get_uint8_array_bytes(vm, typed_array));
