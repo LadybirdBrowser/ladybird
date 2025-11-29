@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Undefine <undefine@undefine.pl>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,10 +40,9 @@ struct VulkanContext {
 ErrorOr<VulkanContext> create_vulkan_context();
 
 #    ifdef USE_VULKAN_IMAGES
-struct VulkanImage : public RefCounted<VulkanImage> {
-    VkImage image { VK_NULL_HANDLE };
-    VkDeviceMemory memory { VK_NULL_HANDLE };
-    struct {
+class VulkanImage : public RefCounted<VulkanImage> {
+public:
+    struct Info {
         VkFormat format;
         VkExtent3D extent;
         VkImageTiling tiling;
@@ -51,16 +51,26 @@ struct VulkanImage : public RefCounted<VulkanImage> {
         VkImageLayout layout;
         VkDeviceSize row_pitch; // for tiled images this is some implementation-specific value
         uint64_t modifier { DRM_FORMAT_MOD_INVALID };
-    } info;
-    VulkanContext const& context;
+    };
+
+    static ErrorOr<NonnullRefPtr<VulkanImage>> create_shared(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
+
+    ~VulkanImage();
 
     int get_dma_buf_fd();
     void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
-    VulkanImage(VulkanContext const& context)
-        : context(context)
-    {
-    }
-    ~VulkanImage();
+
+    VkImage image() const { return m_image; }
+    Info const& info() const { return m_info; }
+
+private:
+    VulkanImage(VulkanContext const& context);
+
+    VkImage m_image { VK_NULL_HANDLE };
+    VkDeviceMemory m_memory { VK_NULL_HANDLE };
+    Info m_info {};
+
+    VulkanContext const& m_context;
 };
 
 static inline uint32_t vk_format_to_drm_format(VkFormat format)
@@ -74,8 +84,6 @@ static inline uint32_t vk_format_to_drm_format(VkFormat format)
         return DRM_FORMAT_INVALID;
     }
 }
-
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
 #    endif
 
 }

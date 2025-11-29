@@ -24,7 +24,7 @@ class SkSurface;
 namespace Gfx {
 
 #ifdef USE_VULKAN_IMAGES
-struct VulkanImage;
+class VulkanImage;
 #endif
 
 class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
