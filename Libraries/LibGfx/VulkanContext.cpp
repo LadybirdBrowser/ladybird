@@ -118,22 +118,20 @@ ErrorOr<void> VulkanContext::create_logical_device_and_queue()
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 #ifdef USE_VULKAN_IMAGES
-    char const* device_extensions[] = {
+    Array<const char*, 2> device_extensions = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME
     };
-    uint32_t device_extension_count = array_size(device_extensions);
 #else
-    const char** device_extensions = nullptr;
-    uint32_t device_extension_count = 0;
+    Array<const char*, 0> device_extensions = {};
 #endif
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = device_extension_count;
-    create_device_info.ppEnabledExtensionNames = device_extensions;
+    create_device_info.enabledExtensionCount = device_extensions.size();
+    create_device_info.ppEnabledExtensionNames = device_extensions.data();
 
     if (vkCreateDevice(m_physical_device, &create_device_info, nullptr, &m_logical_device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
@@ -243,7 +241,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .pNext = &image_drm_format_modifier_list_info,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
-    uint32_t queue_families[] = { context.m_graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
+    Array<uint32_t, 2> queue_families = { context.m_graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
     VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = &external_mem_image_info,
@@ -261,8 +259,8 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         .sharingMode = VK_SHARING_MODE_CONCURRENT,
-        .queueFamilyIndexCount = array_size(queue_families),
-        .pQueueFamilyIndices = queue_families,
+        .queueFamilyIndexCount = queue_families.size(),
+        .pQueueFamilyIndices = queue_families.data(),
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
     auto result = vkCreateImage(context.m_logical_device, &image_info, nullptr, &image->m_image);
