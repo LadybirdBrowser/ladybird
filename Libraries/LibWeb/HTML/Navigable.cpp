@@ -153,7 +153,7 @@ static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
         auto metal_context = Gfx::get_metal_context();
         g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
 #elif USE_VULKAN
-        auto maybe_vulkan_context = Gfx::create_vulkan_context();
+        auto maybe_vulkan_context = Gfx::VulkanContext::create();
         if (maybe_vulkan_context.is_error()) {
             dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
             return {};

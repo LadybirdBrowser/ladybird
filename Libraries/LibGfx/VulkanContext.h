@@ -19,25 +19,48 @@
 
 namespace Gfx {
 
-struct VulkanContext {
-    uint32_t api_version { VK_API_VERSION_1_0 };
-    VkInstance instance { VK_NULL_HANDLE };
-    VkPhysicalDevice physical_device { VK_NULL_HANDLE };
-    VkDevice logical_device { VK_NULL_HANDLE };
-    VkQueue graphics_queue { VK_NULL_HANDLE };
-    uint32_t graphics_queue_family { 0 };
+class VulkanContext {
+    friend class VulkanImage;
+
+public:
+    static ErrorOr<VulkanContext> create();
+
+    uint32_t api_version() const { return m_api_version; }
+    VkInstance instance() const { return m_instance; }
+    VkPhysicalDevice physical_device() const { return m_physical_device; }
+    VkDevice logical_device() const { return m_logical_device; }
+    VkQueue graphics_queue() const { return m_graphics_queue; }
+    uint32_t graphics_queue_family() const { return m_graphics_queue_family; }
+
+private:
+    VulkanContext();
+
+    ErrorOr<void> create_instance();
+    ErrorOr<void> pick_physical_device();
+    ErrorOr<void> create_logical_device_and_queue();
+
 #    ifdef USE_VULKAN_IMAGES
-    VkCommandPool command_pool { VK_NULL_HANDLE };
-    VkCommandBuffer command_buffer { VK_NULL_HANDLE };
+    ErrorOr<void> create_command_pool();
+    ErrorOr<void> allocate_command_buffer();
+    ErrorOr<void> get_extensions();
+#    endif
+
+    uint32_t m_api_version { VK_API_VERSION_1_0 };
+    VkInstance m_instance { VK_NULL_HANDLE };
+    VkPhysicalDevice m_physical_device { VK_NULL_HANDLE };
+    VkDevice m_logical_device { VK_NULL_HANDLE };
+    VkQueue m_graphics_queue { VK_NULL_HANDLE };
+    uint32_t m_graphics_queue_family { 0 };
+#    ifdef USE_VULKAN_IMAGES
+    VkCommandPool m_command_pool { VK_NULL_HANDLE };
+    VkCommandBuffer m_command_buffer { VK_NULL_HANDLE };
     struct
     {
         PFN_vkGetMemoryFdKHR get_memory_fd { nullptr };
         PFN_vkGetImageDrmFormatModifierPropertiesEXT get_image_drm_format_modifier_properties { nullptr };
-    } ext_procs;
+    } m_ext_procs;
 #    endif
 };
-
-ErrorOr<VulkanContext> create_vulkan_context();
 
 #    ifdef USE_VULKAN_IMAGES
 class VulkanImage : public RefCounted<VulkanImage> {

@@ -11,70 +11,87 @@
 
 namespace Gfx {
 
-static ErrorOr<VkInstance> create_instance(uint32_t api_version)
+ErrorOr<VulkanContext> VulkanContext::create()
 {
-    VkInstance instance;
+    VulkanContext context;
+    TRY(context.create_instance());
+    TRY(context.pick_physical_device());
+    TRY(context.create_logical_device_and_queue());
 
+#ifdef USE_VULKAN_IMAGES
+    TRY(context.create_command_pool());
+    TRY(context.allocate_command_buffer());
+    TRY(context.get_extensions());
+#endif
+
+    return context;
+}
+
+VulkanContext::VulkanContext()
+{
+    // NOTE: v1.1 needed for vkGetPhysicalDeviceFormatProperties2
+    // TODO: Try v1.0 if v1.1 is not supported as it's only needed for Vulkan images
+    m_api_version = VK_API_VERSION_1_1;
+}
+
+ErrorOr<void> VulkanContext::create_instance()
+{
     VkApplicationInfo app_info {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "Ladybird";
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = nullptr;
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = api_version;
+    app_info.apiVersion = m_api_version;
 
     VkInstanceCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
-    auto result = vkCreateInstance(&create_info, nullptr, &instance);
+    auto result = vkCreateInstance(&create_info, nullptr, &m_instance);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateInstance returned {}", to_underlying(result));
         return Error::from_string_literal("Application instance creation failed");
     }
 
-    return instance;
+    return {};
 }
 
-static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
+ErrorOr<void> VulkanContext::pick_physical_device()
 {
     uint32_t device_count = 0;
-    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+    vkEnumeratePhysicalDevices(m_instance, &device_count, nullptr);
 
     if (device_count == 0)
         return Error::from_string_literal("Can't find any physical devices available");
 
     Vector<VkPhysicalDevice> devices;
     devices.resize(device_count);
-    vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+    vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
 
-    VkPhysicalDevice picked_device = VK_NULL_HANDLE;
     // Pick discrete GPU or the first device in the list
     for (auto const& device : devices) {
-        if (picked_device == VK_NULL_HANDLE)
-            picked_device = device;
+        if (m_physical_device == VK_NULL_HANDLE)
+            m_physical_device = device;
 
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-            picked_device = device;
+            m_physical_device = device;
     }
 
-    if (picked_device != VK_NULL_HANDLE)
-        return picked_device;
-
-    VERIFY_NOT_REACHED();
+    VERIFY(m_physical_device != VK_NULL_HANDLE);
+    return {};
 }
 
-static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
+ErrorOr<void> VulkanContext::create_logical_device_and_queue()
 {
-    VkDevice device;
-
     uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
+
     Vector<VkQueueFamilyProperties> queue_families;
     queue_families.resize(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, queue_families.data());
 
     bool graphics_queue_family_found = false;
     uint32_t graphics_queue_family_index = 0;
@@ -89,7 +106,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
         return Error::from_string_literal("Graphics queue family not found");
     }
 
-    *graphics_queue_family = graphics_queue_family_index;
+    m_graphics_queue_family = graphics_queue_family_index;
 
     VkDeviceQueueCreateInfo queue_create_info {};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -118,92 +135,72 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     create_device_info.enabledExtensionCount = device_extension_count;
     create_device_info.ppEnabledExtensionNames = device_extensions;
 
-    if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
+    if (vkCreateDevice(m_physical_device, &create_device_info, nullptr, &m_logical_device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
     }
 
-    return device;
+    vkGetDeviceQueue(m_logical_device, m_graphics_queue_family, 0, &m_graphics_queue);
+
+    return {};
 }
 
 #ifdef USE_VULKAN_IMAGES
-static ErrorOr<VkCommandPool> create_command_pool(VkDevice logical_device, uint32_t queue_family_index)
+ErrorOr<void> VulkanContext::create_command_pool()
 {
     VkCommandPoolCreateInfo command_pool_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queue_family_index,
+        .queueFamilyIndex = m_graphics_queue_family,
     };
-    VkCommandPool command_pool = VK_NULL_HANDLE;
-    VkResult result = vkCreateCommandPool(logical_device, &command_pool_info, nullptr, &command_pool);
+
+    VkResult result = vkCreateCommandPool(m_logical_device, &command_pool_info, nullptr, &m_command_pool);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateCommandPool returned {}", to_underlying(result));
         return Error::from_string_literal("command pool creation failed");
     }
-    return command_pool;
+
+    return {};
 }
 
-static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device, VkCommandPool commandPool)
+ErrorOr<void> VulkanContext::allocate_command_buffer()
 {
     VkCommandBufferAllocateInfo command_buffer_alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = nullptr,
-        .commandPool = commandPool,
+        .commandPool = m_command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
-    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-    VkResult result = vkAllocateCommandBuffers(logical_device, &command_buffer_alloc_info, &command_buffer);
+
+    VkResult result = vkAllocateCommandBuffers(m_logical_device, &command_buffer_alloc_info, &m_command_buffer);
     if (result != VK_SUCCESS) {
         dbgln("vkAllocateCommandBuffers returned {}", to_underlying(result));
         return Error::from_string_literal("command buffer allocation failed");
     }
-    return command_buffer;
+
+    return {};
 }
-#endif
 
-ErrorOr<VulkanContext> create_vulkan_context()
+ErrorOr<void> VulkanContext::get_extensions()
 {
-    uint32_t const api_version = VK_API_VERSION_1_1; // v1.1 needed for vkGetPhysicalDeviceFormatProperties2
-    auto* instance = TRY(create_instance(api_version));
-    auto* physical_device = TRY(pick_physical_device(instance));
-
-    uint32_t graphics_queue_family = 0;
-    auto* logical_device = TRY(create_logical_device(physical_device, &graphics_queue_family));
-    VkQueue graphics_queue;
-    vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
-
-#ifdef USE_VULKAN_IMAGES
-    VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
-    VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
-
-    auto pfn_vk_get_memory_fd_khr = reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(logical_device, "vkGetMemoryFdKHR"));
+    auto pfn_vk_get_memory_fd_khr = reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetDeviceProcAddr(m_logical_device, "vkGetMemoryFdKHR"));
     if (pfn_vk_get_memory_fd_khr == nullptr) {
         return Error::from_string_literal("vkGetMemoryFdKHR unavailable");
     }
-    auto pfn_vk_get_image_drm_format_modifier_properties_khr = reinterpret_cast<PFN_vkGetImageDrmFormatModifierPropertiesEXT>(vkGetDeviceProcAddr(logical_device, "vkGetImageDrmFormatModifierPropertiesEXT"));
+    auto pfn_vk_get_image_drm_format_modifier_properties_khr = reinterpret_cast<PFN_vkGetImageDrmFormatModifierPropertiesEXT>(vkGetDeviceProcAddr(m_logical_device, "vkGetImageDrmFormatModifierPropertiesEXT"));
     if (pfn_vk_get_image_drm_format_modifier_properties_khr == nullptr) {
         return Error::from_string_literal("vkGetImageDrmFormatModifierPropertiesEXT unavailable");
     }
-#endif
 
-    return VulkanContext {
-        .api_version = api_version,
-        .instance = instance,
-        .physical_device = physical_device,
-        .logical_device = logical_device,
-        .graphics_queue = graphics_queue,
-        .graphics_queue_family = graphics_queue_family,
-#ifdef USE_VULKAN_IMAGES
-        .command_pool = command_pool,
-        .command_buffer = command_buffer,
-        .ext_procs = {
-            .get_memory_fd = pfn_vk_get_memory_fd_khr,
-            .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr,
-        },
-#endif
+    m_ext_procs = {
+        .get_memory_fd = pfn_vk_get_memory_fd_khr,
+        .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr
     };
+
+    return {};
 }
+#endif
 
 #ifdef USE_VULKAN_IMAGES
 
@@ -215,11 +212,11 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
     VkFormatProperties2 format_props = {};
     format_props.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2;
     format_props.pNext = &format_mod_props_list;
-    vkGetPhysicalDeviceFormatProperties2(context.physical_device, format, &format_props);
+    vkGetPhysicalDeviceFormatProperties2(context.m_physical_device, format, &format_props);
     Vector<VkDrmFormatModifierPropertiesEXT> format_mod_props;
     format_mod_props.resize(format_mod_props_list.drmFormatModifierCount);
     format_mod_props_list.pDrmFormatModifierProperties = format_mod_props.data();
-    vkGetPhysicalDeviceFormatProperties2(context.physical_device, format, &format_props);
+    vkGetPhysicalDeviceFormatProperties2(context.m_physical_device, format, &format_props);
 
     // populate a list of all format modifiers that are both renderable and accepted by the caller
     Vector<uint64_t> format_mods;
@@ -246,7 +243,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .pNext = &image_drm_format_modifier_list_info,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
-    uint32_t queue_families[] = { context.graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
+    uint32_t queue_families[] = { context.m_graphics_queue_family, VK_QUEUE_FAMILY_EXTERNAL };
     VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .pNext = &external_mem_image_info,
@@ -268,16 +265,16 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .pQueueFamilyIndices = queue_families,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     };
-    auto result = vkCreateImage(context.logical_device, &image_info, nullptr, &image->m_image);
+    auto result = vkCreateImage(context.m_logical_device, &image_info, nullptr, &image->m_image);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateImage returned {}", to_underlying(result));
         return Error::from_string_literal("image creation failed");
     }
 
     VkMemoryRequirements mem_reqs;
-    vkGetImageMemoryRequirements(context.logical_device, image->m_image, &mem_reqs);
+    vkGetImageMemoryRequirements(context.m_logical_device, image->m_image, &mem_reqs);
     VkPhysicalDeviceMemoryProperties mem_props;
-    vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_props);
+    vkGetPhysicalDeviceMemoryProperties(context.m_physical_device, &mem_props);
     uint32_t mem_type_idx;
     for (mem_type_idx = 0; mem_type_idx < mem_props.memoryTypeCount; ++mem_type_idx) {
         if ((mem_reqs.memoryTypeBits & (1 << mem_type_idx)) && (mem_props.memoryTypes[mem_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
@@ -299,13 +296,13 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
         .allocationSize = mem_reqs.size,
         .memoryTypeIndex = mem_type_idx,
     };
-    result = vkAllocateMemory(context.logical_device, &mem_alloc_info, nullptr, &image->m_memory);
+    result = vkAllocateMemory(context.m_logical_device, &mem_alloc_info, nullptr, &image->m_memory);
     if (result != VK_SUCCESS) {
         dbgln("vkAllocateMemory returned {}", to_underlying(result));
         return Error::from_string_literal("image memory allocation failed");
     }
 
-    result = vkBindImageMemory(context.logical_device, image->m_image, image->m_memory, 0);
+    result = vkBindImageMemory(context.m_logical_device, image->m_image, image->m_memory, 0);
     if (result != VK_SUCCESS) {
         dbgln("vkBindImageMemory returned {}", to_underlying(result));
         return Error::from_string_literal("bind image memory failed");
@@ -313,12 +310,12 @@ ErrorOr<NonnullRefPtr<VulkanImage>> VulkanImage::create_shared(VulkanContext con
 
     VkImageSubresource subresource = { VK_IMAGE_ASPECT_MEMORY_PLANE_0_BIT_EXT, 0, 0 };
     VkSubresourceLayout subresource_layout = {};
-    vkGetImageSubresourceLayout(context.logical_device, image->m_image, &subresource, &subresource_layout);
+    vkGetImageSubresourceLayout(context.m_logical_device, image->m_image, &subresource, &subresource_layout);
 
     VkImageDrmFormatModifierPropertiesEXT image_format_mod_props = {};
     image_format_mod_props.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_PROPERTIES_EXT;
     image_format_mod_props.pNext = nullptr;
-    result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->m_image, &image_format_mod_props);
+    result = context.m_ext_procs.get_image_drm_format_modifier_properties(context.m_logical_device, image->m_image, &image_format_mod_props);
     if (result != VK_SUCCESS) {
         dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned {}", to_underlying(result));
         return Error::from_string_literal("image format modifier retrieval failed");
@@ -349,23 +346,23 @@ VulkanImage::VulkanImage(VulkanContext const& context)
 VulkanImage::~VulkanImage()
 {
     if (m_image != VK_NULL_HANDLE) {
-        vkDestroyImage(m_context.logical_device, m_image, nullptr);
+        vkDestroyImage(m_context.m_logical_device, m_image, nullptr);
     }
     if (m_memory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_context.logical_device, m_memory, nullptr);
+        vkFreeMemory(m_context.m_logical_device, m_memory, nullptr);
     }
 }
 
 void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_layout)
 {
-    vkResetCommandBuffer(m_context.command_buffer, 0);
+    vkResetCommandBuffer(m_context.m_command_buffer, 0);
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .pNext = nullptr,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         .pInheritanceInfo = nullptr,
     };
-    vkBeginCommandBuffer(m_context.command_buffer, &begin_info);
+    vkBeginCommandBuffer(m_context.m_command_buffer, &begin_info);
     VkImageMemoryBarrier imageMemoryBarrier = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         .pNext = nullptr,
@@ -378,14 +375,14 @@ void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_
         .image = m_image,
         .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
     };
-    vkCmdPipelineBarrier(m_context.command_buffer,
+    vkCmdPipelineBarrier(m_context.m_command_buffer,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         0,
         0, nullptr,
         0, nullptr,
         1, &imageMemoryBarrier);
-    vkEndCommandBuffer(m_context.command_buffer);
+    vkEndCommandBuffer(m_context.m_command_buffer);
     VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = nullptr,
@@ -393,12 +390,12 @@ void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_
         .pWaitSemaphores = nullptr,
         .pWaitDstStageMask = nullptr,
         .commandBufferCount = 1,
-        .pCommandBuffers = &m_context.command_buffer,
+        .pCommandBuffers = &m_context.m_command_buffer,
         .signalSemaphoreCount = 0,
         .pSignalSemaphores = nullptr,
     };
-    vkQueueSubmit(m_context.graphics_queue, 1, &submit_info, nullptr);
-    vkQueueWaitIdle(m_context.graphics_queue);
+    vkQueueSubmit(m_context.m_graphics_queue, 1, &submit_info, nullptr);
+    vkQueueWaitIdle(m_context.m_graphics_queue);
 }
 
 int VulkanImage::get_dma_buf_fd()
@@ -410,7 +407,7 @@ int VulkanImage::get_dma_buf_fd()
         .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
     int fd = -1;
-    VkResult result = m_context.ext_procs.get_memory_fd(m_context.logical_device, &get_fd_info, &fd);
+    VkResult result = m_context.m_ext_procs.get_memory_fd(m_context.m_logical_device, &get_fd_info, &fd);
     if (result != VK_SUCCESS) {
         dbgln("vkGetMemoryFdKHR returned {}", to_underlying(result));
         return -1;

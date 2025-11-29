@@ -19,7 +19,7 @@ class SkSurface;
 
 namespace Gfx {
 
-struct VulkanContext;
+class VulkanContext;
 class MetalContext;
 
 class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
