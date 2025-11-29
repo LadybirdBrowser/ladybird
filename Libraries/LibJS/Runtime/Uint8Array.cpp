@@ -115,17 +115,13 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayConstructorHelpers::from_base64)
     auto result_length = result.bytes.size();
 
     // 12. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
-    auto typed_array = TRY(Uint8Array::create(realm, result_length));
+    // 14. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
+    //     index of result.[[Bytes]].
+    auto array_buffer = ArrayBuffer::create(realm, move(result.bytes));
+    auto typed_array = Uint8Array::create(realm, result_length, array_buffer);
 
     // 13. Assert: ta.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is the number of elements in result.[[Bytes]].
     VERIFY(typed_array->viewed_array_buffer()->byte_length() == result_length);
-
-    // 14. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
-    //     index of result.[[Bytes]].
-    auto& array_buffer_data = typed_array->viewed_array_buffer()->buffer();
-
-    for (size_t index = 0; index < result_length; ++index)
-        array_buffer_data[index] = result.bytes[index];
 
     // 15. Return ta.
     return typed_array;
