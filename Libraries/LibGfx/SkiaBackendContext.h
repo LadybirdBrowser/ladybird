@@ -10,10 +10,6 @@
 #include <AK/Noncopyable.h>
 #include <LibThreading/Mutex.h>
 
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
-
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
 #endif

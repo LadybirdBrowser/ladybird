@@ -55,6 +55,10 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/XHR/FormData.h>
 
+#ifdef USE_VULKAN
+#    include <LibGfx/VulkanContext.h>
+#endif
+
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Navigable);

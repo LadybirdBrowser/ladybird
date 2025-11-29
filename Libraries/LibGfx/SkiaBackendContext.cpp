@@ -13,6 +13,7 @@
 #include <gpu/GrDirectContext.h>
 
 #ifdef USE_VULKAN
+#    include <LibGfx/VulkanContext.h>
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>

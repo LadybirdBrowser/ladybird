@@ -23,6 +23,10 @@ class SkSurface;
 
 namespace Gfx {
 
+#ifdef USE_VULKAN_IMAGES
+struct VulkanImage;
+#endif
+
 class PaintingSurface : public AtomicRefCounted<PaintingSurface> {
 public:
     enum class Origin {
