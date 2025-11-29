@@ -58,6 +58,8 @@ ImageBitmap::ImageBitmap(JS::Realm& realm)
 {
 }
 
+ImageBitmap::~ImageBitmap() = default;
+
 void ImageBitmap::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageBitmap);

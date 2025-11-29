@@ -35,7 +35,7 @@ class ImageBitmap final : public Bindings::PlatformObject
 
 public:
     static GC::Ref<ImageBitmap> create(JS::Realm&);
-    virtual ~ImageBitmap() override = default;
+    virtual ~ImageBitmap() override;
 
     // ^Web::Bindings::Serializable
     virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::ImageBitmap; }
