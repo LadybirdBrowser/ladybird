@@ -879,7 +879,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         auto const& animation_timeline_computed_value = get_computed_value(PropertyID::AnimationTimeline);
         auto const& animation_duration_computed_value = get_computed_value(PropertyID::AnimationDuration);
 
-        if (animation_timeline_computed_value.to_keyword() == Keyword::Auto) {
+        if (animation_timeline_computed_value.as_value_list().size() == 1 && animation_timeline_computed_value.as_value_list().values()[0]->to_keyword() == Keyword::Auto) {
 
             // FIXME: We can remove these two branches once parse_comma_separated_value_list always returns StyleValueList.
             if (animation_duration_computed_value.to_keyword() == Keyword::Auto)
