@@ -1729,6 +1729,61 @@ Optional<String> WebGLRenderingContextImpl::get_shader_source(GC::Root<WebGLShad
     return String::from_utf8_without_validation(ReadonlyBytes { shader_source.data(), static_cast<size_t>(shader_source_length - 1) });
 }
 
+JS::Value WebGLRenderingContextImpl::get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+
+    switch (pname) {
+    case GL_TEXTURE_MAG_FILTER:
+    case GL_TEXTURE_MIN_FILTER:
+    case GL_TEXTURE_WRAP_S:
+    case GL_TEXTURE_WRAP_T: {
+        GLint result { 0 };
+        glGetTexParameterivRobustANGLE(target, pname, 1, nullptr, &result);
+        return JS::Value(result);
+    }
+    case GL_TEXTURE_MAX_ANISOTROPY_EXT: {
+        if (ext_texture_filter_anisotropic_extension_enabled()) {
+            GLint result { 0 };
+            glGetTexParameterivRobustANGLE(target, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1, nullptr, &result);
+            return JS::Value(result);
+        }
+
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+    }
+
+    if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
+        switch (pname) {
+        case GL_TEXTURE_BASE_LEVEL:
+        case GL_TEXTURE_COMPARE_FUNC:
+        case GL_TEXTURE_COMPARE_MODE:
+        case GL_TEXTURE_IMMUTABLE_LEVELS:
+        case GL_TEXTURE_MAX_LEVEL:
+        case GL_TEXTURE_WRAP_R: {
+            GLint result { 0 };
+            glGetTexParameterivRobustANGLE(target, pname, 1, nullptr, &result);
+            return JS::Value(result);
+        }
+        case GL_TEXTURE_IMMUTABLE_FORMAT: {
+            GLint result { 0 };
+            glGetTexParameterivRobustANGLE(target, GL_TEXTURE_IMMUTABLE_FORMAT, 1, nullptr, &result);
+            return JS::Value(result == GL_TRUE);
+        }
+        case GL_TEXTURE_MAX_LOD:
+        case GL_TEXTURE_MIN_LOD: {
+            GLfloat result { 0.0f };
+            glGetTexParameterfvRobustANGLE(target, GL_TEXTURE_IMMUTABLE_FORMAT, 1, nullptr, &result);
+            return JS::Value(result == GL_TRUE);
+        }
+        }
+    }
+
+    set_error(GL_INVALID_ENUM);
+    return JS::js_null();
+}
+
 JS::Value WebGLRenderingContextImpl::get_uniform(GC::Root<WebGLProgram>, GC::Root<WebGLUniformLocation>)
 {
     dbgln("FIXME: Implement get_uniform");
