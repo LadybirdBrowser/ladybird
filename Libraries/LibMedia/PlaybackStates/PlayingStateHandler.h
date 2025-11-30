@@ -9,7 +9,6 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
-#include <LibMedia/PlaybackStates/SeekingStateHandler.h>
 #include <LibMedia/SeekMode.h>
 
 namespace Media {
@@ -46,13 +45,10 @@ public:
         return PlaybackState::Playing;
     }
 
-    virtual void enter_buffering() override
-    {
-        manager().replace_state_handler<SeekingStateHandler>(true, manager().current_time(), SeekMode::Accurate);
-    }
+    virtual void enter_buffering() override;
     virtual void exit_buffering() override
     {
-        dbgln(">PlayingStateHandler exit buffering");
+        // VERIFY_NOT_REACHED();
     }
 };
 

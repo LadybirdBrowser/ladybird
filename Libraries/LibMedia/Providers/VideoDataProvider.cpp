@@ -66,6 +66,11 @@ void VideoDataProvider::set_error_handler(ErrorHandler&& handler)
     m_thread_data->set_error_handler(move(handler));
 }
 
+void VideoDataProvider::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    m_thread_data->set_frames_queue_is_full_handler(move(handler));
+}
+
 TimedImage VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
@@ -108,6 +113,13 @@ void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
     auto locker = take_lock();
     m_error_handler = move(handler);
+    m_wait_condition.broadcast();
+}
+
+void VideoDataProvider::ThreadData::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    auto locker = take_lock();
+    m_frames_queue_is_full_handler = move(handler);
     m_wait_condition.broadcast();
 }
 
@@ -461,6 +473,13 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             }();
 
             while (queue_size >= m_queue_max_size) {
+                // dbgln("> Video Data Provider: Queue is full, waiting for a seek to free up space...");
+                if (m_frames_queue_is_full_handler) {
+                    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
+                        self->m_frames_queue_is_full_handler();
+                    });
+                }
+
                 if (handle_seek())
                     return;
 

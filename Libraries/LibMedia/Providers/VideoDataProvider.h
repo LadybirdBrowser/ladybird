@@ -36,6 +36,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using SeekBeginHandler = Function<void()>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
+    using FramesQueueIsFullHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
     // static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
@@ -44,6 +45,7 @@ public:
     ~VideoDataProvider();
 
     void set_error_handler(ErrorHandler&&);
+    void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     TimedImage retrieve_frame();
 
@@ -70,6 +72,7 @@ private:
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
+        void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void exit();
 
@@ -109,6 +112,7 @@ private:
         size_t m_queue_max_size { 4 };
         ImageQueue m_queue;
         ErrorHandler m_error_handler;
+        FramesQueueIsFullHandler m_frames_queue_is_full_handler;
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

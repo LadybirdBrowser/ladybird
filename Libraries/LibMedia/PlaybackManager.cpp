@@ -146,6 +146,14 @@ void PlaybackManager::set_up_error_handlers()
                 return;
             self->dispatch_error(move(error));
         });
+        // FIXME: This is not error handler
+        video_track_data.provider->set_frames_queue_is_full_handler([weak_self = m_weak_wrapper] {
+            // dbgln(">m_frames_queue_is_full_handler");
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->m_handler->exit_buffering();
+        });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {

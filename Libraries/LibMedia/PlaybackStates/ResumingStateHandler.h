@@ -48,11 +48,11 @@ public:
 
     virtual void enter_buffering() override
     {
-        dbgln(">ResumingStateHandler enter buffering");
+        VERIFY_NOT_REACHED();
     }
     virtual void exit_buffering() override
     {
-        dbgln(">ResumingStateHandler exit buffering");
+        VERIFY_NOT_REACHED();
     }
 
 private:
