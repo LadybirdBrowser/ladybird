@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>WebCryptoAPI: generateKey() Successful Calls</title>
+<title>WebCryptoAPI: sign() and verify() Using ML-DSA</title>
 <meta name="timeout" content="long">
 <script>
 self.GLOBAL = {
@@ -11,8 +11,7 @@ self.GLOBAL = {
 </script>
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
-<script src="../util/helpers.js"></script>
-<script src="../../common/subset-tests.js"></script>
-<script src="successes.js"></script>
+<script src="mldsa_vectors.js"></script>
+<script src="mldsa.js"></script>
 <div id=log></div>
-<script src="../../WebCryptoAPI/generateKey/successes_X448.https.any.js"></script>
+<script src="../../WebCryptoAPI/sign_verify/mldsa.tentative.https.any.js"></script>

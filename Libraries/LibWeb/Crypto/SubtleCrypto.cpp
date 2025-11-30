@@ -1212,7 +1212,7 @@ SupportedAlgorithmsMap& supported_algorithms_internal()
     return s_supported_algorithms;
 }
 
-// https://w3c.github.io/webcrypto/#algorithm-normalization-internalS
+// https://w3c.github.io/webcrypto/#algorithm-normalization-internal
 SupportedAlgorithmsMap const& supported_algorithms()
 {
     auto& internal_object = supported_algorithms_internal();
@@ -1364,6 +1364,15 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
     define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
     define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-registration
+    for (auto const& name : { "ML-DSA-44"_string, "ML-DSA-65"_string, "ML-DSA-87"_string }) {
+        define_an_algorithm<MLDSA, ContextParams>("sign"_string, name);
+        define_an_algorithm<MLDSA, ContextParams>("verify"_string, name);
+        define_an_algorithm<MLDSA>("generateKey"_string, name);
+        define_an_algorithm<MLDSA>("importKey"_string, name);
+        define_an_algorithm<MLDSA>("exportKey"_string, name);
+    }
 
     return internal_object;
 }

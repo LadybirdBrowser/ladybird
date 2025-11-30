@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>WebCryptoAPI: sign() and verify() Using EdDSA</title>
+<title>WebCryptoAPI: importKey() for OKP keys</title>
 <meta name="timeout" content="long">
 <script>
 self.GLOBAL = {
@@ -11,7 +11,8 @@ self.GLOBAL = {
 </script>
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
-<script src="eddsa_vectors.js"></script>
-<script src="eddsa.js"></script>
+<script src="../util/helpers.js"></script>
+<script src="okp_importKey_fixtures.js"></script>
+<script src="okp_importKey.js"></script>
 <div id=log></div>
-<script src="../../WebCryptoAPI/sign_verify/eddsa_curve448.https.any.js"></script>
+<script src="../../WebCryptoAPI/import_export/okp_importKey_X448.tentative.https.any.js"></script>

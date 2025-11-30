@@ -134,7 +134,7 @@ c8yGzl89pYST
     EXPECT_EQ(keypem, StringView(priv_pem));
 
     ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa_from_pair.output_size());
+    msg_buffer.resize(rsa_from_pair.public_key().length());
 
     auto msg = msg_buffer.bytes();
     msg.overwrite(0, "WellHelloFriends", 16);
@@ -151,7 +151,7 @@ TEST_CASE(test_RSA_encrypt_decrypt)
     Crypto::PK::RSA rsa(keypair);
 
     ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa.output_size());
+    msg_buffer.resize(rsa.public_key().length());
 
     auto msg = msg_buffer.bytes();
     msg.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
@@ -168,7 +168,7 @@ TEST_CASE(test_RSA_sign_verify)
     Crypto::PK::RSA rsa(keypair);
 
     ByteBuffer msg_buffer = {};
-    msg_buffer.resize(rsa.output_size());
+    msg_buffer.resize(rsa.public_key().length());
 
     auto msg = msg_buffer.bytes();
     msg.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);

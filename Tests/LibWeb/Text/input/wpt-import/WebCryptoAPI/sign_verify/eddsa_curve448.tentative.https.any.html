@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>WebCryptoAPI: importKey() for symmetric keys</title>
+<title>WebCryptoAPI: sign() and verify() Using EdDSA</title>
 <meta name="timeout" content="long">
 <script>
 self.GLOBAL = {
@@ -11,7 +11,7 @@ self.GLOBAL = {
 </script>
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
-<script src="../util/helpers.js"></script>
-<script src="symmetric_importKey.js"></script>
+<script src="eddsa_vectors.js"></script>
+<script src="eddsa.js"></script>
 <div id=log></div>
-<script src="../../WebCryptoAPI/import_export/symmetric_importKey.https.any.js"></script>
+<script src="../../WebCryptoAPI/sign_verify/eddsa_curve448.tentative.https.any.js"></script>
