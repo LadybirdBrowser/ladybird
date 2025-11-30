@@ -55,6 +55,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(TrustedTypes::TrustedScriptU
 
     // 1. Let compliantScriptURL be the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedScriptURL, this's relevant global object, scriptURL, "Worker constructor", and "script".
+    // FIXME: We don't have a `this` yet, so use the document.
     auto const compliant_script_url = TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedScriptURL,
         HTML::relevant_global_object(document),
@@ -64,35 +65,39 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(TrustedTypes::TrustedScriptU
 
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with compliant_script_url = {}", compliant_script_url);
 
-    // 2. Let outside settings be the current principal settings object.
-    auto& outside_settings = current_principal_settings_object();
+    // 2. Let outsideSettings be this's relevant settings object.
+    // FIXME: We don't have a `this` yet, so use the document.
+    auto& outside_settings = relevant_settings_object(document);
 
-    // 3. Parse the scriptURL argument relative to outside settings.
-    auto url = outside_settings.parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
+    // 3. Let workerURL be the result of encoding-parsing a URL given compliantScriptURL, relative to outsideSettings.
+    auto worker_url = outside_settings.encoding_parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());
 
-    // 4. If this fails, throw a "SyntaxError" DOMException.
-    if (!url.has_value()) {
+    // 4. If workerURL is failure, then throw a "SyntaxError" DOMException.
+    if (!worker_url.has_value()) {
         dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", compliant_script_url);
         return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_utf16);
     }
 
-    // 5. Let worker URL be the resulting URL record.
-
-    // 6. Let worker be a new Worker object.
-    auto worker = document.realm().create<Worker>(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options, document);
-
-    // 7. Let outside port be a new MessagePort in outside settings's Realm.
+    // 5. Let outsidePort be a new MessagePort in outsideSettings's realm.
     auto outside_port = MessagePort::create(outside_settings.realm());
 
-    // 8. Associate the outside port with worker
+    // 8. Let worker be this.
+    // AD-HOC: AD-HOC: We do this first so that we can use `this`.
+    auto worker = document.realm().create<Worker>(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options, document);
+
+    // 6. Set outsidePort's message event target to this.
+    outside_port->set_worker_event_target(worker);
+
+    // 7. Set this's outside port to outsidePort.
     worker->m_outside_port = outside_port;
-    worker->m_outside_port->set_worker_event_target(worker);
+
+    // 8. Let worker be this.
+    // NB: This is done earlier.
 
     // 9. Run this step in parallel:
-    //    1. Run a worker given worker, worker URL, outside settings, outside port, and options.
-    run_a_worker(worker, url.value(), outside_settings, *outside_port, options);
+    // 1. Run a worker given worker, workerURL, outsideSettings, outsidePort, and options.
+    run_a_worker(worker, worker_url.value(), outside_settings, *outside_port, options);
 
-    // 10. Return worker
     return worker;
 }
 
@@ -107,15 +112,10 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
     if (!is<HTML::WindowEnvironmentSettingsObject>(outside_settings))
         TODO();
 
-    // 3. Let parent worker global scope be null.
-    // 4. If owner is a WorkerGlobalScope object (i.e., we are creating a nested dedicated worker),
-    //    then set parent worker global scope to owner.
-    // FIXME: Support for nested workers.
+    // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
 
-    // 5. Let unsafeWorkerCreationTime be the unsafe shared current time.
-
-    // 6. Let agent be the result of obtaining a dedicated/shared worker agent given outside settings
-    //    and is shared. Run the rest of these steps in that agent.
+    // 4. Let agent be the result of obtaining a dedicated/shared worker agent given outside settings and is shared.
+    //    Run the rest of these steps in that agent.
 
     // Note: This spawns a new process to act as the 'agent' for the worker.
     auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings, agent_type);
@@ -127,6 +127,7 @@ WebIDL::ExceptionOr<void> Worker::terminate()
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Terminate");
 
+    // FIXME: The terminate() method steps are to terminate a worker given this's worker.
     return {};
 }
 
