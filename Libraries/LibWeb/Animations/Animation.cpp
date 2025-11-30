@@ -466,7 +466,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
         AnimationPlaybackEventInit init;
-        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([](auto const& value) { return value.as_milliseconds(); }) : Optional<double> {};
+        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); }) : Optional<CSS::CSSNumberish> {};
         auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
 
         // 10. If animation has a document for timing, then append cancelEvent to its document for timing's pending
@@ -1140,17 +1140,15 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             // 3. Create an AnimationPlaybackEvent, finishEvent.
             // 4. Set finishEvent’s type attribute to finish.
             // 5. Set finishEvent’s currentTime attribute to the current time of animation.
-            AnimationPlaybackEventInit init;
-            init.current_time = current_time()->as_milliseconds();
-            auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
-
             // 6. Set finishEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
+            AnimationPlaybackEventInit init;
+            init.current_time = current_time()->as_css_numberish();
             if (m_timeline && !m_timeline->is_inactive())
-                finish_event->set_timeline_time(m_timeline->current_time()->as_milliseconds());
-            else
-                finish_event->set_timeline_time({});
+                init.timeline_time = m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); });
+
+            auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
 
             // 7. If animation has a document for timing, then append finishEvent to its document for timing's pending
             //    animation event queue along with its target, animation. For the scheduled event time, use the result
