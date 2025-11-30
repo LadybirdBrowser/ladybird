@@ -115,7 +115,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_close = [this] {
-        m_window->close_tab(tab_index());
+        m_window->definitely_close_tab(tab_index());
     };
 
     view().on_link_hover = [this](auto const& url) {
@@ -374,20 +374,20 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     auto* close_tab_action = new QAction("&Close Tab", this);
     QObject::connect(close_tab_action, &QAction::triggered, this, [this]() {
-        view().on_close();
+        request_close();
     });
 
     auto* close_tabs_to_left_action = new QAction("C&lose Tabs to Left", this);
     QObject::connect(close_tabs_to_left_action, &QAction::triggered, this, [this]() {
         for (auto i = tab_index() - 1; i >= 0; i--) {
-            m_window->close_tab(i);
+            m_window->request_to_close_tab(i);
         }
     });
 
     auto* close_tabs_to_right_action = new QAction("Close Tabs to R&ight", this);
     QObject::connect(close_tabs_to_right_action, &QAction::triggered, this, [this]() {
         for (auto i = m_window->tab_count() - 1; i > tab_index(); i--) {
-            m_window->close_tab(i);
+            m_window->request_to_close_tab(i);
         }
     });
 
@@ -397,7 +397,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
             if (i == tab_index())
                 continue;
 
-            m_window->close_tab(i);
+            m_window->request_to_close_tab(i);
         }
     });
 
@@ -511,6 +511,21 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
+}
+
+void Tab::request_close()
+{
+    // Prevent closing on first request so WebContent can cleanly shutdown (e.g. asking if the user is sure they want
+    // to leave, closing WebSocket connections, etc.)
+    if (!m_already_requested_close) {
+        m_already_requested_close = true;
+        view().request_close();
+        return;
+    }
+
+    // If the user has already requested a close, then respect the user's request and just close the tab.
+    // For example, the WebContent process may not be responding.
+    m_window->definitely_close_tab(tab_index());
 }
 
 }

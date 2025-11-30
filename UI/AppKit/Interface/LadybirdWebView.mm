@@ -207,6 +207,11 @@ struct HideCursor {
     m_web_view_bridge->find_in_page_previous_match();
 }
 
+- (void)requestClose
+{
+    m_web_view_bridge->request_close();
+}
+
 #pragma mark - Private methods
 
 - (void)updateViewportRect
