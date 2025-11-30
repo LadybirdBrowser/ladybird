@@ -22,6 +22,7 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLBuffer.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
+#include <LibWeb/WebGL/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
@@ -2376,6 +2377,9 @@ void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pixel_pack_buffer_binding);
     visitor.visit(m_pixel_unpack_buffer_binding);
     visitor.visit(m_current_vertex_array);
+    visitor.visit(m_any_samples_passed);
+    visitor.visit(m_any_samples_passed_conservative);
+    visitor.visit(m_transform_feedback_primitives_written);
 }
 
 }

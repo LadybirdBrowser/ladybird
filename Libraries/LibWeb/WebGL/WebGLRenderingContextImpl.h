@@ -166,6 +166,9 @@ protected:
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
     GC::Ptr<WebGLTransformFeedback> m_transform_feedback_binding;
     GC::Ptr<WebGLVertexArrayObject> m_current_vertex_array;
+    GC::Ptr<WebGLQuery> m_any_samples_passed;
+    GC::Ptr<WebGLQuery> m_any_samples_passed_conservative;
+    GC::Ptr<WebGLQuery> m_transform_feedback_primitives_written;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };
