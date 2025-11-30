@@ -1222,6 +1222,11 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             weak_self->on_playback_manager_state_change();
     };
 
+    m_playback_manager->on_duration_change = [weak_self = GC::Weak(*this)](AK::Duration duration) {
+        if (weak_self)
+            weak_self->set_duration(duration.to_seconds_f64());
+    };
+
     update_volume();
 
     // -> If the media resource is found to have an audio track

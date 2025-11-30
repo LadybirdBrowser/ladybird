@@ -29,20 +29,22 @@ public:
         return bitmap;
     }
 
-    inline AK::Duration timestamp() const { return m_timestamp; }
+    AK::Duration timestamp() const { return m_timestamp; }
+    AK::Duration duration() const { return m_duration; }
 
-    inline Gfx::Size<u32> size() const { return m_size; }
-    inline u32 width() const { return size().width(); }
-    inline u32 height() const { return size().height(); }
+    Gfx::Size<u32> size() const { return m_size; }
+    u32 width() const { return size().width(); }
+    u32 height() const { return size().height(); }
 
-    inline u8 bit_depth() const { return m_bit_depth; }
-    inline CodingIndependentCodePoints& cicp() { return m_cicp; }
+    u8 bit_depth() const { return m_bit_depth; }
+    CodingIndependentCodePoints& cicp() { return m_cicp; }
 
 protected:
-    VideoFrame(AK::Duration timestamp,
+    VideoFrame(AK::Duration timestamp, AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp)
         : m_timestamp(timestamp)
+        , m_duration(duration)
         , m_size(size)
         , m_bit_depth(bit_depth)
         , m_cicp(cicp)
@@ -50,6 +52,7 @@ protected:
     }
 
     AK::Duration m_timestamp;
+    AK::Duration m_duration;
     Gfx::Size<u32> m_size;
     u8 m_bit_depth;
     CodingIndependentCodePoints m_cicp;
@@ -59,13 +62,13 @@ class SubsampledYUVFrame : public VideoFrame {
 
 public:
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create(
-        AK::Duration timestamp,
+        AK::Duration timestamp, AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling);
 
     static ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> try_create_from_data(
-        AK::Duration timestamp,
+        AK::Duration timestamp, AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,
@@ -73,11 +76,12 @@ public:
 
     SubsampledYUVFrame(
         AK::Duration timestamp,
+        AK::Duration duration,
         Gfx::Size<u32> size,
         u8 bit_depth, CodingIndependentCodePoints cicp,
         Subsampling subsampling,
         u8* plane_y_data, u8* plane_u_data, u8* plane_v_data)
-        : VideoFrame(timestamp, size, bit_depth, cicp)
+        : VideoFrame(timestamp, duration, size, bit_depth, cicp)
         , m_subsampling(subsampling)
         , m_y_buffer(plane_y_data)
         , m_u_buffer(plane_u_data)
