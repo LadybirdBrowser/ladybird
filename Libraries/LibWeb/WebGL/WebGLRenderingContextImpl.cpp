@@ -576,7 +576,17 @@ void WebGLRenderingContextImpl::detach_shader(GC::Root<WebGLProgram> program, GC
         }
         shader_handle = handle_or_error.release_value();
     }
+
     glDetachShader(program_handle, shader_handle);
+
+    switch (shader->type()) {
+    case GL_VERTEX_SHADER:
+        program->set_attached_vertex_shader(nullptr);
+        break;
+    case GL_FRAGMENT_SHADER:
+        program->set_attached_fragment_shader(nullptr);
+        break;
+    }
 }
 
 void WebGLRenderingContextImpl::disable(WebIDL::UnsignedLong cap)
