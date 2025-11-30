@@ -195,8 +195,7 @@ Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_
     return nullptr;
 }
 
-// FIXME: Trusted Types integration with DOM is still under review https://github.com/whatwg/dom/pull/1268
-// https://whatpr.org/dom/1268.html#concept-element-attributes-set
+// https://dom.spec.whatwg.org/#concept-element-attributes-set
 WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {
     // 1. Let verifiedValue be the result of calling get Trusted Types-compliant attribute value

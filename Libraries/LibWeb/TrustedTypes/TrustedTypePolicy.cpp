@@ -143,7 +143,7 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(TrustedTypeName tr
     }
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#abstract-opdef-get-trusted-type-policy-value
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-policy-value
 WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(TrustedTypeName trusted_type_name, Utf16String const& value, GC::RootVector<JS::Value> const& values, ThrowIfCallbackMissing throw_if_missing)
 {
     auto& vm = this->vm();
@@ -344,7 +344,7 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
-WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, const DOM::Element& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value)
+WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(FlyString const& attribute_name, Optional<Utf16String> attribute_ns, DOM::Element const& element, Variant<GC::Root<TrustedHTML>, GC::Root<TrustedScript>, GC::Root<TrustedScriptURL>, Utf16String> const& new_value)
 {
     // 1. If attributeNs is the empty string, set attributeNs to null.
     if (attribute_ns.has_value() && attribute_ns.value().is_empty())
@@ -355,7 +355,9 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
     //    attributeName
     //    attributeNs
     auto const attribute_data = get_trusted_type_data_for_attribute(
-        element_interface_name(Utf16String::from_utf8(element.local_name()), attribute_ns.has_value() ? attribute_ns.value() : Utf16String::from_utf8(Namespace::HTML)),
+        element_interface(
+            Utf16String::from_utf8(element.local_name()),
+            element.namespace_uri().value_or(Namespace::HTML)),
         Utf16String::from_utf8(attribute_name),
         attribute_ns);
 
@@ -393,18 +395,18 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Fly
         Script.to_string());
 }
 
-Utf16String element_interface_name(Utf16String const& local_name, Utf16String const& element_ns)
+ElementInterface element_interface(Utf16String const& local_name, FlyString const& element_ns)
 {
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     if (local_name == HTML::TagNames::iframe && element_ns == Namespace::HTML)
-        return "HTMLIFrameElement"_utf16;
+        return { "HTMLIFrameElement"_utf16, element_ns };
     if (local_name == HTML::TagNames::script && element_ns == Namespace::HTML)
-        return "HTMLScriptElement"_utf16;
+        return { "HTMLScriptElement"_utf16, element_ns };
     if (local_name == SVG::TagNames::script && element_ns == Namespace::SVG)
-        return "SVGScriptElement"_utf16;
+        return { "SVGScriptElement"_utf16, element_ns };
 
-    return "Element"_utf16;
+    return { "Element"_utf16, element_ns };
 }
 
 }

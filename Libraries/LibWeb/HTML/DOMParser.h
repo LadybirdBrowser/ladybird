@@ -24,7 +24,7 @@ public:
 
     virtual ~DOMParser() override;
 
-    WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_from_string(Utf16String, Bindings::DOMParserSupportedType type);
+    WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_from_string(TrustedTypes::TrustedHTMLOrString, Bindings::DOMParserSupportedType type);
 
 private:
     explicit DOMParser(JS::Realm&);
