@@ -10,8 +10,6 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibWeb/CSS/Angle.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/Painting/GradientPainting.h>
@@ -32,25 +30,26 @@ enum class SideOrCorner {
 
 class LinearGradientStyleValue final : public AbstractImageStyleValue {
 public:
-    using GradientDirection = Variant<Angle, SideOrCorner>;
+    using GradientDirection = Variant<NonnullRefPtr<StyleValue const>, SideOrCorner>;
 
     enum class GradientType {
         Standard,
         WebKit
     };
 
-    static ValueComparingNonnullRefPtr<LinearGradientStyleValue const> create(GradientDirection direction, Vector<LinearColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<LinearGradientStyleValue const> create(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
-        return adopt_ref(*new (nothrow) LinearGradientStyleValue(direction, move(color_stop_list), type, repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
+        return adopt_ref(*new (nothrow) LinearGradientStyleValue(move(direction), move(color_stop_list), type, repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
     virtual String to_string(SerializationMode) const override;
     virtual ~LinearGradientStyleValue() override = default;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
-    Vector<LinearColorStopListElement> const& color_stop_list() const
+    Vector<ColorStopListElement> const& color_stop_list() const
     {
         return m_properties.color_stop_list;
     }
@@ -76,15 +75,15 @@ public:
     void paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
 
 private:
-    LinearGradientStyleValue(GradientDirection direction, Vector<LinearColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    LinearGradientStyleValue(GradientDirection direction, Vector<ColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::LinearGradient)
-        , m_properties { .direction = direction, .color_stop_list = move(color_stop_list), .gradient_type = type, .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
+        , m_properties { .direction = move(direction), .color_stop_list = move(color_stop_list), .gradient_type = type, .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
     {
     }
 
     struct Properties {
         GradientDirection direction;
-        Vector<LinearColorStopListElement> color_stop_list;
+        Vector<ColorStopListElement> color_stop_list;
         GradientType gradient_type;
         GradientRepeating repeating;
         Optional<InterpolationMethod> interpolation_method;

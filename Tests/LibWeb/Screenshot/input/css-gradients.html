@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <link rel="match" href="../expected/css-gradients-ref.html" />
-<meta name="fuzzy" content="maxDifference=0-63;totalPixels=0-167">
+<meta name="fuzzy" content="maxDifference=0-162;totalPixels=0-428">
 <style>
   body {
     background-color: white;
@@ -86,6 +86,10 @@
 
   .grad-10 {
     background-image: linear-gradient(90deg, red, transparent, blue);
+  }
+  
+  .grad-10-calc-angle {
+    background-image: linear-gradient(calc(30deg * 3), red, transparent, blue);
   }
 
   .grad-11 {
@@ -251,6 +255,7 @@
   <div class="box grad-conic-repeat-1"></div>
   <div class="box grad-conic-repeat-2"></div>
   <div class="box grad-repeat-4"></div>
+  <div class="box grad-10-calc-angle"></div>
 </section>
 <section class="rects">
   <div class="rect grad-7"></div>

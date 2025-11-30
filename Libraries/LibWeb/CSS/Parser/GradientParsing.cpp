@@ -18,8 +18,7 @@
 
 namespace Web::CSS::Parser {
 
-template<typename TElement>
-Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position)
+Optional<Vector<ColorStopListElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position)
 {
     enum class ElementType {
         Garbage,
@@ -27,20 +26,20 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         ColorHint
     };
 
-    auto parse_color_stop_list_element = [&](TElement& element) -> ElementType {
+    auto parse_color_stop_list_element = [&](auto& element) -> ElementType {
         tokens.discard_whitespace();
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
         RefPtr<StyleValue const> color;
-        Optional<typename TElement::PositionType> position;
-        Optional<typename TElement::PositionType> second_position;
-        if (position = parse_position(tokens); position.has_value()) {
+        RefPtr<StyleValue const> position;
+        RefPtr<StyleValue const> second_position;
+        if (position = parse_position(tokens); position) {
             // [<T-percentage> <color>] or [<T-percentage>]
             tokens.discard_whitespace();
             // <T-percentage>
             if (!tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma)) {
-                element.transition_hint = typename TElement::ColorHint { *position };
+                element.transition_hint = ColorStopListElement::ColorHint { *position };
                 return ElementType::ColorHint;
             }
             // <T-percentage> <color>
@@ -60,24 +59,24 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
             for (auto stop_position : Array { &position, &second_position }) {
                 if (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
                     *stop_position = parse_position(tokens);
-                    if (!stop_position->has_value())
+                    if (!stop_position)
                         return ElementType::Garbage;
                     tokens.discard_whitespace();
                 }
             }
         }
 
-        element.color_stop = typename TElement::ColorStop { color, position, second_position };
+        element.color_stop = ColorStopListElement::ColorStop { color, position, second_position };
         return ElementType::ColorStop;
     };
 
-    TElement first_element {};
+    ColorStopListElement first_element {};
     if (parse_color_stop_list_element(first_element) != ElementType::ColorStop)
         return {};
 
-    Vector<TElement> color_stops { first_element };
+    Vector<ColorStopListElement> color_stops { first_element };
     while (tokens.has_next_token()) {
-        TElement list_element {};
+        ColorStopListElement list_element {};
         tokens.discard_whitespace();
         if (!tokens.consume_a_token().is(Token::Type::Comma))
             return {};
@@ -110,34 +109,34 @@ static StringView consume_if_starts_with(StringView str, StringView start, auto 
     return str;
 }
 
-Optional<Vector<LinearColorStopListElement>> Parser::parse_linear_color_stop_list(TokenStream<ComponentValue>& tokens)
+Optional<Vector<ColorStopListElement>> Parser::parse_linear_color_stop_list(TokenStream<ComponentValue>& tokens)
 {
     // <color-stop-list> =
     //   <linear-color-stop> , [ <linear-color-hint>? , <linear-color-stop> ]#
-    return parse_color_stop_list<LinearColorStopListElement>(
+    return parse_color_stop_list(
         tokens,
-        [&](auto& it) { return parse_length_percentage(it); });
+        [&](auto& it) { return parse_length_percentage_value(it); });
 }
 
-Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
+Optional<Vector<ColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
 {
     auto context_guard = push_temporary_value_parsing_context(SpecialContext::AngularColorStopList);
 
     // <angular-color-stop-list> =
     //   <angular-color-stop> , [ <angular-color-hint>? , <angular-color-stop> ]#
-    return parse_color_stop_list<AngularColorStopListElement>(
+    return parse_color_stop_list(
         tokens,
-        [&](TokenStream<ComponentValue>& it) -> Optional<AnglePercentage> {
+        [&](TokenStream<ComponentValue>& it) -> RefPtr<StyleValue const> {
             if (tokens.next_token().is(Token::Type::Number)) {
                 auto transaction = tokens.begin_transaction();
                 auto numeric_value = tokens.consume_a_token().token().number_value();
                 if (numeric_value == 0) {
                     transaction.commit();
-                    return Angle::make_degrees(0);
+                    return AngleStyleValue::create(Angle::make_degrees(0));
                 }
             }
 
-            return parse_angle_percentage(it);
+            return parse_angle_percentage_value(it);
         });
 }
 
@@ -301,21 +300,12 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
     tokens.discard_whitespace();
 
     auto const& first_param = tokens.next_token();
-    if (first_param.is(Token::Type::Dimension)) {
-        // <angle>
-        tokens.discard_a_token(); // <angle>
-        auto angle_value = first_param.token().dimension_value();
-        auto unit_string = first_param.token().dimension_unit();
-        auto angle_type = string_to_angle_unit(unit_string);
-
-        if (!angle_type.has_value())
-            return nullptr;
-
-        gradient_direction = Angle { angle_value, angle_type.release_value() };
+    if (auto maybe_angle = parse_angle_value(tokens)) {
+        gradient_direction = maybe_angle.release_nonnull();
     } else if (first_param.is(Token::Type::Number) && first_param.token().number().value() == 0) {
         // <zero>
         tokens.discard_a_token(); // <zero>
-        gradient_direction = Angle::make_degrees(0);
+        gradient_direction = { AngleStyleValue::create(Angle::make_degrees(0)) };
     } else if (is_to_side_or_corner(first_param)) {
         // <side-or-corner> = [left | right] || [top | bottom]
 
@@ -380,7 +370,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
         return nullptr;
 
     transaction.commit();
-    return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
+    return LinearGradientStyleValue::create(move(gradient_direction), move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
 }
 
 RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
@@ -550,10 +540,10 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         return {};
     };
 
-    auto length_percentage_is_non_negative = [](LengthPercentage const& length_percentage) -> bool {
-        if (length_percentage.is_length() && length_percentage.length().raw_value() < 0)
+    auto length_percentage_is_non_negative = [](StyleValue const& value) -> bool {
+        if (value.is_length() && value.as_length().length().raw_value() < 0)
             return false;
-        if (length_percentage.is_percentage() && length_percentage.percentage().value() < 0)
+        if (value.is_percentage() && value.as_percentage().percentage().value() < 0)
             return false;
         return true;
     };
@@ -573,23 +563,22 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
                 return {};
             return commit_value(*extent, transaction_size);
         }
-        auto first_radius = parse_length_percentage(tokens);
-        if (!first_radius.has_value() || !length_percentage_is_non_negative(*first_radius))
+        auto first_radius = parse_length_percentage_value(tokens);
+        if (!first_radius || !length_percentage_is_non_negative(*first_radius))
             return {};
         auto transaction_second_dimension = tokens.begin_transaction();
         tokens.discard_whitespace();
         if (tokens.has_next_token()) {
-            auto second_radius = parse_length_percentage(tokens);
-            if (second_radius.has_value()) {
+            if (auto second_radius = parse_length_percentage_value(tokens)) {
                 if (!length_percentage_is_non_negative(*second_radius))
                     return {};
-                return commit_value(EllipseSize { first_radius.release_value(), second_radius.release_value() },
+                return commit_value(EllipseSize { first_radius.release_nonnull(), second_radius.release_nonnull() },
                     transaction_size, transaction_second_dimension);
             }
         }
-        // FIXME: Support calculated lengths
-        if (first_radius->is_length())
-            return commit_value(CircleSize { first_radius->length() }, transaction_size);
+        // We parsed the first value as a <length-percentage>, but here we only want <length>s.
+        if (first_radius->is_length() || (first_radius->is_calculated() && !first_radius->as_calculated().contains_percentage()))
+            return commit_value(CircleSize { first_radius.release_nonnull() }, transaction_size);
         return {};
     };
 

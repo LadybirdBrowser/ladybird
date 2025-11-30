@@ -8,6 +8,8 @@
  */
 
 #include "LinearGradientStyleValue.h"
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
@@ -53,8 +55,8 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
             [&](SideOrCorner side_or_corner) {
                 builder.appendff("{}{}", m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
             },
-            [&](Angle const& angle) {
-                builder.append(angle.to_string());
+            [&](NonnullRefPtr<StyleValue const> const& angle) {
+                builder.append(angle->to_string(mode));
             });
 
         if (has_color_space)
@@ -70,6 +72,16 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(")"sv);
     return MUST(builder.to_string());
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absolutized(ComputationContext const& context) const
+{
+    Vector<ColorStopListElement> absolutized_color_stops;
+    absolutized_color_stops.ensure_capacity(m_properties.color_stop_list.size());
+    for (auto const& color_stop : m_properties.color_stop_list) {
+        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
+    }
+    return create(m_properties.direction, move(absolutized_color_stops), m_properties.gradient_type, m_properties.repeating, m_properties.interpolation_method);
 }
 
 bool LinearGradientStyleValue::equals(StyleValue const& other_) const
@@ -114,8 +126,8 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
                 return angle + 180.0;
             return angle;
         },
-        [&](Angle const& angle) {
-            return angle.to_degrees();
+        [&](NonnullRefPtr<StyleValue const> const& style_value) {
+            return Angle::from_style_value(style_value, {}).to_degrees();
         });
 }
 
