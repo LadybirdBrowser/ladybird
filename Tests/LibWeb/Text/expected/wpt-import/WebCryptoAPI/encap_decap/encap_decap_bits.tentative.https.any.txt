@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+3 Pass
+9 Fail
+Pass	ML-KEM-512 encapsulateBits basic functionality
+Fail	ML-KEM-512 decapsulateBits basic functionality
+Fail	ML-KEM-512 encapsulateBits/decapsulateBits round-trip compatibility
+Fail	ML-KEM-512 vector-based sampleCiphertext decapsulation
+Pass	ML-KEM-768 encapsulateBits basic functionality
+Fail	ML-KEM-768 decapsulateBits basic functionality
+Fail	ML-KEM-768 encapsulateBits/decapsulateBits round-trip compatibility
+Fail	ML-KEM-768 vector-based sampleCiphertext decapsulation
+Pass	ML-KEM-1024 encapsulateBits basic functionality
+Fail	ML-KEM-1024 decapsulateBits basic functionality
+Fail	ML-KEM-1024 encapsulateBits/decapsulateBits round-trip compatibility
+Fail	ML-KEM-1024 vector-based sampleCiphertext decapsulation

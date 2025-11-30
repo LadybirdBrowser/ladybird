@@ -377,7 +377,7 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "unwwrapKey is not supported"_utf16);
     }
 
-    virtual WebIDL::ExceptionOr<GC::Ref<EncapsulatedBits>> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>)
+    virtual WebIDL::ExceptionOr<EncapsulatedBits> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>)
     {
         return WebIDL::NotSupportedError::create(m_realm, "encapsulate is not supported"_utf16);
     }
@@ -680,6 +680,21 @@ public:
 
 private:
     explicit HMAC(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
+class MLKEM : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<EncapsulatedBits> encapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new MLKEM(realm)); }
+
+private:
+    explicit MLKEM(JS::Realm& realm)
         : AlgorithmMethods(realm)
     {
     }
