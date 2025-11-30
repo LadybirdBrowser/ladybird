@@ -20,6 +20,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 
 namespace Web::HTML {
 
@@ -77,6 +78,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
     visitor.visit(m_credentials);
     visitor.visit(m_battery_promise);
+    visitor.visit(m_media_session);
 }
 
 GC::Ref<MimeTypeArray> Navigator::mime_types()
@@ -174,6 +176,13 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 
     // 4. Return this.[[BatteryPromise]].
     return *m_battery_promise;
+}
+
+GC::Ref<MediaSession::MediaSession> Navigator::media_session()
+{
+    if (!m_media_session)
+        m_media_session = realm().create<MediaSession::MediaSession>(realm());
+    return *m_media_session;
 }
 
 }
