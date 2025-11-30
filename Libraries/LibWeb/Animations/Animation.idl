@@ -11,8 +11,8 @@ interface Animation : EventTarget {
     attribute DOMString id;
     attribute AnimationEffect? effect;
     attribute AnimationTimeline? timeline;
-    attribute double? startTime;
-    attribute double? currentTime;
+    [ImplementedAs=start_time_for_bindings] attribute double? startTime;
+    [ImplementedAs=current_time_for_bindings] attribute double? currentTime;
     attribute double playbackRate;
     [ImplementedAs=play_state_for_bindings] readonly attribute AnimationPlayState playState;
     readonly attribute AnimationReplaceState replaceState;

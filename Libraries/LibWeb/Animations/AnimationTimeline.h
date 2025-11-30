@@ -17,7 +17,11 @@ class AnimationTimeline : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
-    Optional<double> current_time() const;
+    Optional<double> current_time_for_bindings() const
+    {
+        return current_time().map([](auto const& current_time) { return current_time.as_milliseconds(); });
+    }
+    Optional<TimeValue> current_time() const;
 
     virtual void update_current_time(double timestamp) = 0;
 
@@ -31,7 +35,7 @@ public:
     bool is_monotonically_increasing() const { return m_is_monotonically_increasing; }
 
     // https://www.w3.org/TR/web-animations-1/#timeline-time-to-origin-relative-time
-    virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<double>) { VERIFY_NOT_REACHED(); }
+    virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) { VERIFY_NOT_REACHED(); }
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const { return false; }
 
     void associate_with_animation(GC::Ref<Animation> value) { m_associated_animations.set(value); }
@@ -45,10 +49,10 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
-    void set_current_time(Optional<double> value);
+    void set_current_time(Optional<TimeValue> value);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animationtimeline-currenttime
-    Optional<double> m_current_time {};
+    Optional<TimeValue> m_current_time {};
 
     // https://drafts.csswg.org/web-animations-1/#monotonically-increasing-timeline
     bool m_is_monotonically_increasing { false };

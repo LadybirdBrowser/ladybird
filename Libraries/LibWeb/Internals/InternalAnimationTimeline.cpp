@@ -21,13 +21,13 @@ void InternalAnimationTimeline::update_current_time(double)
 
 void InternalAnimationTimeline::set_time(Optional<double> time)
 {
-    set_current_time(time);
+    set_current_time(time.map([](double value) -> Animations::TimeValue { return { Animations::TimeValue::Type::Milliseconds, value }; }));
 }
 
 InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
     : AnimationTimeline(realm)
 {
-    m_current_time = 0.0;
+    m_current_time = { Animations::TimeValue::Type::Milliseconds, 0.0 };
     m_is_monotonically_increasing = true;
 
     auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();

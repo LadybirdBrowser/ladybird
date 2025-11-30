@@ -27,6 +27,55 @@ struct TimeValue {
     Type type;
     double value;
 
+    TimeValue operator-() const
+    {
+        return { type, -value };
+    }
+
+    TimeValue operator*(double other) const
+    {
+        return { type, value * other };
+    }
+
+    TimeValue operator-(TimeValue const& other) const
+    {
+        VERIFY(type == other.type);
+        return { type, value - other.value };
+    }
+
+    TimeValue operator+(TimeValue const& other) const
+    {
+        VERIFY(type == other.type);
+        return { type, value + other.value };
+    }
+
+    TimeValue operator/(double divisor) const
+    {
+        return { type, value / divisor };
+    }
+
+    double operator/(TimeValue const& other) const
+    {
+        VERIFY(type == other.type);
+        return value / other.value;
+    }
+
+    int operator<=>(TimeValue const& other) const
+    {
+        VERIFY(type == other.type);
+
+        if (value < other.value)
+            return -1;
+        if (value > other.value)
+            return 1;
+        return 0;
+    }
+
+    bool operator==(TimeValue const& other) const
+    {
+        return type == other.type && value == other.value;
+    }
+
     // FIXME: This method is temporary as we migrate all CSS timing to use TimeValue.
     double as_milliseconds() const
     {
@@ -61,3 +110,15 @@ struct NullableCSSNumberish : FlattenVariant<Variant<Empty>, CSS::CSSNumberish> 
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::Animations::TimeValue> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::Animations::TimeValue const& time)
+    {
+        switch (time.type) {
+        case Web::Animations::TimeValue::Type::Milliseconds:
+            return Formatter<FormatString>::format(builder, "{}ms"sv, time.value);
+        }
+        return {};
+    }
+};

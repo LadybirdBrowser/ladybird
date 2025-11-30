@@ -32,6 +32,7 @@
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/DocumentPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -2643,7 +2644,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
         if (!transition->current_time().has_value()) {
             // If the transition has an unresolved current time,
             //   The transition phase is ‘idle’.
-        } else if (transition->current_time().value() < 0.0) {
+        } else if (transition->current_time()->value < 0) {
             // If the transition has a current time < 0,
             //   The transition phase is ‘before’.
             transition_phase = Phase::Before;
@@ -2677,18 +2678,26 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 
         auto effect = transition->effect();
 
-        double elapsed_time = [&]() {
+        Animations::TimeValue elapsed_time = [&]() {
             if (interval == Interval::Start)
-                return max(min(-effect->start_delay().as_milliseconds(), effect->active_duration()), 0) / 1000;
+                return max(min(-effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(transition->timeline()));
             if (interval == Interval::End)
-                return max(min(transition->associated_effect_end() - effect->start_delay().as_milliseconds(), effect->active_duration()), 0) / 1000;
+                return max(min(transition->associated_effect_end() - effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(transition->timeline()));
             if (interval == Interval::ActiveTime) {
                 // The active time of the animation at the moment it was canceled calculated using a fill mode of both.
                 // FIXME: Compute this properly.
-                return 0.0;
+                return Animations::TimeValue::create_zero(transition->timeline());
             }
             VERIFY_NOT_REACHED();
         }();
+
+        double elapsed_time_output;
+
+        switch (elapsed_time.type) {
+        case Animations::TimeValue::Type::Milliseconds:
+            elapsed_time_output = elapsed_time.value / 1000;
+            break;
+        }
 
         append_pending_animation_event({
             .event = CSS::TransitionEvent::create(
@@ -2697,7 +2706,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
                 CSS::TransitionEventInit {
                     { .bubbles = true },
                     MUST(String::from_utf8(transition->transition_property())),
-                    elapsed_time,
+                    elapsed_time_output,
                     transition->owning_element()->pseudo_element().map([](auto it) {
                                                                       return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
                                                                   })
@@ -2782,8 +2791,13 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
     auto owning_element = css_animation.owning_element();
 
-    auto dispatch_event = [&](FlyString const& name, double elapsed_time_ms) {
-        auto elapsed_time_seconds = elapsed_time_ms / 1000;
+    auto dispatch_event = [&](FlyString const& name, Animations::TimeValue elapsed_time) {
+        double elapsed_time_output;
+        switch (elapsed_time.type) {
+        case Animations::TimeValue::Type::Milliseconds:
+            elapsed_time_output = elapsed_time.value / 1000;
+            break;
+        }
 
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
@@ -2792,7 +2806,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 {
                     { .bubbles = true },
                     css_animation.animation_name(),
-                    elapsed_time_seconds,
+                    elapsed_time_output,
                     owning_element->pseudo_element().map([](auto it) {
                                                         return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
                                                     })
@@ -2807,10 +2821,10 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     // For calculating the elapsedTime of each event, the following definitions are used:
 
     // - interval start = max(min(-start delay, active duration), 0)
-    auto interval_start = max(min(-effect->start_delay().as_milliseconds(), effect->active_duration()), 0.0);
+    auto interval_start = max(min(-effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
 
     // - interval end = max(min(associated effect end - start delay, active duration), 0)
-    auto interval_end = max(min(effect->end_time() - effect->start_delay().as_milliseconds(), effect->active_duration()), 0.0);
+    auto interval_end = max(min(effect->end_time() - effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
 
     switch (previous_phase) {
     case Animations::AnimationEffect::Phase::Before:
@@ -2838,9 +2852,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 auto iteration_boundary = previous_current_iteration > current_iteration ? current_iteration + 1 : current_iteration;
 
                 // 3. The elapsed time is the result of evaluating (iteration boundary - iteration start) × iteration duration).
-                auto iteration_duration_variant = effect->iteration_duration();
-                auto iteration_duration = iteration_duration_variant.as_milliseconds();
-                auto elapsed_time = (iteration_boundary - effect->iteration_start()) * iteration_duration;
+                auto elapsed_time = effect->iteration_duration() * (iteration_boundary - effect->iteration_start());
 
                 dispatch_event(HTML::EventNames::animationiteration, elapsed_time);
             }
@@ -2860,7 +2872,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
     if (current_phase == Animations::AnimationEffect::Phase::Idle && previous_phase != Animations::AnimationEffect::Phase::Idle && previous_phase != Animations::AnimationEffect::Phase::After) {
         // FIXME: Calculate a non-zero time when the animation is cancelled by means other than calling cancel()
-        auto cancel_time = animation->release_saved_cancel_time().value_or(0.0);
+        auto cancel_time = animation->release_saved_cancel_time().value_or(Animations::TimeValue::create_zero(animation->timeline()));
         dispatch_event(HTML::EventNames::animationcancel, cancel_time);
     }
 
@@ -5445,8 +5457,8 @@ void Document::remove_replaced_animations()
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
             Animations::AnimationPlaybackEventInit init;
-            init.current_time = animation->current_time();
-            init.timeline_time = animation->timeline()->current_time();
+            init.current_time = animation->current_time()->as_milliseconds();
+            init.timeline_time = animation->timeline()->current_time()->as_milliseconds();
             auto remove_event = Animations::AnimationPlaybackEvent::create(realm(), HTML::EventNames::remove, init);
 
             // - If animation has a document for timing, then append removeEvent to its document for timing's pending
@@ -5458,7 +5470,7 @@ void Document::remove_replaced_animations()
                     .event = remove_event,
                     .animation = animation,
                     .target = animation,
-                    .scheduled_event_time = animation->timeline()->convert_a_timeline_time_to_an_origin_relative_time(init.timeline_time),
+                    .scheduled_event_time = animation->timeline()->convert_a_timeline_time_to_an_origin_relative_time(animation->timeline()->current_time()),
                 };
                 document->append_pending_animation_event(pending_animation_event);
             }

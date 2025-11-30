@@ -14,7 +14,7 @@ namespace Web::Animations {
 GC_DEFINE_ALLOCATOR(AnimationTimeline);
 
 // https://drafts.csswg.org/web-animations-1/#dom-animationtimeline-currenttime
-Optional<double> AnimationTimeline::current_time() const
+Optional<TimeValue> AnimationTimeline::current_time() const
 {
     // Returns the current time for this timeline or null if this timeline is inactive.
     if (is_inactive())
@@ -22,7 +22,7 @@ Optional<double> AnimationTimeline::current_time() const
     return m_current_time;
 }
 
-void AnimationTimeline::set_current_time(Optional<double> value)
+void AnimationTimeline::set_current_time(Optional<TimeValue> value)
 {
     if (value == m_current_time)
         return;
