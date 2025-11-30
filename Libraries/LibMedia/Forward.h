@@ -18,6 +18,7 @@ class DecoderError;
 class Demuxer;
 class DisplayingVideoSink;
 class FrameQueueItem;
+class IncrementallyPopulatedStream;
 class MediaTimeProvider;
 class MutexedDemuxer;
 class PlaybackManager;

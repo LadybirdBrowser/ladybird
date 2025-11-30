@@ -44,7 +44,7 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(NonnullRefPtr<MutexedDemuxer>, NonnullRefPtr<IncrementallyPopulatedStream>);
     ~PlaybackManager();
 
     AK::Duration duration() const;
@@ -79,6 +79,8 @@ public:
 
     Function<void()> on_playback_state_change;
     Function<void(DecoderError&&)> on_error;
+
+    void notify_stream_has_new_data();
 
 private:
     class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
@@ -117,7 +119,7 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
+    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&, Optional<Track> preferred_video_track, Optional<Track> preferred_audio_track, AK::Duration total_duration);
 
     void set_up_error_handlers();
     void dispatch_error(DecoderError&&);
@@ -131,6 +133,7 @@ private:
 
     OwnPtr<PlaybackStateHandler> m_handler;
     NonnullRefPtr<MutexedDemuxer> m_demuxer;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
 
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
 
@@ -144,6 +147,11 @@ private:
     AudioTrackDatas m_audio_track_datas;
 
     bool m_is_in_error_state { false };
+
+    Optional<Track> m_preferred_video_track;
+    Optional<Track> m_preferred_audio_track;
+
+    AK::Duration m_duration;
 };
 
 template<typename T, typename... Args>

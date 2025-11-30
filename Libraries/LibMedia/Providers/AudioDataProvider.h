@@ -35,7 +35,7 @@ public:
     using SeekCompletionHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track);
-    AudioDataProvider(NonnullRefPtr<ThreadData> const&);
+    AudioDataProvider(NonnullRefPtr<Threading::Thread> const&, NonnullRefPtr<ThreadData> const&);
     ~AudioDataProvider();
 
     void set_error_handler(ErrorHandler&&);
@@ -44,7 +44,17 @@ public:
 
     void seek(AK::Duration timestamp, SeekCompletionHandler&& = nullptr);
 
+    void notify_stream_has_new_data();
+
+    void start();
+
 private:
+    enum class ThreadState {
+        Running,
+        Buffering,
+        Error
+    };
+
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
         ThreadData(NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&);
@@ -59,6 +69,7 @@ private:
         template<typename T>
         void process_seek_on_main_thread(u32 seek_id, T&&);
         void resolve_seek(u32 seek_id);
+        void notify_stream_has_new_data();
         void push_data_and_decode_a_block();
 
         void exit();
@@ -87,14 +98,16 @@ private:
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
+
+        Atomic<ThreadState> m_state { ThreadState::Running };
     };
 
+    NonnullRefPtr<Threading::Thread> m_thread;
     NonnullRefPtr<ThreadData> m_thread_data;
 };
 

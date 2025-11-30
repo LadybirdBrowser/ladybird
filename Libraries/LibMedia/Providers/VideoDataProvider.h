@@ -21,6 +21,7 @@
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
+#include <LibThreading/Thread.h>
 
 namespace Media {
 
@@ -33,27 +34,45 @@ public:
     using ImageQueue = Queue<TimedImage, QUEUE_CAPACITY>;
 
     using ErrorHandler = Function<void(DecoderError&&)>;
+    using SeekBeginHandler = Function<void()>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
+    using FramesQueueIsFullHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    // static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
-    VideoDataProvider(NonnullRefPtr<ThreadData> const&);
+    VideoDataProvider(NonnullRefPtr<Threading::Thread> const&, NonnullRefPtr<ThreadData> const&);
     ~VideoDataProvider();
 
     void set_error_handler(ErrorHandler&&);
+    void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     TimedImage retrieve_frame();
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
 
+    void notify_stream_has_new_data();
+
+    bool is_buffering() const;
+
+    void start();
+
+    void set_seek_begin_handler(SeekBeginHandler&& handler) { m_seek_begin_handler = move(handler); }
+
 private:
+    enum class ThreadState {
+        Running,
+        Buffering,
+        Error
+    };
+
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
         ThreadData(NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
+        void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void exit();
 
@@ -69,10 +88,13 @@ private:
         template<typename T>
         void process_seek_on_main_thread(u32 seek_id, T&&);
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
+        void notify_stream_has_new_data();
         void push_data_and_decode_some_frames();
 
         [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
         void wake() { m_wait_condition.broadcast(); }
+
+        ThreadState state() const { return m_state.load(); }
 
     private:
         Core::EventLoop& m_main_thread_event_loop;
@@ -90,16 +112,21 @@ private:
         size_t m_queue_max_size { 4 };
         ImageQueue m_queue;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
+        FramesQueueIsFullHandler m_frames_queue_is_full_handler;
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         SeekCompletionHandler m_seek_completion_handler;
         AK::Duration m_seek_timestamp;
         SeekMode m_seek_mode { SeekMode::Accurate };
+
+        Atomic<ThreadState> m_state { ThreadState::Running };
     };
 
+    NonnullRefPtr<Threading::Thread> m_thread;
     NonnullRefPtr<ThreadData> m_thread_data;
+
+    SeekBeginHandler m_seek_begin_handler;
 };
 
 }

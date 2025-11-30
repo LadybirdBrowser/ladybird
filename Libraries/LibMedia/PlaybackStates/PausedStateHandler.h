@@ -41,6 +41,15 @@ public:
     {
         return PlaybackState::Paused;
     }
+
+    virtual void enter_buffering() override
+    {
+        // VERIFY_NOT_REACHED();
+    }
+    virtual void exit_buffering() override
+    {
+        // VERIFY_NOT_REACHED();
+    }
 };
 
 }
