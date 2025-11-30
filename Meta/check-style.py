@@ -33,9 +33,6 @@ PRAGMA_ONCE_STRING = "#pragma once"
 # We make sure that there's a blank line before and after pragma once
 GOOD_PRAGMA_ONCE_PATTERN = re.compile("(^|\\S\n\n)#pragma once(\n\n\\S.|$)")
 
-# LibC is supposed to be a system library; don't mention the directory.
-BAD_INCLUDE_LIBC = re.compile("# *include <LibC/")
-
 # Serenity C++ code must not use LibC's or libc++'s complex number implementation.
 BAD_INCLUDE_COMPLEX = re.compile("# *include <c[c]?omplex")
 
@@ -95,7 +92,6 @@ def run():
     errors_license = []
     errors_pragma_once_bad = []
     errors_pragma_once_missing = []
-    errors_include_libc = []
     errors_include_weird_format = []
     errors_include_missing_local = []
     errors_include_bad_complex = []
@@ -118,8 +114,6 @@ def run():
             else:
                 # Bad, the '#pragma once' is missing completely.
                 errors_pragma_once_missing.append(filename)
-        if BAD_INCLUDE_LIBC.search(file_content):
-            errors_include_libc.append(filename)
         if BAD_INCLUDE_COMPLEX.search(file_content):
             errors_include_bad_complex.append(filename)
         if not is_in_prefix_list(filename, INCLUDE_CHECK_EXCLUDES):
@@ -163,12 +157,6 @@ def run():
         have_errors = True
     if errors_pragma_once_bad:
         print("Files with a bad #pragma once:", " ".join(errors_pragma_once_bad))
-        have_errors = True
-    if errors_include_libc:
-        print(
-            "Files that include a LibC header using #include <LibC/...>:",
-            " ".join(errors_include_libc),
-        )
         have_errors = True
     if errors_include_weird_format:
         print(
