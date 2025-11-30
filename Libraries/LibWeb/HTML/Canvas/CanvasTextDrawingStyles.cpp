@@ -7,6 +7,7 @@
 
 #include "CanvasTextDrawingStyles.h"
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -142,14 +143,13 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
             auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context);
             auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context);
 
-            return document->style_computer().compute_font_for_style_values(
+            return document->font_computer().compute_font_for_style_values(
                 font_family,
                 computed_font_size->as_length().length().absolute_length_to_px(),
                 computed_font_style->as_font_style().to_font_slope(),
                 computed_font_weight->as_number().number(),
                 computed_font_width->as_percentage().percentage(),
-                {},
-                length_resolution_context);
+                {});
         },
         [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
             // FIXME: implement computing the font for HTML::WorkerGlobalScope
