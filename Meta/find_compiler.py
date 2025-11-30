@@ -119,7 +119,7 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
             "gcc-14",
         ]
 
-        if platform.host_system == HostSystem.BSD:
+        if platform.host_system == HostSystem.OpenBSD:
             gcc_candidates.append("egcc")
 
     if platform.host_system == HostSystem.macOS:
@@ -130,7 +130,7 @@ def pick_host_compiler(platform: Platform, cc: str, cxx: str) -> tuple[str, str]
         clang_candidates.extend([str(homebrew_path.joinpath(c)) for c in clang_candidates])
 
         gcc_candidates.extend([str(homebrew_path.joinpath(c)) for c in gcc_candidates])
-    elif platform.host_system in (HostSystem.Linux, HostSystem.BSD):
+    elif platform.host_system in (HostSystem.Linux, HostSystem.FreeBSD, HostSystem.OpenBSD):
         local_path = Path("/usr/local/bin")
 
         clang_candidates.extend([str(local_path.joinpath(c)) for c in clang_candidates])

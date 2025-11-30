@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "b0b3de1b1a0aa4b8f2822460aa7f42f991629b3f",
+  "builtin-baseline": "0804e3b55b7e435c593707071052363fa876f170",
   "dependencies": [
     {
       "name": "angle",
@@ -10,7 +10,7 @@
     },
     {
       "name": "angle",
-      "platform": "linux | windows | android | freebsd"
+      "platform": "linux | windows | android | bsd"
     },
     {
       "name": "cpptrace",
@@ -56,11 +56,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd | osx"
+      "platform": "linux | bsd | osx"
     },
     {
       "name": "harfbuzz",
-      "platform": "linux | freebsd | openbsd | windows",
+      "platform": "linux | bsd | windows",
       "features": [
         "freetype",
         "icu"
@@ -75,6 +75,12 @@
       ]
     },
     "icu",
+    {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
     "libjpeg-turbo",
     "libjxl",
     {
@@ -85,13 +91,7 @@
     },
     {
       "name": "libproxy",
-      "platform": "!(android | freebsd)"
-    },
-    {
-      "name": "libavif",
-      "features": [
-        "dav1d"
-      ]
+      "platform": "!(android | bsd)"
     },
     "libtommath",
     {
@@ -185,7 +185,7 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd",
+      "platform": "linux | bsd",
       "features": [
         "freetype",
         "fontconfig",
@@ -236,7 +236,7 @@
     },
     {
       "name": "ffmpeg",
-      "version": "7.1.1#5"
+      "version": "7.1.2#2"
     },
     {
       "name": "fontconfig",
@@ -251,12 +251,16 @@
       "version": "76.1#0"
     },
     {
+      "name": "libavif",
+      "version": "1.3.0#1"
+    },
+    {
       "name": "libjpeg-turbo",
-      "version": "3.1.1#0"
+      "version": "3.1.2#0"
     },
     {
       "name": "libjxl",
-      "version": "0.11.1#3"
+      "version": "0.11.1#4"
     },
     {
       "name": "libpng",
@@ -271,12 +275,12 @@
       "version": "1.3.0#2"
     },
     {
-      "name": "libavif",
-      "version": "1.3.0#0"
-    },
-    {
       "name": "libwebp",
       "version": "1.6.0#1"
+    },
+    {
+      "name": "libxml2",
+      "version": "2.15.0#0"
     },
     {
       "name": "mman",
@@ -284,7 +288,7 @@
     },
     {
       "name": "openssl",
-      "version": "3.5.3#0"
+      "version": "3.6.0#3"
     },
     {
       "name": "qtbase",
@@ -292,11 +296,11 @@
     },
     {
       "name": "sdl3",
-      "version": "3.2.22#0"
+      "version": "3.2.26#0"
     },
     {
       "name": "simdutf",
-      "version": "7.4.0#0"
+      "version": "7.5.0#0"
     },
     {
       "name": "skia",
@@ -312,7 +316,7 @@
     },
     {
       "name": "zlib",
-      "version": "1.3.1"
+      "version": "1.3.1#0"
     }
   ]
 }
