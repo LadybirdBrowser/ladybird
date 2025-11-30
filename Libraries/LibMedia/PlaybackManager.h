@@ -119,7 +119,7 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&, Optional<Track> preferred_video_track, Optional<Track> preferred_audio_track, AK::Duration total_duration);
+    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&, Optional<Track> preferred_video_track, Optional<Track> preferred_audio_track, AK::Duration total_duration);
 
     void set_up_error_handlers();
     void dispatch_error(DecoderError&&);
@@ -133,6 +133,7 @@ private:
 
     OwnPtr<PlaybackStateHandler> m_handler;
     NonnullRefPtr<MutexedDemuxer> m_demuxer;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
 
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
 

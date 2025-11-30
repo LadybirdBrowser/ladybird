@@ -12,13 +12,14 @@
 
 namespace Media {
 
-ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(NonnullRefPtr<MediaTimeProvider> const& time_provider)
+ErrorOr<NonnullRefPtr<DisplayingVideoSink>> DisplayingVideoSink::try_create(NonnullRefPtr<MediaTimeProvider> const& time_provider, NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
-    return TRY(try_make_ref_counted<DisplayingVideoSink>(time_provider));
+    return TRY(try_make_ref_counted<DisplayingVideoSink>(time_provider, stream));
 }
 
-DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const& time_provider)
+DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const& time_provider, NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
     : m_time_provider(time_provider)
+    , m_stream(stream)
 {
 }
 
@@ -61,7 +62,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
         if (!m_next_frame.is_valid()) {
             m_next_frame = m_provider->retrieve_frame();
             if (!m_next_frame.is_valid()) {
-                if (m_provider->is_buffering()) {
+                if (m_stream->has_pending_blocking_reads()) {
                     if (m_on_start_buffering)
                         m_on_start_buffering();
                 }

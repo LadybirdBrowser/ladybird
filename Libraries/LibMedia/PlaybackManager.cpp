@@ -92,7 +92,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Nonnu
     for (auto const& audio_track_data : supported_audio_track_datas)
         audio_track_data.provider->start();
 
-    auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas), move(preferred_video_track), move(preferred_audio_track), total_duration)));
+    auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, stream, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas), move(preferred_video_track), move(preferred_audio_track), total_duration)));
     weak_playback_manager->m_manager = playback_manager;
     playback_manager->set_up_error_handlers();
     playback_manager->m_handler = DECODER_TRY_ALLOC(try_make<PausedStateHandler>(*playback_manager));
@@ -116,8 +116,9 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Nonnu
     return playback_manager;
 }
 
-PlaybackManager::PlaybackManager(NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<WeakPlaybackManager> const& weak_wrapper, NonnullRefPtr<MediaTimeProvider> const& time_provider, VideoTracks&& video_tracks, VideoTrackDatas&& video_track_datas, RefPtr<AudioMixingSink> const& audio_sink, AudioTracks&& audio_tracks, AudioTrackDatas&& audio_track_datas, Optional<Track> preferred_video_track, Optional<Track> preferred_audio_track, AK::Duration duration)
+PlaybackManager::PlaybackManager(NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, NonnullRefPtr<WeakPlaybackManager> const& weak_wrapper, NonnullRefPtr<MediaTimeProvider> const& time_provider, VideoTracks&& video_tracks, VideoTrackDatas&& video_track_datas, RefPtr<AudioMixingSink> const& audio_sink, AudioTracks&& audio_tracks, AudioTrackDatas&& audio_track_datas, Optional<Track> preferred_video_track, Optional<Track> preferred_audio_track, AK::Duration duration)
     : m_demuxer(demuxer)
+    , m_stream(stream)
     , m_weak_wrapper(weak_wrapper)
     , m_time_provider(time_provider)
     , m_video_tracks(video_tracks)
@@ -195,7 +196,7 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
 {
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
-        track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
+        track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider, m_stream));
         track_data.display->set_provider(track, track_data.provider);
         track_data.display->m_on_start_buffering = [this] {
             dbgln(">m_on_start_buffering");

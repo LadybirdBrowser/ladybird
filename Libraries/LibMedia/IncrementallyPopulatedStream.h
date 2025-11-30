@@ -61,6 +61,12 @@ public:
         m_data_available.broadcast();
     }
 
+    bool has_pending_blocking_reads()
+    {
+        Threading::MutexLocker locker { m_mutex };
+        return m_pending_blocking_reads > 0;
+    }
+
     DecoderErrorOr<u8> read_octet(size_t position)
     {
         Threading::MutexLocker locker { m_mutex };
@@ -87,8 +93,11 @@ public:
     {
         Threading::MutexLocker locker { m_mutex };
         auto unblock_generation = m_blocking_read_generation;
-        while (position + count > m_data.size() && !m_complete && unblock_generation == m_blocking_read_generation)
+        while (position + count > m_data.size() && !m_complete && unblock_generation == m_blocking_read_generation) {
+            ++m_pending_blocking_reads;
             m_data_available.wait();
+            --m_pending_blocking_reads;
+        }
 
         if (unblock_generation != m_blocking_read_generation)
             return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Blocking read was unblocked"sv);
@@ -151,6 +160,7 @@ private:
     bool m_complete { false };
     Optional<u64> m_full_size;
     size_t m_blocking_read_generation { 0 };
+    size_t m_pending_blocking_reads { 0 };
 };
 
 }
