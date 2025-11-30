@@ -661,13 +661,58 @@ void WebGL2RenderingContextImpl::begin_query(WebIDL::UnsignedLong target, GC::Ro
         query_handle = handle_or_error.release_value();
     }
 
+    switch (target) {
+    case GL_ANY_SAMPLES_PASSED:
+        m_any_samples_passed = query;
+        break;
+    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
+        m_any_samples_passed_conservative = query;
+        break;
+    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
+        m_transform_feedback_primitives_written = query;
+        break;
+    }
+
     glBeginQuery(target, query_handle);
 }
 
 void WebGL2RenderingContextImpl::end_query(WebIDL::UnsignedLong target)
 {
     m_context->make_current();
+
+    switch (target) {
+    case GL_ANY_SAMPLES_PASSED:
+        m_any_samples_passed = nullptr;
+        break;
+    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
+        m_any_samples_passed_conservative = nullptr;
+        break;
+    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
+        m_transform_feedback_primitives_written = nullptr;
+        break;
+    }
+
     glEndQuery(target);
+}
+
+GC::Root<WebGLQuery> WebGL2RenderingContextImpl::get_query(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname)
+{
+    if (pname != GL_CURRENT_QUERY) {
+        set_error(GL_INVALID_ENUM);
+        return nullptr;
+    }
+
+    switch (target) {
+    case GL_ANY_SAMPLES_PASSED:
+        return m_any_samples_passed;
+    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
+        return m_any_samples_passed_conservative;
+    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
+        return m_transform_feedback_primitives_written;
+    }
+
+    set_error(GL_INVALID_ENUM);
+    return nullptr;
 }
 
 JS::Value WebGL2RenderingContextImpl::get_query_parameter(GC::Root<WebGLQuery> query, WebIDL::UnsignedLong pname)

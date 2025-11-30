@@ -382,7 +382,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] GLboolean isQuery(WebGLQuery? query); // [WebGLHandlesContextLoss]
     undefined beginQuery(GLenum target, WebGLQuery query);
     undefined endQuery(GLenum target);
-    [FIXME] WebGLQuery? getQuery(GLenum target, GLenum pname);
+    WebGLQuery? getQuery(GLenum target, GLenum pname);
     any getQueryParameter(WebGLQuery query, GLenum pname);
 
     // Sampler Objects
