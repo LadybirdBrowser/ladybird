@@ -94,6 +94,7 @@ public:
     GC::Root<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
     Optional<String> get_shader_source(GC::Root<WebGLShader> shader);
+    JS::Value get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_uniform(GC::Root<WebGLProgram> program, GC::Root<WebGLUniformLocation> location);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
