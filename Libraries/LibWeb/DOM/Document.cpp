@@ -5460,8 +5460,8 @@ void Document::remove_replaced_animations()
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
             Animations::AnimationPlaybackEventInit init;
-            init.current_time = animation->current_time()->as_milliseconds();
-            init.timeline_time = animation->timeline()->current_time()->as_milliseconds();
+            init.current_time = animation->current_time().map([](auto const& value) { return value.as_css_numberish(); });
+            init.timeline_time = animation->timeline()->current_time().map([](auto const& value) { return value.as_css_numberish(); });
             auto remove_event = Animations::AnimationPlaybackEvent::create(realm(), HTML::EventNames::remove, init);
 
             // - If animation has a document for timing, then append removeEvent to its document for timing's pending
