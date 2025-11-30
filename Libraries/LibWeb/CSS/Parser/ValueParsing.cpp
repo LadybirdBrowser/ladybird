@@ -80,13 +80,13 @@
 
 namespace Web::CSS::Parser {
 
-RefPtr<StyleValue const> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
+RefPtr<StyleValueList const> Parser::parse_comma_separated_value_list(TokenStream<ComponentValue>& tokens, ParseFunction parse_one_value)
 {
     tokens.discard_whitespace();
     auto first = parse_one_value(tokens);
     tokens.discard_whitespace();
-    if (!first || !tokens.has_next_token())
-        return first;
+    if (!first)
+        return nullptr;
 
     StyleValueVector values;
     values.append(first.release_nonnull());

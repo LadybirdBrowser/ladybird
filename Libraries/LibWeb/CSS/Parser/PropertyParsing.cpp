@@ -88,7 +88,7 @@ RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<C
     return keyword_value;
 }
 
-RefPtr<StyleValue const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValueList const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<StyleValue const> {
         if (auto value = parse_css_value_for_property(property_id, tokens))
@@ -126,12 +126,7 @@ RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenSt
 
         for (auto const& longhand_id : longhand_ids)
             longhand_vectors.ensure(longhand_id).append(*parsed_values.get(longhand_id).value_or_lazy_evaluated([&]() -> ValueComparingNonnullRefPtr<StyleValue const> {
-                auto initial_value = property_initial_value(longhand_id);
-
-                if (initial_value->is_value_list())
-                    return initial_value->as_value_list().values()[0];
-
-                return initial_value;
+                return property_initial_value(longhand_id)->as_value_list().values()[0];
             }));
 
         if (tokens.has_next_token()) {
@@ -149,15 +144,8 @@ RefPtr<StyleValue const> Parser::parse_coordinating_value_list_shorthand(TokenSt
     longhand_ids_including_reset_only_longhands.extend(reset_only_longhand_ids);
     StyleValueVector longhand_values {};
 
-    // FIXME: This is for compatibility with parse_comma_separated_value_list(), which returns a single value directly
-    //        instead of a list if there's only one, it would be nicer if we always returned a list.
-    if (longhand_vectors.get(longhand_ids[0])->size() == 1) {
-        for (auto const& longhand_id : longhand_ids)
-            longhand_values.append((*longhand_vectors.get(longhand_id))[0]);
-    } else {
-        for (auto const& longhand_id : longhand_ids)
-            longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
-    }
+    for (auto const& longhand_id : longhand_ids)
+        longhand_values.append(StyleValueList::create(move(*longhand_vectors.get(longhand_id)), StyleValueList::Separator::Comma));
 
     for (auto reset_only_longhand_id : reset_only_longhand_ids)
         longhand_values.append(property_initial_value(reset_only_longhand_id));
@@ -2872,9 +2860,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
 RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
 {
     // [ <family-name> | <generic-family> ]#
-    // FIXME: We currently require font-family to always be a list, even with one item.
-    //        Maybe change that?
-    auto result = parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<StyleValue const> {
+    return parse_comma_separated_value_list(tokens, [this](auto& inner_tokens) -> RefPtr<StyleValue const> {
         inner_tokens.discard_whitespace();
 
         // <generic-family>
@@ -2890,15 +2876,6 @@ RefPtr<StyleValue const> Parser::parse_font_family_value(TokenStream<ComponentVa
         // <family-name>
         return parse_family_name_value(inner_tokens);
     });
-
-    if (!result)
-        return nullptr;
-
-    if (result->is_value_list())
-        return result.release_nonnull();
-
-    // It's a single value, so wrap it in a list - see FIXME above.
-    return StyleValueList::create(StyleValueVector { result.release_nonnull() }, StyleValueList::Separator::Comma);
 }
 
 RefPtr<StyleValue const> Parser::parse_font_language_override_value(TokenStream<ComponentValue>& tokens)
@@ -5079,7 +5056,7 @@ RefPtr<StyleValue const> Parser::parse_transition_property_value(TokenStream<Com
 
     // none
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return none;
+        return StyleValueList::create({ none.release_nonnull() }, StyleValueList::Separator::Comma);
 
     // <single-transition-property>#
     // <single-transition-property> = all | <custom-ident>
@@ -5190,6 +5167,8 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
     auto transaction = tokens.begin_transaction();
 
     do {
+        static auto default_axis = property_initial_value(PropertyID::ScrollTimelineAxis)->as_value_list().values()[0];
+
         tokens.discard_whitespace();
 
         auto maybe_name = parse_css_value_for_property(PropertyID::ScrollTimelineName, tokens);
@@ -5202,7 +5181,7 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
         tokens.discard_whitespace();
 
         if (tokens.next_token().is(Token::Type::Comma)) {
-            axes.append(KeywordStyleValue::create(Keyword::Block));
+            axes.append(default_axis);
             tokens.discard_a_token();
 
             // Disallow trailing commas
@@ -5213,7 +5192,7 @@ RefPtr<StyleValue const> Parser::parse_scroll_timeline_value(TokenStream<Compone
         }
 
         if (!tokens.has_next_token()) {
-            axes.append(KeywordStyleValue::create(Keyword::Block));
+            axes.append(default_axis);
             break;
         }
 
@@ -6356,17 +6335,11 @@ RefPtr<StyleValue const> Parser::parse_view_timeline_value(TokenStream<Component
             VERIFY(name);
             names.append(name.release_nonnull());
 
-            // FIXME: Use the first entry in property_initial_value() to get the initial values for these longhands once
-            //        we always parse them as lists.
-            if (axis)
-                axes.append(axis.release_nonnull());
-            else
-                axes.append(KeywordStyleValue::create(Keyword::Block));
+            static auto default_axis = property_initial_value(PropertyID::ViewTimelineAxis)->as_value_list().values()[0];
+            static auto default_inset = property_initial_value(PropertyID::ViewTimelineInset)->as_value_list().values()[0];
 
-            if (inset)
-                insets.append(inset.release_nonnull());
-            else
-                insets.append(StyleValueList::create({ KeywordStyleValue::create(Keyword::Auto), KeywordStyleValue::create(Keyword::Auto) }, StyleValueList::Separator::Space));
+            axes.append(axis ? axis.release_nonnull() : default_axis);
+            insets.append(inset ? inset.release_nonnull() : default_inset);
         };
 
         tokens.discard_whitespace();

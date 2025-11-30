@@ -126,12 +126,8 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
 
     Vector<Gfx::UnicodeRange> unicode_ranges;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::UnicodeRange)) {
-        if (value->is_unicode_range()) {
-            unicode_ranges.append(value->as_unicode_range().unicode_range());
-        } else if (value->is_value_list()) {
-            for (auto const& range : value->as_value_list().values())
-                unicode_ranges.append(range->as_unicode_range().unicode_range());
-        }
+        for (auto const& range : value->as_value_list().values())
+            unicode_ranges.append(range->as_unicode_range().unicode_range());
     }
 
     Optional<Percentage> ascent_override;

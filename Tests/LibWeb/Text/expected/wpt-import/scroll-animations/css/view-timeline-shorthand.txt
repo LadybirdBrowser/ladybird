@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 83 tests
 
-78 Pass
-5 Fail
+77 Pass
+6 Fail
 Pass	e.style['view-timeline'] = "--abcd" should set the property value
 Pass	e.style['view-timeline'] = "none block" should set the property value
 Pass	e.style['view-timeline'] = "none inline" should set the property value
@@ -86,4 +86,4 @@ Pass	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timelin
 Pass	Shorthand contraction of view-timeline-name:none, none:undefined;view-timeline-axis:block, block:undefined;view-timeline-inset:auto auto, auto:undefined
 Fail	Shorthand contraction of view-timeline-name:--a, --b, --c:undefined;view-timeline-axis:inline, inline:undefined;view-timeline-inset:auto, auto:undefined
 Fail	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, inline, inline:undefined;view-timeline-inset:auto, auto, auto:undefined
-Pass	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, inline:undefined;view-timeline-inset:auto, auto, auto:undefined
+Fail	Shorthand contraction of view-timeline-name:--a, --b:undefined;view-timeline-axis:inline, inline:undefined;view-timeline-inset:auto, auto, auto:undefined

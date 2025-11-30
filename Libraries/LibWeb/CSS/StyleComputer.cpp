@@ -620,12 +620,9 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
+    // FIXME: We should parse BackgroundPosition as a ShorthandStyleValue instead
     if (property_id == CSS::PropertyID::BackgroundPosition) {
-        if (value.is_position()) {
-            auto const& position = value.as_position();
-            set_longhand_property(CSS::PropertyID::BackgroundPositionX, position.edge_x());
-            set_longhand_property(CSS::PropertyID::BackgroundPositionY, position.edge_y());
-        } else if (value.is_value_list()) {
+        if (value.is_value_list()) {
             // Expand background-position layer list into separate lists for x and y positions:
             auto const& values_list = value.as_value_list();
             StyleValueVector x_positions {};
@@ -1136,7 +1133,7 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
     effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
 
-    if (animation_properties.play_state != effect.last_css_animation_play_state()) {
+    if (animation_properties.play_state != animation.last_css_animation_play_state()) {
         if (animation_properties.play_state == CSS::AnimationPlayState::Running && animation.play_state() != Bindings::AnimationPlayState::Running) {
             HTML::TemporaryExecutionContext context(document.realm());
             animation.play().release_value_but_fixme_should_propagate_errors();
@@ -1145,7 +1142,7 @@ static void apply_animation_properties(DOM::Document const& document, ComputedPr
             animation.pause().release_value_but_fixme_should_propagate_errors();
         }
 
-        effect.set_last_css_animation_play_state(animation_properties.play_state);
+        animation.set_last_css_animation_play_state(animation_properties.play_state);
     }
 }
 
@@ -1904,28 +1901,18 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     };
 
     auto font_list = Gfx::FontCascadeList::create();
-    if (font_family.is_value_list()) {
-        auto const& family_list = static_cast<StyleValueList const&>(font_family).values();
-        for (auto const& family : family_list) {
-            RefPtr<Gfx::FontCascadeList const> other_font_list;
-            if (family->is_keyword()) {
-                other_font_list = find_generic_font(family->to_keyword());
-            } else if (family->is_string()) {
-                other_font_list = find_font(family->as_string().string_value());
-            } else if (family->is_custom_ident()) {
-                other_font_list = find_font(family->as_custom_ident().custom_ident());
-            }
-            if (other_font_list)
-                font_list->extend(*other_font_list);
+
+    for (auto const& family : font_family.as_value_list().values()) {
+        RefPtr<Gfx::FontCascadeList const> other_font_list;
+        if (family->is_keyword()) {
+            other_font_list = find_generic_font(family->to_keyword());
+        } else if (family->is_string()) {
+            other_font_list = find_font(family->as_string().string_value());
+        } else if (family->is_custom_ident()) {
+            other_font_list = find_font(family->as_custom_ident().custom_ident());
         }
-    } else if (font_family.is_keyword()) {
-        if (auto other_font_list = find_generic_font(font_family.to_keyword()))
-            font_list->extend(*other_font_list);
-    } else if (font_family.is_string()) {
-        if (auto other_font_list = find_font(font_family.as_string().string_value()))
-            font_list->extend(*other_font_list);
-    } else if (font_family.is_custom_ident()) {
-        if (auto other_font_list = find_font(font_family.as_custom_ident().custom_ident()))
+
+        if (other_font_list)
             font_list->extend(*other_font_list);
     }
 
@@ -2433,14 +2420,12 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
 
 static bool is_monospace(StyleValue const& value)
 {
-    if (value.to_keyword() == Keyword::Monospace)
-        return true;
-    if (value.is_value_list()) {
-        auto const& values = value.as_value_list().values();
-        if (values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace)
-            return true;
-    }
-    return false;
+    if (!value.is_value_list())
+        return false;
+
+    auto const& values = value.as_value_list().values();
+
+    return values.size() == 1 && values[0]->to_keyword() == Keyword::Monospace;
 }
 
 // HACK: This function implements time-travelling inheritance for the font-size property
@@ -2822,16 +2807,12 @@ static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pi
 
 static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<StyleValue const> const& style_value, Function<NonnullRefPtr<StyleValue const>(NonnullRefPtr<StyleValue const> const&)> const& compute_entry)
 {
-    if (style_value->is_value_list()) {
-        StyleValueVector computed_entries;
+    StyleValueVector computed_entries;
 
-        for (auto const& entry : style_value->as_value_list().values())
-            computed_entries.append(compute_entry(entry));
+    for (auto const& entry : style_value->as_value_list().values())
+        computed_entries.append(compute_entry(entry));
 
-        return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
-    }
-
-    return compute_entry(style_value);
+    return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(

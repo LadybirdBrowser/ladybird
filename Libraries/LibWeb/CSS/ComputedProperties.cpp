@@ -378,19 +378,11 @@ HashMap<PropertyID, StyleValueVector> ComputedProperties::assemble_coordinated_v
     // - If a coordinating list property has too few values specified, its value list is repeated to add more used
     //   values.
     // - The computed values of the coordinating list properties are not affected by such truncation or repetition.
-
-    // FIXME: This is only required until we update parse_comma_separated_list to always return a StyleValueList
-    auto const get_property_value_as_list = [&](PropertyID property_id) {
-        auto const& value = property(property_id);
-
-        return value.is_value_list() ? value.as_value_list().values() : StyleValueVector { value };
-    };
-
     HashMap<PropertyID, StyleValueVector> coordinated_value_list;
 
-    for (size_t i = 0; i < get_property_value_as_list(base_property_id).size(); i++) {
+    for (size_t i = 0; i < property(base_property_id).as_value_list().size(); i++) {
         for (auto property_id : property_ids) {
-            auto const& list = get_property_value_as_list(property_id);
+            auto const& list = property(property_id).as_value_list().values();
 
             coordinated_value_list.ensure(property_id).append(list[i % list.size()]);
         }
@@ -1381,29 +1373,21 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
         };
     };
 
-    if (value.is_value_list()) {
-        auto const& value_list = value.as_value_list();
+    if (value.to_keyword() == Keyword::None)
+        return {};
 
-        Vector<ShadowData> shadow_data;
-        shadow_data.ensure_capacity(value_list.size());
-        for (auto const& layer_value : value_list.values()) {
-            auto maybe_shadow_data = make_shadow_data(layer_value->as_shadow());
-            if (!maybe_shadow_data.has_value())
-                return {};
-            shadow_data.append(maybe_shadow_data.release_value());
-        }
+    auto const& value_list = value.as_value_list();
 
-        return shadow_data;
-    }
-
-    if (value.is_shadow()) {
-        auto maybe_shadow_data = make_shadow_data(value.as_shadow());
+    Vector<ShadowData> shadow_data;
+    shadow_data.ensure_capacity(value_list.size());
+    for (auto const& layer_value : value_list.values()) {
+        auto maybe_shadow_data = make_shadow_data(layer_value->as_shadow());
         if (!maybe_shadow_data.has_value())
             return {};
-        return { maybe_shadow_data.release_value() };
+        shadow_data.append(maybe_shadow_data.release_value());
     }
 
-    return {};
+    return shadow_data;
 }
 
 Vector<ShadowData> ComputedProperties::box_shadow(Layout::Node const& layout_node) const
@@ -2547,20 +2531,14 @@ WillChange ComputedProperties::will_change() const
         return property_id.release_value();
     };
 
-    if (value.is_value_list()) {
-        auto const& value_list = value.as_value_list();
-        Vector<WillChange::WillChangeEntry> will_change_entries;
-        for (auto const& style_value : value_list.values()) {
-            if (auto entry = to_will_change_entry(*style_value); entry.has_value())
-                will_change_entries.append(*entry);
-        }
-        return WillChange(move(will_change_entries));
+    auto const& value_list = value.as_value_list();
+    Vector<WillChange::WillChangeEntry> will_change_entries;
+    for (auto const& style_value : value_list.values()) {
+        if (auto entry = to_will_change_entry(*style_value); entry.has_value())
+            will_change_entries.append(*entry);
     }
 
-    auto will_change_entry = to_will_change_entry(value);
-    if (will_change_entry.has_value())
-        return WillChange({ *will_change_entry });
-    return WillChange::make_auto();
+    return WillChange(move(will_change_entries));
 }
 
 CSSPixels ComputedProperties::font_size() const
