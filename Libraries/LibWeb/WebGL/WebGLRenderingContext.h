@@ -85,6 +85,7 @@ private:
     GC::Ptr<Extensions::ANGLEInstancedArrays> m_angle_instanced_arrays_extension;
     GC::Ptr<Extensions::EXTBlendMinMax> m_ext_blend_min_max_extension;
     GC::Ptr<Extensions::EXTTextureFilterAnisotropic> m_ext_texture_filter_anisotropic;
+    GC::Ptr<Extensions::OESElementIndexUint> m_oes_element_index_uint_object_extension;
     GC::Ptr<Extensions::OESStandardDerivatives> m_oes_standard_derivatives_object_extension;
     GC::Ptr<Extensions::OESVertexArrayObject> m_oes_vertex_array_object_extension;
     GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
