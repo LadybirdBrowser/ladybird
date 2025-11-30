@@ -14,6 +14,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -791,7 +792,7 @@ JS::Value WebGLRenderingContextImpl::get_buffer_parameter(WebIDL::UnsignedLong t
     }
 }
 
-JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
+WebIDL::ExceptionOr<JS::Value> WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
 {
     m_context->make_current();
     switch (pname) {
@@ -885,6 +886,18 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         auto byte_buffer = MUST(ByteBuffer::copy(result.data(), buffer_size));
         auto array_buffer = JS::ArrayBuffer::create(realm(), move(byte_buffer));
         return JS::Float32Array::create(realm(), 4, array_buffer);
+    }
+    case GL_COLOR_WRITEMASK: {
+        Array<GLboolean, 4> result;
+        result.fill(0);
+        glGetBooleanvRobustANGLE(GL_COLOR_WRITEMASK, 4, nullptr, result.data());
+
+        auto sequence = TRY(JS::Array::create(realm(), 4));
+        for (int i = 0; i < 4; i++) {
+            TRY(sequence->create_data_property(JS::PropertyKey(i), JS::Value(static_cast<WebIDL::Boolean>(result[i]))));
+        }
+
+        return JS::Value(sequence);
     }
     case GL_CULL_FACE: {
         GLboolean result { GL_FALSE };
