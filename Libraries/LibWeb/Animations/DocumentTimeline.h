@@ -31,7 +31,7 @@ public:
     virtual void update_current_time(double timestamp) override;
     virtual bool is_inactive() const override;
 
-    virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<double>) override;
+    virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) override;
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return true; }
 
 private:

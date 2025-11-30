@@ -125,9 +125,9 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .easing = m_timing_function.to_string(),
         },
 
-        end_time(),
-        active_duration(),
-        local_time(),
+        end_time().as_milliseconds(),
+        active_duration().as_milliseconds(),
+        local_time().map([](auto const& time) { return time.as_milliseconds(); }),
         transformed_progress(),
         current_iteration(),
     };
@@ -314,15 +314,15 @@ AnimationDirection AnimationEffect::animation_direction() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#end-time
-double AnimationEffect::end_time() const
+TimeValue AnimationEffect::end_time() const
 {
     // 1. The end time of an animation effect is the result of evaluating
     //    max(start delay + active duration + end delay, 0).
-    return max(m_start_delay.as_milliseconds() + active_duration() + m_end_delay.as_milliseconds(), 0.0);
+    return max(m_start_delay + active_duration() + m_end_delay, TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#local-time
-Optional<double> AnimationEffect::local_time() const
+Optional<TimeValue> AnimationEffect::local_time() const
 {
     // The local time of an animation effect at a given moment is based on the first matching condition from the
     // following:
@@ -339,25 +339,25 @@ Optional<double> AnimationEffect::local_time() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#active-duration
-double AnimationEffect::active_duration() const
+TimeValue AnimationEffect::active_duration() const
 {
     // The active duration is calculated as follows:
     //     active duration = iteration duration × iteration count
     // If either the iteration duration or iteration count are zero, the active duration is zero. This clarification is
     // needed since the result of infinity multiplied by zero is undefined according to IEEE 754-2008.
     if (m_iteration_duration.value == 0 || m_iteration_count == 0.0)
-        return 0.0;
+        return TimeValue::create_zero(associated_timeline());
 
-    return m_iteration_duration.as_milliseconds() * m_iteration_count;
+    return m_iteration_duration * m_iteration_count;
 }
 
-Optional<double> AnimationEffect::active_time() const
+Optional<TimeValue> AnimationEffect::active_time() const
 {
     return active_time_using_fill(m_fill_mode);
 }
 
 // https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
-Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
+Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
 {
     // The active time is based on the local time and start delay. However, it is only defined when the animation effect
     // should produce an output and hence depends on its fill mode and phase as follows,
@@ -369,7 +369,7 @@ Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill
         // -> If the fill mode is backwards or both,
         if (fill_mode == Bindings::FillMode::Backwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(local time - start delay, 0).
-            return max(local_time().value() - m_start_delay.as_milliseconds(), 0.0);
+            return max(local_time().value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
@@ -380,7 +380,7 @@ Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill
     // -> If the animation effect is in the active phase,
     if (is_in_the_active_phase()) {
         // Return the result of evaluating local time - start delay.
-        return local_time().value() - m_start_delay.as_milliseconds();
+        return local_time().value() - m_start_delay;
     }
 
     // -> If the animation effect is in the after phase,
@@ -390,7 +390,7 @@ Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill
         // -> If the fill mode is forwards or both,
         if (fill_mode == Bindings::FillMode::Forwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(min(local time - start delay, active duration), 0).
-            return max(min(local_time().value() - m_start_delay.as_milliseconds(), active_duration()), 0.0);
+            return max(min(local_time().value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
@@ -452,17 +452,17 @@ bool AnimationEffect::is_in_effect() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#before-active-boundary-time
-double AnimationEffect::before_active_boundary_time() const
+TimeValue AnimationEffect::before_active_boundary_time() const
 {
     // max(min(start delay, end time), 0)
-    return max(min(m_start_delay.as_milliseconds(), end_time()), 0.0);
+    return max(min(m_start_delay, end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#active-after-boundary-time
-double AnimationEffect::after_active_boundary_time() const
+TimeValue AnimationEffect::after_active_boundary_time() const
 {
     // max(min(start delay + active duration, end time), 0)
-    return max(min(m_start_delay.as_milliseconds() + active_duration(), end_time()), 0.0);
+    return max(min(m_start_delay + active_duration(), end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-effect-before-phase
@@ -565,7 +565,7 @@ Optional<double> AnimationEffect::overall_progress() const
     // Otherwise,
     else {
         // Let overall progress be the result of calculating active time / iteration duration.
-        overall_progress = active_time.value() / m_iteration_duration.as_milliseconds();
+        overall_progress = active_time.value() / m_iteration_duration;
     }
 
     // 3. Return the result of calculating overall progress + iteration start.
