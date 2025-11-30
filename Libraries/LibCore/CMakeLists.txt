@@ -1,6 +1,7 @@
 # These are the minimal set of sources needed to build the code generators. We separate them to allow
 # LibCore to depend on generated sources.
 set(SOURCES
+    AddressInfoVector.cpp
     ArgsParser.cpp
     Directory.cpp
     DirectoryEntry.cpp

@@ -13,6 +13,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibCore/AddressInfoVector.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -140,36 +141,6 @@ struct WaitPidResult {
 ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
 ErrorOr<void> fchown(int fd, uid_t, gid_t);
 #endif
-
-class AddressInfoVector {
-    AK_MAKE_NONCOPYABLE(AddressInfoVector);
-    AK_MAKE_DEFAULT_MOVABLE(AddressInfoVector);
-
-public:
-    ~AddressInfoVector() = default;
-
-    ReadonlySpan<struct addrinfo> addresses() const { return m_addresses; }
-
-private:
-    friend ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
-
-    AddressInfoVector(Vector<struct addrinfo>&& addresses, struct addrinfo* ptr)
-        : m_addresses(move(addresses))
-        , m_ptr(adopt_own_if_nonnull(ptr))
-    {
-    }
-
-    struct AddrInfoDeleter {
-        void operator()(struct addrinfo* ptr)
-        {
-            if (ptr)
-                ::freeaddrinfo(ptr);
-        }
-    };
-
-    Vector<struct addrinfo> m_addresses {};
-    OwnPtr<struct addrinfo, AddrInfoDeleter> m_ptr {};
-};
 
 ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
 
