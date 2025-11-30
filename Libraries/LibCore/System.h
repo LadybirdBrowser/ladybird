@@ -32,15 +32,20 @@
 #    include <termios.h>
 #    include <utime.h>
 #else
-#    include "SocketAddressWindows.h"
 #    include <io.h>
+
 #    define O_CLOEXEC O_NOINHERIT
 #    define STDIN_FILENO _get_osfhandle(_fileno(stdin))
 #    define STDOUT_FILENO _get_osfhandle(_fileno(stdout))
 #    define STDERR_FILENO _get_osfhandle(_fileno(stderr))
 #    define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #    define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
+
 using sighandler_t = void (*)(int);
+using socklen_t = int;
+
+struct addrinfo;
+struct sockaddr;
 #endif
 
 #if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID) && !defined(AK_OS_WINDOWS)

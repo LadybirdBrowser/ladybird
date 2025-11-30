@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <RequestServer/RequestPipe.h>
 
