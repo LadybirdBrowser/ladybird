@@ -112,8 +112,6 @@ public:
         StackingContextTransform transform;
         Optional<Gfx::Path> clip_path = {};
         Optional<Gfx::IntRect> bounding_rect {};
-
-        bool has_effect() const { return opacity != 1.0f || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || isolate || clip_path.has_value() || !transform.is_identity(); }
     };
     void push_stacking_context(PushStackingContextParams params);
     void pop_stacking_context();

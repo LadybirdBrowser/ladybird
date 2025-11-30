@@ -21,6 +21,7 @@ String DisplayList::dump() const
     int indentation = 0;
     for (auto const& command_list_item : m_commands) {
         auto const& command = command_list_item.command;
+        auto clip_frame = command_list_item.clip_frame;
 
         command.visit([&indentation](auto const& command) {
             if constexpr (requires { command.nesting_level_change; }) {
@@ -32,6 +33,18 @@ String DisplayList::dump() const
         if (indentation > 0)
             builder.append(MUST(String::repeated("  "_string, indentation)));
         command.visit([&builder](auto const& cmd) { cmd.dump(builder); });
+
+        if (clip_frame && clip_frame->clip_rects().size() > 0) {
+            builder.append(", clip_rects=["sv);
+            auto first = true;
+            for (auto const& clip_rect : clip_frame->clip_rects()) {
+                if (!first)
+                    builder.append(", "sv);
+                first = false;
+                builder.appendff("{}", clip_rect.rect);
+            }
+            builder.append("]"sv);
+        }
         builder.append('\n');
 
         command.visit([&indentation](auto const& command) {
