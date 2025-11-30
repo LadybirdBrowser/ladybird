@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<body>
+<dialog id="d1">
+  <dialog id="d2">d2</dialog>
+</dialog>
+<script>
+    // Test for https://wpt.live/close-watcher/user-activation/y-dialog-disconnected.html
+    // Verify that when a modal dialog is removed from the DOM, it's properly cleaned up
+    // and no longer matches :modal.
+    
+    test(() => {
+        const d1 = document.getElementById('d1');
+        const d2 = document.getElementById('d2');
+        
+        // Open both dialogs as modal
+        d1.showModal();
+        d2.showModal();
+        
+        println(`Before removal - d1.matches(':modal'): ${d1.matches(':modal')}`);
+        println(`Before removal - d2.matches(':modal'): ${d2.matches(':modal')}`);
+        
+        // Remove d2 from the DOM
+        d2.remove();
+        
+        println(`After removal - d1.matches(':modal'): ${d1.matches(':modal')}`);
+        println(`After removal - d2.matches(':modal'): ${d2.matches(':modal')}`);
+        
+        // d2 should no longer match :modal after being removed
+        println(`d2.open: ${d2.open}`);
+    });
+</script>
+</body>

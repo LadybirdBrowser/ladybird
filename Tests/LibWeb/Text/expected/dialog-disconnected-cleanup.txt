@@ -1,0 +1,5 @@
+Before removal - d1.matches(':modal'): true
+Before removal - d2.matches(':modal'): true
+After removal - d1.matches(':modal'): true
+After removal - d2.matches(':modal'): false
+d2.open: true

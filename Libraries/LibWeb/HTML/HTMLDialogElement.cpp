@@ -50,18 +50,27 @@ void HTMLDialogElement::removed_from(Node* old_parent, Node& old_root)
 {
     HTMLElement::removed_from(old_parent, old_root);
 
-    // 1. If removedNode's close watcher is not null, then:
-    if (m_close_watcher) {
-        // 1.1. Destroy removedNode's close watcher.
-        m_close_watcher->destroy();
-        // 1.2. Set removedNode's close watcher to null.
-        m_close_watcher = nullptr;
-    }
+    // AD-HOC: When a dialog is removed from the document, we additionally set is_modal to false (below)
+    // and remove it from the open dialogs list (see line 65). This ensures it doesn't interfere with close
+    // requests and matches Chromium's behavior. The other steps below (removing from the top layer and destroying
+    // the close watcher) are mandated by the HTML spec. See https://wpt.live/close-watcher/user-activation/y-dialog-disconnected.html
+    set_is_modal(false);
 
-    // 2. If removedNode's node document's top layer contains removedNode, then remove an element from the top layer
+    // 1. If removedNode's node document's top layer contains removedNode, then remove an element from the top layer
     //    immediately given removedNode.
     if (document().top_layer_elements().contains(*this))
         document().remove_an_element_from_the_top_layer_immediately(*this);
+
+    // AD-HOC: Remove the dialog from the open dialogs list (not part of the HTML spec)
+    document().open_dialogs_list().remove_first_matching([this](auto other) { return other == this; });
+
+    // 2. If removedNode's close watcher is not null, then:
+    if (m_close_watcher) {
+        // 2.1. Destroy removedNode's close watcher.
+        m_close_watcher->destroy();
+        // 2.2. Set removedNode's close watcher to null.
+        m_close_watcher = nullptr;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#queue-a-dialog-toggle-event-task
