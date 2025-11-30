@@ -164,8 +164,8 @@ static_assert(IsTriviallyDestructible<ExecutionContext>);
     } while (0)
 
 struct StackTraceElement {
-    ExecutionContext* execution_context;
-    GC::Root<CachedSourceRange> source_range;
+    ExecutionContext* execution_context { nullptr };
+    GC::Ptr<CachedSourceRange> source_range;
 };
 
 }

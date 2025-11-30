@@ -58,6 +58,13 @@ Error::Error(Object& prototype)
     populate_stack();
 }
 
+void Error::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto& frame : m_traceback)
+        visitor.visit(frame.cached_source_range);
+}
+
 // 20.5.8.1 InstallErrorCause ( O, options ), https://tc39.es/ecma262/#sec-installerrorcause
 ThrowCompletionOr<void> Error::install_error_cause(Value options)
 {
