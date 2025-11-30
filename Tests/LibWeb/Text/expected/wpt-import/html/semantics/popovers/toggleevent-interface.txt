@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 37 tests
+Found 38 tests
 
-37 Pass
+38 Pass
 Pass	the event is an instance of ToggleEvent
 Pass	the event inherts from Event
 Pass	Missing type argument
@@ -30,6 +30,7 @@ Pass	ToggleEventInit properties set value
 Pass	ToggleEventInit properties set value 2
 Pass	ToggleEventInit properties set value 3
 Pass	ToggleEventInit properties set value 4
+Pass	ToggleEventInit with source.
 Pass	newState set to 'sample'
 Pass	newState set to undefined
 Pass	newState set to null
