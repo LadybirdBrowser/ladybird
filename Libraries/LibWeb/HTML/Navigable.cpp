@@ -1407,7 +1407,7 @@ void Navigable::populate_session_history_entry_document(
                     document.set_url(URL::about_error());
                     parser->run();
 
-                    // NOTE: Once the page has been set up, the user agent must act as if it had stopped parsing.
+                    // FIXME: This should go in create_document_for_inline_content() instead.
                     // FIXME: Directly calling parser->the_end results in a deadlock, because it waits for the warning image to load.
                     //        However the response is never processed when parser->the_end is called.
                     //        Queuing a global task is a workaround for now.

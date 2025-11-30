@@ -111,15 +111,9 @@ void ImageRequest::prepare_for_presentation(HTMLImageElement&)
     // FIXME: 5. Let resX be the value of exifTagMap's tag 0x011A (XResolution).
     // FIXME: 6. Let resY be the value of exifTagMap's tag 0x011B (YResolution).
     // FIXME: 7. Let resUnit be the value of exifTagMap's tag 0x0128 (ResolutionUnit).
-    // FIXME: 8. If either dimX or dimY is not a positive integer, then return.
-    // FIXME: 9. If either resX or resY is not a positive floating-point number, then return.
-    // FIXME: 10. If resUnit is not equal to 2 (Inch), then return.
-    // FIXME: 11. Let widthFromDensity be the value of physicalWidth, multiplied by 72 and divided by resX.
-    // FIXME: 12. Let heightFromDensity be the value of physicalHeight, multiplied by 72 and divided by resY.
-    // FIXME: 13. If widthFromDensity is not equal to dimX or heightFromDensity is not equal to dimY, then return.
-    // FIXME: 14. If req's image data is CORS-cross-origin, then set img's intrinsic dimensions to dimX and dimY, scale img's pixel data accordingly, and return.
-    // FIXME: 15. Set req's preferred density-corrected dimensions to a struct with its width set to dimX and its height set to dimY.
-    // FIXME: 16. Update req's img element's presentation appropriately.
+    // FIXME: 8. If all the following are true:
+    //           ...
+    // FIXME: 9. Update req's img element's presentation appropriately.
 }
 
 void ImageRequest::fetch_image(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)

@@ -78,11 +78,14 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     // 5. Let document be the result of creating and initializing a Document object given "html", "text/html", and navigationParams.
     auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params).release_value_but_fixme_should_propagate_errors();
 
-    // 6. Either associate document with a custom rendering that is not rendered using the normal Document rendering rules, or mutate document until it represents the content the
-    //    user agent wants to render.
+    // 6. Either associate document with a custom rendering that is not rendered using the normal Document rendering
+    //    rules, or mutate document until it represents the content the user agent wants to render.
     mutate_document(*document);
 
-    // 7. Return document.
+    // FIXME: 7. Act as if the user agent had stopped parsing document.
+    // We currently do this in the caller instead, to avoid deadlocks.
+
+    // 8. Return document.
     return document;
 }
 

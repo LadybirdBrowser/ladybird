@@ -16,9 +16,11 @@ namespace Web::HTML {
 class NavigatorLanguageMixin {
 public:
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-language
+    // FIXME: Honor WebDriver BiDi emulated language.
     String const& language() const { return ResourceLoader::the().preferred_languages()[0]; }
 
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-languages
+    // FIXME: Honor WebDriver BiDi emulated language.
     ReadonlySpan<String> languages() const { return ResourceLoader::the().preferred_languages(); }
 };
 

@@ -88,13 +88,14 @@ bool BroadcastChannel::is_eligible_for_messaging() const
     auto const& global = relevant_global_object(*this);
 
     // * a Window object whose associated Document is fully active, or
-    if (is<Window>(global))
-        return static_cast<Window const&>(global).associated_document().is_fully_active();
+    if (auto* window = as_if<Window>(global))
+        return window->associated_document().is_fully_active();
 
-    // * a WorkerGlobalScope object whose closing flag is false and whose worker is not a suspendable worker.
+    // * a WorkerGlobalScope object whose closing flag is false and is not suspendable.
     // FIXME: Suspendable worker
-    if (is<WorkerGlobalScope>(global))
-        return !static_cast<WorkerGlobalScope const&>(global).is_closing();
+    if (auto* worker_global_scope = as_if<WorkerGlobalScope>(global)) {
+        return !worker_global_scope->is_closing();
+    }
 
     return false;
 }
