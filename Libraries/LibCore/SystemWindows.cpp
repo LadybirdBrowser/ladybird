@@ -19,6 +19,7 @@
 #include <sys/mman.h>
 
 #include <AK/Windows.h>
+#include <ws2tcpip.h>
 
 namespace Core::System {
 

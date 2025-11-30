@@ -61,6 +61,12 @@ ErrorOr<ByteBuffer> UDPServer::receive(size_t size, sockaddr_in& in)
     return buf;
 }
 
+ErrorOr<ByteBuffer> UDPServer::receive(size_t size)
+{
+    struct sockaddr_in saddr;
+    return receive(size, saddr);
+}
+
 ErrorOr<size_t> UDPServer::send(ReadonlyBytes buffer, sockaddr_in const& to)
 {
     socklen_t to_len = sizeof(to);

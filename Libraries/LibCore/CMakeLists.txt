@@ -8,6 +8,7 @@ set(SOURCES
     DirIterator.cpp
     Environment.cpp
     File.cpp
+    SocketAddress.cpp
     StandardPaths.cpp
     Version.cpp
 )
@@ -147,7 +148,6 @@ if (ANDROID)
 endif()
 
 if (ENABLE_SWIFT)
-    set(SWIFT_EXCLUDE_HEADERS "SocketAddressWindows.h")
     if(WIN32)
         list(APPEND SWIFT_EXCLUDE_HEADERS "EventLoopImplementationUnix.h")
     else()

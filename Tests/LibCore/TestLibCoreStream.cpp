@@ -20,6 +20,8 @@
 #include <LibThreading/BackgroundAction.h>
 #include <fcntl.h>
 
+#include <AK/Windows.h>
+
 // File tests
 
 TEST_CASE(file_open)
