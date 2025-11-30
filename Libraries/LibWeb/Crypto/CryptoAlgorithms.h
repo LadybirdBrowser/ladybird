@@ -685,6 +685,21 @@ private:
     }
 };
 
+class Argon2 : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> derive_bits(AlgorithmParams const&, GC::Ref<CryptoKey>, Optional<u32>) override;
+    virtual WebIDL::ExceptionOr<JS::Value> get_key_length(AlgorithmParams const&) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new Argon2(realm)); }
+
+private:
+    explicit Argon2(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
@@ -721,6 +736,32 @@ struct Ed448Params : public AlgorithmParams {
     }
 
     Optional<ByteBuffer> context;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-params
+struct Argon2Params : public AlgorithmParams {
+    virtual ~Argon2Params() override;
+
+    Argon2Params(ByteBuffer nonce, u32 parallelism, u32 memory, u32 passes, Optional<u8> version, Optional<ByteBuffer> secret_value, Optional<ByteBuffer> associated_data)
+        : nonce(move(nonce))
+        , parallelism(parallelism)
+        , memory(memory)
+        , passes(passes)
+        , version(version)
+        , secret_value(secret_value)
+        , associated_data(associated_data)
+    {
+    }
+
+    ByteBuffer nonce;
+    u32 parallelism;
+    u32 memory;
+    u32 passes;
+    Optional<u8> version;
+    Optional<ByteBuffer> secret_value;
+    Optional<ByteBuffer> associated_data;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };

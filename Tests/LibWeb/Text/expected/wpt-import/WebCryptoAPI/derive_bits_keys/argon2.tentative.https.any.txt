@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	setup - define tests
+Pass	Argon2d deriveBits
+Pass	Argon2i deriveBits
+Pass	Argon2id deriveBits
