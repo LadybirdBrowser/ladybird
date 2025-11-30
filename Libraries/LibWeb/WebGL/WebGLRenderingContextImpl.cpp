@@ -1294,6 +1294,8 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         return JS::Value(m_unpack_flip_y);
     case UNPACK_PREMULTIPLY_ALPHA_WEBGL:
         return JS::Value(m_unpack_premultiply_alpha);
+    case UNPACK_COLORSPACE_CONVERSION_WEBGL:
+        return JS::Value(m_unpack_colorspace_conversion);
     }
 
     if (m_context->webgl_version() == OpenGLContext::WebGLVersion::WebGL2) {
@@ -2037,6 +2039,9 @@ void WebGLRenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL:
         return;
     case UNPACK_PREMULTIPLY_ALPHA_WEBGL:
         m_unpack_premultiply_alpha = param != GL_FALSE;
+        return;
+    case UNPACK_COLORSPACE_CONVERSION_WEBGL:
+        m_unpack_colorspace_conversion = param;
         return;
     }
 
