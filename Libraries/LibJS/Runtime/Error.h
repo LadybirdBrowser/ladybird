@@ -21,7 +21,7 @@ struct JS_API TracebackFrame {
     Utf16String function_name;
     [[nodiscard]] SourceRange const& source_range() const;
 
-    GC::Root<CachedSourceRange> cached_source_range;
+    GC::Ptr<CachedSourceRange> cached_source_range;
 };
 
 enum CompactTraceback {
@@ -50,6 +50,8 @@ public:
 
 protected:
     explicit Error(Object& prototype);
+
+    virtual void visit_edges(Visitor&) override;
 
 private:
     virtual bool is_error_object() const final { return true; }

@@ -774,11 +774,11 @@ static GC::Ptr<CachedSourceRange> get_source_range(ExecutionContext* context)
     return context->rare_data()->cached_source_range;
 }
 
-Vector<StackTraceElement> VM::stack_trace() const
+GC::ConservativeVector<StackTraceElement> VM::stack_trace() const
 {
-    Vector<StackTraceElement> stack_trace;
-    for (ssize_t i = m_execution_context_stack.size() - 1; i >= 0; i--) {
-        auto* context = m_execution_context_stack[i];
+    GC::ConservativeVector<StackTraceElement> stack_trace(heap());
+    stack_trace.ensure_capacity(m_execution_context_stack.size());
+    for (auto* context : m_execution_context_stack.in_reverse()) {
         stack_trace.append({
             .execution_context = context,
             .source_range = get_source_range(context),

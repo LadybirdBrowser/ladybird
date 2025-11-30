@@ -58,8 +58,7 @@ public:
     static NonnullRefPtr<VM> create();
     ~VM();
 
-    GC::Heap& heap() { return m_heap; }
-    GC::Heap const& heap() const { return m_heap; }
+    GC::Heap& heap() const { return const_cast<GC::Heap&>(m_heap); }
 
     Bytecode::Interpreter& bytecode_interpreter() { return *m_bytecode_interpreter; }
 
@@ -295,7 +294,7 @@ public:
     Function<ThrowCompletionOr<void>(Realm&, NonnullOwnPtr<ExecutionContext>, ShadowRealm&)> host_initialize_shadow_realm;
     Function<Crypto::SignedBigInteger(Object const& global)> host_system_utc_epoch_nanoseconds;
 
-    Vector<StackTraceElement> stack_trace() const;
+    [[nodiscard]] GC::ConservativeVector<StackTraceElement> stack_trace() const;
 
 private:
     using ErrorMessages = AK::Array<Utf16String, to_underlying(ErrorMessage::__Count)>;
