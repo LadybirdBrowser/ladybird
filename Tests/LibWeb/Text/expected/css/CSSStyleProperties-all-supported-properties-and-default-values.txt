@@ -1,5 +1,7 @@
 All supported properties and their default values exposed from CSSStyleProperties from getComputedStyle:
 'cssFloat': 'none'
+'MozAppearance': 'none'
+'-moz-appearance': 'none'
 'WebkitAlignContent': 'normal'
 'webkitAlignContent': 'normal'
 '-webkit-align-content': 'normal'
