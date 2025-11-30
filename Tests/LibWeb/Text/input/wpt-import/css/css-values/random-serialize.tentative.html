@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#random">
+<link rel="author" title="sam@webkit.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<div id=target></div>
+<script>
+
+test_valid_value('width', 'random(0px, 100px)');
+test_valid_value('width', 'random(0px, 100px, 50px)');
+test_valid_value('width', 'random(--foo, 0px, 100px)');
+test_valid_value('width', 'random(auto, 0px, 100px)', 'random(0px, 100px)');
+test_valid_value('width', 'random(--foo element-shared, 0px, 100px)');
+test_valid_value('width', 'random(auto element-shared, 0px, 100px)', 'random(element-shared, 0px, 100px)');
+test_valid_value('width', 'random(element-shared --foo, 0px, 100px)', 'random(--foo element-shared, 0px, 100px)');
+test_valid_value('width', 'random(element-shared auto, 0px, 100px)', 'random(element-shared, 0px, 100px)');
+test_valid_value('width', 'random(fixed 0.5, 0px, 100px)');
+test_valid_value('width', 'random(--foo, 0px, 100px, 50px)');
+test_valid_value('width', 'random(auto, 0px, 100px, 50px)', 'random(0px, 100px, 50px)');
+test_valid_value('width', 'random(--foo element-shared, 0px, 100px, 50px)');
+test_valid_value('width', 'random(auto element-shared, 0px, 100px, 50px)', 'random(element-shared, 0px, 100px, 50px)');
+test_valid_value('width', 'random(element-shared --foo, 0px, 100px, 50px)', 'random(--foo element-shared, 0px, 100px, 50px)');
+test_valid_value('width', 'random(element-shared auto, 0px, 100px, 50px)', 'random(element-shared, 0px, 100px, 50px)');
+test_valid_value('width', 'random(fixed 0.5, 0px, 100px, 50px)');
+
+// Test consistent types
+test_valid_value('width', 'random(10px, 20%)');
+
+// Test out of order.
+test_valid_value('width', 'random(100px, 0px)');
+
+// Test negative values
+test_valid_value('width', 'random(-100px, -10px)');
+test_valid_value('width', 'random(-100px, -10px, -5px)');
+
+// Test mixed units.
+test_valid_value('width', 'random(1em, 200rem)');
+
+// Test nested expressions
+test_valid_value('width', 'random(10 * 100px, 200em / 2)', 'random(1000px, 100em)');
+test_valid_value('width', 'random(fixed calc(2 / 4), 0px, 100px)', 'random(fixed calc(0.5), 0px, 100px)');
+
+// Test nested in expressions
+test_valid_value('width', 'calc(2 * random(0px, 100px))');
+
+// Test other types
+test_valid_value('max-lines', 'random(25, 50)');
+test_valid_value('max-lines', 'random(25, 50, 5)');
+test_valid_value('scale', 'random(0.5, 2.5)');
+test_valid_value('scale', 'random(0.5, 2.5, 0.1)');
+test_valid_value('rotate', 'random(25deg, 1turn)', 'random(25deg, 360deg)');
+test_valid_value('rotate', 'random(25deg, 1turn, 5deg)', 'random(25deg, 360deg, 5deg)');
+test_valid_value('transition-delay', 'random(25ms, 50s)', 'random(0.025s, 50s)');
+test_valid_value('transition-delay', 'random(25ms, 50s, 5s)', 'random(0.025s, 50s, 5s)');
+
+</script>

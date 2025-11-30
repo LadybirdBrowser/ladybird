@@ -350,6 +350,7 @@ class PercentageStyleValue;
 class PositionStyleValue;
 class PropertyNameAndID;
 class RadialGradientStyleValue;
+class RandomValueSharingStyleValue;
 class Ratio;
 class RatioStyleValue;
 class RectStyleValue;
@@ -408,6 +409,7 @@ struct CalculationResolutionContext;
 struct CSSStyleSheetInit;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
+struct RandomCachingKey;
 struct StyleSheetIdentifier;
 
 using PaintOrderList = Array<PaintOrder, 3>;
