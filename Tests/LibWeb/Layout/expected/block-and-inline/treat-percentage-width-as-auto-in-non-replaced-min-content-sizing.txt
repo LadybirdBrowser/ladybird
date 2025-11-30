@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 66 0+0+0] [BFC] children: inline
     frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 38.1875x50] baseline: 21.796875
     BlockContainer <body> at [8,8] inline-block [8+0+0 38.1875 0+0+8] [8+0+0 50 0+0+8] [BFC] children: not-inline
