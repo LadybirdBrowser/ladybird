@@ -14,6 +14,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -884,6 +885,18 @@ JS::Value WebGLRenderingContextImpl::get_parameter(WebIDL::UnsignedLong pname)
         auto byte_buffer = MUST(ByteBuffer::copy(result.data(), buffer_size));
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::Float32Array::create(m_realm, 4, array_buffer);
+    }
+    case GL_COLOR_WRITEMASK: {
+        Array<GLboolean, 4> result;
+        result.fill(0);
+        glGetBooleanvRobustANGLE(GL_COLOR_CLEAR_VALUE, 4, nullptr, result.data());
+
+        auto sequence = MUST(JS::Array::create(m_realm, 0));
+        for (int i = 0; i < 4; i++) {
+            MUST(sequence->create_data_property(JS::PropertyKey(i), JS::Value(static_cast<WebIDL::Boolean>(result[i]))));
+        }
+
+        return JS::Value(sequence);
     }
     case GL_CULL_FACE: {
         GLboolean result { GL_FALSE };
