@@ -29,6 +29,8 @@ namespace Web::WebGL {
 static constexpr int COMPRESSED_TEXTURE_FORMATS = 0x86A3;
 static constexpr int UNPACK_FLIP_Y_WEBGL = 0x9240;
 static constexpr int UNPACK_PREMULTIPLY_ALPHA_WEBGL = 0x9241;
+static constexpr int UNPACK_COLORSPACE_CONVERSION_WEBGL = 0x9243;
+static constexpr int BROWSER_DEFAULT_WEBGL = 0x9244;
 static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
@@ -151,6 +153,15 @@ protected:
     //      if present, is multiplied into the color channels during the data transfer. The initial value is false.
     //      Any non-zero value is interpreted as true.
     bool m_unpack_premultiply_alpha { false };
+
+    // UNPACK_COLORSPACE_CONVERSION_WEBGL of type unsigned long
+    //      If set to BROWSER_DEFAULT_WEBGL, then the browser's default colorspace conversion (e.g. converting a display-p3
+    //      image to srgb) is applied during subsequent texture data upload calls (e.g. texImage2D and texSubImage2D) that
+    //      take an argument of TexImageSource. The precise conversions may be specific to both the browser and file type.
+    //      If set to NONE, no colorspace conversion is applied, other than conversion to RGBA. (For example, a rec709 YUV
+    //      video is still converted to rec709 RGB data, but not then converted to e.g. srgb RGB data) The initial value is
+    //      BROWSER_DEFAULT_WEBGL.
+    GLenum m_unpack_colorspace_conversion { BROWSER_DEFAULT_WEBGL };
 
 private:
     GLenum m_error { 0 };
