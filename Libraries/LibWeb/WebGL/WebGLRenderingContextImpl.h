@@ -13,6 +13,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
@@ -85,7 +86,7 @@ public:
     Optional<Vector<GC::Root<WebGLShader>>> get_attached_shaders(GC::Root<WebGLProgram> program);
     WebIDL::Long get_attrib_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    JS::Value get_parameter(WebIDL::UnsignedLong pname);
+    WebIDL::ExceptionOr<JS::Value> get_parameter(WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
     JS::Value get_program_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong pname);
     Optional<String> get_program_info_log(GC::Root<WebGLProgram> program);
