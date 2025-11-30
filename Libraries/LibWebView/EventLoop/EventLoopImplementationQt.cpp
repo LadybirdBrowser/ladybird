@@ -11,6 +11,7 @@
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
