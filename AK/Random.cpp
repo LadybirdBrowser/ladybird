@@ -1,68 +1,78 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
+ * Copyright (c) 2024, the Ladybird developers.
+ * Copyright (c) 2025, Colleirose <criticskate@pm.me>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/UFixedBigIntDivision.h>
 
+#if defined(AK_OS_LINUX)
+#    include <sys/random.h>
+#endif
+
 #if defined(AK_OS_WINDOWS)
 #    include <AK/NumericLimits.h>
 #    include <AK/Windows.h>
-#    include <bcrypt.h>
-#    include <ntstatus.h>
 #endif
+
+static inline ErrorOr<void> csprng(void* const buf, size_t size)
+{
+    // We shouldn't use OpenSSL's RAND_bytes function here, because we want to avoid adding dependencies to AK.
+    // Therefore, we will use the best platform-specific CSPRNG.
+#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
+    // MacOS and iOS both appear to support arc4random_buf, and AK/Platform.h defines AK_OS_BSD_GENERIC when building for them,
+    // so they will be covered by the compile target that uses arc4random_buf.
+    //
+    // Note that although [SecRandomCopyBytes](https://developer.apple.com/documentation/security/secrandomcopybytes(_:_:_:)) appears to be more commonly used on those platforms,
+    // it doesn't seem to be required.
+    arc4random_buf(buf, size);
+#elif defined(AK_OS_LINUX)
+    int ret;
+    while (size > 0u) {
+        // We are checking for all error codes out of an abundance of caution, however EINTR is the only one that's very plausible to happen.
+        ret = getrandom(buf, size, 0);
+
+        // EINTR can be handled safely by just trying again
+        if (ret == -1 && errno != EINTR) [[unlikely]]
+            return Error::from_errno(errno);
+
+        // Per the manual:
+        //
+        // > On success, getrandom() returns the number of bytes that were
+        // > copied to the buffer buf.  This may be less than the number of
+        // > bytes requested via buflen if either GRND_RANDOM was specified in
+        // > flags and insufficient entropy was present in the random source or
+        // > the system call was interrupted by a signal.
+        //
+        // > The user of getrandom() *must* always check the return value, to
+        // > determine whether either an error occurred or fewer bytes than
+        // > requested were returned.
+        if (ret > 0) [[likely]] {
+            size -= ret;
+            buf += ret;
+        }
+    }
+#elif defined(AK_OS_WINDOWS)
+    // Documented to always return TRUE
+    g_system.ProcessPrng((PBYTE)buf, size);
+#else
+    // There shouldn't be a build target where this can happen.
+    static_assert(false, "This build target doesn't have a valid CSPRNG interface specified in AK/Random.cpp.");
+#endif
+    return {};
+}
 
 namespace AK {
 
-// NOTE: This function is supposed to always give a random number. If possible it is of good quality, but it can fall
-//       back to rand() if it fails on some systems. For high speed you should probably use a different generator.
-//       See MathObject::random() from LibJS. Where cryptographic security is needed use LibCrypto/SecureRandom.h.
-void fill_with_random([[maybe_unused]] Bytes bytes)
+void fill_with_random(Bytes bytes)
 {
-#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
-    arc4random_buf(bytes.data(), bytes.size());
-#elif defined(OSS_FUZZ)
-#else
-    auto fill_with_random_fallback = [&]() {
-        for (auto& byte : bytes)
-            byte = rand();
-    };
-
-#    if defined(__unix__)
-    // The maximum permitted value for the getentropy length argument.
-    static constexpr size_t getentropy_length_limit = 256;
-    auto iterations = bytes.size() / getentropy_length_limit;
-
-    for (size_t i = 0; i < iterations; ++i) {
-        if (getentropy(bytes.data(), getentropy_length_limit) != 0) {
-            fill_with_random_fallback();
-            return;
-        }
-
-        bytes = bytes.slice(getentropy_length_limit);
-    }
-
-    if (bytes.is_empty() || getentropy(bytes.data(), bytes.size()) == 0)
-        return;
-#    elif defined(AK_OS_WINDOWS)
-
-    if (bytes.size() > NumericLimits<u32>::max()) [[unlikely]] {
-        fill_with_random_fallback();
-        return;
-    }
-
-    // NOTE: This is more secure than needed. But on modern hardware it be should more than fast enough.
-    NTSTATUS result = ::BCryptGenRandom(NULL, bytes.data(), bytes.size(), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    if (result == STATUS_SUCCESS)
-        return;
-#    endif
-
-    fill_with_random_fallback();
-#endif
+    MUST(csprng(bytes.data(), bytes.size()));
 }
 
 u32 get_random_uniform(u32 max_bounds)
