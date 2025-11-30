@@ -147,7 +147,10 @@ def main():
     elif args.command == "test":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs)
-        test_main(build_dir, args.preset, args.pattern)
+        if args.preset == "All_Debug":
+            test_all_debug(build_dir, args.preset, args.pattern)
+        else:
+            test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
         if args.preset == "Sanitizer":
             # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
@@ -366,6 +369,29 @@ def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
         test_args.extend(["-R", pattern])
 
     run_command(test_args, exit_on_failure=True)
+
+
+def test_all_debug(build_dir: Path, preset: str, pattern: Optional[str]):
+    test_args = [
+        "ctest",
+        "--preset",
+        preset,
+        "--output-on-failure",
+        "--test-dir",
+        str(build_dir),
+    ]
+
+    if pattern:
+        test_args.extend(["-R", pattern])
+
+    # for All_Debug:
+    #    don't run LibWeb, there is too much output and it takes too long
+    #    benchmarks are also excluded, as they have the same issue as LibWeb
+    test_args.extend(["-E", "LibWeb"])
+    os.environ["TESTS_ONLY"] = "1"
+
+    run_command(test_args, exit_on_failure=True)
+    print("Reminder: Above tests exclude LibWeb and all benchmarks")
 
 
 def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[str]):
