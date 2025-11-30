@@ -71,6 +71,12 @@ ErrorOr<ByteBuffer> UDPServer::receive(size_t size, sockaddr_in& in)
     return buf;
 }
 
+ErrorOr<ByteBuffer> UDPServer::receive(size_t size)
+{
+    struct sockaddr_in saddr;
+    return receive(size, saddr);
+}
+
 Optional<IPv4Address> UDPServer::local_address() const
 {
     if (m_fd == -1)

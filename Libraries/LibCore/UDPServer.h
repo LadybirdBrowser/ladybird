@@ -25,11 +25,7 @@ public:
 
     bool bind(IPv4Address const& address, u16 port);
     ErrorOr<ByteBuffer> receive(size_t size, sockaddr_in& from);
-    ErrorOr<ByteBuffer> receive(size_t size)
-    {
-        struct sockaddr_in saddr;
-        return receive(size, saddr);
-    }
+    ErrorOr<ByteBuffer> receive(size_t size);
 
     ErrorOr<size_t> send(ReadonlyBytes, sockaddr_in const& to);
 
