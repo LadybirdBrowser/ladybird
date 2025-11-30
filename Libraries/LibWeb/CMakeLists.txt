@@ -356,8 +356,10 @@ set(SOURCES
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
+    Encoding/TextDecoderCommon.cpp
     Encoding/TextEncoderCommon.cpp
     Encoding/TextEncoderStream.cpp
+    Encoding/TextDecoderStream.cpp
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
     EncryptedMediaExtensions/NavigatorEncryptedMediaExtensionsPartial.cpp
