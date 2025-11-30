@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+16 Pass
+1 Fail
+Pass	<div>s, <button>s, and <datalist>s should be allowed in <select>
+Pass	</select> should close <button>
+Pass	</select> should close <datalist>
+Pass	<select> in <button> in <select> should remove inner <select>
+Pass	<select> in <select><button><div> should remove inner <select>
+Pass	JS added nested <select> should be ignored
+Pass	JS added nested <select>s should be ignored
+Pass	Divs and imgs should be allowed as direct children of select and within options without a datalist
+Pass	Input tags should not parse inside select instead of closing the select
+Pass	textarea tags should parse inside select instead of closing the select
+Fail	Input tags should parse inside select if nested in another tag
+Pass	Input tags should close select when directly inside an <option>
+Pass	The last test should not leave any tags open after parsing
+Pass	Nested selects should be retained 1
+Pass	Nested selects should be retained 2
+Pass	JS added nested select should be ignored
+Pass	JS added nested selects should be ignored
