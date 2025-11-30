@@ -43,6 +43,8 @@ public:
 
     void set_error_handler(ErrorHandler&&);
 
+    void start();
+
     TimedImage retrieve_frame();
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
@@ -55,6 +57,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
 
+        void start();
         void exit();
 
         ImageQueue& queue();
@@ -62,6 +65,7 @@ private:
 
         void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&&);
 
+        void wait_for_start();
         bool should_thread_exit() const;
         void set_cicp_values(VideoFrame&);
         void queue_frame(TimedImage&&);
@@ -71,15 +75,21 @@ private:
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
 
-        [[nodiscard]] Threading::MutexLocker take_lock() { return Threading::MutexLocker(m_mutex); }
-        void wake() { m_wait_condition.broadcast(); }
+        [[nodiscard]] Threading::MutexLocker take_lock() const { return Threading::MutexLocker(m_mutex); }
+        void wake() const { m_wait_condition.broadcast(); }
 
     private:
+        enum class RequestedState : u8 {
+            None,
+            Running,
+            Exit,
+        };
+
         Core::EventLoop& m_main_thread_event_loop;
 
-        Threading::Mutex m_mutex;
-        Threading::ConditionVariable m_wait_condition { m_mutex };
-        Atomic<bool> m_exit { false };
+        mutable Threading::Mutex m_mutex;
+        mutable Threading::ConditionVariable m_wait_condition { m_mutex };
+        RequestedState m_requested_state { RequestedState::None };
 
         NonnullRefPtr<MutexedDemuxer> m_demuxer;
         Track m_track;
