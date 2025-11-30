@@ -117,9 +117,27 @@ public:
         {
         }
 
-        void seek(size_t position)
+        enum class SeekMode {
+            SetPosition,
+            FromCurrentPosition,
+            FromEndPosition,
+        };
+
+        void seek(size_t position, SeekMode mode)
         {
-            m_position = position;
+            switch (mode) {
+            case SeekMode::SetPosition:
+                m_position = position;
+                break;
+            case SeekMode::FromCurrentPosition:
+                m_position += position;
+                break;
+            case SeekMode::FromEndPosition:
+                m_position = m_stream->size() + position;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
         }
 
         DecoderErrorOr<ByteBuffer> read_bytes(size_t count)

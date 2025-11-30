@@ -62,44 +62,18 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<In
             whence &= ~AVSEEK_FORCE;
 
             auto& stream = *static_cast<IncrementallyPopulatedStream::Seekable*>(opaque);
-            if (whence == AVSEEK_SIZE) {
+            if (whence == AVSEEK_SIZE)
                 return stream.size();
-            }
 
-            auto seek_mode_from_whence = [](int origin) -> SeekMode {
-                if (origin == SEEK_CUR) {
-                    VERIFY_NOT_REACHED();
-                    return SeekMode::FromCurrentPosition;
-                }
-                if (origin == SEEK_END) {
-                    VERIFY_NOT_REACHED();
-                    return SeekMode::FromEndPosition;
-                }
-                return SeekMode::SetPosition;
+            auto seek_mode_from_whence = [](int origin) -> IncrementallyPopulatedStream::Seekable::SeekMode {
+                if (origin == SEEK_CUR)
+                    return IncrementallyPopulatedStream::Seekable::SeekMode::FromCurrentPosition;
+                if (origin == SEEK_END)
+                    return IncrementallyPopulatedStream::Seekable::SeekMode::FromEndPosition;
+                return IncrementallyPopulatedStream::Seekable::SeekMode::SetPosition;
             };
 
-            auto seek_mode = seek_mode_from_whence(whence);
-            VERIFY(seek_mode == SeekMode::SetPosition);
-            // switch (seek_mode_from_whence(whence)) {
-            // case SeekMode::FromCurrentPosition:
-            //     dbgln(">FromCurrentPosition by {}", offset);
-            //     break;
-            // case SeekMode::FromEndPosition:
-            //     dbgln(">FromEndPosition by {}", offset);
-            //     break;
-            // case SeekMode::SetPosition:
-            //     dbgln(">SetPosition to {}", offset);
-            //     break;
-            // default:
-            //     VERIFY_NOT_REACHED();
-            // }
-
-            stream.seek(offset);
-
-            // auto offset_or_error = stream.seek(offset, seek_mode_from_whence(whence));
-            // if (offset_or_error.is_error())
-            //     return -EIO;
-            // return 0;
+            stream.seek(offset, seek_mode_from_whence(whence));
             return 0;
         });
     if (avio_context == nullptr) {
