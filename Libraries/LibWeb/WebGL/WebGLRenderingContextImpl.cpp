@@ -1632,7 +1632,7 @@ JS::Value WebGLRenderingContextImpl::get_renderbuffer_parameter(WebIDL::Unsigned
     case GL_RENDERBUFFER_SAMPLES:
     case GL_RENDERBUFFER_STENCIL_SIZE: {
         GLint result = 0;
-        glGetRenderbufferParameteriv(target, pname, &result);
+        glGetRenderbufferParameterivRobustANGLE(target, pname, 1, nullptr, &result);
         return JS::Value(result);
     }
     default:
