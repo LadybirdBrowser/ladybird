@@ -404,12 +404,25 @@ ErrorOr<void> kill(pid_t pid, int signal)
 
 ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length)
 {
-    (void)source_fd;
-    (void)target_fd;
-    (void)source_offset;
-    (void)source_length;
+    // FIXME: We could use TransmitFile (https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile)
+    //        here. But in order to transmit a subset of the file, we have to use overlapped IO.
 
-    return Error::from_string_literal("FIXME: Implement System::transfer_file_through_pipe on Windows (for HTTP disk cache)");
+    static auto allocation_granularity = []() {
+        SYSTEM_INFO system_info {};
+        GetSystemInfo(&system_info);
+
+        return system_info.dwAllocationGranularity;
+    }();
+
+    // MapViewOfFile requires the offset to be aligned to the system allocation granularity, so we must handle that here.
+    auto aligned_source_offset = (source_offset / allocation_granularity) * allocation_granularity;
+    auto offset_adjustment = source_offset - aligned_source_offset;
+    auto mapped_source_length = source_length + offset_adjustment;
+
+    auto* mapped = TRY(mmap(nullptr, mapped_source_length, PROT_READ, MAP_SHARED, source_fd, aligned_source_offset));
+    ScopeGuard guard { [&]() { (void)munmap(mapped, mapped_source_length); } };
+
+    return TRY(send(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }, 0));
 }
 
 }
