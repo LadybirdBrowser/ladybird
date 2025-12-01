@@ -55,7 +55,7 @@ struct Declaration {
     FlyString name;
     Vector<ComponentValue> value;
     Important important = Important::No;
-    Optional<String> original_text = {};
+    Optional<String> original_value_text = {};
 
     // FIXME: Only needed by our janky @supports re-serialization-re-parse code.
     String to_string() const;

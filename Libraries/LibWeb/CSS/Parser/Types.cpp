@@ -14,8 +14,8 @@ namespace Web::CSS::Parser {
 
 String Declaration::to_string() const
 {
-    if (original_text.has_value())
-        return original_text.value();
+    if (original_value_text.has_value())
+        return original_value_text.value();
 
     StringBuilder builder;
 
