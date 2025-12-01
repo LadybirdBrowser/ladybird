@@ -70,7 +70,7 @@
 
 namespace Web::Fetch::Fetching {
 
-bool g_http_cache_enabled = false;
+bool g_http_memory_cache_enabled = false;
 
 #define TRY_OR_IGNORE(expression)                                                                    \
     ({                                                                                               \
@@ -1424,14 +1424,14 @@ public:
         // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
         auto it = m_cache.find(url);
         if (it == m_cache.end()) {
-            dbgln_if(HTTP_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
+            dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
             return {};
         }
         auto const& cached_response = it->value;
 
         // - the request method associated with the stored response allows it to be used for the presented request, and
         if (method != cached_response->method()) {
-            dbgln_if(HTTP_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
+            dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
             return {};
         }
 
@@ -1445,7 +1445,7 @@ public:
         //          + allowed to be served stale (see Section 4.2.4), or
         //          + successfully validated (see Section 4.3).
 
-        dbgln_if(HTTP_CACHE_DEBUG, "\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
         return cached_response->clone(realm);
     }
 
@@ -1498,7 +1498,7 @@ private:
 // https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
 static RefPtr<CachePartition> determine_the_http_cache_partition(Infrastructure::Request const& request)
 {
-    if (!g_http_cache_enabled)
+    if (!g_http_memory_cache_enabled)
         return nullptr;
 
     // 1. Let key be the result of determining the network partition key given request.
@@ -1905,7 +1905,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
             // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
             if (revalidating_flag->value() && forward_response->status() == 304) {
-                dbgln_if(HTTP_CACHE_DEBUG, "\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
+                dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
 
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
@@ -2524,17 +2524,17 @@ void append_fetch_metadata_headers_for_request(Infrastructure::Request& request)
     set_sec_fetch_user_header(request);
 }
 
-void set_http_cache_enabled(bool const enabled)
+void set_http_memory_cache_enabled(bool const enabled)
 {
-    g_http_cache_enabled = enabled;
+    g_http_memory_cache_enabled = enabled;
 }
 
-bool http_cache_enabled()
+bool http_memory_cache_enabled()
 {
-    return g_http_cache_enabled;
+    return g_http_memory_cache_enabled;
 }
 
-void clear_http_cache()
+void clear_http_memory_cache()
 {
     HTTPCache::the().clear_cache();
 }

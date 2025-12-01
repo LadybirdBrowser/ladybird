@@ -387,7 +387,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     }
 
     if (request == "clear-cache") {
-        Web::Fetch::Fetching::clear_http_cache();
+        Web::Fetch::Fetching::clear_http_memory_cache();
         return;
     }
 

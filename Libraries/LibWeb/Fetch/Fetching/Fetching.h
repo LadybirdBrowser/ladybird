@@ -55,8 +55,8 @@ void set_sec_fetch_site_header(Infrastructure::Request&);
 void set_sec_fetch_user_header(Infrastructure::Request&);
 void append_fetch_metadata_headers_for_request(Infrastructure::Request&);
 
-WEB_API void set_http_cache_enabled(bool enabled);
-WEB_API bool http_cache_enabled();
-WEB_API void clear_http_cache();
+WEB_API void set_http_memory_cache_enabled(bool enabled);
+WEB_API bool http_memory_cache_enabled();
+WEB_API void clear_http_memory_cache();
 
 }
