@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 22 tests
 
-9 Pass
-13 Fail
+16 Pass
+6 Fail
 Pass	@import url("nonexist.css") supports(); should be an invalid import rule due to an invalid supports() declaration
 Pass	@import url("nonexist.css") supports(foo: bar); should be an invalid import rule due to an invalid supports() declaration
 Fail	@import url("nonexist.css") supports(display:block); should be a valid supports() import rule
 Fail	@import url("nonexist.css") supports((display:flex)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(not (display: flex)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(not (display: flex)); should be a valid supports() import rule
 Pass	@import url("nonexist.css") supports((display: flex) and (display: block)); should be a valid supports() import rule
 Pass	@import url("nonexist.css") supports((display: flex) or (display: block)); should be a valid supports() import rule
 Pass	@import url("nonexist.css") supports((display: flex) or (foo: bar)); should be a valid supports() import rule
@@ -17,12 +17,12 @@ Pass	@import url("nonexist.css") layer supports(); should be an invalid import r
 Pass	@import url("nonexist.css") layer supports(foo: bar); should be an invalid import rule due to an invalid supports() declaration
 Fail	@import url("nonexist.css") layer(A) supports((display: flex) or (foo: bar)); should be a valid supports() import rule
 Fail	@import url("nonexist.css") layer(A.B) supports((display: flex) and (foo: bar)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(selector(a)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(selector(p a)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(selector(p > a)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(selector(p + a)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(font-tech(color-colrv1)); should be a valid supports() import rule
-Fail	@import url("nonexist.css") supports(font-format(opentype)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(selector(a)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(selector(p a)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(selector(p > a)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(selector(p + a)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(font-tech(color-colrv1)); should be a valid supports() import rule
+Pass	@import url("nonexist.css") supports(font-format(opentype)); should be a valid supports() import rule
 Fail	@import url(nonexist.css) supports(display:block); should be a valid supports() import rule
 Fail	@import "nonexist.css" supports(display:block); should be a valid supports() import rule
 Pass	@import url("nonexist.css") supports; should still be a valid import rule with an invalid supports() declaration

@@ -242,9 +242,8 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     if (tokens.next_token().is_function("supports"sv)) {
         auto component_value = tokens.consume_a_token();
         TokenStream supports_tokens { component_value.function().value };
-        if (supports_tokens.next_token().is_block()) {
-            supports = parse_a_supports(supports_tokens);
-        } else {
+        supports = parse_a_supports(supports_tokens);
+        if (!supports) {
             m_rule_context.append(RuleContext::SupportsCondition);
             auto declaration = consume_a_declaration(supports_tokens);
             m_rule_context.take_last();
