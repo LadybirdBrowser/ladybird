@@ -309,8 +309,7 @@ void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, 
         return;
     }
     // 3. Set dialog's enable close watcher for requestClose() to true.
-    // AD-HOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
-    m_close_watcher->set_enabled(true);
+    m_enable_close_watcher_for_request_close = true;
     // 4. If returnValue is not given, then set it to null.
     // 5. Set this's request close return value to returnValue.
     m_request_close_return_value = return_value;
@@ -319,10 +318,7 @@ void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, 
     // 6. Request to close dialog's close watcher with false.
     m_close_watcher->request_close(false);
     // 7. Set dialog's enable close watcher for requestClose() to false.
-    // AD-HOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
-    // FIXME: This should be set based on dialog closedby state, when implemented.
-    if (m_close_watcher)
-        m_close_watcher->set_enabled(m_is_modal);
+    m_enable_close_watcher_for_request_close = false;
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
@@ -427,7 +423,6 @@ void HTMLDialogElement::set_close_watcher()
 
     // 3. Set dialog's close watcher to the result of establishing a close watcher given dialog's relevant global
     //    object, with:
-    m_close_watcher = CloseWatcher::establish(*document().window());
     //    - cancelAction given canPreventClose being to return the result of firing an event named cancel at dialog,
     //      with the cancelable attribute initialized to canPreventClose.
     auto cancel_callback_function = JS::NativeFunction::create(
@@ -441,7 +436,6 @@ void HTMLDialogElement::set_close_watcher()
         },
         0, Utf16FlyString {}, &realm());
     auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, realm());
-    m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
     //    - closeAction being to close the dialog given dialog, dialog's request close return value, and dialog's
     //      request close source element.
     auto close_callback_function = JS::NativeFunction::create(
@@ -452,12 +446,18 @@ void HTMLDialogElement::set_close_watcher()
         },
         0, Utf16FlyString {}, &realm());
     auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
-    m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
     //    - getEnabledState being to return true if dialog's enable close watcher for request close is true or dialog's
     //      computed closed-by state is not None; otherwise false.
-    // AD-HOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
-    // FIXME: This should be set based on dialog closedby state, when implemented.
-    m_close_watcher->set_enabled(m_is_modal);
+    auto get_enabled_state = GC::create_function(heap(), [dialog = this] {
+        if (dialog->m_enable_close_watcher_for_request_close)
+            return true;
+        // FIXME: dialog's computed closed-by state is not None
+        return false;
+    });
+
+    m_close_watcher = CloseWatcher::establish(*document().window(), move(get_enabled_state));
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps

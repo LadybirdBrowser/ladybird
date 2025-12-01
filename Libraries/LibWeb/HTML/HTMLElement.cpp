@@ -1409,9 +1409,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         }
 
         // 6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
-        m_popover_close_watcher = CloseWatcher::establish(*document.window());
         // - cancelAction being to return true.
-        // We simply don't add an event listener for the cancel action.
+        // NB: We simply don't add an event listener for the cancel action.
         // - closeAction being to hide a popover given element, true, true, false, and null.
         auto close_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
@@ -1421,9 +1420,11 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             },
             0, Utf16FlyString {}, &realm());
         auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
-        m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
         // - getEnabledState being to return true.
-        m_popover_close_watcher->set_enabled(true);
+        auto get_enabled_state = GC::create_function(heap(), [] { return true; });
+
+        m_popover_close_watcher = CloseWatcher::establish(*document.window(), move(get_enabled_state));
+        m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
     }
     // FIXME: 19. Set element's previously focused element to null.
     // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
