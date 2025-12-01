@@ -1493,7 +1493,9 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
     auto limit = checked_limit.value();
 
     // 23. If srcType is targetType, then
-    if (source.element_name() == target.element_name()) {
+    if (source.kind() == target.kind()
+        || (source.kind() == TypedArrayBase::Kind::Uint8Array && target.kind() == TypedArrayBase::Kind::Uint8ClampedArray)
+        || (source.kind() == TypedArrayBase::Kind::Uint8ClampedArray && target.kind() == TypedArrayBase::Kind::Uint8Array)) {
         // a. NOTE: The transfer must be performed in a manner that preserves the bit-level encoding of the source data.
         // b. Repeat, while targetByteIndex < limit,
         //     i. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, Uint8, true, Unordered).
@@ -1700,7 +1702,9 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
         // g. Let targetType be TypedArrayElementType(A).
 
         // h. If srcType is targetType, then
-        if (typed_array->element_name() == array->element_name()) {
+        if (typed_array->kind() == array->kind()
+            || (typed_array->kind() == TypedArrayBase::Kind::Uint8Array && array->kind() == TypedArrayBase::Kind::Uint8ClampedArray)
+            || (typed_array->kind() == TypedArrayBase::Kind::Uint8ClampedArray && array->kind() == TypedArrayBase::Kind::Uint8Array)) {
             // i. NOTE: The transfer must be performed in a manner that preserves the bit-level encoding of the source data.
 
             // ii. Let srcBuffer be O.[[ViewedArrayBuffer]].
