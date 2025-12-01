@@ -149,6 +149,7 @@ ErrorOr<T> decode(Decoder& decoder)
 }
 
 template<Concepts::Vector T>
+requires(!IsArithmetic<typename T::ValueType>)
 ErrorOr<T> decode(Decoder& decoder)
 {
     T vector;
@@ -161,6 +162,18 @@ ErrorOr<T> decode(Decoder& decoder)
         vector.unchecked_append(move(value));
     }
 
+    return vector;
+}
+
+template<Concepts::Vector T>
+requires(IsArithmetic<typename T::ValueType>)
+ErrorOr<T> decode(Decoder& decoder)
+{
+    T vector;
+    auto size = TRY(decoder.decode_size());
+    VERIFY(!Checked<size_t>::multiplication_would_overflow(size, sizeof(typename T::ValueType)));
+    vector.resize(size);
+    TRY(decoder.decode_into({ reinterpret_cast<u8*>(vector.data()), size * sizeof(typename T::ValueType) }));
     return vector;
 }
 
