@@ -301,8 +301,8 @@ void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
 
 bool Internals::set_http_memory_cache_enabled(bool enabled)
 {
-    auto was_enabled = Web::Fetch::Fetching::http_cache_enabled();
-    Web::Fetch::Fetching::set_http_cache_enabled(enabled);
+    auto was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
+    Web::Fetch::Fetching::set_http_memory_cache_enabled(enabled);
     return was_enabled;
 }
 
