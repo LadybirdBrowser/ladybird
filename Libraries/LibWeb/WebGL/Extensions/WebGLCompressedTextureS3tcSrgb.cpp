@@ -14,12 +14,12 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(WebGLCompressedTextureS3tcSrgb);
 
-JS::ThrowCompletionOr<GC::Ptr<WebGLCompressedTextureS3tcSrgb>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, WebGLRenderingContextBase* context)
+JS::ThrowCompletionOr<GC::Ptr<WebGLCompressedTextureS3tcSrgb>> WebGLCompressedTextureS3tcSrgb::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<WebGLCompressedTextureS3tcSrgb>(realm, context);
 }
 
-WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm, WebGLRenderingContextBase* context)
+WebGLCompressedTextureS3tcSrgb::WebGLCompressedTextureS3tcSrgb(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
     : PlatformObject(realm)
     , m_context(context)
 {
@@ -35,7 +35,7 @@ void WebGLCompressedTextureS3tcSrgb::initialize(JS::Realm& realm)
 void WebGLCompressedTextureS3tcSrgb::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_context->gc_cell());
+    visitor.visit(m_context);
 }
 
 }

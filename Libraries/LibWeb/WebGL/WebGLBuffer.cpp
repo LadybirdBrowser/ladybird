@@ -17,12 +17,12 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLBuffer);
 
-GC::Ref<WebGLBuffer> WebGLBuffer::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+GC::Ref<WebGLBuffer> WebGLBuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
     return realm.create<WebGLBuffer>(realm, context, handle);
 }
 
-WebGLBuffer::WebGLBuffer(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+WebGLBuffer::WebGLBuffer(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
     : WebGLObject(realm, context, handle)
 {
 }

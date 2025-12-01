@@ -20,6 +20,8 @@ namespace Web::WebGL {
 using namespace Web::HTML;
 
 class WebGLRenderingContextImpl : public WebGLRenderingContextBase {
+    WEB_PLATFORM_OBJECT(WebGLRenderingContextImpl, WebGLRenderingContextBase);
+
 public:
     WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
@@ -144,7 +146,6 @@ public:
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    GC::Ref<JS::Realm> m_realm;
     GC::Ptr<WebGLBuffer> m_array_buffer_binding;
     GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;
     GC::Ptr<WebGLProgram> m_current_program;

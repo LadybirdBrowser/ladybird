@@ -17,19 +17,14 @@
 
 namespace Web::WebGL {
 
-class WebGL2RenderingContext final : public Bindings::PlatformObject
-    , public WebGL2RenderingContextOverloads {
-    WEB_PLATFORM_OBJECT(WebGL2RenderingContext, Bindings::PlatformObject);
+class WebGL2RenderingContext final : public WebGL2RenderingContextOverloads {
+    WEB_PLATFORM_OBJECT(WebGL2RenderingContext, WebGL2RenderingContextOverloads);
     GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
 
 public:
     static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
 
     virtual ~WebGL2RenderingContext() override;
-
-    // FIXME: This is a hack required to visit context from WebGLObject.
-    //        It should be gone once WebGLRenderingContextBase inherits from PlatformObject.
-    GC::Cell const* gc_cell() const override { return this; }
 
     void present() override;
     void needs_to_present() override;

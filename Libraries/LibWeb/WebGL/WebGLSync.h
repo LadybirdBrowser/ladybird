@@ -16,14 +16,14 @@ class WebGLSync : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLSync);
 
 public:
-    static GC::Ref<WebGLSync> create(JS::Realm& realm, WebGLRenderingContextBase&, GLsyncInternal handle);
+    static GC::Ref<WebGLSync> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLsyncInternal handle);
 
     virtual ~WebGLSync() override;
 
     ErrorOr<GLsyncInternal> sync_handle(WebGLRenderingContextBase const* context) const;
 
 protected:
-    explicit WebGLSync(JS::Realm&, WebGLRenderingContextBase&, GLsyncInternal handle);
+    explicit WebGLSync(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLsyncInternal handle);
 
     virtual void initialize(JS::Realm&) override;
 

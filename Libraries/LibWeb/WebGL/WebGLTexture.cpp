@@ -15,12 +15,12 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLTexture);
 
-GC::Ref<WebGLTexture> WebGLTexture::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+GC::Ref<WebGLTexture> WebGLTexture::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
     return realm.create<WebGLTexture>(realm, context, handle);
 }
 
-WebGLTexture::WebGLTexture(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+WebGLTexture::WebGLTexture(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
     : WebGLObject(realm, context, handle)
 {
 }
