@@ -254,6 +254,28 @@ ErrorOr<int> accept(int sockfd, struct sockaddr* addr, socklen_t* addr_size)
     return fd;
 }
 
+ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t address_length)
+{
+    if (::connect(sockfd, address, address_length) == SOCKET_ERROR)
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
+{
+    auto sent = ::send(sockfd, reinterpret_cast<char const*>(data.data()), static_cast<int>(data.size()), flags);
+
+    if (sent == SOCKET_ERROR) {
+        auto error = WSAGetLastError();
+
+        return error == WSAEWOULDBLOCK
+            ? Error::from_errno(EWOULDBLOCK)
+            : Error::from_windows_error(error);
+    }
+
+    return sent;
+}
+
 ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
 {
     auto sent = ::sendto(sockfd, reinterpret_cast<char const*>(data.data()), static_cast<int>(data.size()), flags, destination, destination_length);
@@ -359,13 +381,6 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
         TRY(addresses.try_append(*result));
 
     return AddressInfoVector { move(addresses), results };
-}
-
-ErrorOr<void> connect(int socket, struct sockaddr const* address, socklen_t address_length)
-{
-    if (::connect(socket, address, address_length) == SOCKET_ERROR)
-        return Error::from_windows_error();
-    return {};
 }
 
 ErrorOr<void> kill(pid_t pid, int signal)
