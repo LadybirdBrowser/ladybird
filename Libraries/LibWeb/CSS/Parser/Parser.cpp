@@ -398,11 +398,11 @@ OwnPtr<Supports::Declaration> Parser::parse_supports_declaration(TokenStream<Com
     // NB: Here, we only care about the <declaration> part.
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
-    if (auto declaration = consume_a_declaration(tokens); declaration.has_value()) {
+    if (auto declaration = consume_a_declaration(tokens, Nested::No, SaveOriginalText::Yes); declaration.has_value()) {
         tokens.discard_whitespace();
         if (!tokens.has_next_token()) {
             transaction.commit();
-            return Supports::Declaration::create(declaration->to_string(), convert_to_style_property(*declaration).has_value());
+            return Supports::Declaration::create(declaration->original_full_text.release_value(), convert_to_style_property(*declaration).has_value());
         }
     }
     return {};
