@@ -22,20 +22,26 @@ class Timer final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Timer);
 
 public:
-    static GC::Ref<Timer> create(JS::Object&, i32 milliseconds, Function<void()> callback, i32 id);
+    enum class Repeating {
+        No,
+        Yes,
+    };
+
+    static GC::Ref<Timer> create(JS::Object&, i32 milliseconds, Function<void()> callback, i32 id, Repeating);
     virtual ~Timer() override;
 
     void start();
     void stop();
 
+    void set_callback(Function<void()>);
+
 private:
-    Timer(JS::Object& window, i32 milliseconds, GC::Ref<GC::Function<void()>> callback, i32 id);
+    Timer(JS::Object& window, i32 milliseconds, Function<void()> callback, i32 id, Repeating);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     RefPtr<Core::Timer> m_timer;
     GC::Ref<JS::Object> m_window_or_worker_global_scope;
-    GC::Ref<GC::Function<void()>> m_callback;
     i32 m_id { 0 };
 };
 
