@@ -255,17 +255,17 @@ ErrorOr<struct stat> lstat(StringView path)
     return st;
 }
 
-ErrorOr<ssize_t> read(int fd, Bytes buffer)
+ErrorOr<size_t> read(int fd, Bytes buffer)
 {
-    ssize_t rc = ::read(fd, buffer.data(), buffer.size());
+    auto rc = ::read(fd, buffer.data(), buffer.size());
     if (rc < 0)
         return Error::from_syscall("read"sv, errno);
     return rc;
 }
 
-ErrorOr<ssize_t> write(int fd, ReadonlyBytes buffer)
+ErrorOr<size_t> write(int fd, ReadonlyBytes buffer)
 {
-    ssize_t rc = ::write(fd, buffer.data(), buffer.size());
+    auto rc = ::write(fd, buffer.data(), buffer.size());
     if (rc < 0)
         return Error::from_syscall("write"sv, errno);
     return rc;
@@ -557,7 +557,7 @@ ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t addr
     return {};
 }
 
-ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
+ErrorOr<size_t> send(int sockfd, ReadonlyBytes data, int flags)
 {
     auto sent = ::send(sockfd, data.data(), data.size(), flags);
     if (sent < 0)
@@ -565,7 +565,7 @@ ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
     return sent;
 }
 
-ErrorOr<ssize_t> sendmsg(int sockfd, const struct msghdr* message, int flags)
+ErrorOr<size_t> sendmsg(int sockfd, const struct msghdr* message, int flags)
 {
     auto sent = ::sendmsg(sockfd, message, flags);
     if (sent < 0)
@@ -573,7 +573,7 @@ ErrorOr<ssize_t> sendmsg(int sockfd, const struct msghdr* message, int flags)
     return sent;
 }
 
-ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
+ErrorOr<size_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
 {
     auto sent = ::sendto(sockfd, data.data(), data.size(), flags, destination, destination_length);
     if (sent < 0)
@@ -581,7 +581,7 @@ ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockad
     return sent;
 }
 
-ErrorOr<ssize_t> recv(int sockfd, Bytes buffer, int flags)
+ErrorOr<size_t> recv(int sockfd, Bytes buffer, int flags)
 {
     auto received = ::recv(sockfd, buffer.data(), buffer.size(), flags);
     if (received < 0)
@@ -589,7 +589,7 @@ ErrorOr<ssize_t> recv(int sockfd, Bytes buffer, int flags)
     return received;
 }
 
-ErrorOr<ssize_t> recvmsg(int sockfd, struct msghdr* message, int flags)
+ErrorOr<size_t> recvmsg(int sockfd, struct msghdr* message, int flags)
 {
     auto received = ::recvmsg(sockfd, message, flags);
     if (received < 0)
@@ -597,7 +597,7 @@ ErrorOr<ssize_t> recvmsg(int sockfd, struct msghdr* message, int flags)
     return received;
 }
 
-ErrorOr<ssize_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
+ErrorOr<size_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
 {
     auto received = ::recvfrom(sockfd, buffer.data(), buffer.size(), flags, address, address_length);
     if (received < 0)
@@ -879,7 +879,7 @@ ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t 
     auto* mapped = TRY(mmap(nullptr, mapped_source_length, PROT_READ, MAP_SHARED, source_fd, aligned_source_offset));
     ScopeGuard guard { [&]() { (void)munmap(mapped, mapped_source_length); } };
 
-    return TRY(write(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }));
+    return write(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length });
 #endif
 }
 

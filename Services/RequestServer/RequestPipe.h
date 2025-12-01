@@ -23,7 +23,7 @@ public:
     int reader_fd() const { return m_reader_fd; }
     int writer_fd() const { return m_writer_fd; }
 
-    ErrorOr<ssize_t> write(ReadonlyBytes bytes);
+    ErrorOr<size_t> write(ReadonlyBytes bytes);
 
 private:
     RequestPipe(int reader_fd, int writer_fd);

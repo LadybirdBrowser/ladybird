@@ -56,7 +56,7 @@ ErrorOr<RequestPipe> RequestPipe::create()
 #endif
 }
 
-ErrorOr<ssize_t> RequestPipe::write(ReadonlyBytes bytes)
+ErrorOr<size_t> RequestPipe::write(ReadonlyBytes bytes)
 {
 #if defined(AK_OS_WINDOWS)
     return Core::System::send(m_writer_fd, bytes, 0);
