@@ -1740,19 +1740,26 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
                 return array;
             }
 
-            // ix. Repeat, while targetByteIndex < limit,
-            while (target_byte_index < limit) {
-                // 1. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, uint8, true, unordered).
-                auto value = source_buffer.get_value<u8>(source_byte_index.value(), true, ArrayBuffer::Unordered);
+            // OPTIMIZATION: If the buffers are not detached and not shared, we can do a single bulk copy.
+            if (!target_buffer.is_detached() && !target_buffer.is_shared_array_buffer()
+                && !source_buffer.is_detached() && !source_buffer.is_shared_array_buffer()
+                && &target_buffer.buffer() != &source_buffer.buffer()) {
+                target_buffer.buffer().overwrite(target_byte_index, source_buffer.buffer().data() + source_byte_index.value(), limit.value() - target_byte_index);
+            } else {
+                // ix. Repeat, while targetByteIndex < limit,
+                while (target_byte_index < limit) {
+                    // 1. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, uint8, true, unordered).
+                    auto value = source_buffer.get_value<u8>(source_byte_index.value(), true, ArrayBuffer::Unordered);
 
-                // 2. Perform SetValueInBuffer(targetBuffer, targetByteIndex, uint8, value, true, unordered).
-                target_buffer.set_value<u8>(target_byte_index, value, true, ArrayBuffer::Unordered);
+                    // 2. Perform SetValueInBuffer(targetBuffer, targetByteIndex, uint8, value, true, unordered).
+                    target_buffer.set_value<u8>(target_byte_index, value, true, ArrayBuffer::Unordered);
 
-                // 3. Set srcByteIndex to srcByteIndex + 1.
-                ++source_byte_index;
+                    // 3. Set srcByteIndex to srcByteIndex + 1.
+                    ++source_byte_index;
 
-                // 4. Set targetByteIndex to targetByteIndex + 1.
-                ++target_byte_index;
+                    // 4. Set targetByteIndex to targetByteIndex + 1.
+                    ++target_byte_index;
+                }
             }
         }
         // i. Else,
