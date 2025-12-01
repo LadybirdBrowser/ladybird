@@ -335,14 +335,9 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
     // `<supports-decl> = ( <declaration> )`
     if (first_token.is_block() && first_token.block().is_paren()) {
         TokenStream block_tokens { first_token.block().value };
-        // FIXME: Parsing and then converting back to a string is weird.
-        if (auto declaration = consume_a_declaration(block_tokens); declaration.has_value() && !block_tokens.has_next_token()) {
+        if (auto declaration = parse_supports_declaration(block_tokens)) {
             transaction.commit();
-            auto supports_declaration = Supports::Declaration::create(
-                declaration->to_string(),
-                convert_to_style_property(*declaration).has_value());
-
-            return BooleanExpressionInParens::create(supports_declaration.release_nonnull<BooleanExpression>());
+            return BooleanExpressionInParens::create(declaration.release_nonnull<BooleanExpression>());
         }
     }
 
@@ -393,6 +388,23 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         return Supports::FontFormat::create(move(format_name), matches);
     }
 
+    return {};
+}
+
+// https://drafts.csswg.org/css-conditional-5/#typedef-supports-decl
+OwnPtr<Supports::Declaration> Parser::parse_supports_declaration(TokenStream<ComponentValue>& tokens)
+{
+    // `<supports-decl> = ( <declaration> )`
+    // NB: Here, we only care about the <declaration> part.
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (auto declaration = consume_a_declaration(tokens); declaration.has_value()) {
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token()) {
+            transaction.commit();
+            return Supports::Declaration::create(declaration->to_string(), convert_to_style_property(*declaration).has_value());
+        }
+    }
     return {};
 }
 

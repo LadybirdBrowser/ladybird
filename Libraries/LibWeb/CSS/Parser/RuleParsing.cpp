@@ -245,12 +245,10 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         supports = parse_a_supports(supports_tokens);
         if (!supports) {
             m_rule_context.append(RuleContext::SupportsCondition);
-            auto declaration = consume_a_declaration(supports_tokens);
+            auto supports_declaration = parse_supports_declaration(supports_tokens);
             m_rule_context.take_last();
-            if (declaration.has_value()) {
-                auto supports_declaration = Supports::Declaration::create(declaration->to_string(), convert_to_style_property(*declaration).has_value());
+            if (supports_declaration)
                 supports = Supports::create(supports_declaration.release_nonnull<BooleanExpression>());
-            }
         }
     }
 
