@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/RequestPrototype.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Worker/WebWorkerClient.h>
 
 namespace Web::HTML {
 

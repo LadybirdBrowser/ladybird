@@ -17,7 +17,7 @@
 #include <LibDevTools/Forward.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
-#include <LibRequests/RequestClient.h>
+#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>

@@ -768,6 +768,7 @@ class UserActivation;
 class ValidityState;
 class VideoTrack;
 class VideoTrackList;
+class WebWorkerClient;
 class Window;
 class WindowEnvironmentSettingsObject;
 class WindowProxy;

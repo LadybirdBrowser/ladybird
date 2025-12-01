@@ -3,6 +3,7 @@ set(SOURCES
     NetworkError.h
     Request.cpp
     RequestClient.cpp
+    RequestTimingInfo.cpp
     WebSocket.cpp
 )
 
