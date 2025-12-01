@@ -118,7 +118,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool disable_http_memory_cache = false;
-    bool enable_http_disk_cache = false;
+    bool disable_http_disk_cache = false;
     bool disable_content_filter = false;
     bool enable_autoplay = false;
     bool expose_internals_object = false;
@@ -169,7 +169,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
-    args_parser.add_option(enable_http_disk_cache, "Enable HTTP disk cache", "enable-http-disk-cache");
+    args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_filter, "Disable content filter", "disable-content-filter");
     args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
@@ -214,8 +214,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
     // the same underlying database, one of them is likely to fail.
-    if (force_new_process)
+    if (force_new_process) {
         disable_sql_database = true;
+        disable_http_disk_cache = true;
+    }
 
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
@@ -262,7 +264,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     m_request_server_options = {
         .certificates = move(certificates),
-        .http_disk_cache_mode = enable_http_disk_cache ? HTTPDiskCacheMode::Enabled : HTTPDiskCacheMode::Disabled,
+        .http_disk_cache_mode = disable_http_disk_cache ? HTTPDiskCacheMode::Disabled : HTTPDiskCacheMode::Enabled,
     };
 
     m_web_content_options = {
