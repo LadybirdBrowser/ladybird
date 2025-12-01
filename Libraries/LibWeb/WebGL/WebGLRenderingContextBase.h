@@ -45,6 +45,8 @@ public:
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
+
+protected:
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const = 0;
     virtual bool angle_instanced_arrays_extension_enabled() const = 0;
     virtual bool oes_standard_derivatives_extension_enabled() const = 0;
@@ -125,7 +127,6 @@ public:
 
     Optional<Gfx::BitmapExportResult> read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {});
 
-protected:
     static Vector<GLchar> null_terminated_string(StringView string)
     {
         Vector<GLchar> result;
