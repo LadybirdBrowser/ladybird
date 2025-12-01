@@ -557,9 +557,9 @@ ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t addr
     return {};
 }
 
-ErrorOr<ssize_t> send(int sockfd, void const* buffer, size_t buffer_length, int flags)
+ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
 {
-    auto sent = ::send(sockfd, buffer, buffer_length, flags);
+    auto sent = ::send(sockfd, data.data(), data.size(), flags);
     if (sent < 0)
         return Error::from_syscall("send"sv, errno);
     return sent;
@@ -573,17 +573,17 @@ ErrorOr<ssize_t> sendmsg(int sockfd, const struct msghdr* message, int flags)
     return sent;
 }
 
-ErrorOr<ssize_t> sendto(int sockfd, void const* source, size_t source_length, int flags, struct sockaddr const* destination, socklen_t destination_length)
+ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
 {
-    auto sent = ::sendto(sockfd, source, source_length, flags, destination, destination_length);
+    auto sent = ::sendto(sockfd, data.data(), data.size(), flags, destination, destination_length);
     if (sent < 0)
         return Error::from_syscall("sendto"sv, errno);
     return sent;
 }
 
-ErrorOr<ssize_t> recv(int sockfd, void* buffer, size_t length, int flags)
+ErrorOr<ssize_t> recv(int sockfd, Bytes buffer, int flags)
 {
-    auto received = ::recv(sockfd, buffer, length, flags);
+    auto received = ::recv(sockfd, buffer.data(), buffer.size(), flags);
     if (received < 0)
         return Error::from_syscall("recv"sv, errno);
     return received;
@@ -597,9 +597,9 @@ ErrorOr<ssize_t> recvmsg(int sockfd, struct msghdr* message, int flags)
     return received;
 }
 
-ErrorOr<ssize_t> recvfrom(int sockfd, void* buffer, size_t buffer_length, int flags, struct sockaddr* address, socklen_t* address_length)
+ErrorOr<ssize_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
 {
-    auto received = ::recvfrom(sockfd, buffer, buffer_length, flags, address, address_length);
+    auto received = ::recvfrom(sockfd, buffer.data(), buffer.size(), flags, address, address_length);
     if (received < 0)
         return Error::from_syscall("recvfrom"sv, errno);
     return received;

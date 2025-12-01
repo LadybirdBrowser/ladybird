@@ -126,7 +126,7 @@ ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
         return Error::from_errno(ENOTCONN);
     }
 
-    ssize_t nread = TRY(System::recv(m_fd, buffer.data(), buffer.size(), flags));
+    ssize_t nread = TRY(System::recv(m_fd, buffer, flags));
     if (nread == 0)
         did_reach_eof_on_read();
 
@@ -150,7 +150,7 @@ ErrorOr<size_t> PosixSocketHelper::write(ReadonlyBytes buffer, int flags)
         return Error::from_errno(ENOTCONN);
     }
 
-    return TRY(System::send(m_fd, buffer.data(), buffer.size(), flags));
+    return TRY(System::send(m_fd, buffer, flags));
 }
 
 void PosixSocketHelper::close()
