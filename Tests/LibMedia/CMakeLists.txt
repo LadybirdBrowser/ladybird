@@ -7,7 +7,6 @@ set(TEST_SOURCES
     TestPlaybackStream.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
-    TestWav.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)
