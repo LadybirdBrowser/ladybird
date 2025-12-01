@@ -12,23 +12,6 @@
 
 namespace Web::CSS::Parser {
 
-String Declaration::to_string() const
-{
-    if (original_value_text.has_value())
-        return original_value_text.value();
-
-    StringBuilder builder;
-
-    serialize_an_identifier(builder, name);
-    builder.append(": "sv);
-    builder.join(' ', value);
-
-    if (important == Important::Yes)
-        builder.append(" !important"sv);
-
-    return MUST(builder.to_string());
-}
-
 String SimpleBlock::to_string() const
 {
     StringBuilder builder;
