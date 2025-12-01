@@ -139,12 +139,25 @@ template<>
 ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&);
 
 template<Concepts::Span T>
+requires(!IsArithmetic<typename T::ElementType>)
 ErrorOr<void> encode(Encoder& encoder, T const& span)
 {
     TRY(encoder.encode_size(span.size()));
 
     for (auto const& value : span)
         TRY(encoder.encode(value));
+
+    return {};
+}
+
+template<Concepts::Span T>
+requires(IsArithmetic<typename T::ElementType>)
+ErrorOr<void> encode(Encoder& encoder, T const& span)
+{
+    TRY(encoder.encode_size(span.size()));
+
+    VERIFY(!Checked<size_t>::multiplication_would_overflow(span.size(), sizeof(typename T::ElementType)));
+    TRY(encoder.append(reinterpret_cast<u8 const*>(span.data()), span.size() * sizeof(typename T::ElementType)));
 
     return {};
 }

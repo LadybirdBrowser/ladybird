@@ -125,6 +125,8 @@ class Span : public Detail::Span<T> {
 public:
     using Detail::Span<T>::Span;
 
+    using ElementType = T;
+
     constexpr Span() = default;
 
     [[nodiscard]] ALWAYS_INLINE constexpr T const* data() const { return this->m_values; }
