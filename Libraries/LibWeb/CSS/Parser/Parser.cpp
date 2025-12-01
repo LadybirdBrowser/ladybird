@@ -1161,7 +1161,7 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
         for (auto const& value : declaration.value) {
             original_text.append(value.original_source_text());
         }
-        declaration.original_text = original_text.to_string_without_validation();
+        declaration.original_value_text = original_text.to_string_without_validation();
     }
     //    Otherwise, if decl’s value contains a top-level simple block with an associated token of <{-token>,
     //    and also contains any other non-<whitespace-token> value, return nothing.
@@ -1647,7 +1647,7 @@ Optional<StylePropertyAndName> Parser::convert_to_style_property(Declaration con
     }
 
     auto value_token_stream = TokenStream(declaration.value);
-    auto value = parse_css_value(property->id(), value_token_stream, declaration.original_text);
+    auto value = parse_css_value(property->id(), value_token_stream, declaration.original_value_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
             ErrorReporter::the().report(InvalidPropertyError {
