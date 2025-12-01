@@ -116,6 +116,66 @@ It will then download both that test and any of its JavaScript scripts, copy tho
 directory, run the test, and then in the `Tests/LibWeb/<test-type>/expected/wpt-import` directory, it will create a file
 with the expected results from the test.
 
+
+## Running test262
+
+[test262](https://github.com/tc39/test262) is the official ECMAScript conformance test suite. Ladybird's LibJS is tested against this suite to ensure compliance.
+
+### Prerequisites
+
+To run the tests, you need to clone the runner repository and the test suite. It is recommended to place them in a directory structure alongside your Ladybird clone:
+
+```
+.
+├── ladybird/               # Your Ladybird clone
+├── libjs-test262/          # https://github.com/LadybirdBrowser/libjs-test262
+├── test262/                # https://github.com/tc39/test262
+├── test262-parser-tests/   # https://github.com/tc39/test262-parser-tests
+└── libjs-data/             # https://github.com/LadybirdBrowser/libjs-data (Optional, for comparison)
+```
+
+Install the Python dependencies for the runner:
+
+```sh
+pip install -r libjs-test262/requirements.txt
+```
+
+### Building the Runner
+
+The `test262-runner` is a helper program that runs the tests. It must be built as part of Ladybird.
+
+```sh
+cd ladybird
+cmake --preset Release
+cmake --build --preset Release --target test262-runner
+```
+
+### Running the Tests
+
+Use the `run_all_and_update_results.py` script from the `libjs-test262` repository. Point it to your Ladybird source directory and the test repositories.
+
+```sh
+cd ../libjs-test262
+python3 run_all_and_update_results.py \
+  --serenity ../ladybird \
+  --test262 ../test262 \
+  --test262-parser-tests ../test262-parser-tests \
+  --results-json results.json \
+  --per-file-output per-file.json
+```
+
+This will execute the tests and save the results to `results.json` and `per-file.json`.
+
+### Generating a Diff
+
+When making changes to LibJS, it is important to check if you have caused any regressions or fixed any tests. You can compare your results against a baseline (e.g., the master branch results from `libjs-data`).
+
+```sh
+./per_file_result_diff.py -o ../libjs-data/test262/per-file-master.json -n per-file.json
+```
+
+This command will output a diff of the test results, highlighting any changes.
+
 ## Writing tests
 
 Running the following python script to create new test files with correct boilerplate:
