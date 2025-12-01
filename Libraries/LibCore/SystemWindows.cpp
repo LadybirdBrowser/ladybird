@@ -47,7 +47,7 @@ ErrorOr<void> close(int handle)
     return {};
 }
 
-ErrorOr<ssize_t> read(int handle, Bytes buffer)
+ErrorOr<size_t> read(int handle, Bytes buffer)
 {
     DWORD n_read = 0;
     if (!ReadFile(to_handle(handle), buffer.data(), buffer.size(), &n_read, NULL))
@@ -55,7 +55,7 @@ ErrorOr<ssize_t> read(int handle, Bytes buffer)
     return n_read;
 }
 
-ErrorOr<ssize_t> write(int handle, ReadonlyBytes buffer)
+ErrorOr<size_t> write(int handle, ReadonlyBytes buffer)
 {
     DWORD n_written = 0;
     if (!WriteFile(to_handle(handle), buffer.data(), buffer.size(), &n_written, NULL))
@@ -261,7 +261,7 @@ ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t addr
     return {};
 }
 
-ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
+ErrorOr<size_t> send(int sockfd, ReadonlyBytes data, int flags)
 {
     auto sent = ::send(sockfd, reinterpret_cast<char const*>(data.data()), static_cast<int>(data.size()), flags);
 
@@ -276,7 +276,7 @@ ErrorOr<ssize_t> send(int sockfd, ReadonlyBytes data, int flags)
     return sent;
 }
 
-ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
+ErrorOr<size_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
 {
     auto sent = ::sendto(sockfd, reinterpret_cast<char const*>(data.data()), static_cast<int>(data.size()), flags, destination, destination_length);
     if (sent == SOCKET_ERROR)
@@ -284,7 +284,7 @@ ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockad
     return sent;
 }
 
-ErrorOr<ssize_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
+ErrorOr<size_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
 {
     auto received = ::recvfrom(sockfd, reinterpret_cast<char*>(buffer.data()), static_cast<int>(buffer.size()), flags, address, address_length);
     if (received == SOCKET_ERROR)
@@ -422,7 +422,7 @@ ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t 
     auto* mapped = TRY(mmap(nullptr, mapped_source_length, PROT_READ, MAP_SHARED, source_fd, aligned_source_offset));
     ScopeGuard guard { [&]() { (void)munmap(mapped, mapped_source_length); } };
 
-    return TRY(send(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }, 0));
+    return send(target_fd, { static_cast<u8*>(mapped) + offset_adjustment, source_length }, 0);
 }
 
 }

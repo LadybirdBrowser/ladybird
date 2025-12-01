@@ -70,7 +70,7 @@ ErrorOr<ByteBuffer> UDPServer::receive(size_t size)
 ErrorOr<size_t> UDPServer::send(ReadonlyBytes buffer, sockaddr_in const& to)
 {
     socklen_t to_len = sizeof(to);
-    return TRY(Core::System::sendto(m_fd, buffer, 0, (sockaddr const*)&to, to_len));
+    return Core::System::sendto(m_fd, buffer, 0, (sockaddr const*)&to, to_len);
 }
 
 Optional<IPv4Address> UDPServer::local_address() const

@@ -126,7 +126,7 @@ ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
         return Error::from_errno(ENOTCONN);
     }
 
-    ssize_t nread = TRY(System::recv(m_fd, buffer, flags));
+    auto nread = TRY(System::recv(m_fd, buffer, flags));
     if (nread == 0)
         did_reach_eof_on_read();
 
@@ -150,7 +150,7 @@ ErrorOr<size_t> PosixSocketHelper::write(ReadonlyBytes buffer, int flags)
         return Error::from_errno(ENOTCONN);
     }
 
-    return TRY(System::send(m_fd, buffer, flags));
+    return System::send(m_fd, buffer, flags);
 }
 
 void PosixSocketHelper::close()
@@ -410,7 +410,7 @@ ErrorOr<void> LocalSocket::send_fd(int fd)
 #endif
 }
 
-ErrorOr<ssize_t> LocalSocket::send_message(ReadonlyBytes data, int flags, Vector<int, 1> fds)
+ErrorOr<size_t> LocalSocket::send_message(ReadonlyBytes data, int flags, Vector<int, 1> fds)
 {
     size_t const num_fds = fds.size();
     if (num_fds == 0)
@@ -439,7 +439,7 @@ ErrorOr<ssize_t> LocalSocket::send_message(ReadonlyBytes data, int flags, Vector
     msg.msg_control = header;
     msg.msg_controllen = CMSG_LEN(fd_payload_size);
 
-    return TRY(Core::System::sendmsg(m_helper.fd(), &msg, default_flags() | flags));
+    return Core::System::sendmsg(m_helper.fd(), &msg, default_flags() | flags);
 }
 
 ErrorOr<Bytes> LocalSocket::receive_message(AK::Bytes buffer, int flags, Vector<int>& fds)

@@ -125,7 +125,7 @@ ErrorOr<Bytes> File::read_some(Bytes buffer)
         return Error::from_errno(EBADF);
     }
 
-    ssize_t nread = TRY(System::read(m_fd, buffer));
+    auto nread = TRY(System::read(m_fd, buffer));
     m_last_read_was_eof = nread == 0;
     m_file_offset += nread;
     return buffer.trim(nread);
