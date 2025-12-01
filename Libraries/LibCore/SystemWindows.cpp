@@ -254,17 +254,17 @@ ErrorOr<int> accept(int sockfd, struct sockaddr* addr, socklen_t* addr_size)
     return fd;
 }
 
-ErrorOr<ssize_t> sendto(int sockfd, void const* source, size_t source_length, int flags, struct sockaddr const* destination, socklen_t destination_length)
+ErrorOr<ssize_t> sendto(int sockfd, ReadonlyBytes data, int flags, struct sockaddr const* destination, socklen_t destination_length)
 {
-    auto sent = ::sendto(sockfd, static_cast<char const*>(source), source_length, flags, destination, destination_length);
+    auto sent = ::sendto(sockfd, reinterpret_cast<char const*>(data.data()), static_cast<int>(data.size()), flags, destination, destination_length);
     if (sent == SOCKET_ERROR)
         return Error::from_windows_error();
     return sent;
 }
 
-ErrorOr<ssize_t> recvfrom(int sockfd, void* buffer, size_t buffer_length, int flags, struct sockaddr* address, socklen_t* address_length)
+ErrorOr<ssize_t> recvfrom(int sockfd, Bytes buffer, int flags, struct sockaddr* address, socklen_t* address_length)
 {
-    auto received = ::recvfrom(sockfd, static_cast<char*>(buffer), buffer_length, flags, address, address_length);
+    auto received = ::recvfrom(sockfd, reinterpret_cast<char*>(buffer.data()), static_cast<int>(buffer.size()), flags, address, address_length);
     if (received == SOCKET_ERROR)
         return Error::from_windows_error();
     return received;

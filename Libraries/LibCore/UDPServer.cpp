@@ -66,7 +66,7 @@ ErrorOr<ByteBuffer> UDPServer::receive(size_t size, sockaddr_in& in)
 {
     auto buf = TRY(ByteBuffer::create_uninitialized(size));
     socklen_t in_len = sizeof(in);
-    auto bytes_received = TRY(Core::System::recvfrom(m_fd, buf.data(), size, 0, (sockaddr*)&in, &in_len));
+    auto bytes_received = TRY(Core::System::recvfrom(m_fd, buf, 0, (sockaddr*)&in, &in_len));
     buf.resize(bytes_received);
     return buf;
 }
@@ -105,16 +105,10 @@ Optional<u16> UDPServer::local_port() const
 
 ErrorOr<size_t> UDPServer::send(ReadonlyBytes buffer, sockaddr_in const& to)
 {
-    if (m_fd < 0) {
+    if (m_fd < 0)
         return Error::from_errno(EBADF);
-    }
 
-    auto result = ::sendto(m_fd, buffer.data(), buffer.size(), 0, (sockaddr const*)&to, sizeof(to));
-    if (result < 0) {
-        return Error::from_errno(errno);
-    }
-
-    return result;
+    return System::sendto(m_fd, buffer, 0, (sockaddr const*)&to, sizeof(to));
 }
 
 }
