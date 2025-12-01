@@ -533,6 +533,15 @@ void WebGLRenderingContextImpl::delete_texture(GC::Root<WebGLTexture> texture)
     }
 
     glDeleteTextures(1, &texture_handle);
+
+    if (m_texture_binding_2d == texture)
+        m_texture_binding_2d = nullptr;
+    if (m_texture_binding_cube_map == texture)
+        m_texture_binding_cube_map = nullptr;
+    if (m_texture_binding_2d_array == texture)
+        m_texture_binding_2d_array = nullptr;
+    if (m_texture_binding_3d == texture)
+        m_texture_binding_3d = nullptr;
 }
 
 void WebGLRenderingContextImpl::depth_func(WebIDL::UnsignedLong func)
