@@ -8,14 +8,14 @@ That's where reduced test cases and issue raising comes in. By the end of this g
 > - No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord. Do not create an issue.
 > - One bug per issue. Putting multiple things in the same issue makes both discussion and completion unnecessarily complicated.
 >- Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
->- If you can't to reduce the test case (see bellow), please go to the discord before raising an issue!
+>- If you can't to reduce the test case (see below), please go to the discord before raising an issue!
 
 If you've been here before and you're just looking for the link to the form, [here it is](https://github.com/LadybirdBrowser/ladybird/issues/new?template=bug_report.yml).
 
 >[!NOTE]
 > The following guide assumes:
 > - You have some web development knowledge (comfortable in the inspector).
-> - You have followed the [getting started guide]() (ladybird is running on your device).
+> - You have followed the [getting started guide](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/GettingStartedContributing.md) (Ladybird is running on your device).
 > - You have joined the discord server.
 
 Ladybird developers are looking for reduced test cases; 
@@ -46,7 +46,7 @@ G --> I{Does behaviour persist?}
 I -->|Yes| J[You found a culprit!]
 I -->|No| G
 ```
-1. Find a behaviour on a web page in ladybird that isn't what you'd expect in Chrome/Firefox.
+1. Find a behaviour on a web page in Ladybird that isn't what you'd expect in Chrome/Firefox/Safari.
 
 2. Get a .html file (eg. REDUCTION.html) containing your unexpected behaviour.
 
@@ -93,4 +93,4 @@ This might seem a little intimidating, so here are a few examples that are easy 
 
 # Going Further
 Want to patch to your issue? 
-[Getting Started Contributing]() is your friend.
+[Getting Started Contributing](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/GettingStartedContributing.md) is your friend.
