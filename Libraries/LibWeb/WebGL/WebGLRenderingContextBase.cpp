@@ -82,6 +82,11 @@ static constexpr Optional<Gfx::ExportFormat> determine_export_format(WebIDL::Uns
     return {};
 }
 
+WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
+    : Bindings::PlatformObject(realm)
+{
+}
+
 Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_convert_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width, Optional<int> destination_height)
 {
     // FIXME: If this function is called with an ImageData whose data attribute has been neutered,

@@ -27,15 +27,14 @@ public:
     ErrorOr<GLuint> handle(WebGLRenderingContextBase const* context) const;
 
 protected:
-    explicit WebGLObject(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
+    explicit WebGLObject(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     void initialize(JS::Realm&) override;
     void visit_edges(Visitor&) override;
 
     bool invalidated() const { return m_invalidated; }
 
-    // FIXME: It should be GC::Ptr instead of raw pointer, but we need to make WebGLRenderingContextBase inherit from PlatformObject first.
-    WebGLRenderingContextBase* m_context;
+    GC::Ref<WebGLRenderingContextBase> m_context;
 
 private:
     GLuint m_handle { 0 };

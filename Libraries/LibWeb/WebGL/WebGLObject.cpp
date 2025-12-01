@@ -14,9 +14,9 @@
 
 namespace Web::WebGL {
 
-WebGLObject::WebGLObject(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+WebGLObject::WebGLObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
     : Bindings::PlatformObject(realm)
-    , m_context(&context)
+    , m_context(context)
     , m_handle(handle)
 {
 }
@@ -32,7 +32,7 @@ void WebGLObject::initialize(JS::Realm& realm)
 void WebGLObject::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_context->gc_cell());
+    visitor.visit(m_context);
 }
 
 ErrorOr<GLuint> WebGLObject::handle(WebGLRenderingContextBase const* context) const

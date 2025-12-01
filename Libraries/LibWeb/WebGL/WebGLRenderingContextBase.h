@@ -34,19 +34,19 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Root<HTML::ImageBitmap>, GC::Root<HTML::ImageData>, GC::Root<HTML::HTMLImageElement>, GC::Root<HTML::HTMLCanvasElement>, GC::Root<HTML::OffscreenCanvas>, GC::Root<HTML::HTMLVideoElement>>;
 
-// FIXME: This object should inherit from Bindings::PlatformObject and implement the WebGLRenderingContextBase IDL interface.
-//        We should make WebGL code generator to produce implementation for this interface.
-class WebGLRenderingContextBase {
+class WebGLRenderingContextBase : public Bindings::PlatformObject {
+    WEB_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+
 public:
     using Float32List = Variant<GC::Root<JS::Float32Array>, Vector<float>>;
     using Int32List = Variant<GC::Root<JS::Int32Array>, Vector<WebIDL::Long>>;
     using Uint32List = Variant<GC::Root<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
-    virtual GC::Cell const* gc_cell() const = 0;
-    virtual void visit_edges(JS::Cell::Visitor&) = 0;
     virtual OpenGLContext& context() = 0;
 
 protected:
+    WebGLRenderingContextBase(JS::Realm&);
+
     virtual bool ext_texture_filter_anisotropic_extension_enabled() const = 0;
     virtual bool angle_instanced_arrays_extension_enabled() const = 0;
     virtual bool oes_standard_derivatives_extension_enabled() const = 0;
