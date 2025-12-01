@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/HashFunctions.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
@@ -151,7 +152,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
     }();
 
     if (result.is_error()) {
-        dbgln("\033[31;1mUnable to write status/reason to cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mUnable to write status/reason to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destroy_cache_entry();
@@ -170,7 +171,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     }
 
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
-        dbgln("\033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
 
         remove();
         close_and_destroy_cache_entry();
@@ -192,7 +193,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> response_headers
     m_cache_footer.header_hash = m_cache_header.hash();
 
     if (auto result = m_file->write_value(m_cache_footer); result.is_error()) {
-        dbgln("\033[31;1mUnable to flush cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mUnable to flush cache entry for\033[0m {}: {}", m_url, result.error());
         remove();
 
         return result.release_error();
@@ -200,7 +201,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> response_headers
 
     m_index.create_entry(m_cache_key, m_url, move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
-    dbgln("\033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
 }
 
@@ -265,7 +266,7 @@ CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64
 
 void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers)
 {
-    dbgln("\033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 
     update_header_fields(m_response_headers, response_headers);
     m_index.update_response_headers(m_cache_key, m_response_headers);
@@ -273,7 +274,7 @@ void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers
 
 void CacheEntryReader::revalidation_failed()
 {
-    dbgln("\033[33;1mCache revalidation failed for\033[0m {}", m_url);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[33;1mCache revalidation failed for\033[0m {}", m_url);
 
     remove();
     close_and_destroy_cache_entry();
@@ -334,7 +335,7 @@ void CacheEntryReader::pipe_without_blocking()
 void CacheEntryReader::pipe_complete()
 {
     if (auto result = read_and_validate_footer(); result.is_error()) {
-        dbgln("\033[31;1mError validating cache entry for\033[0m {}: {}", m_url, result.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mError validating cache entry for\033[0m {}: {}", m_url, result.error());
         remove();
 
         if (m_on_pipe_error)
@@ -351,7 +352,7 @@ void CacheEntryReader::pipe_complete()
 
 void CacheEntryReader::pipe_error(Error error)
 {
-    dbgln("\033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, error);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, error);
 
     // FIXME: We may not want to actually remove the cache file for all errors. For now, let's assume the file is not
     //        useable at this point and remove it.
