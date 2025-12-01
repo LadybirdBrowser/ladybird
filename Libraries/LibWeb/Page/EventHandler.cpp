@@ -809,7 +809,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             if (hovered_link_element)
                 is_hovering_link = true;
 
-            if (paintable->layout_node().is_text_node()) {
+            if (paintable->layout_node().is_text_node() || node->is_editing_host()) {
                 hovered_node_cursor = resolve_cursor(*paintable->layout_node().parent(), cursor_data, Gfx::StandardCursor::IBeam);
             } else if (node->is_element()) {
                 hovered_node_cursor = resolve_cursor(static_cast<Layout::NodeWithStyle&>(*layout_node), cursor_data, Gfx::StandardCursor::Arrow);
