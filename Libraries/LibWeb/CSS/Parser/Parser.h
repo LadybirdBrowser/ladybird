@@ -564,6 +564,7 @@ private:
     OwnPtr<BooleanExpression> parse_boolean_expression_group(TokenStream<ComponentValue>&, MatchResult result_for_general_enclosed, ParseTest parse_test);
 
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
+    OwnPtr<Supports::Declaration> parse_supports_declaration(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(DOM::AbstractElement, GuardedSubstitutionContexts&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 
