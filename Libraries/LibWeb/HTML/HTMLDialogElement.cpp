@@ -46,22 +46,22 @@ void HTMLDialogElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_previously_focused_element);
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:html-element-removing-steps
 void HTMLDialogElement::removed_from(Node* old_parent, Node& old_root)
 {
     HTMLElement::removed_from(old_parent, old_root);
 
-    // 1. If removedNode's close watcher is not null, then:
-    if (m_close_watcher) {
-        // 1.1. Destroy removedNode's close watcher.
-        m_close_watcher->destroy();
-        // 1.2. Set removedNode's close watcher to null.
-        m_close_watcher = nullptr;
-    }
+    // 1. If removedNode has an open attribute, then run the dialog cleanup steps given removedNode.
+    if (has_attribute(AttributeNames::open))
+        run_dialog_cleanup_steps();
 
     // 2. If removedNode's node document's top layer contains removedNode, then remove an element from the top layer
     //    immediately given removedNode.
     if (document().top_layer_elements().contains(*this))
         document().remove_an_element_from_the_top_layer_immediately(*this);
+
+    // 3. Set is modal of removedNode to false.
+    set_is_modal(false);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#queue-a-dialog-toggle-event-task
@@ -115,8 +115,8 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
         return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_utf16);
 
     // 3. If the result of firing an event named beforetoggle, using ToggleEvent,
-    //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
-    //  and the newState attribute initialized to "open" at this is false, then return.
+    //    with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
+    //    and the newState attribute initialized to "open" at this is false, then return.
     ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
@@ -136,36 +136,29 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 6. Add an open attribute to this, whose value is the empty string.
     set_attribute_value(AttributeNames::open, String {});
 
-    // 7. Assert: this's node document's open dialogs list does not contain this.
-    VERIFY(!m_document->open_dialogs_list().contains_slow(GC::Ref(*this)));
-
-    // 8. Add this to this's node document's open dialogs list.
-    m_document->open_dialogs_list().append(*this);
-
-    // 9. Set the dialog close watcher with this.
-    set_close_watcher();
-
-    // 10. Set this's previously focused element to the focused element.
+    // 7. Set this's previously focused element to the focused element.
     m_previously_focused_element = document().focused_area();
 
-    // 11. Let document be this's node document.
+    // 8. Let document be this's node document.
     auto document = m_document;
 
-    // 12. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover list, null, and false.
+    // 9. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover
+    //    list, null, and false.
     Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> hide_until = topmost_popover_ancestor(this, document->showing_hint_popover_list(), nullptr, IsPopover::No);
 
-    // 13. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given this, document's showing auto popover list, null, and false.
+    // 10. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given this,
+    //     document's showing auto popover list, null, and false.
     if (!hide_until.get<GC::Ptr<HTMLElement>>())
         hide_until = topmost_popover_ancestor(this, document->showing_auto_popover_list(), nullptr, IsPopover::No);
 
-    // 14. If hideUntil is null, then set hideUntil to document.
+    // 11. If hideUntil is null, then set hideUntil to document.
     if (!hide_until.get<GC::Ptr<HTMLElement>>())
         hide_until = document;
 
-    // 15. Run hide all popovers until given hideUntil, false, and true.
+    // 12. Run hide all popovers until given hideUntil, false, and true.
     hide_all_popovers_until(hide_until, FocusPreviousElement::No, FireEvents::Yes);
 
-    // 16. Run the dialog focusing steps given this.
+    // 13. Run the dialog focusing steps given this.
     run_dialog_focusing_steps();
 
     return {};
@@ -181,7 +174,6 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#show-a-modal-dialog
 WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogElement& subject, GC::Ptr<DOM::Element> source)
 {
-    // To show a modal dialog given a dialog element subject:
     auto& realm = subject.realm();
 
     // 1. If subject has an open attribute and is modal of subject is true, then return.
@@ -236,46 +228,41 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogEleme
     // 11. Add an open attribute to subject, whose value is the empty string.
     subject.set_attribute_value(AttributeNames::open, String {});
 
-    // 12. Set is modal of subject to true.
+    // 12. Assert: subject's close watcher is not null.
+    VERIFY(subject.m_close_watcher);
+
+    // 13. Set is modal of subject to true.
     subject.set_is_modal(true);
 
-    // 13. Assert: subject's node document's open dialogs list does not contain subject.
-    // AD-HOC: This assertion is skipped because it fails if the open attribute was removed before calling showModal()
-    // See https://github.com/whatwg/html/issues/10953 and https://github.com/whatwg/html/pull/10954
-    // VERIFY(!subject.document().open_dialogs_list().contains_slow(GC::Ref(subject)));
+    // FIXME: 14. Set subject's node document to be blocked by the modal dialog subject.
 
-    // 14. Add subject to subject's node document's open dialogs list.
-    subject.document().open_dialogs_list().append(subject);
-
-    // FIXME: 15. Set subject's node document to be blocked by the modal dialog subject.
-
-    // 16. If subject's node document's top layer does not already contain subject, then add an element to the top layer given subject.
+    // 15. If subject's node document's top layer does not already contain subject, then add an element to the top
+    //     layer given subject.
     if (!subject.document().top_layer_elements().contains(subject))
         subject.document().add_an_element_to_the_top_layer(subject);
 
-    // 17. Set the dialog close watcher with subject.
-    subject.set_close_watcher();
+    // FIXME: 16. Set subject's previously focused element to the focused element.
 
-    // FIXME: 18. Set subject's previously focused element to the focused element.
-
-    // 19. Let document be subject's node document.
+    // 17. Let document be subject's node document.
     auto& document = subject.document();
 
-    // 20. Let hideUntil be the result of running topmost popover ancestor given subject, document's showing hint popover list, null, and false.
+    // 18. Let hideUntil be the result of running topmost popover ancestor given subject, document's showing hint
+    //     popover list, null, and false.
     Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> hide_until = topmost_popover_ancestor(subject, document.showing_hint_popover_list(), nullptr, IsPopover::No);
 
-    // 21. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given subject, document's showing auto popover list, null, and false.
+    // 19. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given subject,
+    //     document's showing auto popover list, null, and false.
     if (!hide_until.get<GC::Ptr<HTMLElement>>())
         hide_until = topmost_popover_ancestor(subject, document.showing_auto_popover_list(), nullptr, IsPopover::No);
 
-    // 22. If hideUntil is null, then set hideUntil to document.
+    // 20. If hideUntil is null, then set hideUntil to document.
     if (!hide_until.get<GC::Ptr<HTMLElement>>())
         hide_until = GC::Ptr(document);
 
-    // 23. Run hide all popovers until given hideUntil, false, and true.
+    // 21. Run hide all popovers until given hideUntil, false, and true.
     hide_all_popovers_until(hide_until, FocusPreviousElement::No, FireEvents::Yes);
 
-    // 24. Run the dialog focusing steps given subject.
+    // 22. Run the dialog focusing steps given subject.
     subject.run_dialog_focusing_steps();
 
     return {};
@@ -303,21 +290,27 @@ void HTMLDialogElement::request_close_the_dialog(Optional<String> return_value, 
     // 1. If this does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
         return;
-    // AD-HOC: 2. If this's close watcher is null, then close the dialog this with returnValue and source, and return. See https://github.com/whatwg/html/pull/10983
-    if (!m_close_watcher) {
-        close_the_dialog(move(return_value), source);
+
+    // 2. If subject is not connected or subject's node document is not fully active, then return.
+    if (!is_connected() || !document().is_fully_active())
         return;
-    }
-    // 3. Set dialog's enable close watcher for requestClose() to true.
+
+    // 3. Assert: subject's close watcher is not null.
+    VERIFY(m_close_watcher);
+
+    // 4. Set subject's enable close watcher for request close to true.
     m_enable_close_watcher_for_request_close = true;
-    // 4. If returnValue is not given, then set it to null.
-    // 5. Set this's request close return value to returnValue.
+
+    // 5. Set subject's request close return value to returnValue.
     m_request_close_return_value = return_value;
+
     // 6. Set subject's request close source element to source.
     m_request_close_source_element = source;
-    // 6. Request to close dialog's close watcher with false.
+
+    // 7. Request to close dialog's close watcher with false.
     m_close_watcher->request_close(false);
-    // 7. Set dialog's enable close watcher for requestClose() to false.
+
+    // 8. Set subject's enable close watcher for request close to false.
     m_enable_close_watcher_for_request_close = false;
 }
 
@@ -340,7 +333,8 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
     if (!has_attribute(AttributeNames::open))
         return;
 
-    // 2. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the newState attribute initialized to "closed", and the source attribute initialized to source at subject.
+    // 2. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open", the
+    //    newState attribute initialized to "closed", and the source attribute initialized to source at subject.
     ToggleEventInit event_init {};
     event_init.old_state = "open"_string;
     event_init.new_state = "closed"_string;
@@ -358,30 +352,27 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
     // 5. Remove subject's open attribute.
     remove_attribute(AttributeNames::open);
 
-    // 6. If the is modal flag of subject is true, then request an element to be removed from the top layer given subject.
+    // 6. If is modal of subject is true, then request an element to be removed from the top layer given subject.
     if (m_is_modal)
         document().request_an_element_to_be_remove_from_the_top_layer(*this);
 
     // 7. Let wasModal be the value of subject's is modal flag.
     auto was_modal = m_is_modal;
 
-    // 8. Set the is modal flag of subject to false.
+    // 8. Set is modal of subject to false.
     set_is_modal(false);
 
-    // 9. Remove subject from subject's node document's open dialogs list.
-    document().open_dialogs_list().remove_first_matching([this](auto other) { return other == this; });
-
-    // 10. If result is not null, then set subject's return value to result.
+    // 9. If result is not null, then set subject's returnValue attribute to result.
     if (result.has_value())
         set_return_value(result.release_value());
 
-    // 11. Set subject's request close return value to null.
+    // 10. Set subject's request close return value to null.
     m_request_close_return_value = {};
 
-    // 12. Set subject's request close source element to null.
+    // 11. Set subject's request close source element to null.
     m_request_close_source_element = nullptr;
 
-    // 13. If subject's previously focused element is not null, then:
+    // 12. If subject's previously focused element is not null, then:
     if (m_previously_focused_element) {
         // 1. Let element be subject's previously focused element.
         auto element = m_previously_focused_element;
@@ -389,27 +380,21 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result, GC::Ptr<DOM::E
         // 2. Set subject's previously focused element to null.
         m_previously_focused_element = nullptr;
 
-        // 3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of subject,
-        //    or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
+        // 3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive
+        //   descendant of subject, or wasModal is true, then run the focusing steps for element; the viewport should
+        //   not be scrolled by doing this step.
         auto focused_element = document().focused_area();
         auto is_focus_within_dialog = focused_element && focused_element->is_shadow_including_inclusive_descendant_of(*this);
         if (is_focus_within_dialog || was_modal)
             run_focusing_steps(element);
     }
 
-    // 14. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.
+    // 13. Queue an element task on the user interaction task source given the subject element to fire an event named
+    //     close at subject.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
         auto close_event = DOM::Event::create(realm(), HTML::EventNames::close);
         dispatch_event(close_event);
     });
-
-    // 15. If subject's close watcher is not null, then:
-    if (m_close_watcher) {
-        // 1. Destroy subject's close watcher.
-        m_close_watcher->destroy();
-        // 2. Set subject's close watcher to null.
-        m_close_watcher = nullptr;
-    }
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#set-the-dialog-close-watcher
@@ -458,6 +443,41 @@ void HTMLDialogElement::set_close_watcher()
     m_close_watcher = CloseWatcher::establish(*document().window(), move(get_enabled_state));
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-setup-steps
+void HTMLDialogElement::run_dialog_setup_steps()
+{
+    // 1. Assert: subject has an open attribute.
+    VERIFY(has_attribute(AttributeNames::open));
+
+    // 2. Assert: subject is connected.
+    VERIFY(is_connected());
+
+    // 3. Assert: subject's node document's open dialogs list does not contain subject.
+    VERIFY(!m_document->open_dialogs_list().contains_slow(GC::Ref(*this)));
+
+    // 4. Add subject to subject's node document's open dialogs list.
+    m_document->open_dialogs_list().append(*this);
+
+    // 5. Set the dialog close watcher with subject.
+    set_close_watcher();
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-cleanup-steps
+void HTMLDialogElement::run_dialog_cleanup_steps()
+{
+    // 1. Remove subject from subject's node document's open dialogs list.
+    document().open_dialogs_list().remove_first_matching([this](auto other) { return other == this; });
+
+    // 2. If subject's close watcher is not null, then:
+    if (m_close_watcher) {
+        // 1. Destroy subject's close watcher.
+        m_close_watcher->destroy();
+
+        // 2. Set subject's close watcher to null.
+        m_close_watcher = nullptr;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps
@@ -532,7 +552,8 @@ void HTMLDialogElement::command_steps(DOM::Element& source, String& command)
         request_close_the_dialog(optional_value, source);
     }
 
-    // 4. If command is the Show Modal state and element does not have an open attribute, then show a modal dialog given element and source.
+    // 4. If command is the Show Modal state and element does not have an open attribute,
+    //    then show a modal dialog given element and source.
     if (command == "show-modal" && !has_attribute(AttributeNames::open)) {
         MUST(show_a_modal_dialog(*this, source));
     }
@@ -545,7 +566,8 @@ GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::P
 
     // 1. Let target be event's target.
 
-    // 2. If target is a dialog element, target has an open attribute, target's is modal is true, and event's clientX and clientY are outside the bounds of target, then return null.
+    // 2. If target is a dialog element, target has an open attribute, target's is modal is true, and event's clientX
+    //    and clientY are outside the bounds of target, then return null.
     if (auto const* target_dialog = as_if<HTMLDialogElement>(*target); target_dialog
         && target_dialog->has_attribute(AttributeNames::open)
         && target_dialog->is_modal()
@@ -624,6 +646,50 @@ void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const&
         // 8. Request to close topmostDialog's close watcher with false.
         topmost_dialog->request_close({});
     }
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:html-element-insertion-steps
+void HTMLDialogElement::inserted()
+{
+    Base::inserted();
+
+    // 1. If insertedNode's node document is not fully active, then return.
+    if (!document().is_fully_active())
+        return;
+
+    // 2. If insertedNode has an open attribute and is connected, then run the dialog setup steps given insertedNode.
+    if (has_attribute(AttributeNames::open) && is_connected())
+        run_dialog_setup_steps();
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:concept-element-attributes-change-ext
+void HTMLDialogElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+
+    // 1. If namespace is not null, then return.
+    if (namespace_.has_value())
+        return;
+
+    // 2. If localName is not open, then return.
+    if (local_name != "open"_fly_string)
+        return;
+
+    // 3. If value is null and oldValue is not null, then run the dialog cleanup steps given element.
+    if (!value.has_value() && old_value.has_value())
+        run_dialog_cleanup_steps();
+
+    // 4. If element's node document is not fully active, then return.
+    if (!document().is_fully_active())
+        return;
+
+    // 5. If element is not connected, then return.
+    if (!is_connected())
+        return;
+
+    // 6. If value is not null and oldValue is null, then run the dialog setup steps given element.
+    if (value.has_value() && !old_value.has_value())
+        run_dialog_setup_steps();
 }
 
 }

@@ -56,8 +56,13 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void inserted() override;
+    virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+
     void queue_a_dialog_toggle_event_task(String old_state, String new_state, GC::Ptr<DOM::Element> source);
 
+    void run_dialog_setup_steps();
+    void run_dialog_cleanup_steps();
     void run_dialog_focusing_steps();
 
     void set_close_watcher();
