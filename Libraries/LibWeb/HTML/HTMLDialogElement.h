@@ -70,6 +70,9 @@ private:
     GC::Ptr<DOM::Element> m_request_close_source_element;
     GC::Ptr<CloseWatcher> m_close_watcher;
 
+    // https://html.spec.whatwg.org/multipage/interactive-elements.html#enable-close-watcher-for-requestclose()
+    bool m_enable_close_watcher_for_request_close { false };
+
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker
     Optional<ToggleTaskTracker> m_dialog_toggle_task_tracker;
 
