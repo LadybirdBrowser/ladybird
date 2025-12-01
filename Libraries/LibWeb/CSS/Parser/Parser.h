@@ -250,8 +250,12 @@ private:
     Vector<RuleOrListOfDeclarations> consume_a_block(TokenStream<T>&);
     template<typename T>
     Vector<RuleOrListOfDeclarations> consume_a_blocks_contents(TokenStream<T>&);
+    enum class SaveOriginalText : u8 {
+        No,
+        Yes,
+    };
     template<typename T>
-    Optional<Declaration> consume_a_declaration(TokenStream<T>&, Nested = Nested::No);
+    Optional<Declaration> consume_a_declaration(TokenStream<T>&, Nested = Nested::No, SaveOriginalText = SaveOriginalText::No);
     template<typename T>
     void consume_the_remnants_of_a_bad_declaration(TokenStream<T>&, Nested);
     template<typename T>

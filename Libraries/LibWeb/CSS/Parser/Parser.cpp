@@ -1042,7 +1042,7 @@ void Parser::consume_a_function_and_do_nothing(TokenStream<Token>& input)
 
 // https://drafts.csswg.org/css-syntax/#consume-declaration
 template<typename T>
-Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Nested nested)
+Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Nested nested, SaveOriginalText save_full_text)
 {
     // To consume a declaration from a token stream input, given an optional bool nested (default false):
 
@@ -1054,6 +1054,7 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
         .name {},
         .value {},
     };
+    auto start_token_index = input.current_index();
 
     // 1. If the next token is an <ident-token>, consume a token from input and set decl’s name to the token’s value.
     if (input.next_token().is(Token::Type::Ident)) {
@@ -1177,8 +1178,17 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     }
 
     // 9. If decl is valid in the current context, return it; otherwise return nothing.
-    if (is_valid_in_the_current_context(declaration))
+    if (is_valid_in_the_current_context(declaration)) {
+        // AD-HOC: Assemble source tokens.
+        if (save_full_text == SaveOriginalText::Yes) {
+            StringBuilder original_full_text;
+            for (auto& token : input.tokens_since(start_token_index))
+                original_full_text.append(token.to_string());
+
+            declaration.original_full_text = original_full_text.to_string_without_validation();
+        }
         return declaration;
+    }
     return {};
 }
 
@@ -1929,8 +1939,8 @@ template Vector<RuleOrListOfDeclarations> Parser::consume_a_blocks_contents(Toke
 template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<ComponentValue>&, Optional<Token::Type>, Nested);
 template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<Token>&, Optional<Token::Type>, Nested);
 
-template Optional<Declaration> Parser::consume_a_declaration(TokenStream<Token>&, Nested);
-template Optional<Declaration> Parser::consume_a_declaration(TokenStream<ComponentValue>&, Nested);
+template Optional<Declaration> Parser::consume_a_declaration(TokenStream<Token>&, Nested, SaveOriginalText);
+template Optional<Declaration> Parser::consume_a_declaration(TokenStream<ComponentValue>&, Nested, SaveOriginalText);
 
 template void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<Token>&, Nested);
 template void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<ComponentValue>&, Nested);
