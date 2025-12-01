@@ -37,6 +37,7 @@
 #include <LibWeb/HTML/Timer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
@@ -672,7 +673,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
-    run_steps_after_a_timeout_impl(timeout, move(completion_step), id);
+    run_steps_after_a_timeout_impl(timeout, move(completion_step), id, repeat);
 
     // FIXME: 14. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
@@ -1074,20 +1075,29 @@ WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeM
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#run-steps-after-a-timeout
 void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step)
 {
-    return run_steps_after_a_timeout_impl(timeout, move(completion_step));
+    return run_steps_after_a_timeout_impl(timeout, move(completion_step), {}, Repeat::No);
 }
 
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key)
+void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
 {
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
 
-    // 2. If timerKey is not given, then set it to a new unique non-numeric value.
-    if (!timer_key.has_value())
+    // NB: We deviate from the spec here slightly by reusing existing timers if a timer_key is provided.
+    GC::Ptr<Timer> existing_timer;
+    if (timer_key.has_value()) {
+        auto result = m_timers.get(timer_key.value());
+        if (result.has_value()) {
+            existing_timer = result.value().ptr();
+            existing_timer->set_callback(move(completion_step));
+        }
+    } else {
+        // 2. If timerKey is not given, then set it to a new unique non-numeric value.
         timer_key = m_timer_id_allocator.allocate();
+    }
 
     // FIXME: 3. Let startTime be the current high resolution time given global.
-    auto timer = Timer::create(this_impl(), timeout, move(completion_step), timer_key.value());
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(this_impl(), timeout, move(completion_step), timer_key.value(), repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
