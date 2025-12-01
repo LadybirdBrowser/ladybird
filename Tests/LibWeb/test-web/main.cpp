@@ -17,6 +17,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
+#include <AK/Random.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/Directory.h>
