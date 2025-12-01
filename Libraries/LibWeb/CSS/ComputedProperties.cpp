@@ -378,11 +378,20 @@ HashMap<PropertyID, StyleValueVector> ComputedProperties::assemble_coordinated_v
     // - If a coordinating list property has too few values specified, its value list is repeated to add more used
     //   values.
     // - The computed values of the coordinating list properties are not affected by such truncation or repetition.
+
+    // FIXME: This is required because our animation-* properties are not yet parsed as lists.
+    //        Once that is fixed, every value here will be a StyleValueList.
+    auto const get_property_value_as_list = [&](PropertyID property_id) {
+        auto const& value = property(property_id);
+
+        return value.is_value_list() ? value.as_value_list().values() : StyleValueVector { value };
+    };
+
     HashMap<PropertyID, StyleValueVector> coordinated_value_list;
 
-    for (size_t i = 0; i < property(base_property_id).as_value_list().size(); i++) {
+    for (size_t i = 0; i < get_property_value_as_list(base_property_id).size(); i++) {
         for (auto property_id : property_ids) {
-            auto const& list = property(property_id).as_value_list().values();
+            auto const& list = get_property_value_as_list(property_id);
 
             coordinated_value_list.ensure(property_id).append(list[i % list.size()]);
         }

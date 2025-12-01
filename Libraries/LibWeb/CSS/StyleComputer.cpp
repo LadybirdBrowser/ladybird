@@ -2807,12 +2807,18 @@ static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pi
 
 static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<StyleValue const> const& style_value, Function<NonnullRefPtr<StyleValue const>(NonnullRefPtr<StyleValue const> const&)> const& compute_entry)
 {
-    StyleValueVector computed_entries;
+    // FIXME: This is required because our animation-* properties are not yet parsed as lists.
+    //        Once that is fixed, every value here will be a StyleValueList.
+    if (style_value->is_value_list()) {
+        StyleValueVector computed_entries;
 
-    for (auto const& entry : style_value->as_value_list().values())
-        computed_entries.append(compute_entry(entry));
+        for (auto const& entry : style_value->as_value_list().values())
+            computed_entries.append(compute_entry(entry));
 
-    return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
+        return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
+    }
+
+    return compute_entry(style_value);
 }
 
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
