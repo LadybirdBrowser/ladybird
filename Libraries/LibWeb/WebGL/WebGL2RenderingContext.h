@@ -51,18 +51,18 @@ public:
     WebIDL::Long drawing_buffer_width() const;
     WebIDL::Long drawing_buffer_height() const;
 
-    virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
-    virtual bool angle_instanced_arrays_extension_enabled() const override;
-    virtual bool oes_standard_derivatives_extension_enabled() const override;
-    virtual bool webgl_draw_buffers_extension_enabled() const override;
-    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
-
 private:
     virtual void initialize(JS::Realm&) override;
 
     WebGL2RenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
+
+    virtual bool ext_texture_filter_anisotropic_extension_enabled() const override;
+    virtual bool angle_instanced_arrays_extension_enabled() const override;
+    virtual bool oes_standard_derivatives_extension_enabled() const override;
+    virtual bool webgl_draw_buffers_extension_enabled() const override;
+    virtual ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const override;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 
