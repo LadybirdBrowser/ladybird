@@ -1176,7 +1176,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         auto animation = CSSAnimation::create(document.realm());
         animation->set_animation_name(animation_properties.name);
         animation->set_timeline(document.timeline());
-        animation->set_owning_element(abstract_element.element());
+        animation->set_owning_element(abstract_element);
 
         auto effect = Animations::KeyframeEffect::create(document.realm());
         animation->set_effect(effect);
