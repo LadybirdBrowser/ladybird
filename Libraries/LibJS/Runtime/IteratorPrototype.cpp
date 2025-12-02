@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -117,9 +117,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
     // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
     //     the following steps when called:
-    auto closure = GC::create_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto& iterated = iterator.underlying_iterator();
-
+    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         // a. Let remaining be integerLimit.
         // b. Repeat, while remaining > 0,
         while (iterator.counter() < integer_limit) {
@@ -149,9 +147,9 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
         return iterator.result(*value);
     });
 
-    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 12. Set result.[[UnderlyingIterator]] to iterated.
-    auto result = TRY(IteratorHelper::create(realm, iterated, closure));
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // 12. Set result.[[UnderlyingIterators]] to « iterated ».
+    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
 
     // 11. Return result.
     return result;
@@ -233,9 +231,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
 
     // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto& iterated = iterator.underlying_iterator();
-
+    auto closure = GC::create_function(realm.heap(), [iterated, predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         // a. Let counter be 0.
         // b. Repeat,
         while (true) {
@@ -266,9 +262,9 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
         }
     });
 
-    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 8. Set result.[[UnderlyingIterator]] to iterated.
-    auto result = TRY(IteratorHelper::create(realm, iterated, closure));
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // 8. Set result.[[UnderlyingIterators]] to « iterated ».
+    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
 
     // 9. Return result.
     return result;
@@ -456,8 +452,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
 
     // 7. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
-        auto& iterated = iterator.underlying_iterator();
+    auto closure = GC::create_function(realm.heap(), [iterated, flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
         return flat_map_iterator->next(vm, iterated, iterator, *mapper);
     });
 
@@ -465,9 +460,9 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
         return flat_map_iterator->on_abrupt_completion(vm, iterator, completion);
     });
 
-    // 8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 9. Set result.[[UnderlyingIterator]] to iterated.
-    auto result = TRY(IteratorHelper::create(realm, iterated, closure, move(abrupt_closure)));
+    // 8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // 9. Set result.[[UnderlyingIterators]] to « iterated ».
+    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure, move(abrupt_closure)));
 
     // 9. Return result.
     return result;
@@ -545,9 +540,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
     // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto& iterated = iterator.underlying_iterator();
-
+    auto closure = GC::create_function(realm.heap(), [iterated, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         // a. Let counter be 0.
         // b. Repeat,
 
@@ -574,9 +567,9 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
         return iterator.result(mapped.release_value());
     });
 
-    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 8. Set result.[[UnderlyingIterator]] to iterated.
-    auto result = TRY(IteratorHelper::create(realm, iterated, closure));
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // 8. Set result.[[UnderlyingIterators]] to « iterated ».
+    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
 
     // 9. Return result.
     return result;
@@ -752,9 +745,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
 
     // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
     //     the following steps when called:
-    auto closure = GC::create_function(realm.heap(), [integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
-        auto& iterated = iterator.underlying_iterator();
-
+    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
         // a. Let remaining be integerLimit.
         // b. Repeat,
 
@@ -780,9 +771,9 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
         return iterator.result(*value);
     });
 
-    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
-    // 12. Set result.[[UnderlyingIterator]] to iterated.
-    auto result = TRY(IteratorHelper::create(realm, iterated, closure));
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+    // 12. Set result.[[UnderlyingIterators]] to « iterated ».
+    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
 
     // 13. Return result.
     return result;
