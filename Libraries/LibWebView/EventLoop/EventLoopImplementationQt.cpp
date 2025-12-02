@@ -252,7 +252,7 @@ bool EventLoopImplementationQt::was_exit_requested() const
     return !m_event_loop->isRunning();
 }
 
-void EventLoopImplementationQt::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
+void EventLoopImplementationQt::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<Core::Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
     if (&m_thread_event_queue != &Core::ThreadEventQueue::current())
