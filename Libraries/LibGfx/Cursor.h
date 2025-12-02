@@ -36,7 +36,6 @@ enum class StandardCursor {
     Disallowed,
     Eyedropper,
     Zoom,
-    __Count,
 };
 
 struct ImageCursor {
