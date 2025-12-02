@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,6 +32,19 @@ Iterator::Iterator(Object& prototype, GC::Ref<IteratorRecord> iterated)
 Iterator::Iterator(Object& prototype)
     : Iterator(prototype, prototype.heap().allocate<IteratorRecord>(nullptr, js_undefined(), false))
 {
+}
+
+void Iterator::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_iterated);
+}
+
+void IteratorRecord::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(iterator);
+    visitor.visit(next_method);
 }
 
 // 7.4.2 GetIteratorDirect ( obj ), https://tc39.es/ecma262/#sec-getiteratordirect
@@ -353,13 +366,28 @@ Completion iterator_close(VM& vm, IteratorRecordImpl const& iterator_record, Com
     return iterator_close_impl(vm, iterator_record, move(completion), IteratorHint::Sync);
 }
 
-// 7.4.13 AsyncIteratorClose ( iteratorRecord, completion ), https://tc39.es/ecma262/#sec-asynciteratorclose
+// 7.4.12 IteratorCloseAll ( iters, completion ), https://tc39.es/ecma262/#sec-iteratorclose
+Completion iterator_close_all(VM& vm, ReadonlySpan<GC::Ref<IteratorRecord>> iterator_records, Completion completion)
+{
+    // 1. For each element iter of iters, in reverse List order, do
+    for (size_t i = iterator_records.size(); i > 0; --i) {
+        auto iterator_record = iterator_records[i - 1];
+
+        // a. Set completion to Completion(IteratorClose(iter, completion)).
+        completion = iterator_close(vm, iterator_record, completion);
+    }
+
+    // 2. Return ? completion.
+    return completion;
+}
+
+// 7.4.14 AsyncIteratorClose ( iteratorRecord, completion ), https://tc39.es/ecma262/#sec-asynciteratorclose
 Completion async_iterator_close(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion)
 {
     return iterator_close_impl(vm, iterator_record, move(completion), IteratorHint::Async);
 }
 
-// 7.4.14 CreateIteratorResultObject ( value, done ), https://tc39.es/ecma262/#sec-createiterresultobject
+// 7.4.15 CreateIteratorResultObject ( value, done ), https://tc39.es/ecma262/#sec-createiterresultobject
 GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
 {
     auto& realm = *vm.current_realm();
@@ -377,7 +405,7 @@ GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
     return object;
 }
 
-// 7.4.16 IteratorToList ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratortolist
+// 7.4.17 IteratorToList ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratortolist
 ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM& vm, IteratorRecord& iterator_record)
 {
     // 1. Let values be a new empty List.
@@ -450,19 +478,6 @@ Completion get_iterator_values(VM& vm, Value iterable, IteratorValueCallback cal
         if (auto completion = callback(next.release_value()); completion.has_value())
             return iterator_close(vm, iterator_record, completion.release_value());
     }
-}
-
-void Iterator::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_iterated);
-}
-
-void IteratorRecord::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(iterator);
-    visitor.visit(next_method);
 }
 
 }
