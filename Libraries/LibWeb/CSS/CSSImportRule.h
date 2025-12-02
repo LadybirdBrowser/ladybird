@@ -35,6 +35,7 @@ public:
     GC::Ptr<MediaList> media() const;
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
+    Optional<FlyString> layer_name() const;
     Optional<String> supports_text() const;
 
 private:
