@@ -2799,7 +2799,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
-    "multiplicity": "coordinating-list",
+    "multiplicity": "single",
     "valid-types": [
       "mask-type"
     ],

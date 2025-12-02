@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            foo.attributeStyleMap.set("mask-type", new CSSKeywordValue("luminance"), new CSSKeywordValue("alpha"));
+            println("FAIL! Shouldn't allow setting multiple values for mask-type");
+        } catch {
+            println("PASS!");
+        }
+    });
+</script>
