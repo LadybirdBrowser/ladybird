@@ -26,11 +26,11 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
 
     // The existence of an owning element determines the animation class, so both animations should have their owning
     // element in the same state
-    VERIFY(!owning_element() == !other->owning_element());
+    VERIFY(owning_element().has_value() == other->owning_element().has_value());
 
     // Within the set of CSS Animations with an owning element, two animations A and B are sorted in composite order
     // (first to last) as follows:
-    if (owning_element()) {
+    if (owning_element().has_value()) {
         // 1. If the owning element of A and B differs, sort A and B by tree order of their corresponding owning elements.
         //    With regard to pseudo-elements, the sort order is as follows:
         //    - element
@@ -40,7 +40,7 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
         //      codepoints that make up each selector
         //    - ::after
         //    - element children
-        if (owning_element().ptr() != other->owning_element().ptr()) {
+        if (owning_element() != other->owning_element()) {
             // FIXME: Sort by tree order
             return 0;
         }
@@ -57,7 +57,7 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
 
 Animations::AnimationClass CSSAnimation::animation_class() const
 {
-    if (owning_element())
+    if (owning_element().has_value())
         return Animations::AnimationClass::CSSAnimationWithOwningElement;
     return Animations::AnimationClass::CSSAnimationWithoutOwningElement;
 }

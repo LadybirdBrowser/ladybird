@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/AnimationPrototype.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::Animations {
@@ -104,8 +105,8 @@ public:
     virtual bool is_css_animation() const { return false; }
     virtual bool is_css_transition() const { return false; }
 
-    GC::Ptr<DOM::Element> owning_element() const { return m_owning_element; }
-    void set_owning_element(GC::Ptr<DOM::Element> value) { m_owning_element = value; }
+    Optional<DOM::AbstractElement> owning_element() const { return m_owning_element; }
+    void set_owning_element(Optional<DOM::AbstractElement>&& value) { m_owning_element = move(value); }
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
     virtual int class_specific_composite_order(GC::Ref<Animation>) const { return 0; }
@@ -200,7 +201,7 @@ private:
     TaskState m_pending_pause_task { TaskState::None };
 
     // https://www.w3.org/TR/css-animations-2/#owning-element-section
-    GC::Ptr<DOM::Element> m_owning_element;
+    Optional<DOM::AbstractElement> m_owning_element;
 
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 

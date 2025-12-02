@@ -46,13 +46,13 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
     // follows:
 
     // 1. If neither A nor B has an owning element, sort based on their relative position in the global animation list.
-    if (!owning_element() && !other->owning_element())
+    if (!owning_element().has_value() && !other->owning_element().has_value())
         return global_animation_list_order() - other->global_animation_list_order();
 
     // 2. Otherwise, if only one of A or B has an owning element, let the animation with an owning element sort first.
-    if (owning_element() && !other->owning_element())
+    if (owning_element().has_value() && !other->owning_element().has_value())
         return -1;
-    if (!owning_element() && other->owning_element())
+    if (!owning_element().has_value() && other->owning_element().has_value())
         return 1;
 
     // 3. Otherwise, if the owning element of A and B differs, sort A and B by tree order of their corresponding owning
@@ -64,7 +64,7 @@ int CSSTransition::class_specific_composite_order(GC::Ref<Animations::Animation>
     //      codepoints that make up each selector
     //    - ::after
     //    - element children
-    if (owning_element().ptr() != other->owning_element().ptr()) {
+    if (owning_element() != other->owning_element()) {
         // FIXME: Actually sort by tree order
         return 0;
     }
@@ -119,7 +119,7 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_ele
 
     m_keyframe_effect->set_key_frame_set(key_frame_set);
     set_timeline(abstract_element.document().timeline());
-    set_owning_element(abstract_element.element());
+    set_owning_element(abstract_element);
     set_effect(m_keyframe_effect);
     abstract_element.element().set_transition(abstract_element.pseudo_element(), m_transition_property, *this);
 

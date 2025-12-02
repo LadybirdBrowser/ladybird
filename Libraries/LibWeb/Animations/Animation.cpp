@@ -279,7 +279,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
 // https://www.w3.org/TR/web-animations-1/#animation-play-state
 Bindings::AnimationPlayState Animation::play_state_for_bindings() const
 {
-    if (m_owning_element)
+    if (m_owning_element.has_value())
         m_owning_element->document().update_style();
 
     return play_state();
@@ -338,7 +338,7 @@ bool Animation::is_replaceable() const
 
     // - The existence of the animation is not prescribed by markup. That is, it is not a CSS animation with an owning
     //   element, nor a CSS transition with an owning element.
-    if ((is_css_animation() || is_css_transition()) && owning_element())
+    if ((is_css_animation() || is_css_transition()) && owning_element().has_value())
         return false;
 
     // - The animation's play state is finished.
@@ -1368,7 +1368,8 @@ void Animation::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_timeline);
     visitor.visit(m_current_ready_promise);
     visitor.visit(m_current_finished_promise);
-    visitor.visit(m_owning_element);
+    if (m_owning_element.has_value())
+        m_owning_element->visit(visitor);
 }
 
 }
