@@ -47,6 +47,55 @@ struct ImageCursor {
 
 using Cursor = Variant<StandardCursor, ImageCursor>;
 
+constexpr StringView standard_cursor_to_string(StandardCursor cursor)
+{
+    switch (cursor) {
+    case StandardCursor::None:
+        return "None"sv;
+    case StandardCursor::Hidden:
+        return "Hidden"sv;
+    case StandardCursor::Arrow:
+        return "Arrow"sv;
+    case StandardCursor::Crosshair:
+        return "Crosshair"sv;
+    case StandardCursor::IBeam:
+        return "IBeam"sv;
+    case StandardCursor::ResizeHorizontal:
+        return "ResizeHorizontal"sv;
+    case StandardCursor::ResizeVertical:
+        return "ResizeVertical"sv;
+    case StandardCursor::ResizeDiagonalTLBR:
+        return "ResizeDiagonalTLBR"sv;
+    case StandardCursor::ResizeDiagonalBLTR:
+        return "ResizeDiagonalBLTR"sv;
+    case StandardCursor::ResizeColumn:
+        return "ResizeColumn"sv;
+    case StandardCursor::ResizeRow:
+        return "ResizeRow"sv;
+    case StandardCursor::Hand:
+        return "Hand"sv;
+    case StandardCursor::Help:
+        return "Help"sv;
+    case StandardCursor::OpenHand:
+        return "OpenHand"sv;
+    case StandardCursor::Drag:
+        return "Drag"sv;
+    case StandardCursor::DragCopy:
+        return "DragCopy"sv;
+    case StandardCursor::Move:
+        return "Move"sv;
+    case StandardCursor::Wait:
+        return "Wait"sv;
+    case StandardCursor::Disallowed:
+        return "Disallowed"sv;
+    case StandardCursor::Eyedropper:
+        return "Eyedropper"sv;
+    case StandardCursor::Zoom:
+        return "Zoom"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }
 
 namespace IPC {
