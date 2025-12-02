@@ -34,29 +34,17 @@ void IteratorHelper::visit_edges(Visitor& visitor)
     visitor.visit(m_abrupt_closure);
 }
 
-Value IteratorHelper::result(Value value)
-{
-    set_generator_state(value.is_undefined() ? GeneratorState::Completed : GeneratorState::SuspendedYield);
-    return value;
-}
-
-ThrowCompletionOr<Value> IteratorHelper::close_result(VM& vm, Completion completion)
-{
-    set_generator_state(GeneratorState::Completed);
-    return TRY(iterator_close_all(vm, underlying_iterators(), completion));
-}
-
-ThrowCompletionOr<GeneratorObject::IterationResult> IteratorHelper::execute(VM& vm, JS::Completion const& completion)
+ThrowCompletionOr<IteratorHelper::IterationResult> IteratorHelper::execute(VM& vm, JS::Completion const& completion)
 {
     ScopeGuard guard { [&] { vm.pop_execution_context(); } };
 
     if (completion.is_abrupt()) {
-        if (m_abrupt_closure) {
-            auto abrupt_result = TRY(m_abrupt_closure->function()(vm, *this, completion));
-            return IterationResult(abrupt_result, true);
-        }
-        auto close_result = TRY(this->close_result(vm, completion));
-        return IterationResult(close_result, true);
+        auto abrupt_result = m_abrupt_closure
+            ? TRY(m_abrupt_closure->function()(vm, completion))
+            : TRY(iterator_close_all(vm, underlying_iterators(), completion));
+
+        set_generator_state(GeneratorState::Completed);
+        return IterationResult(abrupt_result, true);
     }
 
     auto result_value = m_closure->function()(vm, *this);
@@ -66,7 +54,10 @@ ThrowCompletionOr<GeneratorObject::IterationResult> IteratorHelper::execute(VM& 
         return result_value.throw_completion();
     }
 
-    return IterationResult(result(result_value.release_value()), generator_state() == GeneratorState::Completed);
+    auto result = result_value.release_value();
+    set_generator_state(result.done ? GeneratorState::Completed : GeneratorState::SuspendedYield);
+
+    return result;
 }
 
 }

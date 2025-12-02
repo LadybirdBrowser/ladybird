@@ -117,7 +117,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
     // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
     //     the following steps when called:
-    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<IteratorHelper::IterationResult> {
         // a. Let remaining be integerLimit.
         // b. Repeat, while remaining > 0,
         while (iterator.counter() < integer_limit) {
@@ -130,7 +130,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
             // iii. If next is DONE, return ReturnCompletion(undefined).
             if (next.has<IterationDone>())
-                return iterator.result(js_undefined());
+                return IteratorHelper::IterationResult { js_undefined(), true };
         }
 
         // c. Repeat,
@@ -140,11 +140,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
         // ii. If value is DONE, return ReturnCompletion(undefined).
         if (!value.has_value())
-            return iterator.result(js_undefined());
+            return IteratorHelper::IterationResult { js_undefined(), true };
 
         // iii. Let completion be Completion(Yield(value)).
         // iv. IfAbruptCloseIterator(completion, iterated).
-        return iterator.result(*value);
+        return IteratorHelper::IterationResult { *value, false };
     });
 
     // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
@@ -231,7 +231,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
 
     // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [iterated, predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_function(realm.heap(), [iterated, predicate = GC::Ref { predicate.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<IteratorHelper::IterationResult> {
         // a. Let counter be 0.
         // b. Repeat,
         while (true) {
@@ -240,24 +240,21 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
 
             // ii. If value is DONE, return ReturnCompletion(undefined).
             if (!value.has_value())
-                return iterator.result(js_undefined());
+                return IteratorHelper::IterationResult { js_undefined(), true };
 
             // iii. Let selected be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
-            auto selected = call(vm, *predicate, js_undefined(), *value, Value { iterator.counter() });
-
             // iv. IfAbruptCloseIterator(selected, iterated).
-            if (selected.is_error())
-                return iterator.close_result(vm, selected.release_error());
+            auto selected = TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, *predicate, js_undefined(), *value, Value { iterator.counter() }));
 
             // vi. Set counter to counter + 1.
             // NOTE: We do this step early to ensure it occurs before returning.
             iterator.increment_counter();
 
             // v. If ToBoolean(selected) is true, then
-            if (selected.value().to_boolean()) {
+            if (selected.to_boolean()) {
                 // 1. Let completion be Completion(Yield(value)).
                 // 2. IfAbruptCloseIterator(completion, iterated).
-                return iterator.result(*value);
+                return IteratorHelper::IterationResult { *value, false };
             }
         }
     });
@@ -323,7 +320,7 @@ class FlatMapIterator : public Cell {
     GC_DECLARE_ALLOCATOR(FlatMapIterator);
 
 public:
-    ThrowCompletionOr<Value> next(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<IteratorHelper::IterationResult> next(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
         if (m_inner_iterator)
             return next_inner_iterator(vm, iterated, iterator, mapper);
@@ -331,21 +328,17 @@ public:
     }
 
     // NOTE: This implements step 6.b.vii.4.b of Iterator.prototype.flatMap.
-    ThrowCompletionOr<Value> on_abrupt_completion(VM& vm, IteratorHelper& iterator, Completion const& completion)
+    ThrowCompletionOr<Value> on_abrupt_completion(VM& vm, IteratorRecord& iterated, Completion const& completion)
     {
         VERIFY(m_inner_iterator);
 
         // b. If completion is an abrupt completion, then
+        //     i. Let backupCompletion be Completion(IteratorClose(innerIterator, completion)).
+        //     ii. IfAbruptCloseIterator(backupCompletion, iterated).
+        TRY_OR_CLOSE_ITERATOR(vm, iterated, iterator_close(vm, *m_inner_iterator, completion));
 
-        // i. Let backupCompletion be Completion(IteratorClose(innerIterator, completion)).
-        auto backup_completion = iterator_close(vm, *m_inner_iterator, completion);
-
-        // ii. IfAbruptCloseIterator(backupCompletion, iterated).
-        if (backup_completion.is_error())
-            return iterator.close_result(vm, backup_completion.release_error());
-
-        // iii. Return ? IteratorClose(completion, iterated).
-        return iterator.close_result(vm, completion);
+        //     iii. Return ? IteratorClose(completion, iterated).
+        return TRY(iterator_close(vm, iterated, completion));
     }
 
 private:
@@ -357,31 +350,25 @@ private:
         visitor.visit(m_inner_iterator);
     }
 
-    ThrowCompletionOr<Value> next_outer_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<IteratorHelper::IterationResult> next_outer_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
         // i. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
         // ii. If value is DONE, return undefined.
         if (!value.has_value())
-            return iterator.result(js_undefined());
+            return IteratorHelper::IterationResult { js_undefined(), true };
 
         // iii. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
-        auto mapped = call(vm, mapper, js_undefined(), *value, Value { iterator.counter() });
-
         // iv. IfAbruptCloseIterator(mapped, iterated).
-        if (mapped.is_error())
-            return iterator.close_result(vm, mapped.release_error());
+        auto mapped = TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, mapper, js_undefined(), *value, Value { iterator.counter() }));
 
         // v. Let innerIterator be Completion(GetIteratorFlattenable(mapped, reject-primitives)).
-        auto inner_iterator = get_iterator_flattenable(vm, mapped.release_value(), PrimitiveHandling::RejectPrimitives);
-
         // vi. IfAbruptCloseIterator(innerIterator, iterated).
-        if (inner_iterator.is_error())
-            return iterator.close_result(vm, inner_iterator.release_error());
+        auto inner_iterator = TRY_OR_CLOSE_ITERATOR(vm, iterated, get_iterator_flattenable(vm, mapped, PrimitiveHandling::RejectPrimitives));
 
         // vii. Let innerAlive be true.
-        m_inner_iterator = inner_iterator.release_value();
+        m_inner_iterator = inner_iterator;
 
         // ix. Set counter to counter + 1.
         // NOTE: We do this step early to ensure it occurs before returning.
@@ -391,19 +378,16 @@ private:
         return next_inner_iterator(vm, iterated, iterator, mapper);
     }
 
-    ThrowCompletionOr<Value> next_inner_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
+    ThrowCompletionOr<IteratorHelper::IterationResult> next_inner_iterator(VM& vm, IteratorRecord& iterated, IteratorHelper& iterator, FunctionObject& mapper)
     {
         VERIFY(m_inner_iterator);
 
         // 1. Let innerValue be Completion(IteratorStepValue(innerIterator)).
-        auto inner_value = iterator_step_value(vm, *m_inner_iterator);
-
         // 2. IfAbruptCloseIterator(innerValue, iterated).
-        if (inner_value.is_error())
-            return iterator.close_result(vm, inner_value.release_error());
+        auto inner_value = TRY_OR_CLOSE_ITERATOR(vm, iterated, iterator_step_value(vm, *m_inner_iterator));
 
         // 3. If innerValue is DONE, then
-        if (!inner_value.value().has_value()) {
+        if (!inner_value.has_value()) {
             // a. Set innerAlive to false.
             m_inner_iterator = nullptr;
 
@@ -413,7 +397,7 @@ private:
         else {
             // a. Let completion be Completion(Yield(innerValue)).
             // NOTE: Step b is implemented via on_abrupt_completion.
-            return *inner_value.release_value();
+            return IteratorHelper::IterationResult { *inner_value, false };
         }
     }
 
@@ -452,12 +436,12 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
 
     // 7. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [iterated, flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_function(realm.heap(), [iterated, flat_map_iterator, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<IteratorHelper::IterationResult> {
         return flat_map_iterator->next(vm, iterated, iterator, *mapper);
     });
 
-    auto abrupt_closure = GC::create_function(realm.heap(), [flat_map_iterator](VM& vm, IteratorHelper& iterator, Completion const& completion) -> ThrowCompletionOr<Value> {
-        return flat_map_iterator->on_abrupt_completion(vm, iterator, completion);
+    auto abrupt_closure = GC::create_function(realm.heap(), [iterated, flat_map_iterator](VM& vm, Completion const& completion) -> ThrowCompletionOr<Value> {
+        return flat_map_iterator->on_abrupt_completion(vm, iterated, completion);
     });
 
     // 8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
@@ -540,7 +524,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
     // 6. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the
     //    following steps when called:
-    auto closure = GC::create_function(realm.heap(), [iterated, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_function(realm.heap(), [iterated, mapper = GC::Ref { mapper.as_function() }](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<IteratorHelper::IterationResult> {
         // a. Let counter be 0.
         // b. Repeat,
 
@@ -549,14 +533,11 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
         // ii. If value is DONE, return undefined.
         if (!value.has_value())
-            return iterator.result(js_undefined());
+            return IteratorHelper::IterationResult { js_undefined(), true };
 
         // iii. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
-        auto mapped = call(vm, *mapper, js_undefined(), *value, Value { iterator.counter() });
-
         // iv. IfAbruptCloseIterator(mapped, iterated).
-        if (mapped.is_error())
-            return iterator.close_result(vm, mapped.release_error());
+        auto mapped = TRY_OR_CLOSE_ITERATOR(vm, iterated, call(vm, *mapper, js_undefined(), *value, Value { iterator.counter() }));
 
         // vii. Set counter to counter + 1.
         // NOTE: We do this step early to ensure it occurs before returning.
@@ -564,7 +545,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
         // v. Let completion be Completion(Yield(mapped)).
         // vi. IfAbruptCloseIterator(completion, iterated).
-        return iterator.result(mapped.release_value());
+        return IteratorHelper::IterationResult { mapped, false };
     });
 
     // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
@@ -745,14 +726,15 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
 
     // 10. Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs
     //     the following steps when called:
-    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<Value> {
+    auto closure = GC::create_function(realm.heap(), [iterated, integer_limit](VM& vm, IteratorHelper& iterator) -> ThrowCompletionOr<IteratorHelper::IterationResult> {
         // a. Let remaining be integerLimit.
         // b. Repeat,
 
         // i. If remaining = 0, then
         if (iterator.counter() >= integer_limit) {
             // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
-            return iterator.close_result(vm, normal_completion(js_undefined()));
+            auto close_result = TRY(iterator_close(vm, iterated, normal_completion(js_undefined())));
+            return IteratorHelper::IterationResult { close_result, true };
         }
 
         // ii. If remaining ≠ +∞, then
@@ -762,13 +744,13 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
         // iii. Let value be ? IteratorStepValue(iterated).
         auto value = TRY(iterator_step_value(vm, iterated));
 
-        // iv. If value is DONE, return ReturnCompletion(undefined)..
+        // iv. If value is DONE, return ReturnCompletion(undefined).
         if (!value.has_value())
-            return iterator.result(js_undefined());
+            return IteratorHelper::IterationResult { js_undefined(), true };
 
         // v. Let completion be Completion(Yield(value)).
         // vi. IfAbruptCloseIterator(completion, iterated).
-        return iterator.result(*value);
+        return IteratorHelper::IterationResult { *value, false };
     });
 
     // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
