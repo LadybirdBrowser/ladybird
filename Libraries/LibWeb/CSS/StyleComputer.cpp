@@ -1151,12 +1151,9 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 {
     auto const& animation_definitions = computed_properties.animations();
 
-    // FIXME: Add some animation helpers to AbstractElement once pseudo-elements are animatable.
-    auto& element = abstract_element.element();
-    auto const& pseudo_element = abstract_element.pseudo_element();
     auto& document = abstract_element.document();
 
-    auto* element_animations = element.css_defined_animations(pseudo_element);
+    auto* element_animations = abstract_element.css_defined_animations();
 
     // If we have a nullptr for element_animations it means that the pseudo element was invalid and thus we shouldn't apply animations
     if (!element_animations)
@@ -1179,23 +1176,20 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
         auto animation = CSSAnimation::create(document.realm());
         animation->set_animation_name(animation_properties.name);
         animation->set_timeline(document.timeline());
-        animation->set_owning_element(element);
+        animation->set_owning_element(abstract_element.element());
 
         auto effect = Animations::KeyframeEffect::create(document.realm());
         animation->set_effect(effect);
 
         apply_animation_properties(document, animation_properties, animation);
 
-        if (pseudo_element.has_value())
-            effect->set_pseudo_element(Selector::PseudoElementSelector { pseudo_element.value() });
-
         if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
             if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
                 effect->set_key_frame_set(keyframe_set.value());
         }
 
-        effect->set_target(&element);
-        element.set_has_css_defined_animations();
+        effect->set_target(abstract_element);
+        abstract_element.set_has_css_defined_animations();
         element_animations->set(animation_properties.name, animation);
     }
 

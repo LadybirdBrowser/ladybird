@@ -102,9 +102,7 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_ele
     // that have been disassociated from their owning element but are still idle do not have a defined composite order.
 
     // Construct a KeyframesEffect for our animation
-    m_keyframe_effect->set_target(&abstract_element.element());
-    if (abstract_element.pseudo_element().has_value())
-        m_keyframe_effect->set_pseudo_element(Selector::PseudoElementSelector { abstract_element.pseudo_element().value() });
+    m_keyframe_effect->set_target(abstract_element);
     m_keyframe_effect->set_start_delay(delay);
     m_keyframe_effect->set_iteration_duration(end_time - start_time);
     m_keyframe_effect->set_timing_function(abstract_element.element().property_transition_attributes(abstract_element.pseudo_element(), property_id)->timing_function);
