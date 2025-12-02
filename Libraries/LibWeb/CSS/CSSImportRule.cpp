@@ -217,8 +217,21 @@ GC::Ptr<MediaList> CSSImportRule::media() const
     return m_style_sheet->media();
 }
 
+// https://drafts.csswg.org/cssom/#dom-cssimportrule-layername
+Optional<FlyString> CSSImportRule::layer_name() const
+{
+    // The layerName attribute must return the layer name declared in the at-rule itself, or an empty string if the
+    // layer is anonymous, or null if the at-rule does not declare a layer.
+    if (!m_layer.has_value())
+        return {};
+    return m_layer;
+}
+
+// https://drafts.csswg.org/cssom/#dom-cssimportrule-supportstext
 Optional<String> CSSImportRule::supports_text() const
 {
+    // The supportsText attribute must return the <supports-condition> declared in the at-rule itself, or null if the
+    // at-rule does not declare a supports condition.
     if (!m_supports)
         return {};
     return m_supports->to_string();
