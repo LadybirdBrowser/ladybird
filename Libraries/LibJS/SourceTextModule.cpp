@@ -655,7 +655,7 @@ ResolvedBinding SourceTextModule::resolve_export(VM& vm, Utf16FlyString const& e
         }
         // iii. Else,
         else {
-            // 1. Assert: There is more than one * import that includes the requested name.
+            // 1. Assert: There is more than one * export that includes the requested name.
             // FIXME: Assert this
 
             // 2. If resolution.[[Module]] and starResolution.[[Module]] are not the same Module Record, return AMBIGUOUS.
