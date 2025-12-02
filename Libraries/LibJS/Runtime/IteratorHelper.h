@@ -19,8 +19,8 @@ class IteratorHelper final : public GeneratorObject {
     GC_DECLARE_ALLOCATOR(IteratorHelper);
 
 public:
-    using Closure = GC::Function<ThrowCompletionOr<Value>(VM&, IteratorHelper&)>;
-    using AbruptClosure = GC::Function<ThrowCompletionOr<Value>(VM&, IteratorHelper&, Completion const&)>;
+    using Closure = GC::Function<ThrowCompletionOr<IterationResult>(VM&, IteratorHelper&)>;
+    using AbruptClosure = GC::Function<ThrowCompletionOr<Value>(VM&, Completion const&)>;
 
     static GC::Ref<IteratorHelper> create(Realm&, ReadonlySpan<GC::Ref<IteratorRecord>>, GC::Ref<Closure>, GC::Ptr<AbruptClosure> = {});
 
@@ -28,9 +28,6 @@ public:
 
     size_t counter() const { return m_counter; }
     void increment_counter() { ++m_counter; }
-
-    Value result(Value);
-    ThrowCompletionOr<Value> close_result(VM&, Completion);
 
 private:
     IteratorHelper(Realm&, Object& prototype, ReadonlySpan<GC::Ref<IteratorRecord>>, GC::Ref<Closure>, GC::Ptr<AbruptClosure>);
