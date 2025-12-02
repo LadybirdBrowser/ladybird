@@ -149,7 +149,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
 
     // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // 12. Set result.[[UnderlyingIterators]] to « iterated ».
-    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
+    auto result = IteratorHelper::create(realm, { { iterated } }, closure);
 
     // 11. Return result.
     return result;
@@ -264,7 +264,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::filter)
 
     // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // 8. Set result.[[UnderlyingIterators]] to « iterated ».
-    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
+    auto result = IteratorHelper::create(realm, { { iterated } }, closure);
 
     // 9. Return result.
     return result;
@@ -462,7 +462,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
 
     // 8. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // 9. Set result.[[UnderlyingIterators]] to « iterated ».
-    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure, move(abrupt_closure)));
+    auto result = IteratorHelper::create(realm, { { iterated } }, closure, move(abrupt_closure));
 
     // 9. Return result.
     return result;
@@ -569,7 +569,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 
     // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // 8. Set result.[[UnderlyingIterators]] to « iterated ».
-    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
+    auto result = IteratorHelper::create(realm, { { iterated } }, closure);
 
     // 9. Return result.
     return result;
@@ -773,7 +773,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
 
     // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
     // 12. Set result.[[UnderlyingIterators]] to « iterated ».
-    auto result = TRY(IteratorHelper::create(realm, { { iterated } }, closure));
+    auto result = IteratorHelper::create(realm, { { iterated } }, closure);
 
     // 13. Return result.
     return result;

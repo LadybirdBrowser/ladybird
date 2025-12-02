@@ -22,7 +22,7 @@ public:
     using Closure = GC::Function<ThrowCompletionOr<Value>(VM&, IteratorHelper&)>;
     using AbruptClosure = GC::Function<ThrowCompletionOr<Value>(VM&, IteratorHelper&, Completion const&)>;
 
-    static ThrowCompletionOr<GC::Ref<IteratorHelper>> create(Realm&, ReadonlySpan<GC::Ref<IteratorRecord>>, GC::Ref<Closure>, GC::Ptr<AbruptClosure> = {});
+    static GC::Ref<IteratorHelper> create(Realm&, ReadonlySpan<GC::Ref<IteratorRecord>>, GC::Ref<Closure>, GC::Ptr<AbruptClosure> = {});
 
     ReadonlySpan<GC::Ref<IteratorRecord>> underlying_iterators() const { return m_underlying_iterators; }
 

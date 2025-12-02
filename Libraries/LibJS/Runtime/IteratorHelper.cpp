@@ -13,7 +13,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(IteratorHelper);
 
-ThrowCompletionOr<GC::Ref<IteratorHelper>> IteratorHelper::create(Realm& realm, ReadonlySpan<GC::Ref<IteratorRecord>> underlying_iterators, GC::Ref<Closure> closure, GC::Ptr<AbruptClosure> abrupt_closure)
+GC::Ref<IteratorHelper> IteratorHelper::create(Realm& realm, ReadonlySpan<GC::Ref<IteratorRecord>> underlying_iterators, GC::Ref<Closure> closure, GC::Ptr<AbruptClosure> abrupt_closure)
 {
     return realm.create<IteratorHelper>(realm, realm.intrinsics().iterator_helper_prototype(), underlying_iterators, closure, abrupt_closure);
 }
