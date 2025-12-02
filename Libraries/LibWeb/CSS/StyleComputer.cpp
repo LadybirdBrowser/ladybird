@@ -1237,8 +1237,21 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     auto const& delay = style.property(PropertyID::TransitionDelay);
     auto const& duration = style.property(PropertyID::TransitionDuration);
 
-    // FIXME: Change this to support the associated StyleValueList values when we update
-    //        parse_simple_comma_separated_value_list to always return a StyleValueList.
+    auto const value_is_list_containing_a_single_time_of_zero_seconds = [](StyleValue const& value) -> bool {
+        if (!value.is_value_list())
+            return false;
+
+        auto const& value_list = value.as_value_list().values();
+
+        if (value_list.size() != 1)
+            return false;
+
+        if (!value_list[0]->is_time())
+            return false;
+
+        return value_list[0]->as_time().time().to_seconds() == 0;
+    };
+
     // OPTIMIZATION: Registered transitions with a "combined duration" of less than or equal to 0s are equivalent to not
     //               having a transition registered at all, except in the case that we already have an associated
     //               transition for that property, so we can skip registering them. This implementation intentionally
@@ -1248,8 +1261,8 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     //               gains.
     if (
         element.property_ids_with_existing_transitions(pseudo_element).is_empty()
-        && delay.is_time() && delay.as_time().time().to_seconds() == 0
-        && duration.is_time() && duration.as_time().time().to_seconds() == 0) {
+        && value_is_list_containing_a_single_time_of_zero_seconds(delay)
+        && value_is_list_containing_a_single_time_of_zero_seconds(duration)) {
         return;
     }
 
