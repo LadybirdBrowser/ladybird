@@ -56,6 +56,7 @@ enum class ShouldComputeRole {
     X(CSSImportRule)                                \
     X(CSSStylePropertiesRemoveProperty)             \
     X(CSSStylePropertiesSetProperty)                \
+    X(CSSStylePropertiesSetPropertyStyleValue)      \
     X(CSSStylePropertiesTextChange)                 \
     X(CustomElementStateChange)                     \
     X(CustomStateSetChange)                         \
