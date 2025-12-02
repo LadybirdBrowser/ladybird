@@ -196,3 +196,13 @@ test("calling with no argument is the same as calling with undefined.", () => {
     expect(/^undefined$/.test()).toBeTrue();
     expect(/^undefined$/.exec()).toEqual(["undefined"]);
 });
+
+test("legacy static properties with a temporary string", () => {
+    for (let i = 0; i < 10; i++) {
+        "a11".replace(/(a)1/g, "x");
+        expect(RegExp.lastMatch).toBe("a1");
+        expect(RegExp.leftContext).toBe("");
+        expect(RegExp.rightContext).toBe("1");
+        expect(RegExp.$1).toBe("a");
+    }
+});
