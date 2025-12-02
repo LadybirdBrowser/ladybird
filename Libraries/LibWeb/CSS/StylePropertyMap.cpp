@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -126,10 +127,48 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(FlyString property_name, Vector<
         values_to_set.append(move(internal_representation));
     }
 
+    // AD-HOC: To match the behavior of our parser we should store values of list-valued longhands as lists even if
+    //         there is only one value, except in some rare circumstances.
+    auto const should_wrap_value_in_list = [](PropertyNameAndID const& property, NonnullRefPtr<StyleValue const> const& value) {
+        if (property_is_shorthand(property.id()))
+            return false;
+
+        if (!property_is_list_valued(property.id()))
+            return false;
+
+        // Values which are not yet fully resolved should not be wrapped in lists.
+        if (value->is_unresolved() || value->is_pending_substitution() || value->is_guaranteed_invalid() || value->is_css_wide_keyword())
+            return false;
+
+        // Some "list-valued" properties have possible values that are not lists, and those should not be wrapped.
+        if (property.id() == PropertyID::BackdropFilter && value->to_keyword() == Keyword::None)
+            return false;
+
+        if (first_is_one_of(property.id(), PropertyID::CounterIncrement, PropertyID::CounterReset, PropertyID::CounterSet) && value->to_keyword() == Keyword::None)
+            return false;
+
+        if (property.id() == PropertyID::Filter && value->to_keyword() == Keyword::None)
+            return false;
+
+        if (first_is_one_of(property.id(), PropertyID::FontFeatureSettings, PropertyID::FontVariationSettings) && value->to_keyword() == Keyword::Normal)
+            return false;
+
+        if (property.id() == PropertyID::Quotes && first_is_one_of(value->to_keyword(), Keyword::Auto, Keyword::None, Keyword::MatchParent))
+            return false;
+
+        if (property.id() == PropertyID::TransitionProperty && value->to_keyword() == Keyword::None)
+            return false;
+
+        if (property.id() == PropertyID::WillChange && value->to_keyword() == Keyword::Auto)
+            return false;
+
+        return true;
+    };
+
     // 10. Set props[property] to values to set.
     // NOTE: The property is deleted then added back so that it gets put at the end of the ordered map, which gives the
     //       expected behavior in the face of shorthand properties.
-    if (values_to_set.size() == 1) {
+    if (values_to_set.size() == 1 && !should_wrap_value_in_list(property.value(), values_to_set.first())) {
         TRY(props.set_property_style_value(property.value(), values_to_set.take_first()));
     } else {
         // FIXME: How do we know if this is comma-separated or not?
