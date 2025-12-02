@@ -43,6 +43,8 @@ public:
     void wheel(double x, double y, double delta_x, double delta_y);
     void pinch(double x, double y, double scale_delta);
 
+    String current_cursor();
+
     WebIDL::ExceptionOr<bool> dispatch_user_activated_event(DOM::EventTarget&, DOM::Event& event);
 
     void spoof_current_url(String const& url);

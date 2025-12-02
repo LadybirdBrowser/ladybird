@@ -748,6 +748,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
 
     auto& document = *m_navigable->active_document();
+    auto& page = m_navigable->page();
+
     auto viewport_position = document.visual_viewport()->map_to_layout_viewport(visual_viewport_position);
 
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
@@ -756,8 +758,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
 
     bool hovered_node_changed = false;
-    bool is_hovering_link = false;
     Gfx::Cursor hovered_node_cursor = Gfx::StandardCursor::None;
+    GC::Ptr<HTML::HTMLAnchorElement const> hovered_link_element;
 
     GC::Ptr<Painting::Paintable> paintable;
     Optional<int> start_index;
@@ -769,11 +771,42 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
     GC::Ptr<DOM::Node> node;
 
-    ScopeGuard update_hovered_node_guard = [&node, &document] {
+    ScopeGuard update_hovered_node_and_ui_state_guard = [&] {
         document.set_hovered_node(node);
+
+        // FIXME: This check is only approximate. ImageCursors from the same CursorStyleValue share bitmaps, but may
+        //        repaint them. So comparing them does not tell you if they are the same image. Also, the image may
+        //        change even if the hovered node does not.
+        if (page.current_cursor() != hovered_node_cursor || hovered_node_changed) {
+            page.client().page_did_request_cursor_change(hovered_node_cursor);
+            page.set_current_cursor(hovered_node_cursor);
+        }
+
+        if (hovered_node_changed) {
+            GC::Ptr<HTML::HTMLElement const> hovered_html_element = node
+                ? node->enclosing_html_element_with_attribute(HTML::AttributeNames::title)
+                : nullptr;
+
+            if (hovered_html_element && hovered_html_element->title().has_value()) {
+                page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
+                page.set_is_in_tooltip_area(true);
+            } else if (page.is_in_tooltip_area()) {
+                page.client().page_did_leave_tooltip_area();
+                page.set_is_in_tooltip_area(false);
+            }
+
+            if (hovered_link_element) {
+                if (auto link_url = document.encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
+                    page.client().page_did_hover_link(*link_url);
+                    page.set_is_hovering_link(true);
+                }
+            } else if (page.is_hovering_link()) {
+                page.client().page_did_unhover_link();
+                page.set_is_hovering_link(false);
+            }
+        }
     };
 
-    GC::Ptr<HTML::HTMLAnchorElement const> hovered_link_element;
     if (paintable) {
         if (paintable->wants_mouse_events()) {
             if (paintable->handle_mousemove({}, viewport_position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No) {
@@ -782,7 +815,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             }
 
             // FIXME: It feels a bit aggressive to always update the cursor like this.
-            m_navigable->page().client().page_did_request_cursor_change(Gfx::StandardCursor::None);
+            page.client().page_did_request_cursor_change(Gfx::StandardCursor::None);
         }
 
         node = dom_node_for_event_dispatch(*paintable);
@@ -804,10 +837,9 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         GC::Ptr<Layout::Node> layout_node;
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
         hovered_node_changed = node.ptr() != document.hovered_node();
+
         if (found_parent_element) {
             hovered_link_element = node->enclosing_link_element();
-            if (hovered_link_element)
-                is_hovering_link = true;
 
             if (paintable->layout_node().is_text_node()) {
                 hovered_node_cursor = resolve_cursor(*paintable->layout_node().parent(), cursor_data, Gfx::StandardCursor::IBeam);
@@ -853,38 +885,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
                     document.set_needs_display();
                 }
             }
-        }
-    }
-
-    auto& page = m_navigable->page();
-
-    // FIXME: This check is only approximate. ImageCursors from the same CursorStyleValue share bitmaps, but may repaint them.
-    //        So comparing them does not tell you if they are the same image. Also, the image may change even if the hovered
-    //        node does not.
-    if (page.current_cursor() != hovered_node_cursor || hovered_node_changed) {
-        page.set_current_cursor(hovered_node_cursor);
-        page.client().page_did_request_cursor_change(hovered_node_cursor);
-    }
-
-    if (hovered_node_changed) {
-        GC::Ptr<HTML::HTMLElement const> hovered_html_element = node ? node->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
-
-        if (hovered_html_element && hovered_html_element->title().has_value()) {
-            page.set_is_in_tooltip_area(true);
-            page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
-        } else if (page.is_in_tooltip_area()) {
-            page.set_is_in_tooltip_area(false);
-            page.client().page_did_leave_tooltip_area();
-        }
-
-        if (is_hovering_link) {
-            if (auto link_url = document.encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
-                page.set_is_hovering_link(true);
-                page.client().page_did_hover_link(*link_url);
-            }
-        } else if (page.is_hovering_link()) {
-            page.set_is_hovering_link(false);
-            page.client().page_did_unhover_link();
         }
     }
 
