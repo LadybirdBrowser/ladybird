@@ -210,7 +210,7 @@ public:
             }
         }
 
-        ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
+        ThreadEventQueue::current().post_event(strong_owner, make<TimerEvent>());
     }
 
     AK::Duration interval;
@@ -314,7 +314,7 @@ void EventLoopImplementationUnix::quit(int code)
     m_exit_code = code;
 }
 
-void EventLoopImplementationUnix::post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&& event)
+void EventLoopImplementationUnix::post_event(EventReceiver* receiver, NonnullOwnPtr<Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
     if (&m_thread_event_queue != &ThreadEventQueue::current())
@@ -422,7 +422,7 @@ try_select_again:
             type &= notifier.type();
 
             if (type != NotificationType::None)
-                ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>());
+                ThreadEventQueue::current().post_event(&notifier, make<NotifierActivationEvent>());
 #endif
         }
     }

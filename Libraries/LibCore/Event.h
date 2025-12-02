@@ -11,7 +11,6 @@
 #include <AK/Function.h>
 #include <AK/Types.h>
 #include <AK/WeakPtr.h>
-#include <LibCore/DeferredInvocationContext.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
@@ -49,15 +48,13 @@ class DeferredInvocationEvent : public Event {
     friend class ThreadEventQueue;
 
 public:
-    DeferredInvocationEvent(NonnullRefPtr<DeferredInvocationContext> context, Function<void()> invokee)
+    DeferredInvocationEvent(Function<void()>&& invokee)
         : Event(Event::Type::DeferredInvoke)
-        , m_context(move(context))
         , m_invokee(move(invokee))
     {
     }
 
 private:
-    NonnullRefPtr<DeferredInvocationContext> m_context;
     Function<void()> m_invokee;
 };
 

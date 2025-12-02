@@ -59,7 +59,7 @@ public:
     virtual void wake() override;
     virtual bool was_exit_requested() const override;
 
-    virtual void post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&&) override;
+    virtual void post_event(Core::EventReceiver*, NonnullOwnPtr<Core::Event>&&) override;
 
     void set_main_loop();
 

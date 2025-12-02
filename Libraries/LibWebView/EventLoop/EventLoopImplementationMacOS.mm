@@ -485,7 +485,7 @@ bool EventLoopImplementationMacOS::was_exit_requested() const
     return ![NSApp isRunning];
 }
 
-void EventLoopImplementationMacOS::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
+void EventLoopImplementationMacOS::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<Core::Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
 

@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
+#include <LibCore/Forward.h>
 
 namespace Core {
 
@@ -25,7 +26,7 @@ public:
     size_t process();
 
     // Posts an event to the event queue.
-    void post_event(EventReceiver& receiver, NonnullOwnPtr<Event>);
+    void post_event(EventReceiver*, NonnullOwnPtr<Event>);
 
     // Used by Threading::BackgroundAction.
     void add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>);

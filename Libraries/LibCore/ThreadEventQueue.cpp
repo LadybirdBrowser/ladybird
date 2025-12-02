@@ -5,7 +5,6 @@
  */
 
 #include <AK/Vector.h>
-#include <LibCore/DeferredInvocationContext.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
@@ -22,7 +21,7 @@ struct ThreadEventQueue::Private {
         AK_MAKE_DEFAULT_MOVABLE(QueuedEvent);
 
     public:
-        QueuedEvent(EventReceiver& receiver, NonnullOwnPtr<Event> event)
+        QueuedEvent(RefPtr<EventReceiver> const& receiver, NonnullOwnPtr<Event> event)
             : receiver(receiver)
             , event(move(event))
         {
@@ -67,7 +66,7 @@ ThreadEventQueue::ThreadEventQueue()
 
 ThreadEventQueue::~ThreadEventQueue() = default;
 
-void ThreadEventQueue::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event> event)
+void ThreadEventQueue::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<Core::Event> event)
 {
     {
         Threading::MutexLocker lock(m_private->mutex);
@@ -106,7 +105,9 @@ size_t ThreadEventQueue::process()
         auto receiver = queued_event.receiver.strong_ref();
         auto& event = *queued_event.event;
 
-        if (!receiver) {
+        if (event.type() == Event::Type::DeferredInvoke) {
+            static_cast<DeferredInvocationEvent&>(event).m_invokee();
+        } else if (!receiver) {
             switch (event.type()) {
             case Event::Quit:
                 VERIFY_NOT_REACHED();
@@ -114,8 +115,6 @@ size_t ThreadEventQueue::process()
                 // Receiver disappeared, drop the event on the floor.
                 break;
             }
-        } else if (event.type() == Event::Type::DeferredInvoke) {
-            static_cast<DeferredInvocationEvent&>(event).m_invokee();
         } else {
             NonnullRefPtr<EventReceiver> protector(*receiver);
             receiver->dispatch_event(event);
