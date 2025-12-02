@@ -6,6 +6,7 @@
  */
 
 #include <AK/JsonObject.h>
+#include <LibGfx/Cursor.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/TimeZone.h>
@@ -234,6 +235,20 @@ void Internals::pinch(double x, double y, double scale_delta)
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     page.handle_pinch_event(position, scale_delta);
+}
+
+String Internals::current_cursor()
+{
+    auto& page = this->page();
+
+    return page.current_cursor().visit(
+        [](Gfx::StandardCursor cursor) {
+            auto cursor_string = Gfx::standard_cursor_to_string(cursor);
+            return String::from_utf8_without_validation(cursor_string.bytes());
+        },
+        [](Gfx::ImageCursor const&) {
+            return "Image"_string;
+        });
 }
 
 WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTarget& target, DOM::Event& event)
