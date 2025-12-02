@@ -94,7 +94,7 @@ void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf1
     legacy_static_properties.set_input(string);
 
     // 8. Set the value of C’s [[RegExpLastMatch]] internal slot to a String whose length is endIndex - startIndex and containing the code units from S with indices startIndex through endIndex - 1, in ascending order.
-    auto last_match = string.substring_view(start_index, end_index - start_index);
+    auto last_match = legacy_static_properties.input()->substring_view(start_index, end_index - start_index);
     legacy_static_properties.set_last_match(last_match);
 
     // 9. If n > 0, set the value of C’s [[RegExpLastParen]] internal slot to the last element of capturedValues.
@@ -108,11 +108,11 @@ void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf1
     }
 
     // 11. Set the value of C’s [[RegExpLeftContext]] internal slot to a String whose length is startIndex and containing the code units from S with indices 0 through startIndex - 1, in ascending order.
-    auto left_context = string.substring_view(0, start_index);
+    auto left_context = legacy_static_properties.input()->substring_view(0, start_index);
     legacy_static_properties.set_left_context(left_context);
 
     // 12. Set the value of C’s [[RegExpRightContext]] internal slot to a String whose length is len - endIndex and containing the code units from S with indices endIndex through len - 1, in ascending order.
-    auto right_context = string.substring_view(end_index, len - end_index);
+    auto right_context = legacy_static_properties.input()->substring_view(end_index, len - end_index);
     legacy_static_properties.set_right_context(right_context);
 
     // 13. For each integer i such that 1 ≤ i ≤ 9
