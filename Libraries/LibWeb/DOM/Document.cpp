@@ -2696,10 +2696,12 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
                 type,
                 CSS::TransitionEventInit {
                     { .bubbles = true },
-                    // FIXME: Correctly set pseudo_element
                     MUST(String::from_utf8(transition->transition_property())),
                     elapsed_time,
-                    String {},
+                    transition->owning_element()->pseudo_element().map([](auto it) {
+                                                                      return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                                  })
+                        .value_or({}),
                 }),
             .animation = transition,
             .target = transition->owning_element()->element(),
@@ -2791,6 +2793,10 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                     { .bubbles = true },
                     css_animation.animation_name(),
                     elapsed_time_seconds,
+                    owning_element->pseudo_element().map([](auto it) {
+                                                        return MUST(String::formatted("::{}", CSS::pseudo_element_name(it)));
+                                                    })
+                        .value_or({}),
                 }),
             .animation = css_animation,
             .target = *target,
