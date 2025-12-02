@@ -26,6 +26,7 @@ private:
 
     virtual bool has_constructor() const override { return true; }
 
+    JS_DECLARE_NATIVE_FUNCTION(concat);
     JS_DECLARE_NATIVE_FUNCTION(from);
 };
 
