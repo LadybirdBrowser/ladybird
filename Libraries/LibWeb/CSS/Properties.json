@@ -225,8 +225,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "none 0s ease 1 normal running 0s none",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "longhands": [
       "animation-duration",
       "animation-timing-function",
@@ -246,15 +245,15 @@
     "initial": "replace",
     "valid-types": [
       "animation-composition"
-    ]
+    ],
+    "multiplicity": "coordinating-list"
   },
   "animation-delay": {
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "time [-∞,∞]"
     ]
@@ -264,8 +263,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-identifiers": [
       "normal",
       "reverse",
@@ -278,8 +276,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "time [0,∞]"
     ],
@@ -292,8 +289,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-identifiers": [
       "none",
       "forwards",
@@ -306,8 +302,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "1",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "number [0,∞]"
     ],
@@ -320,8 +315,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "string",
       "custom-ident ![none]"
@@ -335,8 +329,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "running",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-identifiers": [
       "running",
       "paused"
@@ -356,16 +349,14 @@
       "auto",
       "none"
     ],
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single"
+    "multiplicity": "coordinating-list"
   },
   "animation-timing-function": {
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
     "initial": "ease",
-    "__comment": "FIXME: animation properties should be coordinating-lists",
-    "multiplicity": "single",
+    "multiplicity": "coordinating-list",
     "valid-types": [
       "easing-function",
       "easing-keyword"
