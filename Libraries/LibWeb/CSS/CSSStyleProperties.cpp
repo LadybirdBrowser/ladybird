@@ -415,6 +415,10 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
                 Important::No,
                 PropertyID::Custom,
                 style_value });
+
+        update_style_attribute();
+        invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesSetPropertyStyleValue);
+
         return {};
     }
 
@@ -438,6 +442,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
             .value = longhand_value,
         });
     });
+
+    update_style_attribute();
+    invalidate_owners(DOM::StyleInvalidationReason::CSSStylePropertiesSetPropertyStyleValue);
 
     return {};
 }
