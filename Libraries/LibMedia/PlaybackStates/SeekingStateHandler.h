@@ -103,21 +103,21 @@ private:
         return count;
     }
 
-    static void begin_audio_seeks(NonnullRefPtr<SeekData> const& seek_data)
+    static void begin_audio_seeks(SeekData& seek_data)
     {
-        seek_data->audio_seeks_in_flight = count_audio_tracks(seek_data->manager);
+        seek_data.audio_seeks_in_flight = count_audio_tracks(seek_data.manager);
 
-        if (seek_data->audio_seeks_in_flight == 0) {
-            possibly_complete_seek(*seek_data);
+        if (seek_data.audio_seeks_in_flight == 0) {
+            possibly_complete_seek(seek_data);
             return;
         }
 
-        for (auto const& audio_track_data : seek_data->manager->m_audio_track_datas) {
-            if (seek_data->manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
+        for (auto const& audio_track_data : seek_data.manager->m_audio_track_datas) {
+            if (seek_data.manager->m_audio_sink->provider(audio_track_data.track) == nullptr)
                 continue;
-            audio_track_data.provider->seek(seek_data->chosen_timestamp, [seek_data]() {
+            audio_track_data.provider->seek(seek_data.chosen_timestamp, [seek_data = NonnullRefPtr(seek_data)]() {
                 seek_data->audio_seeks_completed++;
-                possibly_complete_seek(*seek_data);
+                possibly_complete_seek(seek_data);
             });
         }
     }
@@ -151,7 +151,7 @@ private:
                 seek_data->video_seeks_completed++;
 
                 if (seek_mode == SeekMode::Accurate)
-                    possibly_complete_seek(*seek_data);
+                    possibly_complete_seek(seek_data);
                 else if (seek_data->video_seeks_completed == seek_data->video_seeks_in_flight)
                     begin_audio_seeks(seek_data);
             });
