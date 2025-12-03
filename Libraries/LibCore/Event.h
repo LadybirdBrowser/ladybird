@@ -19,7 +19,6 @@ class Event {
 public:
     enum Type : u8 {
         Invalid = 0,
-        Quit,
         Timer,
         NotifierActivation,
         DeferredInvoke,

@@ -108,13 +108,7 @@ size_t ThreadEventQueue::process()
         if (event.type() == Event::Type::DeferredInvoke) {
             static_cast<DeferredInvocationEvent&>(event).m_invokee();
         } else if (!receiver) {
-            switch (event.type()) {
-            case Event::Quit:
-                VERIFY_NOT_REACHED();
-            default:
-                // Receiver disappeared, drop the event on the floor.
-                break;
-            }
+            // Receiver disappeared, drop the event on the floor.
         } else {
             NonnullRefPtr<EventReceiver> protector(*receiver);
             receiver->dispatch_event(event);
