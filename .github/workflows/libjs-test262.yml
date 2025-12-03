@@ -15,6 +15,9 @@ jobs:
 
     concurrency: libjs-test262
 
+    permissions:
+      contents: write
+
     steps:
       - name: Cleanup
         run: |
