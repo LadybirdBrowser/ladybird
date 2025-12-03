@@ -210,7 +210,7 @@ public:
             }
         }
 
-        ThreadEventQueue::current().post_event(strong_owner, make<TimerEvent>());
+        ThreadEventQueue::current().post_event(strong_owner, Event::Type::Timer);
     }
 
     AK::Duration interval;
@@ -405,7 +405,7 @@ try_select_again:
 
 #ifdef AK_OS_ANDROID
             // FIXME: Make the check work under Android, perhaps use ALooper.
-            ThreadEventQueue::current().post_event(notifier, make<NotifierActivationEvent>());
+            ThreadEventQueue::current().post_event(notifier, Core::Event::Type::NotifierActivation);
 #else
             auto revents = thread_data.poll_fds[i].revents;
 
@@ -422,7 +422,7 @@ try_select_again:
             type &= notifier.type();
 
             if (type != NotificationType::None)
-                ThreadEventQueue::current().post_event(&notifier, make<NotifierActivationEvent>());
+                ThreadEventQueue::current().post_event(&notifier, Core::Event::Type::NotifierActivation);
 #endif
         }
     }

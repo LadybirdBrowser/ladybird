@@ -24,13 +24,21 @@ struct ThreadEventQueue::Private {
         QueuedEvent(RefPtr<EventReceiver> const& receiver, NonnullOwnPtr<Event> event)
             : receiver(receiver)
             , event(move(event))
+            , event_type(this->event->type())
+        {
+        }
+
+        QueuedEvent(RefPtr<EventReceiver> const& receiver, Event::Type event_type)
+            : receiver(receiver)
+            , event_type(event_type)
         {
         }
 
         ~QueuedEvent() = default;
 
         WeakPtr<EventReceiver> receiver;
-        NonnullOwnPtr<Event> event;
+        OwnPtr<Event> event;
+        u8 event_type { Event::Type::Invalid };
     };
 
     Threading::Mutex mutex;
@@ -75,6 +83,15 @@ void ThreadEventQueue::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<C
     Core::EventLoopManager::the().did_post_event();
 }
 
+void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Type event_type)
+{
+    {
+        Threading::MutexLocker lock(m_private->mutex);
+        m_private->queued_events.empend(receiver, event_type);
+    }
+    Core::EventLoopManager::the().did_post_event();
+}
+
 void ThreadEventQueue::add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> promise)
 {
     Threading::MutexLocker lock(m_private->mutex);
@@ -100,14 +117,29 @@ size_t ThreadEventQueue::process()
     }
 
     size_t processed_events = 0;
-    for (size_t i = 0; i < events.size(); ++i) {
-        auto& queued_event = events.at(i);
-        auto& event = *queued_event.event;
-
-        if (event.type() == Event::Type::DeferredInvoke) {
-            static_cast<DeferredInvocationEvent&>(event).m_invokee();
-        } else if (auto receiver = queued_event.receiver.strong_ref()) {
-            receiver->dispatch_event(event);
+    for (auto& queued_event : events) {
+        if (auto receiver = queued_event.receiver.strong_ref()) {
+            switch (queued_event.event_type) {
+            case Event::Type::Timer: {
+                TimerEvent timer_event;
+                receiver->dispatch_event(timer_event);
+                break;
+            }
+            case Event::Type::NotifierActivation: {
+                NotifierActivationEvent notifier_activation_event;
+                receiver->dispatch_event(notifier_activation_event);
+                break;
+            }
+            default:
+                receiver->dispatch_event(*queued_event.event);
+                break;
+            }
+        } else {
+            if (queued_event.event_type == Event::Type::DeferredInvoke) {
+                static_cast<DeferredInvocationEvent&>(*queued_event.event).m_invokee();
+            } else {
+                // Receiver gone, drop the event.
+            }
         }
         ++processed_events;
     }

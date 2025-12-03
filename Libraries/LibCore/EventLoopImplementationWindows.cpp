@@ -196,7 +196,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             if (packet->type == CompletionType::Timer) {
                 auto* timer = static_cast<EventLoopTimer*>(packet);
                 if (auto owner = timer->owner.strong_ref())
-                    event_queue.post_event(owner, make<TimerEvent>());
+                    event_queue.post_event(owner, Event::Type::Timer);
                 if (timer->is_periodic) {
                     NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(timer->wait_packet.handle, thread_data->iocp.handle, timer->timer.handle, timer, NULL, 0, 0, NULL);
                     VERIFY(NT_SUCCESS(status));
@@ -205,7 +205,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
             }
             if (packet->type == CompletionType::Notifer) {
                 auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
-                event_queue.post_event(notifier_data->notifier, make<NotifierActivationEvent>());
+                event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
                 continue;

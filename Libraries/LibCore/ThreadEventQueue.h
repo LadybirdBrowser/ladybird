@@ -27,6 +27,7 @@ public:
 
     // Posts an event to the event queue.
     void post_event(EventReceiver*, NonnullOwnPtr<Event>);
+    void post_event(EventReceiver*, Core::Event::Type);
 
     // Used by Threading::BackgroundAction.
     void add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>);
