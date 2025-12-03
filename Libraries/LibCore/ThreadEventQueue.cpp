@@ -102,15 +102,11 @@ size_t ThreadEventQueue::process()
     size_t processed_events = 0;
     for (size_t i = 0; i < events.size(); ++i) {
         auto& queued_event = events.at(i);
-        auto receiver = queued_event.receiver.strong_ref();
         auto& event = *queued_event.event;
 
         if (event.type() == Event::Type::DeferredInvoke) {
             static_cast<DeferredInvocationEvent&>(event).m_invokee();
-        } else if (!receiver) {
-            // Receiver disappeared, drop the event on the floor.
-        } else {
-            NonnullRefPtr<EventReceiver> protector(*receiver);
+        } else if (auto receiver = queued_event.receiver.strong_ref()) {
             receiver->dispatch_event(event);
         }
         ++processed_events;
