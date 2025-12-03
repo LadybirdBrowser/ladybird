@@ -10,9 +10,9 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
-#include <AK/Stream.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibCore/EventLoop.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -44,16 +44,28 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<PlaybackManager>> try_create(NonnullRefPtr<IncrementallyPopulatedStream> const&);
     ~PlaybackManager();
 
     AK::Duration duration() const;
-    AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
+    AK::Duration current_time() const
+    {
+        VERIFY(m_ready_to_use);
+        return min(m_time_provider->current_time(), duration());
+    }
 
-    VideoTracks const& video_tracks() const { return m_video_tracks; }
+    VideoTracks const& video_tracks() const
+    {
+        VERIFY(m_ready_to_use);
+        return m_video_tracks;
+    }
     Optional<Track> preferred_video_track();
 
-    VideoTracks const& audio_tracks() const { return m_audio_tracks; }
+    VideoTracks const& audio_tracks() const
+    {
+        VERIFY(m_ready_to_use);
+        return m_audio_tracks;
+    }
     Optional<Track> preferred_audio_track();
 
     // Creates a DisplayingVideoSink for the specified track.
@@ -79,6 +91,10 @@ public:
 
     Function<void()> on_playback_state_change;
     Function<void(DecoderError&&)> on_error;
+    Function<void(DecoderError&&)> on_demuxer_init_error;
+    Function<void()> on_ready;
+
+    bool ready_to_use() const { return m_ready_to_use; }
 
 private:
     class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
@@ -117,7 +133,24 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
-    PlaybackManager(NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<MediaTimeProvider> const&, VideoTracks&&, VideoTrackDatas&&, RefPtr<AudioMixingSink> const&, AudioTracks&&, AudioTrackDatas&&);
+    using OnDemuxerInitDone = Function<void(VideoTracks&&, VideoTrackDatas&&, Optional<Track>, AudioTracks&&, AudioTrackDatas&&, Optional<Track>, AK::Duration)>;
+    using OnDemuxerError = Function<void(DecoderError&&)>;
+
+    class ThreadData final : public AtomicRefCounted<ThreadData> {
+    public:
+        ThreadData(NonnullRefPtr<IncrementallyPopulatedStream>, OnDemuxerInitDone&&, OnDemuxerError&&);
+
+        DecoderErrorOr<void> init();
+        void on_error(DecoderError&&);
+
+    private:
+        Core::EventLoop& m_main_thread_event_loop;
+        NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
+        OnDemuxerInitDone m_on_demuxer_init_done;
+        OnDemuxerError m_on_demuxer_error;
+    };
+
+    PlaybackManager(NonnullRefPtr<IncrementallyPopulatedStream> const&, NonnullRefPtr<WeakPlaybackManager> const&, NonnullRefPtr<ThreadData> const&);
 
     void set_up_error_handlers();
     void dispatch_error(DecoderError&&);
@@ -130,20 +163,28 @@ private:
     inline void dispatch_state_change() const;
 
     OwnPtr<PlaybackStateHandler> m_handler;
-    NonnullRefPtr<MutexedDemuxer> m_demuxer;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
 
     NonnullRefPtr<WeakPlaybackManager> m_weak_wrapper;
 
-    NonnullRefPtr<MediaTimeProvider> m_time_provider;
+    RefPtr<MediaTimeProvider> m_time_provider;
 
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;
+    Optional<Track> m_preferred_video_track;
 
     RefPtr<AudioMixingSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
+    Optional<Track> m_preferred_audio_track;
+
+    AK::Duration m_duration;
 
     bool m_is_in_error_state { false };
+
+    NonnullRefPtr<ThreadData> m_thread_data;
+
+    bool m_ready_to_use { false };
 };
 
 template<typename T, typename... Args>

@@ -28,7 +28,7 @@ struct LoaderPluginInitializer {
 };
 
 static constexpr LoaderPluginInitializer s_initializers[] = {
-    { FFmpegLoaderPlugin::sniff, FFmpegLoaderPlugin::create },
+    // { FFmpegLoaderPlugin::sniff, FFmpegLoaderPlugin::create },
 };
 
 ErrorOr<NonnullRefPtr<Loader>> Loader::create(StringView path)

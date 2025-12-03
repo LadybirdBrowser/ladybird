@@ -6,8 +6,8 @@
 
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
+#include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -16,13 +16,13 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track)
+DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
 {
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
     auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
     auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, codec_initialization_data));
 
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(demuxer, track, move(decoder)));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, track, move(decoder)));
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
@@ -64,8 +64,8 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
-AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder)
-    : m_main_thread_event_loop(Core::EventLoop::current())
+AudioDataProvider::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder)
+    : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
     , m_decoder(move(decoder))
@@ -110,6 +110,7 @@ void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionH
     m_seek_completion_handler = move(completion_handler);
     m_seek_id++;
     m_seek_timestamp = timestamp;
+    m_demuxer->cancel_blocking_reads();
     wake();
 }
 

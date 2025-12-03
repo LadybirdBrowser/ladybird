@@ -18,9 +18,8 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer(ReadonlyBytes data, NonnullOwnPtr<SeekableStream>&& stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
-    : m_data(data)
-    , m_stream(move(stream))
+FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
+    : m_stream(stream)
     , m_io_context(move(io_context))
 {
 }
@@ -37,8 +36,13 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     if (format_context == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate format context"sv);
     format_context->pb = &io_context;
-    if (avformat_open_input(&format_context, nullptr, nullptr, nullptr) < 0)
+    if (auto error = avformat_open_input(&format_context, nullptr, nullptr, nullptr); error < 0) {
+        if (error == AVERROR_EOF)
+            return DecoderError::format(DecoderErrorCategory::EndOfStream, "End of stream");
+        if (error == AVERROR_EXIT)
+            VERIFY_NOT_REACHED();
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to open input for format parsing"sv);
+    }
 
     // Read stream info; doing this is required for headerless formats like MPEG
     if (avformat_find_stream_info(format_context, nullptr) < 0)
@@ -47,24 +51,90 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     return {};
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_data(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
-    auto stream = DECODER_TRY_ALLOC(try_make<FixedMemoryStream>(data));
-    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(data, move(stream), move(io_context))));
+    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_seekable()));
+    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream, move(io_context))));
 
     TRY(initialize_format_context(demuxer->m_format_context, *demuxer->m_io_context->avio_context()));
 
     return demuxer;
 }
 
+bool FFmpegDemuxer::sniff_mp4(IncrementallyPopulatedStream& stream)
+{
+    auto result = [&]() -> DecoderErrorOr<bool> {
+        // 1. Let sequence be the byte sequence to be matched, where sequence[s] is byte s in sequence and sequence[0] is the first byte in sequence.
+        auto seekable = stream.create_seekable();
+
+        // 2. Let length be the number of bytes in sequence.
+        // 3. If length is less than 12, return false.
+
+        constexpr size_t minimum_header_size = 12;
+        u8 header[minimum_header_size];
+        Bytes header_bytes { header, minimum_header_size };
+
+        TRY(seekable->read_bytes(header_bytes));
+
+        // 4. Let box-size be the four bytes from sequence[0] to sequence[3], interpreted as a 32-bit unsigned big-endian integer.
+        u32 box_size = (static_cast<u32>(header[0]) << 24) | (static_cast<u32>(header[1]) << 16) | (static_cast<u32>(header[2]) << 8) | static_cast<u32>(header[3]);
+
+        // 5. If length is less than box-size or if box-size modulo 4 is not equal to 0, return false.
+        if ((box_size % 4) != 0)
+            return false;
+
+        // 6. If the four bytes from sequence[4] to sequence[7] are not equal to 0x66 0x74 0x79 0x70 ("ftyp"), return false.
+        if (header[4] != 0x66 || header[5] != 0x74 || header[6] != 0x79 || header[7] != 0x70)
+            return false;
+
+        // 7. If the three bytes from sequence[8] to sequence[10] are equal to 0x6D 0x70 0x34 ("mp4"), return true.
+        if (header[8] == 0x6D && header[9] == 0x70 && header[10] == 0x34)
+            return true;
+
+        u8 minor_and_reserved[4];
+        Bytes minor_bytes { minor_and_reserved, 4 };
+        TRY(seekable->read_bytes(minor_bytes));
+
+        // 8. Let bytes-read be 16.
+        size_t bytes_read = 16;
+
+        auto is_supported_brand = [](u8 b0, u8 b1, u8 b2) {
+            bool is_mp4 = (b0 == 'm' && b1 == 'p' && b2 == '4'); // "mp4"
+            bool is_qt = (b0 == 'q' && b1 == 't' && b2 == ' ');  // "qt "
+            bool is_isom = (b0 == 'i' && b1 == 's' && b2 == 'o');
+            return is_mp4 || is_qt || is_isom;
+        };
+
+        // 9. While bytes-read is less than box-size, continuously loop through these steps:
+        while (bytes_read < box_size) {
+            u8 brand[4];
+            Bytes brand_bytes { brand, 4 };
+            auto brand_read = TRY(seekable->read_bytes(brand_bytes));
+
+            // 1. If the three bytes from sequence[bytes-read] to sequence[bytes-read + 2] are equal to 0x6D 0x70 0x34 ("mp4"), return true.
+            if (is_supported_brand(brand[0], brand[1], brand[2]))
+                return true;
+
+            // 2. Increment bytes-read by 4.
+            bytes_read += brand_read;
+        }
+
+        // 10. Return false.
+        return false;
+    }();
+
+    if (result.is_error())
+        return false;
+    return result.release_value();
+}
+
 FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
 {
+    Threading::MutexLocker locker(m_track_contexts_mutex);
     return *m_track_contexts.ensure(track, [&] {
-        auto stream = MUST(try_make<FixedMemoryStream>(m_data));
-        auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(*stream));
+        auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(m_stream->create_seekable()));
 
-        auto track_context = make<TrackContext>(move(stream), move(io_context));
+        auto track_context = make<TrackContext>(move(io_context));
 
         // We've already initialized a format context, so the only way this can fail is OOM.
         MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
@@ -261,6 +331,11 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         av_packet_unref(&packet);
         return sample;
     }
+}
+
+void FFmpegDemuxer::cancel_blocking_reads()
+{
+    m_stream->abort_blocking_reads();
 }
 
 FFmpegDemuxer::TrackContext::~TrackContext()

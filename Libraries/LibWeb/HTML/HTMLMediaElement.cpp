@@ -7,6 +7,7 @@
  */
 
 #include <LibJS/Runtime/Promise.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
@@ -1041,8 +1042,6 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
 
         fetch_algorithms_input.process_response = [this, byte_range = move(byte_range), failure_callback = move(failure_callback)](auto response) mutable {
-            auto& realm = this->realm();
-
             // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
             //        https://github.com/whatwg/html/issues/9355
             response = response->unsafe_response();
@@ -1058,18 +1057,19 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
                 return;
             }
 
-            // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
-            //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
-            //    source rather than using the networking task source.)
-            auto update_media = GC::create_function(heap(), [this, failure_callback = move(failure_callback)](ByteBuffer media_data) mutable {
+            m_media_data_stream = Media::IncrementallyPopulatedStream::create_empty();
+            if (auto length = response->header_list()->extract_length(); length.template has<u64>())
+                m_media_data_stream->set_total_size(length.template get<u64>());
+
+            MUST(create_playback_manager(failure_callback));
+
+            auto queue_task_to_process_media_data = GC::create_function(heap(), [this, failure_callback = move(failure_callback)](ByteBuffer media_data, FetchingStatus fetching_status) mutable {
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
                 //    a canvas gets tainted when the video is drawn on it.
-                m_media_data = move(media_data);
-
-                queue_a_media_element_task([this, failure_callback = move(failure_callback)]() mutable {
-                    process_media_data(move(failure_callback)).release_value_but_fixme_should_propagate_errors();
-
+                m_media_data_stream->append_chunk(move(media_data));
+                queue_a_media_element_task([this, &failure_callback, fetching_status]() mutable {
+                    process_media_data(failure_callback, fetching_status).release_value_but_fixme_should_propagate_errors();
                     // NOTE: The spec does not say exactly when to update the readyState attribute. Rather, it describes what
                     //       each step requires, and leaves it up to the user agent to determine when those requirements are
                     //       reached: https://html.spec.whatwg.org/multipage/media.html#ready-states
@@ -1082,20 +1082,29 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
                 });
             });
 
-            // FIXME: 3. Let processEndOfMedia be the following step: If the fetching process has completes without errors, including decoding the media data,
-            //           and if all of the data is available to the user agent without network access, then, the user agent must move on to the final step below.
-            //           This might never happen, e.g. when streaming an infinite resource such as web radio, or if the resource is longer than the user agent's
-            //           ability to cache data.
+            // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
+            //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
+            //    source rather than using the networking task source.)
+            auto update_media = GC::create_function(heap(), [queue_task_to_process_media_data](ByteBuffer media_data) {
+                queue_task_to_process_media_data->function()(move(media_data), FetchingStatus::Ongoing);
+            });
+
+            // 3. Let processEndOfMedia be the following step: If the fetching process has completes without errors, including decoding the media data,
+            //    and if all of the data is available to the user agent without network access, then, the user agent must move on to the final step below.
+            //    This might never happen, e.g. when streaming an infinite resource such as web radio, or if the resource is longer than the user agent's
+            //    ability to cache data.
+            VERIFY(response->body());
+            auto process_end_of_media = GC::create_function(heap(), [this, queue_task_to_process_media_data] {
+                m_media_data_stream->mark_complete();
+                queue_task_to_process_media_data->function()({}, FetchingStatus::Complete);
+            });
+
+            auto process_error = GC::create_function(heap(), [queue_task_to_process_media_data](JS::Value) {
+                queue_task_to_process_media_data->function()({}, FetchingStatus::Error);
+            });
 
             // 5. Otherwise, incrementally read response's body given updateMedia, processEndOfMedia, an empty algorithm, and global.
-
-            VERIFY(response->body());
-            auto empty_algorithm = GC::create_function(heap(), [](JS::Value) { });
-
-            // FIXME: We are "fully" reading the response here, rather than "incrementally". Memory concerns aside, this should be okay for now as we are
-            //        always setting byteRange to "entire resource". However, we should switch to incremental reads when that is implemented, and then
-            //        implement the processEndOfMedia step.
-            response->body()->fully_read(realm, update_media, empty_algorithm, GC::Ref { global });
+            response->body()->incrementally_read(update_media, process_end_of_media, process_error, GC::Ref { global });
         };
 
         m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
@@ -1167,7 +1176,7 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
 
 void HTMLMediaElement::update_video_frame_and_timeline()
 {
-    if (!m_playback_manager)
+    if (!m_playback_manager || !m_playback_manager->ready_to_use())
         return;
 
     auto needs_display = false;
@@ -1191,38 +1200,9 @@ void HTMLMediaElement::update_video_frame_and_timeline()
         paintable()->set_needs_display();
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(String)> failure_callback)
+void HTMLMediaElement::init_state()
 {
     auto& realm = this->realm();
-
-    auto playback_manager_result = Media::PlaybackManager::try_create(m_media_data.bytes());
-
-    // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to fetch the resource
-    // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    if (playback_manager_result.is_error()) {
-        // 1. The user agent should cancel the fetching process.
-        m_fetch_controller->stop_fetch();
-
-        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-        failure_callback(MUST(String::from_utf8(playback_manager_result.error().description())));
-        return {};
-    }
-
-    // NOTE: The spec is unclear on whether the following media resource track conditions should trigger multiple
-    //       times on one media resource, but it is implied to be possible by the start of the "Media elements"
-    //       section, where it says that a "media resource can have multiple audio and video tracks."
-    //       https://html.spec.whatwg.org/multipage/media.html#media-elements
-    //       Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
-
-    m_playback_manager = playback_manager_result.release_value();
-
-    m_playback_manager->on_playback_state_change = [weak_self = GC::Weak(*this)] {
-        if (weak_self)
-            weak_self->on_playback_manager_state_change();
-    };
-
-    update_volume();
 
     // -> If the media resource is found to have an audio track
     auto preferred_audio_track = m_playback_manager->preferred_audio_track();
@@ -1363,6 +1343,9 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 
     // 6. Set the readyState attribute to HAVE_METADATA.
     set_ready_state(ReadyState::HaveMetadata);
+    if (m_media_data_stream->is_complete()) {
+        set_ready_state(ReadyState::HaveEnoughData);
+    }
 
     // 7. Let jumped be false.
     [[maybe_unused]] auto jumped = false;
@@ -1395,14 +1378,75 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             return IterationDecision::Break;
         });
     }
+}
+
+WebIDL::ExceptionOr<void> HTMLMediaElement::create_playback_manager(Function<void(String)>& failure_callback)
+{
+    auto playback_manager_result = Media::PlaybackManager::try_create(*m_media_data_stream);
+
+    // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
+    if (playback_manager_result.is_error()) {
+        VERIFY_NOT_REACHED();
+    }
+
+    // NOTE: The spec is unclear on whether the following media resource track conditions should trigger multiple
+    //       times on one media resource, but it is implied to be possible by the start of the "Media elements"
+    //       section, where it says that a "media resource can have multiple audio and video tracks."
+    //       https://html.spec.whatwg.org/multipage/media.html#media-elements
+    //       Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
+
+    m_playback_manager = playback_manager_result.release_value();
+
+    m_playback_manager->on_playback_state_change = [weak_self = GC::Weak(*this)] {
+        if (weak_self)
+            weak_self->on_playback_manager_state_change();
+    };
+
+    update_volume();
+
+    m_playback_manager->on_demuxer_init_error = [weak_self = GC::Weak(*this), failure_callback = move(failure_callback)](auto&& error) mutable {
+        if (!weak_self)
+            return;
+        auto& self = *weak_self;
+
+        // 1. The user agent should cancel the fetching process.
+        self.m_fetch_controller->stop_fetch();
+
+        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
+        failure_callback(MUST(String::from_utf8(error.description())));
+    };
+
+    m_playback_manager->on_ready = [weak_self = GC::Weak(*this)] {
+        if (!weak_self)
+            return;
+        weak_self->init_state();
+    };
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
+WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(String)> const& failure_callback, FetchingStatus fetching_status)
+{
+    // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to fetch the resource
+    if (fetching_status == FetchingStatus::Error) {
+        // 1. The user agent should cancel the fetching process.
+        m_fetch_controller->stop_fetch();
+
+        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
+        failure_callback({});
+        return {};
+    }
 
     // -> Once the entire media resource has been fetched (but potentially before any of it has been decoded)
-    // Fire an event named progress at the media element.
-    dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::progress));
+    if (fetching_status == FetchingStatus::Complete) {
+        // Fire an event named progress at the media element.
+        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::progress));
 
-    // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
-    m_network_state = NetworkState::Idle;
-    dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::suspend));
+        // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
+        m_network_state = NetworkState::Idle;
+        dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::suspend));
+    }
 
     // FIXME: If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
     //        element task given the media element to set the networkState to NETWORK_LOADING.

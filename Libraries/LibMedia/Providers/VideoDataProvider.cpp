@@ -5,8 +5,8 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoDecoder.h>
@@ -17,13 +17,13 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
+DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
 {
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
     auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
     auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
 
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(demuxer, track, move(decoder), time_provider));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, track, move(decoder), time_provider));
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
@@ -38,12 +38,6 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     thread->detach();
 
     return provider;
-}
-
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
-{
-    auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
-    return try_create(mutexed_demuxer, track, time_provider);
 }
 
 VideoDataProvider::VideoDataProvider(NonnullRefPtr<ThreadData> const& thread_state)
@@ -66,6 +60,11 @@ void VideoDataProvider::start()
     m_thread_data->start();
 }
 
+void VideoDataProvider::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    m_thread_data->set_frames_queue_is_full_handler(move(handler));
+}
+
 TimedImage VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
@@ -81,8 +80,8 @@ void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCom
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
-VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
-    : m_main_thread_event_loop(Core::EventLoop::current())
+VideoDataProvider::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
+    : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
     , m_decoder(move(decoder))
@@ -103,6 +102,13 @@ void VideoDataProvider::ThreadData::start()
     VERIFY(m_requested_state == RequestedState::None);
     m_requested_state = RequestedState::Running;
     wake();
+}
+
+void VideoDataProvider::ThreadData::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    auto locker = take_lock();
+    m_frames_queue_is_full_handler = move(handler);
+    m_wait_condition.broadcast();
 }
 
 void VideoDataProvider::ThreadData::exit()
@@ -129,6 +135,7 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
     m_seek_mode = seek_mode;
+    m_demuxer->cancel_blocking_reads();
     wake();
 }
 
@@ -137,6 +144,7 @@ void VideoDataProvider::ThreadData::wait_for_start()
     auto locker = take_lock();
     while (m_requested_state == RequestedState::None)
         m_wait_condition.wait();
+    m_wait_condition.broadcast();
 }
 
 bool VideoDataProvider::ThreadData::should_thread_exit() const
@@ -423,6 +431,12 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             }();
 
             while (queue_size >= m_queue_max_size) {
+                if (m_frames_queue_is_full_handler) {
+                    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
+                        self->m_frames_queue_is_full_handler();
+                    });
+                }
+
                 if (handle_seek())
                     return;
 

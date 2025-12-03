@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "Reader.h"
 
@@ -16,12 +17,8 @@ namespace Media::Matroska {
 
 class MEDIA_API MatroskaDemuxer final : public Demuxer {
 public:
-    // FIXME: We should instead accept some abstract data streaming type so that the demuxer
-    //        can work with non-contiguous data.
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_file(StringView filename);
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file);
-
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_stream(IncrementallyPopulatedStream&);
+    static bool sniff_webm(IncrementallyPopulatedStream&);
 
     MatroskaDemuxer(Reader&& reader)
         : m_reader(move(reader))
@@ -42,6 +39,8 @@ public:
 
     DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
+    void cancel_blocking_reads() override;
+
 private:
     struct TrackStatus {
         SampleIterator iterator;
@@ -56,8 +55,10 @@ private:
 
     DecoderErrorOr<TrackStatus*> get_track_status(Track const& track);
 
+    Threading::Mutex m_reader_mutex;
     Reader m_reader;
 
+    Threading::Mutex m_track_statuses_mutex;
     HashMap<Track, TrackStatus> m_track_statuses;
 };
 

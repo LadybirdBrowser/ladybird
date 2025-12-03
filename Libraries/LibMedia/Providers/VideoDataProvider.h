@@ -21,6 +21,7 @@
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
+#include <LibThreading/Thread.h>
 
 namespace Media {
 
@@ -34,14 +35,15 @@ public:
 
     using ErrorHandler = Function<void(DecoderError&&)>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
+    using FramesQueueIsFullHandler = Function<void()>;
 
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
     VideoDataProvider(NonnullRefPtr<ThreadData> const&);
     ~VideoDataProvider();
 
     void set_error_handler(ErrorHandler&&);
+    void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     void start();
 
@@ -52,10 +54,11 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
+        ThreadData(Core::EventLoop&, NonnullRefPtr<Demuxer> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
+        void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void start();
         void exit();
@@ -91,7 +94,7 @@ private:
         mutable Threading::ConditionVariable m_wait_condition { m_mutex };
         RequestedState m_requested_state { RequestedState::None };
 
-        NonnullRefPtr<MutexedDemuxer> m_demuxer;
+        NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
         NonnullOwnPtr<VideoDecoder> m_decoder;
 
@@ -101,6 +104,7 @@ private:
         ImageQueue m_queue;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
+        FramesQueueIsFullHandler m_frames_queue_is_full_handler;
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

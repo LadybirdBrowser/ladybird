@@ -13,8 +13,9 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegIOContext::FFmpegIOContext(AVIOContext* avio_context)
-    : m_avio_context(avio_context)
+FFmpegIOContext::FFmpegIOContext(NonnullRefPtr<IncrementallyPopulatedStream::Seekable> const& stream, AVIOContext* avio_context)
+    : m_stream(stream)
+    , m_avio_context(avio_context)
 {
 }
 
@@ -25,7 +26,7 @@ FFmpegIOContext::~FFmpegIOContext()
     avio_context_free(&m_avio_context);
 }
 
-ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStream& stream)
+ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<IncrementallyPopulatedStream::Seekable> const& stream)
 {
     auto* avio_buffer = av_malloc(PAGE_SIZE);
     if (avio_buffer == nullptr)
@@ -36,47 +37,55 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStre
         static_cast<unsigned char*>(avio_buffer),
         PAGE_SIZE,
         0,
-        &stream,
+        stream.ptr(),
         [](void* opaque, u8* buffer, int size) -> int {
-            auto& stream = *static_cast<SeekableStream*>(opaque);
-            AK::Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
-            auto read_bytes_or_error = stream.read_some(buffer_bytes);
-            if (read_bytes_or_error.is_error()) {
-                if (read_bytes_or_error.error().code() == EOF)
+            auto& stream = *static_cast<IncrementallyPopulatedStream::Seekable*>(opaque);
+
+            Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
+            auto buffer_bytes_or_error = stream.read_bytes(buffer_bytes);
+            if (buffer_bytes_or_error.is_error()) {
+                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::EndOfStream)
                     return AVERROR_EOF;
+                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::AbortedOperation)
+                    return AVERROR_EXIT;
                 return AVERROR_UNKNOWN;
             }
-            int number_of_bytes_read = read_bytes_or_error.value().size();
-            if (number_of_bytes_read == 0)
+            if (buffer_bytes_or_error.value() == 0)
                 return AVERROR_EOF;
-            return number_of_bytes_read;
+            return static_cast<int>(buffer_bytes_or_error.value());
         },
         nullptr,
         [](void* opaque, int64_t offset, int whence) -> int64_t {
             whence &= ~AVSEEK_FORCE;
 
-            auto& stream = *static_cast<SeekableStream*>(opaque);
+            auto& stream = *static_cast<IncrementallyPopulatedStream::Seekable*>(opaque);
             if (whence == AVSEEK_SIZE)
-                return static_cast<int64_t>(stream.size().value());
+                return stream.total_size();
 
-            auto seek_mode_from_whence = [](int origin) -> SeekMode {
+            auto seek_mode_from_whence = [](int origin) -> IncrementallyPopulatedStream::Seekable::SeekMode {
                 if (origin == SEEK_CUR)
-                    return SeekMode::FromCurrentPosition;
+                    return IncrementallyPopulatedStream::Seekable::SeekMode::FromCurrentPosition;
                 if (origin == SEEK_END)
-                    return SeekMode::FromEndPosition;
-                return SeekMode::SetPosition;
+                    return IncrementallyPopulatedStream::Seekable::SeekMode::FromEndPosition;
+                return IncrementallyPopulatedStream::Seekable::SeekMode::SetPosition;
             };
-            auto offset_or_error = stream.seek(offset, seek_mode_from_whence(whence));
-            if (offset_or_error.is_error())
-                return -EIO;
-            return 0;
+
+            auto maybe_seek_error = stream.seek(offset, seek_mode_from_whence(whence));
+            if (maybe_seek_error.is_error()) {
+                if (maybe_seek_error.error().category() == DecoderErrorCategory::EndOfStream)
+                    return AVERROR_EOF;
+                if (maybe_seek_error.error().category() == DecoderErrorCategory::AbortedOperation)
+                    return AVERROR_EXIT;
+                return AVERROR_UNKNOWN;
+            }
+            return stream.position();
         });
     if (avio_context == nullptr) {
         av_free(avio_buffer);
         return Error::from_string_literal("Failed to allocate AVIO context");
     }
 
-    return make<FFmpegIOContext>(avio_context);
+    return make<FFmpegIOContext>(stream, avio_context);
 }
 
 }

@@ -9,6 +9,7 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
+#include <LibMedia/SeekMode.h>
 
 namespace Media {
 
@@ -43,6 +44,9 @@ public:
     {
         return PlaybackState::Playing;
     }
+
+    virtual void enter_buffering() override;
+    virtual void exit_buffering() override { }
 };
 
 }

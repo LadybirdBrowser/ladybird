@@ -10,6 +10,7 @@
 #include <AK/EnumBits.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventReceiver.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "CodecID.h"
 #include "CodedFrame.h"
@@ -52,6 +53,8 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
+
+    virtual void cancel_blocking_reads() = 0;
 };
 
 }
