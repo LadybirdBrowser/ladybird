@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['gap-rule-overlap'] = "row-over-column" should set the property value
+Pass	e.style['gap-rule-overlap'] = "column-over-row" should set the property value
