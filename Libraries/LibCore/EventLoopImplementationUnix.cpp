@@ -314,13 +314,6 @@ void EventLoopImplementationUnix::quit(int code)
     m_exit_code = code;
 }
 
-void EventLoopImplementationUnix::post_event(EventReceiver* receiver, NonnullOwnPtr<Event>&& event)
-{
-    m_thread_event_queue.post_event(receiver, move(event));
-    if (&m_thread_event_queue != &ThreadEventQueue::current())
-        wake();
-}
-
 void EventLoopImplementationUnix::wake()
 {
     int wake_event = 0;

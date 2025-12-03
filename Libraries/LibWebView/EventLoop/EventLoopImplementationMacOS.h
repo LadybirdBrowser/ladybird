@@ -41,7 +41,6 @@ public:
     virtual void quit(int) override;
     virtual void wake() override;
     virtual bool was_exit_requested() const override;
-    virtual void post_event(Core::EventReceiver*, NonnullOwnPtr<Core::Event>&&) override;
 
     virtual ~EventLoopImplementationMacOS() override;
 

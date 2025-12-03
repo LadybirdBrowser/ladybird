@@ -232,13 +232,6 @@ void EventLoopImplementationWindows::quit(int code)
     m_exit_code = code;
 }
 
-void EventLoopImplementationWindows::post_event(EventReceiver* receiver, NonnullOwnPtr<Event>&& event)
-{
-    m_thread_event_queue.post_event(receiver, move(event));
-    if (&m_thread_event_queue != &ThreadEventQueue::current())
-        wake();
-}
-
 void EventLoopImplementationWindows::wake()
 {
     SetEvent(m_wake_event);

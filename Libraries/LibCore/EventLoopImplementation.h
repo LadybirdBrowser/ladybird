@@ -54,8 +54,6 @@ public:
     virtual void wake() = 0;
     virtual bool was_exit_requested() const = 0;
 
-    virtual void post_event(EventReceiver*, NonnullOwnPtr<Event>&&) = 0;
-
     virtual void deferred_invoke(Function<void()>&&);
 
 protected:

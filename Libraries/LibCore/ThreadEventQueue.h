@@ -26,7 +26,6 @@ public:
     size_t process();
 
     // Posts an event to the event queue.
-    void post_event(EventReceiver*, NonnullOwnPtr<Event>);
     void post_event(EventReceiver*, Core::Event::Type);
 
     // Post a deferred invocation to the event queue.
