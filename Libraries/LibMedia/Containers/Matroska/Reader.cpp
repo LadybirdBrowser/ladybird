@@ -298,7 +298,7 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id([[
 
         m_last_top_level_element_position = streamer.position();
 
-        DECODER_TRY_ALLOC(m_seek_entries.try_set(found_element_id, found_element_position));
+        DECODER_TRY_ALLOC(m_seek_entries.try_set(found_element_id, found_element_position, AK::HashSetExistingEntryBehavior::Keep));
 
         if (found_element_id == element_id) {
             position = found_element_position;
