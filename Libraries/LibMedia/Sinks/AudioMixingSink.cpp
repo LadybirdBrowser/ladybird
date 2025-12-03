@@ -65,6 +65,7 @@ void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider>
 
     m_track_mixing_datas.set(track, TrackMixingData(*provider));
     deferred_create_playback_stream(track);
+    provider->start();
 }
 
 RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
