@@ -241,6 +241,26 @@ void FlatByteCode::ensure_opcodes_initialized()
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SaveModifiers<ByteCode>::execute(MatchInput const&, MatchState& state) const
+{
+    auto current_flags = to_underlying(state.current_options.value());
+    state.modifier_stack.append(current_flags);
+    state.current_options = AllOptions { static_cast<AllFlags>(new_modifiers()) };
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_RestoreModifiers<ByteCode>::execute(MatchInput const&, MatchState& state) const
+{
+    if (state.modifier_stack.is_empty())
+        return ExecutionResult::Failed;
+
+    auto previous_modifiers = state.modifier_stack.take_last();
+    state.current_options = AllOptions { static_cast<AllFlags>(previous_modifiers) };
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_Exit<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (state.string_position > input.view.length() || state.instruction_position >= bytecode().size())
@@ -439,7 +459,7 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin<ByteCode>::execute(MatchInput co
         if (state.string_position == 0)
             return true;
 
-        if (input.regex_options.has_flag_set(AllFlags::Multiline) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
+        if (state.current_options.has_flag_set(AllFlags::Multiline) && state.current_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
             auto input_view = input.view.substring_view(state.string_position - 1, 1).code_point_at(0);
             return input_view == '\r' || input_view == '\n' || input_view == LineSeparator || input_view == ParagraphSeparator;
         }
@@ -447,12 +467,12 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin<ByteCode>::execute(MatchInput co
         return false;
     }();
 
-    if (is_at_line_boundary && (input.regex_options & AllFlags::MatchNotBeginOfLine))
+    if (is_at_line_boundary && (state.current_options & AllFlags::MatchNotBeginOfLine))
         return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-    if ((is_at_line_boundary && !(input.regex_options & AllFlags::MatchNotBeginOfLine))
-        || (!is_at_line_boundary && (input.regex_options & AllFlags::MatchNotBeginOfLine))
-        || (is_at_line_boundary && (input.regex_options & AllFlags::Global)))
+    if ((is_at_line_boundary && !(state.current_options & AllFlags::MatchNotBeginOfLine))
+        || (!is_at_line_boundary && (state.current_options & AllFlags::MatchNotBeginOfLine))
+        || (is_at_line_boundary && (state.current_options & AllFlags::Global)))
         return ExecutionResult::Continue;
 
     return ExecutionResult::Failed_ExecuteLowPrioForks;
@@ -495,18 +515,18 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckEnd<ByteCode>::execute(MatchInput cons
         if (state.string_position == input.view.length())
             return true;
 
-        if (input.regex_options.has_flag_set(AllFlags::Multiline) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
+        if (state.current_options.has_flag_set(AllFlags::Multiline) && state.current_options.has_flag_set(AllFlags::Internal_ConsiderNewline)) {
             auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
             return input_view == '\r' || input_view == '\n' || input_view == LineSeparator || input_view == ParagraphSeparator;
         }
 
         return false;
     }();
-    if (is_at_line_boundary && (input.regex_options & AllFlags::MatchNotEndOfLine))
+    if (is_at_line_boundary && (state.current_options & AllFlags::MatchNotEndOfLine))
         return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-    if ((is_at_line_boundary && !(input.regex_options & AllFlags::MatchNotEndOfLine))
-        || (!is_at_line_boundary && (input.regex_options & AllFlags::MatchNotEndOfLine || input.regex_options & AllFlags::MatchNotBeginOfLine)))
+    if ((is_at_line_boundary && !(state.current_options & AllFlags::MatchNotEndOfLine))
+        || (!is_at_line_boundary && (state.current_options & AllFlags::MatchNotEndOfLine || state.current_options & AllFlags::MatchNotBeginOfLine)))
         return ExecutionResult::Continue;
 
     return ExecutionResult::Failed_ExecuteLowPrioForks;
@@ -736,11 +756,11 @@ ALWAYS_INLINE ExecutionResult CompareInternals<ByteCode, IsSimple>::execute(Matc
 
             auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
             auto is_equivalent_to_newline = input_view == '\n'
-                || (input.regex_options.has_flag_set(AllFlags::Internal_ECMA262DotSemantics)
+                || (state.current_options.has_flag_set(AllFlags::Internal_ECMA262DotSemantics)
                         ? (input_view == '\r' || input_view == LineSeparator || input_view == ParagraphSeparator)
                         : false);
 
-            if (!is_equivalent_to_newline || (input.regex_options.has_flag_set(AllFlags::SingleLine) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline))) {
+            if (!is_equivalent_to_newline || (state.current_options.has_flag_set(AllFlags::SingleLine) && state.current_options.has_flag_set(AllFlags::Internal_ConsiderNewline))) {
                 if (current_inversion_state())
                     inverse_matched = true;
                 else
@@ -792,7 +812,7 @@ ALWAYS_INLINE ExecutionResult CompareInternals<ByteCode, IsSimple>::execute(Matc
             auto insensitive_range_data = bytecode().flat_data().slice(offset, count_insensitive);
             offset += count_insensitive;
 
-            bool const insensitive = input.regex_options & AllFlags::Insensitive;
+            bool const insensitive = state.current_options & AllFlags::Insensitive;
             auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
             if (insensitive)
@@ -960,7 +980,7 @@ ALWAYS_INLINE ExecutionResult CompareInternals<ByteCode, IsSimple>::execute(Matc
                         value = input.view.code_point_at(current_code_unit_offset);
                     }
 
-                    if (input.regex_options & AllFlags::Insensitive) {
+                    if (state.current_options & AllFlags::Insensitive) {
                         bool found_child = false;
                         for (auto const& [key, child] : current->children()) {
                             if (to_ascii_lowercase(key) == to_ascii_lowercase(value)) {
@@ -1196,7 +1216,7 @@ ALWAYS_INLINE void CompareInternals<ByteCode, IsSimple>::compare_char(MatchInput
         : input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
 
     bool equal;
-    if (input.regex_options & AllFlags::Insensitive) {
+    if (state.current_options & AllFlags::Insensitive) {
         if (input.view.unicode()) {
             auto lhs = String::from_code_point(input_view);
             auto rhs = String::from_code_point(ch1);
@@ -1241,7 +1261,7 @@ ALWAYS_INLINE bool CompareInternals<ByteCode, IsSimple>::compare_string(MatchInp
 
     auto subject = input.view.substring_view(state.string_position, str.length());
     bool equals;
-    if (input.regex_options & AllFlags::Insensitive)
+    if (state.current_options & AllFlags::Insensitive)
         equals = subject.equals_ignoring_case(str);
     else
         equals = subject.equals(str);

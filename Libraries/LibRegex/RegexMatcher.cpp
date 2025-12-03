@@ -177,13 +177,13 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     size_t match_count { 0 };
 
     MatchInput input;
-    MatchState state { m_pattern->parser_result.capture_groups_count };
     size_t operations = 0;
 
     input.pattern = m_pattern->pattern_value;
 
     input.regex_options = m_regex_options | regex_options.value_or({}).value();
     input.start_offset = m_pattern->start_offset;
+    MatchState state(m_pattern->parser_result.capture_groups_count, input.regex_options);
     size_t lines_to_skip = 0;
 
     bool unicode = input.regex_options.has_flag_set(AllFlags::Unicode) || input.regex_options.has_flag_set(AllFlags::UnicodeSets);
@@ -276,6 +276,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
 
             state.instruction_position = 0;
             state.repetition_marks.clear();
+            state.modifier_stack.clear();
+            state.current_options = input.regex_options;
 
             auto result = execute(input, state, temp_operations);
             // This success is acceptable only if it doesn't read anything from the input (input length is 0).
@@ -336,6 +338,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             }
             state.instruction_position = 0;
             state.repetition_marks.clear();
+            state.modifier_stack.clear();
+            state.current_options = input.regex_options;
 
             if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;

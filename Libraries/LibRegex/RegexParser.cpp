@@ -2848,6 +2848,136 @@ bool ECMA262Parser::parse_capture_group(ByteCode& stack, size_t& match_length_mi
             return true;
         }
 
+        if (match(TokenType::Char) || match(TokenType::HyphenMinus)) {
+            if (!match(TokenType::HyphenMinus)) {
+                auto value = m_parser_state.current_token.value();
+                if (value.length() != 1 || !"ims"sv.contains(value[0]))
+                    goto not_a_modifier;
+            }
+
+            auto saved_position = m_parser_state.lexer.tell();
+            auto reset_to_saved_position = [&] {
+                m_parser_state.lexer.retreat(m_parser_state.lexer.tell() - saved_position);
+                m_parser_state.current_token = m_parser_state.lexer.next();
+            };
+
+            enum class ModifierParseResult : u8 {
+                Success,
+                InvalidGroup,
+                RepeatedFlag,
+            };
+
+            auto parse_modifier_flags = [&](bool& has_i, bool& has_m, bool& has_s) -> ModifierParseResult {
+                has_i = false;
+                has_m = false;
+                has_s = false;
+
+                while (match(TokenType::Char)) {
+                    auto value = m_parser_state.current_token.value();
+                    bool* flag_ptr;
+                    switch (value[0]) {
+                    case 'i':
+                        flag_ptr = &has_i;
+                        break;
+                    case 'm':
+                        flag_ptr = &has_m;
+                        break;
+                    case 's':
+                        flag_ptr = &has_s;
+                        break;
+                    default:
+                        return ModifierParseResult::InvalidGroup;
+                    }
+
+                    if (*flag_ptr)
+                        return ModifierParseResult::RepeatedFlag;
+                    *flag_ptr = true;
+                    consume();
+                }
+
+                return ModifierParseResult::Success;
+            };
+
+            bool add_i = false;
+            bool add_m = false;
+            bool add_s = false;
+            auto add_result = parse_modifier_flags(add_i, add_m, add_s);
+
+            if (add_result == ModifierParseResult::InvalidGroup)
+                return set_error(Error::InvalidModifierGroup);
+
+            if (add_result == ModifierParseResult::RepeatedFlag)
+                return set_error(Error::RepeatedModifierFlag);
+
+            bool remove_i = false;
+            bool remove_m = false;
+            bool remove_s = false;
+            if (match(TokenType::HyphenMinus)) {
+                consume();
+                auto remove_result = parse_modifier_flags(remove_i, remove_m, remove_s);
+
+                if (remove_result == ModifierParseResult::InvalidGroup)
+                    return set_error(Error::InvalidModifierGroup);
+
+                if (remove_result == ModifierParseResult::RepeatedFlag)
+                    return set_error(Error::RepeatedModifierFlag);
+
+                if ((add_i && remove_i) || (add_m && remove_m) || (add_s && remove_s))
+                    return set_error(Error::RepeatedModifierFlag);
+
+                if (!add_i && !add_m && !add_s && !remove_i && !remove_m && !remove_s)
+                    return set_error(Error::InvalidModifierGroup);
+            }
+
+            if (!match(TokenType::Colon)) {
+                reset_to_saved_position();
+                goto not_a_modifier;
+            }
+
+            consume();
+
+            auto current_options = to_underlying(m_parser_state.regex_options.value());
+            FlagsUnderlyingType updated_options = current_options;
+
+            auto update_modifier_flag = [&](bool add, bool remove, AllFlags flag) {
+                auto flag_value = static_cast<FlagsUnderlyingType>(flag);
+                if (add)
+                    updated_options |= flag_value;
+                if (remove)
+                    updated_options &= ~flag_value;
+            };
+
+            update_modifier_flag(add_i, remove_i, AllFlags::Insensitive);
+            update_modifier_flag(add_m, remove_m, AllFlags::Multiline);
+            update_modifier_flag(add_s, remove_s, AllFlags::SingleLine);
+
+            ByteCode modifier_group_bytecode;
+            size_t length = 0;
+
+            stack.insert_bytecode_save_modifiers(updated_options);
+
+            auto saved_parser_options = m_parser_state.regex_options;
+            m_parser_state.regex_options = AllOptions { static_cast<AllFlags>(updated_options) };
+
+            enter_capture_group_scope();
+            if (!parse_disjunction(modifier_group_bytecode, length, flags)) {
+                m_parser_state.regex_options = saved_parser_options;
+                return set_error(Error::InvalidPattern);
+            }
+            clear_all_capture_groups_in_scope(stack);
+            exit_capture_group_scope();
+
+            m_parser_state.regex_options = saved_parser_options;
+
+            consume(TokenType::RightParen, Error::MismatchingParen);
+
+            stack.extend(move(modifier_group_bytecode));
+            stack.insert_bytecode_restore_modifiers();
+            match_length_minimum += length;
+            return true;
+        }
+
+    not_a_modifier:
         if (consume("<")) {
             ++m_parser_state.named_capture_groups_count;
             auto group_index = ++m_parser_state.capture_groups_count; // Named capture groups count as normal capture groups too.

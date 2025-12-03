@@ -376,3 +376,61 @@ test("RegExp string literal", () => {
         expect(() => new RegExp(pattern, "v")).toThrow(SyntaxError);
     });
 });
+
+// https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/regexp-modifiers
+test("RegExp modifiers", () => {
+    const testModifiers = (pattern, flags, tests) => {
+        const re = new RegExp(pattern, flags);
+        tests.forEach(([input, expected]) => expect(re.test(input)).toBe(expected));
+    };
+
+    testModifiers("(^a$)|(?:^b$)|(?m:^c$)|(?:^d$)|(^e$)", "", [
+        ["\na\n", false],
+        ["\nb\n", false],
+        ["\nc\n", true],
+        ["\nd\n", false],
+        ["\ne\n", false],
+    ]);
+
+    testModifiers("(?m-:es$|(?-m:js$))", "", [
+        ["es\ns", true],
+        ["js", true],
+        ["js\ns", false],
+    ]);
+
+    testModifiers("(a)|(?:b)|(?-i:c)|(?:d)|(e)", "i", [
+        ["A", true],
+        ["B", true],
+        ["C", false],
+        ["D", true],
+        ["E", true],
+    ]);
+
+    testModifiers("(?m:es.$)", "", [
+        ["esz\n", true],
+        ["es\n\n", false],
+    ]);
+
+    testModifiers("(?m-:es.$)", "s", [
+        ["esz\n", true],
+        ["es\n\n", true],
+    ]);
+
+    testModifiers("(?-i:\\u{0061})b", "iu", [
+        ["ab", true],
+        ["aB", true],
+        ["Ab", false],
+    ]);
+
+    testModifiers("(?-i:\\p{Lu})", "iu", [
+        ["A", true],
+        ["a", false],
+        ["Z", true],
+        ["z", false],
+    ]);
+
+    testModifiers("(?-m:^es)$", "m", [
+        ["e\nes\n", false],
+        ["es\n", true],
+    ]);
+});

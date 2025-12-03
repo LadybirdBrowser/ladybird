@@ -424,9 +424,12 @@ struct MatchState {
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
     Vector<i64> step_backs;
+    Vector<FlagsUnderlyingType, 1> modifier_stack;
+    AllOptions current_options;
 
-    explicit MatchState(size_t capture_group_count)
+    explicit MatchState(size_t capture_group_count, AllOptions options = {})
         : capture_group_count(capture_group_count)
+        , current_options(options)
     {
     }
 
