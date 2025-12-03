@@ -49,7 +49,7 @@ public:
     }
 
 private:
-    AK::Duration m_timestamp { AK::Duration::zero() };
+    AK::Duration m_timestamp;
     RefPtr<Gfx::Bitmap> m_image { nullptr };
 };
 
