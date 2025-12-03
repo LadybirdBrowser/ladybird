@@ -56,6 +56,8 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(ResetRepeat)                \
     __ENUMERATE_OPCODE(Checkpoint)                 \
     __ENUMERATE_OPCODE(CompareSimple)              \
+    __ENUMERATE_OPCODE(SaveModifiers)              \
+    __ENUMERATE_OPCODE(RestoreModifiers)           \
     __ENUMERATE_OPCODE(Exit)
 
 // clang-format off
@@ -496,6 +498,17 @@ public:
         empend(capture_groups_count);
 
         m_group_name_mappings.set(capture_groups_count - 1, name_string_index);
+    }
+
+    void insert_bytecode_save_modifiers(FlagsUnderlyingType new_modifiers)
+    {
+        empend(static_cast<ByteCodeValueType>(OpCodeId::SaveModifiers));
+        empend(static_cast<ByteCodeValueType>(new_modifiers));
+    }
+
+    void insert_bytecode_restore_modifiers()
+    {
+        empend(static_cast<ByteCodeValueType>(OpCodeId::RestoreModifiers));
     }
 
     enum class LookAroundType {
@@ -944,6 +957,35 @@ public:
 protected:
     ByteCode* m_bytecode { nullptr };
     MatchState const* m_state { nullptr };
+};
+
+template<typename ByteCode>
+class OpCode_SaveModifiers final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SaveModifiers; }
+    ALWAYS_INLINE size_t size() const override { return 2; }
+    ALWAYS_INLINE FlagsUnderlyingType new_modifiers() const { return argument(0); }
+    ByteString arguments_string() const override { return ByteString::formatted("new_modifiers={:#x}", new_modifiers()); }
+};
+
+template<typename ByteCode>
+class OpCode_RestoreModifiers final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::RestoreModifiers; }
+    ALWAYS_INLINE size_t size() const override { return 1; }
+    ByteString arguments_string() const override { return ByteString::empty(); }
 };
 
 template<typename ByteCode>
