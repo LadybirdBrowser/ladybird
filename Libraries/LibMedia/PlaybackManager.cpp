@@ -252,7 +252,9 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     m_audio_sink->set_provider(track, track_data.provider);
     if (!had_provider) {
         track_data.provider->start();
-        track_data.provider->seek(current_time());
+        track_data.provider->seek(current_time(), [sink = NonnullRefPtr(*m_audio_sink), track] {
+            sink->clear_track_data(track);
+        });
     }
 }
 

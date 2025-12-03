@@ -285,6 +285,14 @@ void AudioMixingSink::set_time(AK::Duration time)
         });
 }
 
+void AudioMixingSink::clear_track_data(Track const& track)
+{
+    auto track_data = m_track_mixing_datas.find(track);
+    if (track_data == m_track_mixing_datas.end())
+        return;
+    track_data->value.current_block.clear();
+}
+
 void AudioMixingSink::set_volume(double volume)
 {
     m_volume = volume;
