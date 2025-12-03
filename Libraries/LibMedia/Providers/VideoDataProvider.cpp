@@ -94,7 +94,8 @@ void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 void VideoDataProvider::ThreadData::start()
 {
     auto locker = take_lock();
-    VERIFY(m_requested_state == RequestedState::None);
+    if (m_requested_state != RequestedState::None)
+        return;
     m_requested_state = RequestedState::Running;
     wake();
 }
