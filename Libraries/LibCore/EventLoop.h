@@ -67,9 +67,6 @@ public:
     // Pump the event loop until some condition is met.
     void spin_until(Function<bool()>);
 
-    // Post an event to this event loop.
-    void post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&&);
-
     void add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> job_promise);
 
     void deferred_invoke(ESCAPING Function<void()>);

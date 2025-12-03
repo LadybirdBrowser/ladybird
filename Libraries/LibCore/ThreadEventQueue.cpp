@@ -21,13 +21,6 @@ struct ThreadEventQueue::Private {
         AK_MAKE_DEFAULT_MOVABLE(QueuedEvent);
 
     public:
-        QueuedEvent(RefPtr<EventReceiver> const& receiver, NonnullOwnPtr<Event> event)
-            : receiver(receiver)
-            , event(move(event))
-            , event_type(this->event->type())
-        {
-        }
-
         QueuedEvent(RefPtr<EventReceiver> const& receiver, Event::Type event_type)
             : receiver(receiver)
             , event_type(event_type)
@@ -43,7 +36,6 @@ struct ThreadEventQueue::Private {
         ~QueuedEvent() = default;
 
         WeakPtr<EventReceiver> receiver;
-        OwnPtr<Event> event;
         Function<void()> m_invokee;
         u8 event_type { Event::Type::Invalid };
     };
@@ -80,15 +72,6 @@ ThreadEventQueue::ThreadEventQueue()
 }
 
 ThreadEventQueue::~ThreadEventQueue() = default;
-
-void ThreadEventQueue::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<Core::Event> event)
-{
-    {
-        Threading::MutexLocker lock(m_private->mutex);
-        m_private->queued_events.empend(receiver, move(event));
-    }
-    Core::EventLoopManager::the().did_post_event();
-}
 
 void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Type event_type)
 {
@@ -147,8 +130,7 @@ size_t ThreadEventQueue::process()
                 break;
             }
             default:
-                receiver->dispatch_event(*queued_event.event);
-                break;
+                VERIFY_NOT_REACHED();
             }
         } else {
             if (queued_event.event_type == Event::Type::DeferredInvoke) {

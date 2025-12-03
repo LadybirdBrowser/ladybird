@@ -485,14 +485,4 @@ bool EventLoopImplementationMacOS::was_exit_requested() const
     return ![NSApp isRunning];
 }
 
-void EventLoopImplementationMacOS::post_event(Core::EventReceiver* receiver, NonnullOwnPtr<Core::Event>&& event)
-{
-    m_thread_event_queue.post_event(receiver, move(event));
-
-    bool expected = false;
-    if (m_impl->deferred_source && m_impl->deferred_source_pending.compare_exchange_strong(expected, true)) {
-        CFRunLoopSourceSignal(m_impl->deferred_source);
-    }
-}
-
 }

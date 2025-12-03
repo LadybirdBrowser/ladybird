@@ -51,8 +51,6 @@ public:
 
     virtual void wake() override;
 
-    virtual void post_event(EventReceiver*, NonnullOwnPtr<Event>&&) override;
-
 private:
     bool m_exit_requested { false };
     int m_exit_code { 0 };

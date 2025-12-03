@@ -42,8 +42,6 @@ public:
     virtual void wake() override;
     virtual bool was_exit_requested() const override { return m_exit_requested; }
 
-    virtual void post_event(EventReceiver*, NonnullOwnPtr<Event>&&) override;
-
 private:
     bool m_exit_requested { false };
     int m_exit_code { 0 };
