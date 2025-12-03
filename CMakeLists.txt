@@ -34,7 +34,7 @@ project(ladybird
         HOMEPAGE_URL "https://ladybird.org"
 )
 
-if (ANDROID OR IOS)
+if (ANDROID OR IOS OR CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
     set(BUILD_SHARED_LIBS OFF)
 endif()
 
