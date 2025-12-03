@@ -149,7 +149,7 @@ void EventLoop::wake()
 
 void EventLoop::deferred_invoke(Function<void()> invokee)
 {
-    m_impl->post_event(nullptr, make<Core::DeferredInvocationEvent>(move(invokee)));
+    m_impl->deferred_invoke(move(invokee));
 }
 
 void deferred_invoke(Function<void()> invokee)

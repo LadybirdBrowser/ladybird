@@ -56,6 +56,8 @@ public:
 
     virtual void post_event(EventReceiver*, NonnullOwnPtr<Event>&&) = 0;
 
+    virtual void deferred_invoke(Function<void()>&&);
+
 protected:
     EventLoopImplementation();
     ThreadEventQueue& m_thread_event_queue;

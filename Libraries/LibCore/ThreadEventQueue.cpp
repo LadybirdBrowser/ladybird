@@ -34,10 +34,17 @@ struct ThreadEventQueue::Private {
         {
         }
 
+        QueuedEvent(Function<void()>&& invokee)
+            : m_invokee(move(invokee))
+            , event_type(Event::Type::DeferredInvoke)
+        {
+        }
+
         ~QueuedEvent() = default;
 
         WeakPtr<EventReceiver> receiver;
         OwnPtr<Event> event;
+        Function<void()> m_invokee;
         u8 event_type { Event::Type::Invalid };
     };
 
@@ -92,6 +99,15 @@ void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Ty
     Core::EventLoopManager::the().did_post_event();
 }
 
+void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
+{
+    {
+        Threading::MutexLocker lock(m_private->mutex);
+        m_private->queued_events.empend(move(invokee));
+    }
+    Core::EventLoopManager::the().did_post_event();
+}
+
 void ThreadEventQueue::add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> promise)
 {
     Threading::MutexLocker lock(m_private->mutex);
@@ -136,7 +152,7 @@ size_t ThreadEventQueue::process()
             }
         } else {
             if (queued_event.event_type == Event::Type::DeferredInvoke) {
-                static_cast<DeferredInvocationEvent&>(*queued_event.event).m_invokee();
+                queued_event.m_invokee();
             } else {
                 // Receiver gone, drop the event.
             }
