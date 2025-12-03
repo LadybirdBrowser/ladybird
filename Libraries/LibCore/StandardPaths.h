@@ -9,10 +9,11 @@
 
 #include <AK/Error.h>
 #include <AK/Forward.h>
+#include <LibCore/ExportCoreMinimal.h>
 
 namespace Core {
 
-class StandardPaths {
+class COREMINIMAL_API StandardPaths {
 public:
     static ByteString home_directory();
     static ByteString desktop_directory();

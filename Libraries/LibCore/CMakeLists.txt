@@ -25,6 +25,18 @@ else()
 endif()
 
 ladybird_lib(LibCoreMinimal coreminimal)
+# We need to do this manually as we have two libs in one directory, ie. LibCoreMinimal and LibCore
+if (NOT WIN32)
+    target_compile_options(LibCoreMinimal
+            PRIVATE
+                "$<$<COMPILE_LANGUAGE:CXX>:-fvisibility=hidden>"
+                "$<$<COMPILE_LANGUAGE:C>:-fvisibility=hidden>"
+        )
+else()
+    set_target_properties(LibCoreMinimal PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+endif()
+include(GenerateExportHeader)
+generate_export_header(LibCoreMinimal EXPORT_MACRO_NAME COREMINIMAL_API EXPORT_FILE_NAME "ExportCoreMinimal.h")
 
 if (WIN32)
     find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
