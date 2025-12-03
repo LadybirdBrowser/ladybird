@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "b0b3de1b1a0aa4b8f2822460aa7f42f991629b3f",
+  "builtin-baseline": "4c4abc2e8727221ede31021349386dac674309b0",
   "dependencies": [
     {
       "name": "angle",
@@ -272,7 +272,7 @@
     },
     {
       "name": "libavif",
-      "version": "1.3.0#0"
+      "version": "1.3.0#1"
     },
     {
       "name": "libwebp",
