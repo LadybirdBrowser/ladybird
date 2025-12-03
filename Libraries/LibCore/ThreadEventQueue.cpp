@@ -43,7 +43,6 @@ struct ThreadEventQueue::Private {
     Threading::Mutex mutex;
     Vector<QueuedEvent> queued_events;
     Vector<NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>, 16> pending_promises;
-    bool warned_promise_count { false };
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
@@ -142,13 +141,6 @@ size_t ThreadEventQueue::process()
         ++processed_events;
     }
 
-    {
-        Threading::MutexLocker locker(m_private->mutex);
-        if (m_private->pending_promises.size() > 30 && !m_private->warned_promise_count) {
-            m_private->warned_promise_count = true;
-            dbgln("ThreadEventQueue::process: Job queue wasn't designed for this load ({} promises)", m_private->pending_promises.size());
-        }
-    }
     return processed_events;
 }
 
