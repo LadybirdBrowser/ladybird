@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -147,7 +147,7 @@ enum class WaitMode {
 };
 
 // 25.4.3.14 DoWait ( mode, typedArray, index, value, timeout ), https://tc39.es/ecma262/#sec-dowait
-static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& typed_array, Value index_value, Value expected_value, Value timeout_value)
+static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& typed_array, Value index, Value expected_value, Value timeout_value)
 {
     // 1. Let taRecord be ? ValidateIntegerTypedArray(typedArray, true).
     auto typed_array_record = TRY(validate_integer_typed_array(vm, typed_array, true));
@@ -159,8 +159,8 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
     if (!buffer->is_shared_array_buffer())
         return vm.throw_completion<TypeError>(ErrorType::NotASharedArrayBuffer);
 
-    // 4. Let i be ? ValidateAtomicAccess(taRecord, index).
-    auto index = TRY(validate_atomic_access(vm, typed_array_record, index_value));
+    // 4. Let byteIndexInBuffer be ? ValidateAtomicAccess(taRecord, index).
+    auto byte_index_in_buffer = TRY(validate_atomic_access(vm, typed_array_record, index));
 
     // 5. Let arrayTypeName be typedArray.[[TypedArrayName]].
     auto const& array_type_name = typed_array.element_name();
@@ -190,7 +190,7 @@ static ThrowCompletionOr<Value> do_wait(VM& vm, WaitMode mode, TypedArrayBase& t
         return vm.throw_completion<TypeError>(ErrorType::AgentCannotSuspend);
 
     // FIXME: Implement the remaining steps when we support SharedArrayBuffer.
-    (void)index;
+    (void)byte_index_in_buffer;
     (void)value;
     (void)timeout;
 
