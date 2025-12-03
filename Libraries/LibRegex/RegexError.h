@@ -34,6 +34,8 @@ enum class Error : u8 {
     DuplicateNamedCapture = __Regex_DuplicateNamedCapture,               // Name of property is invalid.
     InvalidCharacterClassEscape = __Regex_InvalidCharacterClassEscape,   // Invalid escaped entity in character class.
     NegatedCharacterClassStrings = __Regex_NegatedCharacterClassStrings, // Negated character class may contain strings.
+    InvalidModifierGroup = __Regex_InvalidModifierGroup,                 // Invalid modifier group.
+    RepeatedModifierFlag = __Regex_RepeatedModifierFlag,                 // Repeated flag in modifier group.
 };
 
 inline StringView get_error_string(Error error)
@@ -80,7 +82,11 @@ inline StringView get_error_string(Error error)
     case Error::InvalidCharacterClassEscape:
         return "Invalid escaped entity in character class."sv;
     case Error::NegatedCharacterClassStrings:
-        return "Negated character class cannot contain strings"sv;
+        return "Negated character class cannot contain strings."sv;
+    case Error::InvalidModifierGroup:
+        return "Invalid modifier group."sv;
+    case Error::RepeatedModifierFlag:
+        return "Repeated flag in modifier group."sv;
     }
     return "Undefined error."sv;
 }

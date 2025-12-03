@@ -29,6 +29,8 @@ enum __Regex_Error {
     __Regex_DuplicateNamedCapture,        // Duplicate named capture group
     __Regex_InvalidCharacterClassEscape,  // Invalid escaped entity in character class.
     __Regex_NegatedCharacterClassStrings, // Negated character class cannot contain strings.
+    __Regex_InvalidModifierGroup,         // Invalid modifier group.
+    __Regex_RepeatedModifierFlag,         // Repeated flag in modifier group.
 };
 
 enum __RegexAllFlags {

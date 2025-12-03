@@ -423,6 +423,8 @@ struct MatchState {
     COWVector<Match> flat_capture_group_matches; // Vector<Vector<Match>> indexed by match index, then by capture group id; flattened for performance
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
+    Vector<FlagsUnderlyingType> modifier_stack;
+    Optional<AllOptions> current_options;
 
     explicit MatchState(size_t capture_group_count)
         : capture_group_count(capture_group_count)
