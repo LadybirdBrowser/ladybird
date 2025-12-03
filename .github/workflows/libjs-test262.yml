@@ -26,6 +26,8 @@ jobs:
 
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
 
       - name: Checkout LadybirdBrowser/libjs-test262
         uses: actions/checkout@v6
@@ -38,7 +40,6 @@ jobs:
         with:
           repository: LadybirdBrowser/libjs-data
           path: libjs-data
-          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
 
       - name: Checkout tc39/test262
         uses: actions/checkout@v6
