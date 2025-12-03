@@ -114,7 +114,6 @@ size_t ThreadEventQueue::process()
         m_private->pending_promises.remove_all_matching([](auto& job) { return job->is_resolved() || job->is_rejected(); });
     }
 
-    size_t processed_events = 0;
     for (auto& queued_event : events) {
         if (auto receiver = queued_event.receiver.strong_ref()) {
             switch (queued_event.event_type) {
@@ -138,10 +137,9 @@ size_t ThreadEventQueue::process()
                 // Receiver gone, drop the event.
             }
         }
-        ++processed_events;
     }
 
-    return processed_events;
+    return events.size();
 }
 
 bool ThreadEventQueue::has_pending_events() const
