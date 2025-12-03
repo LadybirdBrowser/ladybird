@@ -37,6 +37,8 @@ void DisplayingVideoSink::set_provider(Track const& track, RefPtr<VideoDataProvi
     verify_track(track);
     m_track = track;
     m_provider = provider;
+    if (provider != nullptr)
+        provider->start();
 }
 
 RefPtr<VideoDataProvider> DisplayingVideoSink::provider(Track const& track) const
