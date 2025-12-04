@@ -220,6 +220,22 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Document URL: {}\n", url().to_string());
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Has document load delayer: {}\n", m_document_load_event_delayer.has_value());
+
+    if (auto media_list = media())
+        media_list->dump(builder, indent_levels + 1);
+
+    if (m_supports)
+        m_supports->dump(builder, indent_levels + 1);
+
+    if (m_style_sheet) {
+        dump_sheet(builder, *m_style_sheet, indent_levels + 1);
+    } else {
+        dump_indent(builder, indent_levels + 1);
+        builder.append("Style sheet not loaded\n"sv);
+    }
 }
 
 }
