@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibCore/System.h>
 #include <LibCore/SystemServerTakeover.h>
 #include <LibIPC/ConnectionFromClient.h>
 

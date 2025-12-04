@@ -6,6 +6,7 @@
 
 #include <AK/Enumerate.h>
 #include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Utilities.h>

@@ -10,6 +10,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/ConnectionInfo.h>

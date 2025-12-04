@@ -1,4 +1,5 @@
 set(SOURCES
+    AutoCloseFileDescriptor.cpp
     Connection.cpp
     Decoder.cpp
     Encoder.cpp

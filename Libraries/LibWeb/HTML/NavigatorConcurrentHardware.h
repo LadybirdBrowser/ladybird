@@ -7,15 +7,13 @@
 
 #pragma once
 
-#include <LibCore/System.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 class NavigatorConcurrentHardwareMixin {
 public:
-    // https://html.spec.whatwg.org/multipage/workers.html#dom-navigator-hardwareconcurrency
-    static WebIDL::UnsignedLongLong hardware_concurrency() { return Core::System::hardware_concurrency(); }
+    static WebIDL::UnsignedLongLong hardware_concurrency();
 };
 
 }
