@@ -2282,6 +2282,7 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
 
     // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#)
     // FIXME: Update color-mix to accept 1+ colors instead of exactly 2.
+    // FIXME: <color-interpolation-method> is optional in the current spec.
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
@@ -2529,7 +2530,7 @@ RefPtr<StyleValue const> Parser::parse_corner_shape_value(TokenStream<ComponentV
     }
 
     if (token.is_function("superellipse"sv)) {
-        // superellipse() = superellipse(<number [-∞,∞]> | infinity | -infinity)
+        // superellipse() = superellipse(<number> | infinity | -infinity)
         auto const& function = token.function();
 
         auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });

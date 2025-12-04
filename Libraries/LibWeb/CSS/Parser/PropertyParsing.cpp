@@ -1050,7 +1050,7 @@ RefPtr<StyleValue const> Parser::parse_counter_set_value(TokenStream<ComponentVa
 // https://drafts.csswg.org/css-ui-4/#cursor
 RefPtr<StyleValue const> Parser::parse_cursor_value(TokenStream<ComponentValue>& tokens)
 {
-    // <cursor-image>#? <cursor-predefined>
+    // [<cursor-image>,]* <cursor-predefined>
     // <cursor-image> = <url> <number>{2}?
     // So, any number of custom cursor definitions, and then a mandatory cursor name keyword, all comma-separated.
 
