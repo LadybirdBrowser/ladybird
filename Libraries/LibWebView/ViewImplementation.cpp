@@ -593,10 +593,14 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
     Application::the().apply_view_options({}, *this);
 
-    default_zoom_level_factor_changed();
-    languages_changed();
-    autoplay_settings_changed();
-    global_privacy_control_changed();
+    // Defer settings application to ensure WebContent process is fully initialized
+    Core::deferred_invoke([this] {
+        default_zoom_level_factor_changed();
+        languages_changed();
+        autoplay_settings_changed();
+        global_privacy_control_changed();
+        debug_dump_path_changed();
+    });
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
@@ -671,6 +675,12 @@ void ViewImplementation::global_privacy_control_changed()
 {
     auto global_privacy_control = Application::settings().global_privacy_control();
     client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
+}
+
+void ViewImplementation::debug_dump_path_changed()
+{
+    auto const& debug_dump_path = Application::settings().debug_dump_path();
+    client().async_set_debug_dump_setting(page_id(), debug_dump_path);
 }
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
