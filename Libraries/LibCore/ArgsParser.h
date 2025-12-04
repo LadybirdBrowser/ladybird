@@ -10,12 +10,13 @@
 #include <AK/Concepts.h>
 #include <AK/Function.h>
 #include <AK/Vector.h>
+#include <LibCore/Export.h>
 #include <LibMain/Main.h>
 #include <stdio.h>
 
 namespace Core {
 
-class ArgsParser {
+class CORE_API ArgsParser {
 public:
     ArgsParser();
 

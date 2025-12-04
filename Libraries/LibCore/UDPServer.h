@@ -11,12 +11,13 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SocketAddress.h>
 
 namespace Core {
 
-class UDPServer : public EventReceiver {
+class CORE_API UDPServer : public EventReceiver {
     C_OBJECT(UDPServer)
 public:
     virtual ~UDPServer() override;

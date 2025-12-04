@@ -7,11 +7,12 @@
 #pragma once
 
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 #include <LibCore/Notifier.h>
 
 namespace Core {
 
-class LocalServer : public EventReceiver {
+class CORE_API LocalServer : public EventReceiver {
     C_OBJECT(LocalServer)
 public:
     virtual ~LocalServer() override;

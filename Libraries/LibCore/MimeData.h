@@ -10,6 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 #include <LibURL/URL.h>
 
 namespace Core {
@@ -48,7 +49,7 @@ private:
     HashMap<String, ByteBuffer> m_data;
 };
 
-StringView guess_mime_type_based_on_filename(StringView);
+CORE_API StringView guess_mime_type_based_on_filename(StringView);
 
 Optional<StringView> guess_mime_type_based_on_sniffed_bytes(ReadonlyBytes);
 Optional<StringView> guess_mime_type_based_on_sniffed_bytes(Core::File&);

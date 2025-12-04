@@ -8,11 +8,12 @@
 
 #include <AK/RefPtr.h>
 #include <AK/StringView.h>
+#include <LibCore/Export.h>
 #include <LibCore/Resource.h>
 
 namespace Core {
 
-class ResourceImplementation {
+class CORE_API ResourceImplementation {
 public:
     ErrorOr<NonnullRefPtr<Resource>> load_from_uri(StringView);
     Vector<String> child_names(Resource const&);

@@ -10,10 +10,11 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
-class TimeZoneWatcher {
+class CORE_API TimeZoneWatcher {
     AK_MAKE_NONCOPYABLE(TimeZoneWatcher);
 
 public:
