@@ -251,14 +251,7 @@ NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(
     VERIFY_NOT_REACHED();
 }
 
-// FIXME: GCC takes a *long* time to compile with flattening, and it will time out our CI. :|
-#if defined(AK_COMPILER_CLANG)
-#    define FLATTEN_ON_CLANG FLATTEN
-#else
-#    define FLATTEN_ON_CLANG
-#endif
-
-FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
+void Interpreter::run_bytecode(size_t entry_point)
 {
     if (vm().did_reach_stack_space_limit()) [[unlikely]] {
         reg(Register::exception()) = vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded).value();
