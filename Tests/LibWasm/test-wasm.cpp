@@ -236,6 +236,16 @@ TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
     return (bits & 0x7FF0000000000000ull) == 0x7FF0000000000000ull && payload >= 0x0008000000000000ull;
 }
 
+TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
+{
+    auto value = TRY(vm.argument(0).to_index(vm));
+    auto module_object = TRY(vm.argument(1).to_object(vm));
+    if (!is<WebAssemblyModule>(*module_object))
+        return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"sv);
+    auto& module = static_cast<WebAssemblyModule&>(*module_object);
+    return JS::Value(module.machine().store().get(Wasm::FunctionAddress { value }) != nullptr);
+}
+
 TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 {
     auto expected = TRY(vm.argument(0).to_object(vm));

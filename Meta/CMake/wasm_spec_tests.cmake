@@ -15,7 +15,7 @@ if(INCLUDE_WASM_SPEC_TESTS)
         set(SKIP_PRETTIER true)
     endif()
 
-    find_program(WAT2WASM wat2wasm REQUIRED)
+    find_program(WASMTOOLS wasm-tools REQUIRED)
     find_program(PRETTIER prettier OPTIONAL)
     if (NOT SKIP_PRETTIER AND PRETTIER EQUAL "PRETTIER-NOTFOUND")
        message(FATAL_ERROR "Prettier required to format Wasm spec tests! Install prettier or set WASM_SPEC_TEST_SKIP_FORMATTING to ON")
