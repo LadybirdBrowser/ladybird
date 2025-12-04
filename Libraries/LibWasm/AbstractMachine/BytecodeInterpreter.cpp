@@ -3688,41 +3688,41 @@ ALIAS_INSTRUCTION(i32x4_relaxed_trunc_f64x2_u_zero, i32x4_trunc_sat_f64x2_u_zero
 
 HANDLE_INSTRUCTION(f32x4_relaxed_madd)
 {
-    auto a = configuration.take_source(0, addresses.sources).to<u128>();
-    auto b = configuration.take_source(1, addresses.sources).to<u128>();
-    auto& c_slot = configuration.source_value(2, addresses.sources);
-    auto c = c_slot.to<u128>();
-    c_slot = Value { Operators::VectorMultiplyAdd<4> {}(a, b, c) };
+    auto c = configuration.take_source(0, addresses.sources).template to<u128>();
+    auto a = configuration.take_source(1, addresses.sources).template to<u128>();
+    auto& b_slot = configuration.source_value(2, addresses.sources);
+    auto b = b_slot.template to<u128>();
+    b_slot = Value { Operators::VectorMultiplyAdd<4> {}(a, b, c) };
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(f32x4_relaxed_nmadd)
 {
-    auto a = configuration.take_source(0, addresses.sources).to<u128>();
-    auto b = configuration.take_source(1, addresses.sources).to<u128>();
-    auto& c_slot = configuration.source_value(2, addresses.sources);
-    auto c = c_slot.to<u128>();
-    c_slot = Value { Operators::VectorMultiplySub<4> {}(a, b, c) };
+    auto c = configuration.take_source(0, addresses.sources).template to<u128>();
+    auto a = configuration.take_source(1, addresses.sources).template to<u128>();
+    auto& b_slot = configuration.source_value(2, addresses.sources);
+    auto b = b_slot.template to<u128>();
+    b_slot = Value { Operators::VectorMultiplySub<4> {}(a, b, c) };
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(f64x2_relaxed_madd)
 {
-    auto a = configuration.take_source(0, addresses.sources).to<u128>();
-    auto b = configuration.take_source(1, addresses.sources).to<u128>();
-    auto& c_slot = configuration.source_value(2, addresses.sources);
-    auto c = c_slot.to<u128>();
-    c_slot = Value { Operators::VectorMultiplyAdd<2> {}(a, b, c) };
+    auto c = configuration.take_source(0, addresses.sources).template to<u128>();
+    auto a = configuration.take_source(1, addresses.sources).template to<u128>();
+    auto& b_slot = configuration.source_value(2, addresses.sources);
+    auto b = b_slot.template to<u128>();
+    b_slot = Value { Operators::VectorMultiplyAdd<2> {}(a, b, c) };
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(f64x2_relaxed_nmadd)
 {
-    auto a = configuration.take_source(0, addresses.sources).to<u128>();
-    auto b = configuration.take_source(1, addresses.sources).to<u128>();
-    auto& c_slot = configuration.source_value(2, addresses.sources);
-    auto c = c_slot.to<u128>();
-    c_slot = Value { Operators::VectorMultiplySub<2> {}(a, b, c) };
+    auto c = configuration.take_source(0, addresses.sources).template to<u128>();
+    auto a = configuration.take_source(1, addresses.sources).template to<u128>();
+    auto& b_slot = configuration.source_value(2, addresses.sources);
+    auto b = b_slot.template to<u128>();
+    b_slot = Value { Operators::VectorMultiplySub<2> {}(a, b, c) };
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -3745,12 +3745,10 @@ HANDLE_INSTRUCTION(i16x8_relaxed_dot_i8x16_i7x16_s)
 
 HANDLE_INSTRUCTION(i32x4_relaxed_dot_i8x16_i7x16_add_s)
 {
-    // do i16x8 dot first, then fold back down to i32, then do the final component add.
-    auto rhs = configuration.take_source(0, addresses.sources).to<u128>();
-    auto lhs = configuration.take_source(1, addresses.sources).to<u128>(); // bounds checked by verifier.
-    auto result = Operators::VectorDotProduct<4, Operators::VectorIntegerExtOpPairwise<4, Operators::Add>> {}(lhs, rhs);
-    auto& c_slot = configuration.source_value(2, addresses.sources);
-    c_slot = Value { Operators::VectorIntegerBinaryOp<4, Operators::Add, MakeSigned> {}(result, c_slot.to<u128>()) };
+    auto acc = configuration.take_source(0, addresses.sources).template to<u128>();
+    auto rhs = configuration.take_source(1, addresses.sources).template to<u128>(); // bounds checked by verifier.
+    auto& lhs_slot = configuration.source_value(2, addresses.sources);
+    lhs_slot = Value { Operators::VectorRelaxedDotI8I7AddS {}(lhs_slot.template to<u128>(), rhs, acc) };
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
