@@ -13,14 +13,6 @@
 
 namespace Wasm {
 
-union SourcesAndDestination {
-    struct {
-        Dispatch::RegisterOrStack sources[3];
-        Dispatch::RegisterOrStack destination;
-    };
-    u32 sources_and_destination;
-};
-
 enum class Outcome : u64 {
     // 0..Constants::max_allowed_executed_instructions_per_call -> next IP.
     Continue = Constants::max_allowed_executed_instructions_per_call + 1,
