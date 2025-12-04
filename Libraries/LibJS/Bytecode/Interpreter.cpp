@@ -987,7 +987,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         return TRY(declarative_record.get_binding_value(vm, identifier, strict == Strict::Yes));
     }
 
-    if (TRY(binding_object.has_property(identifier))) {
+    if (TRY(binding_object.has_property(identifier))) [[likely]] {
         CacheableGetPropertyMetadata cacheable_metadata;
         auto value = TRY(binding_object.internal_get(identifier, js_undefined(), &cacheable_metadata));
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
