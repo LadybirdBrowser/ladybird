@@ -743,7 +743,7 @@ void Interpreter::enter_object_environment(Object& object)
 ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, Utf16FlyString const& name)
 {
     auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
-    if (executable_result.is_error())
+    if (executable_result.is_error()) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
 
     auto bytecode_executable = executable_result.release_value();
@@ -760,7 +760,7 @@ ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, GC::Ref<SharedF
     auto const& name = shared_function_instance_data->m_name;
 
     auto executable_result = Bytecode::Generator::generate_from_function(vm, shared_function_instance_data, builtin_abstract_operations_enabled);
-    if (executable_result.is_error())
+    if (executable_result.is_error()) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::NotImplemented, TRY_OR_THROW_OOM(vm, executable_result.error().to_string()));
 
     auto bytecode_executable = executable_result.release_value();
@@ -850,7 +850,7 @@ ALWAYS_INLINE Completion throw_null_or_undefined_property_access(VM& vm, Value b
 
 ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
 {
-    if (auto base_object = base_object_for_get_impl(vm, base_value))
+    if (auto base_object = base_object_for_get_impl(vm, base_value)) [[likely]]
         return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
@@ -859,7 +859,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
 
 ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
 {
-    if (auto base_object = base_object_for_get_impl(vm, base_value))
+    if (auto base_object = base_object_for_get_impl(vm, base_value)) [[likely]]
         return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
@@ -2267,7 +2267,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (TRY(binding_object.has_property(identifier))) {
         CacheableSetPropertyMetadata cacheable_metadata;
         auto success = TRY(binding_object.internal_set(identifier, src, &binding_object, &cacheable_metadata));
-        if (!success && strict() == Strict::Yes) {
+        if (!success && strict() == Strict::Yes) [[unlikely]] {
             // Note: Nothing like this in the spec, this is here to produce nicer errors instead of the generic one thrown by Object::set().
 
             auto property_or_error = binding_object.internal_get_own_property(identifier);
@@ -2508,7 +2508,7 @@ ThrowCompletionOr<void> HasPrivateId::execute_impl(Bytecode::Interpreter& interp
     auto& vm = interpreter.vm();
 
     auto base = interpreter.get(m_base);
-    if (!base.is_object())
+    if (!base.is_object()) [[unlikely]]
         return vm.throw_completion<TypeError>(ErrorType::InOperatorWithObject);
 
     auto private_environment = interpreter.running_execution_context().private_environment;
@@ -2857,7 +2857,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
     // NON-STANDARD: We're doing this step earlier to streamline control flow.
     // 5. If IsConstructor(func) is false, throw a TypeError exception.
-    if (!Value(func).is_constructor())
+    if (!Value(func).is_constructor()) [[unlikely]]
         return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, "Super constructor");
 
     auto& function = static_cast<FunctionObject&>(*func);
