@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/CSSMediaRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -73,6 +74,18 @@ String CSSMediaRule::serialized() const
     builder.append('}');
 
     return MUST(builder.to_string());
+}
+
+void CSSMediaRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    m_media->dump(builder, indent_levels + 1);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Rules ({}):\n", css_rules().length());
+    for (auto& rule : css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 }

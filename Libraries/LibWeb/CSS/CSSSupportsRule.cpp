@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -56,6 +57,18 @@ String CSSSupportsRule::serialized() const
     builder.append("\n}"sv);
 
     return MUST(builder.to_string());
+}
+
+void CSSSupportsRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    supports().dump(builder, indent_levels + 1);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Rules ({}):\n", css_rules().length());
+    for (auto& rule : css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -134,6 +135,14 @@ Optional<JS::Value> MediaList::item_value(size_t index) const
     if (index >= m_media.size())
         return {};
     return JS::PrimitiveString::create(vm(), m_media[index]->to_string());
+}
+
+void MediaList::dump(StringBuilder& builder, int indent_levels) const
+{
+    dump_indent(builder, indent_levels);
+    builder.appendff("Media list ({}):\n", m_media.size());
+    for (auto const& media : m_media)
+        media->dump(builder, indent_levels + 1);
 }
 
 }

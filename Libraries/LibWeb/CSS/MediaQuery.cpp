@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 
@@ -261,7 +262,7 @@ MatchResult MediaFeature::compare(DOM::Document const& document, MediaFeatureVal
 void MediaFeature::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
-    builder.appendff("MediaFeature: {}", to_string());
+    builder.appendff("MediaFeature: {}\n", to_string());
 }
 
 String MediaQuery::to_string() const
@@ -316,6 +317,24 @@ bool MediaQuery::evaluate(DOM::Document const& document)
 
     m_matches = result == MatchResult::True;
     return m_matches;
+}
+
+void MediaQuery::dump(StringBuilder& builder, int indent_levels) const
+{
+    dump_indent(builder, indent_levels);
+    builder.appendff("Media condition: (matches = {})\n", m_matches);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Negated: {}\n", m_negated);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Type: {}\n", m_media_type.name);
+
+    if (m_media_condition) {
+        dump_indent(builder, indent_levels + 1);
+        builder.append("Condition:\n"sv);
+        m_media_condition->dump(builder, indent_levels + 2);
+    }
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-media-query-list

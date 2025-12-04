@@ -221,6 +221,8 @@ public:
     bool evaluate(DOM::Document const&);
     String to_string() const;
 
+    void dump(StringBuilder&, int indent_levels = 0) const;
+
 private:
     MediaQuery() = default;
 

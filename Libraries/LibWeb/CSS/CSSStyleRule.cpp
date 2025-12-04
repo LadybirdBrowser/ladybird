@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -237,6 +238,21 @@ CSSStyleRule const* CSSStyleRule::parent_style_rule() const
             return static_cast<CSSStyleRule const*>(parent);
     }
     return nullptr;
+}
+
+void CSSStyleRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    for (auto& selector : selectors()) {
+        dump_selector(builder, selector, indent_levels + 1);
+    }
+    dump_style_properties(builder, declaration(), indent_levels + 1);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Child rules ({}):\n", css_rules().length());
+    for (auto& child_rule : css_rules())
+        dump_rule(builder, child_rule, indent_levels + 2);
 }
 
 }

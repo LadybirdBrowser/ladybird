@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSNestedDeclarationsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -72,6 +73,13 @@ void CSSNestedDeclarations::clear_caches()
 {
     Base::clear_caches();
     m_parent_style_rule = nullptr;
+}
+
+void CSSNestedDeclarations::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_style_properties(builder, declaration(), indent_levels + 1);
 }
 
 }

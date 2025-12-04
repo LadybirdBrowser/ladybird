@@ -7,9 +7,9 @@
 #include <LibWeb/Bindings/CSSPageRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageRule.h>
-#include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -93,6 +93,20 @@ void CSSPageRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);
+}
+
+void CSSPageRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Selector: {}\n", selector_text());
+    dump_descriptors(builder, descriptors(), indent_levels + 1);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Rules ({}):\n", css_rules().length());
+    for (auto& rule : css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 }

@@ -29,6 +29,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
+    virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Vector<FlyString> m_name_list;
 };

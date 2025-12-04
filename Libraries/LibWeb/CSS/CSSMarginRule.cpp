@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -51,6 +52,15 @@ void CSSMarginRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);
+}
+
+void CSSMarginRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Name: {}\n", name());
+    dump_style_properties(builder, style(), indent_levels + 1);
 }
 
 // https://drafts.csswg.org/css-page-3/#syntax-page-selector

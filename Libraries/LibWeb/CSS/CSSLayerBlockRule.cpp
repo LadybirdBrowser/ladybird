@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSLayerBlockRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -75,6 +76,18 @@ FlyString CSSLayerBlockRule::internal_qualified_name(Badge<StyleScope>) const
     if (parent_name.is_empty())
         return m_name_internal;
     return MUST(String::formatted("{}.{}", parent_name, m_name_internal));
+}
+
+void CSSLayerBlockRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Name: `{}` (internal `{}`)\n", m_name, m_name_internal);
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Rules ({}):\n", css_rules().length());
+    for (auto& rule : css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 }
