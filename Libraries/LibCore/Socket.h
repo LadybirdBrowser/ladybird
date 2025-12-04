@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/Stream.h>
 #include <AK/Time.h>
+#include <LibCore/Export.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/SocketAddress.h>
 
@@ -18,7 +19,7 @@ namespace Core {
 
 /// The Socket class is the base class for all concrete BSD-style socket
 /// classes. Sockets are non-seekable streams which can be read byte-wise.
-class Socket : public Stream {
+class CORE_API Socket : public Stream {
 public:
     enum class PreventSIGPIPE {
         No,
@@ -105,7 +106,7 @@ public:
     virtual ErrorOr<void> reconnect(SocketAddress const&) = 0;
 };
 
-class PosixSocketHelper {
+class CORE_API PosixSocketHelper {
     AK_MAKE_NONCOPYABLE(PosixSocketHelper);
 
 public:
@@ -155,7 +156,7 @@ private:
     RefPtr<Core::Notifier> m_notifier;
 };
 
-class TCPSocket final : public Socket {
+class CORE_API TCPSocket final : public Socket {
 public:
     static ErrorOr<NonnullOwnPtr<TCPSocket>> connect(ByteString const& host, u16 port);
     static ErrorOr<NonnullOwnPtr<TCPSocket>> connect(SocketAddress const& address);
@@ -219,7 +220,7 @@ private:
     PosixSocketHelper m_helper { Badge<TCPSocket> {} };
 };
 
-class UDPSocket final : public Socket {
+class CORE_API UDPSocket final : public Socket {
 public:
     static ErrorOr<NonnullOwnPtr<UDPSocket>> connect(ByteString const& host, u16 port, Optional<AK::Duration> timeout = {});
     static ErrorOr<NonnullOwnPtr<UDPSocket>> connect(SocketAddress const& address, Optional<AK::Duration> timeout = {});
@@ -280,7 +281,7 @@ private:
     PosixSocketHelper m_helper { Badge<UDPSocket> {} };
 };
 
-class LocalSocket final : public Socket {
+class CORE_API LocalSocket final : public Socket {
 public:
     static ErrorOr<NonnullOwnPtr<LocalSocket>> connect(ByteString const& path, PreventSIGPIPE = PreventSIGPIPE::Yes);
     static ErrorOr<NonnullOwnPtr<LocalSocket>> adopt_fd(int fd, PreventSIGPIPE = PreventSIGPIPE::Yes);
