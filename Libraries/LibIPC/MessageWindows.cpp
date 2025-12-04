@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteReader.h>
+#include <LibCore/System.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Message.h>
 
