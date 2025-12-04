@@ -27,10 +27,8 @@ namespace JS::Bytecode::Op {
 
 #define JS_ENUMERATE_COMMON_UNARY_OPS(O) \
     O(BitwiseNot, bitwise_not)           \
-    O(Not, not_)                         \
     O(UnaryPlus, unary_plus)             \
-    O(UnaryMinus, unary_minus)           \
-    O(Typeof, typeof_)
+    O(UnaryMinus, unary_minus)
 
 #define JS_ENUMERATE_COMPARISON_OPS(X)            \
     X(LessThan, less_than, <)                     \

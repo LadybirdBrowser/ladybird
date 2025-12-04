@@ -552,7 +552,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewTypeError);
-            HANDLE_INSTRUCTION(Not);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Not);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(PrepareYield);
             HANDLE_INSTRUCTION(PostfixDecrement);
             HANDLE_INSTRUCTION(PostfixIncrement);
@@ -592,7 +592,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(ToLength);
             HANDLE_INSTRUCTION(ToObject);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(ToBoolean);
-            HANDLE_INSTRUCTION(Typeof);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Typeof);
             HANDLE_INSTRUCTION(TypeofBinding);
             HANDLE_INSTRUCTION(UnaryMinus);
             HANDLE_INSTRUCTION(UnaryPlus);
@@ -1972,14 +1972,15 @@ ThrowCompletionOr<void> GreaterThanEquals::execute_impl(Bytecode::Interpreter& i
     return {};
 }
 
-static ThrowCompletionOr<Value> not_(VM&, Value value)
+void Typeof::execute_impl(Interpreter& interpreter) const
 {
-    return Value(!value.to_boolean());
+    auto& vm = interpreter.vm();
+    interpreter.set(dst(), interpreter.get(src()).typeof_(vm));
 }
 
-static ThrowCompletionOr<Value> typeof_(VM& vm, Value value)
+void Not::execute_impl(Interpreter& interpreter) const
 {
-    return value.typeof_(vm);
+    interpreter.set(dst(), Value(!interpreter.get(src()).to_boolean()));
 }
 
 #define JS_DEFINE_COMMON_UNARY_OP(OpTitleCase, op_snake_case)                                   \

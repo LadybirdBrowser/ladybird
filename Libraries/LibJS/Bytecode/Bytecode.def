@@ -722,6 +722,7 @@ op NewTypeError < Instruction
 endop
 
 op Not < Instruction
+    @nothrow
     m_dst: Operand
     m_src: Operand
 endop
@@ -1094,6 +1095,7 @@ op ToObject < Instruction
 endop
 
 op Typeof < Instruction
+    @nothrow
     m_dst: Operand
     m_src: Operand
 endop
