@@ -18,6 +18,8 @@
 
 namespace Wasm {
 
+constexpr inline size_t ArgumentsStaticSize = 8;
+
 class Configuration;
 class Result;
 struct Interpreter;
@@ -77,6 +79,8 @@ private:
 
 class Value {
 public:
+    Value() = default;
+
     explicit Value(ValueType type)
         : m_value(u128())
     {
@@ -216,6 +220,7 @@ private:
     u128 m_value;
 };
 static_assert(IsTriviallyDestructible<Value>);
+static_assert(IsTriviallyConstructible<Value>);
 
 struct ExternallyManagedTrap {
     Array<u8, 64> data;
@@ -669,7 +674,7 @@ private:
 
 class Frame {
 public:
-    explicit Frame(ModuleInstance const& module, Vector<Value, 8> arguments, Vector<Value, 8> locals, Expression const& expression, size_t arity)
+    explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> arguments, Vector<Value, 8> locals, Expression const& expression, size_t arity)
         : m_module(module)
         , m_arguments(move(arguments))
         , m_locals(move(locals))
@@ -697,7 +702,7 @@ public:
 
 private:
     ModuleInstance const& m_module;
-    Vector<Value, 8> m_arguments;
+    Vector<Value, ArgumentsStaticSize> m_arguments;
     Vector<Value, 8> m_locals;
     Expression const& m_expression;
     size_t m_arity { 0 };
@@ -805,4 +810,9 @@ struct AK::Traits<Wasm::Linker::Name> : public AK::DefaultTraits<Wasm::Linker::N
     static constexpr bool is_trivial() { return false; }
     static unsigned hash(Wasm::Linker::Name const& entry) { return pair_int_hash(entry.module.hash(), entry.name.hash()); }
     static bool equals(Wasm::Linker::Name const& a, Wasm::Linker::Name const& b) { return a.name == b.name && a.module == b.module; }
+};
+
+template<>
+struct AK::Traits<Wasm::Value> : public AK::DefaultTraits<Wasm::Value> {
+    static constexpr bool is_trivial() { return true; }
 };
