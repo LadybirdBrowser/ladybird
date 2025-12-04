@@ -1,0 +1,236 @@
+Harness status: OK
+
+Found 230 tests
+
+160 Pass
+70 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Document: original interface defined
+Pass	Partial interface Document: member names are unique
+Pass	Partial interface mixin DocumentOrShadowRoot: original interface mixin defined
+Pass	Partial interface mixin DocumentOrShadowRoot: member names are unique
+Pass	Partial interface AnimationTimeline: original interface defined
+Pass	Partial interface AnimationTimeline: valid exposure set
+Pass	Partial interface AnimationTimeline: member names are unique
+Pass	Partial interface Animation: original interface defined
+Pass	Partial interface Animation: valid exposure set
+Pass	Partial interface Animation: member names are unique
+Pass	Partial interface AnimationEffect: original interface defined
+Pass	Partial interface AnimationEffect: valid exposure set
+Pass	Partial interface AnimationEffect: member names are unique
+Pass	Partial dictionary EffectTiming: original dictionary defined
+Pass	Partial dictionary EffectTiming: member names are unique
+Pass	Partial dictionary OptionalEffectTiming: original dictionary defined
+Pass	Partial dictionary OptionalEffectTiming: member names are unique
+Pass	Partial dictionary ComputedEffectTiming: original dictionary defined
+Pass	Partial dictionary ComputedEffectTiming: member names are unique
+Pass	Partial interface KeyframeEffect: original interface defined
+Pass	Partial interface KeyframeEffect: member names are unique
+Pass	Partial dictionary KeyframeEffectOptions: original dictionary defined
+Pass	Partial dictionary KeyframeEffectOptions: member names are unique
+Pass	Partial dictionary KeyframeAnimationOptions: original dictionary defined
+Pass	Partial dictionary KeyframeAnimationOptions: member names are unique
+Pass	Partial interface Document[2]: member names are unique
+Pass	Partial interface Document[3]: member names are unique
+Pass	Element includes Animatable: member names are unique
+Pass	Document includes NonElementParentNode: member names are unique
+Pass	DocumentFragment includes NonElementParentNode: member names are unique
+Pass	Document includes DocumentOrShadowRoot: member names are unique
+Pass	ShadowRoot includes DocumentOrShadowRoot: member names are unique
+Pass	Document includes ParentNode: member names are unique
+Pass	DocumentFragment includes ParentNode: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Document includes XPathEvaluatorBase: member names are unique
+Pass	Document includes GlobalEventHandlers: member names are unique
+Pass	AnimationTimeline interface: existence and properties of interface object
+Pass	AnimationTimeline interface object length
+Pass	AnimationTimeline interface object name
+Pass	AnimationTimeline interface: existence and properties of interface prototype object
+Pass	AnimationTimeline interface: existence and properties of interface prototype object's "constructor" property
+Pass	AnimationTimeline interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AnimationTimeline interface: attribute currentTime
+Fail	AnimationTimeline interface: attribute duration
+Fail	AnimationTimeline interface: operation play(optional AnimationEffect?)
+Pass	DocumentTimeline interface: existence and properties of interface object
+Pass	DocumentTimeline interface object length
+Pass	DocumentTimeline interface object name
+Pass	DocumentTimeline interface: existence and properties of interface prototype object
+Pass	DocumentTimeline interface: existence and properties of interface prototype object's "constructor" property
+Pass	DocumentTimeline interface: existence and properties of interface prototype object's @@unscopables property
+Pass	DocumentTimeline must be primary interface of document.timeline
+Pass	Stringification of document.timeline
+Fail	AnimationTimeline interface: document.timeline must inherit property "currentTime" with the proper type
+Fail	AnimationTimeline interface: document.timeline must inherit property "duration" with the proper type
+Fail	AnimationTimeline interface: document.timeline must inherit property "play(optional AnimationEffect?)" with the proper type
+Fail	AnimationTimeline interface: calling play(optional AnimationEffect?) on document.timeline with too few arguments must throw TypeError
+Pass	Animation interface: existence and properties of interface object
+Pass	Animation interface object length
+Pass	Animation interface object name
+Pass	Animation interface: existence and properties of interface prototype object
+Pass	Animation interface: existence and properties of interface prototype object's "constructor" property
+Pass	Animation interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Animation interface: attribute id
+Pass	Animation interface: attribute effect
+Pass	Animation interface: attribute timeline
+Pass	Animation interface: attribute playbackRate
+Pass	Animation interface: attribute playState
+Pass	Animation interface: attribute replaceState
+Pass	Animation interface: attribute pending
+Pass	Animation interface: attribute ready
+Pass	Animation interface: attribute finished
+Pass	Animation interface: attribute onfinish
+Pass	Animation interface: attribute oncancel
+Pass	Animation interface: attribute onremove
+Pass	Animation interface: operation cancel()
+Pass	Animation interface: operation finish()
+Pass	Animation interface: operation play()
+Pass	Animation interface: operation pause()
+Pass	Animation interface: operation updatePlaybackRate(double)
+Pass	Animation interface: operation reverse()
+Pass	Animation interface: operation persist()
+Fail	Animation interface: operation commitStyles()
+Pass	Animation interface: attribute startTime
+Pass	Animation interface: attribute currentTime
+Fail	Animation interface: attribute trigger
+Fail	Animation interface: attribute overallProgress
+Pass	Animation must be primary interface of new Animation()
+Pass	Stringification of new Animation()
+Pass	Animation interface: new Animation() must inherit property "id" with the proper type
+Pass	Animation interface: new Animation() must inherit property "effect" with the proper type
+Pass	Animation interface: new Animation() must inherit property "timeline" with the proper type
+Pass	Animation interface: new Animation() must inherit property "playbackRate" with the proper type
+Pass	Animation interface: new Animation() must inherit property "playState" with the proper type
+Pass	Animation interface: new Animation() must inherit property "replaceState" with the proper type
+Pass	Animation interface: new Animation() must inherit property "pending" with the proper type
+Pass	Animation interface: new Animation() must inherit property "ready" with the proper type
+Pass	Animation interface: new Animation() must inherit property "finished" with the proper type
+Pass	Animation interface: new Animation() must inherit property "onfinish" with the proper type
+Pass	Animation interface: new Animation() must inherit property "oncancel" with the proper type
+Pass	Animation interface: new Animation() must inherit property "onremove" with the proper type
+Pass	Animation interface: new Animation() must inherit property "cancel()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "finish()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "play()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "pause()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "updatePlaybackRate(double)" with the proper type
+Pass	Animation interface: calling updatePlaybackRate(double) on new Animation() with too few arguments must throw TypeError
+Pass	Animation interface: new Animation() must inherit property "reverse()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "persist()" with the proper type
+Fail	Animation interface: new Animation() must inherit property "commitStyles()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "startTime" with the proper type
+Pass	Animation interface: new Animation() must inherit property "currentTime" with the proper type
+Fail	Animation interface: new Animation() must inherit property "trigger" with the proper type
+Fail	Animation interface: new Animation() must inherit property "overallProgress" with the proper type
+Pass	AnimationEffect interface: existence and properties of interface object
+Pass	AnimationEffect interface object length
+Pass	AnimationEffect interface object name
+Pass	AnimationEffect interface: existence and properties of interface prototype object
+Pass	AnimationEffect interface: existence and properties of interface prototype object's "constructor" property
+Pass	AnimationEffect interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AnimationEffect interface: operation getTiming()
+Pass	AnimationEffect interface: operation getComputedTiming()
+Pass	AnimationEffect interface: operation updateTiming(optional OptionalEffectTiming)
+Fail	AnimationEffect interface: attribute parent
+Fail	AnimationEffect interface: attribute previousSibling
+Fail	AnimationEffect interface: attribute nextSibling
+Fail	AnimationEffect interface: operation before(AnimationEffect...)
+Fail	AnimationEffect interface: operation after(AnimationEffect...)
+Fail	AnimationEffect interface: operation replace(AnimationEffect...)
+Fail	AnimationEffect interface: operation remove()
+Pass	KeyframeEffect interface: existence and properties of interface object
+Pass	KeyframeEffect interface object length
+Pass	KeyframeEffect interface object name
+Pass	KeyframeEffect interface: existence and properties of interface prototype object
+Pass	KeyframeEffect interface: existence and properties of interface prototype object's "constructor" property
+Pass	KeyframeEffect interface: existence and properties of interface prototype object's @@unscopables property
+Pass	KeyframeEffect interface: attribute target
+Pass	KeyframeEffect interface: attribute pseudoElement
+Pass	KeyframeEffect interface: attribute composite
+Pass	KeyframeEffect interface: operation getKeyframes()
+Pass	KeyframeEffect interface: operation setKeyframes(object?)
+Fail	KeyframeEffect interface: attribute iterationComposite
+Pass	KeyframeEffect must be primary interface of new KeyframeEffect(null, null)
+Pass	Stringification of new KeyframeEffect(null, null)
+Pass	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "target" with the proper type
+Pass	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "pseudoElement" with the proper type
+Pass	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "composite" with the proper type
+Pass	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "getKeyframes()" with the proper type
+Pass	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "setKeyframes(object?)" with the proper type
+Pass	KeyframeEffect interface: calling setKeyframes(object?) on new KeyframeEffect(null, null) with too few arguments must throw TypeError
+Fail	KeyframeEffect interface: new KeyframeEffect(null, null) must inherit property "iterationComposite" with the proper type
+Pass	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "getTiming()" with the proper type
+Pass	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "getComputedTiming()" with the proper type
+Pass	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "updateTiming(optional OptionalEffectTiming)" with the proper type
+Pass	AnimationEffect interface: calling updateTiming(optional OptionalEffectTiming) on new KeyframeEffect(null, null) with too few arguments must throw TypeError
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "parent" with the proper type
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "previousSibling" with the proper type
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "nextSibling" with the proper type
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "before(AnimationEffect...)" with the proper type
+Fail	AnimationEffect interface: calling before(AnimationEffect...) on new KeyframeEffect(null, null) with too few arguments must throw TypeError
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "after(AnimationEffect...)" with the proper type
+Fail	AnimationEffect interface: calling after(AnimationEffect...) on new KeyframeEffect(null, null) with too few arguments must throw TypeError
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "replace(AnimationEffect...)" with the proper type
+Fail	AnimationEffect interface: calling replace(AnimationEffect...) on new KeyframeEffect(null, null) with too few arguments must throw TypeError
+Fail	AnimationEffect interface: new KeyframeEffect(null, null) must inherit property "remove()" with the proper type
+Fail	GroupEffect interface: existence and properties of interface object
+Fail	GroupEffect interface object length
+Fail	GroupEffect interface object name
+Fail	GroupEffect interface: existence and properties of interface prototype object
+Fail	GroupEffect interface: existence and properties of interface prototype object's "constructor" property
+Fail	GroupEffect interface: existence and properties of interface prototype object's @@unscopables property
+Fail	GroupEffect interface: attribute children
+Fail	GroupEffect interface: attribute firstChild
+Fail	GroupEffect interface: attribute lastChild
+Fail	GroupEffect interface: operation clone()
+Fail	GroupEffect interface: operation prepend(AnimationEffect...)
+Fail	GroupEffect interface: operation append(AnimationEffect...)
+Fail	AnimationNodeList interface: existence and properties of interface object
+Fail	AnimationNodeList interface object length
+Fail	AnimationNodeList interface object name
+Fail	AnimationNodeList interface: existence and properties of interface prototype object
+Fail	AnimationNodeList interface: existence and properties of interface prototype object's "constructor" property
+Fail	AnimationNodeList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AnimationNodeList interface: attribute length
+Fail	AnimationNodeList interface: operation item(unsigned long)
+Fail	SequenceEffect interface: existence and properties of interface object
+Fail	SequenceEffect interface object length
+Fail	SequenceEffect interface object name
+Fail	SequenceEffect interface: existence and properties of interface prototype object
+Fail	SequenceEffect interface: existence and properties of interface prototype object's "constructor" property
+Fail	SequenceEffect interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SequenceEffect interface: operation clone()
+Pass	AnimationPlaybackEvent interface: existence and properties of interface object
+Pass	AnimationPlaybackEvent interface object length
+Pass	AnimationPlaybackEvent interface object name
+Pass	AnimationPlaybackEvent interface: existence and properties of interface prototype object
+Pass	AnimationPlaybackEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	AnimationPlaybackEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AnimationPlaybackEvent interface: attribute currentTime
+Pass	AnimationPlaybackEvent interface: attribute timelineTime
+Pass	AnimationPlaybackEvent must be primary interface of new AnimationPlaybackEvent("cancel")
+Pass	Stringification of new AnimationPlaybackEvent("cancel")
+Pass	AnimationPlaybackEvent interface: new AnimationPlaybackEvent("cancel") must inherit property "currentTime" with the proper type
+Pass	AnimationPlaybackEvent interface: new AnimationPlaybackEvent("cancel") must inherit property "timelineTime" with the proper type
+Fail	AnimationTrigger interface: existence and properties of interface object
+Fail	AnimationTrigger interface object length
+Fail	AnimationTrigger interface object name
+Fail	AnimationTrigger interface: existence and properties of interface prototype object
+Fail	AnimationTrigger interface: existence and properties of interface prototype object's "constructor" property
+Fail	AnimationTrigger interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AnimationTrigger interface: attribute timeline
+Fail	AnimationTrigger interface: attribute behavior
+Fail	AnimationTrigger interface: attribute rangeStart
+Fail	AnimationTrigger interface: attribute rangeEnd
+Fail	AnimationTrigger interface: attribute exitRangeStart
+Fail	AnimationTrigger interface: attribute exitRangeEnd
+Pass	Document interface: attribute timeline
+Pass	Document interface: operation getAnimations()
+Pass	Document interface: document must inherit property "timeline" with the proper type
+Pass	Document interface: document must inherit property "getAnimations()" with the proper type
+Pass	ShadowRoot interface: operation getAnimations()
+Pass	ShadowRoot interface: shadowRoot must inherit property "getAnimations()" with the proper type
+Pass	Element interface: operation animate(object?, optional (unrestricted double or KeyframeAnimationOptions))
+Pass	Element interface: operation getAnimations(optional GetAnimationsOptions)
