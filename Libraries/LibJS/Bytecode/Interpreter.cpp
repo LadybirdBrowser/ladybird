@@ -1022,7 +1022,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 }
 
 template<PutKind kind>
-ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const& base_identifier, PropertyKey name, Strict strict, PropertyLookupCache* caches = nullptr)
+ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value, Value value, Optional<Utf16FlyString const&> const base_identifier, PropertyKey name, Strict strict, PropertyLookupCache* caches = nullptr)
 {
     // Better error message than to_object would give
     if (strict == Strict::Yes && base.is_nullish()) [[unlikely]]
@@ -1238,7 +1238,7 @@ inline ThrowCompletionOr<Value> perform_call(Interpreter& interpreter, Value thi
     return return_value;
 }
 
-static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& interpreter, Value callee, StringView callee_type, Optional<StringTableIndex> const& expression_string)
+static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& interpreter, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
 {
     auto& vm = interpreter.vm();
 
@@ -1248,7 +1248,7 @@ static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& inte
     return vm.throw_completion<TypeError>(ErrorType::IsNotA, callee.to_string_without_side_effects(), callee_type);
 }
 
-inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter, Value callee, Op::CallType call_type, Optional<StringTableIndex> const& expression_string)
+inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter, Value callee, Op::CallType call_type, Optional<StringTableIndex> const expression_string)
 {
     if ((call_type == Op::CallType::Call || call_type == Op::CallType::DirectEval)
         && !callee.is_function())
@@ -1285,7 +1285,7 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
     return closure;
 }
 
-inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const& lhs_name, Optional<Operand> const& home_object)
+inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object)
 {
     auto& vm = interpreter.vm();
     Value value;
@@ -1313,7 +1313,7 @@ inline Value new_function(Interpreter& interpreter, FunctionNode const& function
 }
 
 template<PutKind kind>
-inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const& base_identifier, Value property_key_value, Value value, Strict strict)
+inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16FlyString const&> const base_identifier, Value property_key_value, Value value, Strict strict)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if (kind == PutKind::Normal
@@ -2713,7 +2713,7 @@ static ThrowCompletionOr<void> execute_call(
     Value this_value,
     ReadonlySpan<Operand> arguments,
     Operand dst,
-    Optional<StringTableIndex> const& expression_string,
+    Optional<StringTableIndex> const expression_string,
     Strict strict)
 {
     TRY(throw_if_needed_for_call(interpreter, callee, call_type, expression_string));
@@ -2782,7 +2782,7 @@ static ThrowCompletionOr<void> call_with_argument_array(
     Value this_value,
     Value arguments,
     Operand dst,
-    Optional<StringTableIndex> const& expression_string,
+    Optional<StringTableIndex> const expression_string,
     Strict strict)
 {
     TRY(throw_if_needed_for_call(interpreter, callee, call_type, expression_string));
