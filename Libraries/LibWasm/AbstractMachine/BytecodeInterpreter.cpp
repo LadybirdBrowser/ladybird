@@ -16,6 +16,7 @@
 #include <AK/SIMDExtras.h>
 #include <AK/ScopedValueRollback.h>
 #include <AK/Time.h>
+#include <LibCore/File.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
@@ -4885,6 +4886,107 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             }
         }
         result.direct = true;
+    }
+
+    // Verify instruction stream.
+    struct Mark {
+        size_t ip;
+        StringView label;
+    };
+
+    auto print_instructions_around = [&](size_t start_ish, size_t end_ish, auto... marks) {
+        auto sterr = MUST(Core::File::standard_error());
+        Printer p(*sterr);
+        auto print_range = [&](size_t start_ip, size_t end_ip) {
+            for (size_t k = start_ip; k < end_ip; ++k) {
+                warn("[{:04}] ", k);
+                auto instruction = result.dispatches[k].instruction;
+                auto addresses = result.src_dst_mappings[k];
+
+                p.print(*instruction);
+
+                ([&] { if (k == marks.ip) warnln("       ^-- {}", marks.label); }(), ...);
+
+                ssize_t in_count = 0;
+                ssize_t out_count = 0;
+                switch (instruction->opcode().value()) {
+
+#define XM(name, _, ins, outs)             \
+    case Wasm::Instructions::name.value(): \
+        in_count = ins;                    \
+        out_count = outs;                  \
+        break;
+
+                    ENUMERATE_WASM_OPCODES(XM)
+                }
+                for (ssize_t i = 0; i < in_count; ++i) {
+                    if (addresses.sources[i] < Dispatch::Stack) {
+                        warnln("       arg{} [reg{}]", i, to_underlying(addresses.sources[i]));
+                    } else {
+                        warnln("       arg{} [stack]", i);
+                    }
+                }
+                if (out_count == 1) {
+                    auto dest = addresses.destination;
+                    if (dest < Dispatch::Stack) {
+                        warnln("       dest [reg{}]", to_underlying(dest));
+                    } else {
+                        warnln("       dest [stack]");
+                    }
+                } else if (out_count > 1) {
+                    warnln("       dest [multiple outputs]");
+                }
+            }
+        };
+
+        if (start_ish > end_ish)
+            swap(start_ish, end_ish);
+        auto start_ip = start_ish >= 5 ? start_ish - 5 : 0;
+        auto end_ip = min(result.dispatches.size(), end_ish + 10);
+        auto skip_start = Optional<size_t> {};
+        for (auto ip = start_ip; ip < end_ip; ip += 5) {
+            size_t chunk_end = min(end_ip, ip + 5);
+            bool has_mark = false;
+            for (auto const& mark : { marks... }) {
+                if (mark.ip >= ip && mark.ip < chunk_end) {
+                    has_mark = true;
+                    break;
+                }
+            }
+            if (has_mark || ip == start_ip || chunk_end == end_ip) {
+                if (skip_start.has_value()) {
+                    warnln("... skipping instructions [{:04}..{:04}] ...", *skip_start, ip);
+                    skip_start = {};
+                }
+                print_range(ip, chunk_end);
+            } else if (!skip_start.has_value()) {
+                skip_start = ip;
+            }
+        }
+    };
+
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto& dispatch = result.dispatches[i];
+        if (dispatch.instruction->opcode() == Instructions::if_) {
+            // if (else) (end), verify (else) - 1 points at a synthetic:else_, and (end)-1+(!has-else) points at a synthetic:end.
+            auto args = dispatch.instruction->arguments().get<Instruction::StructuredInstructionArgs>();
+            if (args.else_ip.has_value()) {
+                size_t else_ip = args.else_ip->value() - 1;
+                if (result.dispatches[else_ip].instruction->opcode() != Instructions::structured_else) {
+                    dbgln("Invalid else_ip target at instruction {}: else_ip {}", i, else_ip);
+                    dbgln("Instructions around the invalid else_ip:");
+                    print_instructions_around(i, else_ip, Mark { i, "invalid if_"sv }, Mark { else_ip, "this should've been an else"sv }, Mark { else_ip - 1, "previous instruction"sv }, Mark { else_ip + 1, "next instruction"sv });
+                    VERIFY_NOT_REACHED();
+                }
+            }
+            size_t end_ip = args.end_ip.value() - 1 + (args.else_ip.has_value() ? 0 : 1);
+            if (result.dispatches[end_ip].instruction->opcode() != Instructions::structured_end) {
+                dbgln("Invalid end_ip target at instruction {}: end_ip {}", i, end_ip);
+                dbgln("Instructions around the invalid end_ip:");
+                print_instructions_around(i, end_ip, Mark { i, "invalid if_"sv }, Mark { end_ip, "this should've been an end"sv }, Mark { end_ip - 1, "previous instruction"sv }, Mark { end_ip + 1, "next instruction"sv });
+                VERIFY_NOT_REACHED();
+            }
+        }
     }
 
     return result;
