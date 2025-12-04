@@ -279,6 +279,10 @@
       "version": "1.6.0#1"
     },
     {
+      "name": "libxml2",
+      "version": "2.13.8#1"
+    },
+    {
       "name": "mman",
       "version": "git-f5ff813#5"
     },
