@@ -12,6 +12,16 @@
 
 namespace Wasm {
 
+enum class SourceAddressMix {
+    AllRegisters,
+    Any,
+};
+
+enum class IsTailcall {
+    No,
+    Yes,
+};
+
 class Configuration {
 public:
     explicit Configuration(Store& store)
@@ -19,8 +29,15 @@ public:
     {
     }
 
-    void set_frame(Frame frame, bool is_tailcall = false)
+    template<typename... Args>
+    void set_frame(IsTailcall is_tailcall, Args&&... frame_init)
     {
+        m_frame_stack.append(forward<Args>(frame_init)...);
+
+        auto& frame = m_frame_stack.unchecked_last();
+        m_locals_base = frame.locals().data();
+        m_arguments_base = frame.arguments().data();
+
         auto continuation = frame.expression().instructions().size() - 1;
         if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
             continuation = size - 1;
@@ -28,14 +45,15 @@ public:
         frame.label_index() = m_label_stack.size();
         if (auto hint = frame.expression().stack_usage_hint(); hint.has_value())
             m_value_stack.ensure_capacity(*hint + m_value_stack.size());
-        if (!is_tailcall) {
+        if (is_tailcall == IsTailcall::No) {
             if (auto hint = frame.expression().frame_usage_hint(); hint.has_value())
                 m_label_stack.ensure_capacity(*hint + m_label_stack.size());
         }
-        m_frame_stack.append(move(frame));
         m_label_stack.append(label);
-        m_locals_base = m_frame_stack.unchecked_last().locals().data();
-        m_arguments_base = m_frame_stack.unchecked_last().arguments().data();
+        if (auto max_count = frame.expression().compiled_instructions.max_call_arg_count; max_count > ArgumentsStaticSize) {
+            if (!m_call_argument_freelist.is_empty() && !any_of(m_call_argument_freelist, [&](auto const& entry) { return entry.capacity() >= frame.expression().compiled_instructions.max_call_arg_count; }))
+                m_call_argument_freelist.last().ensure_capacity(max_count);
+        }
     }
     ALWAYS_INLINE auto& frame() const { return m_frame_stack.unchecked_last(); }
     ALWAYS_INLINE auto& frame() { return m_frame_stack.unchecked_last(); }
@@ -78,14 +96,39 @@ public:
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
-    ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value, 8>& arguments, bool is_tailcall = false);
-    Result call(Interpreter&, FunctionAddress, Vector<Value, 8> arguments);
+    ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false);
+    Result call(Interpreter&, FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments);
     Result execute(Interpreter&);
 
     void enable_instruction_count_limit() { m_should_limit_instruction_count = true; }
     bool should_limit_instruction_count() const { return m_should_limit_instruction_count; }
 
     void dump_stack();
+
+    void get_arguments_allocation_if_possible(Vector<Value, ArgumentsStaticSize>& arguments, size_t max_size)
+    {
+        if (arguments.capacity() != ArgumentsStaticSize || max_size <= ArgumentsStaticSize)
+            return; // Already heap allocated, or we just don't need to allocate anything.
+
+        // _arguments_ is still in static storage, pull something from the freelist if possible; otherwise allocate a new one.
+        if (auto index = m_call_argument_freelist.find_first_index_if([&](auto& entry) { return entry.capacity() >= max_size; }); index.has_value()) {
+            arguments = m_call_argument_freelist.take(*index);
+            return;
+        }
+
+        arguments.ensure_capacity(max_size);
+    }
+
+    void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments)
+    {
+        arguments.clear_with_capacity(); // Clear to avoid copying, but keep capacity for reuse.
+        if (arguments.capacity() != ArgumentsStaticSize) {
+            if (m_call_argument_freelist.size() >= 16) // Don't grow to heap.
+                return;
+
+            m_call_argument_freelist.append(move(arguments));
+        }
+    }
 
     ALWAYS_INLINE FLATTEN void push_to_destination(Value value, Dispatch::RegisterOrStack destination)
     {
@@ -131,6 +174,7 @@ private:
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64> m_label_stack;
     DoublyLinkedList<Frame, 512> m_frame_stack;
+    Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
     size_t m_depth { 0 };
     u64 m_ip { 0 };
     bool m_should_limit_instruction_count { false };
