@@ -10,6 +10,7 @@
 #include <LibCore/LocalServer.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
+#include <LibCore/System.h>
 #include <LibCore/SystemServerTakeover.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
