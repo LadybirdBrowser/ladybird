@@ -237,7 +237,32 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     }
 
     tokens.discard_whitespace();
-    // FIXME: Implement layer support.
+    Optional<FlyString> layer;
+    // [ layer | layer(<layer-name>) ]?
+    if (tokens.next_token().is_ident("layer"sv)) {
+        tokens.discard_a_token(); // layer
+        layer = FlyString {};
+    } else if (tokens.next_token().is_function("layer"sv)) {
+        auto layer_transaction = tokens.begin_transaction();
+        auto& layer_function = tokens.consume_a_token().function();
+        TokenStream layer_tokens { layer_function.value };
+        auto name = parse_layer_name(layer_tokens, AllowBlankLayerName::No);
+        layer_tokens.discard_whitespace();
+        if (!name.has_value() || layer_tokens.has_next_token()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@import"_fly_string,
+                .prelude = tokens.dump_string(),
+                .description = MUST(String::formatted("Unable to parse `{}` as a valid layer.", layer_function.original_source_text())),
+            });
+        } else {
+            layer_transaction.commit();
+            layer = name.release_value();
+        }
+    }
+
+    // <import-conditions> = [ supports( [ <supports-condition> | <declaration> ] ) ]?
+    //                      <media-query-list>?
+    tokens.discard_whitespace();
     RefPtr<Supports> supports {};
     if (tokens.next_token().is_function("supports"sv)) {
         auto component_value = tokens.consume_a_token();
@@ -263,7 +288,7 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
         return {};
     }
 
-    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), supports, move(media_query_list));
+    return CSSImportRule::create(realm(), url.release_value(), const_cast<DOM::Document*>(m_document.ptr()), move(layer), move(supports), move(media_query_list));
 }
 
 Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens, AllowBlankLayerName allow_blank_layer_name)
