@@ -1203,24 +1203,6 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
     return {};
 }
 
-inline ThrowCompletionOr<Value> perform_call(Interpreter& interpreter, Value this_value, Op::CallType call_type, Value callee, ReadonlySpan<Value> argument_values, Strict strict)
-{
-    auto& vm = interpreter.vm();
-    auto& function = callee.as_function();
-    Value return_value;
-    if (call_type == Op::CallType::DirectEval) {
-        if (callee == interpreter.realm().intrinsics().eval_function())
-            return_value = TRY(perform_eval(vm, !argument_values.is_empty() ? argument_values[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
-        else
-            return_value = TRY(JS::call(vm, function, this_value, argument_values));
-    } else if (call_type == Op::CallType::Call)
-        return_value = TRY(JS::call(vm, function, this_value, argument_values));
-    else
-        return_value = TRY(construct(vm, function, argument_values));
-
-    return return_value;
-}
-
 static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& interpreter, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
 {
     auto& vm = interpreter.vm();
