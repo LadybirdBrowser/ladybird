@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+8 Pass
+5 Fail
+Fail	Validate different value types that can be used to set start time
+Fail	Setting the start time of an animation without an active timeline
+Fail	Setting an unresolved start time an animation without an active timeline does not clear the current time
+Pass	Setting the start time clears the hold time
+Fail	Setting an unresolved start time sets the hold time
+Pass	Setting the start time resolves a pending ready promise
+Pass	Setting the start time resolves a pending pause task
+Fail	Setting an unresolved start time on a play-pending animation makes it paused
+Pass	Setting the start time updates the finished state
+Pass	Setting the start time of a play-pending animation applies a pending playback rate
+Pass	Setting the start time of a playing animation applies a pending playback rate
+Pass	Setting the start time on a running animation updates the play state
+Pass	Setting the start time on a reverse running animation updates the play state
