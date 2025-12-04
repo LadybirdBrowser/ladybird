@@ -8,6 +8,6 @@ interface NavigationTransition {
     readonly attribute NavigationType navigationType;
     readonly attribute NavigationHistoryEntry from;
     readonly attribute NavigationDestination to;
-    // FIXME: readonly attribute Promise<undefined> committed;
+    readonly attribute Promise<undefined> committed;
     readonly attribute Promise<undefined> finished;
 };
