@@ -18,6 +18,7 @@ set(SOURCES
     Animations/AnimationEffect.cpp
     Animations/AnimationPlaybackEvent.cpp
     Animations/AnimationTimeline.cpp
+    Animations/TimeValue.cpp
     Animations/DocumentTimeline.cpp
     Animations/KeyframeEffect.cpp
     Animations/PseudoElementParsing.cpp

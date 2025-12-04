@@ -12,6 +12,7 @@
 namespace Web::Animations {
 
 struct TimeValue {
+    static TimeValue from_css_numberish(CSS::CSSNumberish const&, DOM::AbstractElement const&);
     static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline)
     {
         // FIXME: Return 0% rather than 0ms for progress based timelines

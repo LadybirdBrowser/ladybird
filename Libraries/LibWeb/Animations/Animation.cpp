@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/AnimationPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -132,33 +133,88 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
 
+// https://drafts.csswg.org/web-animations-2/#validating-a-css-numberish-time
+WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_time(Optional<CSS::CSSNumberish> const& time) const
+{
+    // The procedure to validate a CSSNumberish time for an input value of time is based on the first condition that matches:
+
+    // FIXME: If all of the following conditions are true:
+    // The animation is associated with a progress-based timeline, and
+    // time is not a CSSNumeric value with percent units:
+    // throw a TypeError.
+    // return false;
+
+    // If all of the following conditions are true:
+    if (
+        // FIXME: The animation is not associated with a progress-based timeline, and
+
+        // time is a CSSNumericValue, and
+        time.has_value() && time->has<GC::Root<CSS::CSSNumericValue>>() &&
+
+        // the units of time are not duration units:
+        !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_time({}) &&
+
+        // AD-HOC: While it's not mentioned in the spec WPT also expects us to support CSSNumericValue number value, see
+        //         https://github.com/w3c/csswg-drafts/issues/13196
+        !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_number({})) {
+        // throw a TypeError.
+        // return false.
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            "CSSNumericValue must be a time for non-progress based animations"sv
+        };
+    }
+
+    // Otherwise
+    // return true.
+
+    // AD-HOC: The spec doesn't say when we should absolutize the validated value so we do it here and return the
+    //         absolutized value instead of a boolean
+    if (!time.has_value())
+        return OptionalNone {};
+
+    // FIXME: Figure out which element we should use for this, for now we just use the document element of the current
+    //        window
+    return TimeValue::from_css_numberish(time.value(), DOM::AbstractElement { *as<HTML::Window>(realm().global_object()).associated_document().document_element() });
+
+    VERIFY_NOT_REACHED();
+}
+
 // https://www.w3.org/TR/web-animations-1/#dom-animation-starttime
 // https://www.w3.org/TR/web-animations-1/#set-the-start-time
-void Animation::set_start_time_for_bindings(Optional<double> const& raw_new_start_time)
+WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::CSSNumberish> const& raw_new_start_time)
 {
     // Setting this attribute updates the start time using the procedure to set the start time of this object to the new
     // value.
-    auto new_start_time = raw_new_start_time.map([](auto const& value) { return TimeValue { TimeValue::Type::Milliseconds, value }; });
 
-    // 1. Let timeline time be the current time value of the timeline that animation is associated with. If there is no
+    // 1. Let valid start time be the result of running the validate a CSSNumberish time procedure with new start time
+    //    as the input.
+    // 2. If valid start time is false, abort this procedure.
+    // AD-HOC: The validate_a_css_numberish_time throws on validation failure which is handled by the TRY() macro so
+    //         there is no need to assign the `valid start time` variable here.
+    auto new_start_time = TRY(validate_a_css_numberish_time(raw_new_start_time));
+
+    // FIXME: 3. Set auto align start time to false.
+
+    // 4. Let timeline time be the current time value of the timeline that animation is associated with. If there is no
     //    timeline associated with animation or the associated timeline is inactive, let the timeline time be
     //    unresolved.
     auto timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time() : Optional<TimeValue> {};
 
-    // 2. If timeline time is unresolved and new start time is resolved, make animation’s hold time unresolved.
+    // 5. If timeline time is unresolved and new start time is resolved, make animation’s hold time unresolved.
     if (!timeline_time.has_value() && new_start_time.has_value())
         m_hold_time = {};
 
-    // 3. Let previous current time be animation’s current time.
+    // 6. Let previous current time be animation’s current time.
     auto previous_current_time = current_time();
 
-    // 4. Apply any pending playback rate on animation.
+    // 7. Apply any pending playback rate on animation.
     apply_any_pending_playback_rate();
 
-    // 5. Set animation’s start time to new start time.
+    // 8. Set animation’s start time to new start time.
     m_start_time = new_start_time;
 
-    // 6. Update animation’s hold time based on the first matching condition from the following,
+    // 9. Update animation’s hold time based on the first matching condition from the following,
 
     // -> If new start time is resolved,
     if (new_start_time.has_value()) {
@@ -172,7 +228,7 @@ void Animation::set_start_time_for_bindings(Optional<double> const& raw_new_star
         m_hold_time = previous_current_time;
     }
 
-    // 7. If animation has a pending play task or a pending pause task, cancel that task and resolve animation’s current
+    // 10. If animation has a pending play task or a pending pause task, cancel that task and resolve animation’s current
     //    ready promise with animation.
     if (pending()) {
         m_pending_play_task = TaskState::None;
@@ -180,9 +236,11 @@ void Animation::set_start_time_for_bindings(Optional<double> const& raw_new_star
         WebIDL::resolve_promise(realm(), current_ready_promise(), this);
     }
 
-    // 8. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
+    // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to true,
     //    and the synchronously notify flag set to false.
     update_finished_state(DidSeek::Yes, SynchronouslyNotify::No);
+
+    return {};
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-current-time
@@ -213,9 +271,11 @@ Optional<TimeValue> Animation::current_time() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-current-time
-WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(Optional<double> const& raw_seek_time)
+WebIDL::ExceptionOr<void> Animation::set_current_time_for_bindings(Optional<CSS::CSSNumberish> const& raw_seek_time)
 {
-    auto seek_time = raw_seek_time.map([](auto const& value) { return TimeValue { TimeValue::Type::Milliseconds, value }; });
+    // AD-HOC: We validate here instead of within silently_set_current_time so we have access to the `TimeValue`
+    //         value within this function.
+    auto seek_time = TRY(validate_a_css_numberish_time(raw_seek_time));
 
     // 1. Run the steps to silently set the current time of animation to seek time.
     TRY(silently_set_current_time(seek_time));
@@ -269,7 +329,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     // -> If animation is associated with a monotonically increasing timeline and the previous time is resolved,
     if (m_timeline && m_timeline->is_monotonically_increasing() && previous_time.has_value()) {
         // set the current time of animation to previous time.
-        TRY(set_current_time_for_bindings(previous_time->as_milliseconds()));
+        TRY(set_current_time_for_bindings(previous_time->as_css_numberish()));
     }
     // -> If animation is associated with a non-null timeline that is not monotonically increasing, the start time of
     //    animation is resolved, associated effect end is not infinity, and either:
@@ -1002,10 +1062,10 @@ void Animation::apply_any_pending_playback_rate()
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-silently-set-the-current-time
-WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValue> seek_time)
+WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValue> valid_seek_time)
 {
     // 1. If seek time is an unresolved time value, then perform the following steps.
-    if (!seek_time.has_value()) {
+    if (!valid_seek_time.has_value()) {
         // 1. If the current time is resolved, then throw a TypeError.
         if (current_time().has_value()) {
             return WebIDL::SimpleException {
@@ -1018,7 +1078,13 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
         return {};
     }
 
-    // 2. Update either animation’s hold time or start time as follows:
+    // 2. Let valid seek time be the result of running the validate a CSSNumberish time procedure with seek time as the input.
+    // 3. If valid seek time is false, abort this procedure.
+    // AD-HOC: We have already validated in the caller.
+
+    // FIXME: 4. Set auto align start time to false.
+
+    // 5. Update either animation’s hold time or start time as follows:
 
     // -> If any of the following conditions are true:
     //    - animation’s hold time is resolved, or
@@ -1027,21 +1093,21 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
     //    - animation’s playback rate is 0,
     if (m_hold_time.has_value() || !m_start_time.has_value() || !m_timeline || m_timeline->is_inactive() || m_playback_rate == 0.0) {
         // Set animation’s hold time to seek time.
-        m_hold_time = seek_time;
+        m_hold_time = valid_seek_time;
     }
     // -> Otherwise,
     else {
         // Set animation’s start time to the result of evaluating timeline time - (seek time / playback rate) where
         // timeline time is the current time value of timeline associated with animation.
-        m_start_time = m_timeline->current_time().value() - (seek_time.value() / m_playback_rate);
+        m_start_time = m_timeline->current_time().value() - (valid_seek_time.value() / m_playback_rate);
     }
 
-    // 3. If animation has no associated timeline or the associated timeline is inactive, make animation’s start time
+    // 6. If animation has no associated timeline or the associated timeline is inactive, make animation’s start time
     //    unresolved.
     if (!m_timeline || m_timeline->is_inactive())
         m_start_time = {};
 
-    // 4. Make animation’s previous current time unresolved.
+    // 7. Make animation’s previous current time unresolved.
     m_previous_current_time = {};
 
     return {};

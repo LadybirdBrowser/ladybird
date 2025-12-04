@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 13 tests
 
-8 Pass
-5 Fail
-Fail	Validate different value types that can be used to set start time
+9 Pass
+4 Fail
+Pass	Validate different value types that can be used to set start time
 Fail	Setting the start time of an animation without an active timeline
 Fail	Setting an unresolved start time an animation without an active timeline does not clear the current time
 Pass	Setting the start time clears the hold time
