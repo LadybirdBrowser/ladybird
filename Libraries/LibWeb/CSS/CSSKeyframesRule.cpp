@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -56,6 +58,18 @@ String CSSKeyframesRule::serialized() const
 WebIDL::UnsignedLong CSSKeyframesRule::length() const
 {
     return m_rules->length();
+}
+
+void CSSKeyframesRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Name: {}\n", name());
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Keyframes ({}):\n", length());
+    for (auto& rule : *css_rules())
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 }

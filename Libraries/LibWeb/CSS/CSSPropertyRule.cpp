@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Alex Ungurianu <alex@ungurianu.com>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -78,6 +80,25 @@ String CSSPropertyRule::serialized() const
     builder.append("}"sv);
 
     return MUST(builder.to_string());
+}
+
+void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Name: {}\n", name());
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Syntax: {}\n", syntax());
+
+    dump_indent(builder, indent_levels + 1);
+    builder.appendff("Inherits: {}\n", inherits());
+
+    if (initial_value().has_value()) {
+        dump_indent(builder, indent_levels + 1);
+        builder.appendff("Initial value: {}\n", initial_value().value());
+    }
 }
 
 }

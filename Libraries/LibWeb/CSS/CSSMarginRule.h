@@ -30,6 +30,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
     virtual void visit_edges(Visitor&) override;
+    virtual void dump(StringBuilder&, int indent_levels) const override;
 
     FlyString m_name;
     GC::Ref<CSSStyleProperties> m_style;
