@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/Supports.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -86,7 +87,9 @@ String Supports::to_string() const
 
 void Supports::dump(StringBuilder& builder, int indent_levels) const
 {
-    m_condition->dump(builder, indent_levels);
+    dump_indent(builder, indent_levels);
+    builder.appendff("Supports condition: (matches = {})\n", m_matches);
+    m_condition->dump(builder, indent_levels + 1);
 }
 
 }

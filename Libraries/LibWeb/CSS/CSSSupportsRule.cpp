@@ -63,9 +63,7 @@ void CSSSupportsRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);
 
-    dump_indent(builder, indent_levels + 1);
-    builder.append("Supports:\n"sv);
-    supports().dump(builder, indent_levels + 2);
+    supports().dump(builder, indent_levels + 1);
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Rules ({}):\n", css_rules().length());
