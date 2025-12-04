@@ -476,7 +476,7 @@ public:
 
     struct StructuredInstructionArgs {
         BlockType block_type;
-        InstructionPointer end_ip;
+        InstructionPointer end_ip; // 'end' instruction IP if there is no 'else'; otherwise IP of instruction after 'end'.
         Optional<InstructionPointer> else_ip;
     };
 
@@ -621,6 +621,8 @@ struct Dispatch {
         CountRegisters,
         Stack = CountRegisters,
     };
+
+    static_assert(is_power_of_two(to_underlying(Stack)), "Stack marker must be a single bit");
 
     union {
         OpCode instruction_opcode;
