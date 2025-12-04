@@ -27,15 +27,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
 {
-    return realm.create<CSSImportRule>(realm, move(url), document, move(supports), move(media_query_list));
+    return realm.create<CSSImportRule>(realm, move(url), document, move(layer), move(supports), move(media_query_list));
 }
 
-CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
     : CSSRule(realm, Type::Import)
     , m_url(move(url))
     , m_document(document)
+    , m_layer(move(layer))
     , m_supports(move(supports))
     , m_media_query_list(move(media_query_list))
 {
@@ -85,6 +86,15 @@ String CSSImportRule::serialized() const
 
     // 2. The result of performing serialize a URL on the rule’s location.
     builder.append(m_url.to_string());
+
+    // AD-HOC: Serialize the rule's layer if it exists.
+    if (m_layer.has_value()) {
+        if (m_layer->is_empty()) {
+            builder.append(" layer"sv);
+        } else {
+            builder.appendff(" layer({})", m_layer);
+        }
+    }
 
     // AD-HOC: Serialize the rule's supports condition if it exists.
     //         This isn't currently specified, but major browsers include this in their serialization of import rules
@@ -223,6 +233,11 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Has document load delayer: {}\n", m_document_load_event_delayer.has_value());
+
+    if (m_layer.has_value()) {
+        dump_indent(builder, indent_levels + 1);
+        builder.appendff("Layer: `{}`\n", *m_layer);
+    }
 
     if (auto media_list = media())
         media_list->dump(builder, indent_levels + 1);
