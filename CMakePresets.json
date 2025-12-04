@@ -150,8 +150,34 @@
       }
     },
     {
+      "name": "Windows_Release",
+      "inherits": "windows_base",
+      "displayName": "Windows Release Config",
+      "description": "Release Windows build with optimizations",
+      "binaryDir": "${fileDir}/Build/windows-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "ENABLE_WINDOWS_CI": "OFF"
+      }
+    },
+    {
+      "name": "Windows_Distribution",
+      "inherits": "windows_base",
+      "displayName": "Windows Distribution Config",
+      "description": "Distribution Windows build for installer creation",
+      "binaryDir": "${fileDir}/Build/windows-distribution",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "ENABLE_WINDOWS_CI": "OFF",
+        "ENABLE_INSTALLER": "ON",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets"
+      }
+    },
+    {
       "name": "Windows_CI",
-      "inherits":  [
+      "inherits": [
         "windows_base"
       ],
       "displayName": "Windows CI Config",
@@ -281,6 +307,20 @@
       "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are supported"
     },
     {
+      "name": "Windows_Release",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Release",
+      "displayName": "Windows Release Build",
+      "description": "Build the project in release mode on Windows"
+    },
+    {
+      "name": "Windows_Distribution",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Distribution",
+      "displayName": "Windows Distribution Build",
+      "description": "Build the project for distribution/installer on Windows"
+    },
+    {
       "name": "Windows_CI",
       "inherits": "windows_base",
       "configurePreset": "Windows_CI",
@@ -377,11 +417,21 @@
     },
     {
       "name": "Windows_Sanitizer_Experimental",
-      "inherits":  [
+      "inherits": [
         "windows_base",
         "sanitizer_base"
       ],
       "configurePreset": "Windows_Sanitizer_Experimental"
+    },
+    {
+      "name": "Windows_Release",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Release"
+    },
+    {
+      "name": "Windows_Distribution",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Distribution"
     },
     {
       "name": "Windows_CI",
@@ -390,7 +440,7 @@
     },
     {
       "name": "Windows_Sanitizer_CI",
-      "inherits":  [
+      "inherits": [
         "windows_base",
         "sanitizer_base"
       ],

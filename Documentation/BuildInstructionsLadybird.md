@@ -172,10 +172,31 @@ brew install qt
 
 ### Windows:
 
+#### Native Windows Build (Recommended)
+
+Ladybird now supports native Windows builds! For comprehensive instructions on building natively on Windows, including creating installers, see:
+
+**[Windows Build Instructions](BuildInstructionsWindows.md)**
+
+Quick start:
+```powershell
+# Clone the repository
+git clone https://github.com/LadybirdBrowser/ladybird.git
+cd ladybird
+
+# Build using the PowerShell script
+.\build-windows.ps1
+
+# Or create an installer
+.\build-windows.ps1 Distribution -Package
+```
+
+#### WSL2 (Alternative)
+
 WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being setup but does not fully
 build.
 
-#### WSL2
+##### WSL2
 - Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
 
 - Install the required packages for the selected Linux distro in the WSL2 environment.

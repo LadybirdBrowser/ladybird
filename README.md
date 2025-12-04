@@ -33,7 +33,9 @@ At the moment, many core library support components are inherited from SerenityO
 
 See [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to build Ladybird.
 
-Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
+Ladybird runs on Linux, macOS, Windows (native and WSL2), and many other \*Nixes.
+
+For Windows-specific instructions, see [Windows README](WINDOWS_README.md).
 
 ## How do I read the documentation?
 

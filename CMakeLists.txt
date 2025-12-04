@@ -91,3 +91,8 @@ if (Python3_FOUND)
         USES_TERMINAL
     )
 endif()
+
+# Windows Installer Support
+if (WIN32 AND ENABLE_INSTALLER)
+    include(Meta/CMake/windows_installer.cmake)
+endif()
