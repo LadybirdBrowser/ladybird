@@ -80,8 +80,8 @@ void CSSMediaRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);
 
-    dump_indent(builder, indent_levels + 1);
-    builder.appendff("Media: {}\n", condition_text());
+    m_media->dump(builder, indent_levels + 1);
+
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Rules ({}):\n", css_rules().length());
     for (auto& rule : css_rules())
