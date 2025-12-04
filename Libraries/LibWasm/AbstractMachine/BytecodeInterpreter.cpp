@@ -110,7 +110,8 @@ struct InstructionHandler { };
         S(Instruction const*, instruction),  \
         S(SourcesAndDestination, addresses), \
         S(u64, current_ip_value),            \
-        S(Dispatch const*, cc)
+        S(Dispatch const*, cc),              \
+        S(SourcesAndDestination const*, addresses_ptr)
 
 #define DECOMPOSE_PARAMS(t, n) [[maybe_unused]] t n
 #define DECOMPOSE_PARAMS_NAME_ONLY(t, n) n
@@ -135,18 +136,18 @@ struct InstructionHandler { };
     };
 
 struct Continue {
-    static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc)
+    static Outcome operator()(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction const*, SourcesAndDestination addresses, u64 current_ip_value, Dispatch const* cc, SourcesAndDestination const* addresses_ptr)
     {
         current_ip_value++;
         auto const instruction = cc[current_ip_value].instruction;
         auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cc[current_ip_value].handler_ptr);
-        addresses.sources_and_destination = cc[current_ip_value].sources_and_destination;
-        TAILCALL return handler(interpreter, configuration, instruction, addresses, current_ip_value, cc);
+        addresses = addresses_ptr[current_ip_value];
+        TAILCALL return handler(interpreter, configuration, instruction, addresses, current_ip_value, cc, addresses_ptr);
     }
 };
 
 struct Skip {
-    static Outcome operator()(BytecodeInterpreter&, Configuration&, Instruction const*, SourcesAndDestination, u64 ip, Dispatch const*)
+    static Outcome operator()(BytecodeInterpreter&, Configuration&, Instruction const*, SourcesAndDestination, u64 ip, Dispatch const*, SourcesAndDestination const*)
     {
         return bit_cast<Outcome>(ip);
     }
@@ -1335,6 +1336,7 @@ HANDLE_INSTRUCTION(return_call)
         current_ip_value = to_underlying(outcome) - 1;
         addresses = { .sources_and_destination = default_sources_and_destination };
         cc = configuration.frame().expression().compiled_instructions.dispatches.data();
+        addresses_ptr = configuration.frame().expression().compiled_instructions.src_dst_mappings.data();
         [[fallthrough]];
     case Outcome::Continue:
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -1394,6 +1396,7 @@ HANDLE_INSTRUCTION(return_call_indirect)
         current_ip_value = to_underlying(outcome) - 1;
         addresses = { .sources_and_destination = default_sources_and_destination };
         cc = configuration.frame().expression().compiled_instructions.dispatches.data();
+        addresses_ptr = configuration.frame().expression().compiled_instructions.src_dst_mappings.data();
         [[fallthrough]];
     case Outcome::Continue:
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
@@ -3789,13 +3792,14 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
     SourcesAndDestination addresses { .sources_and_destination = default_sources_and_destination };
 
     auto cc = expression.compiled_instructions.dispatches.data();
+    auto addresses_ptr = expression.compiled_instructions.src_dst_mappings.data();
 
     if constexpr (HaveDirectThreadingInfo) {
         static_assert(HasCompiledList, "Direct threading requires a compiled instruction list");
-        addresses.sources_and_destination = cc[current_ip_value].sources_and_destination;
+        addresses.sources_and_destination = addresses_ptr[current_ip_value].sources_and_destination;
         auto const instruction = cc[current_ip_value].instruction;
         auto const handler = bit_cast<Outcome (*)(HANDLER_PARAMS(DECOMPOSE_PARAMS_TYPE_ONLY))>(cc[current_ip_value].handler_ptr);
-        handler(*this, configuration, instruction, addresses, current_ip_value, cc);
+        handler(*this, configuration, instruction, addresses, current_ip_value, cc, addresses_ptr);
         return;
     }
 
@@ -3808,7 +3812,7 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
         }
         // bounds checked by loop condition.
         addresses.sources_and_destination = HasCompiledList
-            ? cc[current_ip_value].sources_and_destination
+            ? addresses_ptr[current_ip_value].sources_and_destination
             : default_sources_and_destination;
         auto const instruction = HasCompiledList
             ? cc[current_ip_value].instruction
@@ -3824,15 +3828,17 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
         break;                 \
     }
 
-#define HANDLE_INSTRUCTION_NEW(name, ...)                                                                                                                             \
-    case Instructions::name.value(): {                                                                                                                                \
-        auto outcome = handle_instruction<Instructions::name.value(), HasDynamicInsnLimit, Skip>(*this, configuration, instruction, addresses, current_ip_value, cc); \
-        if (outcome == Outcome::Return)                                                                                                                               \
-            return;                                                                                                                                                   \
-        current_ip_value = to_underlying(outcome);                                                                                                                    \
-        if constexpr (Instructions::name == Instructions::return_call || Instructions::name == Instructions::return_call_indirect)                                    \
-            cc = configuration.frame().expression().compiled_instructions.dispatches.data();                                                                          \
-        RUN_NEXT_INSTRUCTION();                                                                                                                                       \
+#define HANDLE_INSTRUCTION_NEW(name, ...)                                                                                                                                                                   \
+    case Instructions::name.value(): {                                                                                                                                                                      \
+        auto outcome = handle_instruction<Instructions::name.value(), HasDynamicInsnLimit, Skip, SourceAddressMix::Any>(*this, configuration, instruction, addresses, current_ip_value, cc, addresses_ptr); \
+        if (outcome == Outcome::Return)                                                                                                                                                                     \
+            return;                                                                                                                                                                                         \
+        current_ip_value = to_underlying(outcome);                                                                                                                                                          \
+        if constexpr (Instructions::name == Instructions::return_call || Instructions::name == Instructions::return_call_indirect) {                                                                        \
+            cc = configuration.frame().expression().compiled_instructions.dispatches.data();                                                                                                                \
+            addresses_ptr = configuration.frame().expression().compiled_instructions.src_dst_mappings.data();                                                                                               \
+        }                                                                                                                                                                                                   \
+        RUN_NEXT_INSTRUCTION();                                                                                                                                                                             \
     }
 
         dbgln_if(WASM_TRACE_DEBUG, "Executing instruction {} at current_ip_value {}", instruction_name(instruction->opcode()), current_ip_value);
@@ -4242,8 +4248,11 @@ double BytecodeInterpreter::read_value<double>(ReadonlyBytes data)
 CompiledInstructions try_compile_instructions(Expression const& expression, Span<FunctionType const> functions)
 {
     CompiledInstructions result;
+
     result.dispatches.ensure_capacity(expression.instructions().size());
+    result.src_dst_mappings.ensure_capacity(expression.instructions().size());
     result.extra_instruction_storage.ensure_capacity(expression.instructions().size());
+
     i32 i32_const_value { 0 };
     LocalIndex local_index_0 { 0 };
     LocalIndex local_index_1 { 0 };
@@ -4256,12 +4265,15 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         I32ConstGetLocal,
     } pattern_state { InsnPatternState::Nothing };
     static Instruction nop { Instructions::nop };
-    constexpr auto default_dispatch = [](Instruction const& instruction) {
-        return Dispatch {
-            { .instruction_opcode = instruction.opcode() },
-            &instruction,
-            { .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack }
-        };
+
+    auto const set_default_dispatch = [&result](Instruction const& instruction, size_t index = NumericLimits<size_t>::max()) {
+        if (index < result.dispatches.size()) {
+            result.dispatches[index] = { { .instruction_opcode = instruction.opcode() }, &instruction };
+            result.src_dst_mappings[index] = { .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack };
+        } else {
+            result.dispatches.append({ { .instruction_opcode = instruction.opcode() }, &instruction });
+            result.src_dst_mappings.append({ .sources = { Dispatch::Stack, Dispatch::Stack, Dispatch::Stack }, .destination = Dispatch::Stack });
+        }
     };
 
     for (auto& instruction : expression.instructions()) {
@@ -4273,7 +4285,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 result.extra_instruction_storage.unchecked_append(Instruction(
                     op,
                     instruction.arguments()));
-                result.dispatches.unchecked_append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 continue;
             }
         }
@@ -4297,19 +4309,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 pattern_state = InsnPatternState::GetLocalI32Const;
             } else if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_0,
                     instruction.arguments()));
 
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_0,
                     instruction.arguments()));
@@ -4325,38 +4337,38 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (instruction.opcode() == Instructions::i32_add) {
                 // `local.get a; local.get b; i32.add` -> `i32.add_2local a b`.
                 // Replace the previous two ops with noops, and add i32.add_2local.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction {
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                set_default_dispatch(nop, result.dispatches.size() - 2);
+                result.extra_instruction_storage.unchecked_append(Instruction {
                     Instructions::synthetic_i32_add2local,
                     local_index_0,
                     local_index_1,
                 });
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i32_storelocal,
                     local_index_1,
                     instruction.arguments()));
 
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             if (instruction.opcode() == Instructions::i64_store) {
                 // `local.get a; i64.store m` -> `i64.storelocal a m`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i64_storelocal,
                     local_index_1,
                     instruction.arguments()));
 
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -4376,12 +4388,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 i32_const_value = instruction.arguments().get<i32>();
             } else if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
                     i32_const_value));
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             } else {
@@ -4391,12 +4403,12 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         case InsnPatternState::GetLocalI32Const:
             if (instruction.opcode() == Instructions::local_set) {
                 // `i32.const a; local.set b` -> `local.seti32_const b a`.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_local_seti32_const,
                     instruction.local_index(),
                     i32_const_value));
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
@@ -4422,35 +4434,35 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::i32_add) {
                 // `i32.const a; local.get b; i32.add` -> `i32.add_constlocal b a`.
                 // Replace the previous two ops with noops, and add i32.add_constlocal.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                set_default_dispatch(nop, result.dispatches.size() - 2);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i32_addconstlocal,
                     local_index_0,
                     i32_const_value));
 
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             if (instruction.opcode() == Instructions::i32_and) {
                 // `i32.const a; local.get b; i32.add` -> `i32.and_constlocal b a`.
                 // Replace the previous two ops with noops, and add i32.and_constlocal.
-                result.dispatches[result.dispatches.size() - 1] = default_dispatch(nop);
-                result.dispatches[result.dispatches.size() - 2] = default_dispatch(nop);
-                result.extra_instruction_storage.append(Instruction(
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                set_default_dispatch(nop, result.dispatches.size() - 2);
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_i32_andconstlocal,
                     local_index_0,
                     i32_const_value));
 
-                result.dispatches.append(default_dispatch(result.extra_instruction_storage.unsafe_last()));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
             }
             pattern_state = InsnPatternState::Nothing;
             break;
         }
-        result.dispatches.unchecked_append(default_dispatch(instruction));
+        set_default_dispatch(instruction);
     }
 
     // Remove all nops (that were either added by the above patterns or were already present in the original instructions),
@@ -4490,13 +4502,14 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 .end_ip = end_ip,
                 .else_ip = else_ip,
             };
-            result.extra_instruction_storage.append(move(instruction));
+            result.extra_instruction_storage.unchecked_append(move(instruction));
             result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
             result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
         }
     }
 
     result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
+    result.src_dst_mappings.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
 
     // Rewrite local.get of arguments to argument.get to keep local.get for locals only.
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
@@ -4504,7 +4517,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (dispatch.instruction->opcode() == Instructions::local_get) {
             auto local_index = dispatch.instruction->local_index();
             if (local_index.value() & LocalArgumentMarker) {
-                result.extra_instruction_storage.append(Instruction(
+                result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_argument_get,
                     local_index));
                 result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
@@ -4843,14 +4856,17 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             }
         }
 
-        auto input_ids = instr_to_input_values.get(i).value_or({});
-        for (size_t j = 0; j < input_ids.size(); ++j) {
-            auto reg = value_alloc.get(input_ids[j]).value_or(Dispatch::RegisterOrStack::Stack);
-            dispatch.sources[j] = reg;
+        auto& addr = result.src_dst_mappings[i];
+        auto input_ids = instr_to_input_values.get(IP(i)).value_or({});
+        if (input_ids.size() <= array_size(addr.sources)) {
+            for (size_t j = 0; j < input_ids.size(); ++j) {
+                auto reg = value_alloc.get(input_ids[j]).value_or(Dispatch::RegisterOrStack::Stack);
+                addr.sources[j] = reg;
+            }
         }
 
-        if (auto output_id = instr_to_output_value.get(i); output_id.has_value())
-            dispatch.destination = value_alloc.get(*output_id).value_or(Dispatch::RegisterOrStack::Stack);
+        if (auto output_id = instr_to_output_value.get(IP(i)); output_id.has_value())
+            addr.destination = value_alloc.get(*output_id).value_or(Dispatch::RegisterOrStack::Stack);
     }
 
     result.max_call_arg_count = max_call_arg_count;

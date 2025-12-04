@@ -627,16 +627,19 @@ struct Dispatch {
         FlatPtr handler_ptr;
     };
     Instruction const* instruction { nullptr };
-    union {
-        struct {
-            RegisterOrStack sources[3];
-            RegisterOrStack destination;
-        };
-        u32 sources_and_destination;
-    };
 };
+
+union SourcesAndDestination {
+    struct {
+        Dispatch::RegisterOrStack sources[3];
+        Dispatch::RegisterOrStack destination;
+    };
+    u32 sources_and_destination;
+};
+
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
+    Vector<SourcesAndDestination> src_dst_mappings;
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     size_t max_call_arg_count = 0;
