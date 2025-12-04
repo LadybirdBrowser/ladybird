@@ -12,6 +12,7 @@
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/String.h>
+#include <LibCore/Export.h>
 #include <LibCore/File.h>
 
 namespace Core {
@@ -46,7 +47,7 @@ struct ProcessSpawnOptions {
     Vector<FileActionType> file_actions {};
 };
 
-class Process {
+class CORE_API Process {
     AK_MAKE_NONCOPYABLE(Process);
 
 public:

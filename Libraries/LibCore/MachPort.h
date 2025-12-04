@@ -14,6 +14,7 @@
 
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
+#include <LibCore/Export.h>
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <mach/mach.h>
@@ -26,7 +27,7 @@ extern "C" {
 namespace Core {
 
 // https://www.gnu.org/software/hurd/gnumach-doc/Major-Concepts.html#Major-Concepts
-class MachPort {
+class CORE_API MachPort {
     AK_MAKE_NONCOPYABLE(MachPort);
 
 public:

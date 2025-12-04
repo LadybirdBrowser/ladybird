@@ -15,6 +15,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 #include <LibThreading/RWLock.h>
 
@@ -42,7 +43,7 @@ class WeakEventLoopReference;
 // - Fork events, because the child process event loop needs to clear its events and handlers.
 // - Quit events, i.e. the event loop should exit.
 // Any event that the event loop needs to wait on or needs to repeatedly handle is stored in a handle, e.g. s_timers.
-class EventLoop {
+class CORE_API EventLoop {
     AK_MAKE_NONMOVABLE(EventLoop);
     AK_MAKE_NONCOPYABLE(EventLoop);
 
@@ -102,7 +103,7 @@ private:
 
 class StrongEventLoopReference;
 
-class WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopReference> {
+class CORE_API WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopReference> {
 public:
     StrongEventLoopReference take();
 
@@ -118,7 +119,7 @@ private:
     Threading::RWLock m_lock;
 };
 
-class StrongEventLoopReference {
+class CORE_API StrongEventLoopReference {
 public:
     ~StrongEventLoopReference();
 
@@ -135,6 +136,6 @@ private:
     WeakEventLoopReference* m_event_loop_weak;
 };
 
-void deferred_invoke(ESCAPING Function<void()>);
+CORE_API void deferred_invoke(ESCAPING Function<void()>);
 
 }

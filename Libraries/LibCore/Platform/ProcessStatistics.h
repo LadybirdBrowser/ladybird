@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibCore/Export.h>
 #include <LibCore/Platform/ProcessInfo.h>
 
 namespace Core::Platform {
@@ -26,6 +27,6 @@ struct ProcessStatistics {
     Vector<NonnullOwnPtr<ProcessInfo>> processes;
 };
 
-ErrorOr<void> update_process_statistics(ProcessStatistics&);
+CORE_API ErrorOr<void> update_process_statistics(ProcessStatistics&);
 
 }

@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
@@ -18,9 +19,9 @@ using SharedVersionIndex = u32;
 constexpr inline SharedVersion INVALID_SHARED_VERSION = 0;
 constexpr inline SharedVersion INITIAL_SHARED_VERSION = 1;
 
-[[nodiscard]] AnonymousBuffer create_shared_version_buffer();
-[[nodiscard]] bool initialize_shared_version(AnonymousBuffer&, SharedVersionIndex);
-void increment_shared_version(AnonymousBuffer&, SharedVersionIndex);
-Optional<SharedVersion> get_shared_version(AnonymousBuffer const&, SharedVersionIndex);
+[[nodiscard]] CORE_API AnonymousBuffer create_shared_version_buffer();
+[[nodiscard]] CORE_API bool initialize_shared_version(AnonymousBuffer&, SharedVersionIndex);
+CORE_API void increment_shared_version(AnonymousBuffer&, SharedVersionIndex);
+CORE_API Optional<SharedVersion> get_shared_version(AnonymousBuffer const&, SharedVersionIndex);
 
 }

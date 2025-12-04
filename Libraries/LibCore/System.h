@@ -11,6 +11,7 @@
 #include <AK/Error.h>
 #include <AK/StringView.h>
 #include <LibCore/AddressInfoVector.h>
+#include <LibCore/Export.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -66,72 +67,72 @@ ErrorOr<int> accept4(int sockfd, struct sockaddr*, socklen_t*, int flags);
 
 ErrorOr<void> sigaction(int signal, struct sigaction const* action, struct sigaction* old_action);
 #if defined(AK_OS_SOLARIS)
-ErrorOr<SIG_TYP> signal(int signal, SIG_TYP handler);
+CORE_API ErrorOr<SIG_TYP> signal(int signal, SIG_TYP handler);
 #elif defined(AK_OS_BSD_GENERIC)
-ErrorOr<sig_t> signal(int signal, sig_t handler);
+CORE_API ErrorOr<sig_t> signal(int signal, sig_t handler);
 #else
-ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
+CORE_API ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
 #endif
-ErrorOr<struct stat> fstat(int fd);
+CORE_API ErrorOr<struct stat> fstat(int fd);
 ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
-ErrorOr<int> fcntl(int fd, int command, ...);
+CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
 ErrorOr<void> munmap(void* address, size_t);
 ErrorOr<int> anon_create(size_t size, int options);
-ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
+CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
-ErrorOr<void> close(int fd);
+CORE_API ErrorOr<void> close(int fd);
 ErrorOr<void> ftruncate(int fd, off_t length);
-ErrorOr<struct stat> stat(StringView path);
-ErrorOr<struct stat> lstat(StringView path);
-ErrorOr<size_t> read(int fd, Bytes buffer);
-ErrorOr<size_t> write(int fd, ReadonlyBytes buffer);
-ErrorOr<int> dup(int source_fd);
+CORE_API ErrorOr<struct stat> stat(StringView path);
+CORE_API ErrorOr<struct stat> lstat(StringView path);
+CORE_API ErrorOr<size_t> read(int fd, Bytes buffer);
+CORE_API ErrorOr<size_t> write(int fd, ReadonlyBytes buffer);
+CORE_API ErrorOr<int> dup(int source_fd);
 ErrorOr<int> dup2(int source_fd, int destination_fd);
-ErrorOr<ByteString> getcwd();
-ErrorOr<void> ioctl(int fd, unsigned request, ...);
+CORE_API ErrorOr<ByteString> getcwd();
+CORE_API ErrorOr<void> ioctl(int fd, unsigned request, ...);
 ErrorOr<struct termios> tcgetattr(int fd);
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const&);
-ErrorOr<void> chmod(StringView pathname, mode_t mode);
+CORE_API ErrorOr<void> chmod(StringView pathname, mode_t mode);
 ErrorOr<off_t> lseek(int fd, off_t, int whence);
 
-ErrorOr<bool> isatty(int fd);
-ErrorOr<void> link(StringView old_path, StringView new_path);
-ErrorOr<void> symlink(StringView target, StringView link_path);
-ErrorOr<void> mkdir(StringView path, mode_t);
-ErrorOr<void> chdir(StringView path);
-ErrorOr<void> rmdir(StringView path);
-ErrorOr<int> mkstemp(Span<char> pattern);
-ErrorOr<void> fchmod(int fd, mode_t mode);
-ErrorOr<void> rename(StringView old_path, StringView new_path);
-ErrorOr<void> unlink(StringView path);
-ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag);
-ErrorOr<Array<int, 2>> pipe2(int flags);
+CORE_API ErrorOr<bool> isatty(int fd);
+CORE_API ErrorOr<void> link(StringView old_path, StringView new_path);
+CORE_API ErrorOr<void> symlink(StringView target, StringView link_path);
+CORE_API ErrorOr<void> mkdir(StringView path, mode_t);
+CORE_API ErrorOr<void> chdir(StringView path);
+CORE_API ErrorOr<void> rmdir(StringView path);
+CORE_API ErrorOr<int> mkstemp(Span<char> pattern);
+CORE_API ErrorOr<void> fchmod(int fd, mode_t mode);
+CORE_API ErrorOr<void> rename(StringView old_path, StringView new_path);
+CORE_API ErrorOr<void> unlink(StringView path);
+CORE_API ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag);
+CORE_API ErrorOr<Array<int, 2>> pipe2(int flags);
 
-ErrorOr<int> socket(int domain, int type, int protocol);
-ErrorOr<void> bind(int sockfd, struct sockaddr const*, socklen_t);
-ErrorOr<void> listen(int sockfd, int backlog);
+CORE_API ErrorOr<int> socket(int domain, int type, int protocol);
+CORE_API ErrorOr<void> bind(int sockfd, struct sockaddr const*, socklen_t);
+CORE_API ErrorOr<void> listen(int sockfd, int backlog);
 ErrorOr<int> accept(int sockfd, struct sockaddr*, socklen_t*);
 ErrorOr<void> connect(int sockfd, struct sockaddr const*, socklen_t);
-ErrorOr<size_t> send(int sockfd, ReadonlyBytes, int flags);
+CORE_API ErrorOr<size_t> send(int sockfd, ReadonlyBytes, int flags);
 ErrorOr<size_t> sendmsg(int sockfd, const struct msghdr*, int flags);
 ErrorOr<size_t> sendto(int sockfd, ReadonlyBytes, int flags, struct sockaddr const*, socklen_t);
 ErrorOr<size_t> recv(int sockfd, Bytes, int flags);
 ErrorOr<size_t> recvmsg(int sockfd, struct msghdr*, int flags);
 ErrorOr<size_t> recvfrom(int sockfd, Bytes, int flags, struct sockaddr*, socklen_t*);
 ErrorOr<void> getsockopt(int sockfd, int level, int option, void* value, socklen_t* value_size);
-ErrorOr<void> setsockopt(int sockfd, int level, int option, void const* value, socklen_t value_size);
+CORE_API ErrorOr<void> setsockopt(int sockfd, int level, int option, void const* value, socklen_t value_size);
 ErrorOr<void> getsockname(int sockfd, struct sockaddr*, socklen_t*);
 ErrorOr<void> getpeername(int sockfd, struct sockaddr*, socklen_t*);
-ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2]);
+CORE_API ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2]);
 
-ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
+CORE_API ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
 ErrorOr<ByteString> readlink(StringView pathname);
-ErrorOr<int> poll(Span<struct pollfd>, int timeout);
+CORE_API ErrorOr<int> poll(Span<struct pollfd>, int timeout);
 
-ErrorOr<void> kill(pid_t, int signal);
+CORE_API ErrorOr<void> kill(pid_t, int signal);
 #if !defined(AK_OS_WINDOWS)
-ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
+CORE_API ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
 ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
 ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
 
@@ -139,27 +140,27 @@ struct WaitPidResult {
     pid_t pid;
     int status;
 };
-ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
-ErrorOr<void> fchown(int fd, uid_t, gid_t);
+CORE_API ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
+CORE_API ErrorOr<void> fchown(int fd, uid_t, gid_t);
 #endif
 
 ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
 
-unsigned hardware_concurrency();
-u64 physical_memory_bytes();
+CORE_API unsigned hardware_concurrency();
+CORE_API u64 physical_memory_bytes();
 
-ErrorOr<ByteString> current_executable_path();
+CORE_API ErrorOr<ByteString> current_executable_path();
 
 #if !defined(AK_OS_WINDOWS)
 ErrorOr<rlimit> get_resource_limits(int resource);
-ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
+CORE_API ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 #endif
 
-int getpid();
-bool is_socket(int fd);
-ErrorOr<void> sleep_ms(u32 milliseconds);
-ErrorOr<void> set_close_on_exec(int fd, bool enabled);
+CORE_API int getpid();
+CORE_API bool is_socket(int fd);
+CORE_API ErrorOr<void> sleep_ms(u32 milliseconds);
+CORE_API ErrorOr<void> set_close_on_exec(int fd, bool enabled);
 
-ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length);
+CORE_API ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length);
 
 }

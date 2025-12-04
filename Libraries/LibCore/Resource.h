@@ -14,11 +14,12 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Variant.h>
+#include <LibCore/Export.h>
 #include <LibCore/MappedFile.h>
 
 namespace Core {
 
-class Resource : public RefCounted<Resource> {
+class CORE_API Resource : public RefCounted<Resource> {
 public:
     static ErrorOr<NonnullRefPtr<Resource>> load_from_filesystem(StringView);
     static ErrorOr<NonnullRefPtr<Resource>> load_from_uri(StringView);

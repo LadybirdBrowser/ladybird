@@ -14,6 +14,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <LibCore/Export.h>
 #include <LibCore/Notifier.h>
 
 namespace Core {
@@ -42,7 +43,7 @@ enum class FileWatcherFlags : u32 {
 
 AK_ENUM_BITWISE_OPERATORS(FileWatcherFlags);
 
-class FileWatcherBase {
+class CORE_API FileWatcherBase {
 public:
     virtual ~FileWatcherBase() = default;
 
@@ -71,7 +72,7 @@ public:
     Optional<FileWatcherEvent> wait_for_event();
 };
 
-class FileWatcher : public FileWatcherBase
+class CORE_API FileWatcher : public FileWatcherBase
     , public RefCounted<FileWatcher> {
     AK_MAKE_NONCOPYABLE(FileWatcher);
 

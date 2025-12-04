@@ -195,6 +195,12 @@ install(TARGETS NoCoverage EXPORT LagomTargets)
 # AK
 add_ladybird_subdirectory(AK)
 
+# LibCore dependencies
+add_ladybird_subdirectory(Libraries/LibTextCodec)
+add_ladybird_subdirectory(Libraries/LibUnicode)
+add_ladybird_subdirectory(Libraries/LibRegex)
+add_ladybird_subdirectory(Libraries/LibURL)
+
 # LibCore
 add_ladybird_subdirectory(Libraries/LibCore)
 

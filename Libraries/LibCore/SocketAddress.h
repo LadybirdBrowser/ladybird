@@ -9,6 +9,7 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibCore/Export.h>
 
 #if defined(AK_OS_WINDOWS)
 constexpr inline int SOCK_STREAM = 1;
@@ -31,7 +32,7 @@ struct sockaddr_un;
 
 namespace Core {
 
-class SocketAddress {
+class CORE_API SocketAddress {
 public:
     enum class Type {
         Invalid,

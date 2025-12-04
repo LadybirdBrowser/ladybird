@@ -8,12 +8,13 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
+#include <LibCore/Export.h>
 #include <LibCore/Resource.h>
 #include <LibCore/ResourceImplementation.h>
 
 namespace Core {
 
-class ResourceImplementationFile : public ResourceImplementation {
+class CORE_API ResourceImplementationFile : public ResourceImplementation {
 public:
     explicit ResourceImplementationFile(String base_directory);
 

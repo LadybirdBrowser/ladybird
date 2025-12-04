@@ -15,11 +15,12 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <LibCore/Export.h>
 #include <LibCore/File.h>
 
 namespace Core {
 
-class ConfigFile : public RefCounted<ConfigFile> {
+class CORE_API ConfigFile : public RefCounted<ConfigFile> {
 public:
     enum class AllowWriting {
         Yes,
