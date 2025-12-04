@@ -67,11 +67,15 @@ private:
 
         void wait_for_start();
         bool should_thread_exit() const;
+        template<typename Invokee>
+        void invoke_on_main_thread_while_locked(Invokee);
+        template<typename Invokee>
+        void invoke_on_main_thread(Invokee);
         void set_cicp_values(VideoFrame&);
         void queue_frame(TimedImage&&);
         bool handle_seek();
-        template<typename T>
-        void process_seek_on_main_thread(u32 seek_id, T&&);
+        template<typename Callback>
+        void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
 
@@ -85,7 +89,7 @@ private:
             Exit,
         };
 
-        Core::EventLoop& m_main_thread_event_loop;
+        NonnullRefPtr<Core::EventLoopWeak> m_main_thread_event_loop;
 
         mutable Threading::Mutex m_mutex;
         mutable Threading::ConditionVariable m_wait_condition { m_mutex };
