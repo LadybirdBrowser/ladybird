@@ -98,10 +98,10 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     template<typename T>
     bool store_to_memory(MemoryInstance&, u64 address, T value);
 
-    template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
+    template<typename PopTypeLHS, typename PushType, typename Operator, SourceAddressMix, typename PopTypeRHS = PopTypeLHS, typename... Args>
     bool binary_numeric_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
-    template<typename PopType, typename PushType, typename Operator, size_t input_arg = 0, typename... Args>
+    template<typename PopType, typename PushType, typename Operator, SourceAddressMix, size_t input_arg = 0, typename... Args>
     bool unary_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
     ALWAYS_INLINE bool set_trap(StringView reason)
