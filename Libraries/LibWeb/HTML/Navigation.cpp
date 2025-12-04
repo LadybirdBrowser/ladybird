@@ -1123,10 +1123,13 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         // 3. Assert: fromNHE is not null.
         VERIFY(from_nhe != nullptr);
 
-        // 4. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm,
-        //    whose navigation type is navigationType, whose from entry is fromNHE, and whose finished promise is a new promise
-        //    created in navigation's relevant realm.
-        m_transition = NavigationTransition::create(realm, navigation_type, *from_nhe, WebIDL::create_promise(realm));
+        // 4. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm, with
+        //    navigation type: navigationType
+        //    from entry: fromNHE
+        //    destination: event's destination
+        //    FIXME: committed promise: a new promise created in navigation's relevant realm
+        //    finished promise: a new promise created in navigation's relevant realm
+        m_transition = NavigationTransition::create(realm, navigation_type, *from_nhe, event->destination(), WebIDL::create_promise(realm));
 
         // 5. Mark as handled navigation's transition's finished promise.
         WebIDL::mark_promise_as_handled(*m_transition->finished());
