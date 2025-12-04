@@ -2919,7 +2919,7 @@ ThrowCompletionOr<void> Increment::execute_impl(Bytecode::Interpreter& interpret
     auto old_value = interpreter.get(dst());
 
     // OPTIMIZATION: Fast path for Int32 values.
-    if (old_value.is_int32()) {
+    if (old_value.is_int32()) [[likely]] {
         auto integer_value = old_value.as_i32();
         if (integer_value != NumericLimits<i32>::max()) [[likely]] {
             interpreter.set(dst(), Value { integer_value + 1 });
@@ -2942,7 +2942,7 @@ ThrowCompletionOr<void> PostfixIncrement::execute_impl(Bytecode::Interpreter& in
     auto old_value = interpreter.get(m_src);
 
     // OPTIMIZATION: Fast path for Int32 values.
-    if (old_value.is_int32()) {
+    if (old_value.is_int32()) [[likely]] {
         auto integer_value = old_value.as_i32();
         if (integer_value != NumericLimits<i32>::max()) [[likely]] {
             interpreter.set(m_dst, old_value);
