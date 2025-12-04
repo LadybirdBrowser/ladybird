@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2022-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -65,6 +66,12 @@ void CSSRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 {
     m_parent_style_sheet = parent_style_sheet;
     clear_caches();
+}
+
+void CSSRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    dump_indent(builder, indent_levels);
+    builder.appendff("{}:\n", class_name());
 }
 
 void CSSRule::clear_caches()

@@ -42,6 +42,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual String serialized() const override;
+    virtual void dump(StringBuilder&, int indent_levels) const override;
 
     virtual void set_parent_style_sheet(CSSStyleSheet*) override;
 

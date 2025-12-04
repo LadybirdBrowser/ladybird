@@ -44,6 +44,7 @@ private:
     virtual void visit_edges(Visitor&) override;
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
+    virtual void dump(StringBuilder&, int indent_levels) const override;
 
     CSS::Percentage m_key;
     GC::Ref<CSSStyleProperties> m_declarations;

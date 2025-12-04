@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSLayerStatementRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
+#include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
@@ -52,6 +53,15 @@ Vector<FlyString> CSSLayerStatementRule::internal_qualified_name_list(Badge<Styl
         qualified_layer_names.append(MUST(String::formatted("{}.{}", qualified_parent_layer_name, name)));
 
     return qualified_layer_names;
+}
+
+void CSSLayerStatementRule::dump(StringBuilder& builder, int indent_levels) const
+{
+    Base::dump(builder, indent_levels);
+
+    dump_indent(builder, indent_levels + 1);
+    builder.append("Names: "sv);
+    builder.join(", "sv, name_list());
 }
 
 }
