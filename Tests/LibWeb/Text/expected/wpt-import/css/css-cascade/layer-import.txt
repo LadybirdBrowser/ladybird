@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 24 tests
 
-8 Pass
-16 Fail
+10 Pass
+14 Fail
 Fail	A1 Layer rules with import
 Pass	A2 Layer rules with import
 Fail	A3 Layer rules with import
@@ -17,7 +17,7 @@ Fail	C2 Named imports
 Pass	C3 Named imports
 Pass	C4 Named imports
 Pass	C5 Named imports
-Fail	C6 Named imports
+Pass	C6 Named imports
 Fail	C7 Named imports
 Fail	C8 Named imports
 Fail	C9 Named imports
@@ -27,4 +27,4 @@ Fail	D3 Layer statement with imports
 Fail	D4 Layer statement with imports
 Fail	D5 Layer statement with imports
 Pass	D6 Layer statement with imports
-Fail	E1 Named imports establish layer even with network errors
+Pass	E1 Named imports establish layer even with network errors

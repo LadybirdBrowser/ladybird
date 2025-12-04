@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/CSSImportRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -40,6 +41,11 @@ CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> d
     , m_supports(move(supports))
     , m_media(move(media))
 {
+    if (m_layer.has_value() && m_layer->is_empty()) {
+        m_layer_internal = CSSLayerBlockRule::next_unique_anonymous_layer_name();
+    } else {
+        m_layer_internal = m_layer;
+    }
 }
 
 CSSImportRule::~CSSImportRule() = default;
@@ -238,6 +244,24 @@ Optional<String> CSSImportRule::supports_text() const
     return m_supports->to_string();
 }
 
+Optional<FlyString> CSSImportRule::internal_qualified_layer_name(Badge<StyleScope>) const
+{
+    if (!m_layer.has_value())
+        return {};
+
+    auto const& parent_name = parent_layer_internal_qualified_name();
+    if (parent_name.is_empty())
+        return m_layer_internal.value();
+    return MUST(String::formatted("{}.{}", parent_name, m_layer_internal.value()));
+}
+
+bool CSSImportRule::matches() const
+{
+    if (m_supports && !m_supports->matches())
+        return false;
+    return m_media->matches();
+}
+
 void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);
@@ -250,7 +274,7 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
 
     if (m_layer.has_value()) {
         dump_indent(builder, indent_levels + 1);
-        builder.appendff("Layer: `{}`\n", *m_layer);
+        builder.appendff("Layer: `{}` (internal: `{}`)\n", *m_layer, *m_layer_internal);
     }
 
     if (m_media->length() != 0)

@@ -38,6 +38,11 @@ public:
     Optional<FlyString> layer_name() const;
     Optional<String> supports_text() const;
 
+    bool matches() const;
+
+    Optional<FlyString> internal_layer_name() const { return m_layer_internal; }
+    Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
+
 private:
     CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, GC::Ref<MediaList>);
 
@@ -55,6 +60,7 @@ private:
     URL m_url;
     GC::Ptr<DOM::Document> m_document;
     Optional<FlyString> m_layer;
+    Optional<FlyString> m_layer_internal;
     RefPtr<Supports> m_supports;
     GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;

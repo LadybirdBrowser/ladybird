@@ -6,6 +6,7 @@
  */
 
 #include <LibCore/ReportTime.h>
+#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
@@ -323,16 +324,23 @@ void StyleScope::build_qualified_layer_names_cache()
         // because we want those children to occur before it in the list.
         sheet.for_each_effective_rule(TraversalOrder::Postorder, [&](auto& rule) {
             switch (rule.type()) {
-            case CSSRule::Type::Import:
-                // TODO: Handle `layer(foo)` in import rules once we implement that.
+            case CSSRule::Type::Import: {
+                auto& import = as<CSSImportRule>(rule);
+                // https://drafts.csswg.org/css-cascade-5/#at-import
+                // The layer is added to the layer order even if the import fails to load the stylesheet, but is
+                // subject to any import conditions (just as if declared by an @layer rule wrapped in the appropriate
+                // conditional group rules).
+                if (auto layer_name = import.internal_qualified_layer_name({}); layer_name.has_value() && import.matches())
+                    insert_layer_name(layer_name.release_value());
                 break;
+            }
             case CSSRule::Type::LayerBlock: {
-                auto& layer_block = static_cast<CSSLayerBlockRule const&>(rule);
+                auto& layer_block = as<CSSLayerBlockRule>(rule);
                 insert_layer_name(layer_block.internal_qualified_name({}));
                 break;
             }
             case CSSRule::Type::LayerStatement: {
-                auto& layer_statement = static_cast<CSSLayerStatementRule const&>(rule);
+                auto& layer_statement = as<CSSLayerStatementRule>(rule);
                 auto qualified_names = layer_statement.internal_qualified_name_list({});
                 for (auto& name : qualified_names)
                     insert_layer_name(name);
