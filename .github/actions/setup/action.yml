@@ -112,19 +112,22 @@ runs:
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils libtool llvm@20 nasm ninja pkg-config qt unzip
 
-    - name: 'Install wabt'
+    - name: 'Install wasm-tools'
       shell: bash
       run: |
+        VERSION=1.243.0
         if ${{ inputs.os == 'Linux' }} ; then
-          curl -f -L -o wabt-1.0.35.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
+          NAME="wasm-tools-$VERSION-x86_64-linux"
         else
-          curl -f -L -o wabt-1.0.35.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-macos-14.tar.gz
+          NAME="wasm-tools-$VERSION-aarch64-macos"
         fi
 
-        tar -xzf ./wabt-1.0.35.tar.gz
-        rm ./wabt-1.0.35.tar.gz
+        curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${NAME}.tar.gz"
 
-        echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
+        tar -xzf "./${NAME}.tar.gz"
+        rm "./${NAME}.tar.gz"
+
+        echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
 
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
