@@ -639,6 +639,7 @@ struct CompiledInstructions {
     Vector<Dispatch> dispatches;
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
+    size_t max_call_arg_count = 0;
 };
 
 template<Enum auto... Vs>

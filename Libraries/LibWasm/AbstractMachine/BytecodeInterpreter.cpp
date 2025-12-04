@@ -4039,6 +4039,7 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
     Outcome final_outcome = Outcome::Continue;
     {
         Optional<ScopedValueRollback<decltype(configuration.regs)>> regs_rollback;
+
         if (call_type == CallType::UsingRegisters)
             regs_rollback = ScopedValueRollback { configuration.regs };
 
@@ -4048,20 +4049,24 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
         if (source == CallAddressSource::IndirectCall || source == CallAddressSource::IndirectTailCall) {
             TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
         }
-        Vector<Value, 8> args;
-        auto param_count = type->parameters().size();
-        if (param_count) {
-            args.ensure_capacity(param_count);
-            if (call_type == CallType::UsingRegisters) {
-                args.resize_with_default_value(param_count, Value(0));
-                for (size_t i = 0; i < param_count; ++i)
-                    args[param_count - i - 1] = configuration.take_source(i, addresses.sources);
-            } else {
-                auto span = configuration.value_stack().span().slice_from_end(param_count);
-                for (auto& value : span)
-                    args.unchecked_append(value);
+        Vector<Value, ArgumentsStaticSize> args;
+        configuration.get_arguments_allocation_if_possible(args, type->parameters().size());
 
-                configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+        {
+            auto param_count = type->parameters().size();
+            if (param_count) {
+                args.ensure_capacity(param_count);
+                if (call_type == CallType::UsingRegisters) {
+                    args.resize_with_default_value(param_count, Value(0));
+                    for (size_t i = 0; i < param_count; ++i)
+                        args[param_count - i - 1] = configuration.take_source<SourceAddressMix::Any>(i, addresses.sources);
+                } else {
+                    auto span = configuration.value_stack().span().slice_from_end(param_count);
+                    for (auto& value : span)
+                        args.unchecked_append(value);
+
+                    configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+                }
             }
         }
 
@@ -4075,6 +4080,7 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
             final_outcome = Outcome::Return; // At this point we can only ever return (unless we succeed in tail-calling).
             if (prep_outcome.value().has_value()) {
                 result = prep_outcome.value()->function()(configuration, args);
+                configuration.release_arguments_allocation(args);
             } else {
                 configuration.ip() = 0;
                 return static_cast<Outcome>(0); // Continue from IP 0 in the new frame.
@@ -4082,9 +4088,10 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
         } else {
             if (instance->has<WasmFunction>()) {
                 CallFrameHandle handle { *this, configuration };
-                result = configuration.call(*this, address, move(args));
+                result = configuration.call(*this, address, args);
             } else {
-                result = configuration.call(*this, address, move(args));
+                result = configuration.call(*this, address, args);
+                configuration.release_arguments_allocation(args);
             }
         }
 
@@ -4817,10 +4824,26 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             value_alloc.set(interval->value_id, reg);
     }
 
+    size_t max_call_arg_count = 0;
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
-        auto input_ids = instr_to_input_values.get(i).value_or({});
+        if (dispatch.instruction->opcode() == Instructions::call
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_00
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_10
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_11
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_20
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_21
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_30
+            || dispatch.instruction->opcode() == Instructions::synthetic_call_31) {
 
+            auto target = dispatch.instruction->arguments().get<FunctionIndex>();
+            if (target.value() < functions.size()) {
+                auto& function = functions[target.value()];
+                max_call_arg_count = max(max_call_arg_count, function.parameters().size());
+            }
+        }
+
+        auto input_ids = instr_to_input_values.get(i).value_or({});
         for (size_t j = 0; j < input_ids.size(); ++j) {
             auto reg = value_alloc.get(input_ids[j]).value_or(Dispatch::RegisterOrStack::Stack);
             dispatch.sources[j] = reg;
@@ -4829,6 +4852,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (auto output_id = instr_to_output_value.get(i); output_id.has_value())
             dispatch.destination = value_alloc.get(*output_id).value_or(Dispatch::RegisterOrStack::Stack);
     }
+
+    result.max_call_arg_count = max_call_arg_count;
 
     if constexpr (should_try_to_use_direct_threading) {
         for (auto& dispatch : result.dispatches) {
