@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -42,5 +43,10 @@ void dump_layer_block_rule(StringBuilder&, CSS::CSSLayerBlockRule const&, int in
 void dump_layer_statement_rule(StringBuilder&, CSS::CSSLayerStatementRule const&, int indent_levels = 0);
 void dump_selector(StringBuilder&, CSS::Selector const&, int indent_levels = 0);
 void dump_selector(CSS::Selector const&);
+
+inline void dump_indent(StringBuilder& builder, int indent_levels)
+{
+    builder.append_repeated("  "sv, indent_levels);
+}
 
 }
