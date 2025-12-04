@@ -127,7 +127,7 @@ if (APPLE)
     list(APPEND SOURCES IOSurface.cpp)
 endif()
 
-ladybird_lib(LibCore core)
+ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 
