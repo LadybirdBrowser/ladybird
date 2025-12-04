@@ -22,7 +22,7 @@
 
 namespace Media {
 
-DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyBytes media_data, Core::EventLoop& main_thread_event_loop)
+DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyBytes media_data, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
 {
     auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
         auto matroska_result = Matroska::MatroskaDemuxer::from_data(media_data);
@@ -40,7 +40,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_video_tracks.ensure_capacity(all_video_tracks.size());
     supported_video_track_datas.ensure_capacity(all_video_tracks.size());
     for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop, demuxer, track);
+        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
         if (video_data_provider_result.is_error())
             continue;
         supported_video_tracks.append(track);
@@ -57,7 +57,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
     supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
     for (auto const& track : all_audio_tracks) {
-        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop, demuxer, track);
+        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
         if (audio_data_provider_result.is_error())
             continue;
         auto audio_data_provider = audio_data_provider_result.release_value();
@@ -79,7 +79,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
 
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
 
-    main_thread_event_loop.deferred_invoke([playback_manager = NonnullRefPtr { *this }, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
+    auto main_thread_event_loop = main_thread_event_loop_reference->take();
+    main_thread_event_loop->deferred_invoke([playback_manager = NonnullRefPtr { *this }, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
         playback_manager->m_video_tracks.extend(move(video_tracks));
         playback_manager->m_video_track_datas.extend(move(video_track_datas));
         playback_manager->m_audio_tracks.extend(move(audio_tracks));
@@ -134,10 +135,11 @@ PlaybackManager::~PlaybackManager()
 
 void PlaybackManager::add_media_source(ReadonlyBytes media_data)
 {
-    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, media_data, &main_thread_event_loop = Core::EventLoop::current()] -> int {
-        auto maybe_error = playback_manager->prepare_playback_from_media_data(media_data, main_thread_event_loop);
+    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, media_data, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
+        auto main_thread_event_loop = main_thread_event_loop_reference->take();
+        auto maybe_error = playback_manager->prepare_playback_from_media_data(media_data, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
-            main_thread_event_loop.deferred_invoke([playback_manager, error = maybe_error.release_error()] mutable {
+            main_thread_event_loop->deferred_invoke([playback_manager, error = maybe_error.release_error()] mutable {
                 if (playback_manager->on_unsupported_format_error)
                     playback_manager->on_unsupported_format_error(move(error));
             });

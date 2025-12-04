@@ -34,7 +34,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using SeekCompletionHandler = Function<void()>;
 
-    static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track);
+    static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, Track const& track);
     AudioDataProvider(NonnullRefPtr<ThreadData> const&);
     ~AudioDataProvider();
 
@@ -49,7 +49,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -59,11 +59,15 @@ private:
 
         void wait_for_start();
         bool should_thread_exit() const;
+        template<typename Invokee>
+        void invoke_on_main_thread_while_locked(Invokee);
+        template<typename Invokee>
+        void invoke_on_main_thread(Invokee);
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
-        template<typename T>
-        void process_seek_on_main_thread(u32 seek_id, T&&);
+        template<typename Callback>
+        void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id);
         void push_data_and_decode_a_block();
 
@@ -82,7 +86,7 @@ private:
             Exit,
         };
 
-        Core::EventLoop& m_main_thread_event_loop;
+        NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
 
         mutable Threading::Mutex m_mutex;
         mutable Threading::ConditionVariable m_wait_condition { m_mutex };

@@ -129,7 +129,7 @@ private:
     VideoTrackData& get_video_data_for_track(Track const& track);
     AudioTrackData& get_audio_data_for_track(Track const& track);
 
-    DecoderErrorOr<void> prepare_playback_from_media_data(ReadonlyBytes media_data, Core::EventLoop& main_thread_event_loop);
+    DecoderErrorOr<void> prepare_playback_from_media_data(ReadonlyBytes media_data, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
 
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);
