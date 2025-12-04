@@ -203,7 +203,7 @@ public:
 
     // 5.2.3.2 Throw an Exception, https://tc39.es/ecma262/#sec-throw-an-exception
     template<typename T, typename... Args>
-    Completion throw_completion(Args&&... args)
+    COLD Completion throw_completion(Args&&... args)
     {
         auto& realm = *current_realm();
         auto completion = T::create(realm, forward<Args>(args)...);
@@ -212,13 +212,13 @@ public:
     }
 
     template<typename T>
-    Completion throw_completion(ErrorType const& type)
+    COLD Completion throw_completion(ErrorType const& type)
     {
         return throw_completion<T>(type.message());
     }
 
     template<typename T, typename... Args>
-    Completion throw_completion(ErrorType const& type, Args&&... args)
+    COLD Completion throw_completion(ErrorType const& type, Args&&... args)
     {
         return throw_completion<T>(Utf16String::formatted(type.format(), forward<Args>(args)...));
     }
