@@ -1524,26 +1524,6 @@ inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& nam
     return as<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
 }
 
-inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> const& lhs_name, ReadonlySpan<Value> element_keys)
-{
-    auto& interpreter = vm.bytecode_interpreter();
-
-    // NOTE: NewClass expects classEnv to be active lexical environment
-    auto* class_environment = vm.lexical_environment();
-    vm.running_execution_context().lexical_environment = vm.running_execution_context().rare_data()->saved_lexical_environments.take_last();
-
-    Optional<Utf16FlyString> binding_name;
-    Utf16FlyString class_name;
-    if (!class_expression.has_name() && lhs_name.has_value()) {
-        class_name = interpreter.get_identifier(lhs_name.value());
-    } else {
-        class_name = class_expression.name();
-        binding_name = class_name;
-    }
-
-    return TRY(class_expression.create_class_constructor(vm, class_environment, vm.lexical_environment(), super_class, element_keys, binding_name, class_name));
-}
-
 inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterator)
 {
     auto& iterator_record = static_cast<IteratorRecord&>(iterator.as_cell());
@@ -3255,13 +3235,30 @@ ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interprete
     if (m_super_class.has_value())
         super_class = interpreter.get(m_super_class.value());
     Vector<Value> element_keys;
+    element_keys.ensure_capacity(m_element_keys_count);
     for (size_t i = 0; i < m_element_keys_count; ++i) {
         Value element_key;
         if (m_element_keys[i].has_value())
             element_key = interpreter.get(m_element_keys[i].value());
-        element_keys.append(element_key);
+        element_keys.unchecked_append(element_key);
     }
-    interpreter.set(dst(), TRY(new_class(interpreter.vm(), super_class, m_class_expression, m_lhs_name, element_keys)));
+
+    // NOTE: NewClass expects classEnv to be active lexical environment
+    auto& running_execution_context = interpreter.running_execution_context();
+    auto class_environment = running_execution_context.lexical_environment;
+    running_execution_context.lexical_environment = running_execution_context.rare_data()->saved_lexical_environments.take_last();
+
+    Optional<Utf16FlyString> binding_name;
+    Utf16FlyString class_name;
+    if (!m_class_expression.has_name() && m_lhs_name.has_value()) {
+        class_name = interpreter.get_identifier(m_lhs_name.value());
+    } else {
+        class_name = m_class_expression.name();
+        binding_name = class_name;
+    }
+
+    auto retval = TRY(m_class_expression.create_class_constructor(interpreter.vm(), class_environment, running_execution_context.lexical_environment, super_class, element_keys, binding_name, class_name));
+    interpreter.set(dst(), retval);
     return {};
 }
 
