@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 13 tests
 
-13 Fail
-Fail	@import url("nonexist.css") layer; should be a valid layered import rule
-Fail	@import url("nonexist.css") layer(A); should be a valid layered import rule
-Fail	@import url("nonexist.css") layer(A.B); should be a valid layered import rule
-Fail	@import url(nonexist.css) layer; should be a valid layered import rule
-Fail	@import url(nonexist.css) layer(A); should be a valid layered import rule
-Fail	@import url(nonexist.css) layer(A.B); should be a valid layered import rule
-Fail	@import "nonexist.css" layer; should be a valid layered import rule
-Fail	@import "nonexist.css" layer(A); should be a valid layered import rule
-Fail	@import "nonexist.css" layer(A.B); should be a valid layered import rule
-Fail	@import url("nonexist.css") layer(); should still be a valid import rule with an invalid layer declaration
-Fail	@import url("nonexist.css") layer(A B); should still be a valid import rule with an invalid layer declaration
-Fail	@import url("nonexist.css") layer(A . B); should still be a valid import rule with an invalid layer declaration
-Fail	@import url("nonexist.css") layer(A, B, C); should still be a valid import rule with an invalid layer declaration
+13 Pass
+Pass	@import url("nonexist.css") layer; should be a valid layered import rule
+Pass	@import url("nonexist.css") layer(A); should be a valid layered import rule
+Pass	@import url("nonexist.css") layer(A.B); should be a valid layered import rule
+Pass	@import url(nonexist.css) layer; should be a valid layered import rule
+Pass	@import url(nonexist.css) layer(A); should be a valid layered import rule
+Pass	@import url(nonexist.css) layer(A.B); should be a valid layered import rule
+Pass	@import "nonexist.css" layer; should be a valid layered import rule
+Pass	@import "nonexist.css" layer(A); should be a valid layered import rule
+Pass	@import "nonexist.css" layer(A.B); should be a valid layered import rule
+Pass	@import url("nonexist.css") layer(); should still be a valid import rule with an invalid layer declaration
+Pass	@import url("nonexist.css") layer(A B); should still be a valid import rule with an invalid layer declaration
+Pass	@import url("nonexist.css") layer(A . B); should still be a valid import rule with an invalid layer declaration
+Pass	@import url("nonexist.css") layer(A, B, C); should still be a valid import rule with an invalid layer declaration
