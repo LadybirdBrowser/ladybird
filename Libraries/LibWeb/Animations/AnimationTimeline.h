@@ -17,9 +17,9 @@ class AnimationTimeline : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
-    Optional<double> current_time_for_bindings() const
+    NullableCSSNumberish current_time_for_bindings() const
     {
-        return current_time().map([](auto const& current_time) { return current_time.as_milliseconds(); });
+        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
     }
     Optional<TimeValue> current_time() const;
 

@@ -77,13 +77,6 @@ struct TimeValue {
         return type == other.type && value == other.value;
     }
 
-    // FIXME: This method is temporary as we migrate all CSS timing to use TimeValue.
-    double as_milliseconds() const
-    {
-        VERIFY(type == Type::Milliseconds);
-        return value;
-    }
-
     CSS::CSSNumberish as_css_numberish() const
     {
         switch (type) {
