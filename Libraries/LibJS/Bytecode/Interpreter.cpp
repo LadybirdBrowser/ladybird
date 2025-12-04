@@ -2750,7 +2750,7 @@ ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpr
 {
     auto callee = interpreter.get(m_callee);
 
-    if (m_argument_count == Bytecode::builtin_argument_count(m_builtin) && callee.is_object() && interpreter.realm().get_builtin_value(m_builtin) == &callee.as_object()) {
+    if (callee.is_object() && interpreter.realm().get_builtin_value(m_builtin) == &callee.as_object()) [[likely]] {
         interpreter.set(dst(), TRY(dispatch_builtin_call(interpreter, m_builtin, { m_arguments, m_argument_count })));
         return {};
     }
