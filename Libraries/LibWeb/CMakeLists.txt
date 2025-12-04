@@ -592,6 +592,8 @@ set(SOURCES
     HTML/NavigationTransition.cpp
     HTML/Navigator.cpp
     HTML/NavigatorBeacon.cpp
+    HTML/NavigatorConcurrentHardware.cpp
+    HTML/NavigatorDeviceMemory.cpp
     HTML/NavigatorID.cpp
     HTML/Numbers.cpp
     HTML/OffscreenCanvas.cpp

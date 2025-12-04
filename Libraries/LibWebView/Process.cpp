@@ -8,7 +8,9 @@
 #include <LibCore/Process.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibWebView/Process.h>
+
 #if defined(AK_OS_WINDOWS)
 #    include <AK/ScopeGuard.h>
 #    include <AK/Windows.h>

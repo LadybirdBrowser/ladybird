@@ -11,6 +11,7 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 
 namespace TestWeb {
 

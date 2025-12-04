@@ -9,6 +9,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
+#include <LibCore/System.h>
 #include <LibGC/Function.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
