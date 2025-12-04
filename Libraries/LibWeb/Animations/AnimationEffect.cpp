@@ -66,7 +66,11 @@ OptionalEffectTiming EffectTiming::to_optional_effect_timing() const
         .fill = fill,
         .iteration_start = iteration_start,
         .iterations = iterations,
-        .duration = duration,
+        .duration = duration.visit(
+            [](double const& value) -> Variant<double, String> { return value; },
+            [](String const& value) -> Variant<double, String> { return value; },
+            // NB: We check that this isn't the case in the caller
+            [](GC::Root<CSS::CSSNumericValue> const&) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
         .direction = direction,
         .easing = easing,
     };
@@ -104,7 +108,7 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
     //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
     //       percentage when the effect is associated with a progress-based timeline.
-    auto duration = m_iteration_duration.as_milliseconds();
+    auto duration = m_iteration_duration.as_css_numberish();
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
@@ -125,9 +129,9 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .easing = m_timing_function.to_string(),
         },
 
-        end_time().as_milliseconds(),
-        active_duration().as_milliseconds(),
-        local_time().map([](auto const& time) { return time.as_milliseconds(); }),
+        end_time().as_css_numberish(),
+        active_duration().as_css_numberish(),
+        NullableCSSNumberish::from_optional_css_numberish_time(local_time()),
         transformed_progress(),
         current_iteration(),
     };
