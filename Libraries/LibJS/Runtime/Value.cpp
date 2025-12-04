@@ -1366,10 +1366,6 @@ ThrowCompletionOr<bool> greater_than(VM& vm, Value lhs, Value rhs)
     // 4. Let rval be ? GetValue(rref).
     // NOTE: This is handled in the AST or Bytecode interpreter.
 
-    // OPTIMIZATION: If both values are i32, we can do a direct comparison without calling into IsLessThan.
-    if (lhs.is_int32() && rhs.is_int32())
-        return lhs.as_i32() > rhs.as_i32();
-
     // 5. Let r be ? IsLessThan(rval, lval, false).
     auto relation = TRY(is_less_than(vm, lhs, rhs, false));
 
@@ -1388,10 +1384,6 @@ ThrowCompletionOr<bool> greater_than_equals(VM& vm, Value lhs, Value rhs)
     // 3. Let rref be ? Evaluation of ShiftExpression.
     // 4. Let rval be ? GetValue(rref).
     // NOTE: This is handled in the AST or Bytecode interpreter.
-
-    // OPTIMIZATION: If both values are i32, we can do a direct comparison without calling into IsLessThan.
-    if (lhs.is_int32() && rhs.is_int32())
-        return lhs.as_i32() >= rhs.as_i32();
 
     // 5. Let r be ? IsLessThan(lval, rval, true).
     auto relation = TRY(is_less_than(vm, lhs, rhs, true));
@@ -1412,10 +1404,6 @@ ThrowCompletionOr<bool> less_than(VM& vm, Value lhs, Value rhs)
     // 4. Let rval be ? GetValue(rref).
     // NOTE: This is handled in the AST or Bytecode interpreter.
 
-    // OPTIMIZATION: If both values are i32, we can do a direct comparison without calling into IsLessThan.
-    if (lhs.is_int32() && rhs.is_int32())
-        return lhs.as_i32() < rhs.as_i32();
-
     // 5. Let r be ? IsLessThan(lval, rval, true).
     auto relation = TRY(is_less_than(vm, lhs, rhs, true));
 
@@ -1435,10 +1423,6 @@ ThrowCompletionOr<bool> less_than_equals(VM& vm, Value lhs, Value rhs)
     // 4. Let rval be ? GetValue(rref).
     // NOTE: This is handled in the AST or Bytecode interpreter.
 
-    // OPTIMIZATION: If both values are i32, we can do a direct comparison without calling into IsLessThan.
-    if (lhs.is_int32() && rhs.is_int32())
-        return lhs.as_i32() <= rhs.as_i32();
-
     // 5. Let r be ? IsLessThan(rval, lval, false).
     auto relation = TRY(is_less_than(vm, lhs, rhs, false));
 
@@ -1452,10 +1436,6 @@ ThrowCompletionOr<bool> less_than_equals(VM& vm, Value lhs, Value rhs)
 // BitwiseANDExpression : BitwiseANDExpression & EqualityExpression
 ThrowCompletionOr<Value> bitwise_and(VM& vm, Value lhs, Value rhs)
 {
-    // OPTIMIZATION: Fast path when both values are Int32.
-    if (lhs.is_int32() && rhs.is_int32())
-        return Value(lhs.as_i32() & rhs.as_i32());
-
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
     // 1-2, 6. N/A.
 
@@ -1489,10 +1469,6 @@ ThrowCompletionOr<Value> bitwise_and(VM& vm, Value lhs, Value rhs)
 // BitwiseORExpression : BitwiseORExpression | BitwiseXORExpression
 ThrowCompletionOr<Value> bitwise_or(VM& vm, Value lhs, Value rhs)
 {
-    // OPTIMIZATION: Fast path when both values are Int32.
-    if (lhs.is_int32() && rhs.is_int32())
-        return Value(lhs.as_i32() | rhs.as_i32());
-
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
     // 1-2, 6. N/A.
 
@@ -1530,10 +1506,6 @@ ThrowCompletionOr<Value> bitwise_or(VM& vm, Value lhs, Value rhs)
 // BitwiseXORExpression : BitwiseXORExpression ^ BitwiseANDExpression
 ThrowCompletionOr<Value> bitwise_xor(VM& vm, Value lhs, Value rhs)
 {
-    // OPTIMIZATION: Fast path when both values are Int32.
-    if (lhs.is_int32() && rhs.is_int32())
-        return Value(lhs.as_i32() ^ rhs.as_i32());
-
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
     // 1-2, 6. N/A.
 
@@ -1826,18 +1798,6 @@ ThrowCompletionOr<Value> add(VM& vm, Value lhs, Value rhs)
 
     // 1. If opText is +, then
 
-    // OPTIMIZATION: If both values are i32 or double, we can do a direct addition without the type conversions below.
-    if (both_number(lhs, rhs)) {
-        if (lhs.is_int32() && rhs.is_int32()) {
-            Checked<i32> result;
-            result = MUST(lhs.to_i32(vm));
-            result += MUST(rhs.to_i32(vm));
-            if (!result.has_overflow())
-                return Value(result.value());
-        }
-        return Value(lhs.as_double() + rhs.as_double());
-    }
-
     // a. Let lprim be ? ToPrimitive(lval).
     auto lhs_primitive = TRY(lhs.to_primitive(vm));
 
@@ -1928,14 +1888,6 @@ ThrowCompletionOr<Value> sub(VM& vm, Value lhs, Value rhs)
 // MultiplicativeExpression : MultiplicativeExpression MultiplicativeOperator ExponentiationExpression
 ThrowCompletionOr<Value> mul(VM& vm, Value lhs, Value rhs)
 {
-    // OPTIMIZATION: Fast path for multiplication of two Int32 values.
-    if (lhs.is_int32() && rhs.is_int32()) {
-        Checked<i32> result = lhs.as_i32();
-        result *= rhs.as_i32();
-        if (!result.has_overflow())
-            return result.value();
-    }
-
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
     // 1-2, 6. N/A.
 
