@@ -44,16 +44,17 @@ GC::Ref<JS::Realm> internal_css_realm()
     return *realm;
 }
 
-GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, Vector<NonnullRefPtr<CSS::MediaQuery>> media_query_list)
+GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
 {
     if (css.is_empty()) {
         auto rule_list = CSS::CSSRuleList::create(*context.realm);
-        auto media_list = CSS::MediaList::create(*context.realm, {});
-        auto style_sheet = CSS::CSSStyleSheet::create(*context.realm, rule_list, media_list, location);
+        if (!media_list)
+            media_list = CSS::MediaList::create(*context.realm, {});
+        auto style_sheet = CSS::CSSStyleSheet::create(*context.realm, rule_list, *media_list, location);
         style_sheet->set_source_text({});
         return style_sheet;
     }
-    auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_query_list));
+    auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_list));
     // FIXME: Avoid this copy
     style_sheet->set_source_text(MUST(String::from_utf8(css)));
     return style_sheet;

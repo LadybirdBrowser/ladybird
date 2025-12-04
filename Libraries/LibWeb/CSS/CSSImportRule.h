@@ -23,7 +23,7 @@ class WEB_API CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule();
 
@@ -32,14 +32,14 @@ public:
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
-    GC::Ptr<MediaList> media() const;
+    GC::Ref<MediaList> media() const;
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
 
     Optional<FlyString> layer_name() const;
     Optional<String> supports_text() const;
 
 private:
-    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, Vector<NonnullRefPtr<MediaQuery>>);
+    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -56,7 +56,7 @@ private:
     GC::Ptr<DOM::Document> m_document;
     Optional<FlyString> m_layer;
     RefPtr<Supports> m_supports;
-    Vector<NonnullRefPtr<MediaQuery>> m_media_query_list;
+    GC::Ref<MediaList> m_media;
     GC::Ptr<CSSStyleSheet> m_style_sheet;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 };

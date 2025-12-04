@@ -27,18 +27,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
 {
-    return realm.create<CSSImportRule>(realm, move(url), document, move(layer), move(supports), move(media_query_list));
+    return realm.create<CSSImportRule>(realm, move(url), document, move(layer), move(supports), move(media));
 }
 
-CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, Vector<NonnullRefPtr<MediaQuery>> media_query_list)
+CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
     : CSSRule(realm, Type::Import)
     , m_url(move(url))
     , m_document(document)
     , m_layer(move(layer))
     , m_supports(move(supports))
-    , m_media_query_list(move(media_query_list))
+    , m_media(move(media))
 {
 }
 
@@ -54,6 +54,7 @@ void CSSImportRule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_media);
     visitor.visit(m_style_sheet);
 }
 
@@ -102,8 +103,8 @@ String CSSImportRule::serialized() const
         builder.appendff(" supports({})", m_supports->to_string());
 
     // 3. If the rule’s associated media list is not empty, a single SPACE (U+0020) followed by the result of performing serialize a media query list on the media list.
-    if (!m_media_query_list.is_empty())
-        builder.appendff(" {}", serialize_a_media_query_list(m_media_query_list));
+    if (m_media->length() != 0)
+        builder.appendff(" {}", m_media->media_text());
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
     builder.append(';');
@@ -181,7 +182,7 @@ void CSSImportRule::fetch()
             }
             auto decoded = decoded_or_error.release_value();
 
-            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, parsed_url, strong_this->m_media_query_list);
+            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, parsed_url, strong_this->m_media);
 
             // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
             imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
@@ -209,12 +210,12 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-media
-GC::Ptr<MediaList> CSSImportRule::media() const
+GC::Ref<MediaList> CSSImportRule::media() const
 {
     // The media attribute must return the value of the media attribute of the associated CSS style sheet.
-    if (!m_style_sheet)
-        return nullptr;
-    return m_style_sheet->media();
+    // AD-HOC: Return our own MediaList.
+    //         https://github.com/w3c/csswg-drafts/issues/12063
+    return m_media;
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-layername
@@ -252,8 +253,8 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
         builder.appendff("Layer: `{}`\n", *m_layer);
     }
 
-    if (auto media_list = media())
-        media_list->dump(builder, indent_levels + 1);
+    if (m_media->length() != 0)
+        m_media->dump(builder, indent_levels + 1);
 
     if (m_supports)
         m_supports->dump(builder, indent_levels + 1);
