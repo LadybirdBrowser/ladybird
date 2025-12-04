@@ -451,7 +451,7 @@ public:
 
     using BaseTree = BaseRedBlackTree<K>;
 
-    [[nodiscard]] V* find(K key)
+    [[nodiscard]] V* find(K key) const
     {
         auto* node = static_cast<Node*>(BaseTree::find(this->m_root, key));
         if (!node)
@@ -459,7 +459,7 @@ public:
         return &node->value;
     }
 
-    [[nodiscard]] V* find_largest_not_above(K key)
+    [[nodiscard]] V* find_largest_not_above(K key) const
     {
         auto* node = static_cast<Node*>(BaseTree::find_largest_not_above(this->m_root, key));
         if (!node)
@@ -467,7 +467,7 @@ public:
         return &node->value;
     }
 
-    [[nodiscard]] V* find_smallest_not_below(K key)
+    [[nodiscard]] V* find_smallest_not_below(K key) const
     {
         auto* node = static_cast<Node*>(BaseTree::find_smallest_not_below(this->m_root, key));
         if (!node)
