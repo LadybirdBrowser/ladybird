@@ -702,14 +702,14 @@ void dump_sheet(CSS::StyleSheet const& sheet)
     dbgln("{}", builder.string_view());
 }
 
-void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet)
+void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet, int indent_levels)
 {
+    dump_indent(builder, indent_levels);
     auto& css_stylesheet = as<CSS::CSSStyleSheet>(sheet);
-
     builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, css_stylesheet.rules().length());
 
     for (auto& rule : css_stylesheet.rules())
-        dump_rule(builder, rule);
+        dump_rule(builder, rule, indent_levels + 1);
 }
 
 void dump_tree(Painting::Paintable const& paintable)
