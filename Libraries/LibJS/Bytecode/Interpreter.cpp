@@ -1439,7 +1439,6 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
     auto& vm = interpreter.vm();
 
     Value callee = js_undefined();
-    Value this_value = js_undefined();
 
     if (cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
@@ -1447,8 +1446,8 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
             environment = environment->outer_environment();
         if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
-            this_value = js_undefined();
-            if (auto base_object = environment->with_base_object())
+            auto this_value = js_undefined();
+            if (auto base_object = environment->with_base_object()) [[unlikely]]
                 this_value = base_object;
             return CalleeAndThis {
                 .callee = callee,
@@ -1464,11 +1463,12 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
 
     callee = TRY(reference.get_value(vm));
 
+    Value this_value;
     if (reference.is_property_reference()) {
         this_value = reference.get_this_value();
     } else {
         if (reference.is_environment_reference()) {
-            if (auto base_object = reference.base_environment().with_base_object(); base_object != nullptr)
+            if (auto base_object = reference.base_environment().with_base_object()) [[unlikely]]
                 this_value = base_object;
         }
     }
