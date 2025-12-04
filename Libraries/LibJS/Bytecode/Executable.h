@@ -123,7 +123,7 @@ public:
         return get_identifier(*index);
     }
 
-    [[nodiscard]] Optional<ExceptionHandlers const&> exception_handlers_for_offset(size_t offset) const;
+    [[nodiscard]] COLD Optional<ExceptionHandlers const&> exception_handlers_for_offset(size_t offset) const;
 
     [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
 
