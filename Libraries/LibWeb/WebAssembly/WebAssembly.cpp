@@ -253,7 +253,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
                     // 3.4.1. If IsCallable(v) is false, throw a LinkError exception.
                     if (!import_.is_function())
-                        return vm.throw_completion<LinkError>(JS::ErrorType::NotAFunction, import_);
+                        return vm.throw_completion<LinkError>(JS::ErrorType::IsNotAEvaluatedFrom, import_, "function"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import_name.name)));
                     auto& function = import_.as_function();
 
                     // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
