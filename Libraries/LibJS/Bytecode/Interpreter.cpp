@@ -440,18 +440,6 @@ void Interpreter::run_bytecode(size_t entry_point)
             goto start;
         }
 
-        handle_IsCallable: {
-            auto& instruction = *reinterpret_cast<Op::IsCallable const*>(&bytecode[program_counter]);
-            set(instruction.dst(), Value(get(instruction.value()).is_function()));
-            DISPATCH_NEXT(IsCallable);
-        }
-
-        handle_IsConstructor: {
-            auto& instruction = *reinterpret_cast<Op::IsConstructor const*>(&bytecode[program_counter]);
-            set(instruction.dst(), Value(get(instruction.value()).is_constructor()));
-            DISPATCH_NEXT(IsConstructor);
-        }
-
 #define HANDLE_INSTRUCTION(name)                                                                                            \
     handle_##name:                                                                                                          \
     {                                                                                                                       \
@@ -538,6 +526,8 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(InitializeLexicalBinding);
             HANDLE_INSTRUCTION(InitializeVariableBinding);
             HANDLE_INSTRUCTION(InstanceOf);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(IsCallable);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(IsConstructor);
             HANDLE_INSTRUCTION(IteratorClose);
             HANDLE_INSTRUCTION(IteratorNext);
             HANDLE_INSTRUCTION(IteratorNextUnpack);
@@ -3365,6 +3355,16 @@ ThrowCompletionOr<void> CreateDataPropertyOrThrow::execute_impl(Bytecode::Interp
     auto value = interpreter.get(m_value);
     TRY(object.create_data_property_or_throw(property, value));
     return {};
+}
+
+void IsCallable::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(dst(), Value(interpreter.get(value()).is_function()));
+}
+
+void IsConstructor::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    interpreter.set(dst(), Value(interpreter.get(value()).is_constructor()));
 }
 
 }
