@@ -21,7 +21,7 @@ WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool show_cascaded_p
 WEB_API void dump_tree(Layout::Node const&, bool show_cascaded_properties = false);
 WEB_API void dump_tree(StringBuilder&, Painting::Paintable const&, bool colorize = false, int indent = 0);
 WEB_API void dump_tree(Painting::Paintable const&);
-void dump_sheet(StringBuilder&, CSS::StyleSheet const&);
+void dump_sheet(StringBuilder&, CSS::StyleSheet const&, int indent_levels = 0);
 WEB_API void dump_sheet(CSS::StyleSheet const&);
 void dump_rule(StringBuilder&, CSS::CSSRule const&, int indent_levels = 0);
 void dump_rule(CSS::CSSRule const&);
