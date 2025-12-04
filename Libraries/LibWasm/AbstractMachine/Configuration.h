@@ -130,30 +130,67 @@ public:
         }
     }
 
+    template<SourceAddressMix mix>
     ALWAYS_INLINE FLATTEN void push_to_destination(Value value, Dispatch::RegisterOrStack destination)
     {
-        if (destination == Dispatch::RegisterOrStack::Stack) {
-            value_stack().unchecked_append(value);
+        if constexpr (mix == SourceAddressMix::AllRegisters) {
+            regs.data()[to_underlying(destination)] = value;
             return;
+        } else if constexpr (mix == SourceAddressMix::Any) {
+            if (!(destination & ~(Dispatch::Stack - 1))) [[likely]] {
+                regs.data()[to_underlying(destination)] = value;
+                return;
+            }
         }
-        regs.data()[to_underlying(destination)] = value;
+
+        if constexpr (mix == SourceAddressMix::Any) {
+            if (destination == Dispatch::RegisterOrStack::Stack) [[unlikely]] {
+                value_stack().unchecked_append(value);
+                return;
+            }
+        }
+
+        VERIFY_NOT_REACHED();
     }
 
+    template<SourceAddressMix mix>
     ALWAYS_INLINE FLATTEN Value& source_value(u8 index, Dispatch::RegisterOrStack const* sources)
     {
         // Note: The last source in a dispatch *must* be equal to the destination for this to be valid.
         auto const source = sources[index];
-        if (source == Dispatch::RegisterOrStack::Stack)
-            return value_stack().unsafe_last();
-        return regs.data()[to_underlying(source)];
+
+        if constexpr (mix == SourceAddressMix::AllRegisters) {
+            return regs.data()[to_underlying(source)];
+        } else if constexpr (mix == SourceAddressMix::Any) {
+            if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
+                return regs.data()[to_underlying(source)];
+        }
+
+        if constexpr (mix == SourceAddressMix::Any) {
+            if (source == Dispatch::RegisterOrStack::Stack) [[unlikely]]
+                return value_stack().unsafe_last();
+        }
+
+        VERIFY_NOT_REACHED();
     }
 
+    template<SourceAddressMix mix>
     ALWAYS_INLINE FLATTEN Value take_source(u8 index, Dispatch::RegisterOrStack const* sources)
     {
         auto const source = sources[index];
-        if (source == Dispatch::RegisterOrStack::Stack)
-            return value_stack().unsafe_take_last();
-        return regs.data()[to_underlying(source)];
+        if constexpr (mix == SourceAddressMix::AllRegisters) {
+            return regs.data()[to_underlying(source)];
+        } else if constexpr (mix == SourceAddressMix::Any) {
+            if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
+                return regs.data()[to_underlying(source)];
+        }
+
+        if constexpr (mix == SourceAddressMix::Any) {
+            if (source == Dispatch::RegisterOrStack::Stack) [[unlikely]]
+                return value_stack().unsafe_take_last();
+        }
+
+        VERIFY_NOT_REACHED();
     }
 
     Array<Value, Dispatch::RegisterOrStack::CountRegisters> regs = {
