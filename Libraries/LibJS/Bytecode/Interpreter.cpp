@@ -1505,7 +1505,7 @@ inline ThrowCompletionOr<void> create_variable(VM& vm, Utf16FlyString const& nam
 
         // Note: This is papering over an issue where "FunctionDeclarationInstantiation" creates these bindings for us.
         //       Instead of crashing in there, we'll just raise an exception here.
-        if (TRY(vm.lexical_environment()->has_binding(name)))
+        if (TRY(vm.lexical_environment()->has_binding(name))) [[unlikely]]
             return vm.throw_completion<InternalError>(TRY_OR_THROW_OOM(vm, String::formatted("Lexical environment already has binding '{}'", name)));
 
         if (is_immutable)
