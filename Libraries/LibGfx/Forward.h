@@ -17,6 +17,7 @@ class Emoji;
 class Font;
 class GlyphRun;
 class ImageDecoder;
+class ImageDecoderStream;
 struct FontPixelMetrics;
 
 class Painter;

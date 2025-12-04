@@ -29,6 +29,7 @@ set(SOURCES
     ImageFormats/GIFLoader.cpp
     ImageFormats/ICOLoader.cpp
     ImageFormats/ImageDecoder.cpp
+    ImageFormats/ImageDecoderStream.cpp
     ImageFormats/JPEGLoader.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/JPEGXLLoader.cpp
@@ -82,6 +83,7 @@ endif()
 
 ladybird_lib(LibGfx gfx)
 
+target_link_libraries(LibGfx PUBLIC LibThreading)
 target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)
 
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
