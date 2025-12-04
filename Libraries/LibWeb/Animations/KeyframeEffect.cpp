@@ -705,6 +705,14 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
         timing_input.duration = options.get<double>();
     }
 
+    // https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
+    // Note: In this version of the spec, duration is not settable as a CSSNumericValue; however, duration may be
+    //       returned as a CSSNumericValue when resolving the duration in getComputedTiming(). Future versions of
+    //       the spec may enable setting the duration as a CSSNumeric value, where the unit is a valid time unit or
+    //       percent.
+    if (timing_input.duration.has<GC::Root<CSS::CSSNumericValue>>())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"sv };
+
     // 5. Call the procedure to update the timing properties of an animation effect of effect from timing input.
     //    If that procedure causes an exception to be thrown, propagate the exception and abort this procedure.
     TRY(effect->update_timing(timing_input.to_optional_effect_timing()));

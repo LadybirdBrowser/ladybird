@@ -31,13 +31,14 @@ struct OptionalEffectTiming {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-effecttiming-dictionaries
+// https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
 struct EffectTiming {
     double delay { 0 };
     double end_delay { 0 };
     Bindings::FillMode fill { Bindings::FillMode::Auto };
     double iteration_start { 0.0 };
     double iterations { 1.0 };
-    Variant<double, String> duration { "auto"_string };
+    FlattenVariant<CSS::CSSNumberish, Variant<String>> duration { "auto"_string };
     Bindings::PlaybackDirection direction { Bindings::PlaybackDirection::Normal };
     String easing { "linear"_string };
 
@@ -45,10 +46,11 @@ struct EffectTiming {
 };
 
 // https://www.w3.org/TR/web-animations-1/#the-computedeffecttiming-dictionary
+// https://drafts.csswg.org/web-animations-2/#the-computedeffecttiming-dictionary
 struct ComputedEffectTiming : public EffectTiming {
-    double end_time;
-    double active_duration;
-    Optional<double> local_time;
+    CSS::CSSNumberish end_time;
+    CSS::CSSNumberish active_duration;
+    NullableCSSNumberish local_time;
     Optional<double> progress;
     Optional<double> current_iteration;
 };
