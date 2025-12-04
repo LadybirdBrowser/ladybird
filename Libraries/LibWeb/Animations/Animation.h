@@ -42,20 +42,20 @@ public:
     void set_timeline(GC::Ptr<AnimationTimeline>);
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
-    Optional<double> start_time_for_bindings() const
+    NullableCSSNumberish start_time_for_bindings() const
     {
-        return start_time().map([](auto const& start_time) { return start_time.as_milliseconds(); });
+        return NullableCSSNumberish::from_optional_css_numberish_time(start_time());
     }
     Optional<TimeValue> start_time() const { return m_start_time; }
-    void set_start_time_for_bindings(Optional<double> const&);
+    WebIDL::ExceptionOr<void> set_start_time_for_bindings(Optional<CSS::CSSNumberish> const&);
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
-    Optional<double> current_time_for_bindings() const
+    NullableCSSNumberish current_time_for_bindings() const
     {
-        return current_time().map([](auto const& current_time) { return current_time.as_milliseconds(); });
+        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
     }
     Optional<TimeValue> current_time() const;
-    WebIDL::ExceptionOr<void> set_current_time_for_bindings(Optional<double> const&);
+    WebIDL::ExceptionOr<void> set_current_time_for_bindings(Optional<CSS::CSSNumberish> const&);
 
     double playback_rate() const { return m_playback_rate; }
     WebIDL::ExceptionOr<void> set_playback_rate(double value);
@@ -154,6 +154,8 @@ private:
     };
 
     double effective_playback_rate() const;
+
+    WebIDL::ExceptionOr<Optional<TimeValue>> validate_a_css_numberish_time(Optional<CSS::CSSNumberish> const&) const;
 
     void apply_any_pending_playback_rate();
     WebIDL::ExceptionOr<void> silently_set_current_time(Optional<TimeValue>);
