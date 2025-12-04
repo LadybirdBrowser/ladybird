@@ -17,7 +17,7 @@ class NavigationTransition : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(NavigationTransition);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationTransition> create(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise>);
+    [[nodiscard]] static GC::Ref<NavigationTransition> create(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-navigationtype
     Bindings::NavigationType navigation_type() const
@@ -40,6 +40,13 @@ public:
         return m_destination;
     }
 
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-committed
+    GC::Ref<WebIDL::Promise> committed() const
+    {
+        // The committed getter steps are to return this's committed promise.
+        return m_committed_promise;
+    }
+
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-finished
     GC::Ref<WebIDL::Promise> finished() const
     {
@@ -50,7 +57,7 @@ public:
     virtual ~NavigationTransition() override;
 
 private:
-    NavigationTransition(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise>);
+    NavigationTransition(JS::Realm&, Bindings::NavigationType, GC::Ref<NavigationHistoryEntry>, GC::Ref<NavigationDestination>, GC::Ref<WebIDL::Promise> committed, GC::Ref<WebIDL::Promise> finished);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -66,6 +73,10 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-destination
     // Each NavigationTransition has an associated destination, which is a NavigationDestination.
     GC::Ref<NavigationDestination> m_destination;
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-committedc
+    // Each NavigationTransition has an associated committed promise, which is a promise.
+    GC::Ref<WebIDL::Promise> m_committed_promise;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-finished
     // Each NavigationTransition has an associated finished promise, which is a promise.
