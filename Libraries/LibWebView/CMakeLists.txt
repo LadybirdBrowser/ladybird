@@ -89,6 +89,7 @@ if (ENABLE_QT)
 
     set_target_properties(LibWebViewQt PROPERTIES AUTOMOC ON AUTORCC OFF AUTOUIC OFF)
     find_package(Qt6 REQUIRED COMPONENTS Core)
+    target_link_libraries(LibWebViewQt PRIVATE LibCore)
     target_link_libraries(LibWebViewQt PUBLIC Qt::Core)
     if (WIN32)
         find_package(pthread REQUIRED)
