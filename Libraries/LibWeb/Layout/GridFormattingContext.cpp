@@ -2023,12 +2023,6 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
             item.used_values.set_indefinite_content_width();
         if (!computed_values.height().is_length())
             item.used_values.set_indefinite_content_height();
-
-        if (item.box->is_replaced_box()) {
-            auto& replaced_box = static_cast<Layout::ReplacedBox const&>(*item.box);
-            // FIXME: This const_cast is gross.
-            const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
-        }
     }
 
     // Do the first pass of resolving grid items box metrics to compute values that are independent of a track width

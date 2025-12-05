@@ -26,12 +26,13 @@ public:
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
-    virtual void prepare_for_replaced_layout() override;
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override;
+    virtual Optional<CSSPixels> compute_natural_height() const override;
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const override;
 
 private:
     virtual bool is_svg_svg_box() const final { return true; }
-
-    [[nodiscard]] Optional<CSSPixelFraction> calculate_intrinsic_aspect_ratio() const;
 };
 
 template<>

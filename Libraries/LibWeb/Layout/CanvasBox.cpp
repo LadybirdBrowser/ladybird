@@ -18,10 +18,14 @@ CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, 
 
 CanvasBox::~CanvasBox() = default;
 
-void CanvasBox::prepare_for_replaced_layout()
+Optional<CSSPixels> CanvasBox::compute_natural_width() const
 {
-    set_natural_width(dom_node().width());
-    set_natural_height(dom_node().height());
+    return dom_node().width();
+}
+
+Optional<CSSPixels> CanvasBox::compute_natural_height() const
+{
+    return dom_node().height();
 }
 
 GC::Ptr<Painting::Paintable> CanvasBox::create_paintable() const

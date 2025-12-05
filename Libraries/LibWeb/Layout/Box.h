@@ -41,10 +41,6 @@ public:
     bool has_natural_height() const { return natural_height().has_value(); }
     bool has_natural_aspect_ratio() const { return natural_aspect_ratio().has_value(); }
 
-    void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
-    void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
-    void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
-
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
     bool has_preferred_aspect_ratio() const { return preferred_aspect_ratio().has_value(); }
@@ -73,12 +69,12 @@ protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
+    virtual Optional<CSSPixels> compute_natural_width() const { return {}; }
+    virtual Optional<CSSPixels> compute_natural_height() const { return {}; }
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const;
+
 private:
     virtual bool is_box() const final { return true; }
-
-    Optional<CSSPixels> m_natural_width;
-    Optional<CSSPixels> m_natural_height;
-    Optional<CSSPixelFraction> m_natural_aspect_ratio;
 
     Vector<GC::Ref<Node>> m_contained_abspos_children;
 

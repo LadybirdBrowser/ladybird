@@ -19,12 +19,14 @@ class VideoBox final
     GC_DECLARE_ALLOCATOR(VideoBox);
 
 public:
-    virtual void prepare_for_replaced_layout() override;
-
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override;
+    virtual Optional<CSSPixels> compute_natural_height() const override;
 
 private:
     VideoBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);

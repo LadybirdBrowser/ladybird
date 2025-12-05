@@ -17,12 +17,14 @@ class AudioBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(AudioBox);
 
 public:
-    virtual void prepare_for_replaced_layout() override;
-
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override;
+    virtual Optional<CSSPixels> compute_natural_height() const override;
 
 private:
     AudioBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);

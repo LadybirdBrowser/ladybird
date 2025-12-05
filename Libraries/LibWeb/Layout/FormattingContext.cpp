@@ -654,7 +654,7 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
     if ((computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio())
         // NOTE: This is a special case where calling tentative_width_for_replaced_element() would call us right back,
         //       and we'd end up in an infinite loop. So we need to handle this case separately.
-        && !(!box.has_natural_width() && box.has_natural_height())) {
+        && (box.has_natural_width() || !box.has_natural_height())) {
         CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space);
         CSSPixels h = used_height;
         used_height = solve_replaced_size_constraint(w, h, box, available_space).height();
@@ -868,10 +868,6 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
     // but the rest of section 10.3.7 is replaced by the following rules:
 
     // 1. The used value of 'width' is determined as for inline replaced elements.
-    if (auto const* replaced = as_if<ReplacedBox>(box)) {
-        // FIXME: This const_cast is gross.
-        const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
-    }
 
     auto width = compute_width_for_replaced_element(box, available_space);
     auto width_of_containing_block = available_space.width.to_px_or_zero();
@@ -1828,14 +1824,16 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
             break;
         }
     }
-
     auto const& overflow_x = box.computed_values().overflow_x();
     auto const& overflow_y = box.computed_values().overflow_y();
 
-    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible)
-        return box_state.margin_box_top() + box_state.offset.y() + box_state.line_boxes.last().baseline();
-    if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
-        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible) {
+        auto const& last = box_state.line_boxes.last();
+        return box_state.margin_box_top() + box_state.offset.y() + last.baseline() + last.bottom() - last.height();
+    }
+    if (!box.is_textarea_box()) {
+        if (auto const* child_box = box_child_to_derive_baseline_from(box))
+            return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
     }
     // If none of the children have a baseline set, the bottom margin edge of the box is used.
     return box_state.margin_box_height();
@@ -1900,7 +1898,7 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
     // and CSS Flexible Box Model Level 1 §9.2.
     // https://www.w3.org/TR/css-sizing-4/#aspect-ratio-automatic
-    if (is<ReplacedBox>(box))
+    if (is<ReplacedBox>(box) || box.is_textarea_box())
         return true;
 
     if (box.has_preferred_aspect_ratio()) {

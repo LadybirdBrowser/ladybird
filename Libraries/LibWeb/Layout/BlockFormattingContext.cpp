@@ -189,11 +189,6 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     }
 
     if (box_is_sized_as_replaced_element(box, available_space)) {
-        // FIXME: This should not be done *by* ReplacedBox
-        if (auto* replaced = as_if<ReplacedBox>(box)) {
-            // FIXME: This const_cast is gross.
-            const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
-        }
         compute_width_for_block_level_replaced_element_in_normal_flow(box, available_space);
         if (box.is_floating()) {
             // 10.3.6 Floating, replaced elements:
