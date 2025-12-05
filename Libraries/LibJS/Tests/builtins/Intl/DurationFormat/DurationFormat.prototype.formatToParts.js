@@ -3,19 +3,20 @@ describe("correct behavior", () => {
         expect(Intl.DurationFormat.prototype.formatToParts).toHaveLength(1);
     });
 
-    test("formats duration correctly", () => {
-        const duration = {
-            years: 1,
-            months: 2,
-            weeks: 3,
-            days: 3,
-            hours: 4,
-            minutes: 5,
-            seconds: 6,
-            milliseconds: 7,
-            microseconds: 8,
-            nanoseconds: 9,
-        };
+    const duration = {
+        years: 1,
+        months: 2,
+        weeks: 3,
+        days: 3,
+        hours: 4,
+        minutes: 5,
+        seconds: 6,
+        milliseconds: 7,
+        microseconds: 8,
+        nanoseconds: 9,
+    };
+
+    test("default locale", () => {
         expect(new Intl.DurationFormat().formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -57,6 +58,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("en locale", () => {
         expect(new Intl.DurationFormat("en").formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -98,6 +102,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("en locale, long", () => {
         expect(new Intl.DurationFormat("en", { style: "long" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -139,6 +146,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "nanoseconds", unit: "nanosecond" },
         ]);
+    });
+
+    test("en locale, short", () => {
         expect(new Intl.DurationFormat("en", { style: "short" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -180,6 +190,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("en locale, narrow", () => {
         expect(new Intl.DurationFormat("en", { style: "narrow" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "unit", value: "y", unit: "year" },
@@ -211,6 +224,9 @@ describe("correct behavior", () => {
             { type: "integer", value: "9", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("en locale, digital", () => {
         expect(new Intl.DurationFormat("en", { style: "digital" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -236,6 +252,9 @@ describe("correct behavior", () => {
             { type: "decimal", value: ".", unit: "second" },
             { type: "fraction", value: "007008009", unit: "second" },
         ]);
+    });
+
+    test("en locale, narrow with nanoseconds", () => {
         expect(
             new Intl.DurationFormat("en", {
                 style: "narrow",
@@ -272,7 +291,9 @@ describe("correct behavior", () => {
             { type: "fraction", value: "009", unit: "microsecond" },
             { type: "unit", value: "μs", unit: "microsecond" },
         ]);
+    });
 
+    test("de locale, long", () => {
         expect(new Intl.DurationFormat("de", { style: "long" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -314,6 +335,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "Nanosekunden", unit: "nanosecond" },
         ]);
+    });
+
+    test("de locale, short", () => {
         expect(new Intl.DurationFormat("de", { style: "short" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -355,6 +379,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("de locale, narrow", () => {
         expect(new Intl.DurationFormat("de", { style: "narrow" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -396,6 +423,9 @@ describe("correct behavior", () => {
             { type: "literal", value: " ", unit: "nanosecond" },
             { type: "unit", value: "ns", unit: "nanosecond" },
         ]);
+    });
+
+    test("de locale, digital", () => {
         expect(new Intl.DurationFormat("de", { style: "digital" }).formatToParts(duration)).toEqual([
             { type: "integer", value: "1", unit: "year" },
             { type: "literal", value: " ", unit: "year" },
@@ -421,6 +451,9 @@ describe("correct behavior", () => {
             { type: "decimal", value: ",", unit: "second" },
             { type: "fraction", value: "007008009", unit: "second" },
         ]);
+    });
+
+    test("de locale, narrow with nanoseconds", () => {
         expect(
             new Intl.DurationFormat("de", {
                 style: "narrow",
@@ -470,12 +503,14 @@ describe("correct behavior", () => {
 });
 
 describe("errors", () => {
-    test("non-object duration records", () => {
+    test("format invalid string", () => {
         expect(() => {
             new Intl.DurationFormat().formatToParts("hello");
         }).toThrowWithMessage(RangeError, "Invalid duration string 'hello");
+    });
 
-        [-100, Infinity, NaN, 152n, Symbol("foo"), true, null, undefined].forEach(value => {
+    [-100, Infinity, NaN, 152n, Symbol("foo"), true, null, undefined].forEach(value => {
+        test(`format non-object ${String(value)}`, () => {
             expect(() => {
                 new Intl.DurationFormat().formatToParts(value);
             }).toThrowWithMessage(TypeError, "is not a string");
@@ -492,19 +527,19 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Invalid duration");
     });
 
-    test("non-integral duration fields", () => {
-        [
-            "years",
-            "months",
-            "weeks",
-            "days",
-            "hours",
-            "minutes",
-            "seconds",
-            "milliseconds",
-            "microseconds",
-            "nanoseconds",
-        ].forEach(field => {
+    [
+        "years",
+        "months",
+        "weeks",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "milliseconds",
+        "microseconds",
+        "nanoseconds",
+    ].forEach(field => {
+        test(`non-integral ${field}`, () => {
             expect(() => {
                 new Intl.DurationFormat().formatToParts({ [field]: 1.5 });
             }).toThrowWithMessage(

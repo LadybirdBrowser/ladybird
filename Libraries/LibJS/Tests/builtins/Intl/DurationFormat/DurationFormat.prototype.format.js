@@ -173,12 +173,14 @@ describe("correct behavior", () => {
 });
 
 describe("errors", () => {
-    test("non-object duration records", () => {
+    test("format invalid string", () => {
         expect(() => {
             new Intl.DurationFormat().format("hello");
         }).toThrowWithMessage(RangeError, "Invalid duration string 'hello");
+    });
 
-        [-100, Infinity, NaN, 152n, Symbol("foo"), true, null, undefined].forEach(value => {
+    [-100, Infinity, NaN, 152n, Symbol("foo"), true, null, undefined].forEach(value => {
+        test(`format non-object ${String(value)}`, () => {
             expect(() => {
                 new Intl.DurationFormat().format(value);
             }).toThrowWithMessage(TypeError, "is not a string");
@@ -195,19 +197,19 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Invalid duration");
     });
 
-    test("non-integral duration fields", () => {
-        [
-            "years",
-            "months",
-            "weeks",
-            "days",
-            "hours",
-            "minutes",
-            "seconds",
-            "milliseconds",
-            "microseconds",
-            "nanoseconds",
-        ].forEach(field => {
+    [
+        "years",
+        "months",
+        "weeks",
+        "days",
+        "hours",
+        "minutes",
+        "seconds",
+        "milliseconds",
+        "microseconds",
+        "nanoseconds",
+    ].forEach(field => {
+        test(`non-integral ${field}`, () => {
             expect(() => {
                 new Intl.DurationFormat().format({ [field]: 1.5 });
             }).toThrowWithMessage(
