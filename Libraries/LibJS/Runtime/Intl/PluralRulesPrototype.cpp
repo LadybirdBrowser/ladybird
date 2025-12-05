@@ -91,12 +91,14 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
 // 17.3.3 Intl.PluralRules.prototype.select ( value ), https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.select
 JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select)
 {
+    auto value = vm.argument(0);
+
     // 1. Let pr be the this value.
     // 2. Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
     auto plural_rules = TRY(typed_this_object(vm));
 
-    // 3. Let n be ? ToNumber(value).
-    auto number = TRY(vm.argument(0).to_number(vm));
+    // 3. Let n be ? ToIntlMathematicalValue(value).
+    auto number = TRY(to_intl_mathematical_value(vm, value));
 
     // 4. Return ! ResolvePlural(pr, n).[[PluralCategory]].
     auto plurality = resolve_plural(plural_rules, number);
@@ -119,11 +121,11 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::select_range)
     if (end.is_undefined())
         return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "end"sv);
 
-    // 4. Let x be ? ToNumber(start).
-    auto x = TRY(start.to_number(vm));
+    // 4. Let x be ? ToIntlMathematicalValue(start).
+    auto x = TRY(to_intl_mathematical_value(vm, start));
 
-    // 5. Let y be ? ToNumber(end).
-    auto y = TRY(end.to_number(vm));
+    // 5. Let y be ? ToIntlMathematicalValue(end).
+    auto y = TRY(to_intl_mathematical_value(vm, end));
 
     // 6. Return ? ResolvePluralRange(pr, x, y).
     auto plurality = TRY(resolve_plural_range(vm, plural_rules, x, y));

@@ -32,30 +32,44 @@ ReadonlySpan<ResolutionOptionDescriptor> PluralRules::resolution_option_descript
 }
 
 // 17.5.2 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
-Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
+Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, MathematicalValue const& number)
 {
-    // 1. If n is not a finite Number, then
-    if (!number.is_finite_number()) {
-        // a. Let s be ! ToString(n).
+    // 1. If n is NOT-A-NUMBER, then
+    if (number.is_nan()) {
+        // a. Let s be an ILD String value indicating the NaN value.
         // b. Return the Record { [[PluralCategory]]: "other", [[FormattedString]]: s }.
         return Unicode::PluralCategory::Other;
     }
 
-    // 2. Let res be FormatNumericToString(pluralRules, ℝ(n)).
-    // 3. Let s be res.[[FormattedString]].
-    // 4. Let locale be pluralRules.[[Locale]].
-    // 5. Let type be pluralRules.[[Type]].
-    // 6. Let notation be pluralRules.[[Notation]].
-    // 7. Let compactDisplay be pluralRules.[[CompactDisplay]].
-    // 8. Let p be PluralRuleSelect(locale, type, notation, compactDisplay, s).
-    // 9. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
-    return plural_rules.formatter().select_plural(number.as_double());
+    // 2. If n is POSITIVE-INFINITY, then
+    if (number.is_positive_infinity()) {
+        // a. Let s be an ILD String value indicating positive infinity.
+        // b. Return the Record { [[PluralCategory]]: "other", [[FormattedString]]: s }.
+        return Unicode::PluralCategory::Other;
+    }
+
+    // 3. If n is NEGATIVE-INFINITY, then
+    if (number.is_negative_infinity()) {
+        // a. Let s be an ILD String value indicating negative infinity.
+        // b. Return the Record { [[PluralCategory]]: "other", [[FormattedString]]: s }.
+        return Unicode::PluralCategory::Other;
+    }
+
+    // 4. Let res be FormatNumericToString(pluralRules, n).
+    // 5. Let s be res.[[FormattedString]].
+    // 6. Let locale be pluralRules.[[Locale]].
+    // 7. Let type be pluralRules.[[Type]].
+    // 8. Let notation be pluralRules.[[Notation]].
+    // 9. Let compactDisplay be pluralRules.[[CompactDisplay]].
+    // 10. Let p be PluralRuleSelect(locale, type, notation, compactDisplay, s).
+    // 11. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
+    return plural_rules.formatter().select_plural(number.to_value());
 }
 
-// 17.5.4 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
-ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, Value start, Value end)
+// 17.5.4 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolvepluralrange
+ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, MathematicalValue const& start, MathematicalValue const& end)
 {
-    // 1. If x is NaN or y is NaN, throw a RangeError exception.
+    // 1. If x is NOT-A-NUMBER or y is NOT-A-NUMBER, throw a RangeError exception.
     if (start.is_nan())
         return vm.throw_completion<RangeError>(ErrorType::NumberIsNaN, "start"sv);
     if (end.is_nan())
@@ -70,7 +84,7 @@ ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRu
     // 7. Let notation be pluralRules.[[Notation]].
     // 8. Let compactDisplay be pluralRules.[[CompactDisplay]].
     // 9. Return PluralRuleSelectRange(locale, type, notation, compactDisplay, xp.[[PluralCategory]], yp.[[PluralCategory]]).
-    return plural_rules.formatter().select_plural_range(start.as_double(), end.as_double());
+    return plural_rules.formatter().select_plural_range(start.to_value(), end.to_value());
 }
 
 }

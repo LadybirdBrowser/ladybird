@@ -163,8 +163,8 @@ public:
     virtual Vector<Partition> format_range_to_parts(Value const&, Value const&) const = 0;
 
     virtual void create_plural_rules(PluralForm) = 0;
-    virtual PluralCategory select_plural(double) const = 0;
-    virtual PluralCategory select_plural_range(double, double) const = 0;
+    virtual PluralCategory select_plural(Value const&) const = 0;
+    virtual PluralCategory select_plural_range(Value const&, Value const&) const = 0;
     virtual Vector<PluralCategory> available_plural_categories() const = 0;
 
 protected:
