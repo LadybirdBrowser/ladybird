@@ -21,6 +21,7 @@ TEST_CASE(to_ascii)
     TEST_TO_ASCII("www.аррӏе.com"sv, "www.xn--80ak6aa92e.com"sv);
     TEST_TO_ASCII("ö.com"sv, "xn--nda.com"sv);
     TEST_TO_ASCII("o\u0308.com"sv, "xn--nda.com"sv);
+    TEST_TO_ASCII("\U0001FACD.ge"sv, "xn--i29h.ge"sv);
 
     // Select cases from IdnaTestV2.txt
     // FIXME: Download, parse and test all cases
