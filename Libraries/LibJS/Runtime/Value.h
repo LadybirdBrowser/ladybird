@@ -425,7 +425,7 @@ public:
 
 private:
     ThrowCompletionOr<Value> to_number_slow_case(VM&) const;
-    ThrowCompletionOr<Value> to_numeric_slow_case(VM&) const;
+    COLD ThrowCompletionOr<Value> to_numeric_slow_case(VM&) const;
     ThrowCompletionOr<Value> to_primitive_slow_case(VM&, PreferredType) const;
 
     enum class EmptyTag { Empty };
