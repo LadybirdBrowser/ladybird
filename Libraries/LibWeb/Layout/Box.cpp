@@ -59,14 +59,6 @@ Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
     return compute_natural_aspect_ratio();
 }
 
-Optional<CSSPixelFraction> Box::compute_natural_aspect_ratio() const
-{
-    if (auto height = natural_height(); height.has_value() && height.value() != 0)
-        if (auto width = natural_width(); width.has_value())
-            return CSSPixelFraction(width.value(), height.value());
-    return {};
-}
-
 void Box::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

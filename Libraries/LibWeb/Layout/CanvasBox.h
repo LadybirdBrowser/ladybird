@@ -26,6 +26,7 @@ public:
 protected:
     virtual Optional<CSSPixels> compute_natural_width() const override;
     virtual Optional<CSSPixels> compute_natural_height() const override;
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const override;
 };
 
 }

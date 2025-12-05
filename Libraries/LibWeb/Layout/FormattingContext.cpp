@@ -1898,10 +1898,10 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     // replaced element with a natural aspect ratio and no natural size in that axis, see e.g. CSS2 §10
     // and CSS Flexible Box Model Level 1 §9.2.
     // https://www.w3.org/TR/css-sizing-4/#aspect-ratio-automatic
-    if (is<ReplacedBox>(box) || box.is_textarea_box())
+    if (is<ReplacedBox>(box))
         return true;
 
-    if (box.has_preferred_aspect_ratio()) {
+    if (box.has_preferred_aspect_ratio() || box.is_textarea_box()) {
         // From CSS2:
         // If height and width both have computed values of auto and the element has an intrinsic ratio but no intrinsic height or width,
         // then the used value of width is undefined in CSS 2.

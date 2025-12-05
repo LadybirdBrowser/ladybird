@@ -22,7 +22,6 @@ public:
 protected:
     virtual Optional<CSSPixels> compute_natural_width() const override { return CSSPixels(13); }
     virtual Optional<CSSPixels> compute_natural_height() const override { return CSSPixels(13); }
-    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const override { return {}; }
 
 private:
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;

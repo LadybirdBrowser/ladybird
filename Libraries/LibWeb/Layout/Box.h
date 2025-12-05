@@ -71,7 +71,7 @@ protected:
 
     virtual Optional<CSSPixels> compute_natural_width() const { return {}; }
     virtual Optional<CSSPixels> compute_natural_height() const { return {}; }
-    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const;
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const { return {}; }
 
 private:
     virtual bool is_box() const final { return true; }

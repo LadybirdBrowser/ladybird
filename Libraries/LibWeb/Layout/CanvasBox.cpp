@@ -28,6 +28,14 @@ Optional<CSSPixels> CanvasBox::compute_natural_height() const
     return dom_node().height();
 }
 
+Optional<CSSPixelFraction> CanvasBox::compute_natural_aspect_ratio() const
+{
+    if (auto height = natural_height(); height.has_value() && height.value() != 0)
+        if (auto width = natural_width(); width.has_value())
+            return CSSPixelFraction(width.value(), height.value());
+    return {};
+}
+
 GC::Ptr<Painting::Paintable> CanvasBox::create_paintable() const
 {
     return Painting::CanvasPaintable::create(*this);
