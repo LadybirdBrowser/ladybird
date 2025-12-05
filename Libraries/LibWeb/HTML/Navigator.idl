@@ -5,6 +5,7 @@
 #import <Geolocation/Geolocation.idl>
 #import <GPC/GlobalPrivacyControl.idl>
 #import <HTML/MimeTypeArray.idl>
+#import <HTML/NavigatorBadge.idl>
 #import <HTML/NavigatorBeacon.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
 #import <HTML/NavigatorDeviceMemory.idl>
@@ -89,3 +90,4 @@ Navigator includes NavigatorConcurrentHardware;
 Navigator includes NavigatorAutomationInformation;
 Navigator includes NavigatorStorage;
 Navigator includes NavigatorDeviceMemory;
+Navigator includes NavigatorBadge;

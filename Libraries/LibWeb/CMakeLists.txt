@@ -592,6 +592,7 @@ set(SOURCES
     HTML/NavigationParams.cpp
     HTML/NavigationTransition.cpp
     HTML/Navigator.cpp
+    HTML/NavigatorBadge.cpp
     HTML/NavigatorBeacon.cpp
     HTML/NavigatorConcurrentHardware.cpp
     HTML/NavigatorDeviceMemory.cpp
