@@ -37,6 +37,11 @@ public:
     virtual int register_signal(int, Function<void(int)>) override;
     virtual void unregister_signal(int) override;
 
+#if defined(AK_OS_WINDOWS)
+    virtual void register_process(pid_t, ESCAPING Function<void(pid_t)> exit_handler) override;
+    virtual void unregister_process(pid_t pid) override;
+#endif
+
     void set_main_loop_signal_notifiers(Badge<EventLoopImplementationQt>);
 
 private:
