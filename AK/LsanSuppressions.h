@@ -8,9 +8,15 @@
 
 #include <AK/Platform.h>
 
+#ifndef AK_OS_WINDOWS
+#    define EXPORT __attribute__((visibility("default")))
+#else
+#    define EXPORT __declspec(dllexport)
+#endif
+
 #ifdef HAS_ADDRESS_SANITIZER
 extern "C" {
-char const* __lsan_default_suppressions();
+EXPORT char const* __lsan_default_suppressions();
 char const* __lsan_default_suppressions()
 {
     // Both Skia and Chromium suppress false positive FontConfig leaks

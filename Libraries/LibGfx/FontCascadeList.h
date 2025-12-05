@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
 namespace Gfx {
 
-class FontCascadeList : public RefCounted<FontCascadeList> {
+class GFX_API FontCascadeList : public RefCounted<FontCascadeList> {
 public:
     static NonnullRefPtr<FontCascadeList> create()
     {
