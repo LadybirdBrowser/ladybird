@@ -665,7 +665,7 @@ ThrowCompletionOr<GC::Ref<Object>> Value::to_object_slow(VM& vm) const
 }
 
 // 7.1.3 ToNumeric ( value ), https://tc39.es/ecma262/#sec-tonumeric
-FLATTEN ThrowCompletionOr<Value> Value::to_numeric_slow_case(VM& vm) const
+ThrowCompletionOr<Value> Value::to_numeric_slow_case(VM& vm) const
 {
     // OPTIMIZATION: Fast paths for some trivial common cases.
     if (is_boolean()) {
