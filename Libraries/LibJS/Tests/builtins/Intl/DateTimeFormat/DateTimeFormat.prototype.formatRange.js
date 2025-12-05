@@ -211,8 +211,8 @@ describe("dateStyle", () => {
         { date: "short", en: "1/23/89 – 12/7/21", ja: "1989/01/23～2021/12/07" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`date=${d.date}`, () => {
             const en = new Intl.DateTimeFormat("en", { dateStyle: d.date, timeZone: "UTC" });
             expect(en.formatRange(d0, d1)).toBe(d.en);
 
@@ -245,8 +245,8 @@ describe("timeStyle", () => {
         { time: "short", en: "1/23/1989, 7:08 AM – 12/7/2021, 5:40 PM", ja: "1989/1/23 7:08～2021/12/7 17:40" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`time=${d.time}`, () => {
             const en = new Intl.DateTimeFormat("en", { timeStyle: d.time, timeZone: "UTC" });
             expect(en.formatRange(d0, d1)).toBe(d.en);
 
@@ -277,8 +277,8 @@ describe("dateStyle + timeStyle", () => {
         { date: "short", time: "short", en: "1/23/89, 7:08 AM – 12/7/21, 5:40 PM", ja: "1989/01/23 7:08～2021/12/07 17:40" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`dateStyle=${d.date}, timeStyle=${d.time}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 dateStyle: d.date,
                 timeStyle: d.time,

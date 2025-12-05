@@ -103,8 +103,8 @@ describe("dateStyle", () => {
         { date: "short", en0: "12/7/21", en1: "1/23/89", ar0: "٧‏/١٢‏/٢٠٢١", ar1: "٢٣‏/١‏/١٩٨٩" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`date=${d.date}`, () => {
             const en = new Intl.DateTimeFormat("en", { dateStyle: d.date, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -128,8 +128,8 @@ describe("timeStyle", () => {
         { time: "short", en0: "5:40 PM", en1: "7:08 AM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`time=${d.time}`, () => {
             const en = new Intl.DateTimeFormat("en", { timeStyle: d.time, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -165,8 +165,8 @@ describe("dateStyle + timeStyle", () => {
         { date: "short", time: "short", en: "12/7/21, 5:40 PM", ar: "٧‏/١٢‏/٢٠٢١، ٥:٤٠ م" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`dateStyle=${d.date}, timeStyle=${d.time}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 dateStyle: d.date,
                 timeStyle: d.time,
@@ -192,8 +192,8 @@ describe("weekday", () => {
         { weekday: "long", en0: "Tuesday", en1: "Monday", ar0: "الثلاثاء", ar1: "الاثنين" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`weekday=${d.weekday}`, () => {
             const en = new Intl.DateTimeFormat("en", { weekday: d.weekday, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -216,8 +216,8 @@ describe("era", () => {
         { era: "long", en0: "12/7/2021 Anno Domini", en1: "1/23/1989 Anno Domini", ar0: "٠٧-١٢-٢٠٢١ ميلادي", ar1: "٢٣-٠١-١٩٨٩ ميلادي" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`era=${d.era}`, () => {
             const en = new Intl.DateTimeFormat("en", { era: d.era, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -247,8 +247,8 @@ describe("year", () => {
         { year: "numeric", en0: "2021", en1: "1989", ar0: "٢٠٢١", ar1: "١٩٨٩" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`year=${d.year}`, () => {
             const en = new Intl.DateTimeFormat("en", { year: d.year, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -270,8 +270,8 @@ describe("month", () => {
         { month: "long", en0: "December", en1: "January", ar0: "ديسمبر", ar1: "يناير" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`month=${d.month}`, () => {
             const en = new Intl.DateTimeFormat("en", { month: d.month, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -290,8 +290,8 @@ describe("day", () => {
         { day: "numeric", en0: "7", en1: "23", ar0: "٧", ar1: "٢٣" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`day=${d.day}`, () => {
             const en = new Intl.DateTimeFormat("en", { day: d.day, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -311,8 +311,8 @@ describe("dayPeriod", () => {
         { dayPeriod: "long", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "PM ৫", as1: "AM ৭"},
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`dayPeriod=${d.dayPeriod}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 dayPeriod: d.dayPeriod,
                 hour: "numeric",
@@ -354,23 +354,25 @@ describe("dayPeriod", () => {
         expect(en.format(date1)).toBe("5 at night");
         expect(en.format(date2)).toBe("11 at night");
     });
+});
 
-    test("noon", () => {
-        const date0 = Date.UTC(2017, 11, 12, 12, 0, 0, 0);
-        const date1 = Date.UTC(2017, 11, 12, 12, 1, 0, 0);
-        const date2 = Date.UTC(2017, 11, 12, 12, 0, 1, 0);
-        const date3 = Date.UTC(2017, 11, 12, 12, 0, 0, 500);
+describe("dayPeriod at noon", () => {
+    const date0 = Date.UTC(2017, 11, 12, 12, 0, 0, 0);
+    const date1 = Date.UTC(2017, 11, 12, 12, 1, 0, 0);
+    const date2 = Date.UTC(2017, 11, 12, 12, 0, 1, 0);
+    const date3 = Date.UTC(2017, 11, 12, 12, 0, 0, 500);
 
-        // prettier-ignore
-        const data = [
-            { minute: undefined, second: undefined, fractionalSecondDigits: undefined, en0: "12 noon", en1: "12 noon", en2: "12 noon", en3: "12 noon", ar0: "١٢ ظهرًا", ar1: "١٢ ظهرًا", ar2: "١٢ ظهرًا", ar3: "١٢ ظهرًا" },
-            { minute: "numeric", second: undefined, fractionalSecondDigits: undefined, en0: "12:00 noon", en1: "12:01 in the afternoon", en2: "12:00 noon", en3: "12:00 noon", ar0: "١٢:٠٠ ظهرًا", ar1: "١٢:٠١ ظهرًا", ar2: "١٢:٠٠ ظهرًا", ar3: "١٢:٠٠ ظهرًا" },
-            { minute: "numeric", second: "numeric", fractionalSecondDigits: undefined, en0: "12:00:00 noon", en1: "12:01:00 in the afternoon", en2: "12:00:01 in the afternoon", en3: "12:00:00 noon", ar0: "١٢:٠٠:٠٠ ظهرًا", ar1: "١٢:٠١:٠٠ ظهرًا", ar2: "١٢:٠٠:٠١ ظهرًا", ar3: "١٢:٠٠:٠٠ ظهرًا" },
-            { minute: "numeric", second: "numeric", fractionalSecondDigits: 1, en0: "12:00:00.0 noon", en1: "12:01:00.0 in the afternoon", en2: "12:00:01.0 in the afternoon", en3: "12:00:00.5 noon", ar0: "١٢:٠٠:٠٠٫٠ ظهرًا", ar1: "١٢:٠١:٠٠٫٠ ظهرًا", ar2: "١٢:٠٠:٠١٫٠ ظهرًا", ar3: "١٢:٠٠:٠٠٫٥ ظهرًا" },
-        ];
+    // prettier-ignore
+    const data = [
+        { minute: undefined, second: undefined, fractionalSecondDigits: undefined, en0: "12 noon", en1: "12 noon", en2: "12 noon", en3: "12 noon", ar0: "١٢ ظهرًا", ar1: "١٢ ظهرًا", ar2: "١٢ ظهرًا", ar3: "١٢ ظهرًا" },
+        { minute: "numeric", second: undefined, fractionalSecondDigits: undefined, en0: "12:00 noon", en1: "12:01 in the afternoon", en2: "12:00 noon", en3: "12:00 noon", ar0: "١٢:٠٠ ظهرًا", ar1: "١٢:٠١ ظهرًا", ar2: "١٢:٠٠ ظهرًا", ar3: "١٢:٠٠ ظهرًا" },
+        { minute: "numeric", second: "numeric", fractionalSecondDigits: undefined, en0: "12:00:00 noon", en1: "12:01:00 in the afternoon", en2: "12:00:01 in the afternoon", en3: "12:00:00 noon", ar0: "١٢:٠٠:٠٠ ظهرًا", ar1: "١٢:٠١:٠٠ ظهرًا", ar2: "١٢:٠٠:٠١ ظهرًا", ar3: "١٢:٠٠:٠٠ ظهرًا" },
+        { minute: "numeric", second: "numeric", fractionalSecondDigits: 1, en0: "12:00:00.0 noon", en1: "12:01:00.0 in the afternoon", en2: "12:00:01.0 in the afternoon", en3: "12:00:00.5 noon", ar0: "١٢:٠٠:٠٠٫٠ ظهرًا", ar1: "١٢:٠١:٠٠٫٠ ظهرًا", ar2: "١٢:٠٠:٠١٫٠ ظهرًا", ar3: "١٢:٠٠:٠٠٫٥ ظهرًا" },
+    ];
 
-        // The en locale includes the "noon" fixed day period, whereas the ar locale does not.
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`minute=${d.minute}, second=${d.second}, fractionalSecondDigits=${d.fractionalSecondDigits}`, () => {
+            // The en locale includes the "noon" fixed day period, whereas the ar locale does not.
             const en = new Intl.DateTimeFormat("en", {
                 hour: "numeric",
                 dayPeriod: "short",
@@ -398,16 +400,18 @@ describe("dayPeriod", () => {
             expect(ar.format(date3)).toBe(d.ar3);
         });
     });
+});
 
-    test("dayPeriod without time", () => {
-        // prettier-ignore
-        const data = [
-            { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "pm", as1: "am"},
-            { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "PM", as1: "AM"},
-            { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "PM", as1: "AM"},
-        ];
+describe("dayPeriod without time", () => {
+    // prettier-ignore
+    const data = [
+        { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "pm", as1: "am"},
+        { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "PM", as1: "AM"},
+        { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "PM", as1: "AM"},
+    ];
 
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`dayPeriod=${d.dayPeriod}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 dayPeriod: d.dayPeriod,
                 timeZone: "UTC",
@@ -439,8 +443,8 @@ describe("hour", () => {
         { hour: "numeric", en0: "5 PM", en1: "7 AM", ar0: "٥ م", ar1: "٧ ص" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`hour=${d.hour}`, () => {
             const en = new Intl.DateTimeFormat("en", { hour: d.hour, timeZone: "UTC" });
             expect(en.format(d0)).toBe(d.en0);
             expect(en.format(d1)).toBe(d.en1);
@@ -459,8 +463,8 @@ describe("minute", () => {
         { minute: "numeric", en0: "5:40 PM", en1: "7:08 AM", ar0: "٥:٤٠ م", ar1: "٧:٠٨ ص" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`minute=${d.minute}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 minute: d.minute,
                 hour: "numeric",
@@ -487,8 +491,8 @@ describe("second", () => {
         { second: "numeric", en0: "40:50", en1: "08:09", ar0: "٤٠:٥٠", ar1: "٠٨:٠٩" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`second=${d.second}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 second: d.second,
                 minute: "numeric",
@@ -516,8 +520,8 @@ describe("fractionalSecondDigits", () => {
         { fractionalSecondDigits: 3, en0: "40:50.456", en1: "08:09.045", ar0: "٤٠:٥٠٫٤٥٦", ar1: "٠٨:٠٩٫٠٤٥" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`fractionalSecondDigits=${d.fractionalSecondDigits}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 fractionalSecondDigits: d.fractionalSecondDigits,
                 second: "numeric",
@@ -585,8 +589,8 @@ describe("timeZoneName", () => {
         { timeZone: "+04:15", timeZoneName: "longGeneric", en0: "12/7/2021, GMT+04:15", en1: "1/23/1989, GMT+04:15", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٤:١٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٤:١٥" },
     ];
 
-    test("all", () => {
-        data.forEach(d => {
+    data.forEach(d => {
+        test(`timeZone=${d.timeZone}, timeZoneName=${d.timeZoneName}`, () => {
             const en = new Intl.DateTimeFormat("en", {
                 timeZone: d.timeZone,
                 timeZoneName: d.timeZoneName,
