@@ -30,7 +30,7 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
             }
         }
 
-        return MUST(String::formatted("Uncaught exception: {}", exception.to_string_without_side_effects()));
+        return MUST(String::formatted("Uncaught exception: {}", exception));
     }();
 
     // FIXME: This offset is relative to the javascript source. Other browsers appear to do it relative

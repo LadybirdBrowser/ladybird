@@ -203,7 +203,7 @@ JS_DEFINE_NATIVE_FUNCTION(SetPrototype::for_each)
 
     // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
     if (!callback_fn.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, vm.argument(0).to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, vm.argument(0));
 
     // 4. Let entries be S.[[SetData]].
     // 5. Let numEntries be the number of elements in entries.

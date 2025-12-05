@@ -67,7 +67,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_from_method_impl(VM& vm, Valu
 
     // 2. If iterator is not an Object, throw a TypeError exception.
     if (!iterator.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotIterable, object.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotIterable, object);
 
     // 3. Let nextMethod be ? Get(iterator, "next").
     static Bytecode::PropertyLookupCache cache;
@@ -104,7 +104,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_impl(VM& vm, Value object, It
 
             // ii. If syncMethod is undefined, throw a TypeError exception.
             if (!sync_method)
-                return vm.throw_completion<TypeError>(ErrorType::NotIterable, object.to_string_without_side_effects());
+                return vm.throw_completion<TypeError>(ErrorType::NotIterable, object);
 
             // iii. Let syncIteratorRecord be ? GetIteratorFromMethod(obj, syncMethod).
             auto sync_iterator_record = TRY(get_iterator_from_method(vm, object, *sync_method));
@@ -122,7 +122,7 @@ ThrowCompletionOr<IteratorRecordImpl> get_iterator_impl(VM& vm, Value object, It
 
     // 3. If method is undefined, throw a TypeError exception.
     if (!method)
-        return vm.throw_completion<TypeError>(ErrorType::NotIterable, object.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotIterable, object);
 
     // 4. Return ? GetIteratorFromMethod(obj, method).
     return TRY(get_iterator_from_method_impl(vm, object, *method));
@@ -141,14 +141,14 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Valu
     if (!object.is_object()) {
         // a. If primitiveHandling is reject-primitives, throw a TypeError exception.
         if (primitive_handling == PrimitiveHandling::RejectPrimitives)
-            return vm.throw_completion<TypeError>(ErrorType::NotAnObject, object.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::NotAnObject, object);
 
         // b. Assert: primitiveHandling is iterate-string-primitives.
         ASSERT(primitive_handling == PrimitiveHandling::IterateStringPrimitives);
 
         // c. If obj is not a String, throw a TypeError exception.
         if (!object.is_string())
-            return vm.throw_completion<TypeError>(ErrorType::NotAString, object.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::NotAString, object);
     }
 
     // 2. Let method be ? GetMethod(obj, %Symbol.iterator%).
@@ -170,7 +170,7 @@ ThrowCompletionOr<GC::Ref<IteratorRecord>> get_iterator_flattenable(VM& vm, Valu
 
     // 5. If iterator is not an Object, throw a TypeError exception.
     if (!iterator.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, iterator.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, iterator);
 
     // 6. Return ? GetIteratorDirect(iterator).
     return TRY(get_iterator_direct(vm, iterator.as_object()));

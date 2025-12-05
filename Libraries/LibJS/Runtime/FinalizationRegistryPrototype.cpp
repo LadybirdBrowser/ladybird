@@ -42,7 +42,7 @@ JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::cleanup_some)
 
     // 3. If callback is present and IsCallable(callback) is false, throw a TypeError exception.
     if (vm.argument_count() > 0 && !callback.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, callback);
 
     // IMPLEMENTATION DEFINED: The specification for this function hasn't been updated to accommodate for JobCallback records.
     //                         This just follows how the constructor immediately converts the callback to a JobCallback using HostMakeJobCallback.
@@ -66,7 +66,7 @@ JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::register_)
 
     // 3. If target is not an Object, throw a TypeError exception.
     if (!can_be_held_weakly(target))
-        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, target.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, target);
 
     // 4. If SameValue(target, heldValue) is true, throw a TypeError exception.
     if (same_value(target, held_value))
@@ -76,7 +76,7 @@ JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::register_)
     //     a. If unregisterToken is not undefined, throw a TypeError exception.
     //     b. Set unregisterToken to empty.
     if (!can_be_held_weakly(unregister_token) && !unregister_token.is_undefined())
-        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, unregister_token.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, unregister_token);
 
     // 6. Let cell be the Record { [[WeakRefTarget]]: target, [[HeldValue]]: heldValue, [[UnregisterToken]]: unregisterToken }.
     // 7. Append cell to finalizationRegistry.[[Cells]].
@@ -97,7 +97,7 @@ JS_DEFINE_NATIVE_FUNCTION(FinalizationRegistryPrototype::unregister)
 
     // 3. If unregisterToken is not an Object, throw a TypeError exception.
     if (!can_be_held_weakly(unregister_token))
-        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, unregister_token.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, unregister_token);
 
     // 4-6.
     return Value(finalization_registry->remove_by_token(unregister_token.as_cell()));

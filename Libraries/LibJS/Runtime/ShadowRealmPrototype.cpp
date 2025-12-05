@@ -68,7 +68,7 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::import_value)
 
     // 4. If Type(exportName) is not String, throw a TypeError exception.
     if (!export_name.is_string())
-        return vm.throw_completion<TypeError>(ErrorType::NotAString, export_name.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, export_name);
 
     // 5. Let callerRealm be the current Realm Record.
     auto* caller_realm = vm.current_realm();

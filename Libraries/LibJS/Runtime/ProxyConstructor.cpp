@@ -22,11 +22,11 @@ static ThrowCompletionOr<ProxyObject*> proxy_create(VM& vm, Value target, Value 
 
     // 1. If target is not an Object, throw a TypeError exception.
     if (!target.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::ProxyConstructorBadType, "target", target.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::ProxyConstructorBadType, "target", target);
 
     // 2. If handler is not an Object, throw a TypeError exception.
     if (!handler.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::ProxyConstructorBadType, "handler", handler.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::ProxyConstructorBadType, "handler", handler);
 
     // 3. Let P be MakeBasicObject(« [[ProxyHandler]], [[ProxyTarget]] »).
     // 4. Set P's essential internal methods, except for [[Call]] and [[Construct]], to the definitions specified in 10.5.

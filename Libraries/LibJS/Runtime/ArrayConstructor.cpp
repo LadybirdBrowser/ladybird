@@ -156,7 +156,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
     if (!mapfn_value.is_undefined()) {
         // a. If IsCallable(mapfn) is false, throw a TypeError exception.
         if (!mapfn_value.is_function())
-            return vm.throw_completion<TypeError>(ErrorType::NotAFunction, mapfn_value.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::NotAFunction, mapfn_value);
 
         // b. Let mapping be true.
         mapfn = &mapfn_value.as_function();

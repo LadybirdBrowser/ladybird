@@ -47,7 +47,7 @@ ThrowCompletionOr<GC::Ref<Object>> WeakRefConstructor::construct(FunctionObject&
 
     // 2. If CanBeHeldWeakly(target) is false, throw a TypeError exception.
     if (!can_be_held_weakly(target))
-        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, target.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, target);
 
     // 3. Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakRef.prototype%", « [[WeakRefTarget]] »).
     // 4. Perform AddToKeptObjects(target).

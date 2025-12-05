@@ -118,13 +118,13 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_code_point)
 
         // b. If IsIntegralNumber(nextCP) is false, throw a RangeError exception.
         if (!next_code_point.is_integral_number())
-            return vm.throw_completion<RangeError>(ErrorType::InvalidCodePoint, next_code_point.to_string_without_side_effects());
+            return vm.throw_completion<RangeError>(ErrorType::InvalidCodePoint, next_code_point);
 
         auto code_point = MUST(next_code_point.to_i32(vm));
 
         // c. If ℝ(nextCP) < 0 or ℝ(nextCP) > 0x10FFFF, throw a RangeError exception.
         if (code_point < 0 || code_point > 0x10FFFF)
-            return vm.throw_completion<RangeError>(ErrorType::InvalidCodePoint, next_code_point.to_string_without_side_effects());
+            return vm.throw_completion<RangeError>(ErrorType::InvalidCodePoint, next_code_point);
 
         // d. Set result to the string-concatenation of result and UTF16EncodeCodePoint(ℝ(nextCP)).
         (void)AK::UnicodeUtils::code_point_to_utf16(static_cast<u32>(code_point), [&](auto code_unit) {
