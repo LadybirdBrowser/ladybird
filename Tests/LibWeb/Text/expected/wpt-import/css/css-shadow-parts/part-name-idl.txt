@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Access to .part returns an empty DOMTokenList.
+Fail	Multiple names give a DOMTokenList with multiple entries.
+Fail	DOMTokenList created by access is persisted.
+Fail	Changes in DOMTokenList are refected in attribute.
