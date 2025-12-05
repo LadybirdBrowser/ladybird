@@ -50,14 +50,13 @@ JS_DEFINE_NATIVE_FUNCTION(DisplayNamesPrototype::resolved_options)
     // 4. For each row of Table 18, except the header row, in table order, do
     //     a. Let p be the Property value of the current row.
     //     b. Let v be the value of displayNames's internal slot whose name is the Internal Slot value of the current row.
-    //     c. Assert: v is not undefined.
-    //     d. Perform ! CreateDataPropertyOrThrow(options, p, v).
+    //     c. If v is not undefined, then
+    //         i. Perform ! CreateDataPropertyOrThrow(options, p, v).
     MUST(options->create_data_property_or_throw(vm.names.locale, PrimitiveString::create(vm, display_names->locale())));
     MUST(options->create_data_property_or_throw(vm.names.style, PrimitiveString::create(vm, display_names->style_string())));
     MUST(options->create_data_property_or_throw(vm.names.type, PrimitiveString::create(vm, display_names->type_string())));
     MUST(options->create_data_property_or_throw(vm.names.fallback, PrimitiveString::create(vm, display_names->fallback_string())));
 
-    // NOTE: Step 4c indicates languageDisplay must not be undefined, but it is only set when the type option is language.
     if (display_names->has_language_display())
         MUST(options->create_data_property_or_throw(vm.names.languageDisplay, PrimitiveString::create(vm, display_names->language_display_string())));
 
