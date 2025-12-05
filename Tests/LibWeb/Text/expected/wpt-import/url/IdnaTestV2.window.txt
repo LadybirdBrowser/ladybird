@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 2669 tests
+Found 2671 tests
 
-2669 Pass
+2671 Pass
 Pass	Loading data…
 Pass	ToASCII("fass.de")
 Pass	ToASCII("faß.de")
@@ -1826,8 +1826,8 @@ Pass	ToASCII("1꫶Ss𑲥。ᷘ") V6
 Pass	ToASCII("１꫶Ss𑲥｡ᷘ") V6
 Pass	ToASCII("xn--3j78f.xn--mkb20b") V7
 Pass	ToASCII("𲤱⒛⾳．ꡦ⒈") V7
-Pass	ToASCII("𲤱20.音.ꡦ1.") V7; A4_2 (ignored)
-Pass	ToASCII("xn--20-9802c.xn--0w5a.xn--1-eg4e.") V7; A4_2 (ignored)
+Pass	ToASCII("𲤱20.音.ꡦ1.") A4_2 (ignored)
+Pass	ToASCII("xn--20-9802c.xn--0w5a.xn--1-eg4e.") A4_2 (ignored)
 Pass	ToASCII("xn--dth6033bzbvx.xn--tsh9439b") V7
 Pass	ToASCII("Ⴕ。۰≮ß݅")
 Pass	ToASCII("Ⴕ。۰≮ß݅")
@@ -1910,17 +1910,19 @@ Pass	ToASCII("ᡅ０‌｡⎢󤨄") C1; V7
 Pass	ToASCII("ᡅ0‌。⎢󤨄") C1; V7
 Pass	ToASCII("xn--0-z6j.xn--8lh28773l") V7
 Pass	ToASCII("xn--0-z6jy93b.xn--8lh28773l") C1; V7
-Pass	ToASCII("𲮚９ꍩ៓．‍ß") C2; V7
-Pass	ToASCII("𲮚9ꍩ៓.‍ß") C2; V7
-Pass	ToASCII("𲮚9ꍩ៓.‍SS") C2; V7
-Pass	ToASCII("𲮚9ꍩ៓.‍ss") C2; V7
-Pass	ToASCII("xn--9-i0j5967eg3qz.ss") V7
-Pass	ToASCII("xn--9-i0j5967eg3qz.xn--ss-l1t") C2; V7
-Pass	ToASCII("xn--9-i0j5967eg3qz.xn--zca770n") C2; V7
-Pass	ToASCII("𲮚９ꍩ៓．‍SS") C2; V7
-Pass	ToASCII("𲮚９ꍩ៓．‍ss") C2; V7
-Pass	ToASCII("𲮚9ꍩ៓.‍Ss") C2; V7
-Pass	ToASCII("𲮚９ꍩ៓．‍Ss") C2; V7
+Pass	ToASCII("𲮚９ꍩ៓．‍ß") C2
+Pass	ToASCII("𲮚9ꍩ៓.‍ß") C2
+Pass	ToASCII("𲮚9ꍩ៓.‍SS") C2
+Pass	ToASCII("𲮚9ꍩ៓.‍ss") C2
+Pass	ToASCII("xn--9-i0j5967eg3qz.ss")
+Pass	ToASCII("𲮚9ꍩ៓.ss")
+Pass	ToASCII("𲮚9ꍩ៓.SS")
+Pass	ToASCII("xn--9-i0j5967eg3qz.xn--ss-l1t") C2
+Pass	ToASCII("xn--9-i0j5967eg3qz.xn--zca770n") C2
+Pass	ToASCII("𲮚９ꍩ៓．‍SS") C2
+Pass	ToASCII("𲮚９ꍩ៓．‍ss") C2
+Pass	ToASCII("𲮚9ꍩ៓.‍Ss") C2
+Pass	ToASCII("𲮚９ꍩ៓．‍Ss") C2
 Pass	ToASCII("ꗷ𑆀.ݝ𐩒")
 Pass	ToASCII("xn--ju8a625r.xn--hpb0073k")
 Pass	ToASCII("⒐≯-。︒򩑣-񞛠") V7; V3 (ignored)

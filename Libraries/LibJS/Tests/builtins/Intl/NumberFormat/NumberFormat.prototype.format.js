@@ -1335,14 +1335,14 @@ describe("style=currency", () => {
             compactDisplay: "long",
         });
         expect(ar.format(1)).toBe("‏١ US$");
-        expect(ar.format(1200)).toBe("١٫٢ ألف US$");
-        expect(ar.format(1290)).toBe("١٫٣ ألف US$");
-        expect(ar.format(12000)).toBe("١٢ ألف US$");
-        expect(ar.format(12900)).toBe("١٣ ألف US$");
-        expect(ar.format(1200000)).toBe("١٫٢ مليون US$");
-        expect(ar.format(1290000)).toBe("١٫٣ مليون US$");
-        expect(ar.format(12000000)).toBe("١٢ مليون US$");
-        expect(ar.format(12900000)).toBe("١٣ مليون US$");
+        expect(ar.format(1200)).toBe("‏١٫٢ ألف US$");
+        expect(ar.format(1290)).toBe("‏١٫٣ ألف US$");
+        expect(ar.format(12000)).toBe("‏١٢ ألف US$");
+        expect(ar.format(12900)).toBe("‏١٣ ألف US$");
+        expect(ar.format(1200000)).toBe("‏١٫٢ مليون US$");
+        expect(ar.format(1290000)).toBe("‏١٫٣ مليون US$");
+        expect(ar.format(12000000)).toBe("‏١٢ مليون US$");
+        expect(ar.format(12900000)).toBe("‏١٣ مليون US$");
 
         const ja = new Intl.NumberFormat("ja", {
             style: "currency",
@@ -1405,14 +1405,14 @@ describe("style=currency", () => {
             compactDisplay: "short",
         });
         expect(ar.format(1)).toBe("‏١ US$");
-        expect(ar.format(1200)).toBe("١٫٢ ألف US$");
-        expect(ar.format(1290)).toBe("١٫٣ ألف US$");
-        expect(ar.format(12000)).toBe("١٢ ألف US$");
-        expect(ar.format(12900)).toBe("١٣ ألف US$");
-        expect(ar.format(1200000)).toBe("١٫٢ مليون US$");
-        expect(ar.format(1290000)).toBe("١٫٣ مليون US$");
-        expect(ar.format(12000000)).toBe("١٢ مليون US$");
-        expect(ar.format(12900000)).toBe("١٣ مليون US$");
+        expect(ar.format(1200)).toBe("‏١٫٢ ألف US$");
+        expect(ar.format(1290)).toBe("‏١٫٣ ألف US$");
+        expect(ar.format(12000)).toBe("‏١٢ ألف US$");
+        expect(ar.format(12900)).toBe("‏١٣ ألف US$");
+        expect(ar.format(1200000)).toBe("‏١٫٢ مليون US$");
+        expect(ar.format(1290000)).toBe("‏١٫٣ مليون US$");
+        expect(ar.format(12000000)).toBe("‏١٢ مليون US$");
+        expect(ar.format(12900000)).toBe("‏١٣ مليون US$");
 
         const ja = new Intl.NumberFormat("ja", {
             style: "currency",
