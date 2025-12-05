@@ -135,6 +135,7 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
     m_seek_mode = seek_mode;
+    dbgln(">cancel_blocking_reads for seek to timestamp={}", timestamp);
     m_demuxer->cancel_blocking_reads();
     wake();
 }
@@ -246,7 +247,9 @@ bool VideoDataProvider::ThreadData::handle_seek()
         }
 
         auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;
+        dbgln(">seek_to_most_recent_keyframe timestamp={}", timestamp);
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
+        dbgln("<seek_to_most_recent_keyframe timestamp={}", timestamp);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
             handle_error(demuxer_seek_result_or_error.release_error());
             return true;

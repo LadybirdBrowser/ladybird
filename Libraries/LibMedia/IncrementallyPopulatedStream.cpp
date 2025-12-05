@@ -62,8 +62,10 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_bytes_at_position_bloc
         --m_pending_blocking_reads;
     }
 
-    if (unblock_generation != m_blocking_read_generation)
+    if (unblock_generation != m_blocking_read_generation) {
+        dbgln(">unlocked reading bytes.size={}", bytes.size());
         return DecoderError::with_description(DecoderErrorCategory::AbortedOperation, "Blocking read was aborted"sv);
+    }
     if (position >= m_data.size())
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Blocking read reached end of stream"sv);
     return m_data.bytes().slice(position).copy_trimmed_to(bytes);
