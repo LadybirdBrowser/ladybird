@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property column-rule-visibility-items value 'all'
+Pass	Property column-rule-visibility-items value 'none'
+Pass	Property column-rule-visibility-items value 'around'
+Pass	Property column-rule-visibility-items value 'between'
+Pass	Property row-rule-visibility-items value 'all'
+Pass	Property row-rule-visibility-items value 'none'
+Pass	Property row-rule-visibility-items value 'around'
+Pass	Property row-rule-visibility-items value 'between'

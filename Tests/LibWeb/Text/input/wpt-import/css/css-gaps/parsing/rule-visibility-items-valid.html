@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Gaps: parsing *-rule-visibility-items with valid values</title>
+  <link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+  <script>
+    // TODO(samomekarajr): Add tests for shorthand 'rule-visibility-items' once implemented.
+    const properties = ["column-rule-visibility-items", "row-rule-visibility-items"];
+    for (const property of properties) {
+      test_valid_value(property, "all");
+      test_valid_value(property, "none");
+      test_valid_value(property, "around");
+      test_valid_value(property, "between");
+    }
+  </script>
+</body>
+</html>

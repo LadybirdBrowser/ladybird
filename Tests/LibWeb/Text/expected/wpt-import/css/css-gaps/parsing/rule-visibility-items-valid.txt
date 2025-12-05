@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['column-rule-visibility-items'] = "all" should set the property value
+Pass	e.style['column-rule-visibility-items'] = "none" should set the property value
+Pass	e.style['column-rule-visibility-items'] = "around" should set the property value
+Pass	e.style['column-rule-visibility-items'] = "between" should set the property value
+Pass	e.style['row-rule-visibility-items'] = "all" should set the property value
+Pass	e.style['row-rule-visibility-items'] = "none" should set the property value
+Pass	e.style['row-rule-visibility-items'] = "around" should set the property value
+Pass	e.style['row-rule-visibility-items'] = "between" should set the property value
