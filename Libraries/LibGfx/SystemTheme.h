@@ -14,6 +14,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/TextAlignment.h>
 
 namespace Gfx {
@@ -289,9 +290,9 @@ struct SystemTheme {
 };
 
 Core::AnonymousBuffer& current_system_theme_buffer();
-void set_system_theme(Core::AnonymousBuffer);
+GFX_API void set_system_theme(Core::AnonymousBuffer);
 ErrorOr<Core::AnonymousBuffer> load_system_theme(Core::ConfigFile const&, Optional<ByteString> const& color_scheme = OptionalNone());
-ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path, Optional<ByteString> const& color_scheme = OptionalNone());
+GFX_API ErrorOr<Core::AnonymousBuffer> load_system_theme(ByteString const& path, Optional<ByteString> const& color_scheme = OptionalNone());
 
 struct SystemThemeMetaData {
     ByteString name;

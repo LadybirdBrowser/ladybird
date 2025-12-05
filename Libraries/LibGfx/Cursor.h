@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Forward.h>
@@ -38,7 +39,7 @@ enum class StandardCursor {
     Zoom,
 };
 
-struct ImageCursor {
+struct GFX_API ImageCursor {
     ShareableBitmap bitmap;
     IntPoint hotspot;
 
@@ -101,9 +102,9 @@ constexpr StringView standard_cursor_to_string(StandardCursor cursor)
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::ImageCursor const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::ImageCursor const&);
 
 template<>
-ErrorOr<Gfx::ImageCursor> decode(Decoder&);
+GFX_API ErrorOr<Gfx::ImageCursor> decode(Decoder&);
 
 }
