@@ -50,7 +50,7 @@ ThrowCompletionOr<SetRecord> get_set_record(VM& vm, Value value)
 {
     // 1. If obj is not an Object, throw a TypeError exception.
     if (!value.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value);
     auto const& object = value.as_object();
 
     // 2. Let rawSize be ? Get(obj, "size").
@@ -76,14 +76,14 @@ ThrowCompletionOr<SetRecord> get_set_record(VM& vm, Value value)
 
     // 9. If IsCallable(has) is false, throw a TypeError exception.
     if (!has.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, has.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, has);
 
     // 10. Let keys be ? Get(obj, "keys").
     auto keys = TRY(object.get(vm.names.keys));
 
     // 11. If IsCallable(keys) is false, throw a TypeError exception.
     if (!keys.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, keys.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, keys);
 
     // 12. Return a new Set Record { [[SetObject]]: obj, [[Size]]: intSize, [[Has]]: has, [[Keys]]: keys }.
     return SetRecord { .set_object = object, .size = integer_size, .has = has.as_function(), .keys = keys.as_function() };

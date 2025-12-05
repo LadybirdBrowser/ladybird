@@ -111,7 +111,7 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_setter)
 
     // 2. If ! Type(E) is not Object, throw a TypeError exception.
     if (!this_value.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, this_value.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, this_value);
 
     auto& this_object = this_value.as_object();
 

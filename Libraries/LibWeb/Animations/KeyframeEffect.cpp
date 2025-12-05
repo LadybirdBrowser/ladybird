@@ -348,7 +348,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
 
             // 6. If Type(nextItem) is not Undefined, Null or Object, then throw a TypeError and abort these steps.
             if (!next_item.is_nullish() && !next_item.is_object())
-                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOrNull, next_item.to_string_without_side_effects());
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOrNull, next_item);
 
             // 7. Append to processed keyframes the result of running the procedure to process a keyframe-like object
             //    passing nextItem as the keyframe input and with the allow lists flag set to false.

@@ -37,7 +37,7 @@ JS::ThrowCompletionOr<GC::Root<CallbackType>> property_to_callback(JS::VM& vm, J
         return GC::Root<CallbackType> {};
 
     if (!property.is_function())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property.to_string_without_side_effects());
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property);
 
     return vm.heap().allocate<CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
 }

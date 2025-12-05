@@ -43,7 +43,7 @@ JS_DEFINE_NATIVE_FUNCTION(WeakSetPrototype::add)
 
     // 3. If CanBeHeldWeakly(value) is false, throw a TypeError exception.
     if (!can_be_held_weakly(value))
-        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, value.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::CannotBeHeldWeakly, value);
 
     // 4. For each element e of S.[[WeakSetData]], do
     //     a. If e is not empty and SameValue(e, value) is true, then

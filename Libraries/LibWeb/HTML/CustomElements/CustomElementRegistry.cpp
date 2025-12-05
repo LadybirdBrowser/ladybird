@@ -50,7 +50,7 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
     // FIXME: De-duplicate this from the IDL generator.
     // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
     if (!value.is_function())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value.to_string_without_side_effects());
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value);
 
     // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
     return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm());
@@ -63,14 +63,14 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
     // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
     // 1. If V is not an Object, throw a TypeError.
     if (!value.is_object())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value.to_string_without_side_effects());
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value);
 
     // 2. Let method be ? GetMethod(V, @@iterator).
     auto method = TRY(value.get_method(vm, vm.well_known_symbol_iterator()));
 
     // 3. If method is undefined, throw a TypeError.
     if (!method)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, value.to_string_without_side_effects());
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, value);
 
     // 4. Return the result of creating a sequence from V and method.
 
@@ -120,7 +120,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 1. If IsConstructor(constructor) is false, then throw a TypeError.
     if (!JS::Value(constructor->callback).is_constructor())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(constructor->callback).to_string_without_side_effects());
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(constructor->callback));
 
     // 2. If name is not a valid custom element name, then throw a "SyntaxError" DOMException.
     if (!is_valid_custom_element_name(name))
@@ -194,7 +194,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
         // 2. If prototype is not an Object, then throw a TypeError exception.
         if (!prototype_value.is_object())
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, prototype_value.to_string_without_side_effects());
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, prototype_value);
 
         auto& prototype = prototype_value.as_object();
 

@@ -45,7 +45,7 @@ namespace JS {
 ThrowCompletionOr<Value> require_object_coercible(VM& vm, Value value)
 {
     if (value.is_nullish())
-        return vm.throw_completion<TypeError>(ErrorType::NotObjectCoercible, value.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotObjectCoercible, value);
     return value;
 }
 
@@ -56,7 +56,7 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
 
     // 2. If IsCallable(F) is false, throw a TypeError exception.
     if (!function.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function);
 
     // 3. Return ? F.[[Call]](V, argumentsList).
     ExecutionContext* callee_context = nullptr;
@@ -139,7 +139,7 @@ ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Val
 
     // 2. If Type(obj) is not Object, throw a TypeError exception.
     if (!value.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value);
 
     auto& array_like = value.as_object();
 
@@ -184,7 +184,7 @@ ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& obj
 
     // 3. If Type(C) is not Object, throw a TypeError exception.
     if (!constructor.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 4. Let S be ? Get(C, @@species).
     static Bytecode::PropertyLookupCache cache2;
@@ -199,7 +199,7 @@ ThrowCompletionOr<FunctionObject*> species_constructor(VM& vm, Object const& obj
         return &species.as_function();
 
     // 7. Throw a TypeError exception.
-    return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, species.to_string_without_side_effects());
+    return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, species);
 }
 
 // 7.3.25 GetFunctionRealm ( obj ), https://tc39.es/ecma262/#sec-getfunctionrealm

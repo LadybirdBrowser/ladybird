@@ -306,11 +306,11 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
         if (super_class.is_null()) {
             proto_parent = nullptr;
         } else if (!super_class.is_constructor()) {
-            return vm.throw_completion<TypeError>(ErrorType::ClassExtendsValueNotAConstructorOrNull, super_class.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::ClassExtendsValueNotAConstructorOrNull, super_class);
         } else {
             auto super_class_prototype = TRY(super_class.get(vm, vm.names.prototype));
             if (!super_class_prototype.is_null() && !super_class_prototype.is_object())
-                return vm.throw_completion<TypeError>(ErrorType::ClassExtendsValueInvalidPrototype, super_class_prototype.to_string_without_side_effects());
+                return vm.throw_completion<TypeError>(ErrorType::ClassExtendsValueInvalidPrototype, super_class_prototype);
 
             if (super_class_prototype.is_null())
                 proto_parent = nullptr;

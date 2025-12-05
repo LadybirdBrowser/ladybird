@@ -64,7 +64,7 @@ ThrowCompletionOr<GC::Ref<Object>> WeakMapConstructor::construct(FunctionObject&
     // 7. Return ? AddEntriesFromIterable(map, iterable, adder).
     (void)TRY(get_iterator_values(vm, iterable, [&](Value iterator_value) -> Optional<Completion> {
         if (!iterator_value.is_object())
-            return vm.throw_completion<TypeError>(ErrorType::NotAnObject, ByteString::formatted("Iterator value {}", iterator_value.to_string_without_side_effects()));
+            return vm.throw_completion<TypeError>(ErrorType::NotAnObject, ByteString::formatted("Iterator value {}", iterator_value));
 
         auto key = TRY(iterator_value.as_object().get(0));
         auto value = TRY(iterator_value.as_object().get(1));

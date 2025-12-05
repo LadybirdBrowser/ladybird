@@ -66,7 +66,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
 
     // 2. If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor.is_constructor())
-        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 3. If mapfn is undefined, let mapping be false.
     GC::Ptr<FunctionObject> map_fn;
@@ -75,7 +75,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::from)
     if (!map_fn_value.is_undefined()) {
         // a. If IsCallable(mapfn) is false, throw a TypeError exception.
         if (!map_fn_value.is_function())
-            return vm.throw_completion<TypeError>(ErrorType::NotAFunction, map_fn_value.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::NotAFunction, map_fn_value);
 
         // b. Let mapping be true.
         map_fn = &map_fn_value.as_function();
@@ -186,7 +186,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayConstructor::of)
 
     // 3. If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor.is_constructor())
-        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAConstructor, constructor);
 
     // 4. Let newObj be ? TypedArrayCreate(C, « 𝔽(len) »).
     GC::RootVector<Value> arguments(vm.heap());

@@ -32,7 +32,7 @@ static ThrowCompletionOr<Value> get_promise_resolve(VM& vm, Value constructor)
 
     // 2. If IsCallable(promiseResolve) is false, throw a TypeError exception.
     if (!promise_resolve.is_function())
-        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, promise_resolve.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAFunction, promise_resolve);
 
     // 3. Return promiseResolve.
     return promise_resolve;
@@ -455,7 +455,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::resolve)
 
     // 2. If Type(C) is not Object, throw a TypeError exception.
     if (!constructor.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, constructor.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, constructor);
 
     // 3. Return ? PromiseResolve(C, x).
     return TRY(promise_resolve(vm, constructor.as_object(), value));
@@ -475,7 +475,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::try_)
 
     // 2. If C is not an Object, throw a TypeError exception.
     if (!constructor.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, constructor.to_string_without_side_effects());
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, constructor);
 
     // 3. Let promiseCapability be ? NewPromiseCapability(C).
     auto promise_capability = TRY(new_promise_capability(vm, constructor));
