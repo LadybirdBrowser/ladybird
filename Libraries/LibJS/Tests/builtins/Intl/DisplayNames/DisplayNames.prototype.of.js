@@ -191,8 +191,8 @@ describe("correct behavior", () => {
             { calendar: "islamic", en: "Hijri Calendar", es419: "calendario hijri", zhHant: "伊斯蘭曆" },
             { calendar: "islamic-civil", en: "Hijri Calendar (tabular, civil epoch)", es419: "calendario hijri tabular", zhHant: "伊斯蘭民用曆" },
             { calendar: "islamic-umalqura", en: "Hijri Calendar (Umm al-Qura)", es419: "calendario hijri Umm al-Qura", zhHant: "伊斯蘭曆（烏姆庫拉）" },
-            { calendar: "iso8601", en: "ISO-8601 Calendar", es419: "calendario ISO-8601", zhHant: "ISO 8601 國際曆法" },
-            { calendar: "japanese", en: "Japanese Calendar", es419: "calendario japonés", zhHant: "日本曆" },
+            { calendar: "iso8601", en: "Gregorian Calendar (ISO 8601 Weeks)", es419: "calendario ISO-8601", zhHant: "ISO 8601 國際曆法" },
+            { calendar: "japanese", en: "Japanese Calendar", es419: "calendario japonés", zhHant: "和曆" },
             { calendar: "persian", en: "Persian Calendar", es419: "calendario persa", zhHant: "波斯曆" },
             { calendar: "roc", en: "Minguo Calendar", es419: "calendario de la República de China", zhHant: "國曆" },
         ];

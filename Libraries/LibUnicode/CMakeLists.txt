@@ -24,7 +24,7 @@ set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 ladybird_lib(LibUnicode unicode)
 
-find_package(ICU 76 REQUIRED COMPONENTS data i18n uc)
+find_package(ICU 78 REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
 # FIXME: Add support for building LibGfx in sanitize

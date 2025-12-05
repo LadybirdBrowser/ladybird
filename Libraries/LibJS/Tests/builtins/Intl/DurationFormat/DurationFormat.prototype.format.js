@@ -49,7 +49,7 @@ describe("correct behavior", () => {
             "1 J, 2 Mon., 3 Wo., 3 Tg., 4 Std., 5 Min., 6 Sek., 7 ms, 8 μs und 9 ns"
         );
         expect(new Intl.DurationFormat("de", { style: "narrow" }).format(duration)).toBe(
-            "1 J, 2 M, 3 W, 3 T, 4 Std., 5 Min., 6 Sek., 7 ms, 8 μs und 9 ns"
+            "1 J, 2 M, 3 W, 3 T, 4h, 5 Min., 6 Sek., 7 ms, 8 μs und 9 ns"
         );
         expect(new Intl.DurationFormat("de", { style: "digital" }).format(duration)).toBe(
             "1 J, 2 Mon., 3 Wo., 3 Tg. und 4:05:06,007008009"
@@ -60,7 +60,7 @@ describe("correct behavior", () => {
                 nanoseconds: "numeric",
                 fractionalDigits: 3,
             }).format(duration)
-        ).toBe("1 J, 2 M, 3 W, 3 T, 4 Std., 5 Min., 6 Sek., 7 ms und 8,009 μs");
+        ).toBe("1 J, 2 M, 3 W, 3 T, 4h, 5 Min., 6 Sek., 7 ms und 8,009 μs");
     });
 
     test("always show time fields for digital style", () => {

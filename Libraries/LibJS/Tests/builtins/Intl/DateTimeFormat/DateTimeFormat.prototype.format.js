@@ -306,9 +306,9 @@ describe("day", () => {
 describe("dayPeriod", () => {
     // prettier-ignore
     const data = [
-        { dayPeriod: "narrow", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "pm ৫", as1: "am ৭"},
-        { dayPeriod: "short", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ ص", as0: "PM ৫", as1: "AM ৭"},
-        { dayPeriod: "long", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "PM ৫", as1: "AM ৭"},
+        { dayPeriod: "narrow", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
+        { dayPeriod: "short", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ ص", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
+        { dayPeriod: "long", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
     ];
 
     data.forEach(d => {
@@ -340,19 +340,19 @@ describe("dayPeriod", () => {
     });
 
     test("flexible day period rolls over midnight", () => {
-        const en = new Intl.DateTimeFormat("en", {
+        const en = new Intl.DateTimeFormat("hi-Latn", {
             hour: "numeric",
             dayPeriod: "short",
             timeZone: "UTC",
         });
 
-        // For the en locale, these times (05:00 and 23:00) fall in the flexible day period range of
-        // [21:00, 06:00), on either side of midnight.
-        const date1 = Date.UTC(2017, 11, 12, 5, 0, 0, 0);
+        // For the hi-Latn locale, these times (03:00 and 23:00) fall in the flexible day period range of
+        // [20:00, 04:00), on either side of midnight.
+        const date1 = Date.UTC(2017, 11, 12, 3, 0, 0, 0);
         const date2 = Date.UTC(2017, 11, 12, 23, 0, 0, 0);
 
-        expect(en.format(date1)).toBe("5 at night");
-        expect(en.format(date2)).toBe("11 at night");
+        expect(en.format(date1)).toBe("3 raat");
+        expect(en.format(date2)).toBe("11 raat");
     });
 });
 
@@ -405,9 +405,9 @@ describe("dayPeriod at noon", () => {
 describe("dayPeriod without time", () => {
     // prettier-ignore
     const data = [
-        { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "pm", as1: "am"},
-        { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "PM", as1: "AM"},
-        { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "PM", as1: "AM"},
+        { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
+        { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
+        { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
     ];
 
     data.forEach(d => {
@@ -548,10 +548,10 @@ describe("timeZoneName", () => {
     const data = [
         { timeZone: "UTC", timeZoneName: "short", en0: "12/7/2021, UTC", en1: "1/23/1989, UTC", ar0: "٧‏/١٢‏/٢٠٢١، UTC", ar1: "٢٣‏/١‏/١٩٨٩، UTC" },
         { timeZone: "UTC", timeZoneName: "long", en0: "12/7/2021, Coordinated Universal Time", en1: "1/23/1989, Coordinated Universal Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت العالمي المنسق", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت العالمي المنسق" },
-        { timeZone: "UTC", timeZoneName: "shortOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
-        { timeZone: "UTC", timeZoneName: "longOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
-        { timeZone: "UTC", timeZoneName: "shortGeneric", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
-        { timeZone: "UTC", timeZoneName: "longGeneric", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "UTC", timeZoneName: "shortOffset", en0: "12/7/2021, GMT+0", en1: "1/23/1989, GMT+0", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠" },
+        { timeZone: "UTC", timeZoneName: "longOffset", en0: "12/7/2021, GMT+00:00", en1: "1/23/1989, GMT+00:00", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٠:٠٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٠:٠٠" },
+        { timeZone: "UTC", timeZoneName: "shortGeneric", en0: "12/7/2021, GMT+0", en1: "1/23/1989, GMT+0", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠" },
+        { timeZone: "UTC", timeZoneName: "longGeneric", en0: "12/7/2021, GMT+00:00", en1: "1/23/1989, GMT+00:00", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٠:٠٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٠:٠٠" },
 
         { timeZone: "America/New_York", timeZoneName: "short", en0: "12/7/2021, EST", en1: "1/23/1989, EST", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش-٥", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش-٥" },
         { timeZone: "America/New_York", timeZoneName: "long", en0: "12/7/2021, Eastern Standard Time", en1: "1/23/1989, Eastern Standard Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت الرسمي الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت الرسمي الشرقي لأمريكا الشمالية" },
@@ -560,10 +560,10 @@ describe("timeZoneName", () => {
         { timeZone: "America/New_York", timeZoneName: "shortGeneric", en0: "12/7/2021, ET", en1: "1/23/1989, ET", ar0: "٧‏/١٢‏/٢٠٢١، توقيت نيويورك", ar1: "٢٣‏/١‏/١٩٨٩، توقيت نيويورك" },
         { timeZone: "America/New_York", timeZoneName: "longGeneric", en0: "12/7/2021, Eastern Time", en1: "1/23/1989, Eastern Time", ar0: "٧‏/١٢‏/٢٠٢١، التوقيت الشرقي لأمريكا الشمالية", ar1: "٢٣‏/١‏/١٩٨٩، التوقيت الشرقي لأمريكا الشمالية" },
 
-        { timeZone: "Europe/London", timeZoneName: "short", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "short", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠" },
         { timeZone: "Europe/London", timeZoneName: "long", en0: "12/7/2021, Greenwich Mean Time", en1: "1/23/1989, Greenwich Mean Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، توقيت غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "shortOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
-        { timeZone: "Europe/London", timeZoneName: "longOffset", en0: "12/7/2021, GMT", en1: "1/23/1989, GMT", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش" },
+        { timeZone: "Europe/London", timeZoneName: "shortOffset", en0: "12/7/2021, GMT+0", en1: "1/23/1989, GMT+0", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠" },
+        { timeZone: "Europe/London", timeZoneName: "longOffset", en0: "12/7/2021, GMT+00:00", en1: "1/23/1989, GMT+00:00", ar0: "٧‏/١٢‏/٢٠٢١، غرينتش+٠٠:٠٠", ar1: "٢٣‏/١‏/١٩٨٩، غرينتش+٠٠:٠٠" },
         { timeZone: "Europe/London", timeZoneName: "shortGeneric", en0: "12/7/2021, United Kingdom Time", en1: "1/23/1989, United Kingdom Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المملكة المتحدة", ar1: "٢٣‏/١‏/١٩٨٩، توقيت المملكة المتحدة" },
         { timeZone: "Europe/London", timeZoneName: "longGeneric", en0: "12/7/2021, United Kingdom Time", en1: "1/23/1989, United Kingdom Time", ar0: "٧‏/١٢‏/٢٠٢١، توقيت المملكة المتحدة", ar1: "٢٣‏/١‏/١٩٨٩، توقيت المملكة المتحدة" },
 
