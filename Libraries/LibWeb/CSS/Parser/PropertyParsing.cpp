@@ -5031,13 +5031,7 @@ RefPtr<StyleValue const> Parser::parse_transition_value(TokenStream<ComponentVal
     // https://drafts.csswg.org/css-transitions-1/#transition-shorthand-property
     // If there is more than one <single-transition> in the shorthand, and any of the transitions has none as the
     // <single-transition-property>, then the declaration is invalid.
-    auto const& transition_properties_style_value = parsed_value->as_shorthand().longhand(PropertyID::TransitionProperty);
-
-    // FIXME: This can be removed once parse_coordinating_value_list_shorthand returns a list for single values too.
-    if (!transition_properties_style_value->is_value_list())
-        return parsed_value;
-
-    auto const& transition_properties = transition_properties_style_value->as_value_list().values();
+    auto const& transition_properties = parsed_value->as_shorthand().longhand(PropertyID::TransitionProperty)->as_value_list().values();
 
     if (transition_properties.size() > 1 && transition_properties.find_first_index_if([](auto const& transition_property) { return transition_property->to_keyword() == Keyword::None; }).has_value())
         return nullptr;
