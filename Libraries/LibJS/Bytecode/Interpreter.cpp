@@ -1210,7 +1210,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
     return {};
 }
 
-static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& interpreter, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
+static COLD Completion throw_type_error_for_callee(Bytecode::Interpreter& interpreter, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
 {
     auto& vm = interpreter.vm();
 
@@ -1223,9 +1223,9 @@ static inline Completion throw_type_error_for_callee(Bytecode::Interpreter& inte
 inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter, Value callee, Op::CallType call_type, Optional<StringTableIndex> const expression_string)
 {
     if ((call_type == Op::CallType::Call || call_type == Op::CallType::DirectEval)
-        && !callee.is_function())
+        && !callee.is_function()) [[unlikely]]
         return throw_type_error_for_callee(interpreter, callee, "function"sv, expression_string);
-    if (call_type == Op::CallType::Construct && !callee.is_constructor())
+    if (call_type == Op::CallType::Construct && !callee.is_constructor()) [[unlikely]]
         return throw_type_error_for_callee(interpreter, callee, "constructor"sv, expression_string);
     return {};
 }
