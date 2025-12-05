@@ -33,66 +33,74 @@ describe("non-finite values", () => {
 });
 
 describe("correct behavior", () => {
+    const testPluralRules = (pluralRules, number, expected) => {
+        expect(pluralRules.select(number)).toBe(expected);
+
+        if (Number.isInteger(number)) {
+            expect(pluralRules.select(BigInt(number))).toBe(expected);
+        }
+    };
+
     test("cardinal", () => {
         const en = new Intl.PluralRules("en", { type: "cardinal" });
-        expect(en.select(0)).toBe("other");
-        expect(en.select(1)).toBe("one");
-        expect(en.select(2)).toBe("other");
-        expect(en.select(3)).toBe("other");
+        testPluralRules(en, 0, "other");
+        testPluralRules(en, 1, "one");
+        testPluralRules(en, 2, "other");
+        testPluralRules(en, 3, "other");
 
         // In "he":
         // "one" is specified to be the integer 1, and non-integers whose integer part is 0.
         // "two" is specified to be the integer 2.
         const he = new Intl.PluralRules("he", { type: "cardinal" });
-        expect(he.select(0)).toBe("other");
-        expect(he.select(1)).toBe("one");
-        expect(he.select(0.1)).toBe("one");
-        expect(he.select(0.2)).toBe("one");
-        expect(he.select(0.8)).toBe("one");
-        expect(he.select(0.9)).toBe("one");
-        expect(he.select(2)).toBe("two");
-        expect(he.select(10)).toBe("other");
-        expect(he.select(19)).toBe("other");
-        expect(he.select(20)).toBe("other");
-        expect(he.select(21)).toBe("other");
-        expect(he.select(29)).toBe("other");
-        expect(he.select(30)).toBe("other");
-        expect(he.select(31)).toBe("other");
+        testPluralRules(he, 0, "other");
+        testPluralRules(he, 1, "one");
+        testPluralRules(he, 0.1, "one");
+        testPluralRules(he, 0.2, "one");
+        testPluralRules(he, 0.8, "one");
+        testPluralRules(he, 0.9, "one");
+        testPluralRules(he, 2, "two");
+        testPluralRules(he, 10, "other");
+        testPluralRules(he, 19, "other");
+        testPluralRules(he, 20, "other");
+        testPluralRules(he, 21, "other");
+        testPluralRules(he, 29, "other");
+        testPluralRules(he, 30, "other");
+        testPluralRules(he, 31, "other");
 
         // In "pl":
         // "few" is specified to be integers such that (i % 10 == 2..4 && i % 100 != 12..14).
         // "many" is specified to be all other integers != 1.
         // "other" is specified to be non-integers.
         const pl = new Intl.PluralRules("pl", { type: "cardinal" });
-        expect(pl.select(0)).toBe("many");
-        expect(pl.select(1)).toBe("one");
-        expect(pl.select(2)).toBe("few");
-        expect(pl.select(3)).toBe("few");
-        expect(pl.select(4)).toBe("few");
-        expect(pl.select(5)).toBe("many");
-        expect(pl.select(12)).toBe("many");
-        expect(pl.select(13)).toBe("many");
-        expect(pl.select(14)).toBe("many");
-        expect(pl.select(21)).toBe("many");
-        expect(pl.select(22)).toBe("few");
-        expect(pl.select(23)).toBe("few");
-        expect(pl.select(24)).toBe("few");
-        expect(pl.select(25)).toBe("many");
-        expect(pl.select(3.14)).toBe("other");
+        testPluralRules(pl, 0, "many");
+        testPluralRules(pl, 1, "one");
+        testPluralRules(pl, 2, "few");
+        testPluralRules(pl, 3, "few");
+        testPluralRules(pl, 4, "few");
+        testPluralRules(pl, 5, "many");
+        testPluralRules(pl, 12, "many");
+        testPluralRules(pl, 13, "many");
+        testPluralRules(pl, 14, "many");
+        testPluralRules(pl, 21, "many");
+        testPluralRules(pl, 22, "few");
+        testPluralRules(pl, 23, "few");
+        testPluralRules(pl, 24, "few");
+        testPluralRules(pl, 25, "many");
+        testPluralRules(pl, 3.14, "other");
 
         // In "am":
         // "one" is specified to be the integers 0 and 1, and non-integers whose integer part is 0.
         const am = new Intl.PluralRules("am", { type: "cardinal" });
-        expect(am.select(0)).toBe("one");
-        expect(am.select(0.1)).toBe("one");
-        expect(am.select(0.2)).toBe("one");
-        expect(am.select(0.8)).toBe("one");
-        expect(am.select(0.9)).toBe("one");
-        expect(am.select(1)).toBe("one");
-        expect(am.select(1.1)).toBe("other");
-        expect(am.select(1.9)).toBe("other");
-        expect(am.select(2)).toBe("other");
-        expect(am.select(3)).toBe("other");
+        testPluralRules(am, 0, "one");
+        testPluralRules(am, 0.1, "one");
+        testPluralRules(am, 0.2, "one");
+        testPluralRules(am, 0.8, "one");
+        testPluralRules(am, 0.9, "one");
+        testPluralRules(am, 1, "one");
+        testPluralRules(am, 1.1, "other");
+        testPluralRules(am, 1.9, "other");
+        testPluralRules(am, 2, "other");
+        testPluralRules(am, 3, "other");
     });
 
     test("ordinal", () => {
@@ -101,43 +109,43 @@ describe("correct behavior", () => {
         // "two" is specified to be integers such that (i % 10 == 2), excluding 12.
         // "few" is specified to be integers such that (i % 10 == 3), excluding 13.
         const en = new Intl.PluralRules("en", { type: "ordinal" });
-        expect(en.select(0)).toBe("other");
-        expect(en.select(1)).toBe("one");
-        expect(en.select(2)).toBe("two");
-        expect(en.select(3)).toBe("few");
-        expect(en.select(4)).toBe("other");
-        expect(en.select(10)).toBe("other");
-        expect(en.select(11)).toBe("other");
-        expect(en.select(12)).toBe("other");
-        expect(en.select(13)).toBe("other");
-        expect(en.select(14)).toBe("other");
-        expect(en.select(20)).toBe("other");
-        expect(en.select(21)).toBe("one");
-        expect(en.select(22)).toBe("two");
-        expect(en.select(23)).toBe("few");
-        expect(en.select(24)).toBe("other");
+        testPluralRules(en, 0, "other");
+        testPluralRules(en, 1, "one");
+        testPluralRules(en, 2, "two");
+        testPluralRules(en, 3, "few");
+        testPluralRules(en, 4, "other");
+        testPluralRules(en, 10, "other");
+        testPluralRules(en, 11, "other");
+        testPluralRules(en, 12, "other");
+        testPluralRules(en, 13, "other");
+        testPluralRules(en, 14, "other");
+        testPluralRules(en, 20, "other");
+        testPluralRules(en, 21, "one");
+        testPluralRules(en, 22, "two");
+        testPluralRules(en, 23, "few");
+        testPluralRules(en, 24, "other");
 
         // In "mk":
         // "one" is specified to be integers such that (i % 10 == 1 && i % 100 != 11).
         // "two" is specified to be integers such that (i % 10 == 2 && i % 100 != 12).
         // "many" is specified to be integers such that (i % 10 == 7,8 && i % 100 != 17,18).
         const mk = new Intl.PluralRules("mk", { type: "ordinal" });
-        expect(mk.select(0)).toBe("other");
-        expect(mk.select(1)).toBe("one");
-        expect(mk.select(2)).toBe("two");
-        expect(mk.select(3)).toBe("other");
-        expect(mk.select(6)).toBe("other");
-        expect(mk.select(7)).toBe("many");
-        expect(mk.select(8)).toBe("many");
-        expect(mk.select(9)).toBe("other");
-        expect(mk.select(11)).toBe("other");
-        expect(mk.select(12)).toBe("other");
-        expect(mk.select(17)).toBe("other");
-        expect(mk.select(18)).toBe("other");
-        expect(mk.select(21)).toBe("one");
-        expect(mk.select(22)).toBe("two");
-        expect(mk.select(27)).toBe("many");
-        expect(mk.select(28)).toBe("many");
+        testPluralRules(mk, 0, "other");
+        testPluralRules(mk, 1, "one");
+        testPluralRules(mk, 2, "two");
+        testPluralRules(mk, 3, "other");
+        testPluralRules(mk, 6, "other");
+        testPluralRules(mk, 7, "many");
+        testPluralRules(mk, 8, "many");
+        testPluralRules(mk, 9, "other");
+        testPluralRules(mk, 11, "other");
+        testPluralRules(mk, 12, "other");
+        testPluralRules(mk, 17, "other");
+        testPluralRules(mk, 18, "other");
+        testPluralRules(mk, 21, "one");
+        testPluralRules(mk, 22, "two");
+        testPluralRules(mk, 27, "many");
+        testPluralRules(mk, 28, "many");
     });
 
     test("notation", () => {
@@ -154,10 +162,10 @@ describe("correct behavior", () => {
         ];
 
         data.forEach(d => {
-            expect(standard.select(d.value)).toBe(d.standard);
-            expect(engineering.select(d.value)).toBe(d.engineering);
-            expect(scientific.select(d.value)).toBe(d.scientific);
-            expect(compact.select(d.value)).toBe(d.compact);
+            testPluralRules(standard, d.value, d.standard);
+            testPluralRules(engineering, d.value, d.engineering);
+            testPluralRules(scientific, d.value, d.scientific);
+            testPluralRules(compact, d.value, d.compact);
         });
     });
 });

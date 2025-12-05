@@ -34,7 +34,7 @@ private:
     Unicode::PluralForm m_type { Unicode::PluralForm::Cardinal }; // [[Type]]
 };
 
-Unicode::PluralCategory resolve_plural(PluralRules const&, Value number);
-ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM&, PluralRules const&, Value start, Value end);
+Unicode::PluralCategory resolve_plural(PluralRules const&, MathematicalValue const& number);
+ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM&, PluralRules const&, MathematicalValue const& start, MathematicalValue const& end);
 
 }

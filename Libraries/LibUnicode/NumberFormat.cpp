@@ -658,7 +658,7 @@ public:
         VERIFY(icu_success(status));
     }
 
-    virtual PluralCategory select_plural(double value) const override
+    virtual PluralCategory select_plural(Value const& value) const override
     {
         UErrorCode status = U_ZERO_ERROR;
         VERIFY(m_plural_rules);
@@ -674,7 +674,7 @@ public:
         return plural_category_from_string(icu_string_to_utf16_view(result));
     }
 
-    virtual PluralCategory select_plural_range(double start, double end) const override
+    virtual PluralCategory select_plural_range(Value const& start, Value const& end) const override
     {
         UErrorCode status = U_ZERO_ERROR;
         VERIFY(m_plural_rules);
