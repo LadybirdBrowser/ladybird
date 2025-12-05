@@ -3,6 +3,8 @@ target_sources(ladybird PRIVATE
     Application.cpp
     Autocomplete.cpp
     BrowserWindow.cpp
+    EventLoopImplementationQt.cpp
+    EventLoopImplementationQtEventTarget.cpp
     FindInPageWidget.cpp
     Icon.cpp
     LocationEdit.cpp

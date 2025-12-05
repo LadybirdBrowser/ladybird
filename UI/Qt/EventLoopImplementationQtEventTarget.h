@@ -9,7 +9,7 @@
 #include <QEvent>
 #include <QObject>
 
-namespace WebView {
+namespace Ladybird {
 
 class EventLoopImplementationQtEventTarget final : public QObject {
     Q_OBJECT
