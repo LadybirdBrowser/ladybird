@@ -1372,6 +1372,17 @@
       "auto"
     ]
   },
+  "column-rule-visibility-items": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "between",
+    "valid-identifiers": [
+      "all",
+      "none",
+      "around",
+      "between"
+    ]
+  },
   "column-span": {
     "animation-type": "discrete",
     "inherited": false,
@@ -3410,6 +3421,17 @@
       "normal"
     ],
     "percentages-resolve-to": "length"
+  },
+  "row-rule-visibility-items": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "between",
+    "valid-identifiers": [
+      "all",
+      "none",
+      "around",
+      "between"
+    ]
   },
   "rx": {
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RX.",
