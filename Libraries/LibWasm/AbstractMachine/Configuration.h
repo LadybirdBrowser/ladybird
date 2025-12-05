@@ -70,9 +70,7 @@ public:
 
     ALWAYS_INLINE Value& local_or_argument(LocalIndex index)
     {
-        if (index.value() & LocalArgumentMarker)
-            return m_arguments_base[index.value() & ~LocalArgumentMarker];
-        return m_locals_base[index.value()];
+        return (index.value() & LocalArgumentMarker ? m_arguments_base : m_locals_base)[index.value() & ~LocalArgumentMarker];
     }
     ALWAYS_INLINE Value const& argument(LocalIndex index) const { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }
     ALWAYS_INLINE Value& argument(LocalIndex index) { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }

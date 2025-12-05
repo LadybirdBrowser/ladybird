@@ -130,12 +130,12 @@ static_assert(sizeof(ShortenedIPAndAddresses) == sizeof(u64));
         static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS));                               \
     };                                                                                             \
     template<bool HasDynamicInsnLimit, typename Continue, SourceAddressMix source_address_mix>     \
-    Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
+    FLATTEN Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
 #define ALIAS_INSTRUCTION(new_name, existing_name)                                                                                                  \
     template<>                                                                                                                                      \
     struct InstructionHandler<Instructions::new_name.value()> {                                                                                     \
         template<bool HasDynamicInsnLimit, typename Continue, SourceAddressMix source_address_mix>                                                  \
-        static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                                                 \
+        FLATTEN static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                                                 \
         {                                                                                                                                           \
             TAILCALL return InstructionHandler<Instructions::existing_name.value()>::operator()<HasDynamicInsnLimit, Continue, source_address_mix>( \
                 HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));                                                                                        \
@@ -1184,7 +1184,14 @@ HANDLE_INSTRUCTION(nop)
 HANDLE_INSTRUCTION(local_set)
 {
     // bounds checked by verifier.
-    configuration.local_or_argument(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
+    configuration.local(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_argument_set)
+{
+    // bounds checked by verifier.
+    configuration.argument(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1582,7 +1589,16 @@ HANDLE_INSTRUCTION(local_tee)
     auto value = configuration.source_value<source_address_mix>(0, ip_and_addresses.addresses.sources); // bounds checked by verifier.
     auto local_index = instruction->local_index();
     dbgln_if(WASM_TRACE_DEBUG, "stack:peek -> locals({})", local_index.value());
-    configuration.frame().local_or_argument(local_index) = value;
+    configuration.local(local_index) = value;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_argument_tee)
+{
+    auto value = configuration.source_value<source_address_mix>(0, ip_and_addresses.addresses.sources); // bounds checked by verifier.
+    auto local_index = instruction->local_index();
+    dbgln_if(WASM_TRACE_DEBUG, "stack:peek -> locals({})", local_index.value());
+    configuration.argument(local_index) = value;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -4520,7 +4536,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
     result.src_dst_mappings.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
 
-    // Rewrite local.get of arguments to argument.get to keep local.get for locals only.
+    // Rewrite local.* of arguments to argument.* to keep local.* for locals only.
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
         if (dispatch.instruction->opcode() == Instructions::local_get) {
@@ -4528,6 +4544,24 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (local_index.value() & LocalArgumentMarker) {
                 result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_argument_get,
+                    local_index));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        } else if (dispatch.instruction->opcode() == Instructions::local_set) {
+            auto local_index = dispatch.instruction->local_index();
+            if (local_index.value() & LocalArgumentMarker) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_argument_set,
+                    local_index));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        } else if (dispatch.instruction->opcode() == Instructions::local_tee) {
+            auto local_index = dispatch.instruction->local_index();
+            if (local_index.value() & LocalArgumentMarker) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_argument_tee,
                     local_index));
                 result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();

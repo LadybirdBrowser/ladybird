@@ -15,4 +15,6 @@ endif()
 ladybird_lib(LibWasm wasm EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWasm PRIVATE LibCore)
 
+set_source_files_properties(AbstractMachine/BytecodeInterpreter.cpp PROPERTIES COMPILE_OPTIONS "-fomit-frame-pointer")
+
 include(wasm_spec_tests)
