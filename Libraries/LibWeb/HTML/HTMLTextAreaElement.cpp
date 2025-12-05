@@ -21,10 +21,10 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/TextAreaBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
-#include <LibWeb/Layout/TextAreaBox.h>
 
 namespace Web::HTML {
 
