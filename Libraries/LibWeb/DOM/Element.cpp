@@ -126,6 +126,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_inline_style);
     visitor.visit(m_class_list);
     visitor.visit(m_shadow_root);
+    visitor.visit(m_part_list);
     visitor.visit(m_custom_element_definition);
     visitor.visit(m_custom_state_set);
     visitor.visit(m_cascaded_properties);
@@ -894,6 +895,16 @@ GC::Ref<DOMTokenList> Element::class_list()
     if (!m_class_list)
         m_class_list = DOMTokenList::create(*this, HTML::AttributeNames::class_);
     return *m_class_list;
+}
+
+// https://drafts.csswg.org/css-shadow-parts/#dom-element-part
+GC::Ref<DOMTokenList> Element::part_list()
+{
+    // The part attribute’s getter must return a DOMTokenList object whose associated element is the context object and
+    // whose associated attribute’s local name is part.
+    if (!m_part_list)
+        m_part_list = DOMTokenList::create(*this, HTML::AttributeNames::part);
+    return *m_part_list;
 }
 
 // https://dom.spec.whatwg.org/#valid-shadow-host-name
@@ -3917,6 +3928,9 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             element.invalidate_lang_value();
             return TraversalDecision::Continue;
         });
+    } else if (local_name == HTML::AttributeNames::part) {
+        if (m_part_list)
+            m_part_list->associated_attribute_changed(value_or_empty);
     }
 
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext

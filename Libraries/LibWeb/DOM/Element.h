@@ -179,6 +179,7 @@ public:
     Optional<GC::RootVector<GC::Ref<DOM::Element>>> get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const;
 
     GC::Ref<DOMTokenList> class_list();
+    GC::Ref<DOMTokenList> part_list();
 
     WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootInit init);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
@@ -576,6 +577,7 @@ private:
     GC::Ptr<CSS::StylePropertyMap> m_attribute_style_map;
     GC::Ptr<DOMTokenList> m_class_list;
     GC::Ptr<ShadowRoot> m_shadow_root;
+    GC::Ptr<DOMTokenList> m_part_list;
 
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
     GC::Ptr<CSS::ComputedProperties> m_computed_properties;

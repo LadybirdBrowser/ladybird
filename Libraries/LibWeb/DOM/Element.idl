@@ -123,6 +123,9 @@ interface Element : Node {
     undefined setPointerCapture(long pointerId);
     undefined releasePointerCapture(long pointerId);
     boolean hasPointerCapture(long pointerId);
+    
+    // https://drafts.csswg.org/css-shadow-parts/#idl
+    [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
 };
 
 dictionary GetHTMLOptions {
