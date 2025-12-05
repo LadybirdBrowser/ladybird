@@ -253,6 +253,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onwheel, "onwheel")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(open, "open")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(optimum, "optimum")                                       \
+    __ENUMERATE_HTML_ATTRIBUTE(part, "part")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(pattern, "pattern")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(paused, "paused")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(ping, "ping")                                             \
