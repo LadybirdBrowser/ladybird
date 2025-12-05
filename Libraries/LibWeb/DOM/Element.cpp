@@ -889,11 +889,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     return invalidation;
 }
 
-DOMTokenList* Element::class_list()
+GC::Ref<DOMTokenList> Element::class_list()
 {
     if (!m_class_list)
         m_class_list = DOMTokenList::create(*this, HTML::AttributeNames::class_);
-    return m_class_list;
+    return *m_class_list;
 }
 
 // https://dom.spec.whatwg.org/#valid-shadow-host-name
@@ -3421,7 +3421,7 @@ i32 Element::number_of_owned_list_items() const
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#list-owner
-Element* Element::list_owner() const
+GC::Ptr<Element> Element::list_owner() const
 {
     // Any element whose computed value of 'display' is 'list-item' has a list owner, which is determined as follows:
     if (!m_is_contained_in_list_subtree && (!computed_properties() || !computed_properties()->display().is_list_item()))
@@ -3460,7 +3460,7 @@ Element* Element::list_owner() const
 
 void Element::maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node)
 {
-    if (Element* owner = list_owner())
+    if (auto owner = list_owner())
         owner->for_each_numbered_item_owned_by_list_owner([&](Element* item) {
             if (skip_node.has_value() && item == skip_node.value())
                 return IterationDecision::Continue;
@@ -3480,7 +3480,7 @@ i32 Element::ordinal_value()
     if (m_ordinal_value.has_value())
         return m_ordinal_value.value();
 
-    auto* owner = list_owner();
+    auto owner = list_owner();
     if (!owner)
         return 1;
 
@@ -3489,8 +3489,7 @@ i32 Element::ordinal_value()
     AK::Checked<i32> numbering = 1;
     auto reversed = false;
 
-    if (owner->is_html_olist_element()) {
-        auto const* ol_element = static_cast<HTML::HTMLOListElement const*>(owner);
+    if (auto* ol_element = as_if<HTML::HTMLOListElement>(owner.ptr())) {
         numbering = ol_element->starting_value().value();
         reversed = ol_element->has_attribute(HTML::AttributeNames::reversed);
     }

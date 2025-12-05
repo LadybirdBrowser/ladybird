@@ -33,7 +33,7 @@ void HTMLLIElement::attribute_changed(FlyString const& local_name, Optional<Stri
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
     if (local_name == HTML::AttributeNames::value) {
-        if (auto* owner = list_owner()) {
+        if (auto owner = list_owner()) {
             owner->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLOListElementOrdinalValues);
             maybe_invalidate_ordinals_for_list_owner();
         }
