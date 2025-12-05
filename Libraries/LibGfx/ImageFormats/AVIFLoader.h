@@ -7,13 +7,14 @@
 
 #pragma once
 
+#include <LibGfx/Export.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
 
 class AVIFLoadingContext;
 
-class AVIFImageDecoderPlugin final : public ImageDecoderPlugin {
+class GFX_API AVIFImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

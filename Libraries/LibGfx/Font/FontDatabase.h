@@ -9,12 +9,13 @@
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Forward.h>
 
 namespace Gfx {
 
-class SystemFontProvider {
+class GFX_API SystemFontProvider {
 public:
     virtual ~SystemFontProvider();
 
@@ -23,7 +24,7 @@ public:
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
 };
 
-class FontDatabase {
+class GFX_API FontDatabase {
 public:
     static FontDatabase& the();
     SystemFontProvider& install_system_font_provider(NonnullOwnPtr<SystemFontProvider>);
