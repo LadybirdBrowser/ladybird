@@ -513,8 +513,6 @@ if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport
 
     // Fixed visual chrome thickness in device pixels.
     constexpr int FIXED_SCROLLBAR_THICKNESS_DEVICE_PX = 12;
-
-    // Convert device px thickness -> CSS pixels for use with rounded_device_rect().
     auto device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
     CSSPixels fixed_thickness_in_css = CSSPixels(static_cast<float>(FIXED_SCROLLBAR_THICKNESS_DEVICE_PX) / device_pixels_per_css_pixel);
 
