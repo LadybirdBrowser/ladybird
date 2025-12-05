@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,11 +9,11 @@
 #include <AK/IDAllocator.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
+#include <Application/EventLoopImplementationMacOS.h>
 #include <LibCore/Event.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/RWLock.h>
-#include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 
 #import <Cocoa/Cocoa.h>
 #import <CoreFoundation/CoreFoundation.h>
@@ -22,7 +22,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-namespace WebView {
+namespace Ladybird {
 
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;

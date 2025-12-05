@@ -80,30 +80,6 @@ if (HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
 endif()
 
-add_library(LibWebViewPlatform INTERFACE)
-if (ENABLE_QT)
-    add_library(LibWebViewQt STATIC
-        EventLoop/EventLoopImplementationQt.cpp
-        EventLoop/EventLoopImplementationQtEventTarget.cpp
-    )
-
-    set_target_properties(LibWebViewQt PROPERTIES AUTOMOC ON AUTORCC OFF AUTOUIC OFF)
-    find_package(Qt6 REQUIRED COMPONENTS Core)
-    target_link_libraries(LibWebViewQt PRIVATE LibCore)
-    target_link_libraries(LibWebViewQt PUBLIC Qt::Core)
-    if (WIN32)
-        find_package(pthread REQUIRED)
-        target_include_directories(LibWebViewQt PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
-    endif()
-    target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewQt)
-elseif (APPLE)
-    add_library(LibWebViewCocoa STATIC
-        EventLoop/EventLoopImplementationMacOS.mm
-    )
-    target_link_libraries(LibWebViewCocoa PUBLIC "-framework Cocoa")
-    target_link_libraries(LibWebViewPlatform INTERFACE LibWebViewCocoa)
-endif()
-
 if (ENABLE_INSTALL_HEADERS)
     foreach(header ${GENERATED_SOURCES})
         get_filename_component(extension ${header} EXT)

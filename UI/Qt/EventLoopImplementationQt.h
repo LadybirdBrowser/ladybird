@@ -14,7 +14,7 @@ class QEvent;
 class QEventLoop;
 class QSocketNotifier;
 
-namespace WebView {
+namespace Ladybird {
 
 class EventLoopImplementationQt;
 class EventLoopImplementationQtEventTarget;

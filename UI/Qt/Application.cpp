@@ -5,9 +5,9 @@
  */
 
 #include <LibCore/ArgsParser.h>
-#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
@@ -102,14 +102,14 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
-        Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
+        Core::EventLoopManager::install(*new EventLoopManagerQt);
         m_application = make<LadybirdQApplication>(arguments());
     }
 
     auto event_loop = WebView::Application::create_platform_event_loop();
 
     if (!browser_options().headless_mode.has_value())
-        static_cast<WebView::EventLoopImplementationQt&>(event_loop->impl()).set_main_loop();
+        static_cast<EventLoopImplementationQt&>(event_loop->impl()).set_main_loop();
 
     return event_loop;
 }

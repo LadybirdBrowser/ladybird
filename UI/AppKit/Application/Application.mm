@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Application/EventLoopImplementationMacOS.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 #include <Utilities/Conversions.h>
 
 #import <Application/Application.h>
@@ -26,7 +26,7 @@ Application::Application() = default;
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
     if (!browser_options().headless_mode.has_value()) {
-        Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
+        Core::EventLoopManager::install(*new EventLoopManagerMacOS);
         [::Application sharedApplication];
     }
 

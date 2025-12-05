@@ -16,8 +16,8 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/RWLock.h>
-#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
-#include <LibWebView/EventLoop/EventLoopImplementationQtEventTarget.h>
+#include <UI/Qt/EventLoopImplementationQt.h>
+#include <UI/Qt/EventLoopImplementationQtEventTarget.h>
 
 #include <QCoreApplication>
 #include <QEvent>
@@ -26,7 +26,7 @@
 #include <QThread>
 #include <QTimer>
 
-namespace WebView {
+namespace Ladybird {
 
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;

@@ -68,7 +68,7 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibWebViewPlatform LibRequests LibURL)
+set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL)
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
