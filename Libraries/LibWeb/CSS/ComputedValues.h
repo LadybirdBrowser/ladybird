@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/Filter.h>
+#include <LibWeb/CSS/FontSizeAdjust.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/LengthBox.h>
@@ -151,6 +152,7 @@ class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
+    static FontSizeAdjust font_size_adjust() { return FontSizeAdjust::none(); }
     static double font_weight() { return 400; }
     static Gfx::ShapeFeatures font_features() { return {}; }
     static CSSPixels line_height() { return 0; }
@@ -660,6 +662,7 @@ public:
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
+    FontSizeAdjust const& font_size_adjust() const { return m_inherited.font_size_adjust; }
     double font_weight() const { return m_inherited.font_weight; }
     Gfx::ShapeFeatures font_features() const { return m_inherited.font_features; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
@@ -697,6 +700,7 @@ protected:
         Color caret_color { InitialValues::caret_color() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         CSSPixels font_size { InitialValues::font_size() };
+        FontSizeAdjust font_size_adjust { InitialValues::font_size_adjust() };
         double font_weight { InitialValues::font_weight() };
         Gfx::ShapeFeatures font_features { InitialValues::font_features() };
         Optional<FlyString> font_language_override;
@@ -903,6 +907,7 @@ public:
     void set_caret_color(Color caret_color) { m_inherited.caret_color = caret_color; }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
+    void set_font_size_adjust(FontSizeAdjust const& font_size_adjust) { m_inherited.font_size_adjust = font_size_adjust; }
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
     void set_font_features(Gfx::ShapeFeatures font_features) { m_inherited.font_features = move(font_features); }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }

@@ -453,6 +453,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'font-language-override': 'normal'
 'fontSize': '16px'
 'font-size': '16px'
+'fontSizeAdjust': 'none'
+'font-size-adjust': 'none'
 'fontStretch': '100%'
 'font-stretch': '100%'
 'fontStyle': 'normal'

@@ -74,6 +74,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::FloodOpacity),
         NamedPropertyID(CSS::PropertyID::FontFamily),
         NamedPropertyID(CSS::PropertyID::FontSize),
+        NamedPropertyID(CSS::PropertyID::FontSizeAdjust),
         NamedPropertyID(CSS::PropertyID::FontStyle),
         NamedPropertyID(CSS::PropertyID::FontVariant),
         NamedPropertyID(CSS::PropertyID::FontWeight),
