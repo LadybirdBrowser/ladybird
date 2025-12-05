@@ -178,7 +178,7 @@ public:
     GC::Ptr<DOM::Element> get_the_attribute_associated_element(FlyString const& content_attribute, GC::Ptr<DOM::Element> explicitly_set_attribute_element) const;
     Optional<GC::RootVector<GC::Ref<DOM::Element>>> get_the_attribute_associated_elements(FlyString const& content_attribute, Optional<Vector<GC::Weak<DOM::Element>> const&> explicitly_set_attribute_elements) const;
 
-    DOMTokenList* class_list();
+    GC::Ref<DOMTokenList> class_list();
 
     WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootInit init);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
@@ -365,7 +365,7 @@ public:
     CustomElementReactionQueue const* custom_element_reaction_queue() const { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue& ensure_custom_element_reaction_queue();
 
-    HTML::CustomStateSet const* custom_state_set() const { return m_custom_state_set; }
+    GC::Ptr<HTML::CustomStateSet const> custom_state_set() const { return m_custom_state_set; }
     HTML::CustomStateSet& ensure_custom_state_set();
 
     JS::ThrowCompletionOr<void> upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition);
@@ -484,7 +484,7 @@ public:
     }
 
     i32 number_of_owned_list_items() const;
-    Element* list_owner() const;
+    GC::Ptr<Element> list_owner() const;
     void maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node = {});
     i32 ordinal_value();
 
