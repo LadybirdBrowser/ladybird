@@ -508,19 +508,49 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
         }
     }
 
-    if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport_paintable()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
-        auto scrollbar_colors = computed_values().scrollbar_color();
-        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
-            auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-            auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, true);
-        }
-        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
-            auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-            auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
-        }
+if (phase == PaintPhase::Overlay && (g_paint_viewport_scrollbars || !is_viewport_paintable()) && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
+    auto scrollbar_colors = computed_values().scrollbar_color();
+
+    // Fixed visual chrome thickness in device pixels.
+    constexpr int FIXED_SCROLLBAR_THICKNESS_DEVICE_PX = 12;
+    auto device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
+    CSSPixels fixed_thickness_in_css = CSSPixels(static_cast<float>(FIXED_SCROLLBAR_THICKNESS_DEVICE_PX) / device_pixels_per_css_pixel);
+
+    if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
+        auto css_gutter = scrollbar_data->gutter_rect;
+        auto css_thumb = scrollbar_data->thumb_rect;
+
+        auto gutter_right = scrollbar_data->gutter_rect.right();
+        css_gutter.set_width(fixed_thickness_in_css);
+        css_gutter.set_x(gutter_right - fixed_thickness_in_css);
+
+        auto thumb_right = scrollbar_data->thumb_rect.right();
+        css_thumb.set_width(fixed_thickness_in_css);
+        css_thumb.set_x(thumb_right - fixed_thickness_in_css);
+
+        auto gutter_rect = context.rounded_device_rect(css_gutter).to_type<int>();
+        auto thumb_rect = context.rounded_device_rect(css_thumb).to_type<int>();
+        context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, true);
     }
+
+    if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
+        auto css_gutter = scrollbar_data->gutter_rect;
+        auto css_thumb = scrollbar_data->thumb_rect;
+
+        // Keep the bottom edge anchored: set height, then move y so the bottom edge stays the same.
+        auto gutter_bottom = scrollbar_data->gutter_rect.bottom();
+        css_gutter.set_height(fixed_thickness_in_css);
+        css_gutter.set_y(gutter_bottom - fixed_thickness_in_css);
+
+        auto thumb_bottom = scrollbar_data->thumb_rect.bottom();
+        css_thumb.set_height(fixed_thickness_in_css);
+        css_thumb.set_y(thumb_bottom - fixed_thickness_in_css);
+
+        auto gutter_rect = context.rounded_device_rect(css_gutter).to_type<int>();
+        auto thumb_rect = context.rounded_device_rect(css_thumb).to_type<int>();
+        context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_length, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
+    }
+}
 }
 
 void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
