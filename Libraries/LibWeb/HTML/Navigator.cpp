@@ -37,6 +37,11 @@ Navigator::Navigator(JS::Realm& realm)
 
 Navigator::~Navigator() = default;
 
+HTML::Window& Navigator::window()
+{
+    return as<HTML::Window>(HTML::current_principal_global_object());
+}
+
 void Navigator::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Navigator);
