@@ -43,6 +43,8 @@ EventLoop::EventLoop()
 
 EventLoop::~EventLoop()
 {
+    if (m_weak)
+        m_weak->revoke();
     if (!event_loop_stack().is_empty() && &event_loop_stack().last() == this) {
         event_loop_stack().take_last();
     }
@@ -59,6 +61,14 @@ EventLoop& EventLoop::current()
     if (event_loop_stack().is_empty())
         dbgln("No EventLoop is present, unable to return current one!");
     return event_loop_stack().last();
+}
+
+NonnullRefPtr<WeakEventLoopReference> EventLoop::current_weak()
+{
+    auto& event_loop = current();
+    if (!event_loop.m_weak)
+        event_loop.m_weak = adopt_ref(*new (nothrow) WeakEventLoopReference(event_loop));
+    return *event_loop.m_weak;
 }
 
 void EventLoop::quit(int code)
@@ -150,6 +160,55 @@ void EventLoop::deferred_invoke(Function<void()> invokee)
 void deferred_invoke(Function<void()> invokee)
 {
     EventLoop::current().deferred_invoke(move(invokee));
+}
+
+WeakEventLoopReference::WeakEventLoopReference(EventLoop& event_loop)
+    : m_event_loop(&event_loop)
+{
+}
+
+void WeakEventLoopReference::revoke()
+{
+    Threading::RWLockLocker<Threading::LockMode::Read> locker { m_lock };
+    m_event_loop = nullptr;
+}
+
+StrongEventLoopReference WeakEventLoopReference::take()
+{
+    return StrongEventLoopReference(*this);
+}
+
+StrongEventLoopReference::StrongEventLoopReference(WeakEventLoopReference& event_loop_weak)
+{
+    event_loop_weak.m_lock.lock_read();
+    m_event_loop_weak = &event_loop_weak;
+}
+
+StrongEventLoopReference::~StrongEventLoopReference()
+{
+    m_event_loop_weak->m_lock.unlock();
+}
+
+bool StrongEventLoopReference::is_alive() const
+{
+    return m_event_loop_weak->m_event_loop != nullptr;
+}
+
+StrongEventLoopReference::operator bool() const
+{
+    return is_alive();
+}
+
+EventLoop* StrongEventLoopReference::operator*() const
+{
+    VERIFY(is_alive());
+    return m_event_loop_weak->m_event_loop;
+}
+
+EventLoop* StrongEventLoopReference::operator->() const
+{
+    VERIFY(is_alive());
+    return m_event_loop_weak->m_event_loop;
 }
 
 }

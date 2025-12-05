@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
@@ -16,11 +17,13 @@
 #include <AK/Time.h>
 #include <LibCore/Event.h>
 #include <LibCore/Forward.h>
+#include <LibThreading/RWLock.h>
 
 namespace Core {
 
 class EventLoopImplementation;
 class ThreadEventQueue;
+class WeakEventLoopReference;
 
 // The event loop enables asynchronous (not parallel or multi-threaded) computing by efficiently handling events from various sources.
 // Event loops are most important for GUI programs, where the various GUI updates and action callbacks run on the EventLoop,
@@ -89,12 +92,49 @@ public:
 
     static bool is_running();
     static EventLoop& current();
+    static NonnullRefPtr<WeakEventLoopReference> current_weak();
 
     EventLoopImplementation& impl() { return *m_impl; }
 
 private:
     NonnullOwnPtr<EventLoopImplementation> m_impl;
+    RefPtr<WeakEventLoopReference> m_weak;
 } SWIFT_UNSAFE_REFERENCE;
+
+class StrongEventLoopReference;
+
+class WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopReference> {
+public:
+    StrongEventLoopReference take();
+
+private:
+    friend class EventLoop;
+    friend class StrongEventLoopReference;
+
+    WeakEventLoopReference(EventLoop&);
+
+    void revoke();
+
+    EventLoop* m_event_loop;
+    Threading::RWLock m_lock;
+};
+
+class StrongEventLoopReference {
+public:
+    ~StrongEventLoopReference();
+
+    bool is_alive() const;
+    operator bool() const;
+    EventLoop* operator*() const;
+    EventLoop* operator->() const;
+
+private:
+    friend class WeakEventLoopReference;
+
+    StrongEventLoopReference(WeakEventLoopReference&);
+
+    WeakEventLoopReference* m_event_loop_weak;
+};
 
 void deferred_invoke(ESCAPING Function<void()>);
 
