@@ -1302,6 +1302,72 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
     return promise;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateBits
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext)
+{
+    auto& realm = this->realm();
+
+    // 1. Let decapsulationAlgorithm and decapsulationKey be the decapsulationAlgorithm and decapsulationKey
+    //    parameters passed to the decapsulateBits() method, respectively.
+
+    // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
+    //    decapsulateBits() method.
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(*ciphertext->raw_object()));
+
+    // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
+    //    decapsulationAlgorithm and op set to "decapsulate".
+    auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
+
+    // 4. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
+    if (normalized_decapsulation_algorithm.is_error()) {
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
+    }
+
+    // 5. Let realm be the relevant realm of this.
+
+    // 6. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 7. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_decapsulation_algorithm = normalized_decapsulation_algorithm.release_value(), promise, decapsulation_key, cipher_text = move(cipher_text)]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
+        //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
+
+        // 9. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
+        //    internal slot of decapsulationKey then throw an InvalidAccessError.
+        if (normalized_decapsulation_algorithm.parameter->name != decapsulation_key->algorithm_name()) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid algorithm name"_utf16));
+            return;
+        }
+
+        // 10. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateBits", then
+        //     throw an InvalidAccessError.
+        if (!decapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Decapsulatebits)) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid key usages"_utf16));
+            return;
+        }
+
+        // 11. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
+        //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
+        auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(
+            *normalized_decapsulation_algorithm.parameter,
+            cipher_text);
+        if (maybe_decapsulated_bits.is_error()) {
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_decapsulated_bits.release_error()).release_value());
+            return;
+        }
+        auto const decapsulated_bits = maybe_decapsulated_bits.release_value();
+
+        // 12. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // 13. Let result be the result of creating an ArrayBuffer in realm, containing decapsulatedBits.
+        // 14. Resolve promise with result.
+        WebIDL::resolve_promise(realm, promise, decapsulated_bits);
+    }));
+
+    return promise;
+}
+
 SupportedAlgorithmsMap& supported_algorithms_internal()
 {
     static SupportedAlgorithmsMap s_supported_algorithms;

@@ -47,6 +47,7 @@ public:
     GC::Ref<WebIDL::Promise> encapsulate_bits(AlgorithmIdentifier encapsulation_algorithm, GC::Ref<CryptoKey> encapsulation_key);
 
     GC::Ref<WebIDL::Promise> decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages);
+    GC::Ref<WebIDL::Promise> decapsulate_bits(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext);
 
 private:
     explicit SubtleCrypto(JS::Realm&);
