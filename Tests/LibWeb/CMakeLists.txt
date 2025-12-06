@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestCSSIDSpeed.cpp
+    TestContentFilter.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
     TestCSSSyntaxParser.cpp
@@ -16,6 +17,7 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibWeb LIBS LibWeb)
 endforeach()
 
+target_link_libraries(TestContentFilter PRIVATE LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 
 if (ENABLE_SWIFT)
