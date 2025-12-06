@@ -1,7 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>WebCryptoAPI: generateKey() for Failures</title>
-<meta name="timeout" content="long">
+<title>WebCryptoAPI: deriveKey() Using ECDH with CFRG Elliptic Curves</title>
 <script>
 self.GLOBAL = {
   isWindow: function() { return true; },
@@ -11,7 +10,7 @@ self.GLOBAL = {
 </script>
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
-<script src="../util/helpers.js"></script>
-<script src="failures.js"></script>
+<script src="cfrg_curves_bits_fixtures.js"></script>
+<script src="cfrg_curves_bits.js"></script>
 <div id=log></div>
-<script src="../../WebCryptoAPI/generateKey/failures_X448.https.any.js"></script>
+<script src="../../WebCryptoAPI/derive_bits_keys/cfrg_curves_bits_curve448.tentative.https.any.js"></script>

@@ -16,6 +16,7 @@ dictionary RsaOtherPrimesInfo {
     DOMString t;
 };
 
+// https://wicg.github.io/webcrypto-modern-algos/#partial-JsonWebKey-dictionary
 dictionary JsonWebKey {
     // The following fields are defined in Section 3.1 of JSON Web Key
     DOMString kty;
@@ -40,6 +41,10 @@ dictionary JsonWebKey {
     DOMString qi;
     sequence<RsaOtherPrimesInfo> oth;
     DOMString k;
+
+    // The following fields are defined in draft-ietf-cose-dilithium-07
+    DOMString pub;
+    DOMString priv;
 };
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation

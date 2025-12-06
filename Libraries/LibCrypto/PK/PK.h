@@ -239,8 +239,6 @@ public:
 
     virtual ByteString class_name() const = 0;
 
-    virtual size_t output_size() const = 0;
-
 protected:
     virtual ~PKSystem() = default;
 

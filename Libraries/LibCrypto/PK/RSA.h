@@ -184,11 +184,6 @@ public:
         return "RSA";
     }
 
-    virtual size_t output_size() const override
-    {
-        return m_public_key.length();
-    }
-
     void import_public_key(ReadonlyBytes, bool pem = true);
     void import_private_key(ReadonlyBytes, bool pem = true);
 

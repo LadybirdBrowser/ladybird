@@ -41,6 +41,11 @@ constexpr static Array<int, 4>
     issuer_alternative_name_oid { 2, 5, 29, 18 },
     basic_constraints_oid { 2, 5, 29, 19 };
 
+constexpr static Array<int, 9>
+    ml_dsa_44_oid { 2, 16, 840, 1, 101, 3, 4, 3, 17 },
+    ml_dsa_65_oid { 2, 16, 840, 1, 101, 3, 4, 3, 18 },
+    ml_dsa_87_oid { 2, 16, 840, 1, 101, 3, 4, 3, 19 };
+
 #define _ENUM(key, value) key,
 
 #define __ENUM_OBJECT_CLASS                   \
