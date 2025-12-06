@@ -107,6 +107,12 @@ template<>
 ErrorOr<UnixDateTime> decode(Decoder&);
 
 template<>
+ErrorOr<IPv4Address> decode(Decoder&);
+
+template<>
+ErrorOr<IPv6Address> decode(Decoder&);
+
+template<>
 ErrorOr<URL::URL> decode(Decoder&);
 
 template<>
