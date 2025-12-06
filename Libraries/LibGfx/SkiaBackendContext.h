@@ -10,10 +10,6 @@
 #include <AK/Noncopyable.h>
 #include <LibThreading/Mutex.h>
 
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
-
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
 #endif
@@ -23,7 +19,7 @@ class SkSurface;
 
 namespace Gfx {
 
-struct VulkanContext;
+class VulkanContext;
 class MetalContext;
 
 class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
@@ -32,7 +28,7 @@ class SkiaBackendContext : public AtomicRefCounted<SkiaBackendContext> {
 
 public:
 #ifdef USE_VULKAN
-    static RefPtr<SkiaBackendContext> create_vulkan_context(const VulkanContext& vulkan_context);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(NonnullRefPtr<VulkanContext> vulkan_context);
 #endif
 
 #ifdef AK_OS_MACOS
