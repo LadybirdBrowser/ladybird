@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<button id="button1">Button 1</button>
+<button id="button2">Button 2</button>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let button1 = document.getElementById("button1");
+        let button2 = document.getElementById("button2");
+
+        button1.addEventListener("click", e => {
+            println("Clicked button 1");
+        });
+        button2.addEventListener("click", e => {
+            println("Clicked button 2");
+        });
+
+        internals.sendKey(document.body, "Tab");
+        printElement(document.activeElement);
+        internals.sendKey(document.body, "Return");
+
+        internals.sendKey(document.body, "Tab");
+        printElement(document.activeElement);
+        internals.sendKey(document.body, "Space");
+    });
+</script>
