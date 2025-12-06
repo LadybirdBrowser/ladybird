@@ -1212,6 +1212,7 @@ class AudioParam;
 class AudioScheduledSourceNode;
 class BaseAudioContext;
 class BiquadFilterNode;
+class ControlMessageQueue;
 class DynamicsCompressorNode;
 class GainNode;
 class OfflineAudioCompletionEvent;
