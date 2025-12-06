@@ -13,14 +13,6 @@
 
 namespace Wasm {
 
-union SourcesAndDestination {
-    struct {
-        Dispatch::RegisterOrStack sources[3];
-        Dispatch::RegisterOrStack destination;
-    };
-    u32 sources_and_destination;
-};
-
 enum class Outcome : u64 {
     // 0..Constants::max_allowed_executed_instructions_per_call -> next IP.
     Continue = Constants::max_allowed_executed_instructions_per_call + 1,
@@ -69,6 +61,11 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
         IndirectTailCall,
     };
 
+    enum class CallType {
+        UsingRegisters,
+        UsingStack,
+    };
+
     template<bool HasCompiledList, bool HasDynamicInsnLimit, bool HaveDirectThreadingInfo>
     void interpret_impl(Configuration&, Expression const&);
 
@@ -96,15 +93,15 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     template<typename M, template<typename> typename SetSign, typename VectorType = Native128ByteVectorOf<M, SetSign>>
     VectorType pop_vector(Configuration&, size_t source, SourcesAndDestination const&);
     bool store_to_memory(Configuration&, Instruction::MemoryArgument const&, ReadonlyBytes data, u32 base);
-    Outcome call_address(Configuration&, FunctionAddress, CallAddressSource = CallAddressSource::DirectCall);
+    Outcome call_address(Configuration&, FunctionAddress, SourcesAndDestination const&, CallAddressSource = CallAddressSource::DirectCall, CallType = CallType::UsingStack);
 
     template<typename T>
     bool store_to_memory(MemoryInstance&, u64 address, T value);
 
-    template<typename PopTypeLHS, typename PushType, typename Operator, typename PopTypeRHS = PopTypeLHS, typename... Args>
+    template<typename PopTypeLHS, typename PushType, typename Operator, SourceAddressMix, typename PopTypeRHS = PopTypeLHS, typename... Args>
     bool binary_numeric_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
-    template<typename PopType, typename PushType, typename Operator, size_t input_arg = 0, typename... Args>
+    template<typename PopType, typename PushType, typename Operator, SourceAddressMix, size_t input_arg = 0, typename... Args>
     bool unary_operation(Configuration&, SourcesAndDestination const&, Args&&...);
 
     ALWAYS_INLINE bool set_trap(StringView reason)

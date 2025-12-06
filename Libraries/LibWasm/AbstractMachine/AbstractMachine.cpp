@@ -34,6 +34,9 @@ Optional<FunctionAddress> Store::allocate(HostFunction&& function)
 
 Optional<TableAddress> Store::allocate(TableType const& type)
 {
+    if (type.limits().min() > Constants::max_allowed_table_size)
+        return {};
+
     TableAddress address { m_tables.size() };
     Vector<Reference> elements;
     elements.ensure_capacity(type.limits().min());
@@ -288,12 +291,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         Configuration config { m_store };
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
-        config.set_frame(Frame {
+        config.set_frame(IsTailcall::No,
             auxiliary_instance,
-            Vector<Value> {},
+            Vector<Value, ArgumentsStaticSize> {},
+            Vector<Value, 8> {},
             entry.expression(),
-            1,
-        });
+            1);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Global instantiation trapped", move(result.trap()) };
@@ -310,12 +313,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             Configuration config { m_store };
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
-            config.set_frame(Frame {
+            config.set_frame(IsTailcall::No,
                 main_module_instance,
-                Vector<Value> {},
+                Vector<Value, ArgumentsStaticSize> {},
+                Vector<Value, 8> {},
                 entry,
-                entry.instructions().size() - 1,
-            });
+                entry.instructions().size() - 1);
             auto result = config.execute(interpreter);
             if (result.is_trap())
                 return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
@@ -345,12 +348,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         Configuration config { m_store };
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
-        config.set_frame(Frame {
+        config.set_frame(IsTailcall::No,
             main_module_instance,
-            Vector<Value> {},
+            Vector<Value, ArgumentsStaticSize> {},
+            Vector<Value, 8> {},
             active_ptr->expression,
-            1,
-        });
+            1);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
@@ -380,12 +383,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 Configuration config { m_store };
                 if (m_should_limit_instruction_count)
                     config.enable_instruction_count_limit();
-                config.set_frame(Frame {
+                config.set_frame(IsTailcall::No,
                     main_module_instance,
-                    Vector<Value> {},
+                    Vector<Value, ArgumentsStaticSize> {},
+                    Vector<Value, 8> {},
                     data.offset,
-                    1,
-                });
+                    1);
                 auto result = config.execute(interpreter);
                 if (result.is_trap())
                     return InstantiationError { "Data section initialisation trapped", move(result.trap()) };
@@ -460,14 +463,14 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     for (auto& table : module.table_section().tables()) {
         auto table_address = m_store.allocate(table.type());
-        VERIFY(table_address.has_value());
-        module_instance.tables().append(*table_address);
+        if (table_address.has_value())
+            module_instance.tables().append(*table_address);
     }
 
     for (auto& memory : module.memory_section().memories()) {
         auto memory_address = m_store.allocate(memory.type());
-        VERIFY(memory_address.has_value());
-        module_instance.memories().append(*memory_address);
+        if (memory_address.has_value())
+            module_instance.memories().append(*memory_address);
     }
 
     size_t index = 0;
@@ -558,7 +561,9 @@ Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address
     Configuration configuration { m_store };
     if (m_should_limit_instruction_count)
         configuration.enable_instruction_count_limit();
-    return configuration.call(interpreter, address, move(arguments));
+
+    Vector<Value, ArgumentsStaticSize> args = move(arguments);
+    return configuration.call(interpreter, address, args);
 }
 
 void Linker::link(ModuleInstance const& instance)

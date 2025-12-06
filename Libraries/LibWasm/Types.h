@@ -22,6 +22,8 @@
 
 namespace Wasm {
 
+class Module;
+
 template<size_t M>
 using NativeIntegralType = Conditional<M == 8, u8, Conditional<M == 16, u16, Conditional<M == 32, u32, Conditional<M == 64, u64, void>>>>;
 
@@ -78,6 +80,8 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, GlobalIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, LabelIndex);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, DataIndex);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
+
+constexpr static inline auto LocalArgumentMarker = static_cast<LocalIndex::Type>(1) << (sizeof(LocalIndex::Type) * 8 - 1);
 
 ParseError with_eof_check(Stream const& stream, ParseError error_if_not_eof);
 
@@ -472,7 +476,7 @@ public:
 
     struct StructuredInstructionArgs {
         BlockType block_type;
-        InstructionPointer end_ip;
+        InstructionPointer end_ip; // 'end' instruction IP if there is no 'else'; otherwise IP of instruction after 'end'.
         Optional<InstructionPointer> else_ip;
     };
 
@@ -564,6 +568,8 @@ public:
 
     LocalIndex local_index() const { return m_local_index; }
 
+    void set_local_index(Badge<Module>, LocalIndex index) { m_local_index = index; }
+
 private:
     OpCode m_opcode { 0 };
     LocalIndex m_local_index;
@@ -616,23 +622,29 @@ struct Dispatch {
         Stack = CountRegisters,
     };
 
+    static_assert(is_power_of_two(to_underlying(Stack)), "Stack marker must be a single bit");
+
     union {
         OpCode instruction_opcode;
         FlatPtr handler_ptr;
     };
     Instruction const* instruction { nullptr };
-    union {
-        struct {
-            RegisterOrStack sources[3];
-            RegisterOrStack destination;
-        };
-        u32 sources_and_destination;
-    };
 };
+
+union SourcesAndDestination {
+    struct {
+        Dispatch::RegisterOrStack sources[3];
+        Dispatch::RegisterOrStack destination;
+    };
+    u32 sources_and_destination;
+};
+
 struct CompiledInstructions {
     Vector<Dispatch> dispatches;
+    Vector<SourcesAndDestination> src_dst_mappings;
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
+    size_t max_call_arg_count = 0;
 };
 
 template<Enum auto... Vs>
@@ -1064,6 +1076,8 @@ public:
             : m_locals(move(locals))
             , m_body(move(body))
         {
+            for (auto const& local : m_locals)
+                m_total_local_count += local.n();
         }
 
         auto& locals() const { return m_locals; }
@@ -1071,9 +1085,12 @@ public:
 
         static ParseResult<Func> parse(ConstrainedStream& stream, size_t size_hint);
 
+        auto total_local_count() const { return m_total_local_count; }
+
     private:
         Vector<Locals> m_locals;
         Expression m_body;
+        size_t m_total_local_count { 0 };
     };
     class Code {
     public:
@@ -1256,6 +1273,7 @@ public:
 
 private:
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
+    void preprocess();
 
     Vector<CustomSection> m_custom_sections;
     TypeSection m_type_section;

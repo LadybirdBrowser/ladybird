@@ -791,6 +791,34 @@ struct VectorDotProduct {
     static StringView name() { return "dot"sv; }
 };
 
+struct VectorRelaxedDotI8I7AddS {
+    auto operator()(u128 lhs, u128 rhs, u128 acc) const
+    {
+        using VectorInput = Native128ByteVectorOf<i8, MakeSigned>;
+        using VectorResult = Native128ByteVectorOf<i32, MakeSigned>;
+        using VectorAcc = Native128ByteVectorOf<i32, MakeSigned>;
+
+        auto v1 = bit_cast<VectorInput>(lhs);
+        auto v2 = bit_cast<VectorInput>(rhs);
+        auto accumulator = bit_cast<VectorAcc>(acc);
+        VectorResult result {};
+
+        // Each i32 lane is the sum of 4 i8*i8 products, plus accumulator
+        for (size_t lane = 0; lane < 4; ++lane) {
+            i32 sum = 0;
+            for (size_t i = 0; i < 4; ++i) {
+                auto const idx = lane * 4 + i;
+                sum += static_cast<i32>(v1[idx]) * static_cast<i32>(v2[idx]);
+            }
+            result[lane] = sum + accumulator[lane];
+        }
+
+        return bit_cast<u128>(result);
+    }
+
+    static StringView name() { return "i32x4.relaxed_dot_i8x16_i7x16_add_s"sv; }
+};
+
 template<size_t VectorSize, typename Element>
 struct VectorNarrow {
     auto operator()(u128 lhs, u128 rhs) const

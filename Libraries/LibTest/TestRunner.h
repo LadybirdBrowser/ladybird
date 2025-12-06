@@ -51,6 +51,8 @@ public:
     bool needs_detailed_suites() const { return m_detailed_json; }
     Vector<Test::Suite> const& suites() const { return *m_suites; }
 
+    bool needs_timings() const { return m_print_times; }
+
     Vector<Test::Suite>& ensure_suites()
     {
         return m_suites.ensure([] { return Vector<Suite> {}; });
