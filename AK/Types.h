@@ -107,38 +107,14 @@ using Conditional = typename __Conditional<condition, TrueType, FalseType>::Type
 
 }
 
-#ifdef AK_OS_SERENITY
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
 
-using size_t = __SIZE_TYPE__;
-using ssize_t = AK::Detail::MakeSigned<size_t>;
-
-using ptrdiff_t = __PTRDIFF_TYPE__;
-
-using intptr_t = __INTPTR_TYPE__;
-using uintptr_t = __UINTPTR_TYPE__;
-
-using uint8_t = u8;
-using uint16_t = u16;
-using uint32_t = u32;
-using uint64_t = u64;
-
-using int8_t = i8;
-using int16_t = i16;
-using int32_t = i32;
-using int64_t = i64;
-
-using pid_t = int;
-
-#else
-#    include <stddef.h>
-#    include <stdint.h>
-#    include <sys/types.h>
-
-#    if defined(AK_OS_WINDOWS)
+#if defined(AK_OS_WINDOWS)
 using ssize_t = AK::Detail::MakeSigned<size_t>;
 using mode_t = unsigned short;
 using pid_t = int;
-#    endif
 #endif
 
 using FlatPtr = AK::Detail::Conditional<sizeof(void*) == 8, u64, u32>;

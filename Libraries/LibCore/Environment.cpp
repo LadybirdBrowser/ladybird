@@ -152,9 +152,7 @@ ErrorOr<void> unset(StringView name)
 
 ErrorOr<void> put(StringView env)
 {
-#if defined(AK_OS_SERENITY)
-    auto rc = ::serenity_putenv(env.characters_without_null_termination(), env.length());
-#elif defined(AK_OS_WINDOWS)
+#if defined(AK_OS_WINDOWS)
     ByteString str = env;
     auto rc = ::putenv(str.characters());
 #else
