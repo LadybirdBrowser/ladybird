@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property margin value '10px'
+Pass	Property margin value '10px 20px 30px 40px'
+Pass	Property margin value 'calc(0.5em + 10px)'
+Pass	Property margin value '30%'
+Pass	Property margin-top value '10px'
+Pass	Property margin-right value '20px'
+Pass	Property margin-bottom value '30px'
+Pass	Property margin-left value '40px'
