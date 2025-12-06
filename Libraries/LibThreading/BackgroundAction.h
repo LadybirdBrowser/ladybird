@@ -76,23 +76,26 @@ private:
         if (on_error.has_value())
             m_on_error = on_error.release_value();
 
-        enqueue_work([self = NonnullRefPtr(*this), promise = move(promise), origin_event_loop = &Core::EventLoop::current()]() mutable {
+        enqueue_work([self = NonnullRefPtr(*this), promise = move(promise), origin_event_loop = Core::EventLoop::current_weak()]() mutable {
             auto result = self->m_action(*self);
 
             // The event loop cancels the promise when it exits.
             self->m_canceled |= promise->is_rejected();
 
             // All of our work was successful and we weren't cancelled; resolve the event loop's promise.
+            auto strong_event_loop = origin_event_loop->take();
+            if (!strong_event_loop.is_alive())
+                return;
+
             if (!self->m_canceled && !result.is_error()) {
                 self->m_result = result.release_value();
 
                 // If there is no completion callback, we don't rely on the user keeping around the event loop.
                 if (self->m_on_complete) {
-                    origin_event_loop->deferred_invoke([self, promise = move(promise)] {
+                    strong_event_loop->deferred_invoke([self, promise = move(promise)] {
                         // Our promise's resolution function will never error.
                         (void)promise->resolve(*self);
                     });
-                    origin_event_loop->wake();
                 }
             } else {
                 // We were either unsuccessful or cancelled (in which case there is no error).
@@ -103,10 +106,9 @@ private:
                 promise->reject(Error::from_errno(ECANCELED));
 
                 if (!self->m_canceled && self->m_on_error) {
-                    origin_event_loop->deferred_invoke([self, error = move(error)]() mutable {
+                    strong_event_loop->deferred_invoke([self, error = move(error)]() mutable {
                         self->m_on_error(move(error));
                     });
-                    origin_event_loop->wake();
                 } else if (self->m_on_error) {
                     self->m_on_error(move(error));
                 }

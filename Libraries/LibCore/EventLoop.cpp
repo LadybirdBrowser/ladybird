@@ -43,6 +43,8 @@ EventLoop::EventLoop()
 
 EventLoop::~EventLoop()
 {
+    if (m_weak)
+        m_weak->revoke();
     if (!event_loop_stack().is_empty() && &event_loop_stack().last() == this) {
         event_loop_stack().take_last();
     }
@@ -59,6 +61,14 @@ EventLoop& EventLoop::current()
     if (event_loop_stack().is_empty())
         dbgln("No EventLoop is present, unable to return current one!");
     return event_loop_stack().last();
+}
+
+NonnullRefPtr<EventLoopWeak> EventLoop::current_weak()
+{
+    auto& event_loop = current();
+    if (!event_loop.m_weak)
+        event_loop.m_weak = NonnullRefPtr(NonnullRefPtr<EventLoopWeak>::Adopt, *new (nothrow) EventLoopWeak(event_loop));
+    return *event_loop.m_weak;
 }
 
 void EventLoop::quit(int code)
@@ -150,6 +160,56 @@ void EventLoop::deferred_invoke(Function<void()> invokee)
 void deferred_invoke(Function<void()> invokee)
 {
     EventLoop::current().deferred_invoke(move(invokee));
+}
+
+EventLoopWeak::EventLoopWeak(EventLoop& event_loop)
+    : m_event_loop(&event_loop)
+{
+}
+
+void EventLoopWeak::revoke()
+{
+    m_lock.lock_write();
+    m_event_loop = nullptr;
+    m_lock.unlock();
+}
+
+EventLoopLockedReference EventLoopWeak::take()
+{
+    return EventLoopLockedReference(*this);
+}
+
+EventLoopLockedReference::EventLoopLockedReference(EventLoopWeak& event_loop_weak)
+{
+    event_loop_weak.m_lock.lock_read();
+    m_event_loop_weak = &event_loop_weak;
+}
+
+EventLoopLockedReference::~EventLoopLockedReference()
+{
+    m_event_loop_weak->m_lock.unlock();
+}
+
+bool EventLoopLockedReference::is_alive() const
+{
+    return m_event_loop_weak->m_event_loop != nullptr;
+}
+
+EventLoopLockedReference::operator bool() const
+{
+    return is_alive();
+}
+
+EventLoop* EventLoopLockedReference::operator*() const
+{
+    VERIFY(is_alive());
+    return m_event_loop_weak->m_event_loop;
+}
+
+EventLoop* EventLoopLockedReference::operator->() const
+{
+    VERIFY(is_alive());
+    return m_event_loop_weak->m_event_loop;
 }
 
 }

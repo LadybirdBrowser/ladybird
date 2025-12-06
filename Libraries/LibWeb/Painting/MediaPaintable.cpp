@@ -410,12 +410,17 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
 
 void MediaPaintable::set_current_time(HTML::HTMLMediaElement& media_element, CSSPixelRect timeline_rect, CSSPixelPoint mouse_position, Temporary temporarily)
 {
+    VERIFY(timeline_rect.width() > 0);
+
     auto x_offset = mouse_position.x() - timeline_rect.x();
     x_offset = max(x_offset, 0);
     x_offset = min(x_offset, timeline_rect.width());
 
     auto x_percentage = static_cast<double>(x_offset) / static_cast<double>(timeline_rect.width());
-    auto position = x_percentage * media_element.duration();
+    auto duration = media_element.duration();
+    if (isnan(duration))
+        return;
+    auto position = x_percentage * duration;
 
     if (position != media_element.layout_display_time({}))
         media_element.set_current_time(position);
