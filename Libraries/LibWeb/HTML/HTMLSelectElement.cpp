@@ -649,6 +649,8 @@ void HTMLSelectElement::update_inner_text_element()
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
 void HTMLSelectElement::update_selectedness()
 {
+    ScopeGuard invalidate_dom_tree = [&] { document().bump_dom_tree_version(); };
+
     if (has_attribute(AttributeNames::multiple))
         return;
 
