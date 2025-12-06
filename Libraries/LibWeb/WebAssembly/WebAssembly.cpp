@@ -215,6 +215,47 @@ namespace Detail {
         _temporary_result.release_value();                                                                                                              \
     })
 
+Wasm::HostFunction create_host_function(JS::VM& vm, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name)
+{
+    return Wasm::HostFunction {
+        [&](auto&, auto& arguments) -> Wasm::Result {
+            GC::RootVector<JS::Value> argument_values { vm.heap() };
+            size_t index = 0;
+            for (auto& entry : arguments) {
+                argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
+                ++index;
+            }
+
+            auto result = TRY_OR_RETURN_TRAP(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
+            if (type.results().is_empty())
+                return Wasm::Result { Vector<Wasm::Value> {} };
+
+            if (type.results().size() == 1)
+                return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, type.results().first())) } };
+
+            auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
+            if (!method)
+                return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_string_without_side_effects()));
+
+            auto values = TRY_OR_RETURN_TRAP(JS::iterator_to_list(vm, TRY_OR_RETURN_TRAP(JS::get_iterator_from_method(vm, result, *method))));
+
+            if (values.size() != type.results().size())
+                return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size())));
+
+            Vector<Wasm::Value> wasm_values;
+            TRY_OR_RETURN_OOM_TRAP(vm, wasm_values.try_ensure_capacity(values.size()));
+
+            size_t i = 0;
+            for (auto& value : values)
+                wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, type.results()[i++])));
+
+            return Wasm::Result { move(wasm_values) };
+        },
+        type,
+        name,
+    };
+}
+
 JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
 {
     Wasm::Linker linker { module };
@@ -267,43 +308,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     else {
                         // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
                         cache.add_imported_object(function);
-                        Wasm::HostFunction host_function {
-                            [&](auto&, auto& arguments) -> Wasm::Result {
-                                GC::RootVector<JS::Value> argument_values { vm.heap() };
-                                size_t index = 0;
-                                for (auto& entry : arguments) {
-                                    argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
-                                    ++index;
-                                }
-
-                                auto result = TRY_OR_RETURN_TRAP(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
-                                if (type.results().is_empty())
-                                    return Wasm::Result { Vector<Wasm::Value> {} };
-
-                                if (type.results().size() == 1)
-                                    return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, type.results().first())) } };
-
-                                auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
-                                if (!method)
-                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, result.to_string_without_side_effects()));
-
-                                auto values = TRY_OR_RETURN_TRAP(JS::iterator_to_list(vm, TRY_OR_RETURN_TRAP(JS::get_iterator_from_method(vm, result, *method))));
-
-                                if (values.size() != type.results().size())
-                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size())));
-
-                                Vector<Wasm::Value> wasm_values;
-                                TRY_OR_RETURN_OOM_TRAP(vm, wasm_values.try_ensure_capacity(values.size()));
-
-                                size_t i = 0;
-                                for (auto& value : values)
-                                    wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, type.results()[i++])));
-
-                                return Wasm::Result { move(wasm_values) };
-                            },
-                            type,
-                            ByteString::formatted("func{}", resolved_imports.size()),
-                        };
+                        auto host_function = create_host_function(vm, function, type, ByteString::formatted("func{}", resolved_imports.size()));
                         address = cache.abstract_machine().store().allocate(move(host_function));
                         // FIXME: 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
                         //        'index' doesn't seem to be used anywhere?
