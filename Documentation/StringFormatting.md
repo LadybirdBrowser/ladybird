@@ -1,7 +1,7 @@
 # String Formatting
 
 Many places in Ladybird allow you to format strings, similar to `printf()`, for example `ByteString::formatted()`
-, `StringBuilder::appendff()`, or `dbgln()`. These are checked at compile time to ensure the format string matches the
+, `StringBuilder::appendff()`, or `dbgln()`, `outln()` and `warnln()`. These are checked at compile time to ensure the format string matches the
 number of parameters. The syntax is largely based on
 the [C++ `std::formatter` syntax](https://en.cppreference.com/w/cpp/utility/format/formatter#Standard_format_specification)
 but there are some differences.
@@ -31,6 +31,13 @@ characters:
 ```c++
 ByteString::formatted("{:.4}", "cool dude") == "cool";
 ByteString::formatted("{0:.4}", "cool dude") == "cool";
+```
+
+The short-hands `dbgln()`, `outln()` and `warnln()` can also output Optional<T> types as long as T has a formatter:
+
+```c++
+Optional<URL::URL> optional = this->document().encoding_parse_url("https://ladybird.org/"sv);
+dbgln("This can also output the content of non-trivial types {}", optional);
 ```
 
 ## Format specifiers
