@@ -17,6 +17,7 @@
 #import <Serial/Serial.idl>
 #import <ServiceWorker/ServiceWorkerContainer.idl>
 #import <StorageAPI/NavigatorStorage.idl>
+#import <MediaSession/MediaSession.idl>
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator
 [Exposed=Window]
@@ -49,6 +50,9 @@ interface Navigator {
 
     // https://w3c.github.io/battery/
     [SecureContext] Promise<BatteryManager> getBattery();
+
+    // https://w3c.github.io/mediasession/#the-mediasession-interface
+    [SameObject] readonly attribute MediaSession mediaSession;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
