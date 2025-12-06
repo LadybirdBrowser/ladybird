@@ -8,6 +8,7 @@
 
 #include <AK/RefPtr.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
 
@@ -36,9 +37,9 @@ template<>
 ErrorOr<Gfx::BitmapMetadata> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::BitmapSequence const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::BitmapSequence const&);
 
 template<>
-ErrorOr<Gfx::BitmapSequence> decode(Decoder&);
+GFX_API ErrorOr<Gfx::BitmapSequence> decode(Decoder&);
 
 }

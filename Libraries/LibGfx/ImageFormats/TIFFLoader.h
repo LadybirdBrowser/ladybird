@@ -8,6 +8,7 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
@@ -34,7 +35,7 @@ class TIFFLoadingContext;
 
 }
 
-class TIFFImageDecoderPlugin : public ImageDecoderPlugin {
+class GFX_API TIFFImageDecoderPlugin : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);

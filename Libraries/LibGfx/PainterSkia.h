@@ -8,12 +8,13 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/PaintingSurface.h>
 
 namespace Gfx {
 
-class PainterSkia final : public Painter {
+class GFX_API PainterSkia final : public Painter {
 public:
     explicit PainterSkia(NonnullRefPtr<Gfx::PaintingSurface>);
     virtual ~PainterSkia() override;
