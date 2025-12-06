@@ -109,8 +109,9 @@ public:
     struct ContentDataAndQuoteNestingLevel {
         ContentData content_data;
         u32 final_quote_nesting_level { 0 };
+        bool needs_reversed_counter_fixup { false };
     };
-    ContentDataAndQuoteNestingLevel content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
+    ContentDataAndQuoteNestingLevel content(DOM::AbstractElement const&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
     Variant<Length, double> tab_size() const;
