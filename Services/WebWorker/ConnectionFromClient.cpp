@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
@@ -70,7 +71,7 @@ void ConnectionFromClient::start_worker(URL::URL url, Web::Bindings::WorkerType 
     bool const is_shared = agent_type == Web::Bindings::AgentType::SharedWorker;
     VERIFY(is_shared || agent_type == Web::Bindings::AgentType::DedicatedWorker);
 
-    // FIXME: Add an assertion that the agent_type passed here is the same that was passed at process creation to initialize_main_thread_vm()
+    VERIFY(agent_type == Web::Bindings::main_thread_agent_type());
 
     m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared);
 }
