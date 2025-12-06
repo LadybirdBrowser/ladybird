@@ -1636,7 +1636,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             // NOTE: Currently all string types are converted to String.
 
             IDL::Parameter parameter { .type = *string_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
 
             union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_string };

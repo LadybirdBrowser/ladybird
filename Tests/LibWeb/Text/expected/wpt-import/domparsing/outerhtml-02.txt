@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	outerHTML and string conversion: null.
+Pass	outerHTML and string conversion: undefined.
+Pass	outerHTML and string conversion: number.
+Pass	outerHTML and string conversion: toString.
+Pass	outerHTML and string conversion: valueOf.

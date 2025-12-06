@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 9 tests
 
-8 Pass
-1 Fail
+9 Pass
 Pass	script.src accepts only TrustedScriptURL
 Pass	div.innerHTML accepts only TrustedHTML
 Pass	iframe.srcdoc accepts only TrustedHTML
 Pass	script.src accepts string and null after default policy was created
-Fail	div.innerHTML accepts string and null after default policy was created
+Pass	div.innerHTML accepts string and null after default policy was created
 Pass	iframe.srcdoc accepts string and null after default policy was created
 Pass	script.text accepts only TrustedScript
 Pass	script.innerText accepts only TrustedScript
