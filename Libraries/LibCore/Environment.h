@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibCore/ExportCoreMinimal.h>
 
 namespace Core::Environment {
 
@@ -61,19 +62,19 @@ EntryIterator entries();
 
 size_t size();
 
-bool has(StringView name);
+COREMINIMAL_API bool has(StringView name);
 enum class SecureOnly {
     No,
     Yes,
 };
-Optional<StringView> get(StringView name, SecureOnly = SecureOnly::No);
+COREMINIMAL_API Optional<StringView> get(StringView name, SecureOnly = SecureOnly::No);
 
 enum class Overwrite {
     No,
     Yes,
 };
-ErrorOr<void> set(StringView name, StringView value, Overwrite);
-ErrorOr<void> unset(StringView name);
+COREMINIMAL_API ErrorOr<void> set(StringView name, StringView value, Overwrite);
+COREMINIMAL_API ErrorOr<void> unset(StringView name);
 ErrorOr<void> put(StringView env);
 
 ErrorOr<void> clear();

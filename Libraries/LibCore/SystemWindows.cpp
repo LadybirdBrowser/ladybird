@@ -35,7 +35,7 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
     return dup(_get_osfhandle(fd));
 }
 
-ErrorOr<void> close(int handle)
+static ErrorOr<void> close(int handle)
 {
     if (is_socket(handle)) {
         if (closesocket(handle))

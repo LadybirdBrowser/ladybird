@@ -9,12 +9,13 @@
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
+#include <LibCore/ExportCoreMinimal.h>
 
 struct addrinfo;
 
 namespace Core::System {
 
-class AddressInfoVector {
+class COREMINIMAL_API AddressInfoVector {
     AK_MAKE_NONCOPYABLE(AddressInfoVector);
     AK_MAKE_DEFAULT_MOVABLE(AddressInfoVector);
 

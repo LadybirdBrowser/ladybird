@@ -9,11 +9,12 @@
 
 #include <AK/IPv4Address.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 #include <LibCore/Notifier.h>
 
 namespace Core {
 
-class TCPServer : public EventReceiver {
+class CORE_API TCPServer : public EventReceiver {
     C_OBJECT_ABSTRACT(TCPServer)
 public:
     static ErrorOr<NonnullRefPtr<TCPServer>> try_create();
