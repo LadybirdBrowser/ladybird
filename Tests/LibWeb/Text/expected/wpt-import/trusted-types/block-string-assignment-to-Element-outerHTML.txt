@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	outerHTML with html assigned via policy (successful HTML transformation).
 Pass	`outerHTML = TrustedHTML` throws NoModificationAllowedError when parent is a document.
 Pass	`outerHTML = string` throws.
 Pass	`outerHTML = string` throws TypeError even when parent is a document.
 Pass	`outerHTML = null` throws.
 Pass	`outerHTML = string` assigned via default policy (successful HTML transformation).
-Fail	`outerHTML = null` assigned via default policy does not throw
+Pass	`outerHTML = null` assigned via default policy does not throw

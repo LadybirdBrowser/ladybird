@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Pass	shadowRoot.innerHTML = html assigned via policy (successful HTML transformation).
 Pass	`shadowRoot.innerHTML = string` throws.
 Pass	`shadowRoot.innerHTML = null` throws.
 Pass	`shadowRoot.innerHTML = string` assigned via default policy (successful HTML transformation).
-Fail	`shadowRoot.innerHTML = string` assigned via default policy does not throw
+Pass	`shadowRoot.innerHTML = string` assigned via default policy does not throw
