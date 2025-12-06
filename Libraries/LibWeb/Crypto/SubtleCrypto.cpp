@@ -1089,7 +1089,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
 
         // 11. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateKey", then
         //     throw an InvalidAccessError.
-        if (encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatekey)) {
+        if (!encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatekey)) {
             WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key usage"_utf16));
             return;
         }
@@ -1109,7 +1109,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
         auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(
             *normalized_shared_key_algorithm.parameter,
             Bindings::KeyFormat::RawSecret,
-            encapsulated_bits->shared_key.value(),
+            encapsulated_bits.shared_key.value(),
             extractable,
             usages);
         if (maybe_shared_key.is_error()) {
@@ -1118,12 +1118,19 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
         }
         auto shared_key = maybe_shared_key.release_value();
 
-        // 14. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
-        //     to the ciphertext field of encapsulatedBits.
-        auto encapsulated_key = EncapsulatedKey { shared_key, encapsulated_bits->ciphertext };
+        // 14. Set the [[extractable]] internal slot of sharedKey to extractable.
+        shared_key->set_extractable(extractable);
 
-        // 15. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
-        // 16. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
+        // 15. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
+        normalize_key_usages(usages);
+        shared_key->set_usages(usages);
+
+        // 16. Let encapsulatedKey be a new EncapsulatedKey dictionary with sharedKey set to sharedKey and ciphertext set
+        //     to the ciphertext field of encapsulatedBits.
+        auto encapsulated_key = EncapsulatedKey { shared_key, encapsulated_bits.ciphertext };
+
+        // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // 18. Let result be the result of converting encapsulatedKey to an ECMAScript Object in realm, as defined by [WebIDL].
         auto maybe_result = encapsulated_key.to_object(realm);
         if (maybe_result.is_error()) {
             WebIDL::reject_promise(realm, promise, maybe_result.release_error().value());
@@ -1131,7 +1138,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
         }
         auto const result = maybe_result.release_value();
 
-        // 17. Resolve promise with result.
+        // 19. Resolve promise with result.
         WebIDL::resolve_promise(realm, promise, result);
     }));
 
@@ -1176,7 +1183,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 
         // 9. If the [[usages]] internal slot of encapsulationKey does not contain an entry that is "encapsulateBits", then
         //    throw an InvalidAccessError.
-        if (encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatebits)) {
+        if (!encapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Encapsulatebits)) {
             WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid encapsulation key usages"_utf16));
             return;
         }
@@ -1192,7 +1199,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 
         // 11. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
         // 12. Let result be the result of converting encapsulatedBits to an ECMAScript Object in realm, as defined by [WebIDL].
-        auto maybe_result = encapsulated_bits->to_object(realm);
+        auto maybe_result = encapsulated_bits.to_object(realm);
         if (maybe_result.is_error()) {
             WebIDL::reject_promise(realm, promise, maybe_result.release_error().value());
             return;
@@ -1236,6 +1243,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
         "importKey"_string,
         "exportKey"_string,
         "get key length"_string,
+        "encapsulate"_string,
     };
 
     for (auto& operation : supported_operations) {
@@ -1364,6 +1372,13 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
     define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
     define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
+
+    // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-registration
+    for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
+        define_an_algorithm<MLKEM>("generateKey"_string, name);
+        define_an_algorithm<MLKEM>("importKey"_string, name);
+        define_an_algorithm<MLKEM>("encapsulate"_string, name);
+    }
 
     return internal_object;
 }
