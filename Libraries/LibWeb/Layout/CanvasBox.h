@@ -19,11 +19,14 @@ public:
     CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~CanvasBox() override;
 
-    virtual void prepare_for_replaced_layout() override;
-
     HTML::HTMLCanvasElement const& dom_node() const { return static_cast<HTML::HTMLCanvasElement const&>(*ReplacedBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
+
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override;
+    virtual Optional<CSSPixels> compute_natural_height() const override;
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const override;
 };
 
 }

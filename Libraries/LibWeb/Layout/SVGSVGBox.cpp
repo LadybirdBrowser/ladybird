@@ -25,12 +25,19 @@ GC::Ptr<Painting::Paintable> SVGSVGBox::create_paintable() const
     return Painting::SVGSVGPaintable::create(*this);
 }
 
-void SVGSVGBox::prepare_for_replaced_layout()
+Optional<CSSPixels> SVGSVGBox::compute_natural_width() const
 {
-    auto natural_metrics = SVG::SVGSVGElement::negotiate_natural_metrics(dom_node());
-    set_natural_width(natural_metrics.width);
-    set_natural_height(natural_metrics.height);
-    set_natural_aspect_ratio(natural_metrics.aspect_ratio);
+    return SVG::SVGSVGElement::negotiate_natural_metrics(dom_node()).width;
+}
+
+Optional<CSSPixels> SVGSVGBox::compute_natural_height() const
+{
+    return SVG::SVGSVGElement::negotiate_natural_metrics(dom_node()).height;
+}
+
+Optional<CSSPixelFraction> SVGSVGBox::compute_natural_aspect_ratio() const
+{
+    return SVG::SVGSVGElement::negotiate_natural_metrics(dom_node()).aspect_ratio;
 }
 
 }

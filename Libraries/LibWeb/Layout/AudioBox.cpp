@@ -15,8 +15,6 @@ GC_DEFINE_ALLOCATOR(AudioBox);
 AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style)
     : ReplacedBox(document, element, move(style))
 {
-    set_natural_width(300);
-    set_natural_height(40);
 }
 
 HTML::HTMLAudioElement& AudioBox::dom_node()
@@ -34,15 +32,14 @@ GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
     return Painting::AudioPaintable::create(*this);
 }
 
-void AudioBox::prepare_for_replaced_layout()
+Optional<CSSPixels> AudioBox::compute_natural_width() const
 {
-    if (dom_node().should_paint()) {
-        set_natural_width(300);
-        set_natural_height(40);
-    } else {
-        set_natural_width(0);
-        set_natural_height(0);
-    }
+    return CSSPixels(dom_node().should_paint() ? 300 : 0);
+}
+
+Optional<CSSPixels> AudioBox::compute_natural_height() const
+{
+    return CSSPixels(dom_node().should_paint() ? 40 : 0);
 }
 
 }

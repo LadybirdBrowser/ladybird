@@ -19,8 +19,6 @@ public:
     ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, GC::Ref<CSS::ComputedProperties>, ImageProvider const&);
     virtual ~ImageBox() override;
 
-    virtual void prepare_for_replaced_layout() override;
-
     bool renders_as_alt_text() const;
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
@@ -30,12 +28,17 @@ public:
 
     void dom_node_did_update_alt_text(Badge<ImageProvider>);
 
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override;
+    virtual Optional<CSSPixels> compute_natural_height() const override;
+    virtual Optional<CSSPixelFraction> compute_natural_aspect_ratio() const override;
+
 private:
     virtual void visit_edges(Visitor&) override;
 
     ImageProvider const& m_image_provider;
 
-    Optional<CSSPixels> m_cached_alt_text_width;
+    mutable Optional<CSSPixels> m_cached_alt_text_width;
 };
 
 }

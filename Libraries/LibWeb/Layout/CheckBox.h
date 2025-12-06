@@ -19,6 +19,10 @@ public:
     CheckBox(DOM::Document&, HTML::HTMLInputElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~CheckBox() override;
 
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override { return CSSPixels(13); }
+    virtual Optional<CSSPixels> compute_natural_height() const override { return CSSPixels(13); }
+
 private:
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };

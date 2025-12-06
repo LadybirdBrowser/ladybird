@@ -36,8 +36,9 @@ Optional<CSSPixels> Box::natural_width() const
     // ratio.
     if (has_size_containment())
         return 0;
-    return m_natural_width;
+    return compute_natural_width();
 }
+
 Optional<CSSPixels> Box::natural_height() const
 {
     // https://drafts.csswg.org/css-contain-2/#containment-size
@@ -45,8 +46,9 @@ Optional<CSSPixels> Box::natural_height() const
     // ratio.
     if (has_size_containment())
         return 0;
-    return m_natural_height;
+    return compute_natural_height();
 }
+
 Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
 {
     // https://drafts.csswg.org/css-contain-2/#containment-size
@@ -54,7 +56,7 @@ Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
     // ratio.
     if (has_size_containment())
         return {};
-    return m_natural_aspect_ratio;
+    return compute_natural_aspect_ratio();
 }
 
 void Box::visit_edges(Cell::Visitor& visitor)

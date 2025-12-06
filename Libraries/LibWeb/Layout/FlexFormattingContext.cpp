@@ -96,10 +96,6 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
     // 3. Determine the flex base size and hypothetical main size of each item
     for (auto& item : m_flex_items) {
-        if (item.box->is_replaced_box()) {
-            // FIXME: Get rid of prepare_for_replaced_layout() and make replaced elements figure out their intrinsic size lazily.
-            static_cast<ReplacedBox&>(*item.box).prepare_for_replaced_layout();
-        }
         determine_flex_base_size(item);
     }
 

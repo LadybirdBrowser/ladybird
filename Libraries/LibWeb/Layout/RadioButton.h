@@ -19,6 +19,10 @@ public:
     RadioButton(DOM::Document&, HTML::HTMLInputElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~RadioButton() override;
 
+protected:
+    virtual Optional<CSSPixels> compute_natural_width() const override { return CSSPixels(12); }
+    virtual Optional<CSSPixels> compute_natural_height() const override { return CSSPixels(12); }
+
 private:
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
