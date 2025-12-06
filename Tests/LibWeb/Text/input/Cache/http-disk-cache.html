@@ -71,7 +71,7 @@
 
         if (result !== status) {
             println(`Expected ${url} to contain a cache status of '${status}': received: '${result}'`);
-            anyTestFailed = false;
+            anyTestFailed = true;
         }
     }
 
