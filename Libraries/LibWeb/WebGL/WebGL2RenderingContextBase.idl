@@ -418,7 +418,7 @@ interface mixin WebGL2RenderingContextBase {
     undefined bindBufferBase(GLenum target, GLuint index, WebGLBuffer? buffer);
     undefined bindBufferRange(GLenum target, GLuint index, WebGLBuffer? buffer, GLintptr offset, GLsizeiptr size);
     [FIXME] any getIndexedParameter(GLenum target, GLuint index);
-    [FIXME] sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
+    sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
     any getActiveUniforms(WebGLProgram program, sequence<GLuint> uniformIndices, GLenum pname);
     GLuint getUniformBlockIndex(WebGLProgram program, DOMString uniformBlockName);
     any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);

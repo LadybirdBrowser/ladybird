@@ -1035,6 +1035,36 @@ void WebGL2RenderingContextImpl::bind_buffer_range(WebIDL::UnsignedLong target, 
     glBindBufferRange(target, index, buffer_handle, offset, size);
 }
 
+Optional<Vector<WebIDL::UnsignedLong>> WebGL2RenderingContextImpl::get_uniform_indices(GC::Root<WebGLProgram> program, Vector<String> const& uniform_names)
+{
+    m_context->make_current();
+
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return OptionalNone {};
+    }
+
+    auto program_handle = handle_or_error.release_value();
+
+    Vector<Vector<GLchar>> uniform_names_strings;
+    uniform_names_strings.ensure_capacity(uniform_names.size());
+    for (auto const& uniform_name : uniform_names) {
+        uniform_names_strings.unchecked_append(null_terminated_string(uniform_name));
+    }
+
+    Vector<GLchar const*> uniform_names_characters;
+    uniform_names_characters.ensure_capacity(uniform_names_strings.size());
+    for (auto const& uniform_name_string : uniform_names_strings) {
+        uniform_names_characters.unchecked_append(uniform_name_string.data());
+    }
+
+    auto result_buffer = MUST(ByteBuffer::create_zeroed(uniform_names_characters.size() * sizeof(WebIDL::UnsignedLong)));
+    auto result_span = result_buffer.bytes().reinterpret<WebIDL::UnsignedLong>();
+    glGetUniformIndices(program_handle, uniform_names_characters.size(), uniform_names_characters.data(), result_span.data());
+    return Vector<WebIDL::UnsignedLong> { result_span };
+}
+
 JS::Value WebGL2RenderingContextImpl::get_active_uniforms(GC::Root<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname)
 {
     m_context->make_current();

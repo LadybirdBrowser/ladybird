@@ -90,6 +90,7 @@ public:
     void resume_transform_feedback();
     void bind_buffer_base(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer);
     void bind_buffer_range(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index, GC::Root<WebGLBuffer> buffer, WebIDL::LongLong offset, WebIDL::LongLong size);
+    Optional<Vector<WebIDL::UnsignedLong>> get_uniform_indices(GC::Root<WebGLProgram> program, Vector<String> const& uniform_names);
     JS::Value get_active_uniforms(GC::Root<WebGLProgram> program, Vector<WebIDL::UnsignedLong> uniform_indices, WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_uniform_block_index(GC::Root<WebGLProgram> program, String uniform_block_name);
     JS::Value get_active_uniform_block_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong uniform_block_index, WebIDL::UnsignedLong pname);
