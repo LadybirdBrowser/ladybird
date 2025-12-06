@@ -76,6 +76,11 @@
   "marker": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
   },
+  "part": {
+    "spec": "https://drafts.csswg.org/css-shadow-parts/#selectordef-part",
+    "type": "function",
+    "function-syntax": "<ident>+"
+  },
   "placeholder": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder",
     "property-whitelist": [

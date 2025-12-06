@@ -534,6 +534,24 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     value = Selector::create(move(compound_selectors));
                     break;
                 }
+                case PseudoElementMetadata::ParameterType::IdentList: {
+                    // <ident>+
+                    Selector::PseudoElementSelector::IdentList idents;
+                    while (function_tokens.has_next_token()) {
+                        if (!function_tokens.next_token().is(Token::Type::Ident)) {
+                            ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                                .name = MUST(String::formatted("::{}", pseudo_name)),
+                                .value_string = name_token.to_string(),
+                                .description = "Contains invalid <ident>."_string,
+                            });
+                            return ParseError::SyntaxError;
+                        }
+                        idents.append(function_tokens.consume_a_token().token().ident());
+                        function_tokens.discard_whitespace();
+                    }
+                    value = move(idents);
+                    break;
+                }
                 case PseudoElementMetadata::ParameterType::PTNameSelector: {
                     // <pt-name-selector> = '*' | <custom-ident>
                     // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector

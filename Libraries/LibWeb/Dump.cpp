@@ -595,6 +595,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                 switch (pseudo_element_metadata.parameter_type) {
                 case CSS::PseudoElementMetadata::ParameterType::None:
                 case CSS::PseudoElementMetadata::ParameterType::CompoundSelector:
+                case CSS::PseudoElementMetadata::ParameterType::IdentList:
                     break;
                 case CSS::PseudoElementMetadata::ParameterType::PTNameSelector: {
                     auto const& [is_universal, value] = pseudo_element.pt_name_selector();

@@ -1,0 +1,8 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Shadow Parts Module Level 1 (https://drafts.csswg.org/css-shadow-parts-1/)
+
+partial interface Element {
+  [SameObject, PutForwards=value] readonly attribute DOMTokenList part;
+};

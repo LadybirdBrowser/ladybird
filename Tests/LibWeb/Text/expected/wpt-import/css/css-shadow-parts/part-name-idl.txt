@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Access to .part returns an empty DOMTokenList.
+Pass	Multiple names give a DOMTokenList with multiple entries.
+Pass	DOMTokenList created by access is persisted.
+Pass	Changes in DOMTokenList are refected in attribute.

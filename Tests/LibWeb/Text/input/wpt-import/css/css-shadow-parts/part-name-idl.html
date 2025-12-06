@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Shadow Parts - Part Name IDL</title>
+    <meta href="mailto:fergal@chromium.org" rel="author" title="Fergal Daly">
+    <link href="http://www.google.com/" rel="author" title="Google">
+    <link href="https://drafts.csswg.org/css-shadow-parts/" rel="help">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="support/shadow-helper.js"></script>
+  </head>
+  <body>
+    <span id="s_no_part"></span>
+    <span id="s_part" part="part1"></span>
+    <span id="s_2_parts" part="part1 part2"></span>
+    <script>
+      "use strict";
+      test(function() {
+        const parts = s_no_part.part;
+        assert_equals(parts.length, 0);
+        assert_equals(parts.value, "");
+      }, "Access to .part returns an empty DOMTokenList.");
+      test(function() {
+        const parts = s_2_parts.part;
+        assert_equals(parts.length, 2);
+        assert_equals(parts[0], "part1");
+        assert_equals(parts[1], "part2");
+        assert_equals(parts.value, "part1 part2");
+      }, "Multiple names give a DOMTokenList with multiple entries.");
+      test(function() {
+        const parts = s_no_part.part;
+        assert_equals(parts.length, 0);
+        assert_equals(parts.value, "");
+        parts.add("part1");
+        assert_equals(parts.length, 1);
+        assert_equals(parts.value, "part1");
+      }, "DOMTokenList created by access is persisted.");
+      test(function() {
+        const parts = s_part.part;
+        assert_equals(parts.length, 1);
+        assert_equals(parts.value, "part1");
+        parts.add("part2");
+        assert_equals(parts.length, 2);
+        assert_equals(parts.value, "part1 part2");
+        assert_equals(s_part.getAttribute("part"), parts.value);
+        parts.remove("part1");
+        assert_equals(parts.length, 1);
+        assert_equals(parts.value, "part2");
+        assert_equals(s_part.getAttribute("part"), parts.value);
+      }, "Changes in DOMTokenList are refected in attribute.");
+    </script>
+  </body>
+</html>

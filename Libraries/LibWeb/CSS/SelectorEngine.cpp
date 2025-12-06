@@ -1015,7 +1015,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // The :state(identifier) pseudo-class must match all custom elements whose states set's set entries contains identifier.
         if (!element.is_custom())
             return false;
-        if (auto* custom_state_set = element.custom_state_set())
+        if (auto custom_state_set = element.custom_state_set())
             return custom_state_set->has_state(pseudo_class.ident->string_value);
         return false;
     }
