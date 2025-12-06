@@ -54,9 +54,7 @@
         const effectToPreemptPromise = navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 1000, strongMagnitude: 0.1, weakMagnitude: 0.1 });
 
         // Make sure the first effect is issued to the gamepad.
-        await new Promise(resolve => {
-            setTimeout(() => resolve(), 1);
-        });
+        await requestAnimationFrame(() => { });
         await handleSDLInputEvents();
 
         const newDualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, strongMagnitude: 1.0, weakMagnitude: 1.0 });
