@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Cascade Layers: Imports</title>
+<meta name="assert" content="Import functionality of CSS Cascade Layers">
+<link rel="author" title="Antti Koivisto" href="mailto:antti@apple.com">
+<link rel="help" href="https://www.w3.org/TR/css-cascade-5/#layering">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<target class="first"></target>
+<div id="log"></div>
+<script>
+
+// In all test cases, the rule specified as "color: green" should win.
+const imports = {
+    "basic-green.css": `
+        target { color: green; }
+    `,
+    "basic-red.css": `
+        target { color: red; }
+    `,
+    "layer-green.css": `
+        @layer {
+            target { color: green; }
+        }
+    `,
+    "layer-red.css": `
+        @layer {
+            target { color: red; }
+        }
+    `,
+    "layer-A-green.css": `
+        @layer A {
+            target { color: green; }
+        }
+    `,
+    "layer-A-red.css": `
+        @layer A {
+            target { color: red; }
+        }
+    `,
+    "layer-B-green.css": `
+        @layer B {
+            target { color: green; }
+        }
+    `,
+    "layer-B-red.css": `
+        @layer B {
+            target { color: red; }
+        }
+    `,
+};
+
+const testCases = [
+    {
+        title: 'A1 Layer rules with import',
+        style: `
+            @import url(basic-green.css);
+            @layer {
+                target { color: red; }
+            }
+        `
+    },
+    {
+        title: 'A2 Layer rules with import',
+        style: `
+            @import url(layer-red.css);
+            target { color: green; }
+        `
+    },
+    {
+        title: 'A3 Layer rules with import',
+        style: `
+            @import url(basic-green.css);
+            @import url(layer-red.css);
+        `
+    },
+    {
+        title: 'A4 Layer rules with import',
+        style: `
+            @import url(layer-A-red.css);
+            @layer B {
+                target { color: green; }
+            }
+            @layer A {
+                target { color: red; }
+            }
+        `
+    },
+    {
+        title: 'B1 Anonymous imports',
+        style: `
+            @import url(basic-red.css) layer;
+            target { color: green; }
+        `
+    },
+    {
+        title: 'B2 Anonymous imports',
+        style: `
+           @import url(basic-red.css) layer;
+           @import url(basic-green.css) layer;
+        `
+    },
+    {
+        title: 'B3 Anonymous imports',
+        style: `
+            @import url(basic-red.css) layer;
+            @layer {
+                target { color: green; }
+            }
+        `
+    },
+    {
+        title: 'B4 Anonymous imports',
+        style: `
+            @import url(layer-red.css);
+            @import url(basic-green.css) layer;
+        `
+    },
+    {
+        title: 'C1 Named imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            target { color: green; }
+        `
+    },
+    {
+        title: 'C2 Named imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            @import url(basic-green.css) layer(A);
+        `
+    },
+    {
+        title: 'C3 Named imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            @layer A {
+                target { color: green; }
+            }
+        `
+    },
+    {
+        title: 'C4 Named imports',
+        style: `
+            @import url(layer-red.css) layer(A);
+            @layer A {
+                target { color: green; }
+            }
+        `
+    },
+    {
+        title: 'C5 Named imports',
+        style: `
+            @import url(layer-A-red.css) layer(A);
+            @layer A.A {
+                target { color: green; }
+            }
+        `
+    },
+    {
+        title: 'C6 Named imports',
+        style: `
+            @import url(layer-A-red.css) layer(A);
+            @layer B {
+                target { color: green; }
+            }
+            @layer A.B {
+                target { color: red; }
+            }
+        `
+    },
+    {
+        title: 'C7 Named imports',
+        style: `
+            @import url(basic-green.css) layer(A);
+            @import url(basic-red.css) layer(B);
+            @import url(basic-green.css) layer(C);
+        `
+    },
+    {
+        title: 'C8 Named imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            @import url(basic-green.css) layer(B);
+            @import url(basic-red.css) layer(A);
+        `
+    },
+    {
+        title: 'C9 Named imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            @import url(basic-red.css) layer(B.A);
+            @import url(basic-green.css) layer(B);
+        `
+    },
+    {
+        title: 'D1 Layer statement with imports',
+        style: `
+            @import url(basic-red.css) layer(A);
+            @import url(basic-green.css) layer(B);
+            @layer B, A;
+        `
+    },
+    {
+        title: 'D2 Layer statement with imports',
+        style: `
+            @layer B;
+            @import url(basic-green.css) layer(A);
+            @layer B {
+                target { color: red; }
+            }
+        `
+    },
+    {
+        title: 'D3 Layer statement with imports',
+        style: `
+            @layer B;
+            @import url(basic-green.css) layer(A);
+            @import url(basic-red.css) layer(B);
+        `
+    },
+    {
+        title: 'D4 Layer statement with imports',
+        style: `
+            @layer C, B, A;
+            @import url(basic-green.css) layer(A);
+            @import url(basic-red.css) layer(B);
+            @layer C {
+                target { color: red; }
+            }
+        `
+    },
+    {
+        title: 'D5 Layer statement with imports',
+        style: `
+            @layer A.B, A.A;
+            @import url(basic-green.css) layer(A.A);
+            @import url(layer-B-red.css) layer(A);
+        `
+    },
+    {
+        title: 'D6 Layer statement with imports',
+        style: `
+            @layer B, A;
+            @import url(layer-A-red.css) layer(A);
+            @import url(layer-A-red.css) layer(B);
+            @layer A.B {
+                target { color: green; }
+            }
+        `
+    },
+    {
+        title: 'E1 Named imports establish layer even with network errors',
+        style: `
+            @import "nonexist.css" layer(A);
+            @layer B {
+                target { color: green; }
+            }
+            @layer A {
+                target { color: red; }
+            }
+        `,
+    },
+];
+
+for (let testCase of testCases) {
+    promise_test(async t => {
+        const styleElement = document.createElement('style');
+        const styleText = testCase['style'].replaceAll(/url\((.+?)\)/g, (match, p1) => {
+            return `url(data:text/css,${ encodeURI(imports[p1]) })`;
+        });
+        styleElement.textContent = styleText;
+
+        await new Promise(resolve => {
+            styleElement.onload = resolve;
+            styleElement.onerror = resolve;
+            document.head.append(styleElement);
+        });
+
+        try {
+            const targets = document.querySelectorAll('target');
+            for (target of targets)
+                assert_equals(window.getComputedStyle(target).color, 'rgb(0, 128, 0)', testCase['title'] + ", target '" + target.classList[0] + "'");
+        } finally {
+            styleElement.remove();
+        }
+    }, testCase['title']);
+}
+</script>
+</body>
+</html>

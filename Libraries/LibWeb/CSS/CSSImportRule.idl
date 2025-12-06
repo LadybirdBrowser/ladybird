@@ -6,9 +6,8 @@
 [Exposed=Window]
 interface CSSImportRule : CSSRule {
     readonly attribute USVString href;
-    // AD-HOC: media is null if styleSheet is null. Spec issue: https://github.com/w3c/csswg-drafts/issues/12063
-    [SameObject, PutForwards=mediaText] readonly attribute MediaList? media;
+    [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     [SameObject, ImplementedAs=style_sheet_for_bindings] readonly attribute CSSStyleSheet? styleSheet;
-    [FIXME] readonly attribute CSSOMString? layerName;
+    readonly attribute CSSOMString? layerName;
     readonly attribute CSSOMString? supportsText;
 };
