@@ -11,6 +11,7 @@
 #include <LibWeb/GPC/GlobalPrivacyControl.h>
 #include <LibWeb/Gamepad/NavigatorGamepad.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
+#include <LibWeb/HTML/NavigatorBadge.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
 #include <LibWeb/HTML/NavigatorDeviceMemory.h>
@@ -27,6 +28,7 @@ namespace Web::HTML {
 
 class Navigator
     : public Bindings::PlatformObject
+    , public NavigatorBadgeMixin
     , public NavigatorBeaconPartial
     , public NavigatorConcurrentHardwareMixin
     , public NavigatorDeviceMemoryMixin
@@ -77,6 +79,9 @@ public:
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
+
+    // ^NavigatorBadgeMixin
+    virtual HTML::Window& window() override;
 
 private:
     explicit Navigator(JS::Realm&);

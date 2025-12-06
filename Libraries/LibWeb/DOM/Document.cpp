@@ -3282,6 +3282,12 @@ bool Document::is_fully_active() const
     if (!navigable)
         return false;
 
+    // When a navigable is being destroyed (e.g., iframe.remove()), the has_been_destroyed flag is set immediately,
+    // but the navigable pointer is not nulled until later in a queued task. We must check the flag to ensure we
+    // correctly detect that the document is no longer fully active during this transitional period.
+    if (navigable->has_been_destroyed())
+        return false;
+
     auto traversable = navigable->traversable_navigable();
     if (navigable == traversable && traversable->is_top_level_traversable())
         return true;
