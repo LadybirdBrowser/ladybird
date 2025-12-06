@@ -70,6 +70,13 @@ public:
             HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
             Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
         };
+
+        struct ComputedKeyframe {
+            HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>> properties {};
+            Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
+            double keyframe_offset_value;
+        };
+
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
     };
     static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyID> const& animated_properties);
@@ -112,6 +119,9 @@ public:
 
     virtual void update_computed_properties(AnimationUpdateContext&) override;
 
+    CSS::EasingFunction const& default_keyframe_timing_function() { return m_keyframe_default_timing_function; }
+    void set_default_keyframe_timing_function(CSS::EasingFunction value) { m_keyframe_default_timing_function = move(value); }
+
 private:
     KeyframeEffect(JS::Realm&);
     virtual ~KeyframeEffect() override = default;
@@ -135,6 +145,8 @@ private:
     Vector<GC::Ref<JS::Object>> m_keyframe_objects {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
+
+    CSS::EasingFunction m_keyframe_default_timing_function { CSS::EasingFunction::linear() };
 };
 
 }
