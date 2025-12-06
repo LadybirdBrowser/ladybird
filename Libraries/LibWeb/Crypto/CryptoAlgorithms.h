@@ -382,6 +382,11 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "encapsulate is not supported"_utf16);
     }
 
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> decapsulate(AlgorithmParams const&, ByteBuffer const&)
+    {
+        return WebIDL::NotSupportedError::create(m_realm, "decalpsulate is not supported"_utf16);
+    }
+
     static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new AlgorithmMethods(realm)); }
 
 protected:
