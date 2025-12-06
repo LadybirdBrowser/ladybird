@@ -1206,6 +1206,102 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
     return promise;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-decapsulateKey
+GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, GC::Root<WebIDL::BufferSource> const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    auto& realm = this->realm();
+
+    // 1. Let decapsulationAlgorithm, decapsulationKey, sharedKeyAlgorithm, extractable and usages be the
+    //    decapsulationAlgorithm, decapsulationKey, sharedKeyAlgorithm, extractable and keyUsages parameters passed to
+    //    the decapsulateKey() method, respectively.
+
+    // 2. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
+    //    decapsulateKey() method.
+    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(*ciphertext->raw_object()));
+
+    // 3. Let normalizedDecapsulationAlgorithm be the result of normalizing an algorithm, with alg set to
+    //    decapsulationAlgorithm and op set to "decapsulate".
+    auto normalized_decapsulation_algorithm = normalize_an_algorithm(realm, decapsulation_algorithm, "decapsulate"_string);
+
+    // 4. If an error occurred, return a Promise rejected with normalizedDecapsulationAlgorithm.
+    if (normalized_decapsulation_algorithm.is_error()) {
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_decapsulation_algorithm.release_error());
+    }
+
+    // 5. Let normalizedSharedKeyAlgorithm be the result of normalizing an algorithm, with alg
+    //    set to sharedKeyAlgorithm and op set to "importKey".
+    auto normalized_shared_key_algorithm = normalize_an_algorithm(realm, shared_key_algorithm, "importKey"_string);
+
+    // 6. If an error occurred, return a Promise rejected with normalizedSharedKeyAlgorithm.
+    if (normalized_shared_key_algorithm.is_error()) {
+        return WebIDL::create_rejected_promise_from_exception(realm, normalized_shared_key_algorithm.release_error());
+    }
+
+    // 7. Let realm be the relevant realm of this.
+
+    // 8. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 9. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_decapsulation_algorithm = normalized_decapsulation_algorithm.release_value(), promise, decapsulation_key, cipher_text = move(cipher_text), normalized_shared_key_algorithm = normalized_shared_key_algorithm.release_value(), extractable, usages]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        // 10. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
+        //     source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
+
+        // 11. If the name member of normalizedDecapsulationAlgorithm is not equal to the name attribute of the [[algorithm]]
+        //     internal slot of decapsulationKey then throw an InvalidAccessError.
+        if (normalized_decapsulation_algorithm.parameter->name != decapsulation_key->algorithm_name()) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid algorithm name"_utf16));
+            return;
+        }
+
+        // 12. If the [[usages]] internal slot of decapsulationKey does not contain an entry that is "decapsulateKey", then
+        //     throw an InvalidAccessError.
+        if (!decapsulation_key->internal_usages().contains_slow(Bindings::KeyUsage::Decapsulatekey)) {
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid key usages"_utf16));
+            return;
+        }
+        // 13. Let decapsulatedBits be the result of performing the decapsulate operation specified by the [[algorithm]]
+        //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
+        auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(
+            *normalized_decapsulation_algorithm.parameter,
+            cipher_text);
+        if (maybe_decapsulated_bits.is_error()) {
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_decapsulated_bits.release_error()).release_value());
+            return;
+        }
+        auto const decapsulated_bits = maybe_decapsulated_bits.release_value();
+
+        // 14. Let sharedKey be the result of performing the import key operation specified by
+        //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the decapsulatedBits as keyData,
+        //     sharedKeyAlgorithm as algorithm and using extractable and usages.
+        auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(
+            *normalized_decapsulation_algorithm.parameter,
+            Bindings::KeyFormat::RawSecret,
+            decapsulated_bits->buffer(),
+            extractable,
+            usages);
+        if (maybe_shared_key.is_error()) {
+            WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), maybe_shared_key.release_error()).release_value());
+            return;
+        }
+        auto const shared_key = maybe_shared_key.release_value();
+
+        // 15. Set the [[extractable]] internal slot of sharedKey to extractable.
+        shared_key->set_extractable(extractable);
+
+        // 16. Set the [[usages]] internal slot of sharedKey to the normalized value of usages.
+        shared_key->set_usages(usages);
+
+        // 17. Queue a global task on the crypto task source, given realm's global object, to perform the remaining steps.
+        // 18. Let result be the result of converting sharedKey to an ECMAScript Object in realm, as defined by [WebIDL].
+        // 19. Resolve promise with result.
+        WebIDL::resolve_promise(realm, promise, shared_key);
+    }));
+
+    return promise;
+}
+
 SupportedAlgorithmsMap& supported_algorithms_internal()
 {
     static SupportedAlgorithmsMap s_supported_algorithms;
