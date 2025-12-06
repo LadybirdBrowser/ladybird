@@ -5,8 +5,8 @@
  */
 
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
+#include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
@@ -20,18 +20,15 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(ReadonlyBytes data)
+DecoderErrorOr<void> PlaybackManager::ThreadData::init()
 {
-    auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto matroska_result = Matroska::MatroskaDemuxer::from_data(data);
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return TRY(FFmpeg::FFmpegDemuxer::from_data(data));
+    auto demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
+        if (Matroska::MatroskaDemuxer::sniff_webm(m_stream))
+            return Matroska::MatroskaDemuxer::from_stream(m_stream);
+        if (FFmpeg::FFmpegDemuxer::sniff_mp4(m_stream))
+            return FFmpeg::FFmpegDemuxer::from_stream(m_stream);
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No suitable demuxer found"sv);
     }());
-    auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
-
-    // Create the weak wrapper.
-    auto weak_playback_manager = DECODER_TRY_ALLOC(try_make_ref_counted<WeakPlaybackManager>());
 
     // Create the video tracks and their data providers.
     auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
@@ -41,7 +38,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
     supported_video_tracks.ensure_capacity(all_video_tracks.size());
     supported_video_track_datas.ensure_capacity(all_video_tracks.size());
     for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(demuxer, track);
+        auto video_data_provider_result = VideoDataProvider::try_create(m_main_thread_event_loop, demuxer, track);
         if (video_data_provider_result.is_error())
             continue;
         supported_video_tracks.append(track);
@@ -58,7 +55,7 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
     supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
     for (auto const& track : all_audio_tracks) {
-        auto audio_data_provider_result = AudioDataProvider::try_create(demuxer, track);
+        auto audio_data_provider_result = AudioDataProvider::try_create(m_main_thread_event_loop, demuxer, track);
         if (audio_data_provider_result.is_error())
             continue;
         auto audio_data_provider = audio_data_provider_result.release_value();
@@ -71,33 +68,103 @@ DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(Reado
     if (supported_video_tracks.is_empty() && supported_audio_tracks.is_empty())
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No supported video or audio tracks found"sv);
 
-    RefPtr<AudioMixingSink> audio_sink = nullptr;
-    if (!supported_audio_tracks.is_empty())
-        audio_sink = DECODER_TRY_ALLOC(AudioMixingSink::try_create());
+    auto preferred_video_track = demuxer->get_preferred_track_for_type(TrackType::Video).value_or({});
+    if (preferred_video_track.has_value() && !supported_video_tracks.contains_slow(*preferred_video_track))
+        preferred_video_track = {};
+    auto preferred_audio_track = demuxer->get_preferred_track_for_type(TrackType::Audio).value_or({});
+    if (preferred_audio_track.has_value() && !supported_audio_tracks.contains_slow(*preferred_audio_track))
+        preferred_audio_track = {};
 
-    // Create the time provider.
-    auto time_provider = DECODER_TRY_ALLOC([&] -> ErrorOr<NonnullRefPtr<MediaTimeProvider>> {
-        if (audio_sink)
-            return TRY(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink));
-        return TRY(try_make_ref_counted<GenericTimeProvider>());
-    }());
+    auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
 
-    auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(demuxer, weak_playback_manager, time_provider, move(supported_video_tracks), move(supported_video_track_datas), audio_sink, move(supported_audio_tracks), move(supported_audio_track_datas))));
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr { *this }, supported_video_tracks = move(supported_video_tracks), supported_video_track_datas = move(supported_video_track_datas), preferred_video_track, supported_audio_tracks = move(supported_audio_tracks), supported_audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
+        self->m_on_demuxer_init_done(move(supported_video_tracks), move(supported_video_track_datas), preferred_video_track, move(supported_audio_tracks), move(supported_audio_track_datas), preferred_audio_track, duration);
+    });
+
+    return {};
+}
+
+void PlaybackManager::ThreadData::on_error(DecoderError&& error)
+{
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr { *this }, error] mutable {
+        self->m_on_demuxer_error(move(error));
+    });
+}
+
+DecoderErrorOr<NonnullRefPtr<PlaybackManager>> PlaybackManager::try_create(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+{
+    // Create the weak wrapper.
+    auto weak_playback_manager = DECODER_TRY_ALLOC(try_make_ref_counted<WeakPlaybackManager>());
+
+    auto on_demuxer_init_error = [weak_playback_manager](DecoderError&& error) {
+        auto playback_manager = weak_playback_manager->take_strong();
+        if (!playback_manager)
+            return;
+        if (playback_manager->on_demuxer_init_error)
+            playback_manager->on_demuxer_init_error(move(error));
+    };
+
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<PlaybackManager::ThreadData>(stream, [weak_playback_manager](VideoTracks&& supported_video_tracks, VideoTrackDatas&& supported_video_track_datas, Optional<Track> preferred_video_track, AudioTracks&& supported_audio_tracks, AudioTrackDatas&& supported_audio_track_datas, Optional<Track> preferred_audio_track, AK::Duration duration) {
+        auto playback_manager = weak_playback_manager->take_strong();
+        if (!playback_manager)
+            return;
+
+        RefPtr<AudioMixingSink> audio_sink = nullptr;
+        if (!supported_audio_tracks.is_empty())
+            audio_sink = MUST(AudioMixingSink::try_create());
+
+        // Create the time provider.
+        auto time_provider = MUST([&] -> ErrorOr<NonnullRefPtr<MediaTimeProvider>> {
+            if (audio_sink)
+                return TRY(try_make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink));
+            return TRY(try_make_ref_counted<GenericTimeProvider>());
+        }());
+
+        playback_manager->m_time_provider = time_provider;
+        playback_manager->m_audio_sink = audio_sink;
+
+        playback_manager->m_video_tracks = supported_video_tracks;
+        playback_manager->m_video_track_datas = supported_video_track_datas;
+        playback_manager->m_preferred_video_track = preferred_video_track;
+        playback_manager->m_audio_tracks = supported_audio_tracks;
+        playback_manager->m_audio_track_datas = supported_audio_track_datas;
+        playback_manager->m_preferred_audio_track = preferred_audio_track;
+        playback_manager->m_duration = duration;
+        playback_manager->m_ready_to_use = true;
+
+        playback_manager->set_up_error_handlers();
+
+        playback_manager->on_ready(); }, move(on_demuxer_init_error)));
+
+    auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data] -> int {
+        auto maybe_error = thread_data->init();
+        if (maybe_error.is_error())
+            thread_data->on_error(maybe_error.release_error());
+        return 0;
+    }));
+
+    auto playback_manager = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackManager(stream, weak_playback_manager, thread_data)));
     weak_playback_manager->m_manager = playback_manager;
-    playback_manager->set_up_error_handlers();
     playback_manager->m_handler = DECODER_TRY_ALLOC(try_make<PausedStateHandler>(*playback_manager));
+
+    thread->start();
+    thread->detach();
+
     return playback_manager;
 }
 
-PlaybackManager::PlaybackManager(NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<WeakPlaybackManager> const& weak_wrapper, NonnullRefPtr<MediaTimeProvider> const& time_provider, VideoTracks&& video_tracks, VideoTrackDatas&& video_track_datas, RefPtr<AudioMixingSink> const& audio_sink, AudioTracks&& audio_tracks, AudioTrackDatas&& audio_track_datas)
-    : m_demuxer(demuxer)
+PlaybackManager::PlaybackManager(NonnullRefPtr<IncrementallyPopulatedStream> const& stream, NonnullRefPtr<WeakPlaybackManager> const& weak_wrapper, NonnullRefPtr<ThreadData> const& thread_data)
+    : m_stream(stream)
     , m_weak_wrapper(weak_wrapper)
-    , m_time_provider(time_provider)
-    , m_video_tracks(video_tracks)
-    , m_video_track_datas(video_track_datas)
-    , m_audio_sink(audio_sink)
-    , m_audio_tracks(audio_tracks)
-    , m_audio_track_datas(audio_track_datas)
+    , m_thread_data(thread_data)
+{
+}
+
+PlaybackManager::ThreadData::ThreadData(NonnullRefPtr<IncrementallyPopulatedStream> stream, OnDemuxerInitDone&& on_demuxer_init_done, OnDemuxerError&& on_demuxer_error)
+    : m_main_thread_event_loop(Core::EventLoop::current())
+    , m_stream(move(stream))
+    , m_on_demuxer_init_done(move(on_demuxer_init_done))
+    , m_on_demuxer_error(move(on_demuxer_error))
 {
 }
 
@@ -114,6 +181,13 @@ void PlaybackManager::set_up_error_handlers()
             if (!self)
                 return;
             self->dispatch_error(move(error));
+        });
+        // FIXME: This is not error handler
+        video_track_data.provider->set_frames_queue_is_full_handler([weak_self = m_weak_wrapper] {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->m_handler->exit_buffering();
         });
     }
 
@@ -138,23 +212,20 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
 
 AK::Duration PlaybackManager::duration() const
 {
-    return m_demuxer->total_duration().value_or(AK::Duration::zero());
+    VERIFY(m_ready_to_use);
+    return m_duration;
 }
 
 Optional<Track> PlaybackManager::preferred_video_track()
 {
-    auto result = m_demuxer->get_preferred_track_for_type(TrackType::Video).value_or({});
-    if (result.has_value() && !m_video_tracks.contains_slow(result.value()))
-        return {};
-    return result;
+    VERIFY(m_ready_to_use);
+    return m_preferred_video_track;
 }
 
 Optional<Track> PlaybackManager::preferred_audio_track()
 {
-    auto result = m_demuxer->get_preferred_track_for_type(TrackType::Audio).value_or({});
-    if (result.has_value() && !m_audio_tracks.contains_slow(result.value()))
-        return {};
-    return result;
+    VERIFY(m_ready_to_use);
+    return m_preferred_audio_track;
 }
 
 PlaybackManager::VideoTrackData& PlaybackManager::get_video_data_for_track(Track const& track)
@@ -169,10 +240,15 @@ PlaybackManager::VideoTrackData& PlaybackManager::get_video_data_for_track(Track
 
 NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying_video_sink_for_track(Track const& track)
 {
+    VERIFY(m_time_provider);
+
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
-        track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
+        track_data.display = MUST(Media::DisplayingVideoSink::try_create(*m_time_provider, m_stream));
         track_data.display->set_provider(track, track_data.provider);
+        track_data.display->m_on_start_buffering = [this] {
+            m_handler->enter_buffering();
+        };
         track_data.provider->start();
         track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate);
     }

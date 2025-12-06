@@ -24,9 +24,9 @@ enum class DisplayingVideoSinkUpdateResult : u8 {
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink {
 public:
-    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&);
+    static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(NonnullRefPtr<MediaTimeProvider> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&);
 
-    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&);
+    DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&);
     virtual ~DisplayingVideoSink() override;
 
     virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) override;
@@ -41,12 +41,15 @@ public:
     void pause_updates();
     void resume_updates();
 
+    Function<void()> m_on_start_buffering;
+
 private:
     static constexpr size_t DEFAULT_QUEUE_SIZE = 8;
 
     void verify_track(Track const&) const;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
     RefPtr<VideoDataProvider> m_provider;
     Optional<Track> m_track;
 

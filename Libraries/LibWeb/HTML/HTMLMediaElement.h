@@ -197,7 +197,14 @@ private:
     WebIDL::ExceptionOr<void> load_element();
     WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
-    WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
+    void init_state();
+    WebIDL::ExceptionOr<void> create_playback_manager(Function<void(String)>& failure_callback);
+    enum class FetchingStatus {
+        Ongoing,
+        Complete,
+        Error,
+    };
+    WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> const& failure_callback, FetchingStatus);
     WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
@@ -318,7 +325,7 @@ private:
     GC::Ptr<TextTrackList> m_text_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#media-data
-    ByteBuffer m_media_data;
+    RefPtr<Media::IncrementallyPopulatedStream> m_media_data_stream;
 
     // https://html.spec.whatwg.org/multipage/media.html#can-autoplay-flag
     bool m_can_autoplay { true };

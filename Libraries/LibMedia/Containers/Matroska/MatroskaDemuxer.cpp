@@ -15,19 +15,14 @@
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_file(StringView filename)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(IncrementallyPopulatedStream& stream)
 {
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_file(filename)));
+    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_stream(stream)));
 }
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
+bool MatroskaDemuxer::sniff_webm(IncrementallyPopulatedStream& stream)
 {
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_mapped_file(move(mapped_file))));
-}
-
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(ReadonlyBytes data)
-{
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_data(data)));
+    return Reader::sniff_webm(stream);
 }
 
 static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
@@ -96,6 +91,7 @@ DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType typ
 {
     auto matroska_track_type = matroska_track_type_from_track_type(type);
     Vector<Track> tracks;
+    Threading::MutexLocker locker { m_reader_mutex };
     TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
         VERIFY(track_entry.track_type() == matroska_track_type);
         DECODER_TRY_ALLOC(tracks.try_append(track_from_track_entry(track_entry)));
@@ -108,6 +104,7 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
 {
     auto matroska_track_type = matroska_track_type_from_track_type(type);
     Optional<Track> result;
+    Threading::MutexLocker locker { m_reader_mutex };
     TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
         VERIFY(track_entry.track_type() == matroska_track_type);
         result = track_from_track_entry(track_entry);
@@ -118,7 +115,9 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
 
 DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(Track const& track)
 {
+    Threading::MutexLocker track_statuses_locker { m_track_statuses_mutex };
     if (!m_track_statuses.contains(track)) {
+        Threading::MutexLocker reader_locker { m_reader_mutex };
         auto iterator = TRY(m_reader.create_sample_iterator(track.identifier()));
         DECODER_TRY_ALLOC(m_track_statuses.try_set(track, TrackStatus(move(iterator))));
     }
@@ -128,12 +127,14 @@ DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(
 
 DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track const& track)
 {
+    Threading::MutexLocker locker { m_reader_mutex };
     auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
     return codec_id_from_matroska_id_string(codec_id);
 }
 
 DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track const& track)
 {
+    Threading::MutexLocker locker { m_reader_mutex };
     return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
 }
 
@@ -141,12 +142,16 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
 {
     // Removing the track status will cause us to start from the beginning.
     if (timestamp.is_zero()) {
+        Threading::MutexLocker locker { m_track_statuses_mutex };
         m_track_statuses.remove(track);
         return DemuxerSeekResult::MovedPosition;
     }
 
     auto& track_status = *TRY(get_track_status(track));
-    auto seeked_iterator = TRY(m_reader.seek_to_random_access_point(track_status.iterator, timestamp));
+    auto seeked_iterator = TRY([&] {
+        Threading::MutexLocker locker { m_reader_mutex };
+        return m_reader.seek_to_random_access_point(track_status.iterator, timestamp);
+    }());
 
     auto last_sample = track_status.iterator.last_timestamp();
     if (has_flag(options, DemuxerSeekOptions::Force))
@@ -191,6 +196,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
 {
+    Threading::MutexLocker locker { m_reader_mutex };
     auto duration = TRY(m_reader.segment_information()).duration();
     return duration.value_or(AK::Duration::zero());
 }
@@ -198,6 +204,11 @@ DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)
 {
     return total_duration();
+}
+
+void MatroskaDemuxer::cancel_blocking_reads()
+{
+    m_reader.abort_blocking_reads();
 }
 
 }

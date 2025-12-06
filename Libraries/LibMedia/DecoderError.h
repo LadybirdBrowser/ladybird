@@ -30,6 +30,7 @@ enum class DecoderErrorCategory : u32 {
     Invalid,
     // The input uses features that are not yet implemented.
     NotImplemented,
+    AbortedOperation,
 };
 
 class DecoderError {

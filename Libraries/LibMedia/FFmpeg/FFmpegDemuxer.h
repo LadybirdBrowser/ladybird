@@ -19,7 +19,10 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const&);
+
+    static bool sniff_mp4(IncrementallyPopulatedStream&);
+
     virtual ~FFmpegDemuxer() override;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
@@ -36,17 +39,17 @@ public:
 
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
+    virtual void cancel_blocking_reads() override;
+
 private:
     struct TrackContext {
-        TrackContext(NonnullOwnPtr<SeekableStream>&& stream, NonnullOwnPtr<FFmpegIOContext>&& io_context)
-            : stream(move(stream))
-            , io_context(move(io_context))
+        TrackContext(NonnullOwnPtr<FFmpegIOContext>&& io_context)
+            : io_context(move(io_context))
         {
         }
         ~TrackContext();
         TrackContext(TrackContext&&) = default;
 
-        NonnullOwnPtr<SeekableStream> stream;
         NonnullOwnPtr<FFmpegIOContext> io_context;
         AVFormatContext* format_context { nullptr };
         AVPacket* packet { nullptr };
@@ -54,16 +57,16 @@ private:
         bool peeked_packet_already { false };
     };
 
-    FFmpegDemuxer(ReadonlyBytes, NonnullOwnPtr<SeekableStream>&&, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&&);
+    FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream>, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&&);
 
     TrackContext& get_track_context(Track const&);
     DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
 
-    ReadonlyBytes m_data;
-    NonnullOwnPtr<SeekableStream> m_stream;
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
     NonnullOwnPtr<FFmpegIOContext> m_io_context;
     AVFormatContext* m_format_context;
 
+    Threading::Mutex m_track_contexts_mutex;
     HashMap<Track, NonnullOwnPtr<TrackContext>> m_track_contexts;
 };
 
