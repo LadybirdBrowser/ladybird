@@ -21,7 +21,7 @@
 namespace regex {
 
 static constexpr size_t s_maximum_repetition_count = 1024 * 1024;
-static constexpr u64 s_ecma262_maximum_repetition_count = (1ull << 53) - 1;
+static constexpr u64 s_ecma262_maximum_repetition_count = (1ull << 31) - 1;
 static constexpr auto s_alphabetic_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
 static constexpr auto s_decimal_characters = "0123456789"sv;
 
@@ -1333,9 +1333,7 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
     auto low_bound_string = read_digits_as_string();
     chars_consumed += low_bound_string.length();
 
-    auto low_bound = low_bound_string.to_number<u64>();
-
-    if (!low_bound.has_value()) {
+    if (low_bound_string.is_empty()) {
         if (!m_should_use_browser_extended_grammar && done())
             return set_error(Error::MismatchingBrace);
 
@@ -1343,16 +1341,27 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
         return false;
     }
 
-    repeat_min = low_bound.value();
+    auto low_bound = low_bound_string.to_number<u64>();
+
+    if (!low_bound.has_value() || low_bound.value() > s_ecma262_maximum_repetition_count) {
+        repeat_min = s_ecma262_maximum_repetition_count;
+    } else {
+        repeat_min = low_bound.value();
+    }
 
     if (match(TokenType::Comma)) {
         consume();
         ++chars_consumed;
         auto high_bound_string = read_digits_as_string();
         auto high_bound = high_bound_string.to_number<u64>();
-        if (high_bound.has_value()) {
-            repeat_max = high_bound.value();
+        if (!high_bound_string.is_empty()) {
             chars_consumed += high_bound_string.length();
+
+            if (!high_bound.has_value() || high_bound.value() > s_ecma262_maximum_repetition_count) {
+                repeat_max = s_ecma262_maximum_repetition_count;
+            } else {
+                repeat_max = high_bound.value();
+            }
         }
     } else {
         repeat_max = repeat_min;
@@ -1373,9 +1382,6 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
         if (repeat_min.value() > repeat_max.value())
             set_error(Error::InvalidBraceContent);
     }
-
-    if ((*repeat_min > s_ecma262_maximum_repetition_count) || (repeat_max.has_value() && (*repeat_max > s_ecma262_maximum_repetition_count)))
-        return set_error(Error::InvalidBraceContent);
 
     return true;
 }

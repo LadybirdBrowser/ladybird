@@ -581,11 +581,18 @@ TEST_CASE(ECMA262_parse)
         { "a{9007199254740991}"sv }, // 2^53 - 1
         { "a{9007199254740991,}"sv },
         { "a{9007199254740991,9007199254740991}"sv },
-        { "a{9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740991,9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740991}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740992}"sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740992}"sv },
+        { "a{9007199254740992,}"sv },
+        { "a{9007199254740991,9007199254740992}"sv },
+        { "a{9007199254740992,9007199254740991}"sv },
+        { "a{9007199254740992,9007199254740992}"sv },
+        { "a{1,99999999999999999999999999999999999999999999999999}"sv },
+        { "a{99999999999999999999999999999999999999999999999999,1}"sv, regex::Error::InvalidBraceContent },
+        { "a{99999999999999999999999999999999999999999999999999}"sv },
+        { "a{2147483647}"sv }, // 2^31 - 1
+        { "a{2147483648}"sv }, // 2^31
+        { "a{2147483648,2147483647}"sv },
+        { "a{2147483647,2147483646}"sv, regex::Error::InvalidBraceContent },
         { "(?<a>a)(?<a>b)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>a)(?<b>b)(?<a>c)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>(?<a>a))"sv, regex::Error::DuplicateNamedCapture },
