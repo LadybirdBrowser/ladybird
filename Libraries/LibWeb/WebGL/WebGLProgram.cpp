@@ -16,12 +16,12 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLProgram);
 
-GC::Ref<WebGLProgram> WebGLProgram::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+GC::Ref<WebGLProgram> WebGLProgram::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
     return realm.create<WebGLProgram>(realm, context, handle);
 }
 
-WebGLProgram::WebGLProgram(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+WebGLProgram::WebGLProgram(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
     : WebGLObject(realm, context, handle)
 {
 }

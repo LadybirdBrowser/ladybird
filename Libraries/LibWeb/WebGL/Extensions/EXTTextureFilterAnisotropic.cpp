@@ -14,12 +14,12 @@ namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
-JS::ThrowCompletionOr<GC::Ptr<EXTTextureFilterAnisotropic>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, WebGLRenderingContextBase* context)
+JS::ThrowCompletionOr<GC::Ptr<EXTTextureFilterAnisotropic>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
 {
     return realm.create<EXTTextureFilterAnisotropic>(realm, context);
 }
 
-EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm& realm, WebGLRenderingContextBase* context)
+EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
     : PlatformObject(realm)
     , m_context(context)
 {
@@ -35,7 +35,7 @@ void EXTTextureFilterAnisotropic::initialize(JS::Realm& realm)
 void EXTTextureFilterAnisotropic::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_context->gc_cell());
+    visitor.visit(m_context);
 }
 
 }
