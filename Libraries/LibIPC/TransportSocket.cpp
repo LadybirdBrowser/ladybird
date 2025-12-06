@@ -281,7 +281,7 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
     auto fd_count = fds.size();
 
     if (auto result = send_message(*m_socket, bytes, fds); result.is_error()) {
-        if (result.error().is_errno() && result.error().code() == EPIPE) {
+        if (result.error().is_errno() && (result.error().code() == EPIPE || result.error().code() == ENOTCONN)) {
             // The socket is closed from the other end, we can stop sending.
             return TransferState::SocketClosed;
         }
@@ -311,7 +311,7 @@ void TransportSocket::read_incoming_messages()
             if (error.is_errno() && error.code() == EAGAIN) {
                 break;
             }
-            if (error.is_errno() && error.code() == ECONNRESET) {
+            if (error.is_errno() && (error.code() == ECONNRESET || error.code() == ENOTCONN)) {
                 m_peer_eof = true;
                 break;
             }
