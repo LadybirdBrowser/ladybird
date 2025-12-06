@@ -21,6 +21,7 @@ class DeferredInvocationContext;
 class ElapsedTimer;
 class Event;
 class EventLoop;
+class EventLoopWeak;
 class EventReceiver;
 class File;
 class LocalServer;
