@@ -2216,7 +2216,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         @result_expression@ JS::js_null();
     }
 )~~~");
-    } else if (is_optional) {
+    } else if (is_optional && !is<UnionType>(type)) {
         // Optional return values should not be assigned any value (including null) if the value is not present.
         scoped_generator.append(R"~~~(
     }

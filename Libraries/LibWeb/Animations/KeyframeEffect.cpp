@@ -705,6 +705,14 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
         timing_input.duration = options.get<double>();
     }
 
+    // https://drafts.csswg.org/web-animations-2/#the-effecttiming-dictionaries
+    // Note: In this version of the spec, duration is not settable as a CSSNumericValue; however, duration may be
+    //       returned as a CSSNumericValue when resolving the duration in getComputedTiming(). Future versions of
+    //       the spec may enable setting the duration as a CSSNumeric value, where the unit is a valid time unit or
+    //       percent.
+    if (timing_input.duration.has<GC::Root<CSS::CSSNumericValue>>())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"sv };
+
     // 5. Call the procedure to update the timing properties of an animation effect of effect from timing input.
     //    If that procedure causes an exception to be thrown, propagate the exception and abort this procedure.
     TRY(effect->update_timing(timing_input.to_optional_effect_timing()));
@@ -744,11 +752,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::
 
     //   - all specified timing properties:
 
-    //     - start delay,
-    effect->m_start_delay = source->m_start_delay;
+    // AD-HOC: This is defined in the web-animations level 1 spec so doesn't explicitly mention the level 2 properties
+    //         (specified start delay, specified end delay, specified iteration duration) but it is required that we
+    //         copy these and then normalize them as opposed to copying the already normalized values which may be
+    //         invalid in this context i.e. if the existing effect was associated with a progress-based timeline
 
-    //     - end delay,
-    effect->m_end_delay = source->m_end_delay;
+    //     - specified start delay,
+    effect->m_specified_start_delay = source->m_specified_start_delay;
+
+    //     - specified end delay,
+    effect->m_specified_end_delay = source->m_specified_end_delay;
 
     //     - fill mode,
     effect->m_fill_mode = source->m_fill_mode;
@@ -759,14 +772,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::
     //     - iteration count,
     effect->m_iteration_count = source->m_iteration_count;
 
-    //     - iteration duration,
-    effect->m_iteration_duration = source->m_iteration_duration;
+    //     - specified iteration duration,
+    effect->m_specified_iteration_duration = source->m_specified_iteration_duration;
 
     //     - playback direction, and
     effect->m_playback_direction = source->m_playback_direction;
 
     //     - timing function.
     effect->m_timing_function = source->m_timing_function;
+
+    effect->normalize_specified_timing();
 
     return effect;
 }

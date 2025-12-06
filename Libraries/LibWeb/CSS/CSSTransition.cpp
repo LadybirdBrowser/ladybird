@@ -103,8 +103,12 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::AbstractElement abstract_ele
 
     // Construct a KeyframesEffect for our animation
     m_keyframe_effect->set_target(abstract_element);
-    m_keyframe_effect->set_start_delay(delay);
-    m_keyframe_effect->set_iteration_duration(end_time - start_time);
+    m_keyframe_effect->set_specified_start_delay(delay);
+    m_keyframe_effect->set_specified_iteration_duration(end_time - start_time);
+    // https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
+    // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
+    // timing requires rerunning the procedure to normalize specified timing.
+    m_keyframe_effect->normalize_specified_timing();
     m_keyframe_effect->set_timing_function(abstract_element.element().property_transition_attributes(abstract_element.pseudo_element(), property_id)->timing_function);
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);

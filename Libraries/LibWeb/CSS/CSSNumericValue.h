@@ -26,9 +26,6 @@ struct CSSNumericType {
     Optional<Bindings::CSSNumericBaseType> percent_hint;
 };
 
-// https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
-using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
-
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-sum-value
 struct SumValueItem {
     double value;

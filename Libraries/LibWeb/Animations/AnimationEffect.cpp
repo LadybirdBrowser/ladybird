@@ -66,7 +66,11 @@ OptionalEffectTiming EffectTiming::to_optional_effect_timing() const
         .fill = fill,
         .iteration_start = iteration_start,
         .iterations = iterations,
-        .duration = duration,
+        .duration = duration.visit(
+            [](double const& value) -> Variant<double, String> { return value; },
+            [](String const& value) -> Variant<double, String> { return value; },
+            // NB: We check that this isn't the case in the caller
+            [](GC::Root<CSS::CSSNumericValue> const&) -> Variant<double, String> { VERIFY_NOT_REACHED(); }),
         .direction = direction,
         .easing = easing,
     };
@@ -77,18 +81,19 @@ EffectTiming AnimationEffect::get_timing() const
 {
     // 1. Returns the specified timing properties for this animation effect.
     return {
-        .delay = m_start_delay,
-        .end_delay = m_end_delay,
+        .delay = m_specified_start_delay,
+        .end_delay = m_specified_end_delay,
         .fill = m_fill_mode,
         .iteration_start = m_iteration_start,
         .iterations = m_iteration_count,
-        .duration = m_iteration_duration,
+        .duration = m_specified_iteration_duration,
         .direction = m_playback_direction,
         .easing = m_timing_function.to_string(),
     };
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-getcomputedtiming
+// https://drafts.csswg.org/web-animations-2/#dom-animationeffect-getcomputedtiming
 ComputedEffectTiming AnimationEffect::get_computed_timing() const
 {
     // 1. Returns the calculated timing properties for this animation effect.
@@ -100,8 +105,10 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       corresponding to the calculated value of the iteration duration as defined in the description of the
     //       duration member of the EffectTiming interface.
     //
-    //       In this level of the specification, that simply means that an auto value is replaced by zero.
-    auto duration = m_iteration_duration.has<String>() ? 0.0 : m_iteration_duration.get<double>();
+    //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
+    //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
+    //       percentage when the effect is associated with a progress-based timeline.
+    auto duration = m_iteration_duration.as_css_numberish();
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
@@ -112,8 +119,8 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
 
     return {
         {
-            .delay = m_start_delay,
-            .end_delay = m_end_delay,
+            .delay = m_specified_start_delay,
+            .end_delay = m_specified_end_delay,
             .fill = fill,
             .iteration_start = m_iteration_start,
             .iterations = m_iteration_count,
@@ -122,16 +129,95 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .easing = m_timing_function.to_string(),
         },
 
-        end_time(),
-        active_duration(),
-        local_time(),
+        end_time().as_css_numberish(),
+        active_duration().as_css_numberish(),
+        NullableCSSNumberish::from_optional_css_numberish_time(local_time()),
         transformed_progress(),
         current_iteration(),
     };
 }
 
+// https://drafts.csswg.org/web-animations-2/#intrinsic-iteration-duration
+TimeValue AnimationEffect::intrinsic_iteration_duration() const
+{
+    // The intrinsic iteration duration is calculated from the first matching condition from below:
+
+    // FIXME: If the animation effect is a group effect,
+    if (false) {
+        // Follow the procedure in § 2.10.3 The intrinsic iteration duration of a group effect
+        TODO();
+    }
+
+    // FIXME: If the animation effect is a sequence effect,
+    else if (false) {
+        // Follow the procedure in § 2.10.4.2 The intrinsic iteration duration of a sequence effect
+        TODO();
+    }
+
+    // If timeline duration is unresolved or iteration count is zero,
+    else if (!timeline_duration().has_value() || m_iteration_count == 0.0) {
+        // Return 0
+        return TimeValue::create_zero(associated_timeline());
+    }
+
+    // FIXME: Otherwise
+    else {
+        // Return(100% - start delay - end delay) / iteration count
+        // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
+        TODO();
+    }
+}
+
+GC::Ptr<AnimationTimeline> AnimationEffect::associated_timeline() const
+{
+    if (!m_associated_animation)
+        return {};
+
+    return m_associated_animation->timeline();
+}
+
+Optional<TimeValue> AnimationEffect::timeline_duration() const
+{
+    auto timeline = associated_timeline();
+    if (!timeline)
+        return {};
+
+    return timeline->duration();
+}
+
+// https://drafts.csswg.org/web-animations-2/#normalize-specified-timing
+void AnimationEffect::normalize_specified_timing()
+{
+    // If timeline duration is resolved:
+    if (timeline_duration().has_value()) {
+        // FIXME: Follow the procedure to convert a time-based animation to a proportional animation
+    }
+    // Otherwise:
+    else {
+        // 1. Set start delay = specified start delay
+        m_start_delay = TimeValue { TimeValue::Type::Milliseconds, m_specified_start_delay };
+
+        // 2. Set end delay = specified end delay
+        m_end_delay = TimeValue { TimeValue::Type::Milliseconds, m_specified_end_delay };
+
+        // 3. If iteration duration is auto:
+        // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+        //         https://github.com/w3c/csswg-drafts/pull/13170
+        if (m_specified_iteration_duration.has<String>()) {
+            // Set iteration duration = intrinsic iteration duration
+            m_iteration_duration = intrinsic_iteration_duration();
+        }
+        // Otherwise:
+        else {
+            // Set iteration duration = specified iteration duration
+            m_iteration_duration = TimeValue { TimeValue::Type::Milliseconds, m_specified_iteration_duration.get<double>() };
+        }
+    }
+}
+
 // https://www.w3.org/TR/web-animations-1/#dom-animationeffect-updatetiming
 // https://www.w3.org/TR/web-animations-1/#update-the-timing-properties-of-an-animation-effect
+// https://drafts.csswg.org/web-animations-2/#updating-animationeffect-timing
 WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming timing)
 {
     // 1. If the iterationStart member of input exists and is less than zero, throw a TypeError and abort this
@@ -171,13 +257,13 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
 
     // 5. Assign each member that exists in input to the corresponding timing property of effect as follows:
 
-    //    - delay → start delay
+    //    - delay → specified start delay
     if (timing.delay.has_value())
-        m_start_delay = timing.delay.value();
+        m_specified_start_delay = timing.delay.value();
 
-    //    - endDelay → end delay
+    //    - endDelay → specified end delay
     if (timing.end_delay.has_value())
-        m_end_delay = timing.end_delay.value();
+        m_specified_end_delay = timing.end_delay.value();
 
     //    - fill → fill mode
     if (timing.fill.has_value())
@@ -191,9 +277,9 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
     if (timing.iterations.has_value())
         m_iteration_count = timing.iterations.value();
 
-    //    - duration → iteration duration
+    //    - duration → specified iteration duration
     if (timing.duration.has_value())
-        m_iteration_duration = timing.duration.value();
+        m_specified_iteration_duration = timing.duration.value();
 
     //    - direction → playback direction
     if (timing.direction.has_value())
@@ -203,6 +289,10 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
     if (easing_value.has_value())
         m_timing_function = easing_value.value();
 
+    // 6. Follow the procedure to normalize specified timing.
+    normalize_specified_timing();
+
+    // AD-HOC: Notify the associated animation that the effect timing has changed.
     if (auto animation = m_associated_animation)
         animation->effect_timing_changed({});
 
@@ -212,6 +302,9 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
 void AnimationEffect::set_associated_animation(GC::Ptr<Animation> value)
 {
     m_associated_animation = value;
+
+    // NB: The normalization of the specified timing depends on the timeline of the associated animation.
+    normalize_specified_timing();
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-direction
@@ -225,15 +318,15 @@ AnimationDirection AnimationEffect::animation_direction() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#end-time
-double AnimationEffect::end_time() const
+TimeValue AnimationEffect::end_time() const
 {
     // 1. The end time of an animation effect is the result of evaluating
     //    max(start delay + active duration + end delay, 0).
-    return max(m_start_delay + active_duration() + m_end_delay, 0.0);
+    return max(m_start_delay + active_duration() + m_end_delay, TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#local-time
-Optional<double> AnimationEffect::local_time() const
+Optional<TimeValue> AnimationEffect::local_time() const
 {
     // The local time of an animation effect at a given moment is based on the first matching condition from the
     // following:
@@ -250,25 +343,25 @@ Optional<double> AnimationEffect::local_time() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#active-duration
-double AnimationEffect::active_duration() const
+TimeValue AnimationEffect::active_duration() const
 {
     // The active duration is calculated as follows:
     //     active duration = iteration duration × iteration count
     // If either the iteration duration or iteration count are zero, the active duration is zero. This clarification is
     // needed since the result of infinity multiplied by zero is undefined according to IEEE 754-2008.
-    if (m_iteration_duration.has<String>() || m_iteration_duration.get<double>() == 0.0 || m_iteration_count == 0.0)
-        return 0.0;
+    if (m_iteration_duration.value == 0 || m_iteration_count == 0.0)
+        return TimeValue::create_zero(associated_timeline());
 
-    return m_iteration_duration.get<double>() * m_iteration_count;
+    return m_iteration_duration * m_iteration_count;
 }
 
-Optional<double> AnimationEffect::active_time() const
+Optional<TimeValue> AnimationEffect::active_time() const
 {
     return active_time_using_fill(m_fill_mode);
 }
 
 // https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
-Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
+Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
 {
     // The active time is based on the local time and start delay. However, it is only defined when the animation effect
     // should produce an output and hence depends on its fill mode and phase as follows,
@@ -280,7 +373,7 @@ Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill
         // -> If the fill mode is backwards or both,
         if (fill_mode == Bindings::FillMode::Backwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(local time - start delay, 0).
-            return max(local_time().value() - m_start_delay, 0.0);
+            return max(local_time().value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
@@ -301,7 +394,7 @@ Optional<double> AnimationEffect::active_time_using_fill(Bindings::FillMode fill
         // -> If the fill mode is forwards or both,
         if (fill_mode == Bindings::FillMode::Forwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(min(local time - start delay, active duration), 0).
-            return max(min(local_time().value() - m_start_delay, active_duration()), 0.0);
+            return max(min(local_time().value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
@@ -363,17 +456,17 @@ bool AnimationEffect::is_in_effect() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#before-active-boundary-time
-double AnimationEffect::before_active_boundary_time() const
+TimeValue AnimationEffect::before_active_boundary_time() const
 {
     // max(min(start delay, end time), 0)
-    return max(min(m_start_delay, end_time()), 0.0);
+    return max(min(m_start_delay, end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#active-after-boundary-time
-double AnimationEffect::after_active_boundary_time() const
+TimeValue AnimationEffect::after_active_boundary_time() const
 {
     // max(min(start delay + active duration, end time), 0)
-    return max(min(m_start_delay + active_duration(), end_time()), 0.0);
+    return max(min(m_start_delay + active_duration(), end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-effect-before-phase
@@ -465,7 +558,7 @@ Optional<double> AnimationEffect::overall_progress() const
     double overall_progress;
 
     // -> If the iteration duration is zero,
-    if (m_iteration_duration.has<String>() || m_iteration_duration.get<double>() == 0.0) {
+    if (m_iteration_duration.value == 0) {
         // If the animation effect is in the before phase, let overall progress be zero, otherwise, let it be equal to
         // the iteration count.
         if (is_in_the_before_phase())
@@ -476,7 +569,7 @@ Optional<double> AnimationEffect::overall_progress() const
     // Otherwise,
     else {
         // Let overall progress be the result of calculating active time / iteration duration.
-        overall_progress = active_time.value() / m_iteration_duration.get<double>();
+        overall_progress = active_time.value() / m_iteration_duration;
     }
 
     // 3. Return the result of calculating overall progress + iteration start.

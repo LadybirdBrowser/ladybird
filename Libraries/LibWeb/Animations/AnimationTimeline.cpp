@@ -14,7 +14,7 @@ namespace Web::Animations {
 GC_DEFINE_ALLOCATOR(AnimationTimeline);
 
 // https://drafts.csswg.org/web-animations-1/#dom-animationtimeline-currenttime
-Optional<double> AnimationTimeline::current_time() const
+Optional<TimeValue> AnimationTimeline::current_time() const
 {
     // Returns the current time for this timeline or null if this timeline is inactive.
     if (is_inactive())
@@ -22,7 +22,7 @@ Optional<double> AnimationTimeline::current_time() const
     return m_current_time;
 }
 
-void AnimationTimeline::set_current_time(Optional<double> value)
+void AnimationTimeline::set_current_time(Optional<TimeValue> value)
 {
     if (value == m_current_time)
         return;
@@ -38,6 +38,18 @@ void AnimationTimeline::set_current_time(Optional<double> value)
     temporary_copy.extend(m_associated_animations.values());
     for (auto& animation : temporary_copy)
         animation->notify_timeline_time_did_change();
+}
+
+// https://drafts.csswg.org/web-animations-2/#timeline-duration
+NullableCSSNumberish AnimationTimeline::duration_for_bindings() const
+{
+    // The duration of a timeline gives the maximum value a timeline may generate for its current time. This value is
+    // used to calculate the intrinsic iteration duration for the target effect of an animation that is associated with
+    // the timeline when the effect’s iteration duration is "auto". The value is computed such that the effect fills the
+    // available time. For a monotonic timeline, there is no upper bound on current time, and timeline duration is
+    // unresolved. For a non-monotonic (e.g. scroll) timeline, the duration has a fixed upper bound. In this case, the
+    // timeline is a progress-based timeline, and its timeline duration is 100%.
+    return NullableCSSNumberish::from_optional_css_numberish_time(duration());
 }
 
 void AnimationTimeline::set_associated_document(GC::Ptr<DOM::Document> document)

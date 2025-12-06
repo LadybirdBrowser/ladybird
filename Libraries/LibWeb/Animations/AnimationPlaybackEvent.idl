@@ -1,15 +1,16 @@
 #import <DOM/Event.idl>
+#import <CSS/CSSNumericValue.idl>
 
-// https://www.w3.org/TR/web-animations-1/#animationplaybackevent
+// https://drafts.csswg.org/web-animations-2/#animationplaybackevent
 [Exposed=Window]
 interface AnimationPlaybackEvent : Event {
     constructor(DOMString type, optional AnimationPlaybackEventInit eventInitDict = {});
-    readonly attribute double? currentTime;
-    readonly attribute double? timelineTime;
+    readonly attribute CSSNumberish? currentTime;
+    readonly attribute CSSNumberish? timelineTime;
 };
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-animationplaybackeventinit
+// https://drafts.csswg.org/web-animations-2/#dictdef-animationplaybackeventinit
 dictionary AnimationPlaybackEventInit : EventInit {
-    double? currentTime = null;
-    double? timelineTime = null;
+    CSSNumberish? currentTime = null;
+    CSSNumberish? timelineTime = null;
 };

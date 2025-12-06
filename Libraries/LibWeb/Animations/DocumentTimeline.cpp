@@ -27,7 +27,7 @@ GC::Ref<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Docume
         // that the previous document started to be unloaded or the creation time of the current document.
         current_time = HighResolutionTime::relative_high_resolution_time(document.load_timing_info().navigation_start_time, realm.global_object());
     }
-    timeline->set_current_time(current_time);
+    timeline->update_current_time(current_time.value());
     return timeline;
 }
 
@@ -41,27 +41,28 @@ WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(
 }
 
 // https://www.w3.org/TR/web-animations-1/#ref-for-timeline-time-to-origin-relative-time
-Optional<double> DocumentTimeline::convert_a_timeline_time_to_an_origin_relative_time(Optional<double> timeline_time)
+Optional<double> DocumentTimeline::convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue> timeline_time)
 {
     // To convert a timeline time, timeline time, to an origin-relative time for a document timeline, timeline, return
     // the sum of the timeline time and timeline’s origin time. If timeline is inactive, return an unresolved time
     // value.
     if (is_inactive() || !timeline_time.has_value())
         return {};
-    return timeline_time.value() + m_origin_time;
+
+    // NB: We know the timeline time of a DocumentTimeline is always in milliseconds because it's only ever set from
+    //     update_current_time()
+    VERIFY(timeline_time->type == TimeValue::Type::Milliseconds);
+    return timeline_time->value + m_origin_time;
 }
 
 // https://drafts.csswg.org/web-animations-1/#document-timeline
-void DocumentTimeline::set_current_time(Optional<double> current_time)
+void DocumentTimeline::update_current_time(double timestamp)
 {
     // A document timeline is a type of timeline that is associated with a document and whose current time is calculated
     // as a fixed offset from the now timestamp provided each time the update animations and send events procedure is
     // run. This fixed offset is equal to the current time of the default document timeline when this timeline’s current
     // time was zero, and is thus referred to as the document timeline’s origin time.
-    if (!current_time.has_value())
-        Base::set_current_time({});
-    else
-        Base::set_current_time(current_time.value() - m_origin_time);
+    set_current_time(TimeValue { TimeValue::Type::Milliseconds, timestamp - m_origin_time });
 
     // https://drafts.csswg.org/web-animations-1/#ref-for-active-timeline
     // After a document timeline becomes active, it is monotonically increasing.
