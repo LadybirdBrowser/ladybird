@@ -396,6 +396,9 @@ ErrorOr<void> kill(pid_t pid, int signal)
             },
                 pid))
             return Error::from_windows_error();
+    } else if (signal == SIGINT) {
+        if (!GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid))
+            return Error::from_windows_error();
     } else {
         return Error::from_string_literal("Unsupported signal value");
     }
