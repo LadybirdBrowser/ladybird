@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	select's option list should not include descendants of options, hrs, or nested optgroups.

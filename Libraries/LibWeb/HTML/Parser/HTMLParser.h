@@ -171,6 +171,8 @@ private:
     void decrement_script_nesting_level();
     void reset_the_insertion_mode_appropriately();
 
+    void handle_element_popped(DOM::Element&);
+
     void adjust_mathml_attributes(HTMLToken&);
     void adjust_svg_tag_names(HTMLToken&);
     void adjust_svg_attributes(HTMLToken&);

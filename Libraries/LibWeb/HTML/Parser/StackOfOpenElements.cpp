@@ -33,6 +33,16 @@ void StackOfOpenElements::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_elements);
 }
 
+GC::Ref<DOM::Element> StackOfOpenElements::pop()
+{
+    auto element = m_elements.take_last();
+
+    if (m_on_element_popped)
+        m_on_element_popped(*element);
+
+    return *element;
+}
+
 // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-the-specific-scope
 bool StackOfOpenElements::has_in_scope_impl(FlyString const& tag_name, Vector<FlyString> const& list, CheckMathAndSVG check_math_and_svg) const
 {

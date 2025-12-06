@@ -695,6 +695,7 @@ class HTMLPreElement;
 class HTMLProgressElement;
 class HTMLQuoteElement;
 class HTMLScriptElement;
+class HTMLSelectedContentElement;
 class HTMLSelectElement;
 class HTMLSlotElement;
 class HTMLSourceElement;
