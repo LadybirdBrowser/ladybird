@@ -529,9 +529,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::Background:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_background_value(tokens); });
     case PropertyID::BackgroundPosition:
-        return parse_all_as(tokens, [this](auto& tokens) {
-            return parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); });
-        });
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_background_position_value(tokens); });
     case PropertyID::BackgroundPositionX:
     case PropertyID::BackgroundPositionY:
         return parse_all_as(tokens, [this, property_id](auto& tokens) {
@@ -1173,6 +1171,26 @@ RefPtr<StyleValue const> Parser::parse_animation_value(TokenStream<ComponentValu
 
     // FIXME: The animation-trigger properties are reset-only sub-properties of the animation shorthand.
     return parse_coordinating_value_list_shorthand(tokens, PropertyID::Animation, longhand_ids, { PropertyID::AnimationTimeline });
+}
+
+RefPtr<StyleValue const> Parser::parse_background_position_value(TokenStream<ComponentValue>& tokens)
+{
+    auto const& background_position_value = parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); });
+
+    if (!background_position_value)
+        return nullptr;
+
+    StyleValueVector background_position_x_values;
+    StyleValueVector background_position_y_values;
+
+    for (auto const& background_position : background_position_value->values()) {
+        background_position_x_values.append(background_position->as_position().edge_x());
+        background_position_y_values.append(background_position->as_position().edge_y());
+    }
+
+    return ShorthandStyleValue::create(PropertyID::BackgroundPosition,
+        { PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY },
+        { StyleValueList::create(move(background_position_x_values), StyleValueList::Separator::Comma), StyleValueList::create(move(background_position_y_values), StyleValueList::Separator::Comma) });
 }
 
 RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentValue>& tokens)
