@@ -640,6 +640,16 @@ TEST_CASE(get_registrable_domain)
         VERIFY(domain.has_value());
         EXPECT_EQ(*domain, "ladybird.github.io"sv);
     }
+    {
+        auto domain = URL::Parser::parse_host("a.example"sv)->registrable_domain();
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "a.example"sv);
+    }
+    {
+        auto domain = URL::Parser::parse_host("b.b.example"sv)->registrable_domain();
+        VERIFY(domain.has_value());
+        EXPECT_EQ(*domain, "b.example"sv);
+    }
 }
 
 TEST_CASE(public_suffix)
