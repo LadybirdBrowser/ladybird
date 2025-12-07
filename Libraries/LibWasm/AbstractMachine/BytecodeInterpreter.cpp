@@ -35,10 +35,10 @@ using namespace AK::SIMD;
 #    define TAILCALL
 #endif
 
-// ASAN allocates frames for all the not-explicitly-tail-called functions,
-// which blows out the stack. So disable direct threading when ASAN is enabled.
-// We use the explicit annotation where available, so allow it there.
-#if defined(HAS_ADDRESS_SANITIZER) && !defined(HAS_TAILCALL)
+// Disable direct threading when tail calls are not supported at all (gcc < 15);
+// as without guaranteed tailcall optimization we cannot ensure that the stack
+// will not grow uncontrollably.
+#if !defined(HAS_TAILCALL)
 constexpr static auto should_try_to_use_direct_threading = false;
 #else
 constexpr static auto should_try_to_use_direct_threading = true;
