@@ -7,6 +7,9 @@ Qt6 development packages, nasm, additional build tools, and a C++23 capable comp
 We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.py`](../Meta/find_compiler.py) for the minimum compatible version.
 
+> [!NOTE]
+> For wasm usage gcc-14 is supported, but gcc-14 lacks the musttail attribute which is very important when executing larger wasm files (for example, full games, OSes, complex apps). For those planning on validating Ladybird using larger wasm applications the recommendation is to use a supported clang version or gcc-15 (or later).
+
 CMake 3.25 or newer must be available in $PATH.
 
 ---
