@@ -1213,14 +1213,14 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
     StyleValueVector background_origins;
     RefPtr<StyleValue const> background_color;
 
-    auto initial_background_image = property_initial_value(PropertyID::BackgroundImage);
-    auto initial_background_position_x = property_initial_value(PropertyID::BackgroundPositionX);
-    auto initial_background_position_y = property_initial_value(PropertyID::BackgroundPositionY);
-    auto initial_background_size = property_initial_value(PropertyID::BackgroundSize);
-    auto initial_background_repeat = property_initial_value(PropertyID::BackgroundRepeat);
-    auto initial_background_attachment = property_initial_value(PropertyID::BackgroundAttachment);
-    auto initial_background_clip = property_initial_value(PropertyID::BackgroundClip);
-    auto initial_background_origin = property_initial_value(PropertyID::BackgroundOrigin);
+    auto initial_background_image = property_initial_value(PropertyID::BackgroundImage)->as_value_list().values()[0];
+    auto initial_background_position_x = property_initial_value(PropertyID::BackgroundPositionX)->as_value_list().values()[0];
+    auto initial_background_position_y = property_initial_value(PropertyID::BackgroundPositionY)->as_value_list().values()[0];
+    auto initial_background_size = property_initial_value(PropertyID::BackgroundSize)->as_value_list().values()[0];
+    auto initial_background_repeat = property_initial_value(PropertyID::BackgroundRepeat)->as_value_list().values()[0];
+    auto initial_background_attachment = property_initial_value(PropertyID::BackgroundAttachment)->as_value_list().values()[0];
+    auto initial_background_clip = property_initial_value(PropertyID::BackgroundClip)->as_value_list().values()[0];
+    auto initial_background_origin = property_initial_value(PropertyID::BackgroundOrigin)->as_value_list().values()[0];
     auto initial_background_color = property_initial_value(PropertyID::BackgroundColor);
 
     // Per-layer values
@@ -3630,14 +3630,14 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
     StyleValueVector mask_composites;
     StyleValueVector mask_modes;
 
-    auto initial_mask_image = property_initial_value(PropertyID::MaskImage);
-    auto initial_mask_position = property_initial_value(PropertyID::MaskPosition);
-    auto initial_mask_size = property_initial_value(PropertyID::MaskSize);
-    auto initial_mask_repeat = property_initial_value(PropertyID::MaskRepeat);
-    auto initial_mask_origin = property_initial_value(PropertyID::MaskOrigin);
-    auto initial_mask_clip = property_initial_value(PropertyID::MaskClip);
-    auto initial_mask_composite = property_initial_value(PropertyID::MaskComposite);
-    auto initial_mask_mode = property_initial_value(PropertyID::MaskMode);
+    auto initial_mask_image = property_initial_value(PropertyID::MaskImage)->as_value_list().values()[0];
+    auto initial_mask_position = property_initial_value(PropertyID::MaskPosition)->as_value_list().values()[0];
+    auto initial_mask_size = property_initial_value(PropertyID::MaskSize)->as_value_list().values()[0];
+    auto initial_mask_repeat = property_initial_value(PropertyID::MaskRepeat)->as_value_list().values()[0];
+    auto initial_mask_origin = property_initial_value(PropertyID::MaskOrigin)->as_value_list().values()[0];
+    auto initial_mask_clip = property_initial_value(PropertyID::MaskClip)->as_value_list().values()[0];
+    auto initial_mask_composite = property_initial_value(PropertyID::MaskComposite)->as_value_list().values()[0];
+    auto initial_mask_mode = property_initial_value(PropertyID::MaskMode)->as_value_list().values()[0];
 
     // Per-layer values
     RefPtr<StyleValue const> mask_image;
