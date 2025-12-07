@@ -8,6 +8,7 @@
 
 #include <AK/Weakable.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -44,6 +45,10 @@ public:
     virtual JS::ThrowCompletionOr<GC::RootVector<JS::Value>> internal_own_property_keys() const override;
 
     JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::PropertyKey const&) const;
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin
+    // Platform objects have an extract an origin operation, which returns null unless otherwise specified.
+    virtual Optional<URL::Origin> extract_an_origin() const { return {}; }
 
 protected:
     explicit PlatformObject(JS::Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);

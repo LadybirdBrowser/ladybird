@@ -102,4 +102,11 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
     }
 }
 
+// https://html.spec.whatwg.org/multipage/comms.html#the-messageevent-interface:extract-an-origin
+Optional<URL::Origin> MessageEvent::extract_an_origin() const
+{
+    // Objects implementing the MessageEvent interface's extract an origin steps are to return this's relevant settings object's origin.
+    return relevant_settings_object(*this).origin();
+}
+
 }

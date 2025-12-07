@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	Origin.from("") throws a TypeError.
+Pass	Origin.from("not-valid") throws a TypeError.
+Pass	Origin.from("about:blank") is an opaque origin.
+Pass	Origin.from("data:text/plain,opaque") is an opaque origin.
+Pass	Origin.from("weird-protocol:whatever") is an opaque origin.
+Pass	Origin.from("weird-hierarchical-protocol://host/path?etc") is an opaque origin.
+Pass	Origin.from("blob:weird-protocol:whatever") is an opaque origin.
+Pass	Origin.from("blob:weird-hierarchical-protocol://host/path?etc") is an opaque origin.
+Pass	Origin.from("http://site.example") is an opaque origin.
+Pass	Origin.from("https://site.example") is an opaque origin.
+Pass	Origin.from("https://site.example:123") is an opaque origin.
+Pass	Origin.from("http://sub.site.example") is an opaque origin.
+Pass	Origin.from("https://sub.site.example") is an opaque origin.
+Pass	Origin.from("https://sub.site.example:123") is an opaque origin.
+Pass	Origin.from("https://xn--mlauted-m2a.example") is an opaque origin.
+Pass	Origin.from("ftp://ftp.example") is an opaque origin.
+Pass	Origin.from("ws://ws.example") is an opaque origin.
+Pass	Origin.from("wss://wss.example") is an opaque origin.
+Pass	Origin.from("https://trailing.slash/") is an opaque origin.
+Pass	Origin.from("https://user:pass@site.example") is an opaque origin.
+Pass	Origin.from("https://has.a.port:1234/and/path") is an opaque origin.
+Pass	Origin.from("https://ümlauted.example") is an opaque origin.
+Pass	Origin.from("file:///path/to/a/file.txt") is an opaque origin.
+Pass	Origin.from("blob:https://example.com/some-guid") is an opaque origin.
+Pass	Origin.from("ftp://example.com/") is an opaque origin.
+Pass	Origin.from("https://example.com/path?query#fragment") is an opaque origin.
+Pass	Origin.from("https://127.0.0.1/") is an opaque origin.
+Pass	Origin.from("https://[::1]/") is an opaque origin.

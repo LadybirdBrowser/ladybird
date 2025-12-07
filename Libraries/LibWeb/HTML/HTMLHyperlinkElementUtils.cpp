@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Shannon Booth <shannon@ladybird.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -522,6 +522,17 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     auto url = URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
     MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#api-for-a-and-area-elements:extract-an-origin
+Optional<URL::Origin> HTMLHyperlinkElementUtils::hyperlink_element_utils_extract_an_origin() const
+{
+    // 1. If this's url is null, then return null.
+    if (!m_url.has_value())
+        return {};
+
+    // 2. Return this's url's origin.
+    return m_url->origin();
 }
 
 }

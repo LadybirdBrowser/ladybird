@@ -20,6 +20,8 @@ class HTMLAnchorElement final
 public:
     virtual ~HTMLAnchorElement() override;
 
+    virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
+
     String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
     String target() const { return get_attribute_value(HTML::AttributeNames::target); }
     String download() const { return get_attribute_value(HTML::AttributeNames::download); }

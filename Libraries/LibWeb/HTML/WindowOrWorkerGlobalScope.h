@@ -106,6 +106,8 @@ public:
 
     [[nodiscard]] GC::Ref<TrustedTypes::TrustedTypePolicyFactory> trusted_types();
 
+    Optional<URL::Origin> window_or_worker_global_scope_extract_an_origin() const;
+
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
