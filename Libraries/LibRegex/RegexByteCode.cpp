@@ -991,7 +991,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
         }
     }
 
-    if (current_inversion_state() && !inverse_matched)
+    if (current_inversion_state() && !inverse_matched && state.string_position == string_position)
         advance_string_position(state, input.view);
 
     if ((!had_zero_length_match && string_position == state.string_position) || state.string_position > input.view.length())

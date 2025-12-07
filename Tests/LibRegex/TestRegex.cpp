@@ -1318,6 +1318,15 @@ TEST_CASE(inversion_state_in_char_class)
         auto result = re.match("\n"sv);
         EXPECT_EQ(result.success, false);
     }
+    {
+        // /[^\S]/ should match whitespace characters
+        Regex<ECMA262> re("[^\\S]", ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
+
+        auto result = re.match("\t"sv);
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "\t"sv);
+    }
 }
 
 TEST_CASE(mismatching_brackets)
