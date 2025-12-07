@@ -399,35 +399,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    // FIXME: We should parse BackgroundPosition as a ShorthandStyleValue instead
-    if (property_id == CSS::PropertyID::BackgroundPosition) {
-        if (value.is_value_list()) {
-            // Expand background-position layer list into separate lists for x and y positions:
-            auto const& values_list = value.as_value_list();
-            StyleValueVector x_positions {};
-            StyleValueVector y_positions {};
-            x_positions.ensure_capacity(values_list.size());
-            y_positions.ensure_capacity(values_list.size());
-            for (auto& layer : values_list.values()) {
-                if (layer->is_position()) {
-                    auto const& position = layer->as_position();
-                    x_positions.unchecked_append(position.edge_x());
-                    y_positions.unchecked_append(position.edge_y());
-                } else {
-                    x_positions.unchecked_append(layer);
-                    y_positions.unchecked_append(layer);
-                }
-            }
-            set_longhand_property(CSS::PropertyID::BackgroundPositionX, StyleValueList::create(move(x_positions), values_list.separator()));
-            set_longhand_property(CSS::PropertyID::BackgroundPositionY, StyleValueList::create(move(y_positions), values_list.separator()));
-        } else {
-            set_longhand_property(CSS::PropertyID::BackgroundPositionX, value);
-            set_longhand_property(CSS::PropertyID::BackgroundPositionY, value);
-        }
-
-        return;
-    }
-
     if (property_is_shorthand(property_id)) {
         // ShorthandStyleValue was handled already, as were unresolved shorthands.
         // That means the only values we should see are the CSS-wide keywords, or the guaranteed-invalid value.

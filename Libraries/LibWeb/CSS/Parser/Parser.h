@@ -461,6 +461,7 @@ private:
     RefPtr<StyleValue const> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_animation_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_background_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_background_position_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>&, PropertyID);
     RefPtr<StyleValue const> parse_single_background_size_value(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_border_value(PropertyID, TokenStream<ComponentValue>&);
