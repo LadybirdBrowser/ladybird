@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 55 tests
 
-40 Pass
-15 Fail
+45 Pass
+10 Fail
 Pass	e.style['mask'] = "none" should set the property value
 Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue)" should set the property value
 Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue) luminance" should set the property value
@@ -51,11 +51,11 @@ Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-source
 Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-width
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-clip
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-composite
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-composite
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-image
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-mode
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-mode
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-origin
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-position
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-repeat
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-size
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-position
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-repeat
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-size
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should not set unrelated longhands

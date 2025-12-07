@@ -2,21 +2,20 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+18 Pass
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set transition-behavior
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set transition-delay
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set transition-duration
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set transition-property
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should set transition-timing-function
 Pass	e.style['transition'] = "1s -3s cubic-bezier(0, -2, 1, 3) top" should not set unrelated longhands
-Fail	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-behavior
+Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-behavior
 Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-delay
 Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-duration
 Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-property
 Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should set transition-timing-function
 Pass	e.style['transition'] = "1s -3s, cubic-bezier(0, -2, 1, 3) top" should not set unrelated longhands
-Fail	e.style['transition'] = "cubic-bezier(0, -2, 1, 3) top, 1s -3s" should set transition-behavior
+Pass	e.style['transition'] = "cubic-bezier(0, -2, 1, 3) top, 1s -3s" should set transition-behavior
 Pass	e.style['transition'] = "cubic-bezier(0, -2, 1, 3) top, 1s -3s" should set transition-delay
 Pass	e.style['transition'] = "cubic-bezier(0, -2, 1, 3) top, 1s -3s" should set transition-duration
 Pass	e.style['transition'] = "cubic-bezier(0, -2, 1, 3) top, 1s -3s" should set transition-property
