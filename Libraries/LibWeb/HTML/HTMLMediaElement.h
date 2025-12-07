@@ -197,11 +197,16 @@ private:
     WebIDL::ExceptionOr<void> load_element();
     WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
+
+    WebIDL::ExceptionOr<void> setup_playback_manager(Function<void(String)> failure_callback);
     WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
     WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
+    void on_audio_track_added(Media::Track const&);
+    void on_video_track_added(Media::Track const&);
+    void on_metadata_parsed();
     void on_playback_manager_state_change();
     void play_element();
     void pause_element();
@@ -348,6 +353,9 @@ private:
     Optional<CSSPixelPoint> m_mouse_position;
     Optional<double> m_display_time;
     mutable CachedLayoutBoxes m_layout_boxes;
+
+    bool m_has_enabled_preferred_audio_track { false };
+    bool m_has_selected_preferred_video_track { false };
 };
 
 }

@@ -76,7 +76,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     auto mutexed_demuxer = make_ref_counted<Media::MutexedDemuxer>(demuxer);
     auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
     VERIFY(track.has_value());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(mutexed_demuxer, track.release_value()));
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current(), mutexed_demuxer, track.release_value()));
 
     auto reached_end = false;
     provider->set_error_handler([&](Media::DecoderError&& error) {
