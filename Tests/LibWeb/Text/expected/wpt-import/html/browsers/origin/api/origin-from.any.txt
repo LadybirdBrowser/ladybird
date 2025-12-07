@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Origin.from(null) throws a TypeError.
+Pass	Origin.from(undefined) throws a TypeError.
+Pass	Origin.from(1) throws a TypeError.
+Pass	Origin.from(1.1) throws a TypeError.
+Pass	Origin.from(true) throws a TypeError.
+Pass	Origin.from([object Object]) throws a TypeError.
+Pass	Origin.from(function Object() { [native code] }) throws a TypeError.
+Pass	Origin.from(function Origin() { [native code] }) throws a TypeError.
+Pass	Origin.from(function from() { [native code] }) throws a TypeError.

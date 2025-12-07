@@ -350,6 +350,7 @@ set(SOURCES
     DOM/Utils.cpp
     DOM/XMLDocument.cpp
     DOMURL/DOMURL.cpp
+    DOMURL/Origin.cpp
     DOMURL/URLSearchParams.cpp
     DOMURL/URLSearchParamsIterator.cpp
     Dump.cpp

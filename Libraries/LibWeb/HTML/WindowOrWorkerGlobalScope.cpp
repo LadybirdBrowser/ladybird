@@ -1277,4 +1277,17 @@ GC::Ref<TrustedTypes::TrustedTypePolicyFactory> WindowOrWorkerGlobalScopeMixin::
     return *m_trusted_type_policy_factory;
 }
 
+// https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope-mixin:extract-an-origin
+Optional<URL::Origin> WindowOrWorkerGlobalScopeMixin::window_or_worker_global_scope_extract_an_origin() const
+{
+    auto relevant_origin = relevant_settings_object(this_impl()).origin();
+
+    // 1. If this's relevant settings object's origin is not same origin-domain with the entry settings object's origin, then return null.
+    if (!relevant_origin.is_same_origin_domain(entry_settings_object().origin()))
+        return {};
+
+    // 2. Return this's relevant settings object's origin.
+    return relevant_origin;
+}
+
 }

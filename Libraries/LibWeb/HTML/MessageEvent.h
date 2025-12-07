@@ -41,6 +41,8 @@ public:
     GC::Ref<JS::Object> ports() const;
     Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty> source() const;
 
+    virtual Optional<URL::Origin> extract_an_origin() const override;
+
     void init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<GC::Root<MessagePort>> const& ports);
 
 private:

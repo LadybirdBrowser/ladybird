@@ -100,6 +100,8 @@ public:
     // ^JS::Object
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
 
+    virtual Optional<URL::Origin> extract_an_origin() const override { return window_or_worker_global_scope_extract_an_origin(); }
+
     Page& page();
     Page const& page() const;
 

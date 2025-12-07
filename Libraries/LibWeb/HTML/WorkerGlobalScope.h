@@ -66,6 +66,8 @@ public:
     // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-self
     GC::Ref<WorkerGlobalScope const> self() const { return *this; }
 
+    virtual Optional<URL::Origin> extract_an_origin() const override { return window_or_worker_global_scope_extract_an_origin(); }
+
     GC::Ref<WorkerLocation> location() const;
     GC::Ref<WorkerNavigator> navigator() const;
     WebIDL::ExceptionOr<void> import_scripts(Vector<String> const& urls, PerformTheFetchHook = nullptr);
