@@ -322,6 +322,7 @@ OfflineAudioContext
 OffscreenCanvas
 OffscreenCanvasRenderingContext2D
 Option
+Origin
 OscillatorNode
 PageTransitionEvent
 PannerNode
