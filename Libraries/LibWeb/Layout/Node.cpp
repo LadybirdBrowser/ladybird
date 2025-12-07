@@ -9,7 +9,6 @@
 #include <AK/Demangle.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -17,7 +16,6 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
@@ -412,137 +410,15 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
-    {
-        // FIXME: Use `ComputedProperties::assemble_coordinated_value_list()` for this
-        auto const& attachments = computed_style.property(CSS::PropertyID::BackgroundAttachment);
-        auto const& clips = computed_style.property(CSS::PropertyID::BackgroundClip);
-        auto const& images = computed_style.property(CSS::PropertyID::BackgroundImage);
-        auto const& origins = computed_style.property(CSS::PropertyID::BackgroundOrigin);
-        auto const& x_positions = computed_style.property(CSS::PropertyID::BackgroundPositionX);
-        auto const& y_positions = computed_style.property(CSS::PropertyID::BackgroundPositionY);
-        auto const& repeats = computed_style.property(CSS::PropertyID::BackgroundRepeat);
-        auto const& sizes = computed_style.property(CSS::PropertyID::BackgroundSize);
-        auto const& background_blend_modes = computed_style.property(CSS::PropertyID::BackgroundBlendMode);
+    auto background_layers = computed_style.background_layers();
 
-        auto count_layers = [](auto const& maybe_style_value) -> size_t {
-            if (maybe_style_value.is_value_list())
-                return maybe_style_value.as_value_list().size();
-            else
-                return 1;
-        };
-
-        auto value_for_layer = [](auto const& style_value, size_t layer_index) -> RefPtr<CSS::StyleValue const> {
-            if (style_value.is_value_list())
-                return style_value.as_value_list().value_at(layer_index, true);
-            return style_value;
-        };
-
-        size_t layer_count = 1;
-        layer_count = max(layer_count, count_layers(attachments));
-        layer_count = max(layer_count, count_layers(clips));
-        layer_count = max(layer_count, count_layers(images));
-        layer_count = max(layer_count, count_layers(origins));
-        layer_count = max(layer_count, count_layers(x_positions));
-        layer_count = max(layer_count, count_layers(y_positions));
-        layer_count = max(layer_count, count_layers(repeats));
-        layer_count = max(layer_count, count_layers(sizes));
-
-        Vector<CSS::BackgroundLayerData> layers;
-        layers.ensure_capacity(layer_count);
-
-        for (size_t layer_index = 0; layer_index < layer_count; layer_index++) {
-            CSS::BackgroundLayerData layer;
-
-            if (auto image_value = value_for_layer(images, layer_index); image_value) {
-                if (image_value->is_abstract_image()) {
-                    layer.background_image = image_value->as_abstract_image();
-                    const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(document());
-                }
-            }
-
-            if (auto attachment_value = value_for_layer(attachments, layer_index); attachment_value && attachment_value->is_keyword()) {
-                switch (attachment_value->to_keyword()) {
-                case CSS::Keyword::Fixed:
-                    layer.attachment = CSS::BackgroundAttachment::Fixed;
-                    break;
-                case CSS::Keyword::Local:
-                    layer.attachment = CSS::BackgroundAttachment::Local;
-                    break;
-                case CSS::Keyword::Scroll:
-                    layer.attachment = CSS::BackgroundAttachment::Scroll;
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            auto as_box = [](auto keyword) {
-                switch (keyword) {
-                case CSS::Keyword::BorderBox:
-                    return CSS::BackgroundBox::BorderBox;
-                case CSS::Keyword::ContentBox:
-                    return CSS::BackgroundBox::ContentBox;
-                case CSS::Keyword::PaddingBox:
-                    return CSS::BackgroundBox::PaddingBox;
-                case CSS::Keyword::Text:
-                    return CSS::BackgroundBox::Text;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            };
-
-            if (auto origin_value = value_for_layer(origins, layer_index); origin_value && origin_value->is_keyword()) {
-                layer.origin = as_box(origin_value->to_keyword());
-            }
-
-            if (auto clip_value = value_for_layer(clips, layer_index); clip_value && clip_value->is_keyword()) {
-                layer.clip = as_box(clip_value->to_keyword());
-            }
-
-            if (auto position_value = value_for_layer(x_positions, layer_index); position_value && position_value->is_edge()) {
-                auto& position = position_value->as_edge();
-                layer.position_edge_x = position.edge().value_or(CSS::PositionEdge::Left);
-                layer.position_offset_x = position.offset();
-            }
-
-            if (auto position_value = value_for_layer(y_positions, layer_index); position_value && position_value->is_edge()) {
-                auto& position = position_value->as_edge();
-                layer.position_edge_y = position.edge().value_or(CSS::PositionEdge::Top);
-                layer.position_offset_y = position.offset();
-            };
-
-            if (auto size_value = value_for_layer(sizes, layer_index); size_value) {
-                if (size_value->is_background_size()) {
-                    auto& size = size_value->as_background_size();
-                    layer.size_type = CSS::BackgroundSize::LengthPercentage;
-                    layer.size_x = CSS::LengthPercentageOrAuto::from_style_value(size.size_x());
-                    layer.size_y = CSS::LengthPercentageOrAuto::from_style_value(size.size_y());
-                } else if (size_value->is_keyword()) {
-                    switch (size_value->to_keyword()) {
-                    case CSS::Keyword::Contain:
-                        layer.size_type = CSS::BackgroundSize::Contain;
-                        break;
-                    case CSS::Keyword::Cover:
-                        layer.size_type = CSS::BackgroundSize::Cover;
-                        break;
-                    default:
-                        break;
-                    }
-                }
-            }
-
-            if (auto repeat_value = value_for_layer(repeats, layer_index); repeat_value && repeat_value->is_repeat_style()) {
-                layer.repeat_x = repeat_value->as_repeat_style().repeat_x();
-                layer.repeat_y = repeat_value->as_repeat_style().repeat_y();
-            }
-
-            layer.blend_mode = CSS::keyword_to_mix_blend_mode(value_for_layer(background_blend_modes, layer_index)->to_keyword()).value_or(CSS::MixBlendMode::Normal);
-
-            layers.append(move(layer));
-        }
-
-        computed_values.set_background_layers(move(layers));
+    for (auto const& layer : background_layers) {
+        if (layer.background_image)
+            const_cast<CSS::AbstractImageStyleValue&>(*layer.background_image).load_any_resources(document());
     }
+
+    computed_values.set_background_layers(move(background_layers));
+
     computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, color_resolution_context, CSS::InitialValues::background_color()));
 
     computed_values.set_box_sizing(computed_style.box_sizing());

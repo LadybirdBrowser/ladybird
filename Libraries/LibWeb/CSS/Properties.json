@@ -435,6 +435,7 @@
     "inherited": false,
     "initial": "border-box",
     "multiplicity": "coordinating-list",
+    "__comment": "FIXME: Support `border-area`",
     "valid-types": [
       "background-box"
     ]
@@ -470,6 +471,7 @@
     "inherited": false,
     "initial": "padding-box",
     "multiplicity": "coordinating-list",
+    "__comment": "FIXME: This shouldn't allow `text`",
     "valid-types": [
       "background-box"
     ]
