@@ -3039,6 +3039,9 @@
     "initial": "visible",
     "valid-types": [
       "overflow"
+    ],
+    "valid-identifiers": [
+      "overlay>auto"
     ]
   },
   "overflow-block": {

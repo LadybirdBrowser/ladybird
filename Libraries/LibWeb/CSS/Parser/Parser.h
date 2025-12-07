@@ -493,7 +493,6 @@ private:
     RefPtr<StyleValue const> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_mask_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_math_depth_value(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_overflow_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_paint_order_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_content_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_place_items_value(TokenStream<ComponentValue>&);
