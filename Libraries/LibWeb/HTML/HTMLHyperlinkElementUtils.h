@@ -63,6 +63,8 @@ protected:
 
     virtual void hyperlink_element_utils_queue_an_element_task(HTML::Task::Source source, Function<void()> steps) = 0;
 
+    Optional<URL::Origin> hyperlink_element_utils_extract_an_origin() const;
+
     void set_the_url();
     void follow_the_hyperlink(Optional<String> hyperlink_suffix, UserNavigationInvolvement = UserNavigationInvolvement::None);
 
