@@ -661,9 +661,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
                 return parse_single_background_size_value(PropertyID::MaskSize, tokens);
             });
         });
-    // FIXME: This can be removed once we have generic logic for parsing "positional-value-list-shorthand"s
-    case PropertyID::Overflow:
-        return parse_all_as(tokens, [this](auto& tokens) { return parse_overflow_value(tokens); });
     case PropertyID::PaintOrder:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_paint_order_value(tokens); });
     case PropertyID::PlaceContent:
@@ -3910,24 +3907,6 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     }
 
     return nullptr;
-}
-
-RefPtr<StyleValue const> Parser::parse_overflow_value(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    auto maybe_x_value = parse_css_value_for_property(PropertyID::OverflowX, tokens);
-    if (!maybe_x_value)
-        return nullptr;
-    auto maybe_y_value = parse_css_value_for_property(PropertyID::OverflowY, tokens);
-    transaction.commit();
-    if (maybe_y_value) {
-        return ShorthandStyleValue::create(PropertyID::Overflow,
-            { PropertyID::OverflowX, PropertyID::OverflowY },
-            { maybe_x_value.release_nonnull(), maybe_y_value.release_nonnull() });
-    }
-    return ShorthandStyleValue::create(PropertyID::Overflow,
-        { PropertyID::OverflowX, PropertyID::OverflowY },
-        { *maybe_x_value, *maybe_x_value });
 }
 
 RefPtr<StyleValue const> Parser::parse_paint_order_value(TokenStream<ComponentValue>& tokens)
