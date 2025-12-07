@@ -256,6 +256,12 @@ WEB_API Optional<PropertyID> property_id_from_string(StringView);
 WEB_API bool is_inherited_property(PropertyID);
 NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
+enum class PropertyMultiplicity {
+    Single,
+    List,
+    CoordinatingList,
+};
+PropertyMultiplicity property_multiplicity(PropertyID);
 bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
@@ -784,7 +790,38 @@ NonnullRefPtr<StyleValue const> property_initial_value(PropertyID property_id)
     }
     VERIFY_NOT_REACHED();
 }
-        
+
+PropertyMultiplicity property_multiplicity(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, JsonValue const& value) {
+        auto const& property = value.as_object();
+        if (auto multiplicity = property.get_string("multiplicity"sv);
+            multiplicity.has_value() && multiplicity != "single"sv) {
+
+            if (!first_is_one_of(multiplicity, "single"sv, "list"sv, "coordinating-list"sv)) {
+                dbgln("'{}' is not a valid value for 'multiplicity'. Accepted values are: 'single', 'list', 'coordinating-list'", multiplicity.value());
+                VERIFY_NOT_REACHED();
+            }
+
+            auto property_generator = generator.fork();
+            property_generator.set("name:titlecase", title_casify(name));
+            property_generator.set("multiplicity:titlecase", title_casify(multiplicity.value()));
+            property_generator.appendln("    case PropertyID::@name:titlecase@:");
+            property_generator.appendln("        return PropertyMultiplicity::@multiplicity:titlecase@;");
+        }
+    });
+
+    generator.append(R"~~~(
+    default:
+        return PropertyMultiplicity::Single;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 bool property_is_single_valued(PropertyID property_id)
 {
     return !property_is_list_valued(property_id);
