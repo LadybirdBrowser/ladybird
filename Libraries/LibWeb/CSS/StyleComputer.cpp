@@ -2273,6 +2273,22 @@ static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<St
     return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
 }
 
+static NonnullRefPtr<StyleValue const> repeat_style_value_list_to_n_elements(NonnullRefPtr<StyleValue const> const& style_value, size_t n)
+{
+    auto const& value_list = style_value->as_value_list();
+
+    if (value_list.size() == n)
+        return style_value;
+
+    StyleValueVector repeated_values;
+    repeated_values.ensure_capacity(n);
+
+    for (size_t i = 0; i < n; ++i)
+        repeated_values.unchecked_append(value_list.value_at(i, true));
+
+    return StyleValueList::create(move(repeated_values), value_list.separator());
+}
+
 NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     PropertyID property_id,
     NonnullRefPtr<StyleValue const> const& specified_value,
@@ -2285,6 +2301,16 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     switch (property_id) {
     case PropertyID::AnimationName:
         return compute_animation_name(absolutized_value);
+    // NB: The background properties are coordinated at compute time rather than use time, unlike other coordinating list property groups
+    case PropertyID::BackgroundAttachment:
+    case PropertyID::BackgroundClip:
+    case PropertyID::BackgroundImage:
+    case PropertyID::BackgroundOrigin:
+    case PropertyID::BackgroundPositionX:
+    case PropertyID::BackgroundPositionY:
+    case PropertyID::BackgroundRepeat:
+    case PropertyID::BackgroundSize:
+        return repeat_style_value_list_to_n_elements(absolutized_value, get_property_specified_value(PropertyID::BackgroundImage)->as_value_list().size());
     case PropertyID::BorderBottomWidth:
         return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderBottomStyle), device_pixels_per_css_pixel);
     case PropertyID::BorderLeftWidth:
