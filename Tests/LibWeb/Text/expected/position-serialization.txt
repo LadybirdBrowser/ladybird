@@ -1,17 +1,17 @@
 inline:   center center
-computed: 50% 50%
+computed: 50% 50%, 50% 50%
 inline:   left bottom
-computed: 0% 100%
+computed: 0% 100%, 0% 100%
 inline:   center top
-computed: 50% 0%
+computed: 50% 0%, 50% 0%
 inline:   center top 20%
-computed: 50% 20%
+computed: 50% 20%, 50% 20%
 inline:   left 10px top 20%
-computed: 10px 20%
+computed: 10px 20%, 10px 20%
 inline:   10px top
-computed: 10px 0%
+computed: 10px 0%, 10px 0%
 inline:   right 10px bottom 20%
-computed: calc(100% - 10px) 80%
+computed: calc(100% - 10px) 80%, calc(100% - 10px) 80%
 inline:   center center, left bottom
 computed: 50% 50%, 0% 100%
 inline:   left 10px bottom 20%, right 10px top 20%
