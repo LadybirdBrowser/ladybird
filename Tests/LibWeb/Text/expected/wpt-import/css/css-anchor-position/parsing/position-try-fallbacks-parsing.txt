@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 43 tests
 
-42 Pass
-1 Fail
+43 Pass
 Pass	e.style['position-try-fallbacks'] = "initial" should set the property value
 Pass	e.style['position-try-fallbacks'] = "inherit" should set the property value
 Pass	e.style['position-try-fallbacks'] = "unset" should set the property value
@@ -13,7 +12,7 @@ Pass	e.style['position-try-fallbacks'] = "flip-block" should set the property va
 Pass	e.style['position-try-fallbacks'] = "flip-block " should set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-start, flip-block" should set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-start flip-inline, flip-block" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-start, flip-start" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-start, flip-start" should set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-start flip-inline flip-block" should set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-block, --foo" should set the property value
 Pass	e.style['position-try-fallbacks'] = "--bar, flip-block flip-start" should set the property value

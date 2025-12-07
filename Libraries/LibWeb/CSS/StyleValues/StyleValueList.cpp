@@ -61,7 +61,7 @@ String StyleValueList::to_string(SerializationMode mode) const
     }
 
     auto first_value = m_properties.values.first();
-    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }))
+    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma)
         return first_value->to_string(mode);
 
     StringBuilder builder;

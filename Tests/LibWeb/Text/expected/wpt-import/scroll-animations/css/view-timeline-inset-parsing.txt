@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 23 tests
 
-22 Pass
-1 Fail
+23 Pass
 Pass	e.style['view-timeline-inset'] = "initial" should set the property value
 Pass	e.style['view-timeline-inset'] = "inherit" should set the property value
 Pass	e.style['view-timeline-inset'] = "unset" should set the property value
@@ -16,7 +15,7 @@ Pass	e.style['view-timeline-inset'] = "1px 2px, 3px 4px" should set the property
 Pass	e.style['view-timeline-inset'] = "1px auto, auto 4px" should set the property value
 Pass	e.style['view-timeline-inset'] = "1px, 2px, 3px" should set the property value
 Pass	e.style['view-timeline-inset'] = "1px 1px, 2px 3px" should set the property value
-Fail	e.style['view-timeline-inset'] = "auto auto, auto auto" should set the property value
+Pass	e.style['view-timeline-inset'] = "auto auto, auto auto" should set the property value
 Pass	e.style['view-timeline-inset'] = "none" should not set the property value
 Pass	e.style['view-timeline-inset'] = "foo bar" should not set the property value
 Pass	e.style['view-timeline-inset'] = "\"foo\" \"bar\"" should not set the property value

@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 44 tests
 
-42 Pass
-2 Fail
+44 Pass
 Pass	Property animation-timeline value 'initial'
 Pass	Property animation-timeline value 'inherit'
 Pass	Property animation-timeline value 'unset'
 Pass	Property animation-timeline value 'revert'
 Pass	Property animation-timeline value 'auto'
 Pass	Property animation-timeline value 'none'
-Fail	Property animation-timeline value 'auto, auto'
-Fail	Property animation-timeline value 'none, none'
+Pass	Property animation-timeline value 'auto, auto'
+Pass	Property animation-timeline value 'none, none'
 Pass	Property animation-timeline value 'auto, none'
 Pass	Property animation-timeline value 'none, auto'
 Pass	Property animation-timeline value '--test'
