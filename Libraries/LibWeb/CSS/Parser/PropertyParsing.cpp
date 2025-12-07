@@ -764,12 +764,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         break;
     }
 
-    if (property_is_positional_value_list_shorthand(property_id)) {
-        if (auto parsed_value = parse_positional_value_list_shorthand(property_id, tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-
-        return ParseError::SyntaxError;
-    }
+    if (property_is_positional_value_list_shorthand(property_id))
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_positional_value_list_shorthand(property_id, tokens); });
 
     {
         auto transaction = tokens.begin_transaction();
