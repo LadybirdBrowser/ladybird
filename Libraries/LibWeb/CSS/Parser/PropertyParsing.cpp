@@ -523,28 +523,11 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_aspect_ratio_value(tokens); });
     case PropertyID::Animation:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_animation_value(tokens); });
-    case PropertyID::AnimationComposition:
-    case PropertyID::AnimationDelay:
-    case PropertyID::AnimationDirection:
-    case PropertyID::AnimationDuration:
-    case PropertyID::AnimationFillMode:
-    case PropertyID::AnimationIterationCount:
-    case PropertyID::AnimationName:
-    case PropertyID::AnimationPlayState:
-    case PropertyID::AnimationTimeline:
-    case PropertyID::AnimationTimingFunction:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackdropFilter:
     case PropertyID::Filter:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_filter_value_list_value(tokens); });
     case PropertyID::Background:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_background_value(tokens); });
-    case PropertyID::BackgroundAttachment:
-    case PropertyID::BackgroundBlendMode:
-    case PropertyID::BackgroundClip:
-    case PropertyID::BackgroundImage:
-    case PropertyID::BackgroundOrigin:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::BackgroundPosition:
         return parse_all_as(tokens, [this](auto& tokens) {
             return parse_comma_separated_value_list(tokens, [this](auto& tokens) { return parse_position_value(tokens, PositionParsingMode::BackgroundPosition); });
@@ -660,12 +643,6 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_math_depth_value(tokens); });
     case PropertyID::Mask:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_mask_value(tokens); });
-    case PropertyID::MaskClip:
-    case PropertyID::MaskComposite:
-    case PropertyID::MaskImage:
-    case PropertyID::MaskMode:
-    case PropertyID::MaskOrigin:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::MaskPosition:
         return parse_all_as(tokens, [this](auto& tokens) {
             return parse_comma_separated_value_list(tokens, [this](auto& tokens) {
@@ -733,26 +710,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_value(tokens); });
     case PropertyID::TransitionProperty:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_transition_property_value(tokens); });
-    case PropertyID::TransitionDelay:
-    case PropertyID::TransitionDuration:
-    case PropertyID::TransitionTimingFunction:
-    case PropertyID::TransitionBehavior:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::Translate:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_translate_value(tokens); });
     case PropertyID::Scale:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_scale_value(tokens); });
     case PropertyID::ScrollTimeline:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_scroll_timeline_value(tokens); });
-    case PropertyID::ScrollTimelineAxis:
-    case PropertyID::ScrollTimelineName:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::ViewTimeline:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_view_timeline_value(tokens); });
-    case PropertyID::ViewTimelineAxis:
-    case PropertyID::ViewTimelineInset:
-    case PropertyID::ViewTimelineName:
-        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
     case PropertyID::WhiteSpace:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_white_space_shorthand(tokens); });
     case PropertyID::WhiteSpaceTrim:
@@ -763,6 +728,9 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     default:
         break;
     }
+
+    if (property_multiplicity(property_id) == PropertyMultiplicity::CoordinatingList && !property_is_shorthand(property_id))
+        return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_simple_comma_separated_value_list(property_id, tokens); });
 
     if (property_is_positional_value_list_shorthand(property_id))
         return parse_all_as(tokens, [this, property_id](auto& tokens) { return parse_positional_value_list_shorthand(property_id, tokens); });
