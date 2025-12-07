@@ -239,7 +239,7 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
         return true;
 
     // 3. If argument is a Proxy exotic object, then
-    if (auto const* proxy = as_if<ProxyObject>(object)) {
+    if (auto const* proxy = ::as_if<ProxyObject>(object)) {
 
         // a. Perform ? ValidateNonRevokedProxy(argument).
         TRY(proxy->validate_non_revoked_proxy());
