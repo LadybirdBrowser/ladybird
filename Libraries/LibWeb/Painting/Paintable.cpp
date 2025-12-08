@@ -211,7 +211,7 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
 
 void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
 {
-    auto& document = const_cast<DOM::Document&>(this->document());
+    auto& document = this->document();
     if (should_invalidate_display_list == InvalidateDisplayList::Yes)
         document.invalidate_display_list();
 
@@ -219,11 +219,10 @@ void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_displa
     if (!containing_block)
         return;
 
-    if (!is<Painting::PaintableWithLines>(*containing_block))
+    if (!is<PaintableWithLines>(*containing_block))
         return;
-    for (auto const& fragment : static_cast<Painting::PaintableWithLines const&>(*containing_block).fragments()) {
+    for (auto const& fragment : as<PaintableWithLines>(*containing_block).fragments())
         document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
-    };
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const

@@ -335,7 +335,7 @@ void ViewportPaintable::resolve_paint_only_properties()
 
 GC::Ptr<Selection::Selection> ViewportPaintable::selection() const
 {
-    return const_cast<DOM::Document&>(document()).get_selection();
+    return document().get_selection();
 }
 
 void ViewportPaintable::recompute_selection_states(DOM::Range& range)

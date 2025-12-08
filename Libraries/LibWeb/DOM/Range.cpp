@@ -107,15 +107,16 @@ void Range::update_associated_selection()
 
     auto& document = m_start_container->document();
     document.reset_cursor_blink_cycle();
+
     if (auto* viewport = document.paintable()) {
         viewport->recompute_selection_states(*this);
         viewport->set_needs_display();
     }
 
     // https://w3c.github.io/selection-api/#selectionchange-event
-    // When the selection is dissociated with its range, associated with a new range, or the
-    // associated range's boundary point is mutated either by the user or the content script, the
-    // user agent must schedule a selectionchange event on document.
+    // When the selection is dissociated with its range, associated with a new range, or the associated range's boundary
+    // point is mutated either by the user or the content script, the user agent must schedule a selectionchange event
+    // on document.
     schedule_a_selectionchange_event(document, document);
 }
 
