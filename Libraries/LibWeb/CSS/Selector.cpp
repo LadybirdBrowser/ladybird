@@ -323,7 +323,13 @@ String Selector::PseudoElementSelector::serialize() const
         },
         [&builder](IdentList const& ident_list) {
             builder.append('(');
-            builder.join(' ', ident_list);
+            bool first = true;
+            for (auto const& ident : ident_list) {
+                if (!first)
+                    builder.append(' ');
+                first = false;
+                builder.append(serialize_an_identifier(ident));
+            }
             builder.append(')');
         },
         [](Empty const&) {});
