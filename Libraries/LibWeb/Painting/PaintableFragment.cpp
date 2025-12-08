@@ -65,9 +65,6 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
-    if (selection_state == Paintable::SelectionState::None)
-        return {};
-
     if (selection_state == Paintable::SelectionState::Full)
         return absolute_rect();
 
@@ -77,14 +74,11 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
     auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
     auto text = this->text();
 
-    if (selection_state == Paintable::SelectionState::StartAndEnd) {
+    if (first_is_one_of(selection_state, Paintable::SelectionState::StartAndEnd, Paintable::SelectionState::None)) {
         // we are in the start/end node (both the same)
         if (start_index > end_offset_in_code_units)
             return {};
         if (end_index < start_offset_in_code_units)
-            return {};
-
-        if (start_offset_in_code_units == end_offset_in_code_units)
             return {};
 
         auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
@@ -180,7 +174,11 @@ Gfx::Orientation PaintableFragment::orientation() const
 
 CSSPixelRect PaintableFragment::selection_rect() const
 {
-    if (auto focused_area = paintable().document().focused_area(); is<HTML::FormAssociatedTextControlElement>(focused_area.ptr())) {
+    auto const selection_state = paintable().selection_state();
+    if (selection_state == Paintable::SelectionState::None)
+        return {};
+
+    if (auto const* focused_area = as_if<HTML::FormAssociatedTextControlElement>(paintable().document().focused_area().ptr())) {
         HTML::FormAssociatedTextControlElement const* text_control_element = nullptr;
         if (auto const* input_element = as_if<HTML::HTMLInputElement>(*focused_area)) {
             text_control_element = input_element;
@@ -191,7 +189,7 @@ CSSPixelRect PaintableFragment::selection_rect() const
         }
         auto selection_start = text_control_element->selection_start();
         auto selection_end = text_control_element->selection_end();
-        return range_rect(paintable().selection_state(), selection_start, selection_end);
+        return range_rect(selection_state, selection_start, selection_end);
     }
 
     auto selection = paintable().document().get_selection();
@@ -201,7 +199,7 @@ CSSPixelRect PaintableFragment::selection_rect() const
     if (!range)
         return {};
 
-    return range_rect(paintable().selection_state(), range->start_offset(), range->end_offset());
+    return range_rect(selection_state, range->start_offset(), range->end_offset());
 }
 
 Utf16View PaintableFragment::text() const
