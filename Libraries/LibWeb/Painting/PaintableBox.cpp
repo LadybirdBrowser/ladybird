@@ -709,8 +709,8 @@ void PaintableBox::clear_clip_overflow_rect(DisplayListRecordingContext& context
 
 void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
 {
-    auto const& navigable = *paintable.navigable();
     auto const& document = paintable.document();
+    auto const& navigable = *document.navigable();
 
     if (!navigable.is_focused())
         return;
@@ -731,8 +731,8 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
 
     auto active_element = document.active_element();
     auto active_element_is_editable = false;
-    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(active_element); text_control && text_control->is_mutable())
-        active_element_is_editable = true;
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(active_element))
+        active_element_is_editable = text_control->is_mutable();
 
     auto dom_node = fragment.layout_node().dom_node();
     if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))

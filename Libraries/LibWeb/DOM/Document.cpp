@@ -6428,8 +6428,9 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
         if (!input_element->can_have_text_editing_cursor())
             return nullptr;
         target = *input_element;
-    } else if (is<HTML::HTMLTextAreaElement>(*focused_area))
-        target = static_cast<HTML::HTMLTextAreaElement const&>(*focused_area);
+    } else if (auto const* text_area_element = as_if<HTML::HTMLTextAreaElement>(*focused_area)) {
+        target = *text_area_element;
+    }
 
     if (target.has_value())
         return target->cursor_position();
