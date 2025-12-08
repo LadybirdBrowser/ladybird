@@ -145,21 +145,23 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
     Utf16FlyString name,
     GC::Ref<Realm> realm,
     GC::Ptr<Environment> parent_environment,
-    GC::Ptr<PrivateEnvironment> private_environment)
+    GC::Ptr<PrivateEnvironment> private_environment,
+    bool should_be_constructible,
+    GC::Ptr<Object> constructor_prototype)
 {
-    GC::Ptr<Object> prototype = nullptr;
+    GC::Ptr<Object> function_prototype = nullptr;
     switch (function_node.kind()) {
     case FunctionKind::Normal:
-        prototype = realm->intrinsics().function_prototype();
+        function_prototype = realm->intrinsics().function_prototype();
         break;
     case FunctionKind::Generator:
-        prototype = realm->intrinsics().generator_function_prototype();
+        function_prototype = realm->intrinsics().generator_function_prototype();
         break;
     case FunctionKind::Async:
-        prototype = realm->intrinsics().async_function_prototype();
+        function_prototype = realm->intrinsics().async_function_prototype();
         break;
     case FunctionKind::AsyncGenerator:
-        prototype = realm->intrinsics().async_generator_function_prototype();
+        function_prototype = realm->intrinsics().async_generator_function_prototype();
         break;
     }
 
@@ -181,12 +183,17 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
         function_node.set_shared_data(shared_data);
     }
 
-    return create_from_function_data(
-        realm,
+    auto function = realm->create<ECMAScriptFunctionObject>(
         *shared_data,
         parent_environment,
         private_environment,
-        *prototype);
+        *function_prototype);
+
+    // Only call make_constructor if the caller said so, and it's a normal function. Generators/Asyncs are never constructors anyway.
+    if (function_node.kind() == FunctionKind::Normal && should_be_constructible && !function_node.is_arrow_function()) {
+        function->make_constructor(true, constructor_prototype);
+    }
+    return function;
 }
 
 ECMAScriptFunctionObject::ECMAScriptFunctionObject(
@@ -199,8 +206,10 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     , m_environment(parent_environment)
     , m_private_environment(private_environment)
 {
+    // Normal (non-arrow) functions should initially use a shape that does not include an own "prototype" data property on the function object.
+    // If this function later becomes a constructor, make_constructor() will define the "prototype" property at that time.
     if (!is_arrow_function() && kind() == FunctionKind::Normal)
-        unsafe_set_shape(realm()->intrinsics().normal_function_shape());
+        unsafe_set_shape(realm()->intrinsics().normal_function_without_prototype_shape());
 
     // 15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
     m_script_or_module = vm().get_active_script_or_module();
@@ -431,6 +440,62 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
         [&](auto& script_or_module) {
             visitor.visit(script_or_module);
         });
+}
+
+// 10.2.5 MakeConstructor ( F [ , writablePrototype [ , prototype ] ] ), https://tc39.es/ecma262/#sec-makeconstructor
+void ECMAScriptFunctionObject::make_constructor(bool writable_prototype, GC::Ptr<Object> prototype)
+{
+
+    auto& vm = this->vm();
+
+    // 1. If F is an ECMAScript function object, then
+    // This is implicitly true, as 'this' is an ECMAScriptFunctionObject.
+
+    // a. Assert: IsConstructor(F) is false.
+    ASSERT(!has_constructor());
+
+    // b. Assert: F is an extensible object that does not have a "prototype" own property.
+    ASSERT(MUST(is_extensible()));
+    ASSERT(!MUST(has_own_property(vm.names.prototype)));
+
+    // c. Set F.[[Construct]] to the definition specified in 10.2.2.
+    m_is_constructible = true;
+
+    // 2. Else,
+    // a. Set F.[[Construct]] to the definition specified in 10.3.2.
+    // Not needed here, as it applies to other function types.
+
+    // 3. Set F.[[ConstructorKind]] to base.
+    set_constructor_kind(ConstructorKind::Base);
+
+    // 4. If writablePrototype is not present, set writablePrototype to true.
+    // Handled by the C++ default argument.
+
+    // 5. If prototype is not present, then
+    if (!prototype) {
+        // a. Set prototype to OrdinaryObjectCreate(%Object.prototype%).
+        prototype = Object::create(*realm(), realm()->intrinsics().object_prototype());
+
+        // b. Perform ! DefinePropertyOrThrow(prototype, "constructor", PropertyDescriptor { [[Value]]: F, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: true }).
+        PropertyDescriptor constructor_property_descriptor {
+            .value = Value(this),
+            .writable = writable_prototype,
+            .enumerable = false,
+            .configurable = true
+        };
+        MUST(prototype->define_property_or_throw(vm.names.constructor, constructor_property_descriptor));
+    }
+
+    // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: false }).
+    PropertyDescriptor prototype_property_descriptor {
+        .value = prototype,
+        .writable = writable_prototype,
+        .enumerable = false,
+        .configurable = false
+    };
+    MUST(define_property_or_throw(vm.names.prototype, prototype_property_descriptor));
+
+    // 7. Return unused.
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod

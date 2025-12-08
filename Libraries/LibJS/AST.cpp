@@ -119,7 +119,9 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
         m_function->name(),
         *vm.current_realm(),
         vm.lexical_environment(),
-        vm.running_execution_context().private_environment);
+        vm.running_execution_context().private_environment,
+        false,
+        nullptr);
 
     auto method_value = Value(&method_function);
     method_function.make_method(target);
@@ -323,12 +325,13 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
         constructor.name(),
         realm,
         vm.lexical_environment(),
-        vm.running_execution_context().private_environment);
+        vm.running_execution_context().private_environment,
+        true,
+        prototype);
 
     class_constructor->set_name(class_name);
     class_constructor->set_home_object(prototype);
     class_constructor->set_is_class_constructor();
-    class_constructor->define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
     TRY(class_constructor->internal_set_prototype_of(constructor_parent));
 
     if (!m_super_class.is_null())
@@ -1826,7 +1829,9 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
             declaration.name(),
             realm,
             &global_environment,
-            private_environment);
+            private_environment,
+            true,
+            nullptr);
 
         // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
         TRY(global_environment.create_global_function_binding(function->name(), function, false));

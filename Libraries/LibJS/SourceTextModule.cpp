@@ -511,7 +511,9 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                     move(function_name),
                     realm,
                     environment,
-                    private_environment);
+                    private_environment,
+                    true,
+                    nullptr);
 
                 // 2. Perform ! env.InitializeBinding(dn, fo, normal).
                 MUST(environment->initialize_binding(vm, name, function, Environment::InitializeBindingHint::Normal));
