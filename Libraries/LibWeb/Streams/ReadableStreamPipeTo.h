@@ -68,7 +68,7 @@ private:
     GC::Ptr<DOM::AbortSignal> m_signal;
     DOM::AbortSignal::AbortAlgorithmID m_signal_id { 0 };
 
-    Vector<GC::Ref<WebIDL::Promise>> m_pending_writes;
+    GC::Ptr<WebIDL::Promise> m_last_write_promise;
     Vector<JS::Value, 1> m_unwritten_chunks;
 
     bool m_prevent_close { false };
