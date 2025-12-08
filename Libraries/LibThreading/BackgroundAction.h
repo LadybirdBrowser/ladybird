@@ -76,7 +76,7 @@ private:
         if (on_error.has_value())
             m_on_error = on_error.release_value();
 
-        enqueue_work([self = NonnullRefPtr(*this), promise = move(promise), origin_event_loop = &Core::EventLoop::current()]() mutable {
+        enqueue_work([self = NonnullRefPtr(*this), promise = move(promise), origin_event_loop = Core::EventLoop::current_weak()]() mutable {
             auto result = self->m_action(*self);
 
             // The event loop cancels the promise when it exits.
@@ -88,7 +88,7 @@ private:
 
                 // If there is no completion callback, we don't rely on the user keeping around the event loop.
                 if (self->m_on_complete) {
-                    origin_event_loop->deferred_invoke([self, promise = move(promise)] {
+                    origin_event_loop->take()->deferred_invoke([self, promise = move(promise)] {
                         // Our promise's resolution function will never error.
                         (void)promise->resolve(*self);
                     });
@@ -102,7 +102,7 @@ private:
                 promise->reject(Error::from_errno(ECANCELED));
 
                 if (!self->m_canceled && self->m_on_error) {
-                    origin_event_loop->deferred_invoke([self, error = move(error)]() mutable {
+                    origin_event_loop->take()->deferred_invoke([self, error = move(error)]() mutable {
                         self->m_on_error(move(error));
                     });
                 } else if (self->m_on_error) {
