@@ -207,11 +207,11 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_index();
-            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {});
+            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {}, false);
             set_local_initialized(local_index);
         } else {
             auto function = allocate_register();
-            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {});
+            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {}, false);
             emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
         }
     }
@@ -1168,11 +1168,12 @@ void Generator::pop_home_object()
 }
 
 void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
+void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
 {
-    if (!is_method || m_home_objects.is_empty()) {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {});
+    if (m_home_objects.is_empty()) {
+        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {}, is_method);
     } else {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last());
+        emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last(), is_method);
     }
 }
 

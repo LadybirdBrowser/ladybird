@@ -1429,7 +1429,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::gen
     }
 
     auto new_function = choose_dst(generator, preferred_dst);
-    generator.emit_new_function(new_function, *this, lhs_name, is_method);
+    generator.emit_new_function(new_function, *this, lhs_name, is_method());
 
     if (has_name) {
         generator.emit<Bytecode::Op::InitializeLexicalBinding>(*name_identifier, new_function);

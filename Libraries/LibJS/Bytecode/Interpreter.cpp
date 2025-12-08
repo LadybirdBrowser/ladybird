@@ -1023,8 +1023,11 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
 }
 
 // 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString const& given_name)
+static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString const& given_name, bool should_be_constructible)
 {
+    // NB:  If should_be_constructible is true, this acts like 15.2.5 (Function Expression) and calls MakeConstructor internally;
+    // if it's false, it acts like 15.4.4 (DefineMethod) and skips MakeConstructor.
+
     auto own_name = function_node.name();
     auto has_own_name = !own_name.is_empty();
 
@@ -1037,9 +1040,9 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
     }
 
     auto private_environment = interpreter.running_execution_context().private_environment;
-
+    
     // NB: SetFunctionName and MakeConstructor are performed by ECMAScriptFunctionObject::initialize().
-    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
+    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment, should_be_constructible, nullptr);
 
     if (has_own_name)
         MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
@@ -1047,23 +1050,27 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
     return closure;
 }
 
-inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object)
+inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object, bool is_method)
 {
     auto& vm = interpreter.vm();
     Value value;
 
+    bool should_be_constructible = !is_method;
+
     if (!function_node.has_name()) {
         if (lhs_name.has_value())
-            value = instantiate_ordinary_function_expression(interpreter, function_node, interpreter.get_identifier(lhs_name.value()));
+             value = instantiate_ordinary_function_expression(interpreter, function_node, interpreter.get_identifier(lhs_name.value()), should_be_constructible);
         else
-            value = instantiate_ordinary_function_expression(interpreter, function_node, {});
+            value = instantiate_ordinary_function_expression(interpreter, function_node, {}, should_be_constructible);
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
             function_node.name(),
             *vm.current_realm(),
             vm.lexical_environment(),
-            vm.running_execution_context().private_environment);
+            vm.running_execution_context().private_environment,
+            should_be_constructible,
+            nullptr);
     }
 
     if (home_object.has_value()) {
@@ -2869,7 +2876,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
 void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object));
+    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object, m_is_method));
 }
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const

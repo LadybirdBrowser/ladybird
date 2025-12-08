@@ -88,6 +88,8 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
         Utf16FlyString {},
         realm,
         &global_scope,
+        nullptr,
+        true,
         nullptr);
 
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.

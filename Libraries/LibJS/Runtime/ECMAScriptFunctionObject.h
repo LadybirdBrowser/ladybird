@@ -46,7 +46,9 @@ public:
         Utf16FlyString name,
         GC::Ref<Realm>,
         GC::Ptr<Environment> parent_environment,
-        GC::Ptr<PrivateEnvironment>);
+        GC::Ptr<PrivateEnvironment>,
+        bool should_be_constructible = true,
+        GC::Ptr<Object> constructor_prototype = nullptr);
 
     virtual void initialize(Realm&) override;
     virtual ~ECMAScriptFunctionObject() override = default;
@@ -56,6 +58,7 @@ public:
     virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ExecutionContext&, FunctionObject& new_target) override;
 
     void make_method(Object& home_object);
+    void make_constructor(bool writable_prototype = true, GC::Ptr<Object> prototype = nullptr);
 
     [[nodiscard]] bool is_module_wrapper() const { return shared_data().m_is_module_wrapper; }
     void set_is_module_wrapper(bool b) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_module_wrapper = b; }
@@ -102,7 +105,7 @@ public:
     bool has_simple_parameter_list() const { return shared_data().m_has_simple_parameter_list; }
 
     // Equivalent to absence of [[Construct]]
-    virtual bool has_constructor() const override { return kind() == FunctionKind::Normal && !shared_data().m_is_arrow_function; }
+    virtual bool has_constructor() const override { return m_is_constructible && !shared_data().m_is_arrow_function; }
 
     virtual Vector<LocalVariable> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
 
@@ -155,7 +158,7 @@ private:
     };
     ClassData& ensure_class_data() const;
     mutable OwnPtr<ClassData> m_class_data;
-
+    bool m_is_constructible { false };
     mutable bool m_may_need_lazy_prototype_instantiation { false };
 };
 
