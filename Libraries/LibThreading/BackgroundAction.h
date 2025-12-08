@@ -92,7 +92,6 @@ private:
                         // Our promise's resolution function will never error.
                         (void)promise->resolve(*self);
                     });
-                    origin_event_loop->wake();
                 }
             } else {
                 // We were either unsuccessful or cancelled (in which case there is no error).
@@ -106,7 +105,6 @@ private:
                     origin_event_loop->deferred_invoke([self, error = move(error)]() mutable {
                         self->m_on_error(move(error));
                     });
-                    origin_event_loop->wake();
                 } else if (self->m_on_error) {
                     self->m_on_error(move(error));
                 }

@@ -26,6 +26,7 @@ EventLoopImplementation::~EventLoopImplementation() = default;
 void EventLoopImplementation::deferred_invoke(Function<void()>&& invokee)
 {
     m_thread_event_queue.deferred_invoke(move(invokee));
+    wake();
 }
 
 static EventLoopManager* s_event_loop_manager = nullptr;
