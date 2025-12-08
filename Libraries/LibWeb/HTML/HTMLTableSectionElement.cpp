@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -117,7 +118,7 @@ void HTMLTableSectionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
         // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
         if (name == HTML::AttributeNames::background) {
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(*parsed_value));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::StyleValueList::create({ CSS::ImageStyleValue::create(*parsed_value) }, CSS::StyleValueList::Separator::Comma));
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
         else if (name == HTML::AttributeNames::bgcolor) {

@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Gamepad/EventNames.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
@@ -75,7 +76,7 @@ void HTMLBodyElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::ColorStyleValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name == HTML::AttributeNames::background) {
             VERIFY(m_background_style_value);
-            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, *m_background_style_value);
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::StyleValueList::create({ *m_background_style_value }, CSS::StyleValueList::Separator::Comma));
         }
     });
 
