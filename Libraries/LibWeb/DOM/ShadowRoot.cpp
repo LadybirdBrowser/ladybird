@@ -160,6 +160,10 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     m_style_scope.visit_edges(visitor);
     visitor.visit(m_style_sheets);
     visitor.visit(m_adopted_style_sheets);
+    for (auto const& [key, elements] : m_part_element_map) {
+        for (auto const& element : elements)
+            element.visit(visitor);
+    }
 }
 
 GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
@@ -224,6 +228,51 @@ ElementByIdMap& ShadowRoot::element_by_id() const
     if (!m_element_by_id)
         m_element_by_id = make<ElementByIdMap>();
     return *m_element_by_id;
+}
+
+// https://drafts.csswg.org/css-shadow-parts/#shadow-root-part-element-map
+ShadowRoot::PartElementMap const& ShadowRoot::part_element_map() const
+{
+    // FIXME: dom_tree_version() is crude and invalidates more than necessary.
+    //        Come up with a smarter way of invalidating this if it turns out to be slow.
+    if (m_dom_tree_version_when_calculated_part_element_map < document().dom_tree_version()) {
+        const_cast<ShadowRoot*>(this)->calculate_part_element_map();
+        m_dom_tree_version_when_calculated_part_element_map = document().dom_tree_version();
+    }
+    return m_part_element_map;
+}
+
+// https://drafts.csswg.org/css-shadow-parts/#calculate-the-part-element-map
+void ShadowRoot::calculate_part_element_map()
+{
+    // To calculate the part element map of a shadow root, outerRoot:
+
+    m_part_element_map.clear();
+
+    // 1. For each descendant el within outerRoot:
+    for_each_in_subtree_of_type<Element>([this](Element const& element) {
+        // 1. For each name in el’s part name list, append el to outerRoot’s part element map[name].
+        for (auto const& name : element.part_names())
+            m_part_element_map.ensure(name).set({ const_cast<Element&>(element), {} });
+
+        // FIXME: The rest of this concerns forwarded part names, which we don't implement yet.
+
+        // 2. If el is a shadow host itself then let innerRoot be its shadow root.
+        // 3. Calculate innerRoot’s part element map.
+        // 4. For each innerName/outerName in el’s forwarded part name list:
+        {
+            // 1. If innerName is an ident:
+            {
+                // 1. Let innerParts be innerRoot’s part element map[innerName]
+                // 2. Append the elements in innerParts to outerRoot’s part element map[outerName]
+            }
+            // 2. If innerName is a pseudo-element name:
+            {
+                // 1. Append innerRoot’s pseudo-element(s) with that name to outerRoot’s part element map[outerName].
+            }
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 }
