@@ -258,6 +258,11 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_normal_function_length_offset = m_normal_function_shape->lookup(vm.names.length).value().offset;
     m_normal_function_name_offset = m_normal_function_shape->lookup(vm.names.name).value().offset;
 
+    m_normal_function_without_prototype_shape = heap().allocate<Shape>(realm);
+    m_normal_function_without_prototype_shape->set_prototype_without_transition(m_function_prototype);
+    m_normal_function_without_prototype_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
+    m_normal_function_without_prototype_shape->add_property_without_transition(vm.names.name, Attribute::Configurable);
+
     m_native_function_shape = heap().allocate<Shape>(realm);
     m_native_function_shape->set_prototype_without_transition(m_function_prototype);
     m_native_function_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
@@ -474,6 +479,7 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_iterator_result_object_shape);
     visitor.visit(m_normal_function_prototype_shape);
     visitor.visit(m_normal_function_shape);
+    visitor.visit(m_normal_function_without_prototype_shape);
     visitor.visit(m_native_function_shape);
     visitor.visit(m_unmapped_arguments_object_shape);
     visitor.visit(m_mapped_arguments_object_shape);
