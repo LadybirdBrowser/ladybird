@@ -44,4 +44,24 @@ GC::Ref<DOM::HTMLCollection> HTMLMapElement::areas()
     return *m_areas;
 }
 
+// Iterates through a maps associated areas, activating the first element seen in reverse tree order.
+void HTMLMapElement::activate_area_by_point(CSSPixels x, CSSPixels y, Web::DOM::Event const& event)
+{
+    Gfx::IntPoint point_coordinates { x.to_int(), y.to_int() };
+
+    auto area_collection = areas();
+    for (size_t i = 0; i < area_collection->length(); ++i) {
+        auto* element = area_collection->item(i);
+        if (!element || !is<HTMLAreaElement>(*element))
+            continue;
+
+        auto& area = static_cast<HTMLAreaElement&>(*element);
+
+        if (area.check_if_contains_point(point_coordinates)) {
+            area.activate(event);
+            return;
+        }
+    }
+}
+
 }
