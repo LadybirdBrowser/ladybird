@@ -29,7 +29,6 @@ input:not([type=submit], input[type=button], input[type=image], input[type=reset
     border: 1px solid ButtonBorder;
     min-height: 16px;
     cursor: text;
-    overflow: hidden;
 
     background-color: Field;
     color: FieldText;
@@ -659,8 +658,17 @@ input, select, button, textarea {
     appearance: auto;
 }
 
+input:not([type=image i], [type=range i], [type=checkbox i], [type=radio i]) {
+    overflow: clip !important;
+    overflow-clip-margin: 0 !important;
+}
+
 input, select, textarea {
     text-align: initial;
+}
+
+:autofill {
+    field-sizing: fixed !important;
 }
 
 input:is([type=reset i], [type=button i], [type=submit i]), button {
@@ -680,9 +688,7 @@ input:is([type=radio i], [type=checkbox i], [type=reset i], [type=button i],
     box-sizing: border-box;
 }
 
-textarea {
-    white-space: pre-wrap;
-}
+textarea { white-space: pre-wrap; }
 
 /* 15.3.11 The hr element
  * https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2
