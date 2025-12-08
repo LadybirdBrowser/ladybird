@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
@@ -164,6 +165,9 @@ HTMLParser::HTMLParser(DOM::Document& document, StringView input, StringView enc
 {
     m_tokenizer.set_parser({}, *this);
     m_document->set_parser({}, *this);
+    m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
+        handle_element_popped(element);
+    });
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
     VERIFY(standardized_encoding.has_value());
     m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
@@ -175,6 +179,9 @@ HTMLParser::HTMLParser(DOM::Document& document)
 {
     m_document->set_parser({}, *this);
     m_tokenizer.set_parser({}, *this);
+    m_stack_of_open_elements.set_on_element_popped([this](DOM::Element& element) {
+        handle_element_popped(element);
+    });
 }
 
 HTMLParser::~HTMLParser()
@@ -1435,6 +1442,19 @@ void HTMLParser::flush_character_insertions()
     else
         (void)m_character_insertion_node->append_data(m_character_insertion_builder.to_utf16_string());
     m_character_insertion_builder.clear();
+}
+
+void HTMLParser::handle_element_popped(DOM::Element& element)
+{
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element
+    // When an option element is popped off the stack of open elements of an HTML parser or XML parser,
+    // the user agent must run maybe clone an option into selectedcontent given the option element.
+    if (auto* option_element = as_if<HTML::HTMLOptionElement>(element)) {
+        // AD-HOC: Flush buffered text so the option's content is up-to-date before cloning.
+        flush_character_insertions();
+
+        MUST(option_element->maybe_clone_into_selectedcontent());
+    }
 }
 
 void HTMLParser::insert_character(u32 data)

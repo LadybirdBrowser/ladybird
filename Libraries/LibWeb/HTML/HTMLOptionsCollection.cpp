@@ -186,9 +186,9 @@ WebIDL::Long HTMLOptionsCollection::selected_index() const
     return as<HTMLSelectElement>(*root()).selected_index();
 }
 
-void HTMLOptionsCollection::set_selected_index(WebIDL::Long index)
+WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_selected_index(WebIDL::Long index)
 {
-    as<HTMLSelectElement>(*root()).set_selected_index(index);
+    return as<HTMLSelectElement>(*root()).set_selected_index(index);
 }
 
 }

@@ -33,7 +33,7 @@ public:
     void remove(WebIDL::Long);
 
     WebIDL::Long selected_index() const;
-    void set_selected_index(WebIDL::Long);
+    WebIDL::ExceptionOr<void> set_selected_index(WebIDL::Long);
 
 private:
     HTMLOptionsCollection(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);

@@ -50,7 +50,7 @@ public:
     GC::Ref<DOM::HTMLCollection> selected_options() const { return const_cast<HTMLSelectElement*>(this)->selected_options(); }
 
     WebIDL::Long selected_index() const;
-    void set_selected_index(WebIDL::Long);
+    WebIDL::ExceptionOr<void> set_selected_index(WebIDL::Long);
 
     virtual Utf16String value() const override;
     WebIDL::ExceptionOr<void> set_value(Utf16String const&);
@@ -111,6 +111,15 @@ public:
     // https://html.spec.whatwg.org/multipage/form-elements.html#placeholder-label-option
     HTMLOptionElement* placeholder_label_option() const;
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#select-enabled-selectedcontent
+    GC::Ptr<HTMLSelectedContentElement> enabled_selectedcontent() const;
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#clear-a-select%27s-non-primary-selectedcontent-elements
+    void clear_non_primary_selectedcontent();
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#update-a-select%27s-selectedcontent
+    WebIDL::ExceptionOr<void> update_selectedcontent();
+
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element%3Asuffering-from-being-missing
     virtual bool suffering_from_being_missing() const override;
 
@@ -135,7 +144,8 @@ private:
 
     void create_shadow_tree_if_needed();
     void update_inner_text_element();
-    void queue_input_and_change_events();
+    // https://html.spec.whatwg.org/multipage/form-elements.html#send-select-update-notifications
+    void send_select_update_notifications();
 
     u32 display_size() const;
 
