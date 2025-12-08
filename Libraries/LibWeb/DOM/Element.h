@@ -185,6 +185,7 @@ public:
 
     GC::Ref<DOMTokenList> class_list();
     GC::Ref<DOMTokenList> part_list();
+    ReadonlySpan<FlyString> part_names() const { return m_parts; }
 
     WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootInit init);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
@@ -597,6 +598,7 @@ private:
     Optional<CSS::PseudoElement> m_use_pseudo_element;
 
     Vector<FlyString> m_classes;
+    Vector<FlyString> m_parts;
     Optional<Dir> m_dir;
 
     Optional<FlyString> m_id;
