@@ -119,6 +119,7 @@ protected:
         size_t named_capture_groups_count { 0 };
         size_t match_length_minimum { 0 };
         size_t repetition_mark_count { 0 };
+        bool in_negated_character_class { false };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
         OrderedHashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;

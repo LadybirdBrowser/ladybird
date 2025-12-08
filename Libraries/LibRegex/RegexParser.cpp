@@ -1841,12 +1841,20 @@ bool ECMA262Parser::parse_character_class(ByteCode& stack, size_t& match_length_
     Vector<CompareTypeAndValuePair> compares;
 
     auto uses_explicit_or_semantics = false;
+    bool is_negated = false;
     if (match(TokenType::Circumflex)) {
         // Negated charclass
         consume();
         compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
         uses_explicit_or_semantics = true;
+        is_negated = true;
     }
+
+    auto previous_negated_state = m_parser_state.in_negated_character_class;
+    m_parser_state.in_negated_character_class = is_negated;
+    ArmedScopeGuard restore_negated_state { [&] {
+        m_parser_state.in_negated_character_class = previous_negated_state;
+    } };
 
     // ClassContents :: [empty]
     if (match(TokenType::RightBracket)) {
@@ -1858,12 +1866,18 @@ bool ECMA262Parser::parse_character_class(ByteCode& stack, size_t& match_length_
     }
 
     // ClassContents :: [~UnicodeSetsMode] NonemptyClassRanges[?UnicodeMode]
-    if (!flags.unicode_sets && !parse_nonempty_class_ranges(compares, flags))
+    if (!flags.unicode_sets && !parse_nonempty_class_ranges(compares, flags)) {
+        restore_negated_state.disarm();
         return false;
+    }
 
     // ClassContents :: [+UnicodeSetsMode] ClassSetExpression
-    if (flags.unicode_sets && !parse_class_set_expression(compares))
+    if (flags.unicode_sets && !parse_class_set_expression(compares)) {
+        restore_negated_state.disarm();
         return false;
+    }
+
+    restore_negated_state.disarm();
 
     if (uses_explicit_or_semantics && compares.size() > 2) {
         compares.insert(1, CompareTypeAndValuePair { CharacterCompareType::Or, 0 });
@@ -2433,11 +2447,7 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
         strings.append(MUST(current_string.to_string()));
         consume(TokenType::RightCurly, Error::MismatchingBrace);
 
-        bool is_negated = any_of(compares, [](auto const& compare) {
-            return compare.type == CharacterCompareType::Inverse;
-        });
-
-        if (is_negated && any_of(strings, has_multiple_code_points)) {
+        if (m_parser_state.in_negated_character_class && any_of(strings, has_multiple_code_points)) {
             set_error(Error::NegatedCharacterClassStrings);
             return false;
         }
@@ -2573,11 +2583,7 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
 
                         auto strings = Unicode::get_property_strings(property);
 
-                        bool is_negated = any_of(compares, [](auto const& compare) {
-                            return compare.type == CharacterCompareType::Inverse;
-                        });
-
-                        if (is_negated && any_of(strings, has_multiple_code_points)) {
+                        if (m_parser_state.in_negated_character_class && any_of(strings, has_multiple_code_points)) {
                             set_error(Error::NegatedCharacterClassStrings);
                             return;
                         }
