@@ -71,6 +71,8 @@ private:
     GC::Ptr<WebIDL::Promise> m_last_write_promise;
     Vector<JS::Value, 1> m_unwritten_chunks;
 
+    GC::Ref<WebIDL::ReactionSteps> m_on_shutdown;
+
     bool m_prevent_close { false };
     bool m_prevent_abort { false };
     bool m_prevent_cancel { false };

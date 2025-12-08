@@ -83,11 +83,20 @@ ReadableStreamPipeTo::ReadableStreamPipeTo(
     , m_destination(destination)
     , m_reader(reader)
     , m_writer(writer)
+    , m_on_shutdown(GC::create_function(heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        check_for_error_and_close_states();
+        return JS::js_undefined();
+    }))
     , m_prevent_close(prevent_close)
     , m_prevent_abort(prevent_abort)
     , m_prevent_cancel(prevent_cancel)
 {
     m_reader->set_readable_stream_pipe_to_operation({}, this);
+
+    if (auto reader_closed_promise = m_reader->closed())
+        WebIDL::react_to_promise(*reader_closed_promise, m_on_shutdown, m_on_shutdown);
+    if (auto writer_closed_promise = m_writer->closed())
+        WebIDL::react_to_promise(*writer_closed_promise, m_on_shutdown, m_on_shutdown);
 }
 
 void ReadableStreamPipeTo::visit_edges(Cell::Visitor& visitor)
@@ -102,6 +111,7 @@ void ReadableStreamPipeTo::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_signal);
     visitor.visit(m_last_write_promise);
     visitor.visit(m_unwritten_chunks);
+    visitor.visit(m_on_shutdown);
 }
 
 void ReadableStreamPipeTo::process()
@@ -121,15 +131,8 @@ void ReadableStreamPipeTo::process()
         return JS::js_undefined();
     });
 
-    auto shutdown = GC::create_function(heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        check_for_error_and_close_states();
-        return JS::js_undefined();
-    });
-
     if (ready_promise)
-        WebIDL::react_to_promise(*ready_promise, when_ready, shutdown);
-    if (auto promise = m_reader->closed())
-        WebIDL::react_to_promise(*promise, shutdown, shutdown);
+        WebIDL::react_to_promise(*ready_promise, when_ready, m_on_shutdown);
 }
 
 void ReadableStreamPipeTo::set_abort_signal(GC::Ref<DOM::AbortSignal> signal, DOM::AbortSignal::AbortSignal::AbortAlgorithmID signal_id)
@@ -235,16 +238,8 @@ void ReadableStreamPipeTo::read_chunk()
             finish();
     });
 
-    auto shutdown = GC::create_function(heap(), [this](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-        check_for_error_and_close_states();
-        return JS::js_undefined();
-    });
-
-    auto read_request = heap().allocate<ReadableStreamPipeToReadRequest>(on_chunk, on_complete, shutdown);
+    auto read_request = heap().allocate<ReadableStreamPipeToReadRequest>(on_chunk, on_complete, *m_on_shutdown);
     readable_stream_default_reader_read(m_reader, read_request);
-
-    if (auto promise = m_writer->closed())
-        WebIDL::react_to_promise(*promise, shutdown, shutdown);
 }
 
 void ReadableStreamPipeTo::write_chunk()
