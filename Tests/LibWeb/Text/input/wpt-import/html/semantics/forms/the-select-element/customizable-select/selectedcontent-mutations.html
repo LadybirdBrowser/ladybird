@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/9799">
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+
+<style>
+select, ::picker(select) {
+  appearance: base-select;
+}
+</style>
+
+<div id=target>
+  <script>
+    window.selectedcontentRecords = [];
+    window.selectedcontentObserver = new MutationObserver(mutations => {
+      window.selectedcontentRecords = window.selectedcontentRecords.concat(mutations);
+    });
+    const config = {attributes: true, childList: true, subtree: true};
+    window.selectedcontentObserver.observe(document.getElementById('target'), config);
+  </script>
+
+  <select>
+    <button>
+      <selectedcontent></selectedcontent>
+    </button>
+    <option><span>span</span> one</option>
+    <option><span>span</span> two</option>
+    <option selected><span>span</option> three</option>
+  </select>
+</div>
+
+<script>
+function getNodeRepresentation(node) {
+  if (!node) {
+    return 'null';
+  }
+  switch (node.nodeType) {
+    case Node.ELEMENT_NODE:
+      let representation = node.tagName.toLowerCase();
+      if (node.id) {
+        representation += `#${node.id}`;
+      }
+      if (node.classList && node.classList.length > 0) {
+        representation += `.${Array.from(node.classList).join('.')}`;
+      }
+      return representation;
+    case Node.TEXT_NODE:
+      const text = node.textContent.trim();
+      return `#text: "${text.length > 50 ? text.substring(0, 47) + '...' : text}"`;
+    case Node.COMMENT_NODE:
+      return '';
+    default:
+      return `[Node type ${node.nodeType}]`;
+  }
+}
+
+function mutationRecordToString(record) {
+  if (!record) {
+    return '[Invalid MutationRecord]';
+  }
+
+  const targetStr = getNodeRepresentation(record.target);
+  let summary = `Type: ${record.type} | Target: ${targetStr}`;
+
+  switch (record.type) {
+    case 'attributes':
+      const attrName = record.attributeName;
+      const oldValue = record.oldValue !== null ? `"${record.oldValue}"` : 'null';
+      const newValue = record.target.getAttribute(attrName);
+      const newValueStr = newValue !== null ? `"${newValue}"` : 'null';
+      summary += ` | Attribute: '${attrName}' changed from ${oldValue} to ${newValueStr}`;
+      if (record.attributeNamespace) {
+         summary += ` (Namespace: ${record.attributeNamespace})`;
+      }
+      break;
+
+    case 'characterData':
+      const oldText = record.oldValue !== null ? `"${record.oldValue}"` : 'null';
+      const newText = record.target.textContent !== null ? `"${record.target.textContent}"` : 'null';
+      summary += ` | Data changed from ${oldText} to ${newText}`;
+      break;
+
+    case 'childList':
+      if (record.addedNodes.length > 0) {
+        const added = Array.from(record.addedNodes).map(getNodeRepresentation).join(', ');
+        summary += ` | Added: [${added}]`;
+      }
+      if (record.removedNodes.length > 0) {
+        const removed = Array.from(record.removedNodes).map(getNodeRepresentation).join(', ');
+        summary += ` | Removed: [${removed}]`;
+      }
+      if (record.previousSibling) {
+         summary += ` | After: ${getNodeRepresentation(record.previousSibling)}`;
+      }
+      if (record.nextSibling) {
+          summary += ` | Before: ${getNodeRepresentation(record.nextSibling)}`;
+      }
+      break;
+
+    default:
+      summary += ' | [Unknown mutation type]';
+      break;
+  }
+
+  return summary;
+}
+
+function convertMutationRecords(records) {
+  const output = [];
+  for (const record of records) {
+    output.push(mutationRecordToString(record));
+  }
+  return output;
+}
+
+test(() => {
+  const expectedMutations = [
+    "Type: childList | Target: div#target | Added: [#text: \"\"] | After: script",
+    "Type: childList | Target: div#target | Added: [select] | After: #text: \"\"",
+    "Type: childList | Target: select | Added: [#text: \"\"]",
+    "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+    "Type: childList | Target: button | Added: [#text: \"\"]",
+    "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+    "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+    "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+    "Type: childList | Target: option | Added: [span]",
+    "Type: childList | Target: span | Added: [#text: \"span\"]",
+    "Type: childList | Target: option | Added: [#text: \"one\"] | After: span",
+    "Type: childList | Target: selectedcontent | Added: [span, #text: \"one\"]",
+    "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+    "Type: childList | Target: option | Added: [span]",
+    "Type: childList | Target: span | Added: [#text: \"span\"]",
+    "Type: childList | Target: option | Added: [#text: \"two\"] | After: span",
+    "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+    "Type: childList | Target: selectedcontent | Removed: [span, #text: \"one\"]",
+    "Type: childList | Target: option | Added: [span]",
+    "Type: childList | Target: span | Added: [#text: \"span\"]",
+    "Type: childList | Target: selectedcontent | Added: [span]",
+    "Type: childList | Target: select | Added: [#text: \"three\"] | After: option",
+    "Type: childList | Target: div#target | Added: [#text: \"\"] | After: select"
+  ];
+  assert_array_equals(convertMutationRecords(window.selectedcontentRecords), expectedMutations);
+}, 'MutationObserver records during parsing of <select> with <selectedcontent>');
+</script>

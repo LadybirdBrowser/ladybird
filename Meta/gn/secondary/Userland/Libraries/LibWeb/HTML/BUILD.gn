@@ -112,6 +112,7 @@ source_set("HTML") {
     "HTMLQuoteElement.cpp",
     "HTMLScriptElement.cpp",
     "HTMLSelectElement.cpp",
+    "HTMLSelectedContentElement.cpp",
     "HTMLSlotElement.cpp",
     "HTMLSourceElement.cpp",
     "HTMLSpanElement.cpp",

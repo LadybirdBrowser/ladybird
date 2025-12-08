@@ -1,0 +1,7 @@
+#import <HTML/HTMLElement.idl>
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#htmlselectedcontentelement
+[Exposed=Window]
+interface HTMLSelectedContentElement : HTMLElement {
+    [HTMLConstructor] constructor();
+};
