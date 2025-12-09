@@ -111,7 +111,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> dns_server_address;
     Optional<StringView> default_time_zone;
     Optional<u16> dns_server_port;
-    Optional<StringView> debug_dump_path;
     bool use_dns_over_tls = false;
     bool layout_test_mode = false;
     bool validate_dnssec_locally = false;
@@ -183,7 +182,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
-    args_parser.add_option(debug_dump_path, "Path to debug dumps", "debug-dump-path", 0, "path: defaults to users temp directory");
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,

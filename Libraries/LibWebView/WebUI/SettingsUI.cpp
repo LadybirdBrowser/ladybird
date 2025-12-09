@@ -76,14 +76,6 @@ void SettingsUI::register_interfaces()
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
-
-    register_interface("setDebugDumpPath"sv, [this](auto const& data) {
-        set_debug_dump_path(data);
-    });
-
-    register_interface("getDefaultDebugDumpPath"sv, [this](auto const&) {
-        get_default_debug_dump_path();
-    });
 }
 
 void SettingsUI::load_current_settings()
@@ -353,21 +345,6 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
-}
-
-void SettingsUI::set_debug_dump_path(JsonValue const& debug_dump_path)
-{
-    if (!debug_dump_path.is_string())
-        return;
-
-    WebView::Application::settings().set_debug_dump_path(debug_dump_path.as_string());
-}
-
-void SettingsUI::get_default_debug_dump_path()
-{
-    // Get default debug dump path from Settings
-    auto default_path = Settings::get_default_debug_dump_path();
-    async_send_message("defaultDebugDumpPath"sv, default_path);
 }
 
 }

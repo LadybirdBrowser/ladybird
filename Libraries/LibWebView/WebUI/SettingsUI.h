@@ -41,9 +41,6 @@ private:
     void set_global_privacy_control(JsonValue const&);
 
     void set_dns_settings(JsonValue const&);
-
-    void set_debug_dump_path(JsonValue const&);
-    void get_default_debug_dump_path();
 };
 
 }

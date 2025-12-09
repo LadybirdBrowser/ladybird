@@ -78,7 +78,6 @@ private:
     virtual void pinch_event(u64 page_id, Web::PinchEvent) override;
     virtual void ready_to_paint(u64 page_id) override;
     virtual void debug_request(u64 page_id, ByteString, ByteString) override;
-    virtual void set_debug_dump_setting(u64 page_id, String debug_dump_path) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
     virtual void inspect_dom_node(u64 page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) override;

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "AK/Format.h"
 #include <AK/LexicalPath.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
@@ -13,6 +14,7 @@
 #include <AK/Utf8View.h>
 #include <LibCore/Directory.h>
 #include <LibCore/File.h>
+#include <LibCore/Forward.h>
 #include <LibCore/StandardPaths.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
@@ -59,12 +61,6 @@
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web {
-
-static void indent(StringBuilder& builder, int levels)
-{
-    for (int i = 0; i < levels; i++)
-        builder.append("  "sv);
-}
 
 static void dump_to_file(StringBuilder& builder, StringView filename)
 {

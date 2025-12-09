@@ -268,7 +268,6 @@ protected:
     virtual void languages_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void global_privacy_control_changed() override;
-    virtual void debug_dump_path_changed() override;
 
     void initialize_context_menus();
 
