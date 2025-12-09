@@ -1840,11 +1840,14 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
     auto const& overflow_x = box.computed_values().overflow_x();
     auto const& overflow_y = box.computed_values().overflow_y();
 
-    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible)
-        return box_state.margin_box_top() + box_state.offset.y() + box_state.line_boxes.last().baseline();
-    if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
-        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible) {
+        auto const& last = box_state.line_boxes.last();
+        return box_state.margin_box_top() + box_state.offset.y() + last.baseline() + last.bottom() - last.height();
     }
+
+    if (auto const* child_box = box_child_to_derive_baseline_from(box))
+        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+
     // If none of the children have a baseline set, the bottom margin edge of the box is used.
     return box_state.margin_box_height();
 }
