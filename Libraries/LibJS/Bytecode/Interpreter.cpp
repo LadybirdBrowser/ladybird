@@ -225,7 +225,7 @@ ThrowCompletionOr<Value> Interpreter::run(SourceTextModule& module)
     return js_undefined();
 }
 
-NEVER_INLINE Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
+Interpreter::HandleExceptionResponse Interpreter::handle_exception(u32& program_counter, Value exception)
 {
     reg(Register::exception()) = exception;
     m_running_execution_context->scheduled_jump = {};
