@@ -1,0 +1,422 @@
+Harness status: OK
+
+Found 416 tests
+
+170 Pass
+246 Fail
+Pass	test unit: cm - ellipse(50cm 100cm at 50% 50%) - inline
+Pass	test unit: cm - ellipse(100cm 100px at 50% 50%) - inline
+Pass	test unit: cm - ellipse(50cm 25% at 50% 50%) - inline
+Pass	test unit: cm - ellipse(25% 50cm at 50% 50%) - inline
+Pass	test unit: cm - ellipse(25cm closest-side at 50% 50%) - inline
+Pass	test unit: cm - ellipse(closest-side 75cm at 50% 50%) - inline
+Pass	test unit: cm - ellipse(25cm farthest-side at 50% 50%) - inline
+Pass	test unit: cm - ellipse(farthest-side 75cm at 50% 50%) - inline
+Fail	test unit: cm - ellipse(50cm 100cm) - inline
+Fail	test unit: cm - ellipse(100cm 100px) - inline
+Fail	test unit: cm - ellipse(50cm 25%) - inline
+Fail	test unit: cm - ellipse(25% 50cm) - inline
+Fail	test unit: cm - ellipse(25cm closest-side) - inline
+Fail	test unit: cm - ellipse(closest-side 75cm) - inline
+Fail	test unit: cm - ellipse(25cm farthest-side) - inline
+Fail	test unit: cm - ellipse(farthest-side 75cm) - inline
+Pass	test unit: mm - ellipse(50mm 100mm at 50% 50%) - inline
+Pass	test unit: mm - ellipse(100mm 100px at 50% 50%) - inline
+Pass	test unit: mm - ellipse(50mm 25% at 50% 50%) - inline
+Pass	test unit: mm - ellipse(25% 50mm at 50% 50%) - inline
+Pass	test unit: mm - ellipse(25mm closest-side at 50% 50%) - inline
+Pass	test unit: mm - ellipse(closest-side 75mm at 50% 50%) - inline
+Pass	test unit: mm - ellipse(25mm farthest-side at 50% 50%) - inline
+Pass	test unit: mm - ellipse(farthest-side 75mm at 50% 50%) - inline
+Fail	test unit: mm - ellipse(50mm 100mm) - inline
+Fail	test unit: mm - ellipse(100mm 100px) - inline
+Fail	test unit: mm - ellipse(50mm 25%) - inline
+Fail	test unit: mm - ellipse(25% 50mm) - inline
+Fail	test unit: mm - ellipse(25mm closest-side) - inline
+Fail	test unit: mm - ellipse(closest-side 75mm) - inline
+Fail	test unit: mm - ellipse(25mm farthest-side) - inline
+Fail	test unit: mm - ellipse(farthest-side 75mm) - inline
+Pass	test unit: in - ellipse(50in 100in at 50% 50%) - inline
+Pass	test unit: in - ellipse(100in 100px at 50% 50%) - inline
+Pass	test unit: in - ellipse(50in 25% at 50% 50%) - inline
+Pass	test unit: in - ellipse(25% 50in at 50% 50%) - inline
+Pass	test unit: in - ellipse(25in closest-side at 50% 50%) - inline
+Pass	test unit: in - ellipse(closest-side 75in at 50% 50%) - inline
+Pass	test unit: in - ellipse(25in farthest-side at 50% 50%) - inline
+Pass	test unit: in - ellipse(farthest-side 75in at 50% 50%) - inline
+Fail	test unit: in - ellipse(50in 100in) - inline
+Fail	test unit: in - ellipse(100in 100px) - inline
+Fail	test unit: in - ellipse(50in 25%) - inline
+Fail	test unit: in - ellipse(25% 50in) - inline
+Fail	test unit: in - ellipse(25in closest-side) - inline
+Fail	test unit: in - ellipse(closest-side 75in) - inline
+Fail	test unit: in - ellipse(25in farthest-side) - inline
+Fail	test unit: in - ellipse(farthest-side 75in) - inline
+Pass	test unit: pt - ellipse(50pt 100pt at 50% 50%) - inline
+Pass	test unit: pt - ellipse(100pt 100px at 50% 50%) - inline
+Pass	test unit: pt - ellipse(50pt 25% at 50% 50%) - inline
+Pass	test unit: pt - ellipse(25% 50pt at 50% 50%) - inline
+Pass	test unit: pt - ellipse(25pt closest-side at 50% 50%) - inline
+Pass	test unit: pt - ellipse(closest-side 75pt at 50% 50%) - inline
+Pass	test unit: pt - ellipse(25pt farthest-side at 50% 50%) - inline
+Pass	test unit: pt - ellipse(farthest-side 75pt at 50% 50%) - inline
+Fail	test unit: pt - ellipse(50pt 100pt) - inline
+Fail	test unit: pt - ellipse(100pt 100px) - inline
+Fail	test unit: pt - ellipse(50pt 25%) - inline
+Fail	test unit: pt - ellipse(25% 50pt) - inline
+Fail	test unit: pt - ellipse(25pt closest-side) - inline
+Fail	test unit: pt - ellipse(closest-side 75pt) - inline
+Fail	test unit: pt - ellipse(25pt farthest-side) - inline
+Fail	test unit: pt - ellipse(farthest-side 75pt) - inline
+Pass	test unit: pc - ellipse(50pc 100pc at 50% 50%) - inline
+Pass	test unit: pc - ellipse(100pc 100px at 50% 50%) - inline
+Pass	test unit: pc - ellipse(50pc 25% at 50% 50%) - inline
+Pass	test unit: pc - ellipse(25% 50pc at 50% 50%) - inline
+Pass	test unit: pc - ellipse(25pc closest-side at 50% 50%) - inline
+Pass	test unit: pc - ellipse(closest-side 75pc at 50% 50%) - inline
+Pass	test unit: pc - ellipse(25pc farthest-side at 50% 50%) - inline
+Pass	test unit: pc - ellipse(farthest-side 75pc at 50% 50%) - inline
+Fail	test unit: pc - ellipse(50pc 100pc) - inline
+Fail	test unit: pc - ellipse(100pc 100px) - inline
+Fail	test unit: pc - ellipse(50pc 25%) - inline
+Fail	test unit: pc - ellipse(25% 50pc) - inline
+Fail	test unit: pc - ellipse(25pc closest-side) - inline
+Fail	test unit: pc - ellipse(closest-side 75pc) - inline
+Fail	test unit: pc - ellipse(25pc farthest-side) - inline
+Fail	test unit: pc - ellipse(farthest-side 75pc) - inline
+Pass	test unit: em - ellipse(50em 100em at 50% 50%) - inline
+Pass	test unit: em - ellipse(100em 100px at 50% 50%) - inline
+Pass	test unit: em - ellipse(50em 25% at 50% 50%) - inline
+Pass	test unit: em - ellipse(25% 50em at 50% 50%) - inline
+Pass	test unit: em - ellipse(25em closest-side at 50% 50%) - inline
+Pass	test unit: em - ellipse(closest-side 75em at 50% 50%) - inline
+Pass	test unit: em - ellipse(25em farthest-side at 50% 50%) - inline
+Pass	test unit: em - ellipse(farthest-side 75em at 50% 50%) - inline
+Fail	test unit: em - ellipse(50em 100em) - inline
+Fail	test unit: em - ellipse(100em 100px) - inline
+Fail	test unit: em - ellipse(50em 25%) - inline
+Fail	test unit: em - ellipse(25% 50em) - inline
+Fail	test unit: em - ellipse(25em closest-side) - inline
+Fail	test unit: em - ellipse(closest-side 75em) - inline
+Fail	test unit: em - ellipse(25em farthest-side) - inline
+Fail	test unit: em - ellipse(farthest-side 75em) - inline
+Pass	test unit: ex - ellipse(50ex 100ex at 50% 50%) - inline
+Pass	test unit: ex - ellipse(100ex 100px at 50% 50%) - inline
+Pass	test unit: ex - ellipse(50ex 25% at 50% 50%) - inline
+Pass	test unit: ex - ellipse(25% 50ex at 50% 50%) - inline
+Pass	test unit: ex - ellipse(25ex closest-side at 50% 50%) - inline
+Pass	test unit: ex - ellipse(closest-side 75ex at 50% 50%) - inline
+Pass	test unit: ex - ellipse(25ex farthest-side at 50% 50%) - inline
+Pass	test unit: ex - ellipse(farthest-side 75ex at 50% 50%) - inline
+Fail	test unit: ex - ellipse(50ex 100ex) - inline
+Fail	test unit: ex - ellipse(100ex 100px) - inline
+Fail	test unit: ex - ellipse(50ex 25%) - inline
+Fail	test unit: ex - ellipse(25% 50ex) - inline
+Fail	test unit: ex - ellipse(25ex closest-side) - inline
+Fail	test unit: ex - ellipse(closest-side 75ex) - inline
+Fail	test unit: ex - ellipse(25ex farthest-side) - inline
+Fail	test unit: ex - ellipse(farthest-side 75ex) - inline
+Pass	test unit: ch - ellipse(50ch 100ch at 50% 50%) - inline
+Pass	test unit: ch - ellipse(100ch 100px at 50% 50%) - inline
+Pass	test unit: ch - ellipse(50ch 25% at 50% 50%) - inline
+Pass	test unit: ch - ellipse(25% 50ch at 50% 50%) - inline
+Pass	test unit: ch - ellipse(25ch closest-side at 50% 50%) - inline
+Pass	test unit: ch - ellipse(closest-side 75ch at 50% 50%) - inline
+Pass	test unit: ch - ellipse(25ch farthest-side at 50% 50%) - inline
+Pass	test unit: ch - ellipse(farthest-side 75ch at 50% 50%) - inline
+Fail	test unit: ch - ellipse(50ch 100ch) - inline
+Fail	test unit: ch - ellipse(100ch 100px) - inline
+Fail	test unit: ch - ellipse(50ch 25%) - inline
+Fail	test unit: ch - ellipse(25% 50ch) - inline
+Fail	test unit: ch - ellipse(25ch closest-side) - inline
+Fail	test unit: ch - ellipse(closest-side 75ch) - inline
+Fail	test unit: ch - ellipse(25ch farthest-side) - inline
+Fail	test unit: ch - ellipse(farthest-side 75ch) - inline
+Pass	test unit: rem - ellipse(50rem 100rem at 50% 50%) - inline
+Pass	test unit: rem - ellipse(100rem 100px at 50% 50%) - inline
+Pass	test unit: rem - ellipse(50rem 25% at 50% 50%) - inline
+Pass	test unit: rem - ellipse(25% 50rem at 50% 50%) - inline
+Pass	test unit: rem - ellipse(25rem closest-side at 50% 50%) - inline
+Pass	test unit: rem - ellipse(closest-side 75rem at 50% 50%) - inline
+Pass	test unit: rem - ellipse(25rem farthest-side at 50% 50%) - inline
+Pass	test unit: rem - ellipse(farthest-side 75rem at 50% 50%) - inline
+Fail	test unit: rem - ellipse(50rem 100rem) - inline
+Fail	test unit: rem - ellipse(100rem 100px) - inline
+Fail	test unit: rem - ellipse(50rem 25%) - inline
+Fail	test unit: rem - ellipse(25% 50rem) - inline
+Fail	test unit: rem - ellipse(25rem closest-side) - inline
+Fail	test unit: rem - ellipse(closest-side 75rem) - inline
+Fail	test unit: rem - ellipse(25rem farthest-side) - inline
+Fail	test unit: rem - ellipse(farthest-side 75rem) - inline
+Pass	test unit: vw - ellipse(50vw 100vw at 50% 50%) - inline
+Pass	test unit: vw - ellipse(100vw 100px at 50% 50%) - inline
+Pass	test unit: vw - ellipse(50vw 25% at 50% 50%) - inline
+Pass	test unit: vw - ellipse(25% 50vw at 50% 50%) - inline
+Pass	test unit: vw - ellipse(25vw closest-side at 50% 50%) - inline
+Pass	test unit: vw - ellipse(closest-side 75vw at 50% 50%) - inline
+Pass	test unit: vw - ellipse(25vw farthest-side at 50% 50%) - inline
+Pass	test unit: vw - ellipse(farthest-side 75vw at 50% 50%) - inline
+Fail	test unit: vw - ellipse(50vw 100vw) - inline
+Fail	test unit: vw - ellipse(100vw 100px) - inline
+Fail	test unit: vw - ellipse(50vw 25%) - inline
+Fail	test unit: vw - ellipse(25% 50vw) - inline
+Fail	test unit: vw - ellipse(25vw closest-side) - inline
+Fail	test unit: vw - ellipse(closest-side 75vw) - inline
+Fail	test unit: vw - ellipse(25vw farthest-side) - inline
+Fail	test unit: vw - ellipse(farthest-side 75vw) - inline
+Pass	test unit: vh - ellipse(50vh 100vh at 50% 50%) - inline
+Pass	test unit: vh - ellipse(100vh 100px at 50% 50%) - inline
+Pass	test unit: vh - ellipse(50vh 25% at 50% 50%) - inline
+Pass	test unit: vh - ellipse(25% 50vh at 50% 50%) - inline
+Pass	test unit: vh - ellipse(25vh closest-side at 50% 50%) - inline
+Pass	test unit: vh - ellipse(closest-side 75vh at 50% 50%) - inline
+Pass	test unit: vh - ellipse(25vh farthest-side at 50% 50%) - inline
+Pass	test unit: vh - ellipse(farthest-side 75vh at 50% 50%) - inline
+Fail	test unit: vh - ellipse(50vh 100vh) - inline
+Fail	test unit: vh - ellipse(100vh 100px) - inline
+Fail	test unit: vh - ellipse(50vh 25%) - inline
+Fail	test unit: vh - ellipse(25% 50vh) - inline
+Fail	test unit: vh - ellipse(25vh closest-side) - inline
+Fail	test unit: vh - ellipse(closest-side 75vh) - inline
+Fail	test unit: vh - ellipse(25vh farthest-side) - inline
+Fail	test unit: vh - ellipse(farthest-side 75vh) - inline
+Pass	test unit: vmin - ellipse(50vmin 100vmin at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(100vmin 100px at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(50vmin 25% at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(25% 50vmin at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(25vmin closest-side at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(closest-side 75vmin at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(25vmin farthest-side at 50% 50%) - inline
+Pass	test unit: vmin - ellipse(farthest-side 75vmin at 50% 50%) - inline
+Fail	test unit: vmin - ellipse(50vmin 100vmin) - inline
+Fail	test unit: vmin - ellipse(100vmin 100px) - inline
+Fail	test unit: vmin - ellipse(50vmin 25%) - inline
+Fail	test unit: vmin - ellipse(25% 50vmin) - inline
+Fail	test unit: vmin - ellipse(25vmin closest-side) - inline
+Fail	test unit: vmin - ellipse(closest-side 75vmin) - inline
+Fail	test unit: vmin - ellipse(25vmin farthest-side) - inline
+Fail	test unit: vmin - ellipse(farthest-side 75vmin) - inline
+Pass	test unit: vmax - ellipse(50vmax 100vmax at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(100vmax 100px at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(50vmax 25% at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(25% 50vmax at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(25vmax closest-side at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(closest-side 75vmax at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(25vmax farthest-side at 50% 50%) - inline
+Pass	test unit: vmax - ellipse(farthest-side 75vmax at 50% 50%) - inline
+Fail	test unit: vmax - ellipse(50vmax 100vmax) - inline
+Fail	test unit: vmax - ellipse(100vmax 100px) - inline
+Fail	test unit: vmax - ellipse(50vmax 25%) - inline
+Fail	test unit: vmax - ellipse(25% 50vmax) - inline
+Fail	test unit: vmax - ellipse(25vmax closest-side) - inline
+Fail	test unit: vmax - ellipse(closest-side 75vmax) - inline
+Fail	test unit: vmax - ellipse(25vmax farthest-side) - inline
+Fail	test unit: vmax - ellipse(farthest-side 75vmax) - inline
+Fail	test unit: cm - ellipse(50cm 100cm at 50% 50%) - computed
+Pass	test unit: cm - ellipse(100cm 100px at 50% 50%) - computed
+Fail	test unit: cm - ellipse(50cm 25% at 50% 50%) - computed
+Fail	test unit: cm - ellipse(25% 50cm at 50% 50%) - computed
+Fail	test unit: cm - ellipse(25cm closest-side at 50% 50%) - computed
+Fail	test unit: cm - ellipse(closest-side 75cm at 50% 50%) - computed
+Fail	test unit: cm - ellipse(25cm farthest-side at 50% 50%) - computed
+Fail	test unit: cm - ellipse(farthest-side 75cm at 50% 50%) - computed
+Fail	test unit: cm - ellipse(50cm 100cm) - computed
+Fail	test unit: cm - ellipse(100cm 100px) - computed
+Fail	test unit: cm - ellipse(50cm 25%) - computed
+Fail	test unit: cm - ellipse(25% 50cm) - computed
+Fail	test unit: cm - ellipse(25cm closest-side) - computed
+Fail	test unit: cm - ellipse(closest-side 75cm) - computed
+Fail	test unit: cm - ellipse(25cm farthest-side) - computed
+Fail	test unit: cm - ellipse(farthest-side 75cm) - computed
+Fail	test unit: mm - ellipse(50mm 100mm at 50% 50%) - computed
+Pass	test unit: mm - ellipse(100mm 100px at 50% 50%) - computed
+Fail	test unit: mm - ellipse(50mm 25% at 50% 50%) - computed
+Fail	test unit: mm - ellipse(25% 50mm at 50% 50%) - computed
+Fail	test unit: mm - ellipse(25mm closest-side at 50% 50%) - computed
+Fail	test unit: mm - ellipse(closest-side 75mm at 50% 50%) - computed
+Fail	test unit: mm - ellipse(25mm farthest-side at 50% 50%) - computed
+Fail	test unit: mm - ellipse(farthest-side 75mm at 50% 50%) - computed
+Fail	test unit: mm - ellipse(50mm 100mm) - computed
+Fail	test unit: mm - ellipse(100mm 100px) - computed
+Fail	test unit: mm - ellipse(50mm 25%) - computed
+Fail	test unit: mm - ellipse(25% 50mm) - computed
+Fail	test unit: mm - ellipse(25mm closest-side) - computed
+Fail	test unit: mm - ellipse(closest-side 75mm) - computed
+Fail	test unit: mm - ellipse(25mm farthest-side) - computed
+Fail	test unit: mm - ellipse(farthest-side 75mm) - computed
+Pass	test unit: in - ellipse(50in 100in at 50% 50%) - computed
+Pass	test unit: in - ellipse(100in 100px at 50% 50%) - computed
+Pass	test unit: in - ellipse(50in 25% at 50% 50%) - computed
+Pass	test unit: in - ellipse(25% 50in at 50% 50%) - computed
+Pass	test unit: in - ellipse(25in closest-side at 50% 50%) - computed
+Pass	test unit: in - ellipse(closest-side 75in at 50% 50%) - computed
+Pass	test unit: in - ellipse(25in farthest-side at 50% 50%) - computed
+Pass	test unit: in - ellipse(farthest-side 75in at 50% 50%) - computed
+Fail	test unit: in - ellipse(50in 100in) - computed
+Fail	test unit: in - ellipse(100in 100px) - computed
+Fail	test unit: in - ellipse(50in 25%) - computed
+Fail	test unit: in - ellipse(25% 50in) - computed
+Fail	test unit: in - ellipse(25in closest-side) - computed
+Fail	test unit: in - ellipse(closest-side 75in) - computed
+Fail	test unit: in - ellipse(25in farthest-side) - computed
+Fail	test unit: in - ellipse(farthest-side 75in) - computed
+Fail	test unit: pt - ellipse(50pt 100pt at 50% 50%) - computed
+Fail	test unit: pt - ellipse(100pt 100px at 50% 50%) - computed
+Fail	test unit: pt - ellipse(50pt 25% at 50% 50%) - computed
+Fail	test unit: pt - ellipse(25% 50pt at 50% 50%) - computed
+Fail	test unit: pt - ellipse(25pt closest-side at 50% 50%) - computed
+Fail	test unit: pt - ellipse(closest-side 75pt at 50% 50%) - computed
+Fail	test unit: pt - ellipse(25pt farthest-side at 50% 50%) - computed
+Fail	test unit: pt - ellipse(farthest-side 75pt at 50% 50%) - computed
+Fail	test unit: pt - ellipse(50pt 100pt) - computed
+Fail	test unit: pt - ellipse(100pt 100px) - computed
+Fail	test unit: pt - ellipse(50pt 25%) - computed
+Fail	test unit: pt - ellipse(25% 50pt) - computed
+Fail	test unit: pt - ellipse(25pt closest-side) - computed
+Fail	test unit: pt - ellipse(closest-side 75pt) - computed
+Fail	test unit: pt - ellipse(25pt farthest-side) - computed
+Fail	test unit: pt - ellipse(farthest-side 75pt) - computed
+Pass	test unit: pc - ellipse(50pc 100pc at 50% 50%) - computed
+Pass	test unit: pc - ellipse(100pc 100px at 50% 50%) - computed
+Pass	test unit: pc - ellipse(50pc 25% at 50% 50%) - computed
+Pass	test unit: pc - ellipse(25% 50pc at 50% 50%) - computed
+Pass	test unit: pc - ellipse(25pc closest-side at 50% 50%) - computed
+Pass	test unit: pc - ellipse(closest-side 75pc at 50% 50%) - computed
+Pass	test unit: pc - ellipse(25pc farthest-side at 50% 50%) - computed
+Pass	test unit: pc - ellipse(farthest-side 75pc at 50% 50%) - computed
+Fail	test unit: pc - ellipse(50pc 100pc) - computed
+Fail	test unit: pc - ellipse(100pc 100px) - computed
+Fail	test unit: pc - ellipse(50pc 25%) - computed
+Fail	test unit: pc - ellipse(25% 50pc) - computed
+Fail	test unit: pc - ellipse(25pc closest-side) - computed
+Fail	test unit: pc - ellipse(closest-side 75pc) - computed
+Fail	test unit: pc - ellipse(25pc farthest-side) - computed
+Fail	test unit: pc - ellipse(farthest-side 75pc) - computed
+Pass	test unit: em - ellipse(50em 100em at 50% 50%) - computed
+Pass	test unit: em - ellipse(100em 100px at 50% 50%) - computed
+Pass	test unit: em - ellipse(50em 25% at 50% 50%) - computed
+Pass	test unit: em - ellipse(25% 50em at 50% 50%) - computed
+Pass	test unit: em - ellipse(25em closest-side at 50% 50%) - computed
+Pass	test unit: em - ellipse(closest-side 75em at 50% 50%) - computed
+Pass	test unit: em - ellipse(25em farthest-side at 50% 50%) - computed
+Pass	test unit: em - ellipse(farthest-side 75em at 50% 50%) - computed
+Fail	test unit: em - ellipse(50em 100em) - computed
+Fail	test unit: em - ellipse(100em 100px) - computed
+Fail	test unit: em - ellipse(50em 25%) - computed
+Fail	test unit: em - ellipse(25% 50em) - computed
+Fail	test unit: em - ellipse(25em closest-side) - computed
+Fail	test unit: em - ellipse(closest-side 75em) - computed
+Fail	test unit: em - ellipse(25em farthest-side) - computed
+Fail	test unit: em - ellipse(farthest-side 75em) - computed
+Fail	test unit: ex - ellipse(50ex 100ex at 50% 50%) - computed
+Fail	test unit: ex - ellipse(100ex 100px at 50% 50%) - computed
+Fail	test unit: ex - ellipse(50ex 25% at 50% 50%) - computed
+Fail	test unit: ex - ellipse(25% 50ex at 50% 50%) - computed
+Fail	test unit: ex - ellipse(25ex closest-side at 50% 50%) - computed
+Fail	test unit: ex - ellipse(closest-side 75ex at 50% 50%) - computed
+Fail	test unit: ex - ellipse(25ex farthest-side at 50% 50%) - computed
+Fail	test unit: ex - ellipse(farthest-side 75ex at 50% 50%) - computed
+Fail	test unit: ex - ellipse(50ex 100ex) - computed
+Fail	test unit: ex - ellipse(100ex 100px) - computed
+Fail	test unit: ex - ellipse(50ex 25%) - computed
+Fail	test unit: ex - ellipse(25% 50ex) - computed
+Fail	test unit: ex - ellipse(25ex closest-side) - computed
+Fail	test unit: ex - ellipse(closest-side 75ex) - computed
+Fail	test unit: ex - ellipse(25ex farthest-side) - computed
+Fail	test unit: ex - ellipse(farthest-side 75ex) - computed
+Fail	test unit: ch - ellipse(50ch 100ch at 50% 50%) - computed
+Fail	test unit: ch - ellipse(100ch 100px at 50% 50%) - computed
+Fail	test unit: ch - ellipse(50ch 25% at 50% 50%) - computed
+Fail	test unit: ch - ellipse(25% 50ch at 50% 50%) - computed
+Fail	test unit: ch - ellipse(25ch closest-side at 50% 50%) - computed
+Fail	test unit: ch - ellipse(closest-side 75ch at 50% 50%) - computed
+Fail	test unit: ch - ellipse(25ch farthest-side at 50% 50%) - computed
+Fail	test unit: ch - ellipse(farthest-side 75ch at 50% 50%) - computed
+Fail	test unit: ch - ellipse(50ch 100ch) - computed
+Fail	test unit: ch - ellipse(100ch 100px) - computed
+Fail	test unit: ch - ellipse(50ch 25%) - computed
+Fail	test unit: ch - ellipse(25% 50ch) - computed
+Fail	test unit: ch - ellipse(25ch closest-side) - computed
+Fail	test unit: ch - ellipse(closest-side 75ch) - computed
+Fail	test unit: ch - ellipse(25ch farthest-side) - computed
+Fail	test unit: ch - ellipse(farthest-side 75ch) - computed
+Pass	test unit: rem - ellipse(50rem 100rem at 50% 50%) - computed
+Pass	test unit: rem - ellipse(100rem 100px at 50% 50%) - computed
+Pass	test unit: rem - ellipse(50rem 25% at 50% 50%) - computed
+Pass	test unit: rem - ellipse(25% 50rem at 50% 50%) - computed
+Pass	test unit: rem - ellipse(25rem closest-side at 50% 50%) - computed
+Pass	test unit: rem - ellipse(closest-side 75rem at 50% 50%) - computed
+Pass	test unit: rem - ellipse(25rem farthest-side at 50% 50%) - computed
+Pass	test unit: rem - ellipse(farthest-side 75rem at 50% 50%) - computed
+Fail	test unit: rem - ellipse(50rem 100rem) - computed
+Fail	test unit: rem - ellipse(100rem 100px) - computed
+Fail	test unit: rem - ellipse(50rem 25%) - computed
+Fail	test unit: rem - ellipse(25% 50rem) - computed
+Fail	test unit: rem - ellipse(25rem closest-side) - computed
+Fail	test unit: rem - ellipse(closest-side 75rem) - computed
+Fail	test unit: rem - ellipse(25rem farthest-side) - computed
+Fail	test unit: rem - ellipse(farthest-side 75rem) - computed
+Pass	test unit: vw - ellipse(50vw 100vw at 50% 50%) - computed
+Pass	test unit: vw - ellipse(100vw 100px at 50% 50%) - computed
+Pass	test unit: vw - ellipse(50vw 25% at 50% 50%) - computed
+Pass	test unit: vw - ellipse(25% 50vw at 50% 50%) - computed
+Pass	test unit: vw - ellipse(25vw closest-side at 50% 50%) - computed
+Pass	test unit: vw - ellipse(closest-side 75vw at 50% 50%) - computed
+Pass	test unit: vw - ellipse(25vw farthest-side at 50% 50%) - computed
+Pass	test unit: vw - ellipse(farthest-side 75vw at 50% 50%) - computed
+Fail	test unit: vw - ellipse(50vw 100vw) - computed
+Fail	test unit: vw - ellipse(100vw 100px) - computed
+Fail	test unit: vw - ellipse(50vw 25%) - computed
+Fail	test unit: vw - ellipse(25% 50vw) - computed
+Fail	test unit: vw - ellipse(25vw closest-side) - computed
+Fail	test unit: vw - ellipse(closest-side 75vw) - computed
+Fail	test unit: vw - ellipse(25vw farthest-side) - computed
+Fail	test unit: vw - ellipse(farthest-side 75vw) - computed
+Pass	test unit: vh - ellipse(50vh 100vh at 50% 50%) - computed
+Pass	test unit: vh - ellipse(100vh 100px at 50% 50%) - computed
+Pass	test unit: vh - ellipse(50vh 25% at 50% 50%) - computed
+Pass	test unit: vh - ellipse(25% 50vh at 50% 50%) - computed
+Pass	test unit: vh - ellipse(25vh closest-side at 50% 50%) - computed
+Pass	test unit: vh - ellipse(closest-side 75vh at 50% 50%) - computed
+Pass	test unit: vh - ellipse(25vh farthest-side at 50% 50%) - computed
+Pass	test unit: vh - ellipse(farthest-side 75vh at 50% 50%) - computed
+Fail	test unit: vh - ellipse(50vh 100vh) - computed
+Fail	test unit: vh - ellipse(100vh 100px) - computed
+Fail	test unit: vh - ellipse(50vh 25%) - computed
+Fail	test unit: vh - ellipse(25% 50vh) - computed
+Fail	test unit: vh - ellipse(25vh closest-side) - computed
+Fail	test unit: vh - ellipse(closest-side 75vh) - computed
+Fail	test unit: vh - ellipse(25vh farthest-side) - computed
+Fail	test unit: vh - ellipse(farthest-side 75vh) - computed
+Pass	test unit: vmin - ellipse(50vmin 100vmin at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(100vmin 100px at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(50vmin 25% at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(25% 50vmin at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(25vmin closest-side at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(closest-side 75vmin at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(25vmin farthest-side at 50% 50%) - computed
+Pass	test unit: vmin - ellipse(farthest-side 75vmin at 50% 50%) - computed
+Fail	test unit: vmin - ellipse(50vmin 100vmin) - computed
+Fail	test unit: vmin - ellipse(100vmin 100px) - computed
+Fail	test unit: vmin - ellipse(50vmin 25%) - computed
+Fail	test unit: vmin - ellipse(25% 50vmin) - computed
+Fail	test unit: vmin - ellipse(25vmin closest-side) - computed
+Fail	test unit: vmin - ellipse(closest-side 75vmin) - computed
+Fail	test unit: vmin - ellipse(25vmin farthest-side) - computed
+Fail	test unit: vmin - ellipse(farthest-side 75vmin) - computed
+Pass	test unit: vmax - ellipse(50vmax 100vmax at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(100vmax 100px at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(50vmax 25% at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(25% 50vmax at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(25vmax closest-side at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(closest-side 75vmax at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(25vmax farthest-side at 50% 50%) - computed
+Pass	test unit: vmax - ellipse(farthest-side 75vmax at 50% 50%) - computed
+Fail	test unit: vmax - ellipse(50vmax 100vmax) - computed
+Fail	test unit: vmax - ellipse(100vmax 100px) - computed
+Fail	test unit: vmax - ellipse(50vmax 25%) - computed
+Fail	test unit: vmax - ellipse(25% 50vmax) - computed
+Fail	test unit: vmax - ellipse(25vmax closest-side) - computed
+Fail	test unit: vmax - ellipse(closest-side 75vmax) - computed
+Fail	test unit: vmax - ellipse(25vmax farthest-side) - computed
+Fail	test unit: vmax - ellipse(farthest-side 75vmax) - computed

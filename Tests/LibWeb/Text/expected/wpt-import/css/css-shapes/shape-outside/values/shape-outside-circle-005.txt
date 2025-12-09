@@ -1,0 +1,58 @@
+Harness status: OK
+
+Found 52 tests
+
+21 Pass
+31 Fail
+Pass	test unit: cm - circle(50cm at 50% 50%) - inline
+Fail	test unit: cm - circle(50cm) - inline
+Pass	test unit: mm - circle(50mm at 50% 50%) - inline
+Fail	test unit: mm - circle(50mm) - inline
+Pass	test unit: in - circle(50in at 50% 50%) - inline
+Fail	test unit: in - circle(50in) - inline
+Pass	test unit: pt - circle(50pt at 50% 50%) - inline
+Fail	test unit: pt - circle(50pt) - inline
+Pass	test unit: pc - circle(50pc at 50% 50%) - inline
+Fail	test unit: pc - circle(50pc) - inline
+Pass	test unit: em - circle(50em at 50% 50%) - inline
+Fail	test unit: em - circle(50em) - inline
+Pass	test unit: ex - circle(50ex at 50% 50%) - inline
+Fail	test unit: ex - circle(50ex) - inline
+Pass	test unit: ch - circle(50ch at 50% 50%) - inline
+Fail	test unit: ch - circle(50ch) - inline
+Pass	test unit: rem - circle(50rem at 50% 50%) - inline
+Fail	test unit: rem - circle(50rem) - inline
+Pass	test unit: vw - circle(50vw at 50% 50%) - inline
+Fail	test unit: vw - circle(50vw) - inline
+Pass	test unit: vh - circle(50vh at 50% 50%) - inline
+Fail	test unit: vh - circle(50vh) - inline
+Pass	test unit: vmin - circle(50vmin at 50% 50%) - inline
+Fail	test unit: vmin - circle(50vmin) - inline
+Pass	test unit: vmax - circle(50vmax at 50% 50%) - inline
+Fail	test unit: vmax - circle(50vmax) - inline
+Fail	test unit: cm - circle(50cm at 50% 50%) - computed
+Fail	test unit: cm - circle(50cm) - computed
+Fail	test unit: mm - circle(50mm at 50% 50%) - computed
+Fail	test unit: mm - circle(50mm) - computed
+Pass	test unit: in - circle(50in at 50% 50%) - computed
+Fail	test unit: in - circle(50in) - computed
+Fail	test unit: pt - circle(50pt at 50% 50%) - computed
+Fail	test unit: pt - circle(50pt) - computed
+Pass	test unit: pc - circle(50pc at 50% 50%) - computed
+Fail	test unit: pc - circle(50pc) - computed
+Pass	test unit: em - circle(50em at 50% 50%) - computed
+Fail	test unit: em - circle(50em) - computed
+Fail	test unit: ex - circle(50ex at 50% 50%) - computed
+Fail	test unit: ex - circle(50ex) - computed
+Fail	test unit: ch - circle(50ch at 50% 50%) - computed
+Fail	test unit: ch - circle(50ch) - computed
+Pass	test unit: rem - circle(50rem at 50% 50%) - computed
+Fail	test unit: rem - circle(50rem) - computed
+Pass	test unit: vw - circle(50vw at 50% 50%) - computed
+Fail	test unit: vw - circle(50vw) - computed
+Pass	test unit: vh - circle(50vh at 50% 50%) - computed
+Fail	test unit: vh - circle(50vh) - computed
+Pass	test unit: vmin - circle(50vmin at 50% 50%) - computed
+Fail	test unit: vmin - circle(50vmin) - computed
+Pass	test unit: vmax - circle(50vmax at 50% 50%) - computed
+Fail	test unit: vmax - circle(50vmax) - computed

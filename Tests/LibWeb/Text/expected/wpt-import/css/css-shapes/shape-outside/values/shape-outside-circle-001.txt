@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+6 Pass
+14 Fail
+Fail	circle(at 50% 50%) - inline
+Pass	circle(50px at 50% 50%) - inline
+Pass	circle(50% at 50% 50%) - inline
+Fail	circle(closest-side at 50% 50%) - inline
+Pass	circle(farthest-side at 50% 50%) - inline
+Fail	circle() - inline
+Fail	circle(50px) - inline
+Fail	circle(50%) - inline
+Fail	circle(closest-side) - inline
+Fail	circle(farthest-side) - inline
+Fail	circle(at 50% 50%) - computed
+Pass	circle(50px at 50% 50%) - computed
+Pass	circle(50% at 50% 50%) - computed
+Fail	circle(closest-side at 50% 50%) - computed
+Pass	circle(farthest-side at 50% 50%) - computed
+Fail	circle() - computed
+Fail	circle(50px) - computed
+Fail	circle(50%) - computed
+Fail	circle(closest-side) - computed
+Fail	circle(farthest-side) - computed

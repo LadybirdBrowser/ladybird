@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 51 tests
+
+27 Pass
+24 Fail
+Fail	ellipse(+10px +20px) - inline
+Fail	ellipse(+30px 40px) - inline
+Fail	ellipse(50px +60px) - inline
+Fail	ellipse(+10.00px +20.230px) - inline
+Fail	ellipse(+30.00px 40.567px) - inline
+Fail	ellipse(50.10px +60.7px) - inline
+Fail	ellipse(+10% +20%) - inline
+Fail	ellipse(+30% 40%) - inline
+Fail	ellipse(+50% +60%) - inline
+Fail	ellipse(+10.00% +20.230%) - inline
+Fail	ellipse(+30.00% 40.567%) - inline
+Fail	ellipse(50.10% +60.7%) - inline
+Pass	ellipse(+10px +20px at 50% 50%) - inline
+Pass	ellipse(+30px 40px at 50% 50%) - inline
+Pass	ellipse(50px +60px at 50% 50%) - inline
+Pass	ellipse(+10.00px +20.230px at 50% 50%) - inline
+Pass	ellipse(+30.00px 40.567px at 50% 50%) - inline
+Pass	ellipse(50.10px +60.7px at 50% 50%) - inline
+Pass	ellipse(+10% +20% at 50% 50%) - inline
+Pass	ellipse(+30% 40% at 50% 50%) - inline
+Pass	ellipse(+50% +60% at 50% 50%) - inline
+Pass	ellipse(+10.00% +20.230% at 50% 50%) - inline
+Pass	ellipse(+30.00% 40.567% at 50% 50%) - inline
+Pass	ellipse(50.10% +60.7% at 50% 50%) - inline
+Fail	ellipse(+10px +20px) - computed
+Fail	ellipse(+30px 40px) - computed
+Fail	ellipse(50px +60px) - computed
+Fail	ellipse(+10.00px +20.230px) - computed
+Fail	ellipse(+30.00px 40.567px) - computed
+Fail	ellipse(50.10px +60.7px) - computed
+Fail	ellipse(+10% +20%) - computed
+Fail	ellipse(+30% 40%) - computed
+Fail	ellipse(+50% +60%) - computed
+Fail	ellipse(+10.00% +20.230%) - computed
+Fail	ellipse(+30.00% 40.567%) - computed
+Fail	ellipse(50.10% +60.7%) - computed
+Pass	ellipse(+10px +20px at 50% 50%) - computed
+Pass	ellipse(+30px 40px at 50% 50%) - computed
+Pass	ellipse(50px +60px at 50% 50%) - computed
+Pass	ellipse(+10.00px +20.230px at 50% 50%) - computed
+Pass	ellipse(+30.00px 40.567px at 50% 50%) - computed
+Pass	ellipse(50.10px +60.7px at 50% 50%) - computed
+Pass	ellipse(+10% +20% at 50% 50%) - computed
+Pass	ellipse(+30% 40% at 50% 50%) - computed
+Pass	ellipse(+50% +60% at 50% 50%) - computed
+Pass	ellipse(+10.00% +20.230% at 50% 50%) - computed
+Pass	ellipse(+30.00% 40.567% at 50% 50%) - computed
+Pass	ellipse(50.10% +60.7% at 50% 50%) - computed
+Pass	ellipse(-10px -20px) - invalid
+Pass	ellipse(-30px 40px) - invalid
+Pass	ellipse(50px -60px) - invalid
