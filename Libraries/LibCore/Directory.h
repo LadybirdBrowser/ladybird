@@ -14,13 +14,14 @@
 #include <AK/Noncopyable.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/DirectoryEntry.h>
+#include <LibCore/ExportCoreMinimal.h>
 #include <LibCore/File.h>
 #include <sys/stat.h>
 
 namespace Core {
 
 // Deal with real system directories. Any Directory instance always refers to a valid existing directory.
-class Directory {
+class COREMINIMAL_API Directory {
     AK_MAKE_NONCOPYABLE(Directory);
 
 public:

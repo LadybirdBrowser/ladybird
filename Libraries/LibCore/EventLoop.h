@@ -15,6 +15,7 @@
 #include <AK/Swift.h>
 #include <AK/Time.h>
 #include <LibCore/Event.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
@@ -40,7 +41,7 @@ class ThreadEventQueue;
 // - Fork events, because the child process event loop needs to clear its events and handlers.
 // - Quit events, i.e. the event loop should exit.
 // Any event that the event loop needs to wait on or needs to repeatedly handle is stored in a handle, e.g. s_timers.
-class EventLoop {
+class CORE_API EventLoop {
     AK_MAKE_NONMOVABLE(EventLoop);
     AK_MAKE_NONCOPYABLE(EventLoop);
 
@@ -96,6 +97,6 @@ private:
     NonnullOwnPtr<EventLoopImplementation> m_impl;
 } SWIFT_UNSAFE_REFERENCE;
 
-void deferred_invoke(ESCAPING Function<void()>);
+CORE_API void deferred_invoke(ESCAPING Function<void()>);
 
 }
