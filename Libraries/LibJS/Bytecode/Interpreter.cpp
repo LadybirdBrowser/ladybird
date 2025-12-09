@@ -86,14 +86,9 @@ ALWAYS_INLINE static ThrowCompletionOr<bool> strict_equals(VM&, Value src1, Valu
     return is_strictly_equal(src1, src2);
 }
 
-Interpreter::Interpreter(VM& vm)
-    : m_vm(vm)
-{
-}
+Interpreter::Interpreter() = default;
 
-Interpreter::~Interpreter()
-{
-}
+Interpreter::~Interpreter() = default;
 
 ALWAYS_INLINE Value Interpreter::get(Operand op) const
 {

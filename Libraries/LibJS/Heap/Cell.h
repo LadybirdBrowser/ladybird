@@ -20,7 +20,7 @@ public:
 
     virtual bool is_generator_result() const { return false; }
 
-    ALWAYS_INLINE VM& vm() const { return *reinterpret_cast<VM*>(private_data()); }
+    ALWAYS_INLINE VM& vm() const;
 };
 
 }

@@ -37,8 +37,17 @@
 
 namespace JS {
 
+VM* VM::s_the = nullptr;
+
+VM& VM::the()
+{
+    return *s_the;
+}
+
 NonnullRefPtr<VM> VM::create()
 {
+    VERIFY(!s_the);
+
     ErrorMessages error_messages {};
     error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();
 
@@ -62,14 +71,14 @@ static constexpr auto make_single_ascii_character_strings(IndexSequence<code_poi
 }
 
 static constexpr auto single_ascii_character_strings = make_single_ascii_character_strings(MakeIndexSequence<128>());
-
 VM::VM(ErrorMessages error_messages)
-    : m_heap(this, [this](HashMap<GC::Cell*, GC::HeapRoot>& roots) {
+    : m_heap([this](HashMap<GC::Cell*, GC::HeapRoot>& roots) {
         gather_roots(roots);
     })
     , m_error_messages(move(error_messages))
 {
-    m_bytecode_interpreter = make<Bytecode::Interpreter>(*this);
+    s_the = this;
+    m_bytecode_interpreter = make<Bytecode::Interpreter>();
 
     m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 

@@ -58,6 +58,8 @@ public:
     static NonnullRefPtr<VM> create();
     ~VM();
 
+    static VM& the();
+
     GC::Heap& heap() const { return const_cast<GC::Heap&>(m_heap); }
 
     Bytecode::Interpreter& bytecode_interpreter() { return *m_bytecode_interpreter; }
@@ -315,6 +317,8 @@ private:
 
     void run_queued_promise_jobs_impl();
 
+    static VM* s_the;
+
     HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
 
@@ -374,5 +378,7 @@ template<typename GlobalObjectType, typename... Args>
         nullptr));
     return root_execution_context;
 }
+
+ALWAYS_INLINE VM& Cell::vm() const { return VM::the(); }
 
 }

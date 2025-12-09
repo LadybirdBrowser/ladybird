@@ -37,9 +37,8 @@ Heap& Heap::the()
     return *s_the;
 }
 
-Heap::Heap(void* private_data, AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots)
-    : HeapBase(private_data)
-    , m_gather_embedder_roots(move(gather_embedder_roots))
+Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots)
+    : m_gather_embedder_roots(move(gather_embedder_roots))
 {
     s_the = this;
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
