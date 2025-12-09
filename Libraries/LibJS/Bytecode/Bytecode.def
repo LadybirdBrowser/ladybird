@@ -127,11 +127,6 @@ op Catch < Instruction
     m_dst: Operand
 endop
 
-op ConcatString < Instruction
-    m_dst: Operand
-    m_src: Operand
-endop
-
 op ContinuePendingUnwind < Instruction
     @terminator
     @nothrow
