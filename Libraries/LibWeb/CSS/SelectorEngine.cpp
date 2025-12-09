@@ -1118,8 +1118,37 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
             VERIFY(context.slotted_element);
             return matches(component.pseudo_element().compound_selector(), *context.slotted_element, shadow_host, context);
         }
-        // Pseudo-element matching/not-matching is handled in the top level matches().
+        if (component.pseudo_element().type() == CSS::PseudoElement::Part) {
+            // All part names need to match the [pseudo-]element.
+            // FIXME: Support matching pseudo-elements.
+            DOM::AbstractElement const abstract_element { const_cast<DOM::Element&>(element) };
+
+            // Potentially any ancestor shadow-host could be owner of the part, so walk up the tree until we find one.
+            // FIXME: That owner needs to be in scope for the rule. How do we tell?
+            // FIXME: How does this interact with :host ?
+            for (auto ancestor_shadow_root = element.containing_shadow_root();
+                ancestor_shadow_root;
+                ancestor_shadow_root = ancestor_shadow_root->containing_shadow_root()) {
+
+                auto const& part_element_map = ancestor_shadow_root->part_element_map();
+                bool all_part_names_match = true;
+                for (auto const& part_name : component.pseudo_element().ident_list()) {
+                    if (auto matching_parts = part_element_map.get(part_name);
+                        !matching_parts.has_value() || !matching_parts->contains(abstract_element)) {
+                        all_part_names_match = false;
+                        break;
+                    }
+                }
+                if (all_part_names_match) {
+                    context.part_owning_parent = ancestor_shadow_root->host();
+                    return true;
+                }
+            }
+            return false;
+        }
+        // Other pseudo-element matching/not-matching is handled in the top level matches().
         return true;
+
     case CSS::Selector::SimpleSelector::Type::Nesting:
         // Nesting either behaves like :is(), or like :scope.
         // :is() is handled already, by us replacing it with :is() directly, so if we
@@ -1132,14 +1161,27 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
     VERIFY_NOT_REACHED();
 }
 
-bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
+bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& initial_element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
     auto& compound_selector = selector.compound_selectors()[component_list_index];
-    for (auto& simple_selector : compound_selector.simple_selectors) {
-        if (!matches(simple_selector, element, shadow_host, context, scope, selector_kind, anchor)) {
+    NonnullRawPtr element_for_compound_matching { initial_element };
+    for (auto& simple_selector : compound_selector.simple_selectors.in_reverse()) {
+        if (!matches(simple_selector, *element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
             return false;
         }
+        if (context.part_owning_parent) {
+            // Match the rest of the compound selector against the shadow host that element is a part of.
+            element_for_compound_matching = *context.part_owning_parent;
+            context.part_owning_parent = nullptr;
+            // Also have to update the shadow host we're using.
+            if (auto shadow_root = element_for_compound_matching->containing_shadow_root()) {
+                shadow_host = shadow_root->host();
+            } else {
+                shadow_host = nullptr;
+            }
+        }
     }
+    DOM::Element const& element = *element_for_compound_matching;
 
     if (selector_kind == SelectorKind::Relative && component_list_index == 0) {
         VERIFY(anchor);
@@ -1202,10 +1244,14 @@ bool matches(CSS::Selector const& selector, DOM::Element const& element, GC::Ptr
         return fast_matches(selector, element, shadow_host, context);
     }
     VERIFY(!selector.compound_selectors().is_empty());
-    if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
-        return false;
-    if (!pseudo_element.has_value() && selector.pseudo_element().has_value())
-        return false;
+    // FIXME: Selectors can have multiple pseudo-elements, and we need to check them one by one, not just do a simple match.
+    //        Ignoring it for ::part() is a hack.
+    if (!selector.has_part_pseudo_element()) {
+        if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
+            return false;
+        if (!pseudo_element.has_value() && selector.pseudo_element().has_value())
+            return false;
+    }
     return matches(selector, selector.compound_selectors().size() - 1, element, shadow_host, context, scope, selector_kind, anchor);
 }
 

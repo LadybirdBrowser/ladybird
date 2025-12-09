@@ -260,7 +260,8 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
         bool rule_is_relevant_for_current_scope = rule_root == shadow_root
             || (element_shadow_root && rule_root == element_shadow_root)
             || from_user_agent_or_user_stylesheet
-            || rule_to_run.slotted;
+            || rule_to_run.slotted
+            || rule_to_run.contains_part_pseudo_element;
 
         if (!rule_is_relevant_for_current_scope)
             return;
@@ -281,7 +282,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             }
         } else {
             for (auto const& rule : rules) {
-                if ((rule.slotted || !rule.contains_pseudo_element) && filter_namespace_rule(element_namespace_uri, rule))
+                if ((rule.slotted || rule.contains_part_pseudo_element || !rule.contains_pseudo_element) && filter_namespace_rule(element_namespace_uri, rule))
                     add_rule_to_run(rule);
             }
         }
@@ -312,6 +313,22 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
                 add_rules_to_run(rule_cache->slotted_rules);
             }
+        }
+    }
+
+    // ::part() can apply to anything in a shadow tree, that is either an element with a `part` attribute or a pseudo-element.
+    // Rules from any ancestor style scope can apply.
+    if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
+        for (auto* part_shadow_root = abstract_element.element().shadow_including_first_ancestor_of_type<DOM::ShadowRoot>();
+            part_shadow_root;
+            part_shadow_root = part_shadow_root->shadow_including_first_ancestor_of_type<DOM::ShadowRoot>()) {
+
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
+                add_rules_to_run(rule_cache->part_rules);
+            }
+        }
+        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr)) {
+            add_rules_to_run(rule_cache->part_rules);
         }
     }
 
@@ -2897,6 +2914,10 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<PseudoEleme
 {
     if (matching_rule.slotted) {
         slotted_rules.append(matching_rule);
+        return;
+    }
+    if (matching_rule.contains_part_pseudo_element) {
+        part_rules.append(matching_rule);
         return;
     }
     // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets

@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
-Fail	Part in outer host is styled by document style sheet
+2 Pass
+Pass	Part in outer host is styled by document style sheet
 Pass	Part in inner host is not styled by document style sheet
