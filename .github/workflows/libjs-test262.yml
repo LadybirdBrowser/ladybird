@@ -15,40 +15,37 @@ jobs:
 
     concurrency: libjs-test262
 
-    permissions:
-      contents: write
-
     steps:
       - name: Cleanup
         run: |
           echo "Cleaning up previous run"
           rm -rf "${{ github.workspace }}/*"
 
+      # FIXME: Update the checkout versions once JamesIves/github-pages-deploy-action has a more recent release than v4.7.4.
+
       - name: Checkout LadybirdBrowser/ladybird
-        uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
+        uses: actions/checkout@v6.0.0
 
       - name: Checkout LadybirdBrowser/libjs-test262
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.0
         with:
           repository: LadybirdBrowser/libjs-test262
           path: libjs-test262
 
       - name: Checkout LadybirdBrowser/libjs-data
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.0
         with:
           repository: LadybirdBrowser/libjs-data
           path: libjs-data
 
       - name: Checkout tc39/test262
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.0
         with:
           repository: tc39/test262
           path: test262
 
       - name: Checkout tc39/test262-parser-tests
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.0
         with:
           repository: tc39/test262-parser-tests
           path: test262-parser-tests
