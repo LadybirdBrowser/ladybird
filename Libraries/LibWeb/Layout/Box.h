@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -44,6 +45,9 @@ public:
     void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
     void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
     void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
+    virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
+    CSS::SizeWithAspectRatio intrinsic_content_box_size() const;
+    virtual bool has_intrinsic_content_box_size() const { return false; }
 
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
@@ -72,6 +76,7 @@ public:
 protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+    virtual CSS::SizeWithAspectRatio compute_intrinsic_content_box_size() const { return natural_size(); }
 
 private:
     virtual bool is_box() const final { return true; }
