@@ -471,6 +471,12 @@ public:
 
     bool has_inclusive_ancestor_with_display_none();
 
+    GC::Ptr<ShadowRoot> containing_shadow_root();
+    GC::Ptr<ShadowRoot const> containing_shadow_root() const
+    {
+        return const_cast<Node*>(this)->containing_shadow_root();
+    }
+
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
