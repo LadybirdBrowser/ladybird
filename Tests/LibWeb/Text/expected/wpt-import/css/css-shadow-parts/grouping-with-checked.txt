@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	Styles applied to ::part(...)
-Fail	Styles applied to ::part(...):checked
-Fail	Styles applied via grouped selector including matched ::part(...):checked
+4 Pass
+Pass	Styles applied to ::part(...)
+Pass	Styles applied to ::part(...):checked
+Pass	Styles applied via grouped selector including matched ::part(...):checked
 Pass	Styles applied via grouped selector including unmatched ::part(...):checked

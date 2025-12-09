@@ -19,7 +19,8 @@ enum class SelectorKind {
 struct MatchContext {
     GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule {};
     GC::Ptr<DOM::Element const> subject {};
-    GC::Ptr<DOM::Element const> slotted_element {}; // Only set when matching a ::slotted() pseudo-element
+    GC::Ptr<DOM::Element const> slotted_element {};    // Only set when matching a ::slotted() pseudo-element
+    GC::Ptr<DOM::Element const> part_owning_parent {}; // Only set temporarily when matching a ::part() pseudo-element
     bool collect_per_element_selector_involvement_metadata { false };
     CSS::PseudoClassBitmap attempted_pseudo_class_matches {};
 };

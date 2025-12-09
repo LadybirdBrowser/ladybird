@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	::part with host selector styles in first host
-Fail	::part with host selector styles in second host
+2 Pass
+Pass	::part with host selector styles in first host
+Pass	::part with host selector styles in second host

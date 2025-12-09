@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Pass
-Pass	Part in selected host is styled
+1 Fail
+Fail	Part in selected host is styled
