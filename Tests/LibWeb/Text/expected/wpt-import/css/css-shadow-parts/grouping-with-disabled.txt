@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	Styles applied to ::part(...)
+Fail	Styles applied to ::part(...):disabled
+Fail	Styles applied via grouped selector including matched ::part(...):disabled
+Pass	Styles applied via grouped selector including unmatched ::part(...):disabled

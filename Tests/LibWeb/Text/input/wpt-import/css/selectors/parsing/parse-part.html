@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>CSS Selectors: part pseudo selectors</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  test_valid_selector("::part(--foo)");
+  test_valid_selector("::part(bar)");
+  test_valid_selector("::part(--)");
+  test_valid_selector("::part(--0)");
+  test_valid_selector("::part(foo bar)");
+  test_valid_selector("::part(-foo bar)");
+  test_valid_selector("::part(foo):focus");
+  test_valid_selector("::part(foo):hover");
+  test_valid_selector("::part(foo):focus-within");
+  test_valid_selector("::part(foo)::before");
+  test_valid_selector("::part(foo)::after");
+  test_valid_selector("::part(foo)::placeholder");
+  test_valid_selector("::part(foo)::first-line");
+  test_valid_selector("::part(foo)::first-letter");
+  test_valid_selector("::part(foo)::file-selector-button");
+  test_valid_selector("::part(foo):is(:focus)");
+  test_valid_selector(":lang(en)::part(foo)");
+  test_valid_selector(":dir(ltr)::part(foo)");
+  test_valid_selector("::part(foo):lang(en)");
+  test_valid_selector("::part(foo):dir(ltr)");
+  test_valid_selector("::part(foo):disabled");
+  test_valid_selector("::part(foo):checked");
+  test_invalid_selector(":part()");
+  test_invalid_selector(":part(0)");
+  test_invalid_selector(":part('foo')");
+  test_invalid_selector(":part([foo])");
+  test_invalid_selector('::part(foo) + ::part(bar)');
+  // Note: the serialization behavior of the following is as resolved in
+  // https://github.com/w3c/csswg-drafts/issues/8356 but it has not yet been
+  // specified.
+  test_valid_forgiving_selector("::part(foo):is(ul)");
+  test_valid_forgiving_selector("::part(foo):is(nav ul)");
+  test_valid_forgiving_selector("::part(foo):where(ul)");
+  test_valid_forgiving_selector("::part(foo):where(nav ul)");
+  test_invalid_selector("::part(foo):has(li)");
+</script>

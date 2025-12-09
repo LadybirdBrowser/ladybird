@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+8 Pass
+2 Fail
+Pass	successful test setup
+Fail	exported part selector matches from outer scope
+Pass	non-exported part selector does not match from outer scope
+Pass	pseudo-element selector alone does not match from outer scope
+Pass	exported part selector (for outer scope) does not match from middle scope
+Fail	correct part selector matches from middle scope
+Pass	pseudo-element selector alone does not match from middle scope
+Pass	selector with ::part(exported name) does not match from inner scope that exports the part
+Pass	selector with ::part(original name) does not match from inner scope that exports the part
+Pass	pseudo-element selector alone matches from inner scope
