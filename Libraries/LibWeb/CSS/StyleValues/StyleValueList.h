@@ -24,6 +24,13 @@ public:
         return adopt_ref(*new (nothrow) StyleValueList(move(values), separator));
     }
 
+    static ValueComparingNonnullRefPtr<StyleValueList> from_single_value(ValueComparingNonnullRefPtr<StyleValue const> value)
+    {
+        StyleValueVector values;
+        values.append(value);
+        return create(move(values), Separator::Space);
+    }
+
     size_t size() const { return m_properties.values.size(); }
     StyleValueVector const& values() const { return m_properties.values; }
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
