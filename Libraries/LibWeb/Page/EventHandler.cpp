@@ -66,12 +66,27 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
 
 static GC::Ptr<DOM::Node> input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
 {
-    if (is<Layout::Label>(paintable.layout_node())) {
-        auto const& label = as<Layout::Label>(paintable.layout_node());
+    auto& layout_node = paintable.layout_node();
+
+    if (is<Layout::Label>(layout_node)) {
+        auto const& label = as<Layout::Label>(layout_node);
         return label.dom_node().control().ptr();
     }
-    if (auto const* label = paintable.layout_node().first_ancestor_of_type<Layout::Label>())
+
+    if (layout_node.is_generated_for_backdrop_pseudo_element()
+        || layout_node.is_generated_for_after_pseudo_element()
+        || layout_node.is_generated_for_before_pseudo_element()) {
+        if (auto* generator = layout_node.pseudo_element_generator()) {
+            if (is<HTML::HTMLLabelElement>(*generator)) {
+                auto const& label = static_cast<HTML::HTMLLabelElement&>(*generator);
+                return label.control().ptr();
+            }
+        }
+    }
+
+    if (auto const* label = layout_node.first_ancestor_of_type<Layout::Label>())
         return label->dom_node().control().ptr();
+
     return nullptr;
 }
 
