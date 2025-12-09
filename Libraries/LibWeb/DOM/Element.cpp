@@ -4338,6 +4338,15 @@ double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random
     });
 }
 
+GC::Ref<WebIDL::Promise> Element::request_pointer_lock(Optional<PointerLockOptions>)
+{
+    dbgln("FIXME: request_pointer_lock()");
+    auto promise = WebIDL::create_promise(realm());
+    auto error = WebIDL::NotSupportedError::create(realm(), "request_pointer_lock() is not implemented"_utf16);
+    WebIDL::reject_promise(realm(), promise, error);
+    return promise;
+}
+
 // The element to inherit style from.
 // If a pseudo-element is specified, this will return the element itself.
 // Otherwise, if this element is slotted somewhere, it will return the slot's element to inherit style from.

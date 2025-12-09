@@ -103,6 +103,11 @@ enum class ProximityToTheViewport : u8 {
     NotDetermined,
 };
 
+// https://w3c.github.io/pointerlock/#pointerlockoptions-dictionary
+struct PointerLockOptions {
+    bool unadjusted_movement = false;
+};
+
 class WEB_API Element
     : public ParentNode
     , public ChildNode<Element>
@@ -522,6 +527,8 @@ public:
     virtual bool is_implicitly_potentially_render_blocking() const { return false; }
 
     double ensure_css_random_base_value(CSS::RandomCachingKey const&);
+
+    GC::Ref<WebIDL::Promise> request_pointer_lock(Optional<PointerLockOptions>);
 
 protected:
     Element(Document&, DOM::QualifiedName);
