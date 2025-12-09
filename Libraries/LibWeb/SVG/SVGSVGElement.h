@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -75,13 +76,7 @@ public:
     [[nodiscard]] RefPtr<CSS::StyleValue const> width_style_value_from_attribute() const;
     [[nodiscard]] RefPtr<CSS::StyleValue const> height_style_value_from_attribute() const;
 
-    struct NaturalMetrics {
-        Optional<CSSPixels> width;
-        Optional<CSSPixels> height;
-        Optional<CSSPixelFraction> aspect_ratio;
-    };
-
-    static NaturalMetrics negotiate_natural_metrics(SVGSVGElement const&);
+    static CSS::SizeWithAspectRatio negotiate_natural_metrics(SVGSVGElement const&);
 
 private:
     SVGSVGElement(DOM::Document&, DOM::QualifiedName);
