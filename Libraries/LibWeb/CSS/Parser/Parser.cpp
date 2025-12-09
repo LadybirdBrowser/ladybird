@@ -1850,7 +1850,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
             //        Should this use some of the methods from FormattingContext?
             auto concrete_size = run_default_sizing_algorithm(
                 img->width(), img->height(),
-                img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio(),
+                { img->natural_width(), img->natural_height(), img->intrinsic_aspect_ratio() },
                 // NOTE: https://html.spec.whatwg.org/multipage/rendering.html#img-contain-size
                 CSSPixelSize { 300, 150 });
             size = Length::make_px(concrete_size.width());

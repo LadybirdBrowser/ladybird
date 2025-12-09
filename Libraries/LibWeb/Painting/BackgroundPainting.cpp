@@ -361,7 +361,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
-            image.natural_width(), image.natural_height(), image.natural_aspect_ratio(),
+            { image.natural_width(), image.natural_height(), image.natural_aspect_ratio() },
             background_positioning_area.size());
 
         // If any of these are zero, the NaNs will pop up in the painting code.
