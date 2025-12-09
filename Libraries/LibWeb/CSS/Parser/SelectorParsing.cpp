@@ -142,7 +142,36 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
     if (compound_selectors.is_empty())
         return ParseError::SyntaxError;
 
-    return Selector::create(move(compound_selectors));
+    auto parsed_selector = Selector::create(move(compound_selectors));
+
+    // The rest of our code assumes selectors have at most 1 pseudo-element, in the final compound selector,
+    // so reject anything else for now.
+    // FIXME: Remove this once we support them elsewhere.
+    for (auto i = 0u; i < parsed_selector->compound_selectors().size() - 1; ++i) {
+        for (auto const& simple_selector : parsed_selector->compound_selectors()[i].simple_selectors) {
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
+                ErrorReporter::the().report(InvalidSelectorError {
+                    .value_string = parsed_selector->serialize(),
+                    .description = "Pseudo elements before the final compound-selector are not yet supported."_string,
+                });
+                return ParseError::SyntaxError;
+            }
+        }
+    }
+    auto pseudo_element_count = 0;
+    for (auto const& simple_selector : parsed_selector->compound_selectors().last().simple_selectors) {
+        if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement)
+            ++pseudo_element_count;
+    }
+    if (pseudo_element_count > 1) {
+        ErrorReporter::the().report(InvalidSelectorError {
+            .value_string = parsed_selector->serialize(),
+            .description = "Multiple pseudo elements in a selector is not yet supported."_string,
+        });
+        return ParseError::SyntaxError;
+    }
+
+    return parsed_selector;
 }
 
 Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compound_selector(TokenStream<ComponentValue>& tokens)
