@@ -2309,14 +2309,14 @@ void CreateVariableEnvironment::execute_impl(Bytecode::Interpreter& interpreter)
     running_execution_context.lexical_environment = var_environment;
 }
 
-ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
+COLD ThrowCompletionOr<void> EnterObjectEnvironment::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto object = TRY(interpreter.get(m_object).to_object(interpreter.vm()));
     interpreter.enter_object_environment(*object);
     return {};
 }
 
-void Catch::execute_impl(Bytecode::Interpreter& interpreter) const
+COLD void Catch::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     interpreter.catch_exception(dst());
 }
@@ -2980,7 +2980,7 @@ ThrowCompletionOr<void> PostfixDecrement::execute_impl(Bytecode::Interpreter& in
     return {};
 }
 
-ThrowCompletionOr<void> Throw::execute_impl(Bytecode::Interpreter& interpreter) const
+COLD ThrowCompletionOr<void> Throw::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     return throw_completion(interpreter.get(src()));
 }
