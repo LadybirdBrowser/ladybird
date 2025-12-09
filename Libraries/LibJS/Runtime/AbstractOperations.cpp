@@ -1051,7 +1051,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
             realm,
             lexical_environment,
             private_environment,
-            true, 
+            true,
             nullptr);
 
         // c. If varEnv is a global Environment Record, then

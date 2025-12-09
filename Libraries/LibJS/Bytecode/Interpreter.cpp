@@ -1268,7 +1268,7 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
 {
     // NB:  If should_be_constructible is true, this acts like 15.2.5 (Function Expression) and calls MakeConstructor internally;
     // if it's false, it acts like 15.4.4 (DefineMethod) and skips MakeConstructor.
-    
+
     auto own_name = function_node.name();
     auto has_own_name = !own_name.is_empty();
 
@@ -1311,7 +1311,7 @@ inline Value new_function(Interpreter& interpreter, FunctionNode const& function
             *vm.current_realm(),
             vm.lexical_environment(),
             vm.running_execution_context().private_environment,
-            should_be_constructible, 
+            should_be_constructible,
             nullptr);
     }
 

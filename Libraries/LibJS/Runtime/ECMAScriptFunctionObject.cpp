@@ -147,7 +147,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
 
     // Only call make_constructor if the caller said so, and it's a normal function. Generators/Asyncs are never constructors anyway.
     if (function_node.kind() == FunctionKind::Normal && should_be_constructible && !function_node.is_arrow_function()) {
-       function->make_constructor(true, constructor_prototype);
+        function->make_constructor(true, constructor_prototype);
     }
     return function;
 }
@@ -397,58 +397,59 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 }
 
 // 10.2.5 MakeConstructor ( F [ , writablePrototype [ , prototype ] ] ), https://tc39.es/ecma262/#sec-makeconstructor
-void ECMAScriptFunctionObject::make_constructor(bool writable_prototype, GC::Ptr<Object> prototype) {
+void ECMAScriptFunctionObject::make_constructor(bool writable_prototype, GC::Ptr<Object> prototype)
+{
 
     auto& vm = this->vm();
 
-    // 1. If F is an ECMAScript function object, then    
+    // 1. If F is an ECMAScript function object, then
     // This is implicitly true, as 'this' is an ECMAScriptFunctionObject.
-        
+
     // a. Assert: IsConstructor(F) is false.
     ASSERT(!has_constructor());
 
     // b. Assert: F is an extensible object that does not have a "prototype" own property.
     ASSERT(MUST(is_extensible()));
-    ASSERT(!MUST(has_own_property(vm.names.prototype))); 
-    
+    ASSERT(!MUST(has_own_property(vm.names.prototype)));
+
     // c. Set F.[[Construct]] to the definition specified in 10.2.2.
     m_is_constructible = true;
-    
+
     // 2. Else,
     // a. Set F.[[Construct]] to the definition specified in 10.3.2.
     // Not needed here, as it applies to other function types.
-    
+
     // 3. Set F.[[ConstructorKind]] to base.
     set_constructor_kind(ConstructorKind::Base);
 
     // 4. If writablePrototype is not present, set writablePrototype to true.
     // Handled by the C++ default argument.
-    
+
     // 5. If prototype is not present, then
     if (!prototype) {
         // a. Set prototype to OrdinaryObjectCreate(%Object.prototype%).
-        prototype = Object::create(*realm(), realm()->intrinsics().object_prototype()); 
+        prototype = Object::create(*realm(), realm()->intrinsics().object_prototype());
 
         // b. Perform ! DefinePropertyOrThrow(prototype, "constructor", PropertyDescriptor { [[Value]]: F, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: true }).
-		PropertyDescriptor constructor_property_descriptor {
-			.value = Value(this),
-			.writable = writable_prototype,
-			.enumerable = false,
-			.configurable = true
-		};
-		MUST(prototype->define_property_or_throw(vm.names.constructor, constructor_property_descriptor));
+        PropertyDescriptor constructor_property_descriptor {
+            .value = Value(this),
+            .writable = writable_prototype,
+            .enumerable = false,
+            .configurable = true
+        };
+        MUST(prototype->define_property_or_throw(vm.names.constructor, constructor_property_descriptor));
     }
 
     // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: false }).
-	PropertyDescriptor prototype_property_descriptor {
-		.value = prototype,
-		.writable = writable_prototype,
-		.enumerable = false,
-		.configurable = false
-	};
-	MUST(define_property_or_throw(vm.names.prototype, prototype_property_descriptor));
+    PropertyDescriptor prototype_property_descriptor {
+        .value = prototype,
+        .writable = writable_prototype,
+        .enumerable = false,
+        .configurable = false
+    };
+    MUST(define_property_or_throw(vm.names.prototype, prototype_property_descriptor));
 
-	// 7. Return unused.
+    // 7. Return unused.
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod

@@ -512,7 +512,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                     realm,
                     environment,
                     private_environment,
-                    true, 
+                    true,
                     nullptr);
 
                 // 2. Perform ! env.InitializeBinding(dn, fo, normal).

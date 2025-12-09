@@ -127,7 +127,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
         *vm.current_realm(),
         vm.lexical_environment(),
         vm.running_execution_context().private_environment,
-        false, 
+        false,
         nullptr);
 
     auto method_value = Value(&method_function);
@@ -1790,7 +1790,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
             realm,
             &global_environment,
             private_environment,
-            true, 
+            true,
             nullptr);
 
         // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
