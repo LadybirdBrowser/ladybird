@@ -3191,6 +3191,16 @@ bool Node::has_inclusive_ancestor_with_display_none()
     return false;
 }
 
+GC::Ptr<ShadowRoot> Node::containing_shadow_root()
+{
+    if (auto* shadow_root = as_if<ShadowRoot>(*this))
+        return shadow_root->host()->containing_shadow_root();
+
+    if (auto* shadow_root = as_if<ShadowRoot>(root()))
+        return shadow_root;
+    return nullptr;
+}
+
 }
 
 namespace IPC {
