@@ -864,7 +864,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
             // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
             // NOTE: `this` and `request` is kept alive by Platform::Timer using a Handle.
-            timer->on_timeout = GC::create_function(heap(), [this, request, timer = GC::make_root(timer)]() {
+            timer->on_timeout = GC::create_function(heap(), [this, request, timer]() {
                 (void)timer;
                 if (!request->done()) {
                     m_timed_out = true;
@@ -920,7 +920,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
 
             // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
-            timer->on_timeout = GC::create_function(heap(), [timer = GC::make_root(timer), &did_time_out]() {
+            timer->on_timeout = GC::create_function(heap(), [timer, &did_time_out]() {
                 (void)timer;
                 did_time_out = true;
             });
