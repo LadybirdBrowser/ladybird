@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Fail
+Fail	ellipse(at +50px) - inline
+Fail	ellipse(at -50px) - inline
+Fail	ellipse(at +50%) - inline
+Fail	ellipse(at -50%) - inline
+Fail	ellipse(at left +50px) - inline
+Fail	ellipse(at left +50%) - inline
+Fail	ellipse(at right -50px) - inline
+Fail	ellipse(at right -50%) - inline
+Fail	ellipse(at +50px top) - inline
+Fail	ellipse(at +50% top) - inline
+Fail	ellipse(at -50px bottom) - inline
+Fail	ellipse(at -50% bottom) - inline
+Fail	ellipse(at +50px +50px) - inline
+Fail	ellipse(at +50% +50%) - inline
+Fail	ellipse(at -50px -50px) - inline
+Fail	ellipse(at +50px -50px) - inline
+Fail	ellipse(at -50px +50px) - inline
+Fail	ellipse(at +50% -50%) - inline
+Fail	ellipse(at -50% +50%) - inline
+Fail	ellipse(at +50px) - computed
+Fail	ellipse(at -50px) - computed
+Fail	ellipse(at +50%) - computed
+Fail	ellipse(at -50%) - computed
+Fail	ellipse(at left +50px) - computed
+Fail	ellipse(at left +50%) - computed
+Fail	ellipse(at right -50px) - computed
+Fail	ellipse(at right -50%) - computed
+Fail	ellipse(at +50px top) - computed
+Fail	ellipse(at +50% top) - computed
+Fail	ellipse(at -50px bottom) - computed
+Fail	ellipse(at -50% bottom) - computed
+Fail	ellipse(at +50px +50px) - computed
+Fail	ellipse(at +50% +50%) - computed
+Fail	ellipse(at -50px -50px) - computed
+Fail	ellipse(at +50px -50px) - computed
+Fail	ellipse(at -50px +50px) - computed
+Fail	ellipse(at +50% -50%) - computed
+Fail	ellipse(at -50% +50%) - computed

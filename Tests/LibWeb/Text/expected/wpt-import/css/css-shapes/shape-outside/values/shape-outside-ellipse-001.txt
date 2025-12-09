@@ -1,0 +1,78 @@
+Harness status: OK
+
+Found 72 tests
+
+32 Pass
+40 Fail
+Fail	ellipse(at 50% 50%) - inline
+Pass	ellipse(50px 100px at 50% 50%) - inline
+Pass	ellipse(100px 100px at 50% 50%) - inline
+Pass	ellipse(25% 50% at 50% 50%) - inline
+Pass	ellipse(50px 25% at 50% 50%) - inline
+Pass	ellipse(25% 50px at 50% 50%) - inline
+Pass	ellipse(25% closest-side at 50% 50%) - inline
+Pass	ellipse(25px closest-side at 50% 50%) - inline
+Pass	ellipse(closest-side 75% at 50% 50%) - inline
+Pass	ellipse(closest-side 75px at 50% 50%) - inline
+Pass	ellipse(25% farthest-side at 50% 50%) - inline
+Pass	ellipse(25px farthest-side at 50% 50%) - inline
+Pass	ellipse(farthest-side 75% at 50% 50%) - inline
+Pass	ellipse(farthest-side 75px at 50% 50%) - inline
+Fail	ellipse(closest-side closest-side at 50% 50%) - inline
+Pass	ellipse(farthest-side farthest-side at 50% 50%) - inline
+Pass	ellipse(closest-side farthest-side at 50% 50%) - inline
+Pass	ellipse(farthest-side closest-side at 50% 50%) - inline
+Fail	ellipse() - inline
+Fail	ellipse(50px 100px) - inline
+Fail	ellipse(100px 100px) - inline
+Fail	ellipse(25% 50%) - inline
+Fail	ellipse(50px 25%) - inline
+Fail	ellipse(25% 50px) - inline
+Fail	ellipse(25% closest-side) - inline
+Fail	ellipse(25px closest-side) - inline
+Fail	ellipse(closest-side 75%) - inline
+Fail	ellipse(closest-side 75px) - inline
+Fail	ellipse(25% farthest-side) - inline
+Fail	ellipse(25px farthest-side) - inline
+Fail	ellipse(farthest-side 75%) - inline
+Fail	ellipse(farthest-side 75px) - inline
+Fail	ellipse(closest-side closest-side) - inline
+Fail	ellipse(farthest-side farthest-side) - inline
+Fail	ellipse(closest-side farthest-side) - inline
+Fail	ellipse(farthest-side closest-side) - inline
+Fail	ellipse(at 50% 50%) - computed
+Pass	ellipse(50px 100px at 50% 50%) - computed
+Pass	ellipse(100px 100px at 50% 50%) - computed
+Pass	ellipse(25% 50% at 50% 50%) - computed
+Pass	ellipse(50px 25% at 50% 50%) - computed
+Pass	ellipse(25% 50px at 50% 50%) - computed
+Pass	ellipse(25% closest-side at 50% 50%) - computed
+Pass	ellipse(25px closest-side at 50% 50%) - computed
+Pass	ellipse(closest-side 75% at 50% 50%) - computed
+Pass	ellipse(closest-side 75px at 50% 50%) - computed
+Pass	ellipse(25% farthest-side at 50% 50%) - computed
+Pass	ellipse(25px farthest-side at 50% 50%) - computed
+Pass	ellipse(farthest-side 75% at 50% 50%) - computed
+Pass	ellipse(farthest-side 75px at 50% 50%) - computed
+Fail	ellipse(closest-side closest-side at 50% 50%) - computed
+Pass	ellipse(farthest-side farthest-side at 50% 50%) - computed
+Pass	ellipse(closest-side farthest-side at 50% 50%) - computed
+Pass	ellipse(farthest-side closest-side at 50% 50%) - computed
+Fail	ellipse() - computed
+Fail	ellipse(50px 100px) - computed
+Fail	ellipse(100px 100px) - computed
+Fail	ellipse(25% 50%) - computed
+Fail	ellipse(50px 25%) - computed
+Fail	ellipse(25% 50px) - computed
+Fail	ellipse(25% closest-side) - computed
+Fail	ellipse(25px closest-side) - computed
+Fail	ellipse(closest-side 75%) - computed
+Fail	ellipse(closest-side 75px) - computed
+Fail	ellipse(25% farthest-side) - computed
+Fail	ellipse(25px farthest-side) - computed
+Fail	ellipse(farthest-side 75%) - computed
+Fail	ellipse(farthest-side 75px) - computed
+Fail	ellipse(closest-side closest-side) - computed
+Fail	ellipse(farthest-side farthest-side) - computed
+Fail	ellipse(closest-side farthest-side) - computed
+Fail	ellipse(farthest-side closest-side) - computed

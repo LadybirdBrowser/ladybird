@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	ellipse(foo) - invalid
+Pass	ellipse(10) - invalid
+Pass	ellipse(20px 30px 40px) - invalid
+Pass	ellipse(20% 30% 40%) - invalid
+Pass	ellipse(20px, 30px, 40px) - invalid
+Pass	ellipse(20%, 30%, 40%) - invalid
+Pass	ellipse(20px 30px closest-side) - invalid
+Pass	ellipse(20px 30px farthest-side) - invalid
+Pass	ellipse(closest-side 20px 30px) - invalid
+Pass	ellipse(farthest-side 20px 30px) - invalid
+Pass	ellipse(20% 30% closest-side) - invalid
+Pass	ellipse(20% 30% farthest-side) - invalid
+Pass	ellipse(closest-side 20% 30%) - invalid
+Pass	ellipse(farthest-side 20% 30%) - invalid
+Pass	ellipse(closest-side farthest-side 20px) - invalid
+Pass	ellipse(closest-side farthest-side 20%) - invalid
+Pass	ellipse(farthest-side closest-side closest-side) - invalid
+Pass	ellipse(farthest-side, closest-side, closest-side) - invalid

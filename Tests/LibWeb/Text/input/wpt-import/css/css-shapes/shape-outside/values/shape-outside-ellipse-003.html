@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Ellipse Invalid Position Argument Lists</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-ellipse">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="Valid ellipse position argument list are in the form of:
+                                     [ percentage|length left|center|right ]
+                                or   [ percentage|length left|center|right ] [ percentage|length top|center|bottom  ]
+                                or   [ left|center|right ]
+                                or   [ left|center|right top|center|bottom ]
+                                or   [ top|center|bottom ].
+                                All position arguments not in this form are invalid.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            generate_tests(ParsingUtils.testInlineStyle, ParsingUtils.buildPositionTests("ellipse", false, "px"));
+        </script>
+    </body>
+</html>

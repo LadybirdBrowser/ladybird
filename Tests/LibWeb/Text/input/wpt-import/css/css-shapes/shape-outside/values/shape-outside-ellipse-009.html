@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Ellipse Position Arguments - positive/negative, decimal/non-decimal</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-ellipse">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="An ellipse's position arguments may be in signed positive/negative or
+                                     decimal/non-decimal format.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+         <script type="text/javascript">
+            var valid_ellipse_radii_tests = [
+                {
+                  "actual": "ellipse(at +50px)",
+                  "expected_inline": "ellipse(at 50px 50%)",
+                  "expected_computed": "ellipse(at 50px 50%)"
+                },
+                {
+                  "actual": "ellipse(at -50px)",
+                  "expected_inline": "ellipse(at -50px 50%)",
+                  "expected_computed": "ellipse(at -50px 50%)"
+                },
+                {
+                  "actual": "ellipse(at +50%)",
+                  "expected_inline": "ellipse(at 50% 50%)",
+                  "expected_computed": "ellipse(at 50% 50%)"
+                },
+                {
+                  "actual": "ellipse(at -50%)",
+                  "expected_inline": "ellipse(at -50% 50%)",
+                  "expected_computed": "ellipse(at -50% 50%)"
+                },
+                {
+                  "actual": "ellipse(at left +50px)",
+                  "expected_inline": "ellipse(at 0% 50px)",
+                  "expected_computed": "ellipse(at 0% 50px)"
+                },
+                {
+                  "actual": "ellipse(at left +50%)",
+                  "expected_inline": "ellipse(at 0% 50%)",
+                  "expected_computed": "ellipse(at 0% 50%)"
+                },
+                {
+                  "actual": "ellipse(at right -50px)",
+                  "expected_inline": "ellipse(at 100% -50px)",
+                  "expected_computed": "ellipse(at 100% -50px)"
+                },
+                {
+                  "actual": "ellipse(at right -50%)",
+                  "expected_inline": "ellipse(at 100% -50%)",
+                  "expected_computed": "ellipse(at 100% -50%)"
+                },
+                {
+                  "actual": "ellipse(at +50px top)",
+                  "expected_inline": "ellipse(at 50px 0%)",
+                  "expected_computed": "ellipse(at 50px 0%)"
+                },
+                {
+                  "actual": "ellipse(at +50% top)",
+                  "expected_inline": "ellipse(at 50% 0%)",
+                  "expected_computed": "ellipse(at 50% 0%)"
+                },
+                {
+                  "actual": "ellipse(at -50px bottom)",
+                  "expected_inline": "ellipse(at -50px 100%)",
+                  "expected_computed": "ellipse(at -50px 100%)"
+                },
+                {
+                  "actual": "ellipse(at -50% bottom)",
+                  "expected_inline": "ellipse(at -50% 100%)",
+                  "expected_computed": "ellipse(at -50% 100%)"
+                },
+                {
+                  "actual": "ellipse(at +50px +50px)",
+                  "expected_inline": "ellipse(at 50px 50px)",
+                  "expected_computed": "ellipse(at 50px 50px)"
+                },
+                {
+                  "actual": "ellipse(at +50% +50%)",
+                  "expected_inline": "ellipse(at 50% 50%)",
+                  "expected_computed": "ellipse(at 50% 50%)"
+                },
+                {
+                  "actual": "ellipse(at -50px -50px)",
+                  "expected_inline": "ellipse(at -50px -50px)",
+                  "expected_computed": "ellipse(at -50px -50px)"
+                },
+                {
+                  "actual": "ellipse(at +50px -50px)",
+                  "expected_inline": "ellipse(at 50px -50px)",
+                  "expected_computed": "ellipse(at 50px -50px)"
+                },
+                {
+                  "actual": "ellipse(at -50px +50px)",
+                  "expected_inline": "ellipse(at -50px 50px)",
+                  "expected_computed": "ellipse(at -50px 50px)"
+                },
+                {
+                  "actual": "ellipse(at +50% -50%)",
+                  "expected_inline": "ellipse(at 50% -50%)",
+                  "expected_computed": "ellipse(at 50% -50%)"
+                },
+                {
+                  "actual": "ellipse(at -50% +50%)",
+                  "expected_inline": "ellipse(at -50% 50%)",
+                  "expected_computed": "ellipse(at -50% 50%)"
+                }
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_ellipse_radii_tests, "inline") );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_ellipse_radii_tests, "computed") );
+            </script>
+    </body>
+</html>

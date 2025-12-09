@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Circle Valid Formats</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Bear Travis" href="mailto:betravis@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-circle">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="A circular basic shape has an optional radius and position component">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            var valid_circle_tests = [
+            {
+              "name": "No arguments",
+              "actual": "circle()",
+              "expected_inline": "circle()",
+              "expected_computed": "circle()"
+            },
+            {
+              "name": "Radial argument only",
+              "actual": "circle(50px)",
+              "expected_inline": "circle(50px)",
+              "expected_computed": "circle(50px)"
+            },
+            {
+              "name": "Position argument only",
+              "actual": "circle(at 50px 50px)",
+              "expected_inline": "circle(at 50px 50px)",
+              "expected_computed": "circle(at 50px 50px)"
+            },
+            {
+              "name": "Radial and position argument",
+              "actual": "circle(50px at 50px 50px)",
+              "expected_inline": "circle(50px at 50px 50px)",
+              "expected_computed": "circle(50px at 50px 50px)"
+            }
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_circle_tests, 'inline')
+            );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_circle_tests, 'computed')
+            );
+        </script>
+    </body>
+</html>

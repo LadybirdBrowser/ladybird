@@ -1,0 +1,130 @@
+Harness status: OK
+
+Found 125 tests
+
+125 Pass
+Pass	ellipse(at 50% left) is invalid
+Pass	ellipse(at 50px left) is invalid
+Pass	ellipse(at top 50%) is invalid
+Pass	ellipse(at 80% right) is invalid
+Pass	ellipse(at 80px right) is invalid
+Pass	ellipse(at bottom 70%) is invalid
+Pass	ellipse(at bottom 70px) is invalid
+Pass	ellipse(at center center 60%) is invalid
+Pass	ellipse(at center center 60px) is invalid
+Pass	ellipse(at left center 60%) is invalid
+Pass	ellipse(at left center 60px) is invalid
+Pass	ellipse(at left right 80%) is invalid
+Pass	ellipse(at left right 80px) is invalid
+Pass	ellipse(at left left 50%) is invalid
+Pass	ellipse(at left left 50px) is invalid
+Pass	ellipse(at top center 60%) is invalid
+Pass	ellipse(at top center 60px) is invalid
+Pass	ellipse(at top bottom 80%) is invalid
+Pass	ellipse(at top bottom 80px) is invalid
+Pass	ellipse(at top top 50%) is invalid
+Pass	ellipse(at top top 50px) is invalid
+Pass	ellipse(at bottom center 60%) is invalid
+Pass	ellipse(at bottom center 60px) is invalid
+Pass	ellipse(at bottom top 50%) is invalid
+Pass	ellipse(at bottom top 50px) is invalid
+Pass	ellipse(at bottom bottom 50%) is invalid
+Pass	ellipse(at bottom bottom 50px) is invalid
+Pass	ellipse(at right center 60%) is invalid
+Pass	ellipse(at right center 60px) is invalid
+Pass	ellipse(at right left 50%) is invalid
+Pass	ellipse(at right left 50px) is invalid
+Pass	ellipse(at right right 70%) is invalid
+Pass	ellipse(at right right 70px) is invalid
+Pass	ellipse(at center 60% top) is invalid
+Pass	ellipse(at center 60px top) is invalid
+Pass	ellipse(at center 60% bottom) is invalid
+Pass	ellipse(at center 60px bottom) is invalid
+Pass	ellipse(at center 60% left) is invalid
+Pass	ellipse(at center 60px left) is invalid
+Pass	ellipse(at center 60% right) is invalid
+Pass	ellipse(at center 60px right) is invalid
+Pass	ellipse(at center 60% center) is invalid
+Pass	ellipse(at center 60px center) is invalid
+Pass	ellipse(at left 50% right) is invalid
+Pass	ellipse(at left 50px right) is invalid
+Pass	ellipse(at left 50% left) is invalid
+Pass	ellipse(at left 50px left) is invalid
+Pass	ellipse(at top 50% bottom) is invalid
+Pass	ellipse(at top 50px bottom) is invalid
+Pass	ellipse(at top 50% top) is invalid
+Pass	ellipse(at top 50px top) is invalid
+Pass	ellipse(at bottom 70% top) is invalid
+Pass	ellipse(at bottom 70px top) is invalid
+Pass	ellipse(at bottom 70% bottom) is invalid
+Pass	ellipse(at bottom 70px bottom) is invalid
+Pass	ellipse(at right 80% left) is invalid
+Pass	ellipse(at right 80px left) is invalid
+Pass	ellipse(at center 60% top 50%) is invalid
+Pass	ellipse(at center 60% top 50px) is invalid
+Pass	ellipse(at center 60% bottom 70%) is invalid
+Pass	ellipse(at center 60% bottom 70px) is invalid
+Pass	ellipse(at center 60% left 50%) is invalid
+Pass	ellipse(at center 60% left 50px) is invalid
+Pass	ellipse(at center 60% right 70%) is invalid
+Pass	ellipse(at center 60% right 70px) is invalid
+Pass	ellipse(at center 60% center 65%) is invalid
+Pass	ellipse(at center 60% center 65px) is invalid
+Pass	ellipse(at center 60px top 50%) is invalid
+Pass	ellipse(at center 60px top 50px) is invalid
+Pass	ellipse(at center 60px bottom 70%) is invalid
+Pass	ellipse(at center 60px bottom 70px) is invalid
+Pass	ellipse(at center 60px left 50%) is invalid
+Pass	ellipse(at center 60px left 50px) is invalid
+Pass	ellipse(at center 60px right 70%) is invalid
+Pass	ellipse(at center 60px right 70px) is invalid
+Pass	ellipse(at center 60px center 65%) is invalid
+Pass	ellipse(at center 60px center 65px) is invalid
+Pass	ellipse(at left 50% center 60%) is invalid
+Pass	ellipse(at left 50% center 60px) is invalid
+Pass	ellipse(at left 50% right 80%) is invalid
+Pass	ellipse(at left 50% right 80px) is invalid
+Pass	ellipse(at left 50% left 50%) is invalid
+Pass	ellipse(at left 50% left 50px) is invalid
+Pass	ellipse(at left 50px center 60%) is invalid
+Pass	ellipse(at left 50px center 60px) is invalid
+Pass	ellipse(at left 50px right 80%) is invalid
+Pass	ellipse(at left 50px right 80px) is invalid
+Pass	ellipse(at left 50px left 50%) is invalid
+Pass	ellipse(at left 50px left 50px) is invalid
+Pass	ellipse(at top 50% center 60%) is invalid
+Pass	ellipse(at top 50% center 60px) is invalid
+Pass	ellipse(at top 50% bottom 50%) is invalid
+Pass	ellipse(at top 50% bottom 50px) is invalid
+Pass	ellipse(at top 50% top 50%) is invalid
+Pass	ellipse(at top 50% top 50px) is invalid
+Pass	ellipse(at top 50px center 60%) is invalid
+Pass	ellipse(at top 50px center 60px) is invalid
+Pass	ellipse(at top 50px bottom 70%) is invalid
+Pass	ellipse(at top 50px bottom 70px) is invalid
+Pass	ellipse(at top 50px top 50%) is invalid
+Pass	ellipse(at top 50px top 50px) is invalid
+Pass	ellipse(at bottom 70% center 60%) is invalid
+Pass	ellipse(at bottom 70% center 60px) is invalid
+Pass	ellipse(at bottom 70% top 50%) is invalid
+Pass	ellipse(at bottom 70% top 50px) is invalid
+Pass	ellipse(at bottom 70% bottom 50%) is invalid
+Pass	ellipse(at bottom 70% bottom 50px) is invalid
+Pass	ellipse(at bottom 70px center 60%) is invalid
+Pass	ellipse(at bottom 70px center 60px) is invalid
+Pass	ellipse(at bottom 70px top 50%) is invalid
+Pass	ellipse(at bottom 70px top 50px) is invalid
+Pass	ellipse(at bottom 70px bottom 50%) is invalid
+Pass	ellipse(at bottom 70px bottom 50px) is invalid
+Pass	ellipse(at right 80% center 60%) is invalid
+Pass	ellipse(at right 80% center 60px) is invalid
+Pass	ellipse(at right 80% left 50%) is invalid
+Pass	ellipse(at right 80% left 50px) is invalid
+Pass	ellipse(at right 80% right 85%) is invalid
+Pass	ellipse(at right 80% right 85px) is invalid
+Pass	ellipse(at right 80px center 60%) is invalid
+Pass	ellipse(at right 80px center 60px) is invalid
+Pass	ellipse(at right 80px left 50%) is invalid
+Pass	ellipse(at right 80px left 50px) is invalid
+Pass	ellipse(at right 80px right 85%) is invalid
+Pass	ellipse(at right 80px right 85px) is invalid

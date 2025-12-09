@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Fail
+Fail	circle(at +50px) - inline
+Fail	circle(at -50px) - inline
+Fail	circle(at +50%) - inline
+Fail	circle(at -50%) - inline
+Fail	circle(at left +50px) - inline
+Fail	circle(at left +50%) - inline
+Fail	circle(at right -50px) - inline
+Fail	circle(at right -50%) - inline
+Fail	circle(at +50px top) - inline
+Fail	circle(at +50% top) - inline
+Fail	circle(at -50px bottom) - inline
+Fail	circle(at -50% bottom) - inline
+Fail	circle(at +50px +50px) - inline
+Fail	circle(at +50% +50%) - inline
+Fail	circle(at -50px -50px) - inline
+Fail	circle(at +50px -50px) - inline
+Fail	circle(at -50px +50px) - inline
+Fail	circle(at +50% -50%) - inline
+Fail	circle(at -50% +50%) - inline
+Fail	circle(at +50px) - computed
+Fail	circle(at -50px) - computed
+Fail	circle(at +50%) - computed
+Fail	circle(at -50%) - computed
+Fail	circle(at left +50px) - computed
+Fail	circle(at left +50%) - computed
+Fail	circle(at right -50px) - computed
+Fail	circle(at right -50%) - computed
+Fail	circle(at +50px top) - computed
+Fail	circle(at +50% top) - computed
+Fail	circle(at -50px bottom) - computed
+Fail	circle(at -50% bottom) - computed
+Fail	circle(at +50px +50px) - computed
+Fail	circle(at +50% +50%) - computed
+Fail	circle(at -50px -50px) - computed
+Fail	circle(at +50px -50px) - computed
+Fail	circle(at -50px +50px) - computed
+Fail	circle(at +50% -50%) - computed
+Fail	circle(at -50% +50%) - computed
