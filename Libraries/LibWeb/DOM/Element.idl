@@ -36,6 +36,11 @@ dictionary CheckVisibilityOptions {
     boolean visibilityProperty = false;
 };
 
+// https://w3c.github.io/pointerlock/#pointerlockoptions-dictionary
+dictionary PointerLockOptions {
+    boolean unadjustedMovement = false;
+};
+
 // https://dom.spec.whatwg.org/#element
 [Exposed=Window]
 interface Element : Node {
@@ -126,6 +131,9 @@ interface Element : Node {
     
     // https://drafts.csswg.org/css-shadow-parts/#idl
     [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
+    
+    // https://w3c.github.io/pointerlock/#requestPointerLock
+    Promise<undefined> requestPointerLock(optional PointerLockOptions options = {});
 };
 
 dictionary GetHTMLOptions {
