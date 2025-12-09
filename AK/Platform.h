@@ -162,6 +162,16 @@
 #endif
 #define NEVER_INLINE __attribute__((noinline))
 
+#ifdef COLD
+#    undef COLD
+#endif
+#define COLD __attribute__((cold))
+
+#ifdef HOT
+#    undef HOT
+#endif
+#define HOT __attribute__((hot))
+
 #ifdef FLATTEN
 #    undef FLATTEN
 #endif
