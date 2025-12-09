@@ -44,10 +44,10 @@ jobs:
       # Pull requests can trail behind `master` and can cause breakage if merging before running the CI checks on an updated branch.
       # Luckily, GitHub creates and maintains a merge branch that is updated whenever the target or source branch is modified. By
       # checking this branch out, we gain a stabler `master` at the cost of reproducibility.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.1
         if: ${{ github.event_name != 'pull_request' }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.1
         if: ${{ github.event_name == 'pull_request' }}
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
