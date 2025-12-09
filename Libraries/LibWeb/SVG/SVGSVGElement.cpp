@@ -252,11 +252,11 @@ GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
     return SVGTransform::create(realm());
 }
 
-SVGSVGElement::NaturalMetrics SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGElement const& svg_root)
+CSS::SizeWithAspectRatio SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGElement const& svg_root)
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
 
-    NaturalMetrics natural_metrics;
+    CSS::SizeWithAspectRatio natural_metrics;
 
     // The intrinsic dimensions must also be determined from the width and height sizing properties.
     // If either width or height are not specified, the used value is the initial value 'auto'.
