@@ -1147,7 +1147,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
             // NOTE: Step 2 is performed in pending_preflight_response's load callback below.
         }
 
-        auto fetch_main_content = [request = GC::make_root(request), realm = GC::make_root(realm), fetch_params = GC::make_root(fetch_params)]() -> GC::Ref<PendingResponse> {
+        auto fetch_main_content = GC::create_function(realm.heap(), [request, realm = GC::Ref { realm }, fetch_params = GC::Ref { fetch_params }]() -> GC::Ref<PendingResponse> {
             // 2. If request’s redirect mode is "follow", then set request’s service-workers mode to "none".
             // NOTE: Redirects coming from the network (as opposed to from a service worker) are not to be exposed to a
             //       service worker.
@@ -1156,11 +1156,11 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
             // 3. Set response and internalResponse to the result of running HTTP-network-or-cache fetch given fetchParams.
             return http_network_or_cache_fetch(*realm, *fetch_params);
-        };
+        });
 
         if (pending_preflight_response) {
             pending_actual_response = PendingResponse::create(vm, request);
-            pending_preflight_response->when_loaded([returned_pending_response, pending_actual_response, fetch_main_content = move(fetch_main_content)](GC::Ref<Infrastructure::Response> preflight_response) {
+            pending_preflight_response->when_loaded([returned_pending_response, pending_actual_response, fetch_main_content](GC::Ref<Infrastructure::Response> preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_preflight_response load callback");
 
                 // 2. If preflightResponse is a network error, then return preflightResponse.
@@ -1169,14 +1169,14 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
                     return;
                 }
 
-                auto pending_main_content_response = fetch_main_content();
+                auto pending_main_content_response = fetch_main_content->function()();
                 pending_main_content_response->when_loaded([pending_actual_response](GC::Ref<Infrastructure::Response> main_content_response) {
                     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_main_content_response load callback");
                     pending_actual_response->resolve(main_content_response);
                 });
             });
         } else {
-            pending_actual_response = fetch_main_content();
+            pending_actual_response = fetch_main_content->function()();
         }
     } else {
         pending_actual_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
