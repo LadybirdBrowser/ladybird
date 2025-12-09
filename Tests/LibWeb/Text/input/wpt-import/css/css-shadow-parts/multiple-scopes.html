@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<title>::part() and pseudo-elements from multiple scopes (encapsulation contexts)</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-4/#cascade-sort">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+::part(e1)::file-selector-button { border-top-width: 7px; }
+::part(p1)::file-selector-button { border-top-color: red; }
+::file-selector-button { border-top-style: dashed; }
+
+</style>
+
+<body>
+
+<div id="outerhost"></div>
+
+<script>
+"use strict";
+
+let target_cs;
+
+test(t => {
+  let outer_host = document.getElementById("outerhost");
+  let outer_shadow = outer_host.attachShadow({mode: "open"});
+  outer_shadow.innerHTML = `
+    <style>
+      ::part(e1)::file-selector-button { border-right-width: 6px; }
+      ::part(p1)::file-selector-button { border-right-color: lime; }
+      ::file-selector-button { border-right-style: dotted; }
+    </style>
+    <div id="innerhost" exportparts="p1:e1"></div>
+  `;
+
+  let inner_host = outer_shadow.getElementById("innerhost");
+  let inner_shadow = inner_host.attachShadow({mode: "open"});
+  inner_shadow.innerHTML = `
+    <style>
+      ::part(e1)::file-selector-button { border-bottom-width: 5px; }
+      ::part(p1)::file-selector-button { border-bottom-color: red; }
+      ::file-selector-button { border: 3px double black; }
+    </style>
+    <input type="file" part="p1" id="target">
+  `;
+  target_cs = getComputedStyle(inner_shadow.getElementById("target"), "::file-selector-button");
+  assert_true(true);
+}, "successful test setup");
+
+test(t => {
+  assert_equals(target_cs.borderTopWidth, "7px");
+}, "exported part selector matches from outer scope");
+
+test(t => {
+  assert_equals(target_cs.borderTopColor, "rgb(0, 0, 0)");
+}, "non-exported part selector does not match from outer scope");
+
+test(t => {
+  assert_equals(target_cs.borderTopStyle, "double");
+}, "pseudo-element selector alone does not match from outer scope");
+
+test(t => {
+  assert_equals(target_cs.borderRightWidth, "3px");
+}, "exported part selector (for outer scope) does not match from middle scope");
+
+test(t => {
+  assert_equals(target_cs.borderRightColor, "rgb(0, 255, 0)");
+}, "correct part selector matches from middle scope");
+
+test(t => {
+  assert_equals(target_cs.borderRightStyle, "double");
+}, "pseudo-element selector alone does not match from middle scope");
+
+test(t => {
+  assert_equals(target_cs.borderBottomWidth, "3px");
+}, "selector with ::part(exported name) does not match from inner scope that exports the part");
+
+test(t => {
+  assert_equals(target_cs.borderBottomColor, "rgb(0, 0, 0)");
+}, "selector with ::part(original name) does not match from inner scope that exports the part");
+
+test(t => {
+  assert_equals(target_cs.borderBottomStyle, "double");
+}, "pseudo-element selector alone matches from inner scope");
+
+</script>

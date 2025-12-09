@@ -1,0 +1,31 @@
+<!doctype html>
+<title>CSS Shadow Parts - :host::part() in nesting</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part">
+<link rel="help" href="https://drafts.csswg.org/css-scoping/#host-selector">
+<link rel="help" href="https://crbug.com/326526716">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="host"></div>
+<script>
+test(function() {
+  let host = document.getElementById("host");
+  host.attachShadow({ mode: "open" }).innerHTML = `
+    <style>
+      :host {
+        &::part(mypart) {
+          color: lime;
+        }
+      }
+    </style>
+    <div part="mypart">This text should be green.</div>
+  `;
+
+  let part = host.shadowRoot.querySelector("[part]");
+
+  assert_equals(
+    window.getComputedStyle(part).color,
+    "rgb(0, 255, 0)",
+    ":host::part() works in nesting",
+  );
+}, ":host::part works in nesting");
+</script>
