@@ -6954,4 +6954,9 @@ void Document::remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref
     m_pending_css_import_rules.remove(rule);
 }
 
+void Document::exit_pointer_lock()
+{
+    dbgln("FIXME: exit_pointer_lock()");
+}
+
 }
