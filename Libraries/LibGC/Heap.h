@@ -30,12 +30,12 @@
 
 namespace GC {
 
-class GC_API Heap : public HeapBase {
+class GC_API Heap {
     AK_MAKE_NONCOPYABLE(Heap);
     AK_MAKE_NONMOVABLE(Heap);
 
 public:
-    explicit Heap(void* private_data, AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots);
+    explicit Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
     static Heap& the();

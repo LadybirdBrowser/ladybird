@@ -418,7 +418,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             }
 
             auto js_script = script.release_value();
-            JS::Bytecode::Interpreter interp(vm);
+            JS::Bytecode::Interpreter interp;
             auto maybe_function = interp.run(*js_script);
             if (maybe_function.is_error()) {
                 warnln("Failed to run JS export source '{}'", js_function);

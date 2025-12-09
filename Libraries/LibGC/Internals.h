@@ -13,22 +13,6 @@
 
 namespace GC {
 
-class GC_API HeapBase {
-    AK_MAKE_NONCOPYABLE(HeapBase);
-    AK_MAKE_NONMOVABLE(HeapBase);
-
-public:
-    void* private_data() { return m_private_data; }
-
-protected:
-    explicit HeapBase(void* private_data)
-        : m_private_data(private_data)
-    {
-    }
-
-    void* m_private_data;
-};
-
 class GC_API HeapBlockBase {
     AK_MAKE_NONMOVABLE(HeapBlockBase);
     AK_MAKE_NONCOPYABLE(HeapBlockBase);

@@ -183,8 +183,6 @@ public:
 protected:
     Cell() = default;
 
-    ALWAYS_INLINE void* private_data() const { return bit_cast<HeapBase*>(&heap())->private_data(); }
-
     void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
 
 private:
