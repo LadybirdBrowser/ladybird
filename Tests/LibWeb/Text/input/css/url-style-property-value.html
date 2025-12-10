@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        --style-1: url("image.svg");
+        --style-2: url(image.svg);
+    }
+</style>
+<body></body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = window.getComputedStyle(document.body);
+        println(style.getPropertyValue("--style-1"));
+        println(style.getPropertyValue("--style-2"));
+    });
+</script>
