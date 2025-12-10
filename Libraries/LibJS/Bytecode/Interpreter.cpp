@@ -861,7 +861,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
 inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<IdentifierTableIndex> base_identifier, Value base_value, Value property_key_value, Executable const& executable)
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
-    if (base_value.is_object() && property_key_value.is_int32() && property_key_value.as_i32() >= 0) {
+    if (base_value.is_object() && property_key_value.is_non_negative_int32()) {
         auto& object = base_value.as_object();
         auto index = static_cast<u32>(property_key_value.as_i32());
 
@@ -1291,7 +1291,7 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16Fl
 {
     // OPTIMIZATION: Fast path for simple Int32 indexes in array-like objects.
     if (kind == PutKind::Normal
-        && base.is_object() && property_key_value.is_int32() && property_key_value.as_i32() >= 0) {
+        && base.is_object() && property_key_value.is_non_negative_int32()) {
         auto& object = base.as_object();
         auto* storage = object.indexed_properties().storage();
         auto index = static_cast<u32>(property_key_value.as_i32());
