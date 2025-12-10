@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/File.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibTest/TestCase.h>
 
@@ -11,7 +12,9 @@
 
 TEST_CASE(master_elements_containing_crc32)
 {
-    auto matroska_reader = MUST(Media::Matroska::Reader::from_file("master_elements_containing_crc32.mkv"sv));
+    auto file = MUST(Core::File::open("./master_elements_containing_crc32.mkv"sv, Core::File::OpenMode::Read));
+    auto file_data = MUST(file->read_until_eof());
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_data(file_data));
     u64 video_track = 0;
     MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
         video_track = track_entry.track_number();
@@ -27,7 +30,9 @@ TEST_CASE(master_elements_containing_crc32)
 
 TEST_CASE(seek_in_multi_frame_blocks)
 {
-    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_file("test-webm-xiph-lacing.mka"sv));
+    auto file = MUST(Core::File::open("./test-webm-xiph-lacing.mka"sv, Core::File::OpenMode::Read));
+    auto file_data = MUST(file->read_until_eof());
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_data(file_data));
     auto optional_track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
     EXPECT(optional_track.has_value());
     auto track = optional_track.release_value();

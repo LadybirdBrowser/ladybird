@@ -96,19 +96,6 @@ constexpr u32 CUE_RELATIVE_POSITION_ID = 0xF0;
 constexpr u32 CUE_CODEC_STATE_ID = 0xEA;
 constexpr u32 CUE_REFERENCE_ID = 0xDB;
 
-DecoderErrorOr<Reader> Reader::from_file(StringView path)
-{
-    auto mapped_file = DECODER_TRY(DecoderErrorCategory::IO, Core::MappedFile::map(path));
-    return from_mapped_file(move(mapped_file));
-}
-
-DecoderErrorOr<Reader> Reader::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
-{
-    auto reader = TRY(from_data(mapped_file->bytes()));
-    reader.m_mapped_file = make_ref_counted<Core::SharedMappedFile>(move(mapped_file));
-    return reader;
-}
-
 DecoderErrorOr<Reader> Reader::from_data(ReadonlyBytes data)
 {
     Reader reader(data);
@@ -895,7 +882,7 @@ DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(u64 track_number)
     auto position = optional_position.value() - get_element_id_size(CLUSTER_ELEMENT_ID) - m_segment_contents_position;
 
     dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", position, m_segment_contents_position);
-    return SampleIterator(this->m_mapped_file, segment_view, TRY(track_for_track_number(track_number)), TRY(segment_information()).timestamp_scale(), position);
+    return SampleIterator(segment_view, TRY(track_for_track_number(track_number)), TRY(segment_information()).timestamp_scale(), position);
 }
 
 static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& streamer)

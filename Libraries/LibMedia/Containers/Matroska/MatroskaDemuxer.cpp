@@ -15,16 +15,6 @@
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_file(StringView filename)
-{
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_file(filename)));
-}
-
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file)
-{
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_mapped_file(move(mapped_file))));
-}
-
 DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(ReadonlyBytes data)
 {
     return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_data(data)));

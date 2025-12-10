@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
@@ -21,7 +22,9 @@
 template<typename T>
 static inline void decode_video(StringView path, size_t expected_frame_count, T create_decoder)
 {
-    auto matroska_reader = MUST(Media::Matroska::Reader::from_file(path));
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto file_data = MUST(file->read_until_eof());
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_data(file_data));
     u64 video_track = 0;
     MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
         video_track = track_entry.track_number();
