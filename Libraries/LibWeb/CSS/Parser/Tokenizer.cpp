@@ -410,7 +410,7 @@ Token Tokenizer::consume_an_ident_like_token()
         }
 
         // Otherwise, consume a url token, and return it.
-        return consume_a_url_token();
+        return consume_a_url_token(start_byte_offset);
     }
 
     // Otherwise, if the next input code point is U+0028 LEFT PARENTHESIS ((), consume it.
@@ -576,7 +576,7 @@ FlyString Tokenizer::consume_an_ident_sequence()
 }
 
 // https://www.w3.org/TR/css-syntax-3/#consume-url-token
-Token Tokenizer::consume_a_url_token()
+Token Tokenizer::consume_a_url_token(size_t start_byte_offset)
 {
     // This section describes how to consume a url token from a stream of code points.
     // It returns either a <url-token> or a <bad-url-token>.
@@ -588,7 +588,6 @@ Token Tokenizer::consume_a_url_token()
     // shouldn’t be called directly otherwise.
 
     // 1. Initially create a <url-token> with its value set to the empty string.
-    auto start_byte_offset = current_byte_offset();
     StringBuilder builder;
 
     // 2. Consume as much whitespace as possible.

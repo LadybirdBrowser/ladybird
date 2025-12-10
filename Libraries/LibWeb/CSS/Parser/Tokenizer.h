@@ -88,7 +88,7 @@ private:
     [[nodiscard]] double convert_a_string_to_a_number(StringView);
     [[nodiscard]] FlyString consume_an_ident_sequence();
     [[nodiscard]] u32 consume_escaped_code_point();
-    [[nodiscard]] Token consume_a_url_token();
+    [[nodiscard]] Token consume_a_url_token(size_t start_byte_offset);
     void consume_the_remnants_of_a_bad_url();
     void consume_comments();
     void consume_as_much_whitespace_as_possible();
