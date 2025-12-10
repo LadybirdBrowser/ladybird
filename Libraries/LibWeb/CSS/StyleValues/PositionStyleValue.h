@@ -28,6 +28,12 @@ public:
             EdgeStyleValue::create(PositionEdge::Center, {}),
             EdgeStyleValue::create(PositionEdge::Center, {})));
     }
+    static ValueComparingNonnullRefPtr<PositionStyleValue const> create_computed_center()
+    {
+        return adopt_ref(*new (nothrow) PositionStyleValue(
+            EdgeStyleValue::create({}, LengthPercentage { Percentage { 50 } }),
+            EdgeStyleValue::create({}, LengthPercentage { Percentage { 50 } })));
+    }
     virtual ~PositionStyleValue() override = default;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return m_properties.edge_x; }
