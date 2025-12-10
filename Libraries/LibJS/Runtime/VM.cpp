@@ -38,6 +38,7 @@
 namespace JS {
 
 VM* VM::s_the = nullptr;
+static size_t s_vm_count = 0;
 
 VM& VM::the()
 {
@@ -46,7 +47,11 @@ VM& VM::the()
 
 NonnullRefPtr<VM> VM::create()
 {
-    VERIFY(!s_the);
+    // NOTE: We only allow a single VM instance per process.
+    //       However, test262-runner needs to create and destroy VMs repeatedly,
+    //       so we allow recreating the VM as long as the previous one was destroyed.
+    VERIFY(s_vm_count == 0);
+    ++s_vm_count;
 
     ErrorMessages error_messages {};
     error_messages[to_underlying(ErrorMessage::OutOfMemory)] = ErrorType::OutOfMemory.message();
@@ -223,7 +228,11 @@ VM::VM(ErrorMessages error_messages)
     };
 }
 
-VM::~VM() = default;
+VM::~VM()
+{
+    --s_vm_count;
+    VERIFY(s_vm_count == 0);
+}
 
 Utf16String const& VM::error_message(ErrorMessage type) const
 {
