@@ -23,6 +23,8 @@ jobs:
 
       - name: Checkout LadybirdBrowser/ladybird
         uses: actions/checkout@v6.0.1
+        with:
+          persist-credentials: false
 
       - name: Checkout LadybirdBrowser/libjs-test262
         uses: actions/checkout@v6.0.1
@@ -148,7 +150,7 @@ jobs:
         run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
 
       - name: Deploy to GitHub
-        uses: JamesIves/github-pages-deploy-action@v4.7.5
+        uses: JamesIves/github-pages-deploy-action@v4.7.6
         with:
           git-config-name: LadybirdBot
           git-config-email: ladybirdbot@ladybird.org
