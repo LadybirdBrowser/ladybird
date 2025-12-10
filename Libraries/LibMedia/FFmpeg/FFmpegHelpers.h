@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2024, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2024-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/Track.h>
 
@@ -123,5 +124,8 @@ static inline TrackType track_type_from_ffmpeg_media_type(AVMediaType media_type
     }
     VERIFY_NOT_REACHED();
 }
+
+ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(AVChannelLayout const&);
+ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(Audio::ChannelMap const&);
 
 }

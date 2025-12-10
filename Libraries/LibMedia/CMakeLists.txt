@@ -27,6 +27,7 @@ target_sources(LibMedia PRIVATE
         Audio/FFmpegLoader.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegDemuxer.cpp
+        FFmpeg/FFmpegHelpers.cpp
         FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
 )
