@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1153028">
+<meta name="assert" content="When determining a auto row, an indefinite percentage block-size should be considered auto, and use the inline-size + aspect-ratio.">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-grid/grid-items/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="display: grid; width: 50px;">
+  <canvas width=200 height=200 style="background: green; height: 100%; width: 200%;"></canvas>
+</div>
