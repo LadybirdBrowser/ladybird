@@ -55,7 +55,7 @@ public:
     ByteString subprotocol_in_use();
     void set_subprotocol_in_use(ByteString);
 
-    void send(ByteBuffer binary_or_text_message, bool is_text);
+    void send(ReadonlyBytes binary_or_text_message, bool is_text);
     void send(StringView text_message);
     void close(u16 code = 1005, ByteString reason = {});
 
