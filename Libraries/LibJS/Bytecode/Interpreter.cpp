@@ -3134,7 +3134,7 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
     return {};
 }
 
-ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
+NEVER_INLINE ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto iterator_record = TRY(get_object_property_iterator(interpreter, interpreter.get(m_object)));
     interpreter.set(m_dst_iterator_object, iterator_record.iterator);
@@ -3202,7 +3202,7 @@ ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& 
     return {};
 }
 
-ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interpreter) const
+NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     Value super_class;
     if (m_super_class.has_value())
