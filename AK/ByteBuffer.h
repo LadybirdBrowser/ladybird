@@ -147,11 +147,14 @@ public:
 #    pragma GCC diagnostic pop
 #endif
 
-    [[nodiscard]] Bytes bytes() LIFETIME_BOUND
+    [[nodiscard]] Bytes bytes() && LIFETIME_BOUND = delete;
+    [[nodiscard]] Bytes bytes() & LIFETIME_BOUND
     {
         return { data(), size() };
     }
-    [[nodiscard]] ReadonlyBytes bytes() const LIFETIME_BOUND { return { data(), size() }; }
+
+    [[nodiscard]] ReadonlyBytes bytes() const&& = delete;
+    [[nodiscard]] ReadonlyBytes bytes() const& LIFETIME_BOUND { return { data(), size() }; }
 
     [[nodiscard]] AK::Bytes span() LIFETIME_BOUND { return { data(), size() }; }
     [[nodiscard]] AK::ReadonlyBytes span() const LIFETIME_BOUND { return { data(), size() }; }
@@ -306,8 +309,10 @@ public:
         __builtin_memset(data(), 0, m_size);
     }
 
-    operator Bytes() LIFETIME_BOUND { return bytes(); }
-    operator ReadonlyBytes() const LIFETIME_BOUND { return bytes(); }
+    operator Bytes() && = delete;
+    operator Bytes() & LIFETIME_BOUND { return bytes(); }
+    operator ReadonlyBytes() const&& = delete;
+    operator ReadonlyBytes() const& LIFETIME_BOUND { return bytes(); }
 
     ALWAYS_INLINE size_t capacity() const { return m_inline ? inline_capacity : m_outline_capacity; }
     ALWAYS_INLINE bool is_inline() const { return m_inline; }

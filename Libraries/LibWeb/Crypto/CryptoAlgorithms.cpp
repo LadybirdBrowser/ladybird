@@ -4420,7 +4420,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             // The uncompressed point format MUST be supported.
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(move(key_bytes), false, {});
+            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
             if (maybe_public_key.is_error())
                 return WebIDL::DataError::create(m_realm, "Failed to parse key"_utf16);
 
@@ -5372,7 +5372,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             // The uncompressed point format MUST be supported.
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(move(key_bytes), false, {});
+            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
             if (maybe_public_key.is_error())
                 return WebIDL::DataError::create(m_realm, "Failed to parse key"_utf16);
 

@@ -49,7 +49,8 @@ TEST_CASE(test_TLS_hello_handshake)
             return;
 
         auto line = TRY_OR_FAIL(tls->read_until_any_of(read_buffer, Array { "\r\n"sv }));
-        EXPECT(line.starts_with("HTTP/1.1 204 No Content"_b));
+        auto no_content_prefix = "HTTP/1.1 204 No Content"_b;
+        EXPECT(line.starts_with(no_content_prefix));
         loop.quit(0);
     };
     tls->set_notifications_enabled(true);

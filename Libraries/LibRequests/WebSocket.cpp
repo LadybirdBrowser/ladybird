@@ -37,7 +37,7 @@ void WebSocket::set_subprotocol_in_use(ByteString subprotocol)
 
 void WebSocket::send(ByteBuffer binary_or_text_message, bool is_text)
 {
-    m_client->async_websocket_send(m_websocket_id, is_text, move(binary_or_text_message));
+    m_client->async_websocket_send(m_websocket_id, is_text, binary_or_text_message);
 }
 
 void WebSocket::send(StringView text_message)
