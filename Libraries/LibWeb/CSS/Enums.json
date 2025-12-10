@@ -689,6 +689,12 @@
     "static",
     "sticky"
   ],
+  "radial-extent": [
+    "closest-corner",
+    "closest-side",
+    "farthest-corner",
+    "farthest-side"
+  ],
   "referrer-policy-modifier-value": [
     "no-referrer",
     "no-referrer-when-downgrade",

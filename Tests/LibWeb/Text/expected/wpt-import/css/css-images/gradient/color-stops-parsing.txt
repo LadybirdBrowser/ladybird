@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 162 tests
 
-162 Pass
+160 Pass
+2 Fail
 Pass	linear-gradient() [ unparsable ]
 Pass	linear-gradient(black, 25%) [ unparsable ]
 Pass	linear-gradient(black, invalid) [ unparsable ]
@@ -66,7 +67,7 @@ Pass	radial-gradient(black, 25% 50%, white) [ unparsable ]
 Pass	radial-gradient(black, 25%, 50%, white) [ unparsable ]
 Pass	radial-gradient(black 10% 25% 50%, white) [ unparsable ]
 Pass	radial-gradient(,black, white) [ unparsable ]
-Pass	radial-gradient(0%, black, white) [ unparsable ]
+Fail	radial-gradient(0%, black, white) [ unparsable ]
 Pass	radial-gradient(black) [ parsable ]
 Pass	radial-gradient(black 0%) [ parsable ]
 Pass	radial-gradient(black, white) [ parsable ]
@@ -93,7 +94,7 @@ Pass	repeating-radial-gradient(black, 25% 50%, white) [ unparsable ]
 Pass	repeating-radial-gradient(black, 25%, 50%, white) [ unparsable ]
 Pass	repeating-radial-gradient(black 10% 25% 50%, white) [ unparsable ]
 Pass	repeating-radial-gradient(,black, white) [ unparsable ]
-Pass	repeating-radial-gradient(0%, black, white) [ unparsable ]
+Fail	repeating-radial-gradient(0%, black, white) [ unparsable ]
 Pass	repeating-radial-gradient(black) [ parsable ]
 Pass	repeating-radial-gradient(black 0%) [ parsable ]
 Pass	repeating-radial-gradient(black, white) [ parsable ]

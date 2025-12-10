@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
@@ -3376,6 +3377,75 @@ RefPtr<URLStyleValue const> Parser::parse_url_value(TokenStream<ComponentValue>&
     if (!url.has_value())
         return nullptr;
     return URLStyleValue::create(url.release_value());
+}
+
+// https://drafts.csswg.org/css-images-4/#radial-size
+RefPtr<RadialSizeStyleValue const> Parser::parse_radial_size(TokenStream<ComponentValue>& tokens)
+{
+    // <radial-size> = <radial-extent>{1,2} | <length-percentage [0,∞]>{1,2}
+    // <radial-extent> = closest-corner | closest-side | farthest-corner | farthest-side
+    // AD-HOC: The grammar by the spec above is incorrect as it disallows mixing of <length-percentage> and
+    //         <radial-extent> which breaks backwards compatibility with `<shape-radius>` which it is intended to
+    //         replace (see https://github.com/w3c/csswg-drafts/issues/9729). To avoid this issue we instead use the
+    //         following grammar:
+    //         `<radial-size> = [ <radial-extent> | <length-percentage [0,∞]> ]{1,2}`
+    auto parse_radial_extent = [&](TokenStream<ComponentValue>& tokens) -> Optional<RadialExtent> {
+        auto radial_extent_transaction = tokens.begin_transaction();
+
+        auto keyword_value = parse_keyword_value(tokens);
+        if (!keyword_value)
+            return {};
+
+        auto radial_extent = keyword_to_radial_extent(keyword_value->to_keyword());
+        if (!radial_extent.has_value())
+            return {};
+
+        radial_extent_transaction.commit();
+        return radial_extent;
+    };
+
+    auto parse_nonnegative_length_percentage_value = [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
+        auto length_percentage_transaction = tokens.begin_transaction();
+
+        // FIXME: Clamp calculated values to [0,∞]
+        auto length_percentage_value = parse_length_percentage_value(tokens);
+        if (!length_percentage_value)
+            return nullptr;
+
+        if (length_percentage_value->is_length() && length_percentage_value->as_length().length().raw_value() < 0)
+            return nullptr;
+
+        if (length_percentage_value->is_percentage() && length_percentage_value->as_percentage().percentage().value() < 0)
+            return nullptr;
+
+        length_percentage_transaction.commit();
+        return length_percentage_value;
+    };
+
+    auto transaction = tokens.begin_transaction();
+    Vector<RadialSizeStyleValue::Component> values;
+
+    while (tokens.has_next_token() && values.size() < 2) {
+        tokens.discard_whitespace();
+
+        if (auto radial_extent = parse_radial_extent(tokens); radial_extent.has_value()) {
+            values.append(*radial_extent);
+            continue;
+        }
+
+        if (auto length_percentage = parse_nonnegative_length_percentage_value(tokens); length_percentage) {
+            values.append(length_percentage.release_nonnull());
+            continue;
+        }
+
+        break;
+    }
+
+    if (values.is_empty())
+        return nullptr;
+
+    transaction.commit();
+    return RadialSizeStyleValue::create(values);
 }
 
 // https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius

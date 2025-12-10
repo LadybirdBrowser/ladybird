@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 
 namespace Web::CSS::Parser {
 
@@ -472,10 +473,6 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
 RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using EndingShape = RadialGradientStyleValue::EndingShape;
-    using Extent = RadialGradientStyleValue::Extent;
-    using CircleSize = RadialGradientStyleValue::CircleSize;
-    using EllipseSize = RadialGradientStyleValue::EllipseSize;
-    using Size = RadialGradientStyleValue::Size;
 
     auto transaction = outer_tokens.begin_transaction();
     auto& component_value = outer_tokens.consume_a_token();
@@ -510,7 +507,7 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
     // <radial-gradient-syntax> = [ [ [ <radial-shape> || <radial-size> ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <color-stop-list>
     // FIXME: Maybe rename ending-shape things to radial-shape
 
-    Size size = Extent::FarthestCorner;
+    NonnullRefPtr<RadialSizeStyleValue const> size = RadialSizeStyleValue::create({ RadialExtent::FarthestCorner });
     EndingShape ending_shape = EndingShape::Circle;
     RefPtr<PositionStyleValue const> at_position;
 
@@ -528,82 +525,35 @@ RefPtr<RadialGradientStyleValue const> Parser::parse_radial_gradient_function(To
         return {};
     };
 
-    auto parse_extent_keyword = [](StringView keyword) -> Optional<Extent> {
-        if (keyword.equals_ignoring_ascii_case("closest-corner"sv))
-            return Extent::ClosestCorner;
-        if (keyword.equals_ignoring_ascii_case("closest-side"sv))
-            return Extent::ClosestSide;
-        if (keyword.equals_ignoring_ascii_case("farthest-corner"sv))
-            return Extent::FarthestCorner;
-        if (keyword.equals_ignoring_ascii_case("farthest-side"sv))
-            return Extent::FarthestSide;
-        return {};
-    };
-
-    auto length_percentage_is_non_negative = [](StyleValue const& value) -> bool {
-        if (value.is_length() && value.as_length().length().raw_value() < 0)
-            return false;
-        if (value.is_percentage() && value.as_percentage().percentage().value() < 0)
-            return false;
-        return true;
-    };
-
-    auto parse_size = [&]() -> Optional<Size> {
-        // <size> =
-        //      <extent-keyword>              |
-        //      <length [0,∞]>                |
-        //      <length-percentage [0,∞]>{2}
-        auto transaction_size = tokens.begin_transaction();
-        tokens.discard_whitespace();
-        if (!tokens.has_next_token())
-            return {};
-        if (tokens.next_token().is(Token::Type::Ident)) {
-            auto extent = parse_extent_keyword(tokens.consume_a_token().token().ident());
-            if (!extent.has_value())
-                return {};
-            return commit_value(*extent, transaction_size);
-        }
-        auto first_radius = parse_length_percentage_value(tokens);
-        if (!first_radius || !length_percentage_is_non_negative(*first_radius))
-            return {};
-        auto transaction_second_dimension = tokens.begin_transaction();
-        tokens.discard_whitespace();
-        if (tokens.has_next_token()) {
-            if (auto second_radius = parse_length_percentage_value(tokens)) {
-                if (!length_percentage_is_non_negative(*second_radius))
-                    return {};
-                return commit_value(EllipseSize { first_radius.release_nonnull(), second_radius.release_nonnull() },
-                    transaction_size, transaction_second_dimension);
-            }
-        }
-        // We parsed the first value as a <length-percentage>, but here we only want <length>s.
-        if (first_radius->is_length() || (first_radius->is_calculated() && !first_radius->as_calculated().contains_percentage()))
-            return commit_value(CircleSize { first_radius.release_nonnull() }, transaction_size);
-        return {};
-    };
-
     auto maybe_interpolation_method = parse_interpolation_method(tokens);
     tokens.discard_whitespace();
 
     {
         // [ <ending-shape> || <size> ]?
         auto maybe_ending_shape = parse_ending_shape();
-        auto maybe_size = parse_size();
-        if (!maybe_ending_shape.has_value() && maybe_size.has_value())
+        auto maybe_size = parse_radial_size(tokens);
+        if (!maybe_ending_shape.has_value() && maybe_size)
             maybe_ending_shape = parse_ending_shape();
-        if (maybe_size.has_value()) {
+        if (maybe_size) {
             size = *maybe_size;
             expect_comma = true;
         }
         if (maybe_ending_shape.has_value()) {
             expect_comma = true;
             ending_shape = *maybe_ending_shape;
-            if (ending_shape == EndingShape::Circle && size.has<EllipseSize>())
+            if (ending_shape == EndingShape::Circle && size->components().size() != 1)
                 return nullptr;
-            if (ending_shape == EndingShape::Ellipse && size.has<CircleSize>())
+            // AD-HOC: The spec is unclear how a single <length-percentage> value should work with an ellipse
+            //         (see https://github.com/w3c/csswg-drafts/issues/10812#issuecomment-2325997811) so we disallow it
+            //         for now which aligns with WPT and level 3 of the spec.
+            if (ending_shape == EndingShape::Ellipse && size->components().size() != 2 && !size->components()[0].has<RadialExtent>())
                 return nullptr;
         } else {
-            ending_shape = size.has<CircleSize>() ? EndingShape::Circle : EndingShape::Ellipse;
+            // https://drafts.csswg.org/css-images-3/#typedef-radial-gradient-syntax
+            // If <radial-shape> is omitted, the ending shape defaults to a circle if the <radial-size> is a single
+            // <length>, and to an ellipse otherwise.
+            // NB: Level 4 allows <length-percentage> rather than just <length> for circles
+            ending_shape = size->as_radial_size().components().size() == 1 && size->as_radial_size().components()[0].has<NonnullRefPtr<StyleValue const>>() ? EndingShape::Circle : EndingShape::Ellipse;
         }
     }
 
