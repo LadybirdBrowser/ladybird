@@ -1780,7 +1780,7 @@ CSSPixelRect FormattingContext::absolute_content_rect(Box const& box) const
 
 Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) const
 {
-    if (!box.has_children() || box.children_are_inline())
+    if (!box.has_children() || box.children_are_inline() || box.is_textarea_box())
         return nullptr;
     // To find the baseline of a box, we first look for the last in-flow child with at least one line box.
     auto const* last_box_child = box.last_child_of_type<Box>();
@@ -1904,7 +1904,7 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     if (is<ReplacedBox>(box))
         return true;
 
-    if (box.has_preferred_aspect_ratio()) {
+    if (box.has_preferred_aspect_ratio() || box.has_intrinsic_content_box_size()) {
         // From CSS2:
         // If height and width both have computed values of auto and the element has an intrinsic ratio but no intrinsic height or width,
         // then the used value of width is undefined in CSS 2.
