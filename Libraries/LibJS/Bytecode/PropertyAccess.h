@@ -47,7 +47,7 @@ ALWAYS_INLINE GC::Ptr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 }
 
 template<typename GetBaseIdentifier, typename GetPropertyName>
-ALWAYS_INLINE Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name)
+COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name)
 {
     VERIFY(base_value.is_nullish());
 
@@ -60,7 +60,7 @@ ALWAYS_INLINE Completion throw_null_or_undefined_property_get(VM& vm, Value base
 template<typename GetBaseIdentifier, typename GetPropertyName>
 ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name)
 {
-    if (auto base_object = base_object_for_get_impl(vm, base_value))
+    if (auto base_object = base_object_for_get_impl(vm, base_value)) [[likely]]
         return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
