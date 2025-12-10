@@ -12,8 +12,8 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ArgumentsObject);
 
-ArgumentsObject::ArgumentsObject(Realm& realm, Environment& environment)
-    : Object(realm.intrinsics().mapped_arguments_object_shape(), MayInterfereWithIndexedPropertyAccess::Yes)
+ArgumentsObject::ArgumentsObject(Realm& realm, Environment& environment, bool parameter_list_is_empty)
+    : Object(realm.intrinsics().mapped_arguments_object_shape(), parameter_list_is_empty ? MayInterfereWithIndexedPropertyAccess::No : MayInterfereWithIndexedPropertyAccess::Yes)
     , m_environment(environment)
 {
 }
