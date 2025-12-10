@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "LibWeb/CSS/Sizing.h"
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
