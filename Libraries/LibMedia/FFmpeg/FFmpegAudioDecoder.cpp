@@ -146,15 +146,18 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
 
     switch (result) {
     case 0: {
+        if (m_frame->sample_rate <= 0)
+            return DecoderError::corrupted("FFmpeg decoder created a packet with an invalid sample rate"sv);
+
         auto timestamp = AK::Duration::from_microseconds(m_frame->pts);
 
-        if (m_frame->ch_layout.nb_channels > 2)
-            return DecoderError::not_implemented();
+        auto channel_map_result = av_channel_layout_to_channel_map(m_frame->ch_layout);
+        if (channel_map_result.is_error())
+            return DecoderError::with_description(DecoderErrorCategory::NotImplemented, channel_map_result.error().string_literal());
+        auto channel_map = channel_map_result.release_value();
+        auto sample_specification = Audio::SampleSpecification(m_frame->sample_rate, channel_map);
 
-        VERIFY(m_frame->sample_rate > 0);
-        VERIFY(m_frame->ch_layout.nb_channels > 0);
-
-        block.emplace(m_frame->sample_rate, m_frame->ch_layout.nb_channels, timestamp, [&](AudioBlock::Data& data) {
+        block.emplace(sample_specification, timestamp, [&](AudioBlock::Data& data) {
             auto format = static_cast<AVSampleFormat>(m_frame->format);
             auto is_planar = av_sample_fmt_is_planar(format) != 0;
             auto planar_format = av_get_planar_sample_fmt(format);
