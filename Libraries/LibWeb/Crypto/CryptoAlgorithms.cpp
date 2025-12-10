@@ -8895,9 +8895,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         jwk.pub = TRY_OR_THROW_OOM(
             vm,
             encode_base64url(handle.visit(
-                                 [](::Crypto::PK::MLDSAPublicKey const& public_key) -> ByteBuffer { return public_key.public_key(); },
-                                 [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ByteBuffer { return private_key.public_key(); },
-                                 [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); }),
+                                 [](::Crypto::PK::MLDSAPublicKey const& public_key) -> ReadonlyBytes { return public_key.public_key(); },
+                                 [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ReadonlyBytes { return private_key.public_key(); },
+                                 [](auto) -> ReadonlyBytes { VERIFY_NOT_REACHED(); }),
                 AK::OmitPadding::Yes));
 
         // 5. -> If the [[type]] internal slot of key is "private":
