@@ -3654,7 +3654,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
         if (!radius)
             radius = RadialSizeStyleValue::create({ RadialExtent::ClosestSide });
 
-        auto position = PositionStyleValue::create_center();
+        RefPtr<PositionStyleValue const> position;
         arguments_tokens.discard_whitespace();
         if (arguments_tokens.next_token().is_ident("at"sv)) {
             arguments_tokens.discard_a_token();

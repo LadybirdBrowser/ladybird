@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const pairs = [
+            // null to null position
+            ["circle(10px)", "circle(20px)"],
+
+            // null to nonnull
+            ["circle()", "circle(at 100% 100%)"],
+
+            // nonnull to null
+            ["circle(at 0% 0%)", "circle()"],
+
+            // nonnull to nonnull
+            ["circle(10px at 0% 0%)", "circle(20px at center)"],
+        ];
+
+        for (const [from, to] of pairs) {
+            const anim = foo.animate([{ shapeOutside: from }, { shapeOutside: to }], 1000);
+            anim.currentTime = 500;
+            anim.pause();
+
+            println(getComputedStyle(foo).shapeOutside);
+            anim.cancel();
+        }
+    });
+</script>
