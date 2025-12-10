@@ -2462,7 +2462,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
         if (i == 0) {
             generator.emit_mov(dst, value);
         } else {
-            generator.emit<Op::Add>(dst, dst, value);
+            generator.emit<Bytecode::Op::ConcatString>(dst, value);
         }
     }
 

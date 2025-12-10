@@ -479,6 +479,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(CallDirectEvalWithArgumentArray);
             HANDLE_INSTRUCTION(CallWithArgumentArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
+            HANDLE_INSTRUCTION(ConcatString);
             HANDLE_INSTRUCTION(CopyObjectExcludingProperties);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CreateAsyncFromSyncIterator);
             HANDLE_INSTRUCTION(CreateDataPropertyOrThrow);
@@ -2098,6 +2099,14 @@ ThrowCompletionOr<void> CopyObjectExcludingProperties::execute_impl(Bytecode::In
     TRY(to_object->copy_data_properties(vm, from_object, excluded_names));
 
     interpreter.set(dst(), to_object);
+    return {};
+}
+
+ThrowCompletionOr<void> ConcatString::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto string = TRY(interpreter.get(src()).to_primitive_string(vm));
+    interpreter.set(dst(), PrimitiveString::create(vm, interpreter.get(dst()).as_string(), string));
     return {};
 }
 
