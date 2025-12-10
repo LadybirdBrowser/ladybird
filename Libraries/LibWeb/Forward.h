@@ -353,6 +353,7 @@ class PercentageStyleValue;
 class PositionStyleValue;
 class PropertyNameAndID;
 class RadialGradientStyleValue;
+class RadialSizeStyleValue;
 class RandomValueSharingStyleValue;
 class Ratio;
 class RatioStyleValue;

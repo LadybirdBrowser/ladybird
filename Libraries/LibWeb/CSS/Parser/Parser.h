@@ -353,6 +353,7 @@ private:
     Optional<URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<URLStyleValue const> parse_url_value(TokenStream<ComponentValue>&);
 
+    RefPtr<RadialSizeStyleValue const> parse_radial_size(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_basic_shape_value(TokenStream<ComponentValue>&);
 

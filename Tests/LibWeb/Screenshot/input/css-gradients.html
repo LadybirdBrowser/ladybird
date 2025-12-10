@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <link rel="match" href="../expected/css-gradients-ref.html" />
-<meta name="fuzzy" content="maxDifference=0-162;totalPixels=0-428">
+<meta name="fuzzy" content="maxDifference=0-162;totalPixels=0-435">
 <style>
   body {
     background-color: white;
@@ -211,6 +211,18 @@
     background-image: radial-gradient(200px 100px ellipse at 25% 50%, yellow, #009966, purple);
   }
 
+  .grad-radial-5 {
+    background-image: radial-gradient(ellipse closest-side farthest-side at 25% 25%, yellow, #009966, purple);
+  }
+
+  .grad-radial-6 {
+    background-image: radial-gradient(50% at 25% 25%, yellow, #009966, purple);
+  }
+
+  .grad-radial-7 {
+    background-image: radial-gradient(closest-side 50% at 25% 25%, yellow, #009966, purple);
+  }
+
   .grad-radial-repeat-1 {
     background-image: repeating-radial-gradient(#e66465, #9198e5 20%);
   }
@@ -268,6 +280,9 @@
   <div class="rect grad-radial-2"></div>
   <div class="rect grad-radial-3"></div>
   <div class="rect grad-radial-4"></div>
+  <div class="rect grad-radial-5"></div>
+  <div class="rect grad-radial-6"></div>
+  <div class="rect grad-radial-7"></div>
   <div class="rect grad-radial-repeat-1"></div>
   <div class="rect grad-radial-repeat-2"></div>
   <div class="rect grad-radial-repeat-3"></div>

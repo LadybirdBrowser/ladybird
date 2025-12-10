@@ -23,31 +23,11 @@ public:
         Ellipse
     };
 
-    enum class Extent {
-        ClosestCorner,
-        ClosestSide,
-        FarthestCorner,
-        FarthestSide
-    };
-
-    struct CircleSize {
-        NonnullRefPtr<StyleValue const> radius;
-        bool operator==(CircleSize const&) const = default;
-    };
-
-    struct EllipseSize {
-        NonnullRefPtr<StyleValue const> radius_a;
-        NonnullRefPtr<StyleValue const> radius_b;
-        bool operator==(EllipseSize const&) const = default;
-    };
-
-    using Size = Variant<Extent, CircleSize, EllipseSize>;
-
-    static ValueComparingNonnullRefPtr<RadialGradientStyleValue const> create(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<RadialGradientStyleValue const> create(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
-        return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, size, move(position), move(color_stop_list), repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
+        return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
     virtual String to_string(SerializationMode) const override;
@@ -74,22 +54,22 @@ public:
 
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
-    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
+    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&, Layout::NodeWithStyle const&) const;
 
     bool is_repeating() const { return m_properties.repeating == GradientRepeating::Yes; }
 
     virtual ~RadialGradientStyleValue() override = default;
 
 private:
-    RadialGradientStyleValue(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient)
-        , m_properties { .ending_shape = ending_shape, .size = size, .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
+        , m_properties { .ending_shape = ending_shape, .size = move(size), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
     {
     }
 
     struct Properties {
         EndingShape ending_shape;
-        Size size;
+        ValueComparingNonnullRefPtr<StyleValue const> size;
         ValueComparingNonnullRefPtr<PositionStyleValue const> position;
         Vector<ColorStopListElement> color_stop_list;
         GradientRepeating repeating;

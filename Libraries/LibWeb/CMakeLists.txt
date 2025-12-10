@@ -267,6 +267,7 @@ set(SOURCES
     CSS/StyleValues/PositionStyleValue.cpp
     CSS/StyleValues/RGBColorStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp
+    CSS/StyleValues/RadialSizeStyleValue.cpp
     CSS/StyleValues/RandomValueSharingStyleValue.cpp
     CSS/StyleValues/RectStyleValue.cpp
     CSS/StyleValues/RepeatStyleStyleValue.cpp
