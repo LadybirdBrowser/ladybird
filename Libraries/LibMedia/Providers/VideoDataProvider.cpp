@@ -40,12 +40,6 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(C
     return provider;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
-{
-    auto mutexed_demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(demuxer));
-    return try_create(mutexed_demuxer, track, time_provider);
-}
-
 VideoDataProvider::VideoDataProvider(NonnullRefPtr<ThreadData> const& thread_state)
     : m_thread_data(thread_state)
 {
