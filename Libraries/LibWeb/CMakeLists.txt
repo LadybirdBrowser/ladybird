@@ -761,6 +761,7 @@ set(SOURCES
     Layout/TableGrid.cpp
     Layout/TableWrapper.cpp
     Layout/TextAreaBox.cpp
+    Layout/TextInputBox.cpp
     Layout/TextNode.cpp
     Layout/TreeBuilder.cpp
     Layout/VideoBox.cpp
