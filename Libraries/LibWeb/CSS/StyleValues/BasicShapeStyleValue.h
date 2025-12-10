@@ -56,7 +56,7 @@ struct Circle {
     bool operator==(Circle const&) const = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> radius;
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position;
+    ValueComparingRefPtr<StyleValue const> position;
 };
 
 struct Ellipse {

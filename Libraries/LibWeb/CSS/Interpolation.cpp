@@ -1604,6 +1604,23 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             .percentages_resolve_as = ValueType::Length
         };
 
+        auto const interpolate_optional_position = [&](RefPtr<StyleValue const> from_position, RefPtr<StyleValue const> to_position) -> Optional<RefPtr<StyleValue const>> {
+            if (!from_position && !to_position)
+                return nullptr;
+
+            auto const& from_position_with_default = from_position ? from_position.release_nonnull() : PositionStyleValue::create_computed_center();
+            auto const& to_position_with_default = to_position ? to_position.release_nonnull() : PositionStyleValue::create_computed_center();
+
+            auto interpolated_position = interpolate_value(element, basic_shape_calculation_context, from_position_with_default, to_position_with_default, delta, allow_discrete);
+
+            // NB: Use OptionalNone to indicate failure to interpolate since nullptr is a valid result for interpolating
+            //     between two null positions.
+            if (!interpolated_position)
+                return OptionalNone {};
+
+            return interpolated_position;
+        };
+
         auto interpolated_shape = from_shape.visit(
             [&](Inset const& from_inset) -> Optional<BasicShape> {
                 // If both shapes are of type inset(), interpolate between each value in the shape functions.
@@ -1621,10 +1638,11 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
                 auto const& to_circle = to_shape.get<Circle>();
                 auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_circle.radius, to_circle.radius, delta, AllowDiscrete::No);
-                auto interpolated_position = interpolate_value(element, basic_shape_calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
-                if (!interpolated_radius || !interpolated_position)
+                auto interpolated_position = interpolate_optional_position(from_circle.position, to_circle.position);
+                if (!interpolated_radius || !interpolated_position.has_value())
                     return {};
-                return Circle { interpolated_radius.release_nonnull(), interpolated_position->as_position() };
+
+                return Circle { interpolated_radius.release_nonnull(), interpolated_position.value() };
             },
             [&](Ellipse const& from_ellipse) -> Optional<BasicShape> {
                 auto const& to_ellipse = to_shape.get<Ellipse>();

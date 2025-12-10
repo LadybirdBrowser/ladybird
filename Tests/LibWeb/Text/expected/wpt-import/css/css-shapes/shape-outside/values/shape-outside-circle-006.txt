@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 34 tests
 
-18 Pass
-16 Fail
+34 Pass
 Pass	circle(+10px at 50% 50%) - inline
 Pass	circle(+10.00px at 50% 50%) - inline
 Pass	circle(+20.340px at 50% 50%) - inline
@@ -12,14 +11,14 @@ Pass	circle(+10% at 50% 50%) - inline
 Pass	circle(+10.00% at 50% 50%) - inline
 Pass	circle(+20.350% at 50% 50%) - inline
 Pass	circle(+30.5% at 50% 50%) - inline
-Fail	circle(+10px) - inline
-Fail	circle(+10.00px) - inline
-Fail	circle(+20.340px) - inline
-Fail	circle(+30.5px) - inline
-Fail	circle(+10%) - inline
-Fail	circle(+10.00%) - inline
-Fail	circle(+20.350%) - inline
-Fail	circle(+30.5%) - inline
+Pass	circle(+10px) - inline
+Pass	circle(+10.00px) - inline
+Pass	circle(+20.340px) - inline
+Pass	circle(+30.5px) - inline
+Pass	circle(+10%) - inline
+Pass	circle(+10.00%) - inline
+Pass	circle(+20.350%) - inline
+Pass	circle(+30.5%) - inline
 Pass	circle(+10px at 50% 50%) - computed
 Pass	circle(+10.00px at 50% 50%) - computed
 Pass	circle(+20.340px at 50% 50%) - computed
@@ -28,13 +27,13 @@ Pass	circle(+10% at 50% 50%) - computed
 Pass	circle(+10.00% at 50% 50%) - computed
 Pass	circle(+20.350% at 50% 50%) - computed
 Pass	circle(+30.5% at 50% 50%) - computed
-Fail	circle(+10px) - computed
-Fail	circle(+10.00px) - computed
-Fail	circle(+20.340px) - computed
-Fail	circle(+30.5px) - computed
-Fail	circle(+10%) - computed
-Fail	circle(+10.00%) - computed
-Fail	circle(+20.350%) - computed
-Fail	circle(+30.5%) - computed
+Pass	circle(+10px) - computed
+Pass	circle(+10.00px) - computed
+Pass	circle(+20.340px) - computed
+Pass	circle(+30.5px) - computed
+Pass	circle(+10%) - computed
+Pass	circle(+10.00%) - computed
+Pass	circle(+20.350%) - computed
+Pass	circle(+30.5%) - computed
 Pass	circle(-20px) - invalid
 Pass	circle(-20.340px) - invalid
