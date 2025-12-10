@@ -35,14 +35,14 @@ void WebSocket::set_subprotocol_in_use(ByteString subprotocol)
     m_subprotocol = move(subprotocol);
 }
 
-void WebSocket::send(ByteBuffer binary_or_text_message, bool is_text)
+void WebSocket::send(ReadonlyBytes binary_or_text_message, bool is_text)
 {
     m_client->async_websocket_send(m_websocket_id, is_text, binary_or_text_message);
 }
 
 void WebSocket::send(StringView text_message)
 {
-    send(ByteBuffer::copy(text_message.bytes()).release_value_but_fixme_should_propagate_errors(), true);
+    send(text_message.bytes(), true);
 }
 
 void WebSocket::close(u16 code, ByteString reason)
