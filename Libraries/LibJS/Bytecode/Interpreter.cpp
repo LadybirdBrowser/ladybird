@@ -797,7 +797,7 @@ inline void fast_typed_array_set_element(TypedArrayBase& typed_array, u32 index,
     *slot = value;
 }
 
-static COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
+static Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
 {
     VERIFY(base_value.is_nullish());
 
@@ -806,7 +806,7 @@ static COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_v
     return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefinedWithProperty, executable.get_identifier(property_identifier), base_value);
 }
 
-static COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
+static Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
 {
     VERIFY(base_value.is_nullish());
 
@@ -816,7 +816,7 @@ static COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_v
 }
 
 template<typename BaseType, typename PropertyType>
-COLD Completion throw_null_or_undefined_property_access(VM& vm, Value base_value, BaseType const& base_identifier, PropertyType const& property_identifier)
+ALWAYS_INLINE Completion throw_null_or_undefined_property_access(VM& vm, Value base_value, BaseType const& base_identifier, PropertyType const& property_identifier)
 {
     VERIFY(base_value.is_nullish());
 

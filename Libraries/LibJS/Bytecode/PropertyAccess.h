@@ -47,7 +47,7 @@ ALWAYS_INLINE GC::Ptr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 }
 
 template<typename GetBaseIdentifier, typename GetPropertyName>
-COLD Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name)
+ALWAYS_INLINE Completion throw_null_or_undefined_property_get(VM& vm, Value base_value, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name)
 {
     VERIFY(base_value.is_nullish());
 
@@ -65,53 +65,6 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
     return throw_null_or_undefined_property_get(vm, base_value, get_base_identifier, get_property_name);
-}
-
-template<typename GetPropertyName>
-COLD ThrowCompletionOr<Value> get_by_id_slow_path(
-    GetPropertyName get_property_name,
-    GC::Ref<Object> base_obj,
-    Value this_value,
-    PropertyLookupCache& cache,
-    Shape& shape,
-    GC::Ptr<PrototypeChainValidity> prototype_chain_validity)
-{
-    CacheableGetPropertyMetadata cacheable_metadata;
-    auto value = TRY(base_obj->internal_get(get_property_name(), this_value, &cacheable_metadata));
-
-    // If internal_get() caused object's shape change, we can no longer be sure
-    // that collected metadata is valid, e.g. if getter in prototype chain added
-    // property with the same name into the object itself.
-    if (&shape == &base_obj->shape()) {
-        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
-            for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
-                cache.entries[i] = cache.entries[i - 1];
-            }
-            cache.entries[0] = {};
-            return cache.entries[0];
-        };
-        if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
-            auto& entry = get_cache_slot();
-            entry.shape = shape;
-            entry.property_offset = cacheable_metadata.property_offset.value();
-
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
-            }
-        } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
-            auto& entry = get_cache_slot();
-            entry.shape = &base_obj->shape();
-            entry.property_offset = cacheable_metadata.property_offset.value();
-            entry.prototype = *cacheable_metadata.prototype;
-            entry.prototype_chain_validity = *prototype_chain_validity;
-
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
-            }
-        }
-    }
-
-    return value;
 }
 
 template<GetByIdMode mode, typename GetBaseIdentifier, typename GetPropertyName>
@@ -186,7 +139,42 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         }
     }
 
-    return get_by_id_slow_path(get_property_name, base_obj, this_value, cache, shape, prototype_chain_validity);
+    CacheableGetPropertyMetadata cacheable_metadata;
+    auto value = TRY(base_obj->internal_get(get_property_name(), this_value, &cacheable_metadata));
+
+    // If internal_get() caused object's shape change, we can no longer be sure
+    // that collected metadata is valid, e.g. if getter in prototype chain added
+    // property with the same name into the object itself.
+    if (&shape == &base_obj->shape()) {
+        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
+            for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
+                cache.entries[i] = cache.entries[i - 1];
+            }
+            cache.entries[0] = {};
+            return cache.entries[0];
+        };
+        if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
+            auto& entry = get_cache_slot();
+            entry.shape = shape;
+            entry.property_offset = cacheable_metadata.property_offset.value();
+
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
+        } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
+            auto& entry = get_cache_slot();
+            entry.shape = &base_obj->shape();
+            entry.property_offset = cacheable_metadata.property_offset.value();
+            entry.prototype = *cacheable_metadata.prototype;
+            entry.prototype_chain_validity = *prototype_chain_validity;
+
+            if (shape.is_dictionary()) {
+                entry.shape_dictionary_generation = shape.dictionary_generation();
+            }
+        }
+    }
+
+    return value;
 }
 
 }
