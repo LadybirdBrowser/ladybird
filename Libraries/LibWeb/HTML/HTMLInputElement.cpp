@@ -155,7 +155,7 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
     case TypeAttributeState::Email:
     case TypeAttributeState::Password:
     case TypeAttributeState::Number:
-    // FIXME - centering & alignment issues. Need UA padding and probably Layout/Editable changes as well.
+        // FIXME: text padding issues
         return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
     default:
         return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
