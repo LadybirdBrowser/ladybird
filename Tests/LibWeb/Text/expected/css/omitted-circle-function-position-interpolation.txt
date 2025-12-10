@@ -1,4 +1,4 @@
 circle(15px)
-circle(closest-side at 100% 100%)
-circle(closest-side)
+circle(at 100% 100%)
+circle()
 circle(15px at 25% 25%)
