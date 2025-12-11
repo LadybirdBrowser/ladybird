@@ -26,11 +26,9 @@ TEST_CASE(create_and_destroy_playback_stream)
 #endif
 
     {
-        auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 44100, 2, 100, [](Span<float> buffer) -> ReadonlySpan<float> {
-            buffer.fill(0.0f);
-            return buffer;
-        });
+        auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 44100, 2, 100, [](Span<float> buffer) -> ReadonlySpan<float> { return buffer.trim(0); });
         EXPECT_EQ(!stream_result.is_error(), has_implementation);
+        EXPECT_EQ(stream_result.value()->total_time_played(), AK::Duration::zero());
     }
 
 #if defined(HAVE_PULSEAUDIO)
