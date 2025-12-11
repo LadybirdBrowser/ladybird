@@ -25,6 +25,7 @@ target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThread
 
 target_sources(LibMedia PRIVATE
         Audio/FFmpegLoader.cpp
+        FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegDemuxer.cpp
         FFmpeg/FFmpegHelpers.cpp
@@ -33,7 +34,7 @@ target_sources(LibMedia PRIVATE
 )
 
 if (NOT ANDROID)
-    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
+    target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL PkgConfig::LIBSWRESAMPLE)
 else()
     target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(LibMedia PRIVATE ${FFMPEG_LIBRARY_DIRS})

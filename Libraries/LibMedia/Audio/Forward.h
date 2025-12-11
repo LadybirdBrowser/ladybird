@@ -8,6 +8,7 @@
 
 namespace Audio {
 
+class AudioConverter;
 class Loader;
 class PlaybackStream;
 struct Sample;

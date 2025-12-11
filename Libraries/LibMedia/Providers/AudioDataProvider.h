@@ -12,6 +12,7 @@
 #include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
+#include <LibMedia/Audio/AudioConverter.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
@@ -41,6 +42,7 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_block_end_time_handler(BlockEndTimeHandler&&);
+    void set_output_sample_specification(Audio::SampleSpecification);
 
     void start();
 
@@ -51,11 +53,12 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
         void set_block_end_time_handler(BlockEndTimeHandler&&);
+        void set_output_sample_specification(Audio::SampleSpecification);
 
         void start();
         void exit();
@@ -100,6 +103,7 @@ private:
         NonnullRefPtr<MutexedDemuxer> m_demuxer;
         Track m_track;
         NonnullOwnPtr<AudioDecoder> m_decoder;
+        NonnullOwnPtr<Audio::AudioConverter> m_converter;
         i64 m_last_sample { NumericLimits<i64>::min() };
 
         size_t m_queue_max_size { 8 };
