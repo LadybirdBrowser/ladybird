@@ -840,8 +840,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         independent_formatting_context->run(box_state.available_inner_space_or_constraints_from(available_space));
     } else {
         // This box participates in the current block container's flow.
+        auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
         if (box.children_are_inline()) {
-            layout_inline_children(as<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
+            layout_inline_children(as<BlockContainer>(box), space_available_for_children);
         } else {
             if (box_state.border_top > 0 || box_state.padding_top > 0) {
                 // margin-top of block container can't collapse with it's children if it has non zero border or padding
@@ -854,8 +855,6 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                     }
                 });
             }
-
-            auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
             layout_block_level_children(as<BlockContainer>(box), space_available_for_children);
         }
     }
