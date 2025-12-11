@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCrypto/PK/MLDSA.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Crypto/Crypto.h>
 
 TEST_CASE(KEY_GENERATION_WITH_SEED)
 {
