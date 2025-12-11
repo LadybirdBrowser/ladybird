@@ -445,40 +445,16 @@ article, aside, :heading, hgroup, nav, section {
     display: block;
 }
 
-h1 {
-    margin-block: 0.67em;
-    font-size: 2.00em;
-    font-weight: bold;
-}
+:heading { font-weight: bold; }
 
-h2 {
-    margin-block: 0.83em;
-    font-size: 1.50em;
-    font-weight: bold;
-}
-
-h3 {
-    margin-block: 1.00em;
-    font-size: 1.17em;
-    font-weight: bold;
-}
-
-h4 {
-    margin-block: 1.33em;
-    font-size: 1.00em;
-    font-weight: bold;
-}
-
-h5 {
-    margin-block: 1.67em;
-    font-size: 0.83em;
-    font-weight: bold;
-}
-
-h6 {
-    margin-block: 2.33em;
+:heading(1) { margin-block: 0.67em; font-size: 2.00em; }
+:heading(2) { margin-block: 0.83em; font-size: 1.50em; }
+:heading(3) { margin-block: 1.00em; font-size: 1.17em; }
+:heading(4) { margin-block: 1.33em; font-size: 1.00em; }
+:heading(5) { margin-block: 1.67em; font-size: 0.83em; }
+:heading(6, 7, 8, 9) {
     font-size: 0.67em;
-    font-weight: bold;
+    margin-block: 2.33em;
 }
 
 /* 15.3.7 Lists
