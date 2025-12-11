@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibGfx/Rect.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -21,12 +21,12 @@ class Screen final : public DOM::EventTarget {
 public:
     [[nodiscard]] static GC::Ref<Screen> create(HTML::Window&);
 
-    i32 width() const { return screen_rect().width(); }
-    i32 height() const { return screen_rect().height(); }
-    i32 avail_width() const { return screen_rect().width(); }
-    i32 avail_height() const { return screen_rect().height(); }
-    u32 color_depth() const { return 24; }
-    u32 pixel_depth() const { return 24; }
+    i32 width() const;
+    i32 height() const;
+    i32 avail_width() const;
+    i32 avail_height() const;
+    u32 color_depth() const;
+    u32 pixel_depth() const;
     GC::Ref<ScreenOrientation> orientation();
 
     bool is_extended() const;
@@ -41,8 +41,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     HTML::Window const& window() const { return *m_window; }
-
-    Gfx::IntRect screen_rect() const;
 
     GC::Ref<HTML::Window> m_window;
     GC::Ptr<ScreenOrientation> m_orientation;
