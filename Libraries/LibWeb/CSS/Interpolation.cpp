@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -1619,9 +1620,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 // If both shapes are the same type, that type is ellipse() or circle(), and the radiuses are specified
                 // as <length-percentage> (rather than keywords), interpolate between each value in the shape functions.
                 auto const& to_circle = to_shape.get<Circle>();
-                if (from_circle.radius->is_keyword() || to_circle.radius->is_keyword())
-                    return {};
-                auto interpolated_radius = interpolate_value(element, basic_shape_calculation_context, from_circle.radius, to_circle.radius, delta, allow_discrete);
+                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_circle.radius, to_circle.radius, delta, AllowDiscrete::No);
                 auto interpolated_position = interpolate_value(element, basic_shape_calculation_context, from_circle.position, to_circle.position, delta, allow_discrete);
                 if (!interpolated_radius || !interpolated_position)
                     return {};
@@ -1773,6 +1772,45 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (!interpolated_edge_x || !interpolated_edge_y)
             return {};
         return PositionStyleValue::create(interpolated_edge_x->as_edge(), interpolated_edge_y->as_edge());
+    }
+    case StyleValue::Type::RadialSize: {
+        auto const& from_components = from.as_radial_size().components();
+        auto const& to_components = to.as_radial_size().components();
+
+        auto const is_radial_extent = [](auto const& component) { return component.template has<RadialExtent>(); };
+
+        // https://drafts.csswg.org/css-images-4/#interpolating-gradients
+        // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
+        // FIXME: Radial extents should disallow interpolation for basic-shape values but should be converted into their
+        //        equivalent length-percentage values for radial gradients
+        if (any_of(from_components, is_radial_extent) || any_of(to_components, is_radial_extent))
+            return {};
+
+        if (from_components.size() == 1 && to_components.size() == 1) {
+            auto const& from_component = from_components[0].get<NonnullRefPtr<StyleValue const>>();
+            auto const& to_component = to_components[0].get<NonnullRefPtr<StyleValue const>>();
+
+            auto interpolated_value = interpolate_value(element, calculation_context, from_component, to_component, delta, allow_discrete);
+
+            if (!interpolated_value)
+                return {};
+
+            return RadialSizeStyleValue::create({ interpolated_value.release_nonnull() });
+        }
+
+        auto const& from_horizontal_component = from_components[0].get<NonnullRefPtr<StyleValue const>>();
+        auto const& from_vertical_component = from_components.size() > 1 ? from_components[1].get<NonnullRefPtr<StyleValue const>>() : from_horizontal_component;
+
+        auto const& to_horizontal_component = to_components[0].get<NonnullRefPtr<StyleValue const>>();
+        auto const& to_vertical_component = to_components.size() > 1 ? to_components[1].get<NonnullRefPtr<StyleValue const>>() : to_horizontal_component;
+
+        auto interpolated_horizontal = interpolate_value(element, calculation_context, from_horizontal_component, to_horizontal_component, delta, allow_discrete);
+        auto interpolated_vertical = interpolate_value(element, calculation_context, from_vertical_component, to_vertical_component, delta, allow_discrete);
+
+        if (!interpolated_horizontal || !interpolated_vertical)
+            return {};
+
+        return RadialSizeStyleValue::create({ interpolated_horizontal.release_nonnull(), interpolated_vertical.release_nonnull() });
     }
     case StyleValue::Type::Ratio: {
         auto from_ratio = from.as_ratio().ratio();

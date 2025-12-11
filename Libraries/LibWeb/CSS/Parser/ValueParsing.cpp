@@ -3643,13 +3643,16 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
     }
 
     if (function_name.equals_ignoring_ascii_case("circle"sv)) {
-        // circle() = circle( <shape-radius>? [ at <position> ]? )
+        // circle() = circle( <radial-size>? [ at <position> ]? )
         auto arguments_tokens = TokenStream { component_value.function().value };
 
-        auto radius = parse_shape_radius(arguments_tokens);
+        auto radius = parse_radial_size(arguments_tokens);
+
+        if (radius && radius->components().size() != 1)
+            return nullptr;
 
         if (!radius)
-            radius = KeywordStyleValue::create(Keyword::ClosestSide);
+            radius = RadialSizeStyleValue::create({ RadialExtent::ClosestSide });
 
         auto position = PositionStyleValue::create_center();
         arguments_tokens.discard_whitespace();

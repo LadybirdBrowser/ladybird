@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-1 Pass
-13 Fail
+2 Pass
+12 Fail
 Fail	e.style['shape-outside'] = "circle()" should set the property value
 Fail	e.style['shape-outside'] = "circle(1px)" should set the property value
 Fail	e.style['shape-outside'] = "circle(20px at center)" should set the property value
@@ -11,7 +11,7 @@ Fail	e.style['shape-outside'] = "circle(at 10% 20%)" should set the property val
 Fail	e.style['shape-outside'] = "circle(4% at top right)" should set the property value
 Pass	e.style['shape-outside'] = "circle(calc(100% - 20px) at calc(100% - 20px) calc(100% / 4))" should set the property value
 Fail	e.style['shape-outside'] = "circle(closest-corner at center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(closest-corner at 20px 50px)" should set the property value
+Pass	e.style['shape-outside'] = "circle(closest-corner at 20px 50px)" should set the property value
 Fail	e.style['shape-outside'] = "circle(closest-side at center)" should set the property value
 Fail	e.style['shape-outside'] = "circle(closest-side at 20px 30%)" should set the property value
 Fail	e.style['shape-outside'] = "circle(farthest-corner at center top)" should set the property value
