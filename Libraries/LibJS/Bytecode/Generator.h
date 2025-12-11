@@ -150,7 +150,7 @@ public:
     struct ReferenceOperands {
         Optional<ScopedOperand> base {};                                 // [[Base]]
         Optional<ScopedOperand> referenced_name {};                      // [[ReferencedName]] as an operand
-        Optional<IdentifierTableIndex> referenced_identifier {};         // [[ReferencedName]] as an identifier
+        Optional<PropertyKeyTableIndex> referenced_identifier {};        // [[ReferencedName]] as an identifier
         Optional<IdentifierTableIndex> referenced_private_identifier {}; // [[ReferencedName]] as a private identifier
         Optional<ScopedOperand> this_value {};                           // [[ThisValue]]
         Optional<ScopedOperand> loaded_value {};                         // Loaded value, if we've performed a load.
@@ -219,6 +219,11 @@ public:
     IdentifierTableIndex intern_identifier(Utf16FlyString string)
     {
         return m_identifier_table->insert(move(string));
+    }
+
+    PropertyKeyTableIndex intern_property_key(PropertyKey key)
+    {
+        return m_property_key_table->insert(move(key));
     }
 
     Optional<IdentifierTableIndex> intern_identifier_for_expression(Expression const& expression);
@@ -326,14 +331,14 @@ public:
 
     [[nodiscard]] ScopedOperand get_this(Optional<ScopedOperand> preferred_dst = {});
 
-    void emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier = {});
+    void emit_get_by_id(ScopedOperand dst, ScopedOperand base, PropertyKeyTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier = {});
 
-    void emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex, ScopedOperand this_value);
+    void emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, PropertyKeyTableIndex, ScopedOperand this_value);
 
     void emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedOperand property, Optional<IdentifierTableIndex> base_identifier = {});
     void emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand base, ScopedOperand property, ScopedOperand this_value);
 
-    void emit_put_by_id(Operand base, IdentifierTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {});
+    void emit_put_by_id(Operand base, PropertyKeyTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier = {});
 
     void emit_put_by_value(ScopedOperand base, ScopedOperand property, ScopedOperand src, Bytecode::PutKind, Optional<IdentifierTableIndex> base_identifier);
     void emit_put_by_value_with_this(ScopedOperand base, ScopedOperand property, ScopedOperand this_value, ScopedOperand src, Bytecode::PutKind);
@@ -401,6 +406,7 @@ private:
     Vector<NonnullOwnPtr<BasicBlock>> m_root_basic_blocks;
     NonnullOwnPtr<StringTable> m_string_table;
     NonnullOwnPtr<IdentifierTable> m_identifier_table;
+    NonnullOwnPtr<PropertyKeyTable> m_property_key_table;
     NonnullOwnPtr<RegexTable> m_regex_table;
     GC::RootVector<Value> m_constants;
 
@@ -436,7 +442,7 @@ private:
 
     GC::Ptr<SharedFunctionInstanceData const> m_shared_function_instance_data;
 
-    Optional<IdentifierTableIndex> m_length_identifier;
+    Optional<PropertyKeyTableIndex> m_length_identifier;
 };
 
 }

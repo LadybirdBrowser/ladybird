@@ -16,6 +16,7 @@
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Operand.h>
+#include <LibJS/Bytecode/PropertyKeyTable.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
@@ -69,6 +70,7 @@ public:
     Executable(
         Vector<u8> bytecode,
         NonnullOwnPtr<IdentifierTable>,
+        NonnullOwnPtr<PropertyKeyTable>,
         NonnullOwnPtr<StringTable>,
         NonnullOwnPtr<RegexTable>,
         Vector<Value> constants,
@@ -86,6 +88,7 @@ public:
     Vector<GlobalVariableCache> global_variable_caches;
     NonnullOwnPtr<StringTable> string_table;
     NonnullOwnPtr<IdentifierTable> identifier_table;
+    NonnullOwnPtr<PropertyKeyTable> property_key_table;
     NonnullOwnPtr<RegexTable> regex_table;
     Vector<Value> constants;
 
@@ -111,10 +114,11 @@ public:
     size_t local_index_base { 0 };
     size_t argument_index_base { 0 };
 
-    Optional<IdentifierTableIndex> length_identifier;
+    Optional<PropertyKeyTableIndex> length_identifier;
 
     Utf16String const& get_string(StringTableIndex index) const { return string_table->get(index); }
     Utf16FlyString const& get_identifier(IdentifierTableIndex index) const { return identifier_table->get(index); }
+    PropertyKey const& get_property_key(PropertyKeyTableIndex index) const { return property_key_table->get(index); }
 
     Optional<Utf16FlyString const&> get_identifier(Optional<IdentifierTableIndex> const& index) const
     {

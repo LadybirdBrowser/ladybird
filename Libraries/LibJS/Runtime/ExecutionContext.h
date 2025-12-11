@@ -92,6 +92,7 @@ public:
     GC::Ptr<Object> global_object;
     GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
     Utf16FlyString const* identifier_table { nullptr };
+    PropertyKey const* property_key_table { nullptr };
 
     u32 program_counter { 0 };
 

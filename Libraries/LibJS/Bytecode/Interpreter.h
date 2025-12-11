@@ -86,6 +86,8 @@ public:
         return get_identifier(*index);
     }
 
+    [[nodiscard]] PropertyKey const& get_property_key(PropertyKeyTableIndex) const;
+
 private:
     void run_bytecode(size_t entry_point);
 

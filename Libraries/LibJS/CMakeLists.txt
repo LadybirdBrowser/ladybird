@@ -12,6 +12,7 @@ set(SOURCES
     Bytecode/Instruction.cpp
     Bytecode/Interpreter.cpp
     Bytecode/Label.cpp
+    Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
     Bytecode/ScopedOperand.cpp
     Bytecode/StringTable.cpp
