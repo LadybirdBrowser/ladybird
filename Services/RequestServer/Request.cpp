@@ -154,6 +154,7 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
 
 void Request::transition_to_state(State state)
 {
+    dbgln_if(REQUESTSERVER_DEBUG, "Request::Transition[{}]: {} -> {} ({} {})", m_request_id, state_name(m_state), state_name(state), m_method, m_url);
     m_state = state;
     process();
 }
