@@ -83,14 +83,14 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
         return;
     }
 
-    auto data_callback = [=, weak_self = m_weak_self](Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count) -> ReadonlyBytes {
+    auto data_callback = [=, weak_self = m_weak_self](Span<float> buffer) -> ReadonlySpan<float> {
         auto self = weak_self->take_strong();
         if (!self)
             return buffer.trim(0);
-        return self->write_audio_data_to_playback_stream(sample_rate, channel_count, buffer, format, sample_count);
+        return self->write_audio_data_to_playback_stream(sample_rate, channel_count, buffer);
     };
     constexpr u32 target_latency_ms = 100;
-    m_playback_stream = MUST(Audio::PlaybackStream::create(Audio::OutputState::Suspended, sample_rate, channel_count, target_latency_ms, move(callback)));
+    m_playback_stream = MUST(Audio::PlaybackStream::create(Audio::OutputState::Suspended, sample_rate, channel_count, target_latency_ms, move(data_callback)));
     m_playback_stream_sample_rate = sample_rate;
     m_playback_stream_channel_count = channel_count;
 
@@ -100,21 +100,14 @@ void AudioMixingSink::create_playback_stream(u32 sample_rate, u32 channel_count)
     set_volume(m_volume);
 }
 
-ReadonlyBytes AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_rate, u32 channel_count, Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count)
+ReadonlySpan<float> AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_rate, u32 channel_count, Span<float> buffer)
 {
-    VERIFY(format == Audio::PcmSampleFormat::Float32);
-    VERIFY(!Checked<i64>::multiplication_would_overflow(sample_count, channel_count));
-    auto float_buffer_count = static_cast<i64>(sample_count) * channel_count;
-    auto float_buffer_size = float_buffer_count * sizeof(float);
-    VERIFY(buffer.size() >= float_buffer_size);
-    auto float_buffer = buffer.reinterpret<float>();
-    float_buffer.fill(0.0f);
+    VERIFY(buffer.size() > 0);
+
+    auto sample_count = buffer.size() / channel_count;
+    buffer.fill(0.0f);
 
     Threading::MutexLocker mixing_data_locker { m_mutex };
-
-    if (sample_rate != m_playback_stream_sample_rate || channel_count != m_playback_stream_channel_count)
-        return buffer.trim(0);
-
     auto buffer_start = m_next_sample_to_write.load();
 
     for (auto& [track, track_data] : m_track_mixing_datas) {
@@ -137,7 +130,6 @@ ReadonlyBytes AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_ra
 
         while (!track_data.current_block.is_empty()) {
             auto& current_block = track_data.current_block;
-            auto current_block_data_count = static_cast<i64>(current_block.data_count());
             auto current_block_sample_count = static_cast<i64>(current_block.sample_count());
 
             if (current_block.sample_rate() != sample_rate || current_block.channel_count() != channel_count) {
@@ -160,28 +152,33 @@ ReadonlyBytes AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_ra
 
             next_sample = max(next_sample, first_sample_offset);
 
-            auto index_in_block = (next_sample - first_sample_offset) * channel_count;
-            VERIFY(index_in_block < current_block_data_count);
-            auto index_in_buffer = (next_sample - buffer_start) * channel_count;
-            VERIFY(index_in_buffer < float_buffer_count);
-            auto write_count = current_block_data_count - index_in_block;
-            write_count = min(write_count, float_buffer_count - index_in_buffer);
+            VERIFY(next_sample >= first_sample_offset);
+            auto index_in_block = static_cast<size_t>((next_sample - first_sample_offset) * channel_count);
+            VERIFY(index_in_block < current_block.data_count());
+
+            VERIFY(next_sample >= buffer_start);
+            auto index_in_buffer = static_cast<size_t>((next_sample - buffer_start) * channel_count);
+            VERIFY(index_in_buffer < buffer.size());
+
+            VERIFY(current_block.data_count() >= index_in_block);
+            auto write_count = current_block.data_count() - index_in_block;
+            write_count = min(write_count, buffer.size() - index_in_buffer);
             VERIFY(write_count > 0);
-            VERIFY(index_in_buffer + write_count <= float_buffer_count);
+            VERIFY(index_in_buffer + write_count <= buffer.size());
             VERIFY(write_count % channel_count == 0);
 
-            for (i64 i = 0; i < write_count; i++)
-                float_buffer[index_in_buffer + i] += current_block.data()[index_in_block + i];
+            for (size_t i = 0; i < write_count; i++)
+                buffer[index_in_buffer + i] += current_block.data()[index_in_block + i];
 
             auto write_end = index_in_block + write_count;
-            if (write_end == current_block_data_count) {
+            if (write_end == current_block.data_count()) {
                 if (!go_to_next_block())
                     break;
                 continue;
             }
-            VERIFY(write_end < current_block_data_count);
+            VERIFY(write_end < current_block.data_count());
 
-            next_sample += write_count / channel_count;
+            next_sample += static_cast<i64>(write_count / channel_count);
             if (next_sample == samples_end)
                 break;
             VERIFY(next_sample < samples_end);
@@ -189,7 +186,7 @@ ReadonlyBytes AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_ra
     }
 
     m_next_sample_to_write += static_cast<i64>(sample_count);
-    return buffer.slice(0, float_buffer_size);
+    return buffer;
 }
 
 AK::Duration AudioMixingSink::current_time() const

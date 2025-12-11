@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -189,15 +190,14 @@ private:
                 task->reject(error);
         }
 
-        Bytes output_buffer {
-            reinterpret_cast<u8*>(output_buffer_list->mBuffers[0].mData),
-            output_buffer_list->mBuffers[0].mDataByteSize
-        };
+        auto& raw_buffer = output_buffer_list->mBuffers[0];
+        auto output_buffer = Bytes(reinterpret_cast<u8*>(raw_buffer.mData), raw_buffer.mDataByteSize).reinterpret<float>();
+        output_buffer = output_buffer.trim(static_cast<size_t>(frames_to_render) * state.m_description.mChannelsPerFrame);
 
         if (state.m_paused == Paused::No) {
-            auto written_bytes = state.m_data_request_callback(output_buffer, PcmSampleFormat::Float32, frames_to_render);
+            auto written_buffer = state.m_data_request_callback(output_buffer);
 
-            if (written_bytes.is_empty())
+            if (written_buffer.is_empty())
                 state.m_paused = Paused::Yes;
         }
 

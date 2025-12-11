@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2023-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,7 +28,7 @@ enum class OutputState {
 // Timing information provided by the class should allow audio timestamps to be tracked with the best accuracy possible.
 class MEDIA_API PlaybackStream : public AtomicRefCounted<PlaybackStream> {
 public:
-    using AudioDataRequestCallback = Function<ReadonlyBytes(Bytes buffer, PcmSampleFormat format, size_t sample_count)>;
+    using AudioDataRequestCallback = Function<ReadonlySpan<float>(Span<float> buffer)>;
 
     // Creates a new audio Output class.
     //

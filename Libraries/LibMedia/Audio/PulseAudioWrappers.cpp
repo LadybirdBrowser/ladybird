@@ -182,9 +182,9 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
     auto locker = main_loop_locker();
 
     VERIFY(get_connection_state() == PulseAudioContextState::Ready);
+
     pa_sample_spec sample_specification {
-        // FIXME: Support more audio sample types.
-        __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ? PA_SAMPLE_FLOAT32LE : PA_SAMPLE_FLOAT32BE,
+        PA_SAMPLE_FLOAT32LE,
         sample_rate,
         channels,
     };
@@ -347,7 +347,7 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
         auto buffer = begin_write(bytes_to_write).release_value_but_fixme_should_propagate_errors();
         auto frame_size = this->frame_size();
         VERIFY(buffer.size() % frame_size == 0);
-        auto written_buffer = m_write_callback(*this, buffer, buffer.size() / frame_size);
+        auto written_buffer = m_write_callback(*this, buffer.reinterpret<float>()).reinterpret<u8 const>();
         if (written_buffer.size() == 0) {
             cancel_write().release_value_but_fixme_should_propagate_errors();
             break;

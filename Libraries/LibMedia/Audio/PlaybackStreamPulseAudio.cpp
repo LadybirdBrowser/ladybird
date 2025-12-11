@@ -38,8 +38,8 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
     // Create the control thread and start it.
     auto thread = TRY(Threading::Thread::try_create([=, data_request_callback = move(data_request_callback)]() mutable {
         auto context = TRY_OR_EXIT_THREAD(PulseAudioContext::the());
-        internal_state->set_stream(TRY_OR_EXIT_THREAD(context->create_stream(initial_state, sample_rate, channels, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Bytes buffer, size_t sample_count) {
-            return data_request_callback(buffer, PcmSampleFormat::Float32, sample_count);
+        internal_state->set_stream(TRY_OR_EXIT_THREAD(context->create_stream(initial_state, sample_rate, channels, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
+            return data_request_callback(buffer);
         })));
 
         // PulseAudio retains the last volume it sets for an application. We want to consistently
