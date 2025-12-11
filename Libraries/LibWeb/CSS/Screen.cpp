@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,15 +41,48 @@ void Screen::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_orientation);
 }
 
-Gfx::IntRect Screen::screen_rect() const
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-width
+i32 Screen::width() const
 {
-    auto screen_rect_in_css_pixels = window().page().web_exposed_screen_area();
-    return {
-        screen_rect_in_css_pixels.x().to_int(),
-        screen_rect_in_css_pixels.y().to_int(),
-        screen_rect_in_css_pixels.width().to_int(),
-        screen_rect_in_css_pixels.height().to_int()
-    };
+    // The width attribute must return the width of the Web-exposed screen area.
+    return window().page().web_exposed_screen_area().width().to_int();
+}
+
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-height
+i32 Screen::height() const
+{
+    // The height attribute must return the height of the Web-exposed screen area.
+    return window().page().web_exposed_screen_area().height().to_int();
+}
+
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-availwidth
+i32 Screen::avail_width() const
+{
+    // The availWidth attribute must return the width of the Web-exposed available screen area.
+    return window().page().web_exposed_available_screen_area().width().to_int();
+}
+
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-availheight
+i32 Screen::avail_height() const
+{
+    // The availHeight attribute must return the height of the Web-exposed available screen area.
+    return window().page().web_exposed_available_screen_area().height().to_int();
+}
+
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-colordepth
+u32 Screen::color_depth() const
+{
+    // The colorDepth and pixelDepth attributes should return the number of bits allocated to colors for a pixel in
+    // the output device, excluding the alpha channel.
+    return 24;
+}
+
+// https://drafts.csswg.org/cssom-view-1/#dom-screen-pixeldepth
+u32 Screen::pixel_depth() const
+{
+    // The colorDepth and pixelDepth attributes should return the number of bits allocated to colors for a pixel in
+    // the output device, excluding the alpha channel.
+    return 24;
 }
 
 GC::Ref<ScreenOrientation> Screen::orientation()
