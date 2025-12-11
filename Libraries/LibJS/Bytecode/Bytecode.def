@@ -783,46 +783,6 @@ op PutPrototypeById < Instruction
     m_base_identifier: Optional<IdentifierTableIndex>
 endop
 
-op PutNormalByNumericId < Instruction
-    m_base: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutOwnByNumericId < Instruction
-    m_base: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutGetterByNumericId < Instruction
-    m_base: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutSetterByNumericId < Instruction
-    m_base: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
-op PutPrototypeByNumericId < Instruction
-    m_base: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-    m_base_identifier: Optional<IdentifierTableIndex>
-endop
-
 op PutNormalByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
@@ -859,46 +819,6 @@ op PutPrototypeByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
     m_property: PropertyKeyTableIndex
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutNormalByNumericIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutOwnByNumericIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutGetterByNumericIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutSetterByNumericIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: u32
-    m_src: Operand
-    m_cache_index: u32
-endop
-
-op PutPrototypeByNumericIdWithThis < Instruction
-    m_base: Operand
-    m_this_value: Operand
-    m_property: u32
     m_src: Operand
     m_cache_index: u32
 endop

@@ -1219,22 +1219,6 @@ void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand bas
 
 void Generator::emit_put_by_id(Operand base, PropertyKeyTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier)
 {
-    auto key = m_property_key_table->get(property);
-    if (key.is_number()) {
-        auto property_index = key.as_number();
-#define EMIT_PUT_BY_NUMERIC_ID(kind)                                                                     \
-    case PutKind::kind:                                                                                  \
-        emit<Op::Put##kind##ByNumericId>(base, property_index, src, cache_index, move(base_identifier)); \
-        break;
-        switch (kind) {
-            JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_NUMERIC_ID)
-        default:
-            VERIFY_NOT_REACHED();
-        }
-#undef EMIT_PUT_BY_NUMERIC_ID
-        return;
-    }
-
 #define EMIT_PUT_BY_ID(kind)                                                                \
     case PutKind::kind:                                                                     \
         emit<Op::Put##kind##ById>(base, property, src, cache_index, move(base_identifier)); \

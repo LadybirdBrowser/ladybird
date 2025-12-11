@@ -558,16 +558,12 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(PostfixIncrement);
 
 #define HANDLE_PUT_KIND_BY_ID(kind) HANDLE_INSTRUCTION(Put##kind##ById);
-#define HANDLE_PUT_KIND_BY_NUMERIC_ID(kind) HANDLE_INSTRUCTION(Put##kind##ByNumericId);
 #define HANDLE_PUT_KIND_BY_VALUE(kind) HANDLE_INSTRUCTION(Put##kind##ByValue);
 #define HANDLE_PUT_KIND_BY_VALUE_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByValueWithThis);
 #define HANDLE_PUT_KIND_BY_ID_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByIdWithThis);
-#define HANDLE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS(kind) HANDLE_INSTRUCTION(Put##kind##ByNumericIdWithThis);
 
             JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID)
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_NUMERIC_ID)
             JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_ID_WITH_THIS)
-            JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS)
             JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE)
             JS_ENUMERATE_PUT_KINDS(HANDLE_PUT_KIND_BY_VALUE_WITH_THIS)
 
@@ -2525,35 +2521,6 @@ ThrowCompletionOr<void> PutBySpread::execute_impl(Bytecode::Interpreter& interpr
     }
 
 JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID)
-
-#define DEFINE_PUT_KIND_BY_NUMERIC_ID(kind)                                                                      \
-    ThrowCompletionOr<void> Put##kind##ByNumericId::execute_impl(Bytecode::Interpreter& interpreter) const       \
-    {                                                                                                            \
-        auto& vm = interpreter.vm();                                                                             \
-        auto value = interpreter.get(m_src);                                                                     \
-        auto base = interpreter.get(m_base);                                                                     \
-        auto const& base_identifier = interpreter.get_identifier(m_base_identifier);                             \
-        PropertyKey name { m_property };                                                                         \
-        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                    \
-        TRY(put_by_property_key<PutKind::kind>(vm, base, base, value, base_identifier, name, strict(), &cache)); \
-        return {};                                                                                               \
-    }
-
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_NUMERIC_ID)
-
-#define DEFINE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS(kind)                                                                        \
-    ThrowCompletionOr<void> Put##kind##ByNumericIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const           \
-    {                                                                                                                        \
-        auto& vm = interpreter.vm();                                                                                         \
-        auto value = interpreter.get(m_src);                                                                                 \
-        auto base = interpreter.get(m_base);                                                                                 \
-        PropertyKey name { m_property };                                                                                     \
-        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                                \
-        TRY(put_by_property_key<PutKind::kind>(vm, base, interpreter.get(m_this_value), value, {}, name, strict(), &cache)); \
-        return {};                                                                                                           \
-    }
-
-JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_NUMERIC_ID_WITH_THIS)
 
 #define DEFINE_PUT_KIND_BY_ID_WITH_THIS(kind)                                                                                \
     ThrowCompletionOr<void> Put##kind##ByIdWithThis::execute_impl(Bytecode::Interpreter& interpreter) const                  \
