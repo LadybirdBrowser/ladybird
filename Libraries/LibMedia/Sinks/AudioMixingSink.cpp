@@ -141,6 +141,8 @@ ReadonlyBytes AudioMixingSink::write_audio_data_to_playback_stream(u32 sample_ra
             auto current_block_sample_count = static_cast<i64>(current_block.sample_count());
 
             if (current_block.sample_rate() != sample_rate || current_block.channel_count() != channel_count) {
+                if (!go_to_next_block())
+                    break;
                 current_block.clear();
                 continue;
             }
