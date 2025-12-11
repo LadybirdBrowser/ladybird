@@ -31,6 +31,9 @@ public:
     virtual bool is_playing() = 0;
     virtual PlaybackState state() = 0;
 
+    virtual void enter_buffering() = 0;
+    virtual void exit_buffering() = 0;
+
 protected:
     PlaybackManager& manager() const { return m_manager; }
 

@@ -68,6 +68,11 @@ void VideoDataProvider::start()
     m_thread_data->start();
 }
 
+void VideoDataProvider::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    m_thread_data->set_frames_queue_is_full_handler(move(handler));
+}
+
 TimedImage VideoDataProvider::retrieve_frame()
 {
     auto locker = m_thread_data->take_lock();
@@ -93,6 +98,11 @@ VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopRefer
 {
 }
 
+bool VideoDataProvider::is_blocked() const
+{
+    return m_thread_data->is_blocked();
+}
+
 VideoDataProvider::ThreadData::~ThreadData() = default;
 
 void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
@@ -112,6 +122,11 @@ void VideoDataProvider::ThreadData::start()
 void VideoDataProvider::ThreadData::set_frame_end_time_handler(FrameEndTimeHandler&& handler)
 {
     m_frame_end_time_handler = move(handler);
+}
+
+void VideoDataProvider::ThreadData::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
+{
+    m_frames_queue_is_full_handler = move(handler);
 }
 
 void VideoDataProvider::ThreadData::exit()
@@ -466,6 +481,12 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             }();
 
             while (queue_size >= m_queue_max_size) {
+                if (m_frames_queue_is_full_handler) {
+                    invoke_on_main_thread([](auto const& self) {
+                        self->m_frames_queue_is_full_handler();
+                    });
+                }
+
                 if (handle_seek())
                     return;
 
@@ -482,6 +503,11 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             queue_frame(TimedImage(frame->timestamp(), bitmap_result.release_value()));
         }
     }
+}
+
+bool VideoDataProvider::ThreadData::is_blocked() const
+{
+    return m_stream_cursor->is_blocked();
 }
 
 }

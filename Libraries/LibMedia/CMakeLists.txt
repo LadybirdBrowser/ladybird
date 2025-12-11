@@ -13,6 +13,7 @@ set(SOURCES
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp
     PlaybackStates/PlaybackStateHandler.cpp
+    PlaybackStates/PlayingStateHandler.cpp
     Providers/AudioDataProvider.cpp
     Providers/GenericTimeProvider.cpp
     Providers/VideoDataProvider.cpp

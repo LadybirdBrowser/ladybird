@@ -48,12 +48,15 @@ public:
         void abort();
         void reset_abort() { m_aborted = false; }
 
+        bool is_blocked() const { return m_blocked; }
+
     private:
         friend class IncrementallyPopulatedStream;
 
         NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
         size_t m_position { 0 };
         Atomic<bool> m_aborted { false };
+        Atomic<bool> m_blocked { false };
     };
 
     auto create_cursor()

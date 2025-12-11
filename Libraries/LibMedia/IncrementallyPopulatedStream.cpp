@@ -45,7 +45,9 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& consumer, s
 {
     Threading::MutexLocker locker { m_mutex };
     while (position + bytes.size() > m_buffer.size() && !m_closed && !consumer.m_aborted) {
+        consumer.m_blocked = true;
         m_state_changed.wait();
+        consumer.m_blocked = false;
     }
 
     if (consumer.m_aborted)
