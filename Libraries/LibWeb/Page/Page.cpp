@@ -123,6 +123,27 @@ CSSPixelRect Page::web_exposed_screen_area() const
     };
 }
 
+// https://drafts.csswg.org/cssom-view-1/#web-exposed-available-screen-area
+CSSPixelRect Page::web_exposed_available_screen_area() const
+{
+    // FIXME: 1. Let target be this’s relevant global object’s browsing context.
+    // FIXME: 2. Let emulated screen area be the WebDriver BiDi emulated total screen area of target.
+    // FIXME: 3. If emulated screen area is not null, return emulated screen area.
+
+    // 4. Otherwise, return one of the following:
+    //    - The available area of the rendering surface of the output device, in CSS pixels.
+    //    - The area of the output device, in CSS pixels.
+    //    - The area of the viewport, in CSS pixels.
+    // NB: This is the area of the output device, but in device pixels. See note in web_exposed_screen_area()
+    auto device_pixel_rect = m_client->screen_rect();
+    return {
+        device_pixel_rect.x().value(),
+        device_pixel_rect.y().value(),
+        device_pixel_rect.width().value(),
+        device_pixel_rect.height().value()
+    };
+}
+
 CSS::PreferredColorScheme Page::preferred_color_scheme() const
 {
     auto preferred_color_scheme = m_client->preferred_color_scheme();

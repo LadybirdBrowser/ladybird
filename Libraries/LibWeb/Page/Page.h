@@ -108,6 +108,7 @@ public:
 
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;
+    CSSPixelRect web_exposed_available_screen_area() const;
     CSS::PreferredColorScheme preferred_color_scheme() const;
     CSS::PreferredContrast preferred_contrast() const;
     CSS::PreferredMotion preferred_motion() const;
