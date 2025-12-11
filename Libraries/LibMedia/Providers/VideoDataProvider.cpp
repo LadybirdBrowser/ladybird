@@ -317,7 +317,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
             if (coded_frame_result.is_error()) {
                 if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                     if (mode == SeekMode::FastAfter) {
-                        // If we're fast seeking after the provided timestamp and reach the end of the stream, that means we
+                        // If we're fast seeking after the provided timestamp and reach the end of the stream, that means we have
                         // nothing to display. Restart the seek as an accurate seek.
                         auto locker = take_lock();
                         seek_id = ++m_seek_id;
