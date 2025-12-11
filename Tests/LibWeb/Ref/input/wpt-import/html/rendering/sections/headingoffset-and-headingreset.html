@@ -1,0 +1,75 @@
+<!doctype html>
+<meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<link rel="help" href="https://github.com/whatwg/html/pull/11086" />
+<link rel="match" href="../../../../../expected/wpt-import/html/rendering/sections/headingoffset-and-headingreset-ref.html">
+<title>Test :heading default styles</title>
+<style>
+  :heading(1)::after { content: 'h1' }
+  :heading(2)::after { content: 'h2' }
+  :heading(3)::after { content: 'h3' }
+  :heading(4)::after { content: 'h4' }
+  :heading(5)::after { content: 'h5' }
+  :heading(6)::after { content: 'h6' }
+  :heading(7)::after { content: 'h7' }
+  :heading(8)::after { content: 'h8' }
+  :heading(9)::after { content: 'h9' }
+</style>
+<div>
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <h6 headingoffset=1></h6>
+  <h6 headingoffset=2></h6>
+  <h6 headingoffset=3></h6>
+</div>
+<hr>
+<div headingoffset=2>
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <h6 headingoffset=1></h6>
+  <h6 headingoffset=2></h6>
+  <h6 headingoffset=3></h6>
+</div>
+<hr>
+<div headingoffset=4>
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <h6 headingoffset=1></h6>
+  <h6 headingoffset=2></h6>
+  <h6 headingoffset=3></h6>
+</div>
+<hr>
+<div headingoffset=6>
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <h6 headingoffset=1></h6>
+  <h6 headingoffset=2></h6>
+  <h6 headingoffset=3></h6>
+</div>
+<hr>
+<div headingoffset=8>
+  <h1></h1>
+  <h2></h2>
+  <h3></h3>
+  <h4></h4>
+  <h5></h5>
+  <h6></h6>
+  <h6 headingoffset=1></h6>
+  <h6 headingoffset=2></h6>
+  <h6 headingoffset=3></h6>
+</div>

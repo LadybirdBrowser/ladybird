@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
 
 namespace Web::HTML {
@@ -51,6 +53,17 @@ void HTMLHeadingElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropert
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::KeywordStyleValue::create(CSS::Keyword::Justify));
         }
     });
+}
+
+// https://html.spec.whatwg.org/multipage/sections.html#heading-level
+WebIDL::UnsignedLong HTMLHeadingElement::heading_level() const
+{
+    // h1–h6 elements have a heading level, which is given by getting the element's computed heading level.
+    if (m_dom_tree_version_for_cached_heading_level < document().dom_tree_version()) {
+        m_dom_tree_version_for_cached_heading_level = document().dom_tree_version();
+        m_cached_heading_level = computed_heading_level();
+    }
+    return m_cached_heading_level;
 }
 
 }
