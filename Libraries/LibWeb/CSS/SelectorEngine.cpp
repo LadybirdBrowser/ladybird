@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/HTMLHeadingElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -1026,32 +1027,13 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-heading-functional
         // The :heading(integer#) pseudo-class must match all h1, h2, h3, h4, h5, and h6 elements that have a heading level of integer. [CSSSYNTAX] [CSSVALUES]
 
-        // NB: We combine the "is this an h* element?" and "what is it's level?" checks together here.
-        if (!element.is_html_element())
-            return false;
-        auto heading_level = [](auto& local_name) -> Optional<int> {
-            if (local_name == HTML::TagNames::h1)
-                return 1;
-            if (local_name == HTML::TagNames::h2)
-                return 2;
-            if (local_name == HTML::TagNames::h3)
-                return 3;
-            if (local_name == HTML::TagNames::h4)
-                return 4;
-            if (local_name == HTML::TagNames::h5)
-                return 5;
-            if (local_name == HTML::TagNames::h6)
-                return 6;
-            return {};
-        }(element.lowercased_local_name());
+        if (auto const* heading_element = as_if<HTML::HTMLHeadingElement>(element)) {
+            if (pseudo_class.levels.is_empty())
+                return true;
+            return pseudo_class.levels.contains_slow(heading_element->heading_level());
+        }
 
-        if (!heading_level.has_value())
-            return false;
-
-        if (pseudo_class.levels.is_empty())
-            return true;
-
-        return pseudo_class.levels.contains_slow(heading_level.value());
+        return false;
     }
     }
 
