@@ -295,12 +295,10 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
     TODO();
 }
 
-void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
+void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
-    auto connect_only_request_id = get_random<u64>();
-
-    auto request = Request::connect(connect_only_request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
-    m_active_requests.set(connect_only_request_id, move(request));
+    auto request = Request::connect(request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
+    m_active_requests.set(request_id, move(request));
 }
 
 void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since)

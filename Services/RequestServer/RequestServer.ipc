@@ -20,7 +20,7 @@ endpoint RequestServer
     stop_request(u64 request_id) => (bool success)
     set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 
-    ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) =|
+    ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
     estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
     remove_cache_entries_accessed_since(UnixDateTime since) =|
