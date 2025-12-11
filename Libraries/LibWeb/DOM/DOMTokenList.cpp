@@ -70,7 +70,14 @@ DOMTokenList::DOMTokenList(Element& associated_element, FlyString associated_att
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 
-    associated_attribute_changed(associated_element.get_attribute_value(m_associated_attribute));
+    // When a DOMTokenList object set is created:
+    // 1. Let element be set’s element.
+    // 2. Let attributeName be set’s attribute name.
+    // 3. Let value be the result of getting an attribute value given element and attributeName.
+    auto value = m_associated_element->get_attribute_value(m_associated_attribute);
+
+    // 4. Run the attribute change steps for element, attributeName, value, value, and null.
+    associated_attribute_changed(value);
 }
 
 void DOMTokenList::initialize(JS::Realm& realm)
@@ -88,14 +95,14 @@ void DOMTokenList::visit_edges(Cell::Visitor& visitor)
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A1
 void DOMTokenList::associated_attribute_changed(StringView value)
 {
+    // 1. If localName is set’s attribute name, namespace is null, and value is null, then empty token set.
+    // 2. Otherwise, if localName is set’s attribute name and namespace is null, then set set’s token set to value,
+    //    parsed.
+    // AD-HOC: The caller is responsible for checking the name and namespace.
     m_token_set.clear();
-
     if (value.is_empty())
         return;
-
-    auto split_values = value.split_view_if(Infra::is_ascii_whitespace);
-    for (auto const& split_value : split_values)
-        append_to_ordered_set(m_token_set, String::from_utf8(split_value).release_value_but_fixme_should_propagate_errors());
+    m_token_set = parse_ordered_set(value);
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-item
@@ -208,28 +215,43 @@ WebIDL::ExceptionOr<bool> DOMTokenList::replace(String const& token, String cons
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-supports
-// https://dom.spec.whatwg.org/#concept-domtokenlist-validation
 WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
 {
-    // https://html.spec.whatwg.org/multipage/links.html#linkTypes
-    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
+    // 1. Let result be the return value of validation steps called with token.
+    auto result = run_validation_steps(token);
+
+    // 2. Return result.
+    return result;
+}
+
+// https://dom.spec.whatwg.org/#concept-domtokenlist-validation
+WebIDL::ExceptionOr<bool> DOMTokenList::run_validation_steps(StringView token)
+{
     static HashMap<SupportedTokenKey, Vector<StringView>> supported_tokens_map = {
-        { { HTML::TagNames::link, HTML::AttributeNames::rel }, { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
-        { { HTML::TagNames::a, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::area, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::form, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
-        { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox }, { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
+        // https://html.spec.whatwg.org/multipage/links.html#linkTypes
+        { { HTML::TagNames::link, HTML::AttributeNames::rel },
+            { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
+        { { HTML::TagNames::a, HTML::AttributeNames::rel },
+            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+        { { HTML::TagNames::area, HTML::AttributeNames::rel },
+            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+        { { HTML::TagNames::form, HTML::AttributeNames::rel },
+            { "noreferrer"sv, "noopener"sv, "opener"sv } },
+
+        // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
+        { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox },
+            { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
     };
 
-    // 1. If the associated attribute’s local name does not define supported tokens, throw a TypeError.
+    // 1. If set’s element and attribute name does not define supported tokens, then throw a TypeError.
     auto supported_tokens = supported_tokens_map.get({ m_associated_element->local_name(), m_associated_attribute });
     if (!supported_tokens.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute)) };
 
-    // 2. Let lowercase token be a copy of token, in ASCII lowercase.
+    // 2. Let lowercaseToken be token, in ASCII lowercase.
     auto lowercase_token = token.to_ascii_lowercase_string();
 
-    // 3. If lowercase token is present in supported tokens, return true.
+    // 3. If lowercaseToken is present in the supported tokens of set’s element and attribute name, then return true.
     if (supported_tokens->contains_slow(lowercase_token))
         return true;
 
@@ -237,12 +259,28 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
     return false;
 }
 
+// https://dom.spec.whatwg.org/#concept-ordered-set-parser
+Vector<String> DOMTokenList::parse_ordered_set(StringView input) const
+{
+    // 1. Let inputTokens be the result of splitting input on ASCII whitespace.
+    auto split_values = input.split_view_if(Infra::is_ascii_whitespace);
+
+    // 2. Let tokens be a new ordered set.
+    Vector<String> tokens;
+
+    // 3. For each token of inputTokens: append token to tokens.
+    for (auto const& split_value : split_values)
+        append_to_ordered_set(tokens, MUST(String::from_utf8(split_value)));
+
+    // 4. Return tokens.
+    return tokens;
+}
+
 // https://dom.spec.whatwg.org/#concept-ordered-set-serializer
 String DOMTokenList::serialize_ordered_set() const
 {
-    StringBuilder builder;
-    builder.join(' ', m_token_set);
-    return MUST(builder.to_string());
+    // The ordered set serializer takes a set and returns the concatenation of set using U+0020 SPACE.
+    return MUST(String::join(' ', m_token_set));
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-value
@@ -289,11 +327,13 @@ void DOMTokenList::run_update_steps()
     if (!associated_element)
         return;
 
-    // 1. If the associated element does not have an associated attribute and token set is empty, then return.
-    if (!associated_element->has_attribute(m_associated_attribute) && m_token_set.is_empty())
+    // 1. If get an attribute by namespace and local name given null, set’s attribute name, and set’s element returns null and set’s token set is empty, then return.
+    auto attribute = associated_element->get_attribute_ns({}, m_associated_attribute);
+    if (!attribute.has_value() && m_token_set.is_empty())
         return;
 
-    // 2. Set an attribute value for the associated element using associated attribute’s local name and the result of running the ordered set serializer for token set.
+    // 2. Set an attribute value given set’s element, set’s attribute name, and the result of running the ordered set
+    //    serializer for set’s token set.
     associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
 }
 
