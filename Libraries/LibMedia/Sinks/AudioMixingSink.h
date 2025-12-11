@@ -77,7 +77,7 @@ private:
 
     void deferred_create_playback_stream(Track const& track);
     void create_playback_stream(u32 sample_rate, u32 channel_count);
-    ReadonlyBytes write_audio_data_to_playback_stream(Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count);
+    ReadonlyBytes write_audio_data_to_playback_stream(u32 sample_rate, u32 channel_count, Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count);
 
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
