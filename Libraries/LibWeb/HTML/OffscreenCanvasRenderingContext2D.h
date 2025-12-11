@@ -12,6 +12,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -135,16 +136,22 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual Gfx::Painter* painter_for_canvas_state() override
-    {
-        dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::painter_for_canvas_state()");
-        return nullptr;
-    }
+    virtual Gfx::Painter* painter_for_canvas_state() override { return painter(); }
     virtual Gfx::Path& path_for_canvas_state() override { return path(); }
+
+    void did_draw(Gfx::FloatRect const&);
+    [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
+    [[nodiscard]] Gfx::Path text_path(Utf16String const&, float x, float y, Optional<double> max_width);
+    void fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void stroke_internal(Gfx::Path const&);
+    Gfx::Color clear_color() const;
+    RefPtr<Gfx::FontCascadeList const> font_cascade_list();
 
     GC::Ref<OffscreenCanvas> m_canvas;
     Gfx::IntSize m_size;
     CanvasRenderingContext2DSettings m_context_attributes;
+    RefPtr<Gfx::PaintingSurface> m_surface;
+    OwnPtr<Gfx::Painter> m_painter;
 };
 
 }

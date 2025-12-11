@@ -5,9 +5,12 @@
  */
 
 #include <AK/OwnPtr.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PainterSkia.h>
+#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/TextLayout.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/OffscreenCanvasRenderingContext2DPrototype.h>
@@ -67,6 +70,8 @@ void OffscreenCanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
     if (m_size == size)
         return;
     m_size = size;
+    m_surface = nullptr;
+    m_painter = nullptr;
 }
 
 GC::Ref<OffscreenCanvas> OffscreenCanvasRenderingContext2D::canvas()
@@ -85,19 +90,28 @@ OffscreenCanvas const& OffscreenCanvasRenderingContext2D::canvas_element() const
     return *m_canvas;
 }
 
-void OffscreenCanvasRenderingContext2D::fill_rect(float, float, float, float)
+void OffscreenCanvasRenderingContext2D::fill_rect(float x, float y, float width, float height)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill_rect()");
+    fill_internal(rect_path(x, y, width, height), Gfx::WindingRule::EvenOdd);
 }
 
-void OffscreenCanvasRenderingContext2D::clear_rect(float, float, float, float)
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clearrect
+void OffscreenCanvasRenderingContext2D::clear_rect(float x, float y, float width, float height)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::clear_rect()");
+    // 1. If any of the arguments are infinite or NaN, then return.
+    if (!isfinite(x) || !isfinite(y) || !isfinite(width) || !isfinite(height))
+        return;
+
+    if (auto* painter = this->painter()) {
+        auto rect = Gfx::FloatRect(x, y, width, height);
+        painter->clear_rect(rect, clear_color());
+        did_draw(rect);
+    }
 }
 
-void OffscreenCanvasRenderingContext2D::stroke_rect(float, float, float, float)
+void OffscreenCanvasRenderingContext2D::stroke_rect(float x, float y, float width, float height)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke_rect()");
+    stroke_internal(rect_path(x, y, width, height));
 }
 
 WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::draw_image_internal(CanvasImageSource const&, float, float, float, float, float, float, float, float)
@@ -108,37 +122,54 @@ WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::draw_image_internal
 
 void OffscreenCanvasRenderingContext2D::begin_path()
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::begin_path()");
+    path().clear();
 }
 
 void OffscreenCanvasRenderingContext2D::stroke()
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke()");
+    stroke_internal(path());
 }
 
-void OffscreenCanvasRenderingContext2D::stroke(Path2D const&)
+void OffscreenCanvasRenderingContext2D::stroke(Path2D const& path2d)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke(Path2D)");
+    stroke_internal(path2d.path());
 }
 
-void OffscreenCanvasRenderingContext2D::fill_text(Utf16String const&, float, float, Optional<double>)
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
+void OffscreenCanvasRenderingContext2D::fill_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill_text()");
+    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
+        return;
+
+    fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
 }
 
-void OffscreenCanvasRenderingContext2D::stroke_text(Utf16String const&, float, float, Optional<double>)
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext
+void OffscreenCanvasRenderingContext2D::stroke_text(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::stroke_text()");
+    if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
+        return;
+
+    stroke_internal(text_path(text, x, y, max_width));
 }
 
-void OffscreenCanvasRenderingContext2D::fill(StringView)
+static Gfx::WindingRule parse_fill_rule(StringView fill_rule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(StringView)");
+    if (fill_rule == "evenodd"sv)
+        return Gfx::WindingRule::EvenOdd;
+    if (fill_rule == "nonzero"sv)
+        return Gfx::WindingRule::Nonzero;
+    return Gfx::WindingRule::Nonzero;
 }
 
-void OffscreenCanvasRenderingContext2D::fill(Path2D&, StringView)
+void OffscreenCanvasRenderingContext2D::fill(StringView fill_rule)
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::fill(Path2D&, StringView)");
+    fill_internal(path(), parse_fill_rule(fill_rule));
+}
+
+void OffscreenCanvasRenderingContext2D::fill(Path2D& path2d, StringView fill_rule)
+{
+    fill_internal(path2d.path(), parse_fill_rule(fill_rule));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
@@ -169,9 +200,28 @@ WebIDL::ExceptionOr<void> OffscreenCanvasRenderingContext2D::put_image_data(Imag
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
 void OffscreenCanvasRenderingContext2D::reset_to_default_state()
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::reset_to_default_state()");
+    auto bitmap = m_canvas->bitmap();
+
+    // 1. Clear canvas's bitmap to transparent black.
+    if (bitmap && painter()) {
+        m_painter->clear_rect(bitmap->rect().to_type<float>(), clear_color());
+    }
+
+    // 2. Empty the list of subpaths in context's current default path.
+    path().clear();
+
+    // 3. Clear the context's drawing state stack.
+    clear_drawing_state_stack();
+
+    // 4. Reset everything that drawing state consists of to their initial values.
+    reset_drawing_state();
+
+    if (bitmap && m_painter) {
+        m_painter->reset();
+    }
 }
 
 GC::Ref<TextMetrics> OffscreenCanvasRenderingContext2D::measure_text(Utf16String const&)
@@ -336,8 +386,169 @@ void OffscreenCanvasRenderingContext2D::set_global_composite_operation(String)
 
 [[nodiscard]] Gfx::Painter* OffscreenCanvasRenderingContext2D::painter()
 {
-    dbgln("(STUBBED) OffscreenCanvasRenderingContext2D::painter()");
-    return nullptr;
+    auto bitmap = m_canvas->bitmap();
+    if (!bitmap)
+        return nullptr;
+
+    if (!m_surface || m_surface->size() != bitmap->size()) {
+        m_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
+        m_painter = nullptr;
+    }
+
+    if (!m_painter) {
+        m_painter = make<Gfx::PainterSkia>(*m_surface);
+    }
+
+    return m_painter.ptr();
+}
+
+void OffscreenCanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
+{
+}
+
+Gfx::Color OffscreenCanvasRenderingContext2D::clear_color() const
+{
+    return m_context_attributes.alpha ? Gfx::Color::Transparent : Gfx::Color::Black;
+}
+
+Gfx::Path OffscreenCanvasRenderingContext2D::rect_path(float x, float y, float width, float height)
+{
+    auto top_left = Gfx::FloatPoint(x, y);
+    auto top_right = Gfx::FloatPoint(x + width, y);
+    auto bottom_left = Gfx::FloatPoint(x, y + height);
+    auto bottom_right = Gfx::FloatPoint(x + width, y + height);
+
+    Gfx::Path path;
+    path.move_to(top_left);
+    path.line_to(top_right);
+    path.line_to(bottom_right);
+    path.line_to(bottom_left);
+    path.line_to(top_left);
+    return path;
+}
+
+void OffscreenCanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+{
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto& state = this->drawing_state();
+    auto paint_style = state.fill_style.to_gfx_paint_style();
+    if (!paint_style->is_visible())
+        return;
+
+    painter->fill_path(path, paint_style, state.filter, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
+
+    did_draw(path.bounding_box());
+}
+
+void OffscreenCanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
+{
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto& state = drawing_state();
+    auto paint_style = state.stroke_style.to_gfx_paint_style();
+    if (!paint_style->is_visible())
+        return;
+
+    auto line_cap = [](Bindings::CanvasLineCap const& cap_style) -> Gfx::Path::CapStyle {
+        switch (cap_style) {
+        case Bindings::CanvasLineCap::Butt:
+            return Gfx::Path::CapStyle::Butt;
+        case Bindings::CanvasLineCap::Round:
+            return Gfx::Path::CapStyle::Round;
+        case Bindings::CanvasLineCap::Square:
+            return Gfx::Path::CapStyle::Square;
+        }
+        VERIFY_NOT_REACHED();
+    }(state.line_cap);
+
+    auto line_join = [](Bindings::CanvasLineJoin const& join_style) -> Gfx::Path::JoinStyle {
+        switch (join_style) {
+        case Bindings::CanvasLineJoin::Round:
+            return Gfx::Path::JoinStyle::Round;
+        case Bindings::CanvasLineJoin::Bevel:
+            return Gfx::Path::JoinStyle::Bevel;
+        case Bindings::CanvasLineJoin::Miter:
+            return Gfx::Path::JoinStyle::Miter;
+        }
+        VERIFY_NOT_REACHED();
+    }(state.line_join);
+
+    Vector<float> dash_array;
+    dash_array.ensure_capacity(state.dash_list.size());
+    for (auto const& dash : state.dash_list) {
+        dash_array.append(static_cast<float>(dash));
+    }
+
+    painter->stroke_path(path, paint_style, state.filter, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator, line_cap, line_join, state.miter_limit, dash_array, state.line_dash_offset);
+
+    did_draw(path.bounding_box());
+}
+
+RefPtr<Gfx::FontCascadeList const> OffscreenCanvasRenderingContext2D::font_cascade_list()
+{
+    // When font style value is empty load default font
+    if (!drawing_state().font_style_value) {
+        set_font("10px sans-serif"sv);
+    }
+
+    return drawing_state().current_font_cascade_list;
+}
+
+Gfx::Path OffscreenCanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)
+{
+    if (max_width.has_value() && max_width.value() <= 0)
+        return {};
+
+    auto& drawing_state = this->drawing_state();
+
+    auto const& font_cascade_list = this->font_cascade_list();
+    if (!font_cascade_list)
+        return {};
+    auto const& font = font_cascade_list->first();
+    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list);
+    Gfx::Path path;
+    for (auto const& glyph_run : glyph_runs) {
+        path.glyph_run(glyph_run);
+    }
+
+    auto text_width = path.bounding_box().width();
+    Gfx::AffineTransform transform = {};
+
+    if (max_width.has_value() && text_width > float(*max_width)) {
+        auto horizontal_scale = float(*max_width) / text_width;
+        transform = Gfx::AffineTransform {}.scale({ horizontal_scale, 1 });
+        text_width *= horizontal_scale;
+    }
+
+    bool is_rtl = drawing_state.direction == Bindings::CanvasDirection::Rtl;
+
+    if (drawing_state.text_align == Bindings::CanvasTextAlign::Center) {
+        transform = Gfx::AffineTransform {}.set_translation({ -text_width / 2, 0 }).multiply(transform);
+    } else if (drawing_state.text_align == Bindings::CanvasTextAlign::Start) {
+        if (is_rtl) {
+            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
+        }
+    } else if (drawing_state.text_align == Bindings::CanvasTextAlign::End) {
+        if (!is_rtl) {
+            transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
+        }
+    } else if (drawing_state.text_align == Bindings::CanvasTextAlign::Right) {
+        transform = Gfx::AffineTransform {}.set_translation({ -text_width, 0 }).multiply(transform);
+    }
+
+    if (drawing_state.text_baseline == Bindings::CanvasTextBaseline::Middle) {
+        transform = Gfx::AffineTransform {}.set_translation({ 0, font.pixel_size() / 2 }).multiply(transform);
+    }
+    if (drawing_state.text_baseline == Bindings::CanvasTextBaseline::Top || drawing_state.text_baseline == Bindings::CanvasTextBaseline::Hanging) {
+        transform = Gfx::AffineTransform {}.set_translation({ 0, font.pixel_size() }).multiply(transform);
+    }
+
+    return path.copy_transformed(transform);
 }
 
 }
