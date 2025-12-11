@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2023-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
+#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Export.h>
 #include <pulse/pulseaudio.h>
 
@@ -63,7 +64,9 @@ public:
     bool connection_is_good();
     PulseAudioErrorCode get_last_error();
 
-    ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState initial_state, u32 sample_rate, u8 channels, u32 target_latency_ms, PulseAudioDataRequestCallback write_callback);
+    void request_device_sample_specification();
+
+    ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
 
 private:
     friend class PulseAudioStream;
@@ -73,6 +76,8 @@ private:
     pa_threaded_mainloop* m_main_loop { nullptr };
     pa_mainloop_api* m_api { nullptr };
     pa_context* m_context;
+
+    SampleSpecification m_device_sample_specification;
 };
 
 enum class PulseAudioStreamState {
@@ -96,6 +101,7 @@ public:
     // has been written yet.
     void set_underrun_callback(Function<void()>);
 
+    SampleSpecification sample_specification();
     u32 sample_rate();
     size_t sample_size();
     size_t frame_size();
@@ -136,6 +142,7 @@ private:
 
     NonnullRefPtr<PulseAudioContext> m_context;
     pa_stream* m_stream { nullptr };
+    SampleSpecification m_sample_specification;
     bool m_started_playback { false };
     PulseAudioDataRequestCallback m_write_callback { nullptr };
     // Determines whether we will allow the write callback to run. This should only be true
@@ -177,5 +184,8 @@ enum class PulseAudioErrorCode {
 };
 
 StringView pulse_audio_error_to_string(PulseAudioErrorCode code);
+
+ErrorOr<Audio::ChannelMap> pulse_audio_channel_map_to_channel_map(pa_channel_map const&);
+ErrorOr<pa_channel_map> channel_map_to_pulse_audio_channel_map(Audio::ChannelMap const&);
 
 }

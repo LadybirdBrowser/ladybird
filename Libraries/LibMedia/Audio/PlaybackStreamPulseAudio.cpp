@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2023-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,12 +22,12 @@ namespace Audio {
         __temporary_result.release_value();                                                                  \
     })
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&& sample_specification_selected_callback, AudioDataRequestCallback&& data_request_callback)
 {
-    return PlaybackStreamPulseAudio::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
+    return PlaybackStreamPulseAudio::create(initial_output_state, target_latency_ms, move(sample_specification_selected_callback), move(data_request_callback));
 }
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputState initial_state, u32 sample_rate, u8 channels, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputState initial_state, u32 target_latency_ms, SampleSpecificationCallback&& sample_specification_selected_callback, AudioDataRequestCallback&& data_request_callback)
 {
     VERIFY(data_request_callback);
 
@@ -36,11 +36,13 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
     auto playback_stream = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamPulseAudio(internal_state)));
 
     // Create the control thread and start it.
-    auto thread = TRY(Threading::Thread::try_create([=, data_request_callback = move(data_request_callback)]() mutable {
+    auto thread = TRY(Threading::Thread::try_create([=, sample_specification_selected_callback = move(sample_specification_selected_callback), data_request_callback = move(data_request_callback)]() mutable {
         auto context = TRY_OR_EXIT_THREAD(PulseAudioContext::the());
-        internal_state->set_stream(TRY_OR_EXIT_THREAD(context->create_stream(initial_state, sample_rate, channels, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
+        internal_state->set_stream(TRY_OR_EXIT_THREAD(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
             return data_request_callback(buffer);
         })));
+
+        sample_specification_selected_callback(internal_state->stream()->sample_specification());
 
         // PulseAudio retains the last volume it sets for an application. We want to consistently
         // start at 100% volume instead.

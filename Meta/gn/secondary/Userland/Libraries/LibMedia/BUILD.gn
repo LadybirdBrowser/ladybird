@@ -39,7 +39,10 @@ shared_library("LibMedia") {
   }
   if (current_os == "mac") {
     sources += [ "Audio/PlaybackStreamAudioUnit.cpp" ]
-    frameworks = [ "AudioUnit.framework" ]
+    frameworks = [
+      "AudioToolbox.framework",
+      "AudioUnit.framework",
+    ]
   }
   deps = [
     "//AK",
