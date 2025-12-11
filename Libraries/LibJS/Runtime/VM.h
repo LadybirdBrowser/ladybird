@@ -58,7 +58,7 @@ public:
     static NonnullRefPtr<VM> create();
     ~VM();
 
-    static VM& the();
+    ALWAYS_INLINE static VM& the() { return *s_the; }
 
     GC::Heap& heap() const { return const_cast<GC::Heap&>(m_heap); }
 

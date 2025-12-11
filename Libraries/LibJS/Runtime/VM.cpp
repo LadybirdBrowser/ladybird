@@ -40,11 +40,6 @@ namespace JS {
 VM* VM::s_the = nullptr;
 static size_t s_vm_count = 0;
 
-VM& VM::the()
-{
-    return *s_the;
-}
-
 NonnullRefPtr<VM> VM::create()
 {
     // NOTE: We only allow a single VM instance per process.
