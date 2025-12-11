@@ -1030,6 +1030,9 @@ bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_mini
         m_current_alternative_id += 1;
     }
 
+    if (alternatives.size() > 1) {
+        m_parser_state.greedy_lookaround = false;
+    }
     Optimizer::append_alternation(stack, alternatives.span());
     match_length_minimum = total_match_length_minimum;
 
@@ -1151,7 +1154,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
             if (!parse_inner_disjunction(assertion_stack, length_dummy, flags))
                 return false;
             // FIXME: Somehow ensure that this assertion regexp has a fixed length.
-            stack.insert_bytecode_lookaround(move(assertion_stack), ByteCode::LookAroundType::LookBehind, length_dummy);
+            stack.insert_bytecode_lookaround(move(assertion_stack), ByteCode::LookAroundType::LookBehind, length_dummy, m_parser_state.greedy_lookaround);
             return true;
         }
         if (try_skip("<!"sv)) {
@@ -1179,6 +1182,7 @@ bool ECMA262Parser::parse_assertion(ByteCode& stack, [[maybe_unused]] size_t& ma
 
 bool ECMA262Parser::parse_inner_disjunction(ByteCode& bytecode_stack, size_t& length, ParseFlags flags)
 {
+    m_parser_state.greedy_lookaround = true;
     auto disjunction_ok = parse_disjunction(bytecode_stack, length, flags);
     if (!disjunction_ok)
         return false;
