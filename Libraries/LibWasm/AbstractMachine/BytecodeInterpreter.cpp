@@ -3882,7 +3882,7 @@ bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instructio
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
+        dbgln("LibWasm: load_and_push - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return true;
     }
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
@@ -3908,7 +3908,7 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M * N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
+        dbgln("LibWasm: load_and_push_mxn - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M * N / 8, memory->size());
         return true;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-load({} : {}) -> stack", instance_address, M * N / 8);
@@ -3938,6 +3938,7 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.memory.offset;
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
+        dbgln("LibWasm: load_and_push_lane_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -3958,6 +3959,7 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
     if (instance_address + N / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
+        dbgln("LibWasm: load_and_push_zero_n - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + N / 8, memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, N / 8);
@@ -3978,7 +3980,7 @@ bool BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, In
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     if (instance_address + M / 8 > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
+        dbgln("LibWasm: load_and_push_m_splat - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + M / 8, memory->size());
         return true;
     }
     dbgln_if(WASM_TRACE_DEBUG, "vec-splat({} : {}) -> stack", instance_address, M / 8);
@@ -4183,7 +4185,7 @@ bool BytecodeInterpreter::store_to_memory(MemoryInstance& memory, u64 address, T
     addition += data_size;
     if (addition.has_overflow() || addition.value() > memory.size()) [[unlikely]] {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: Memory access out of bounds (expected 0 <= {} and {} <= {})", address, address + data_size, memory.size());
+        dbgln("LibWasm: store_to_memory - Memory access out of bounds (expected 0 <= {} and {} <= {})", address, address + data_size, memory.size());
         return true;
     }
 
