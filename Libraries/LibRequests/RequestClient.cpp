@@ -40,15 +40,10 @@ void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::Cach
 
 RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data)
 {
-    auto body_result_or_error = ByteBuffer::copy(request_body);
-    if (body_result_or_error.is_error())
-        return nullptr;
-
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
-    auto body_result = body_result_or_error.release_value();
-    IPCProxy::async_start_request(request_id, method, url, headers, body_result, proxy_data);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, proxy_data);
     auto request = Request::create_from_id({}, *this, request_id);
     m_requests.set(request_id, request);
     return request;
