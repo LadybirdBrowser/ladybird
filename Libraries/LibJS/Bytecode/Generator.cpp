@@ -22,6 +22,7 @@ Generator::Generator(VM& vm, GC::Ptr<SharedFunctionInstanceData const> shared_fu
     : m_vm(vm)
     , m_string_table(make<StringTable>())
     , m_identifier_table(make<IdentifierTable>())
+    , m_property_key_table(make<PropertyKeyTable>())
     , m_regex_table(make<RegexTable>())
     , m_constants(vm.heap())
     , m_accumulator(*this, Operand(Register::accumulator()))
@@ -447,6 +448,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     auto executable = vm.heap().allocate<Executable>(
         move(bytecode),
         move(generator.m_identifier_table),
+        move(generator.m_property_key_table),
         move(generator.m_string_table),
         move(generator.m_regex_table),
         move(generator.m_constants),
@@ -692,7 +694,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_super_refere
     auto actual_this = get_this();
 
     Optional<ScopedOperand> computed_property_value;
-    Optional<IdentifierTableIndex> property_key_id;
+    Optional<PropertyKeyTableIndex> property_key_id;
 
     if (expression.is_computed()) {
         // SuperProperty : super [ Expression ]
@@ -703,7 +705,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_super_refere
         // SuperProperty : super . IdentifierName
         // 3. Let propertyKey be the StringValue of IdentifierName.
         auto const identifier_name = as<Identifier>(expression.property()).string();
-        property_key_id = intern_identifier(identifier_name);
+        property_key_id = intern_property_key(identifier_name);
     }
 
     // 5/7. Return ? MakeSuperPropertyReference(actualThis, propertyKey, strict).
@@ -752,8 +754,8 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
             emit_get_by_value_with_this(dst, *super_reference.base, *super_reference.referenced_name, *super_reference.this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
-            auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-            emit_get_by_id_with_this(dst, *super_reference.base, identifier_table_ref, *super_reference.this_value);
+            auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+            emit_get_by_id_with_this(dst, *super_reference.base, property_key_table_index, *super_reference.this_value);
         }
 
         super_reference.loaded_value = dst;
@@ -777,12 +779,12 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
         };
     }
     if (expression.property().is_identifier()) {
-        auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
+        auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
-        emit_get_by_id(dst, base, identifier_table_ref, move(base_identifier));
+        emit_get_by_id(dst, base, property_key_table_index, move(base_identifier));
         return ReferenceOperands {
             .base = base,
-            .referenced_identifier = identifier_table_ref,
+            .referenced_identifier = property_key_table_index,
             .this_value = base,
             .loaded_value = dst,
         };
@@ -825,8 +827,8 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 emit_put_by_value_with_this(*super_reference.base, *super_reference.referenced_name, *super_reference.this_value, value, PutKind::Normal);
             } else {
                 // 3. Let propertyKey be StringValue of IdentifierName.
-                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-                emit<Bytecode::Op::PutNormalByIdWithThis>(*super_reference.base, *super_reference.this_value, identifier_table_ref, value, next_property_lookup_cache());
+                auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+                emit<Bytecode::Op::PutNormalByIdWithThis>(*super_reference.base, *super_reference.this_value, property_key_table_index, value, next_property_lookup_cache());
             }
         } else {
             auto object = TRY(expression.object().generate_bytecode(*this)).value();
@@ -835,8 +837,8 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 auto property = TRY(expression.property().generate_bytecode(*this)).value();
                 emit_put_by_value(object, property, value, PutKind::Normal, {});
             } else if (expression.property().is_identifier()) {
-                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-                emit_put_by_id(object, identifier_table_ref, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
+                auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+                emit_put_by_id(object, property_key_table_index, value, Bytecode::PutKind::Normal, next_property_lookup_cache());
             } else if (expression.property().is_private_identifier()) {
                 auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                 emit<Bytecode::Op::PutPrivateById>(object, identifier_table_ref, value);
@@ -900,8 +902,8 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             if (super_reference.referenced_name.has_value()) {
                 emit<Bytecode::Op::DeleteByValueWithThis>(dst, *super_reference.base, *super_reference.this_value, *super_reference.referenced_name);
             } else {
-                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-                emit<Bytecode::Op::DeleteByIdWithThis>(dst, *super_reference.base, *super_reference.this_value, identifier_table_ref);
+                auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+                emit<Bytecode::Op::DeleteByIdWithThis>(dst, *super_reference.base, *super_reference.this_value, property_key_table_index);
             }
 
             return dst;
@@ -914,8 +916,8 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             auto property = TRY(expression.property().generate_bytecode(*this)).value();
             emit<Bytecode::Op::DeleteByValue>(dst, object, property);
         } else if (expression.property().is_identifier()) {
-            auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
-            emit<Bytecode::Op::DeleteById>(dst, object, identifier_table_ref);
+            auto property_key_table_index = intern_property_key(as<Identifier>(expression.property()).string());
+            emit<Bytecode::Op::DeleteById>(dst, object, property_key_table_index);
         } else {
             // NOTE: Trying to delete a private field generates a SyntaxError in the parser.
             return CodeGenerationError {
@@ -1170,19 +1172,20 @@ CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymo
     return TRY(expression.generate_bytecode(*this, preferred_dst)).value();
 }
 
-void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex property_identifier, Optional<IdentifierTableIndex> base_identifier)
+void Generator::emit_get_by_id(ScopedOperand dst, ScopedOperand base, PropertyKeyTableIndex property_key_table_index, Optional<IdentifierTableIndex> base_identifier)
 {
-    if (m_identifier_table->get(property_identifier) == "length"sv) {
-        m_length_identifier = property_identifier;
+    auto& property_key = m_property_key_table->get(property_key_table_index);
+    if (property_key.is_string() && property_key.as_string() == "length"sv) {
+        m_length_identifier = property_key_table_index;
         emit<Op::GetLength>(dst, base, move(base_identifier), m_next_property_lookup_cache++);
         return;
     }
-    emit<Op::GetById>(dst, base, property_identifier, move(base_identifier), m_next_property_lookup_cache++);
+    emit<Op::GetById>(dst, base, property_key_table_index, move(base_identifier), m_next_property_lookup_cache++);
 }
 
-void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, IdentifierTableIndex id, ScopedOperand this_value)
+void Generator::emit_get_by_id_with_this(ScopedOperand dst, ScopedOperand base, PropertyKeyTableIndex id, ScopedOperand this_value)
 {
-    if (m_identifier_table->get(id) == "length"sv) {
+    if (m_property_key_table->get(id).as_string() == "length"sv) {
         m_length_identifier = id;
         emit<Op::GetLengthWithThis>(dst, base, this_value, m_next_property_lookup_cache++);
         return;
@@ -1195,7 +1198,7 @@ void Generator::emit_get_by_value(ScopedOperand dst, ScopedOperand base, ScopedO
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-            emit_get_by_id(dst, base, intern_identifier(property_key.as_string()), base_identifier);
+            emit_get_by_id(dst, base, intern_property_key(property_key.as_string()), base_identifier);
             return;
         }
     }
@@ -1207,32 +1210,31 @@ void Generator::emit_get_by_value_with_this(ScopedOperand dst, ScopedOperand bas
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-            emit_get_by_id_with_this(dst, base, intern_identifier(property_key.as_string()), this_value);
+            emit_get_by_id_with_this(dst, base, intern_property_key(property_key.as_string()), this_value);
             return;
         }
     }
     emit<Op::GetByValueWithThis>(dst, base, property, this_value);
 }
 
-void Generator::emit_put_by_id(Operand base, IdentifierTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier)
+void Generator::emit_put_by_id(Operand base, PropertyKeyTableIndex property, Operand src, PutKind kind, u32 cache_index, Optional<IdentifierTableIndex> base_identifier)
 {
-    auto string = m_identifier_table->get(property);
-    if (!string.is_empty() && !(string.code_unit_at(0) == '0' && string.length_in_code_units() > 1)) {
-        auto property_index = string.to_number<u32>(TrimWhitespace::No);
-        if (property_index.has_value() && property_index.value() < NumericLimits<u32>::max()) {
-#define EMIT_PUT_BY_NUMERIC_ID(kind)                                                                                     \
-    case PutKind::kind:                                                                                                  \
-        emit<Op::Put##kind##ByNumericId>(base, property_index.release_value(), src, cache_index, move(base_identifier)); \
+    auto key = m_property_key_table->get(property);
+    if (key.is_number()) {
+        auto property_index = key.as_number();
+#define EMIT_PUT_BY_NUMERIC_ID(kind)                                                                     \
+    case PutKind::kind:                                                                                  \
+        emit<Op::Put##kind##ByNumericId>(base, property_index, src, cache_index, move(base_identifier)); \
         break;
-            switch (kind) {
-                JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_NUMERIC_ID)
-            default:
-                VERIFY_NOT_REACHED();
-            }
-#undef EMIT_PUT_BY_NUMERIC_ID
-            return;
+        switch (kind) {
+            JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_NUMERIC_ID)
+        default:
+            VERIFY_NOT_REACHED();
         }
+#undef EMIT_PUT_BY_NUMERIC_ID
+        return;
     }
+
 #define EMIT_PUT_BY_ID(kind)                                                                \
     case PutKind::kind:                                                                     \
         emit<Op::Put##kind##ById>(base, property, src, cache_index, move(base_identifier)); \
@@ -1250,7 +1252,7 @@ void Generator::emit_put_by_value(ScopedOperand base, ScopedOperand property, Sc
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-            emit_put_by_id(base, intern_identifier(property_key.as_string()), src, kind, m_next_property_lookup_cache++, base_identifier);
+            emit_put_by_id(base, intern_property_key(property_key.as_string()), src, kind, m_next_property_lookup_cache++, base_identifier);
             return;
         }
     }
@@ -1271,9 +1273,9 @@ void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand pr
     if (property.operand().is_constant() && get_constant(property).is_string()) {
         auto property_key = MUST(get_constant(property).to_property_key(vm()));
         if (property_key.is_string()) {
-#define EMIT_PUT_BY_ID_WITH_THIS(kind)                                                                                                         \
-    case PutKind::kind:                                                                                                                        \
-        emit<Op::Put##kind##ByIdWithThis>(base, this_value, intern_identifier(property_key.as_string()), src, m_next_property_lookup_cache++); \
+#define EMIT_PUT_BY_ID_WITH_THIS(kind)                                                                                               \
+    case PutKind::kind:                                                                                                              \
+        emit<Op::Put##kind##ByIdWithThis>(base, this_value, intern_property_key(property_key), src, m_next_property_lookup_cache++); \
         break;
             switch (kind) {
                 JS_ENUMERATE_PUT_KINDS(EMIT_PUT_BY_ID_WITH_THIS)
@@ -1298,12 +1300,12 @@ void Generator::emit_put_by_value_with_this(ScopedOperand base, ScopedOperand pr
 
 void Generator::emit_iterator_value(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("value"_utf16_fly_string));
+    emit_get_by_id(dst, result, intern_property_key("value"_utf16_fly_string));
 }
 
 void Generator::emit_iterator_complete(ScopedOperand dst, ScopedOperand result)
 {
-    emit_get_by_id(dst, result, intern_identifier("done"_utf16_fly_string));
+    emit_get_by_id(dst, result, intern_property_key("done"_utf16_fly_string));
 }
 
 bool Generator::is_local_initialized(u32 local_index) const

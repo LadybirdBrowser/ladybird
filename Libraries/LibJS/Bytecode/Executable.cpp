@@ -18,6 +18,7 @@ GC_DEFINE_ALLOCATOR(Executable);
 Executable::Executable(
     Vector<u8> bytecode,
     NonnullOwnPtr<IdentifierTable> identifier_table,
+    NonnullOwnPtr<PropertyKeyTable> property_key_table,
     NonnullOwnPtr<StringTable> string_table,
     NonnullOwnPtr<RegexTable> regex_table,
     Vector<Value> constants,
@@ -29,6 +30,7 @@ Executable::Executable(
     : bytecode(move(bytecode))
     , string_table(move(string_table))
     , identifier_table(move(identifier_table))
+    , property_key_table(move(property_key_table))
     , regex_table(move(regex_table))
     , constants(move(constants))
     , source_code(move(source_code))

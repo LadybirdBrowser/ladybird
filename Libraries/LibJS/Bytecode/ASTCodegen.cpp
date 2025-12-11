@@ -651,11 +651,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> AssignmentExpression::g
                         else
                             generator.emit_put_by_value_with_this(*base, *computed_property, *this_value, rval, PutKind::Normal);
                     } else if (expression.property().is_identifier()) {
-                        auto identifier_table_ref = generator.intern_identifier(as<Identifier>(expression.property()).string());
+                        auto property_key_table_index = generator.intern_property_key(as<Identifier>(expression.property()).string());
                         if (!lhs_is_super_expression)
-                            generator.emit_put_by_id(*base, identifier_table_ref, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache(), move(base_identifier));
+                            generator.emit_put_by_id(*base, property_key_table_index, rval, Bytecode::PutKind::Normal, generator.next_property_lookup_cache(), move(base_identifier));
                         else
-                            generator.emit<Bytecode::Op::PutNormalByIdWithThis>(*base, *this_value, identifier_table_ref, rval, generator.next_property_lookup_cache());
+                            generator.emit<Bytecode::Op::PutNormalByIdWithThis>(*base, *this_value, property_key_table_index, rval, generator.next_property_lookup_cache());
                     } else if (expression.property().is_private_identifier()) {
                         auto identifier_table_ref = generator.intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                         generator.emit<Bytecode::Op::PutPrivateById>(*base, identifier_table_ref, rval);
@@ -1174,7 +1174,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
         if (is<StringLiteral>(property->key())) {
             auto& string_literal = static_cast<StringLiteral const&>(property->key());
-            Bytecode::IdentifierTableIndex key_name = generator.intern_identifier(string_literal.value());
 
             Optional<ScopedOperand> value;
             if (property_kind == Bytecode::PutKind::Prototype) {
@@ -1190,7 +1189,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                 value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name));
             }
 
-            generator.emit_put_by_id(object, key_name, *value, property_kind, generator.next_property_lookup_cache());
+            auto property_key_table_index = generator.intern_property_key(string_literal.value());
+            generator.emit_put_by_id(object, property_key_table_index, *value, property_kind, generator.next_property_lookup_cache());
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
             auto value = TRY(property->value().generate_bytecode(generator)).value();
@@ -1349,7 +1349,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_object_binding_pattern_byt
             if (has_rest) {
                 excluded_property_names.append(generator.add_constant(PrimitiveString::create(generator.vm(), identifier)));
             }
-            generator.emit_get_by_id(value, object, generator.intern_identifier(identifier));
+            generator.emit_get_by_id(value, object, generator.intern_property_key(identifier));
         } else {
             auto expression = name.get<NonnullRefPtr<Expression const>>();
             auto property_name = TRY(expression->generate_bytecode(generator)).value();
@@ -1685,8 +1685,8 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
             generator.emit_get_by_value_with_this(value, super_base, *computed_property, this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
-            auto identifier_table_ref = generator.intern_identifier(as<Identifier>(member_expression.property()).string());
-            generator.emit_get_by_id_with_this(value, super_base, identifier_table_ref, this_value);
+            auto property_key_table_index = generator.intern_property_key(as<Identifier>(member_expression.property()).string());
+            generator.emit_get_by_id_with_this(value, super_base, property_key_table_index, this_value);
         }
 
         return BaseAndValue { this_value, value };
@@ -1704,7 +1704,7 @@ static Bytecode::CodeGenerationErrorOr<BaseAndValue> get_base_and_value_from_mem
             generator.intern_identifier(as<PrivateIdentifier>(member_expression.property()).string()));
     } else {
         auto base_identifier = generator.intern_identifier_for_expression(member_expression.object());
-        generator.emit_get_by_id(value, base, generator.intern_identifier(as<Identifier>(member_expression.property()).string()), move(base_identifier));
+        generator.emit_get_by_id(value, base, generator.intern_property_key(as<Identifier>(member_expression.property()).string()), move(base_identifier));
     }
 
     return BaseAndValue { base, value };
@@ -2104,7 +2104,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // i. Let throw be ? GetMethod(iterator, "throw").
         auto throw_method = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetMethod>(throw_method, iterator, generator.intern_identifier("throw"_utf16_fly_string));
+        generator.emit<Bytecode::Op::GetMethod>(throw_method, iterator, generator.intern_property_key("throw"_utf16_fly_string));
 
         // ii. If throw is not undefined, then
         auto& throw_method_is_defined_block = generator.make_block();
@@ -2189,7 +2189,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> YieldExpression::genera
 
         // ii. Let return be ? GetMethod(iterator, "return").
         auto return_method = generator.allocate_register();
-        generator.emit<Bytecode::Op::GetMethod>(return_method, iterator, generator.intern_identifier("return"_utf16_fly_string));
+        generator.emit<Bytecode::Op::GetMethod>(return_method, iterator, generator.intern_property_key("return"_utf16_fly_string));
 
         // iii. If return is undefined, then
         auto& return_is_undefined_block = generator.make_block();
@@ -2544,7 +2544,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(raw_string_regs.size(), raw_strings_array, raw_string_regs);
     }
 
-    generator.emit_put_by_id(strings_array, generator.intern_identifier("raw"_utf16_fly_string), raw_strings_array, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
+    generator.emit_put_by_id(strings_array, generator.intern_property_key("raw"_utf16_fly_string), raw_strings_array, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
 
     auto arguments = generator.allocate_register();
     if (!argument_regs.is_empty())
@@ -3531,7 +3531,7 @@ static Bytecode::CodeGenerationErrorOr<void> generate_optional_chain(Bytecode::G
             },
             [&](OptionalChain::MemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {
                 generator.emit_mov(current_base, current_value);
-                generator.emit_get_by_id(current_value, current_value, generator.intern_identifier(ref.identifier->string()));
+                generator.emit_get_by_id(current_value, current_value, generator.intern_property_key(ref.identifier->string()));
                 return {};
             },
             [&](OptionalChain::PrivateMemberReference const& ref) -> Bytecode::CodeGenerationErrorOr<void> {

@@ -215,14 +215,14 @@ endop
 op DeleteById < Instruction
     m_dst: Operand
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
 endop
 
 op DeleteByIdWithThis < Instruction
     m_dst: Operand
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
 endop
 
 op DeleteByValue < Instruction
@@ -274,7 +274,7 @@ endop
 op GetById < Instruction
     m_dst: Operand
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_base_identifier: Optional<IdentifierTableIndex>
     m_cache_index: u32
 endop
@@ -282,7 +282,7 @@ endop
 op GetByIdWithThis < Instruction
     m_dst: Operand
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_this_value: Operand
     m_cache_index: u32
 endop
@@ -351,7 +351,7 @@ endop
 op GetMethod < Instruction
     m_dst: Operand
     m_object: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
 endop
 
 op GetNewTarget < Instruction
@@ -745,7 +745,7 @@ endop
 
 op PutNormalById < Instruction
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
@@ -753,7 +753,7 @@ endop
 
 op PutOwnById < Instruction
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
@@ -761,7 +761,7 @@ endop
 
 op PutGetterById < Instruction
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
@@ -769,7 +769,7 @@ endop
 
 op PutSetterById < Instruction
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
@@ -777,7 +777,7 @@ endop
 
 op PutPrototypeById < Instruction
     m_base: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
     m_base_identifier: Optional<IdentifierTableIndex>
@@ -826,7 +826,7 @@ endop
 op PutNormalByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
 endop
@@ -834,7 +834,7 @@ endop
 op PutOwnByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
 endop
@@ -842,7 +842,7 @@ endop
 op PutGetterByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
 endop
@@ -850,7 +850,7 @@ endop
 op PutSetterByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
 endop
@@ -858,7 +858,7 @@ endop
 op PutPrototypeByIdWithThis < Instruction
     m_base: Operand
     m_this_value: Operand
-    m_property: IdentifierTableIndex
+    m_property: PropertyKeyTableIndex
     m_src: Operand
     m_cache_index: u32
 endop
