@@ -685,25 +685,25 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     // 4. If node is a DocumentFragment node, then:
     if (is<DocumentFragment>(*node)) {
-        // 1. Remove its children with the suppress observers flag set.
+        // 1. Remove its children with suppressObservers set to true.
         node->remove_all_children(true);
 
         // 2. Queue a tree mutation record for node with « », nodes, null, and null.
-        // NOTE: This step intentionally does not pay attention to the suppress observers flag.
+        // NOTE: This step intentionally does not pay attention to suppressObservers.
         node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
     }
 
     // 5. If child is non-null, then:
     if (child) {
-        // 1. For each live range whose start node is parent and start offset is greater than child’s index, increase
-        //    its start offset by count.
+        // 1. For each live range whose start node is parent and start offset is greater than child’s index:
+        //    increase its start offset by count.
         for (auto& range : Range::live_ranges()) {
             if (range->start_container() == this && range->start_offset() > child->index())
                 range->increase_start_offset(count);
         }
 
-        // 2. For each live range whose end node is parent and end offset is greater than child’s index, increase its
-        //    end offset by count.
+        // 2. For each live range whose end node is parent and end offset is greater than child’s index:
+        //    increase its end offset by count.
         for (auto& range : Range::live_ranges()) {
             if (range->end_container() == this && range->end_offset() > child->index())
                 range->increase_end_offset(count);
@@ -779,7 +779,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         });
     }
 
-    // 8. If suppress observers flag is unset, then queue a tree mutation record for parent with nodes, « », previousSibling, and child.
+    // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
+    //    and child.
     if (!suppress_observers) {
         queue_tree_mutation_record(nodes, {}, previous_sibling.ptr(), child.ptr());
     }
@@ -798,14 +799,14 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     // 11. For each node of nodes, in tree order:
     for (auto& node : nodes) {
         // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
-        //    order, append inclusiveDescendant to staticNodeList.
+        //    order: append inclusiveDescendant to staticNodeList.
         node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
             static_node_list.append(inclusive_descendant);
             return TraversalDecision::Continue;
         });
     }
 
-    // 12. For each node of staticNodeList, if node is connected, then run the post-connection steps with node.
+    // 12. For each node of staticNodeList: if node is connected, then run the post-connection steps with node.
     for (auto& node : static_node_list) {
         if (node->is_connected())
             node->post_connection();
@@ -875,7 +876,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_remove(GC::Ref<Node> child)
 // https://dom.spec.whatwg.org/#concept-node-append
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
 {
-    // To append a node to a parent, pre-insert node into parent before null.
+    // To append a node node to a node parent: pre-insert node into parent before null.
     return pre_insert(node, nullptr);
 }
 
@@ -929,7 +930,8 @@ void Node::remove(bool suppress_observers)
     // 3. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
 
-    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-removing steps given node and iterator.
+    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
+    //    run the NodeIterator pre-removing steps given node and iterator.
     document().for_each_node_iterator([&](NodeIterator& node_iterator) {
         node_iterator.run_pre_removing_steps(*this);
     });
@@ -1053,7 +1055,8 @@ void Node::remove(bool suppress_observers)
 // https://dom.spec.whatwg.org/#concept-node-replace
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::Ref<Node> child)
 {
-    // If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError" DOMException.
+    // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError"
+    //    DOMException.
     if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
         return WebIDL::HierarchyRequestError::create(realm(), "Can only insert into a document, document fragment or element"_utf16);
 
@@ -1112,13 +1115,13 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     // 10. Let removedNodes be the empty set.
     Vector<GC::Root<Node>> removed_nodes;
 
-    // 11. If child’s parent is non-null, then:
+    // 11. If child’s parent is non-null:
     // NOTE: The above can only be false if child is node.
     if (child->parent()) {
         // 1. Set removedNodes to « child ».
         removed_nodes.append(GC::make_root(*child));
 
-        // 2. Remove child with the suppress observers flag set.
+        // 2. Remove child with suppressObservers set to true.
         child->remove(true);
     }
 
@@ -1133,7 +1136,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     //         the sanity of inserting `node` before `reference_child` again, as well as
     //         `child` not being reinserted elsewhere.
     if (!reference_child || (reference_child->parent() == this && !child->parent_node())) {
-        // 13. Insert node into parent before referenceChild with the suppress observers flag set.
+        // 13. Insert node into parent before referenceChild with suppressObservers set to true.
         insert_before(node, reference_child, true);
     }
 
@@ -1242,7 +1245,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 9. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
 
-    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document, run the NodeIterator pre-remove steps given node and iterator.
+    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document:
+    //     run the NodeIterator pre-remove steps given node and iterator.
     document().for_each_node_iterator([&](NodeIterator& node_iterator) {
         node_iterator.run_pre_removing_steps(*this);
     });
@@ -1296,15 +1300,15 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 17. If child is non-null:
     if (child) {
-        // 1. For each live range whose start node is newParent and start offset is greater than child’s index, increase
-        //    its start offset by 1.
+        // 1. For each live range whose start node is newParent and start offset is greater than child’s index:
+        //    increase its start offset by 1.
         for (auto& range : Range::live_ranges()) {
             if (range->start_container() == &new_parent && range->start_offset() > child->index())
                 range->increase_start_offset(1);
         }
 
-        // 2. For each live range whose end node is newParent and end offset is greater than child’s index, increase its
-        //    end offset by 1.
+        // 2. For each live range whose end node is newParent and end offset is greater than child’s index:
+        //    increase its end offset by 1.
         for (auto& range : Range::live_ranges()) {
             if (range->end_container() == &new_parent && range->end_offset() > child->index())
                 range->increase_end_offset(1);
@@ -2094,14 +2098,15 @@ void Node::replace_all(GC::Ptr<Node> node)
         added_nodes.append(GC::make_root(*node));
     }
 
-    // 5. Remove all parent’s children, in tree order, with the suppress observers flag set.
+    // 5. Remove all parent’s children, in tree order, with suppressObservers set to true.
     remove_all_children(true);
 
-    // 6. If node is non-null, then insert node into parent before null with the suppress observers flag set.
+    // 6. If node is non-null, then insert node into parent before null with suppressObservers set to true.
     if (node)
         insert_before(*node, nullptr, true);
 
-    // 7. If either addedNodes or removedNodes is not empty, then queue a tree mutation record for parent with addedNodes, removedNodes, null, and null.
+    // 7. If either addedNodes or removedNodes is not empty, then queue a tree mutation record for parent with
+    //    addedNodes, removedNodes, null, and null.
     if (!added_nodes.is_empty() || !removed_nodes.is_empty()) {
         queue_tree_mutation_record(move(added_nodes), move(removed_nodes), nullptr, nullptr);
     }
@@ -2543,7 +2548,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     OrderedHashMap<MutationObserver*, Optional<String>> interested_observers;
 
     // 2. Let nodes be the inclusive ancestors of target.
-    // 3. For each node in nodes, and then for each registered of node’s registered observer list:
+    // 3. For each node of nodes, and then for each registered of node’s registered observer list:
     for (auto* node = this; node; node = node->parent()) {
         if (!node->m_registered_observer_list)
             continue;
