@@ -170,6 +170,12 @@ void PlaybackManager::set_up_data_providers()
                 return;
             self->check_for_duration_change(time);
         });
+        video_track_data.provider->set_frames_queue_is_full_handler([weak_self = m_weak_wrapper] {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->m_handler->exit_buffering();
+        });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
@@ -223,6 +229,9 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
         track_data.display->pause_updates();
         track_data.display->set_provider(track, track_data.provider);
+        track_data.display->m_on_start_buffering = [this] {
+            m_handler->enter_buffering();
+        };
         track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate, [display = track_data.display](AK::Duration) {
             display->resume_updates();
         });

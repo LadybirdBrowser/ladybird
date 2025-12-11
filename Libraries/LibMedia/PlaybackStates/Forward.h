@@ -9,6 +9,7 @@
 #include <LibMedia/PlaybackStates/PlaybackStateHandler.h>
 
 #define ENUMERATE_PLAYBACK_STATE_HANDLERS(X) \
+    X(BufferingStateHandler)                 \
     X(PlaybackStateHandler)                  \
     X(PlayingStateHandler)                   \
     X(PausedStateHandler)                    \

@@ -36,6 +36,7 @@ public:
     using ErrorHandler = Function<void(DecoderError&&)>;
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
+    using FramesQueueIsFullHandler = Function<void()>;
 
     static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
@@ -44,12 +45,15 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_frame_end_time_handler(FrameEndTimeHandler&&);
+    void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     void start();
 
     TimedImage retrieve_frame();
 
     void seek(AK::Duration timestamp, SeekMode, SeekCompletionHandler&& = nullptr);
+
+    bool is_blocked() const;
 
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
@@ -59,6 +63,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_frame_end_time_handler(FrameEndTimeHandler&&);
+        void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void start();
         void exit();
@@ -82,6 +87,7 @@ private:
         void process_seek_on_main_thread(u32 seek_id, Callback);
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
+        bool is_blocked() const;
 
         [[nodiscard]] Threading::MutexLocker take_lock() const { return Threading::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
@@ -111,6 +117,7 @@ private:
         FrameEndTimeHandler m_frame_end_time_handler;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
+        FramesQueueIsFullHandler m_frames_queue_is_full_handler;
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

@@ -11,6 +11,7 @@
 namespace Media {
 
 enum class PlaybackState : u8 {
+    Buffering,
     Playing,
     Paused,
     Seeking,

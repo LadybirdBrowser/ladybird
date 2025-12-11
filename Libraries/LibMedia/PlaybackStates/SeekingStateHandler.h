@@ -46,6 +46,9 @@ public:
         return PlaybackState::Seeking;
     }
 
+    virtual void enter_buffering() override { }
+    virtual void exit_buffering() override { }
+
 private:
     struct SeekData : public RefCounted<SeekData> {
         SeekData(PlaybackManager& manager)
