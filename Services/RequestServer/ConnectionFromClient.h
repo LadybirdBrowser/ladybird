@@ -45,10 +45,10 @@ private:
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
     virtual void remove_cache_entries_accessed_since(UnixDateTime since) override;
 
-    virtual void websocket_connect(i64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>) override;
-    virtual void websocket_send(i64 websocket_id, bool, ByteBuffer) override;
-    virtual void websocket_close(i64 websocket_id, u16, ByteString) override;
-    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(i64, ByteString, ByteString) override;
+    virtual void websocket_connect(u64 websocket_id, URL::URL, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>) override;
+    virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
+    virtual void websocket_close(u64 websocket_id, u16, ByteString) override;
+    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(u64, ByteString, ByteString) override;
 
     static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);
@@ -59,7 +59,7 @@ private:
     void* m_curl_multi { nullptr };
 
     HashMap<i32, NonnullOwnPtr<Request>> m_active_requests;
-    HashMap<i32, RefPtr<WebSocket::WebSocket>> m_websockets;
+    HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;

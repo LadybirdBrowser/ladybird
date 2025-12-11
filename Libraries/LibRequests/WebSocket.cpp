@@ -9,9 +9,9 @@
 
 namespace Requests {
 
-WebSocket::WebSocket(RequestClient& client, i64 connection_id)
+WebSocket::WebSocket(RequestClient& client, u64 websocket_id)
     : m_client(client)
-    , m_websocket_id(connection_id)
+    , m_websocket_id(websocket_id)
 {
 }
 

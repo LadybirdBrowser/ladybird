@@ -134,35 +134,35 @@ RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, ByteStri
     return connection;
 }
 
-void RequestClient::websocket_connected(i64 websocket_id)
+void RequestClient::websocket_connected(u64 websocket_id)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_open({});
 }
 
-void RequestClient::websocket_received(i64 websocket_id, bool is_text, ByteBuffer data)
+void RequestClient::websocket_received(u64 websocket_id, bool is_text, ByteBuffer data)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_receive({}, move(data), is_text);
 }
 
-void RequestClient::websocket_errored(i64 websocket_id, i32 message)
+void RequestClient::websocket_errored(u64 websocket_id, i32 message)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_error({}, message);
 }
 
-void RequestClient::websocket_closed(i64 websocket_id, u16 code, ByteString reason, bool clean)
+void RequestClient::websocket_closed(u64 websocket_id, u16 code, ByteString reason, bool clean)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())
         maybe_connection.value()->did_close({}, code, move(reason), clean);
 }
 
-void RequestClient::websocket_ready_state_changed(i64 websocket_id, u32 ready_state)
+void RequestClient::websocket_ready_state_changed(u64 websocket_id, u32 ready_state)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value()) {
@@ -171,7 +171,7 @@ void RequestClient::websocket_ready_state_changed(i64 websocket_id, u32 ready_st
     }
 }
 
-void RequestClient::websocket_subprotocol(i64 websocket_id, ByteString subprotocol)
+void RequestClient::websocket_subprotocol(u64 websocket_id, ByteString subprotocol)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value()) {
@@ -179,7 +179,7 @@ void RequestClient::websocket_subprotocol(i64 websocket_id, ByteString subprotoc
     }
 }
 
-void RequestClient::websocket_certificate_requested(i64 websocket_id)
+void RequestClient::websocket_certificate_requested(u64 websocket_id)
 {
     auto maybe_connection = m_websockets.get(websocket_id);
     if (maybe_connection.has_value())

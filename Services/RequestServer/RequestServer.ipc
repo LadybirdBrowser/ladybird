@@ -26,9 +26,9 @@ endpoint RequestServer
     remove_cache_entries_accessed_since(UnixDateTime since) =|
 
     // Websocket Connection API
-    websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers) =|
-    websocket_send(i64 websocket_id, bool is_text, ByteBuffer data) =|
-    websocket_close(i64 websocket_id, u16 code, ByteString reason) =|
-    websocket_set_certificate(i64 request_id, ByteString certificate, ByteString key) => (bool success)
+    websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers) =|
+    websocket_send(u64 websocket_id, bool is_text, ByteBuffer data) =|
+    websocket_close(u64 websocket_id, u16 code, ByteString reason) =|
+    websocket_set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 
 }
