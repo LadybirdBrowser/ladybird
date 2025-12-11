@@ -62,8 +62,11 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     while (true) {
         if (!m_next_frame.is_valid()) {
             m_next_frame = m_provider->retrieve_frame();
-            if (!m_next_frame.is_valid())
+            if (!m_next_frame.is_valid()) {
+                if (m_provider->is_blocked() && m_on_start_buffering)
+                    m_on_start_buffering();
                 break;
+            }
         }
         if (m_next_frame.timestamp() > current_time)
             break;

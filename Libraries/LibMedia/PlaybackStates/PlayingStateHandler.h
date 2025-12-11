@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/PlaybackStates/BufferingStateHandler.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
 
@@ -43,6 +44,12 @@ public:
     {
         return PlaybackState::Playing;
     }
+
+    virtual void enter_buffering() override
+    {
+        manager().replace_state_handler<BufferingStateHandler>(true);
+    }
+    virtual void exit_buffering() override { }
 };
 
 }
