@@ -9,6 +9,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/SVG/Path.h>
 
@@ -74,30 +75,10 @@ String Rect::to_string(SerializationMode mode) const
 Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
-    auto center = position->resolved(node, reference_box.translated(-reference_box.x(), -reference_box.y()));
+    auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
 
-    auto radius_px = [&]() {
-        if (radius->is_keyword()) {
-            switch (*keyword_to_fit_side(radius->to_keyword())) {
-            case FitSide::ClosestSide:
-                float closest;
-                closest = min(abs(center.x()), abs(center.y())).to_float();
-                closest = min(closest, abs(reference_box.width() - center.x()).to_float());
-                closest = min(closest, abs(reference_box.height() - center.y()).to_float());
-                return closest;
-            case FitSide::FarthestSide:
-                float farthest;
-                farthest = max(abs(center.x()), abs(center.y())).to_float();
-                farthest = max(farthest, abs(reference_box.width() - center.x()).to_float());
-                farthest = max(farthest, abs(reference_box.height() - center.y()).to_float());
-                return farthest;
-            }
-            VERIFY_NOT_REACHED();
-        }
-
-        auto radius_ref = sqrt(pow(reference_box.width().to_float(), 2) + pow(reference_box.height().to_float(), 2)) / AK::Sqrt2<float>;
-        return max(0.0f, LengthPercentage::from_style_value(radius).to_px(node, CSSPixels(radius_ref)).to_float());
-    }();
+    auto center = position->resolved(node, translated_reference_box);
+    auto radius_px = radius->as_radial_size().resolve_circle_size(center, translated_reference_box, node).to_float();
 
     Gfx::Path path;
     path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px });
