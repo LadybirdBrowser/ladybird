@@ -63,6 +63,7 @@ private:
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
 
     HashMap<u64, RefPtr<Request>> m_requests;
+    u64 m_next_request_id { 0 };
 
     HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
     u64 m_next_websocket_id { 0 };

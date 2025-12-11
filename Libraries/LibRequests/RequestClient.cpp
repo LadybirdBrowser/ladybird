@@ -34,7 +34,8 @@ void RequestClient::die()
 
 void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel cache_level)
 {
-    async_ensure_connection(url, cache_level);
+    auto request_id = m_next_request_id++;
+    async_ensure_connection(request_id, url, cache_level);
 }
 
 RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, Core::ProxyData const& proxy_data)
@@ -43,9 +44,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     if (body_result_or_error.is_error())
         return nullptr;
 
-    static u64 s_next_request_id = 0;
-    auto request_id = s_next_request_id++;
-
+    auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
 
     auto body_result = body_result_or_error.release_value();
