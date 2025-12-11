@@ -758,6 +758,52 @@ TEST_CASE(ECMA262_match)
     }
 }
 
+TEST_CASE(lookbehind)
+{
+    struct _test {
+        StringView pattern;
+        StringView subject;
+        bool matches { true };
+        ECMAScriptFlags options {};
+    };
+    constexpr _test tests[] {
+        { "(?<=(ab|abc))d"sv, "abcd"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "(?<=a.*)b"sv, "a b"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+    };
+
+    for (auto& test : tests) {
+        Regex<ECMA262> re(test.pattern, test.options);
+        if constexpr (REGEX_DEBUG) {
+            dbgln("\n");
+            RegexDebug regex_dbg(stderr);
+            regex_dbg.print_raw_bytecode(re);
+            regex_dbg.print_header();
+            regex_dbg.print_bytecode(re);
+            dbgln("\n");
+        }
+        EXPECT_EQ(re.parser_result.error, regex::Error::NoError);
+        EXPECT_EQ(re.match(test.subject).success, test.matches);
+    }
+
+    struct _captureTest {
+        StringView pattern;
+        StringView subject;
+        size_t capture_index;
+        StringView expected_match;
+        ECMAScriptFlags options {};
+    };
+
+    constexpr _captureTest capture_tests[] {
+        { "(?<=(a|cc))b"sv, "ccb"sv, 0, "cc"sv, ECMAScriptFlags::Global },
+    };
+
+    for (auto& test : capture_tests) {
+        Regex<ECMA262> re(test.pattern, test.options);
+        auto result = re.match(test.subject);
+        EXPECT_EQ(result.capture_group_matches.first()[test.capture_index].view.to_byte_string(), test.expected_match);
+    }
+}
+
 TEST_CASE(ECMA262_unicode_parser_error)
 {
     struct _test {

@@ -43,6 +43,10 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(Save)                       \
     __ENUMERATE_OPCODE(Restore)                    \
     __ENUMERATE_OPCODE(GoBack)                     \
+    __ENUMERATE_OPCODE(SetStepBack)                \
+    __ENUMERATE_OPCODE(IncStepBack)                \
+    __ENUMERATE_OPCODE(CheckStepBack)              \
+    __ENUMERATE_OPCODE(CheckSavedPosition)         \
     __ENUMERATE_OPCODE(ClearCaptureGroup)          \
     __ENUMERATE_OPCODE(Repeat)                     \
     __ENUMERATE_OPCODE(ResetRepeat)                \
@@ -460,13 +464,27 @@ public:
         }
         case LookAroundType::LookBehind:
             // SAVE
-            // GOBACK match_length(BODY)
-            // REGEXP BODY
+            // SET_STEPBACK match_length(BODY)-1
+            // LABEL _START
+            // INC_STEPBACK
+            // STEPBACK
+            // FORK_JUMP _BODY
+            // CHECK_STEPBACK
+            // JUMP _START
+            // LABEL BODY
+            // REGEX
             // RESTORE
             empend((ByteCodeValueType)OpCodeId::Save);
-            empend((ByteCodeValueType)OpCodeId::GoBack);
-            empend((ByteCodeValueType)match_length);
+            empend((ByteCodeValueType)OpCodeId::SetStepBack);
+            empend((ByteCodeValueType)match_length - 1);
+            empend((ByteCodeValueType)OpCodeId::IncStepBack);
+            empend((ByteCodeValueType)OpCodeId::ForkJump);
+            empend((ByteCodeValueType)1 + 2); // JUMP to label _BODY
+            empend((ByteCodeValueType)OpCodeId::CheckStepBack);
+            empend((ByteCodeValueType)OpCodeId::Jump);
+            empend((ByteCodeValueType)-6); // JUMP to label _START
             extend(move(lookaround_body));
+            empend((ByteCodeValueType)OpCodeId::CheckSavedPosition);
             empend((ByteCodeValueType)OpCodeId::Restore);
             return;
         case LookAroundType::NegatedLookBehind: {
@@ -813,6 +831,35 @@ public:
     ALWAYS_INLINE size_t count() const { return argument(0); }
     ByteString arguments_string() const override { return ByteString::formatted("count={}", count()); }
 };
+class OpCode_SetStepBack final : public OpCode {
+public:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SetStepBack; }
+    ALWAYS_INLINE size_t size() const override { return 2; }
+    ALWAYS_INLINE size_t step() const { return argument(0); }
+    ByteString arguments_string() const override { return ByteString::formatted("step={}", step()); }
+};
+class OpCode_IncStepBack final : public OpCode {
+public:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::IncStepBack; }
+    ALWAYS_INLINE size_t size() const override { return 1; }
+    ByteString arguments_string() const override { return ByteString::formatted("inc step back"); }
+};
+class OpCode_CheckStepBack final : public OpCode {
+public:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::CheckStepBack; }
+    ALWAYS_INLINE size_t size() const override { return 1; }
+    ByteString arguments_string() const override { return ByteString::formatted("check step back"); }
+};
+class OpCode_CheckSavedPosition final : public OpCode {
+public:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::CheckSavedPosition; }
+    ALWAYS_INLINE size_t size() const override { return 1; }
+    ByteString arguments_string() const override { return ByteString::formatted("check saved back"); }
+};
 
 class OpCode_Jump final : public OpCode {
 public:
@@ -1066,6 +1113,24 @@ template<>
 ALWAYS_INLINE bool is<OpCode_Compare>(OpCode const& opcode)
 {
     return opcode.opcode_id() == OpCodeId::Compare;
+}
+
+template<>
+ALWAYS_INLINE bool is<OpCode_IncStepBack>(OpCode const& opcode)
+{
+    return opcode.opcode_id() == OpCodeId::IncStepBack;
+}
+
+template<>
+ALWAYS_INLINE bool is<OpCode_CheckStepBack>(OpCode const& opcode)
+{
+    return opcode.opcode_id() == OpCodeId::CheckStepBack;
+}
+
+template<>
+ALWAYS_INLINE bool is<OpCode_CheckSavedPosition>(OpCode const& opcode)
+{
+    return opcode.opcode_id() == OpCodeId::CheckSavedPosition;
 }
 
 template<typename T>

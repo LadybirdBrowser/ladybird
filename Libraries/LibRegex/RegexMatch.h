@@ -369,6 +369,7 @@ struct MatchState {
     COWVector<Match> flat_capture_group_matches; // Vector<Vector<Match>> indexed by match index, then by capture group id; flattened for performance
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
+    Vector<size_t> stepBacks;
 
     explicit MatchState(size_t capture_group_count)
         : capture_group_count(capture_group_count)
@@ -422,6 +423,7 @@ struct MatchState {
         combine(initiating_fork.value_or(0) + initiating_fork.has_value());
         combine_vector(repetition_marks, 0xbeefbeefbeefbeef);
         combine_vector(checkpoints, 0xfacefacefaceface);
+        combine_vector(stepBacks, 0xfedefedefedefede);
 
         return hash;
     }
