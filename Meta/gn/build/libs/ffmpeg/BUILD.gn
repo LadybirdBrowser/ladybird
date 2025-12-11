@@ -26,6 +26,7 @@ config("ffmpeg_config") {
     "avcodec",
     "avformat",
     "avutil",
+    "swresample",
   ]
 }
 

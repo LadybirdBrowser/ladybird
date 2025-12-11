@@ -39,8 +39,14 @@ void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider>
         return;
 
     create_playback_stream();
+
+    // The provider must have its output sample specification set before it starts decoding, or
+    // we'll drop some samples due to a mismatch.
     m_track_mixing_datas.set(track, TrackMixingData(*provider));
-    provider->start();
+    if (m_sample_specification.is_valid()) {
+        provider->set_output_sample_specification(m_sample_specification);
+        provider->start();
+    }
 }
 
 RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
@@ -64,8 +70,10 @@ void AudioMixingSink::create_playback_stream()
         Threading::MutexLocker locker { self->m_mutex };
         self->m_sample_specification = sample_specification;
 
-        for (auto& [track, track_data] : self->m_track_mixing_datas)
+        for (auto& [track, track_data] : self->m_track_mixing_datas) {
+            track_data.provider->set_output_sample_specification(sample_specification);
             track_data.provider->start();
+        }
 
         if (self->m_playing)
             self->resume();
