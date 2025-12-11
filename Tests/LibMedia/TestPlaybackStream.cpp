@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2023-2025, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,16 +26,9 @@ TEST_CASE(create_and_destroy_playback_stream)
 #endif
 
     {
-        auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 44100, 2, 100, [](Bytes buffer, Audio::PcmSampleFormat format, size_t sample_count) -> ReadonlyBytes {
-            VERIFY(format == Audio::PcmSampleFormat::Float32);
-            FixedMemoryStream writing_stream { buffer };
-
-            for (size_t i = 0; i < sample_count; i++) {
-                MUST(writing_stream.write_value(0.0f));
-                MUST(writing_stream.write_value(0.0f));
-            }
-
-            return buffer.trim(writing_stream.offset());
+        auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 44100, 2, 100, [](Span<float> buffer) -> ReadonlySpan<float> {
+            buffer.fill(0.0f);
+            return buffer;
         });
         EXPECT_EQ(!stream_result.is_error(), has_implementation);
     }

@@ -31,7 +31,7 @@ enum class PulseAudioContextState {
 
 enum class PulseAudioErrorCode;
 
-using PulseAudioDataRequestCallback = Function<ReadonlyBytes(PulseAudioStream&, Bytes buffer, size_t sample_count)>;
+using PulseAudioDataRequestCallback = Function<ReadonlySpan<float>(PulseAudioStream&, Span<float> buffer)>;
 
 // A wrapper around the PulseAudio main loop and context structs.
 // Generally, only one instance of this should be needed for a single process.
