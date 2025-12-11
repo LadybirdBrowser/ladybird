@@ -52,20 +52,20 @@ private:
     virtual void certificate_requested(i32) override;
     virtual void headers_became_available(i32, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
 
-    virtual void websocket_connected(i64 websocket_id) override;
-    virtual void websocket_received(i64 websocket_id, bool, ByteBuffer) override;
-    virtual void websocket_errored(i64 websocket_id, i32) override;
-    virtual void websocket_closed(i64 websocket_id, u16, ByteString, bool) override;
-    virtual void websocket_ready_state_changed(i64 websocket_id, u32 ready_state) override;
-    virtual void websocket_subprotocol(i64 websocket_id, ByteString subprotocol) override;
-    virtual void websocket_certificate_requested(i64 websocket_id) override;
+    virtual void websocket_connected(u64 websocket_id) override;
+    virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
+    virtual void websocket_errored(u64 websocket_id, i32) override;
+    virtual void websocket_closed(u64 websocket_id, u16, ByteString, bool) override;
+    virtual void websocket_ready_state_changed(u64 websocket_id, u32 ready_state) override;
+    virtual void websocket_subprotocol(u64 websocket_id, ByteString subprotocol) override;
+    virtual void websocket_certificate_requested(u64 websocket_id) override;
 
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
 
     HashMap<i32, RefPtr<Request>> m_requests;
 
-    HashMap<i64, NonnullRefPtr<WebSocket>> m_websockets;
-    i64 m_next_websocket_id { 0 };
+    HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
+    u64 m_next_websocket_id { 0 };
 
     HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
     u64 m_next_cache_size_estimation_id { 0 };

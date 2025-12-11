@@ -319,7 +319,7 @@ void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime sinc
         g_disk_cache->remove_entries_accessed_since(since);
 }
 
-void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
+void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
     auto host = url.serialized_host().to_byte_string();
 
@@ -369,22 +369,22 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL url, Byt
         });
 }
 
-void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer data)
+void ConnectionFromClient::websocket_send(u64 websocket_id, bool is_text, ByteBuffer data)
 {
-    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
+    if (auto* connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->send(WebSocket::Message { move(data), is_text });
 }
 
-void ConnectionFromClient::websocket_close(i64 websocket_id, u16 code, ByteString reason)
+void ConnectionFromClient::websocket_close(u64 websocket_id, u16 code, ByteString reason)
 {
-    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
+    if (auto* connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() == WebSocket::ReadyState::Open)
         connection->close(code, reason);
 }
 
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(i64 websocket_id, ByteString, ByteString)
+Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(u64 websocket_id, ByteString, ByteString)
 {
     auto success = false;
-    if (auto connection = m_websockets.get(websocket_id).value_or({}); connection) {
+    if (auto* connection = m_websockets.get(websocket_id).value_or({}); connection) {
         // NO OP here
         // connection->set_certificate(certificate, key);
         success = true;
