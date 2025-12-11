@@ -102,9 +102,18 @@ Gfx::Palette Page::palette() const
     return m_client->palette();
 }
 
-// https://w3c.github.io/csswg-drafts/cssom-view-1/#web-exposed-screen-area
+// https://drafts.csswg.org/cssom-view-1/#web-exposed-screen-area
 CSSPixelRect Page::web_exposed_screen_area() const
 {
+    // FIXME: 1. Let target be this’s relevant global object’s browsing context.
+    // FIXME: 2. Let emulated screen area be the WebDriver BiDi emulated total screen area of target.
+    // FIXME: 3. If emulated screen area is not null, return emulated screen area.
+
+    // 4. Otherwise, return one of the following:
+    //    - The area of the output device, in CSS pixels.
+    //    - The area of the viewport, in CSS pixels.
+    // NB: This is the area of the output device, but in device pixels.
+    // See: https://github.com/LadybirdBrowser/ladybird/pull/4084
     auto device_pixel_rect = m_client->screen_rect();
     return {
         device_pixel_rect.x().value(),
