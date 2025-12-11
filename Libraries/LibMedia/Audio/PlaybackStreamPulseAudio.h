@@ -34,7 +34,7 @@ private:
     // the UI thread.
     class InternalState : public AtomicRefCounted<InternalState> {
     public:
-        void set_stream(NonnullRefPtr<PulseAudioStream> const&);
+        void set_stream(NonnullRefPtr<PulseAudioStream>&&);
         RefPtr<PulseAudioStream> stream();
 
         void enqueue(Function<void()>&&);

@@ -141,7 +141,7 @@ ErrorOr<void> PlaybackStreamPulseAudio::InternalState::check_is_running()
     return {};
 }
 
-void PlaybackStreamPulseAudio::InternalState::set_stream(NonnullRefPtr<PulseAudioStream> const& stream)
+void PlaybackStreamPulseAudio::InternalState::set_stream(NonnullRefPtr<PulseAudioStream>&& stream)
 {
     m_stream = stream;
 }
