@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,32 +15,32 @@
 
 namespace Web::DOM {
 
-// https://dom.spec.whatwg.org/#converting-nodes-into-a-node
-WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes, DOM::Document& document)
+// https://dom.spec.whatwg.org/#convert-nodes-into-a-node
+WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, Utf16String>> const& nodes, Document& document)
 {
-    // 1. Let node be null.
-    // 2. Replace each string in nodes with a new Text node whose data is the string and node document is document.
-    // 3. If nodes contains one node, then set node to nodes[0].
-    // 4. Otherwise, set node to a new DocumentFragment node whose node document is document, and then append each node in nodes, if any, to it.
-    // 5. Return node.
-
+    // 1. Replace each string of nodes with a new Text node whose data is the string and node document is document.
     auto potentially_convert_string_to_text_node = [&document](Variant<GC::Root<Node>, Utf16String> const& node) -> GC::Ref<Node> {
         if (node.has<GC::Root<Node>>())
             return *node.get<GC::Root<Node>>();
 
-        return document.realm().create<DOM::Text>(document, node.get<Utf16String>());
+        return document.realm().create<Text>(document, node.get<Utf16String>());
     };
 
+    // 2. If nodes’s size is 1, then return nodes[0].
     if (nodes.size() == 1)
         return potentially_convert_string_to_text_node(nodes.first());
 
-    auto document_fragment = document.realm().create<DOM::DocumentFragment>(document);
+    // 3. Let fragment be a new DocumentFragment node whose node document is document.
+    auto fragment = document.realm().create<DocumentFragment>(document);
+
+    // 4. For each node of nodes: append node to fragment.
     for (auto const& unconverted_node : nodes) {
         auto node = potentially_convert_string_to_text_node(unconverted_node);
-        (void)TRY(document_fragment->append_child(node));
+        TRY(fragment->append_child(node));
     }
 
-    return document_fragment;
+    // 5. Return fragment.
+    return fragment;
 }
 
 }
