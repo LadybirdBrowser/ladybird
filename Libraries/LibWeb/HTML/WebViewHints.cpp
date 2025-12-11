@@ -38,7 +38,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     // 4. Let height be null.
     Optional<CSSPixels> height;
 
-    auto screen_rect = page.web_exposed_screen_area();
+    auto available_screen_area = page.web_exposed_available_screen_area();
 
     // 5. If tokenizedFeatures["left"] exists:
     if (auto left = tokenized_features.get("left"sv); left.has_value()) {
@@ -47,7 +47,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
         x = parse_integer(*left).value_or(0);
 
         // 3. Optionally, clamp x in a user-agent-defined manner so that the window does not move outside the Web-exposed available screen area.
-        x = min(*x, screen_rect.x());
+        x = min(*x, available_screen_area.x());
 
         // 4. Optionally, move target’s window such that the window’s left edge is at the horizontal coordinate x relative
         //    to the left edge of the Web-exposed screen area, measured in CSS pixels of target. The positive axis is rightward.
@@ -61,7 +61,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
         y = parse_integer(*top).value_or(0);
 
         // 3. Optionally, clamp y in a user-agent-defined manner so that the window does not move outside the Web-exposed available screen area.
-        y = min(*y, screen_rect.y());
+        y = min(*y, available_screen_area.y());
 
         // 4. Optionally, move target’s window such that the window’s top edge is at the vertical coordinate y relative
         //    to the top edge of the Web-exposed screen area, measured in CSS pixels of target. The positive axis is downward.
@@ -77,7 +77,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
         // 3. If width is not 0:
         if (width != 0) {
             // 1. Optionally, clamp width in a user-agent-defined manner so that the window does not get too small or bigger than the Web-exposed available screen area.
-            width = clamp(*width, 100, screen_rect.width());
+            width = clamp(*width, 100, available_screen_area.width());
 
             // 2. Optionally, size target’s window by moving its right edge such that the distance between the left and right edges of the viewport are width CSS pixels of target.
             // 3. Optionally, move target’s window in a user-agent-defined manner so that it does not grow outside the Web-exposed available screen area.
@@ -94,7 +94,7 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
         // 3. If height is not 0:
         if (height != 0) {
             // 1. Optionally, clamp height in a user-agent-defined manner so that the window does not get too small or bigger than the Web-exposed available screen area.
-            height = clamp(*height, 100, screen_rect.height());
+            height = clamp(*height, 100, available_screen_area.height());
 
             // 2. Optionally, size target’s window by moving its bottom edge such that the distance between the top and bottom edges of the viewport are height CSS pixels of target.
             // 3. Optionally, move target’s window in a user-agent-defined manner so that it does not grow outside the Web-exposed available screen area.
@@ -106,15 +106,15 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
 
     if (x.has_value()) {
         // Make sure we don't fly off the screen to the right
-        if (x.value() + width.value_or(0) > screen_rect.width())
-            x = screen_rect.width() - width.value_or(0);
+        if (x.value() + width.value_or(0) > available_screen_area.width())
+            x = available_screen_area.width() - width.value_or(0);
         target.screen_x = x.value() / scale;
     }
 
     if (y.has_value()) {
         // Make sure we don't fly off the screen to the bottom
-        if (y.value() + height.value_or(0) > screen_rect.height())
-            y = screen_rect.height() - height.value_or(0);
+        if (y.value() + height.value_or(0) > available_screen_area.height())
+            y = available_screen_area.height() - height.value_or(0);
         target.screen_y = y.value() / scale;
     }
 
