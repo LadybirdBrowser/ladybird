@@ -353,8 +353,12 @@ public:
             }
 
             if (m_type == ScopeType::Program) {
-                auto can_use_global_for_identifier = !(identifier_group.used_inside_with_statement || identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment || identifier_group.used_inside_scope_with_eval || m_parser.m_state.initiated_by_eval);
-                if (can_use_global_for_identifier) {
+                auto can_use_global = [&] {
+                    if (identifier_group_name == "undefined"sv)
+                        return true;
+                    return !m_parser.m_state.initiated_by_eval && identifier_group.can_use_global();
+                };
+                if (can_use_global()) {
                     for (auto& identifier : identifier_group.identifiers)
                         identifier->set_is_global();
                 }
@@ -533,6 +537,11 @@ private:
         bool might_be_variable_in_lexical_scope_in_named_function_assignment { false };
         Vector<NonnullRefPtr<Identifier>> identifiers;
         Optional<DeclarationKind> declaration_kind;
+
+        bool can_use_global() const
+        {
+            return !(used_inside_with_statement || might_be_variable_in_lexical_scope_in_named_function_assignment || used_inside_scope_with_eval);
+        }
     };
     HashMap<Utf16FlyString, IdentifierGroup> m_identifier_groups;
 
