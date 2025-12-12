@@ -1,0 +1,150 @@
+diff --git a/include/curl/curl.h b/include/curl/curl.h
+index 9e07527dc9..8a457393b7 100644
+--- a/include/curl/curl.h
++++ b/include/curl/curl.h
+@@ -2258,6 +2258,10 @@ typedef enum {
+   /* set TLS supported signature algorithms */
+   CURLOPT(CURLOPT_SSL_SIGNATURE_ALGORITHMS, CURLOPTTYPE_STRINGPOINT, 328),
+ 
++  /* Ladybird specific option to deal with web compatibility issues. The issues are:
++     - Trailing data after the end of a zlib stream must be ignored instead of erroring. (Example website: https://www.ebay.com/) */
++  CURLOPT(CURLOPT_LADYBIRD_QUIRKS_MODE, CURLOPTTYPE_LONG, 329),
++
+   CURLOPT_LASTENTRY /* the last unused */
+ } CURLoption;
+ 
+diff --git a/lib/content_encoding.c b/lib/content_encoding.c
+index b724b576b4..7051239942 100644
+--- a/lib/content_encoding.c
++++ b/lib/content_encoding.c
+@@ -78,6 +78,7 @@ typedef enum {
+   ZLIB_INIT,                 /* initialized */
+   ZLIB_INFLATING,            /* inflating started. */
+   ZLIB_EXTERNAL_TRAILER,     /* reading external trailer */
++  ZLIB_IGNORE_TRAILER,       /* ladybird quirk - ignore all trailing bytes. */
+   ZLIB_INIT_GZIP             /* initialized in transparent gzip mode */
+ } zlibInitState;
+ 
+@@ -137,21 +138,34 @@ static CURLcode process_trailer(struct Curl_easy *data,
+ {
+   z_stream *z = &zp->z;
+   CURLcode result = CURLE_OK;
+-  uInt len = z->avail_in < zp->trailerlen ? z->avail_in : zp->trailerlen;
+-
+-  /* Consume expected trailer bytes. Terminate stream if exhausted.
+-     Issue an error if unexpected bytes follow. */
+-
+-  zp->trailerlen -= len;
+-  z->avail_in -= len;
+-  z->next_in += len;
+-  if(z->avail_in)
+-    result = CURLE_WRITE_ERROR;
+-  if(result || !zp->trailerlen)
+-    result = exit_zlib(data, z, &zp->zlib_init, result);
+-  else {
+-    /* Only occurs for gzip with zlib < 1.2.0.4 or raw deflate. */
+-    zp->zlib_init = ZLIB_EXTERNAL_TRAILER;
++
++  if(!data->set.ladybird_quirks_mode) {
++    /* Consume expected trailer bytes. Terminate stream if exhausted.
++       Issue an error if unexpected bytes follow. */
++    uInt len = z->avail_in < zp->trailerlen ? z->avail_in : zp->trailerlen;
++
++    zp->trailerlen -= len;
++    z->avail_in -= len;
++    z->next_in += len;
++    if(z->avail_in)
++      result = CURLE_WRITE_ERROR;
++    if(result || !zp->trailerlen)
++      result = exit_zlib(data, z, &zp->zlib_init, result);
++    else {
++      /* Only occurs for gzip with zlib < 1.2.0.4 or raw deflate. */
++      zp->zlib_init = ZLIB_EXTERNAL_TRAILER;
++    }
++  } else {
++    /* Ignore all trailing bytes. This matches Firefox and Chrome:
++       - https://searchfox.org/firefox-main/rev/04cf27582307a9c351e991c740828d54cf786b76/netwerk/streamconv/converters/nsHTTPCompressConv.cpp#607-613
++       - https://source.chromium.org/chromium/chromium/src/+/main:net/filter/gzip_source_stream.cc;l=240-250;drc=397107e399d4b0f4a6e801e7a888d7d71778529c;bpv=0;bpt=1 */
++    if (z->avail_in > 0)
++      infof(data, "LADYBIRD QUIRK: zlib stream contains trailing bytes which will be ignored.");
++
++    zp->zlib_init = ZLIB_IGNORE_TRAILER;
++    zp->trailerlen = 0;
++    z->next_in += z->avail_in;
++    z->avail_in = 0;
+   }
+   return result;
+ }
+@@ -273,7 +287,7 @@ static CURLcode deflate_do_write(struct Curl_easy *data,
+   z->next_in = (z_const Bytef *)buf;
+   z->avail_in = (uInt)nbytes;
+ 
+-  if(zp->zlib_init == ZLIB_EXTERNAL_TRAILER)
++  if(zp->zlib_init == ZLIB_EXTERNAL_TRAILER || zp->zlib_init == ZLIB_IGNORE_TRAILER)
+     return process_trailer(data, zp);
+ 
+   /* Now uncompress the data */
+@@ -335,6 +349,13 @@ static CURLcode gzip_do_write(struct Curl_easy *data,
+     return inflate_stream(data, writer, type, ZLIB_INIT_GZIP);
+   }
+ 
++  if(zp->zlib_init == ZLIB_IGNORE_TRAILER) {
++    /* Ladybird quirk - ignore all trailing bytes */
++    z->next_in = (z_const Bytef *)buf;
++    z->avail_in = (uInt)nbytes;
++    return process_trailer(data, zp);
++  }
++
+   /* We are running with an old version: return error. */
+   return exit_zlib(data, z, &zp->zlib_init, CURLE_WRITE_ERROR);
+ }
+diff --git a/lib/easyoptions.c b/lib/easyoptions.c
+index 03d676df0e..d9b630ee58 100644
+--- a/lib/easyoptions.c
++++ b/lib/easyoptions.c
+@@ -158,6 +158,7 @@ const struct curl_easyoption Curl_easyopts[] = {
+   {"KEYPASSWD", CURLOPT_KEYPASSWD, CURLOT_STRING, 0},
+   {"KRB4LEVEL", CURLOPT_KRBLEVEL, CURLOT_STRING, CURLOT_FLAG_ALIAS},
+   {"KRBLEVEL", CURLOPT_KRBLEVEL, CURLOT_STRING, 0},
++  {"LADYBIRD_QUIRKS_MODE", CURLOPT_LADYBIRD_QUIRKS_MODE, CURLOT_LONG, 0},
+   {"LOCALPORT", CURLOPT_LOCALPORT, CURLOT_LONG, 0},
+   {"LOCALPORTRANGE", CURLOPT_LOCALPORTRANGE, CURLOT_LONG, 0},
+   {"LOGIN_OPTIONS", CURLOPT_LOGIN_OPTIONS, CURLOT_STRING, 0},
+@@ -380,6 +381,6 @@ const struct curl_easyoption Curl_easyopts[] = {
+  */
+ int Curl_easyopts_check(void)
+ {
+-  return (CURLOPT_LASTENTRY % 10000) != (328 + 1);
++  return (CURLOPT_LASTENTRY % 10000) != (329 + 1);
+ }
+ #endif
+diff --git a/lib/setopt.c b/lib/setopt.c
+index 3c3adb06a9..5a1791262b 100644
+--- a/lib/setopt.c
++++ b/lib/setopt.c
+@@ -445,6 +445,13 @@ static CURLcode setopt_bool(struct Curl_easy *data, CURLoption option,
+   int ok = 1;
+   struct UserDefined *s = &data->set;
+   switch(option) {
++  case CURLOPT_LADYBIRD_QUIRKS_MODE:
++    /*
++     * Deal with web compatibility issues.
++     * See the comment on this option in curl.h for a list of what the issues are.
++     */
++    s->ladybird_quirks_mode = enabled;
++    break;
+   case CURLOPT_FORBID_REUSE:
+     /*
+      * When this transfer is done, it must not be left to be reused by a
+diff --git a/lib/urldata.h b/lib/urldata.h
+index f79ccca0ac..a8a1c215c1 100644
+--- a/lib/urldata.h
++++ b/lib/urldata.h
+@@ -1612,6 +1612,7 @@ struct UserDefined {
+   BIT(ws_raw_mode);
+   BIT(ws_no_auto_pong);
+ #endif
++  BIT(ladybird_quirks_mode); /* deal with web compatibility issues */
+ };
+ 
+ #ifndef CURL_DISABLE_MIME

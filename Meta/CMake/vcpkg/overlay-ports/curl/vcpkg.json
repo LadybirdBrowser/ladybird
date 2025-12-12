@@ -1,0 +1,264 @@
+{
+  "name": "curl",
+  "version": "8.17.0",
+  "port-version": 1,
+  "description": "A library for transferring data with URLs",
+  "homepage": "https://curl.se/",
+  "license": "curl AND ISC AND BSD-3-Clause",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "zlib"
+  ],
+  "default-features": [
+    "non-http",
+    "ssl"
+  ],
+  "features": {
+    "brotli": {
+      "description": "brotli support (brotli)",
+      "dependencies": [
+        "brotli"
+      ]
+    },
+    "c-ares": {
+      "description": "c-ares support",
+      "dependencies": [
+        "c-ares"
+      ]
+    },
+    "gnutls": {
+      "description": "TLS support (gnutls)",
+      "dependencies": [
+        {
+          "name": "libgnutls",
+          "platform": "!windows | mingw"
+        },
+        {
+          "name": "shiftmedia-libgnutls",
+          "platform": "windows & !mingw"
+        }
+      ]
+    },
+    "gsasl": {
+      "description": "GSASL support (libgsasl)",
+      "dependencies": [
+        "gsasl"
+      ]
+    },
+    "gssapi": {
+      "description": "krb5 support",
+      "supports": "!windows",
+      "dependencies": [
+        "krb5"
+      ]
+    },
+    "http2": {
+      "description": "HTTP2 support",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "ssl"
+          ]
+        },
+        "nghttp2"
+      ]
+    },
+    "http3": {
+      "description": "HTTP3 support with ngtcp2 on openssl",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ]
+        },
+        "nghttp3",
+        {
+          "name": "ngtcp2",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ]
+        }
+      ]
+    },
+    "httpsrr": {
+      "description": "enable support for HTTPS RR"
+    },
+    "idn": {
+      "description": "Default IDN support",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "winidn"
+          ],
+          "platform": "windows"
+        },
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "idn2"
+          ],
+          "platform": "!windows"
+        }
+      ]
+    },
+    "idn2": {
+      "description": "idn2 support (libidn2)",
+      "dependencies": [
+        "libidn2"
+      ]
+    },
+    "ldap": {
+      "description": "LDAP support",
+      "supports": "!uwp",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "non-http"
+          ]
+        },
+        {
+          "name": "openldap",
+          "platform": "!windows"
+        }
+      ]
+    },
+    "mbedtls": {
+      "description": "TLS support (mbedTLS)",
+      "dependencies": [
+        "mbedtls"
+      ]
+    },
+    "non-http": {
+      "description": "Enables protocols beyond HTTP/HTTPS/HTTP2/HTTP3"
+    },
+    "openssl": {
+      "description": "TLS support (OpenSSL)",
+      "dependencies": [
+        "openssl"
+      ]
+    },
+    "psl": {
+      "description": "Use psl support (libpsl)",
+      "dependencies": [
+        "libpsl"
+      ]
+    },
+    "rtmp": {
+      "description": "RTMP support",
+      "dependencies": [
+        "librtmp"
+      ]
+    },
+    "ssh": {
+      "description": "SSH support via libssh2",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "non-http"
+          ]
+        },
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ]
+        },
+        "libssh2"
+      ]
+    },
+    "ssl": {
+      "description": "Default SSL / TLS implementation.",
+      "dependencies": [
+        {
+          "$comment": "Defaults to schannel on Windows, unless http3 is also enabled",
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "sspi"
+          ],
+          "platform": "(windows & !uwp) | mingw"
+        },
+        {
+          "$comment": "Otherwise, defaults to OpenSSL.",
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "openssl"
+          ],
+          "platform": "(uwp | !windows) & !mingw"
+        }
+      ]
+    },
+    "ssls-export": {
+      "description": "SSL session import/export",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "ssl"
+          ]
+        }
+      ]
+    },
+    "sspi": {
+      "description": "SSPI support",
+      "supports": "(windows & !uwp) | mingw"
+    },
+    "tool": {
+      "description": "Builds curl executable",
+      "supports": "!uwp"
+    },
+    "websockets": {
+      "description": "WebSocket support"
+    },
+    "winidn": {
+      "description": "WinIDN support",
+      "supports": "windows"
+    },
+    "winldap": {
+      "description": "Obsolete. Use feature 'ldap' instead.",
+      "dependencies": [
+        {
+          "name": "curl",
+          "default-features": false,
+          "features": [
+            "ldap"
+          ]
+        }
+      ]
+    },
+    "wolfssl": {
+      "description": "SSL support (wolfSSL)",
+      "dependencies": [
+        "wolfssl"
+      ]
+    },
+    "zstd": {
+      "description": "ZStandard support (zstd)",
+      "dependencies": [
+        "zstd"
+      ]
+    }
+  }
+}

@@ -1,0 +1,2 @@
+PASS! Page loaded even with trailing garbage at the end of the compressed stream.
+PASS! Page loaded even with trailing garbage at the end of the compressed stream.

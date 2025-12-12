@@ -344,6 +344,7 @@ void Request::handle_fetch_state()
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
     set_option(CURLOPT_FOLLOWLOCATION, 0);
+    set_option(CURLOPT_LADYBIRD_QUIRKS_MODE, 1); // Deal with networking web compatibility issues. See the comment on the option.
     if constexpr (CURL_DEBUG) {
         set_option(CURLOPT_VERBOSE, 1);
     }
