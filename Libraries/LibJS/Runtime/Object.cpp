@@ -7,6 +7,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/TypeCasts.h>
+#include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -153,6 +154,14 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
 
     // 3. Return unused.
     return {};
+}
+
+ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value, Bytecode::PropertyLookupCache& cache)
+{
+    Strict strict = Strict::No;
+    if (auto function = vm().running_execution_context().function; function && function->is_strict_mode())
+        strict = Strict::Yes;
+    return Bytecode::put_by_property_key<Bytecode::PutKind::Normal>(vm(), this, this, value, {}, property_key, strict, &cache);
 }
 
 // 7.3.5 CreateDataProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createdataproperty
