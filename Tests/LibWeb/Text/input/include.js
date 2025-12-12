@@ -119,6 +119,42 @@ class HTTPTestServer {
         }
         return `${this.baseURL}${path}`;
     }
+
+    async createBinaryEcho(method, path, options) {
+        const mappedOptions = Object.entries(options ?? {}).reduce((accumulator, [key, value]) => {
+            if (key === "headers" || key === "body")
+                return accumulator;
+
+            const header = `X-Echo-${key.replaceAll("_", "-")}`;
+            accumulator[header] = value;
+            return accumulator;
+        }, {});
+
+        const mappedHeaders = Object.entries(options.headers ?? {}).reduce((accumulator, [key, value]) => {
+            const header = `X-Echo-Header-${key}`;
+            accumulator[header] = value;
+            return accumulator;
+        }, {});
+
+        const baseHeaders = {
+            "Content-Type": "application/octet-stream",
+            "X-Echo-Method": method,
+            "X-Echo-Path": path,
+        };
+
+        const finalHeaders = Object.assign(baseHeaders, mappedOptions, mappedHeaders);
+
+        const result = await fetch(`${this.baseURL}/echo-binary-data`, {
+            method: "POST",
+            headers: finalHeaders,
+            body: options.body,
+        });
+        if (!result.ok) {
+            throw new Error("Error creating binary echo: " + result.statusText);
+        }
+        return `${this.baseURL}${path}`;
+    }
+
     getStaticURL(path) {
         return `${this.baseURL}/static/${path}`;
     }

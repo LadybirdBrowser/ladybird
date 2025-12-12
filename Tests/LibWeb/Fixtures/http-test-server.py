@@ -26,7 +26,7 @@ class Echo:
     path: str
     status: int
     headers: Optional[Dict[str, str]]
-    body: Optional[str]
+    body: Optional[bytes]
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
@@ -57,60 +57,54 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo = Echo()
             echo.method = data.get("method", None)
             echo.path = data.get("path", None)
-            echo.status = data.get("status", None)
-            echo.body = data.get("body", None)
-            echo.delay_ms = data.get("delay_ms", None)
+
+            status = data.get("status", None)
+            echo.status = int(status) if status is not None else None
+
+            body = data.get("body", None)
+            echo.body = body.encode() if body is not None else None
+
+            delay_ms = data.get("delay_ms", None)
+            echo.delay_ms = int(delay_ms) if delay_ms is not None else None
+
             echo.headers = data.get("headers", None)
             echo.reason_phrase = data.get("reason_phrase", None)
             echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
 
-            is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
+            self.try_store_echo(echo)
+        elif self.path.startswith("/echo-binary-data"):
+            content_length = int(self.headers["Content-Length"])
+            post_data = self.rfile.read(content_length)
 
-            # Return 400: Bad Request if invalid params are given or a reserved path is given
-            if (
-                echo.method is None
-                or echo.path is None
-                or echo.status is None
-                or (echo.body is not None and echo.reflect_headers_in_body)
-                or is_using_reserved_path
-            ):
-                self.send_response(400)
-                self.send_header("Content-Type", "text/plain")
-                self.end_headers()
-                return
+            echo = Echo()
+            echo.method = self.headers.get("X-Echo-Method", None)
+            echo.path = self.headers.get("X-Echo-Path", None)
 
-            # Return 409: Conflict if the method+path combination already exists
-            key = f"{echo.method} {echo.path}"
-            if key in echo_store:
-                self.send_response(409)
-                self.send_header("Content-Type", "text/plain")
-                self.end_headers()
-                return
+            status = self.headers.get("X-Echo-Status", None)
+            echo.status = int(status) if status is not None else None
 
-            echo_store[key] = echo
+            echo.body = post_data
 
-            host = self.headers.get("host", "localhost")
-            path = echo.path.lstrip("/")
-            fetch_url = f"http://{host}/{path}"
+            delay_ms = self.headers.get("X-Echo-Delay-Ms", None)
+            echo.delay_ms = int(delay_ms) if delay_ms is not None else None
 
-            # The params to use on the client when making a request to the newly created echo endpoint
-            fetch_config = {
-                "method": echo.method,
-                "url": fetch_url,
-            }
+            echo.headers = dict()
+            headers = (header for header in self.headers if header.startswith("X-Echo-Header-"))
+            for header in headers:
+                header_without_prefix = header.removeprefix("X-Echo-Header-")
+                echo.headers[header_without_prefix] = self.headers.get(header)
 
-            self.send_response(201)
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
+            echo.reason_phrase = self.headers.get("X-Echo-Reason-Phrase", None)
+            echo.reflect_headers_in_body = self.headers.get("X-Echo-Reflect-Headers-In-Body", None)
+
+            self.try_store_echo(echo)
         elif self.path.startswith("/static/"):
             self.send_error(405, "Method Not Allowed")
         else:
             self.handle_echo()
 
     def do_OPTIONS(self):
-        if self.path.startswith("/echo"):
+        if self.path.startswith(("/echo", "/echo-binary-data")):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "*")
@@ -127,6 +121,54 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         self.do_other()
+
+    def try_store_echo(self, echo: Echo):
+        is_using_reserved_path = echo.path.startswith(
+            (
+                "/static",
+                "/echo",
+                "/echo-binary-data",
+            )
+        )
+
+        # Return 400: Bad Request if invalid params are given or a reserved path is given
+        if (
+            echo.method is None
+            or echo.path is None
+            or echo.status is None
+            or (echo.body is not None and echo.reflect_headers_in_body)
+            or is_using_reserved_path
+        ):
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            return
+
+            # Return 409: Conflict if the method+path combination already exists
+        key = f"{echo.method} {echo.path}"
+        if key in echo_store:
+            self.send_response(409)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            return
+
+        echo_store[key] = echo
+
+        host = self.headers.get("host", "localhost")
+        path = echo.path.lstrip("/")
+        fetch_url = f"http://{host}/{path}"
+
+        # The params to use on the client when making a request to the newly created echo endpoint
+        fetch_config = {
+            "method": echo.method,
+            "url": fetch_url,
+        }
+
+        self.send_response(201)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
 
     def handle_echo(self):
         method = self.command.upper()
@@ -167,10 +209,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 headers = defaultdict(list)
                 for key in self.headers.keys():
                     headers[key] = self.headers.get_all(key)
-                response_body = json.dumps(headers)
+                response_body = json.dumps(headers).encode()
             else:
-                response_body = echo.body or ""
-            self.wfile.write(response_body.encode("utf-8"))
+                response_body = echo.body or bytes()
+            self.wfile.write(response_body)
         else:
             self.send_error(404, f"Echo response not found for {key}")
 

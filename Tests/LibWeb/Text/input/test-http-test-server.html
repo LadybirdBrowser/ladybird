@@ -18,9 +18,29 @@
             const headers = result.headers;
 
             if (headers.get("X-Custom-Header") === "well hello friends") {
-                println("PASS");
+                println("PASS (json)");
             } else {
-                println("FAIL");
+                println("FAIL (json)");
+            }
+
+            const binaryUrl = await httpServer.createBinaryEcho("GET", "/test-http-test-server-binary", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",  // necessary when running test using file://...
+                    "Access-Control-Expose-Headers": "X-Custom-Header-For-Binary", // tells the browser which headers to expose to JS
+                    "Content-Type": "text/plain",
+                    "X-Custom-Header-For-Binary": "well hello friends",
+                },
+                body: "hello world!!!",
+            });
+
+            const binaryResult = await fetch(binaryUrl);
+            const binaryHeaders = binaryResult.headers;
+
+            if (binaryHeaders.get("X-Custom-Header-For-Binary") === "well hello friends") {
+                println("PASS (binary)");
+            } else {
+                println("FAIL (binary)");
             }
         } catch (err) {
             println("FAIL - " + err);
