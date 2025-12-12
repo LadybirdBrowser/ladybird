@@ -138,15 +138,25 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 {
     // The procedure to validate a CSSNumberish time for an input value of time is based on the first condition that matches:
 
-    // FIXME: If all of the following conditions are true:
-    // The animation is associated with a progress-based timeline, and
-    // time is not a CSSNumeric value with percent units:
-    // throw a TypeError.
-    // return false;
+    // If all of the following conditions are true:
+    if (
+        // The animation is associated with a progress-based timeline, and
+        m_timeline && m_timeline->is_progress_based() &&
+
+        // time is not a CSSNumeric value with percent units:
+        (!time.has_value() || !time->has<GC::Root<CSS::CSSNumericValue>>() || !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_percentage())) {
+        // throw a TypeError.
+        // return false;
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            "CSSNumberish must be a percentage for progress-based animations"sv
+        };
+    }
 
     // If all of the following conditions are true:
     if (
-        // FIXME: The animation is not associated with a progress-based timeline, and
+        // The animation is not associated with a progress-based timeline, and
+        (!m_timeline || !m_timeline->is_progress_based()) &&
 
         // time is a CSSNumericValue, and
         time.has_value() && time->has<GC::Root<CSS::CSSNumericValue>>() &&
