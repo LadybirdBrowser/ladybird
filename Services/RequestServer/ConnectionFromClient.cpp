@@ -62,7 +62,7 @@ ConnectionFromClient::~ConnectionFromClient()
     m_curl_multi = nullptr;
 }
 
-void ConnectionFromClient::request_complete(Badge<Request>, int request_id)
+void ConnectionFromClient::request_complete(Badge<Request>, u64 request_id)
 {
     Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
         if (auto self = weak_self.strong_ref())
@@ -182,7 +182,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(i32 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
@@ -276,7 +276,7 @@ void ConnectionFromClient::check_active_requests()
     }
 }
 
-Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(i32 request_id)
+Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(u64 request_id)
 {
     auto request = m_active_requests.take(request_id);
     if (!request.has_value()) {
@@ -287,7 +287,7 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(i32 request_id, ByteString certificate, ByteString key)
+Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64 request_id, ByteString certificate, ByteString key)
 {
     (void)request_id;
     (void)certificate;
@@ -297,7 +297,7 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
-    auto connect_only_request_id = get_random<i32>();
+    auto connect_only_request_id = get_random<u64>();
 
     auto request = Request::connect(connect_only_request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
     m_active_requests.set(connect_only_request_id, move(request));

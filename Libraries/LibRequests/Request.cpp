@@ -24,7 +24,7 @@ ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 #endif
 }
 
-Request::Request(RequestClient& client, i32 request_id)
+Request::Request(RequestClient& client, u64 request_id)
     : m_client(client)
     , m_request_id(request_id)
 {

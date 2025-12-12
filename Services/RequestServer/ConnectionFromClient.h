@@ -25,7 +25,7 @@ public:
 
     virtual void die() override;
 
-    void request_complete(Badge<Request>, int request_id);
+    void request_complete(Badge<Request>, u64 request_id);
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -37,9 +37,9 @@ private:
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
-    virtual void start_request(i32 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, Core::ProxyData) override;
-    virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
-    virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString, ByteString) override;
+    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, Core::ProxyData) override;
+    virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
+    virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
@@ -58,7 +58,7 @@ private:
 
     void* m_curl_multi { nullptr };
 
-    HashMap<i32, NonnullOwnPtr<Request>> m_active_requests;
+    HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     RefPtr<Core::Timer> m_timer;

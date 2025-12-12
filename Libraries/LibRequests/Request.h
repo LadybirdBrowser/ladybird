@@ -49,12 +49,12 @@ public:
         ByteString key;
     };
 
-    static NonnullRefPtr<Request> create_from_id(Badge<RequestClient>, RequestClient& client, i32 request_id)
+    static NonnullRefPtr<Request> create_from_id(Badge<RequestClient>, RequestClient& client, u64 request_id)
     {
         return adopt_ref(*new Request(client, request_id));
     }
 
-    int id() const { return m_request_id; }
+    u64 id() const { return m_request_id; }
     int fd() const { return m_fd; }
     bool stop();
 
@@ -82,12 +82,12 @@ public:
     void set_request_fd(Badge<RequestClient>, int fd);
 
 private:
-    explicit Request(RequestClient&, i32 request_id);
+    Request(RequestClient&, u64 request_id);
 
     void set_up_internal_stream_data(DataReceived on_data_available);
 
     WeakPtr<RequestClient> m_client;
-    int m_request_id { -1 };
+    u64 m_request_id { 0 };
     RefPtr<Core::Notifier> m_write_notifier;
     int m_fd { -1 };
 
