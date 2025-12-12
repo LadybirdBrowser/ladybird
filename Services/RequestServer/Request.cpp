@@ -32,7 +32,7 @@ NonnullOwnPtr<Request> Request::fetch(
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -60,7 +60,7 @@ NonnullOwnPtr<Request> Request::connect(
     return request;
 }
 
-Request::Request(
+NonnullOwnPtr<Request> Request::revalidate(
     u64 request_id,
     Optional<HTTP::DiskCache&> disk_cache,
     ConnectionFromClient& client,
@@ -72,8 +72,28 @@ Request::Request(
     ByteBuffer request_body,
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
+{
+    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    request->process();
+
+    return request;
+}
+
+Request::Request(
+    u64 request_id,
+    Type type,
+    Optional<HTTP::DiskCache&> disk_cache,
+    ConnectionFromClient& client,
+    void* curl_multi,
+    Resolver& resolver,
+    URL::URL url,
+    ByteString method,
+    NonnullRefPtr<HTTP::HeaderList> request_headers,
+    ByteBuffer request_body,
+    ByteString alt_svc_cache_path,
+    Core::ProxyData proxy_data)
     : m_request_id(request_id)
-    , m_type(Type::Fetch)
+    , m_type(type)
     , m_disk_cache(disk_cache)
     , m_client(client)
     , m_curl_multi_handle(curl_multi)
@@ -133,10 +153,13 @@ void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
 
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
-    if (m_cache_entry_reader.has_value() && m_cache_entry_reader->must_revalidate()) {
+    if (is_revalidation_request()) {
         if (acquire_status_code() == 304) {
+            if (m_type == Type::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
+                m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
+
             m_cache_entry_reader->revalidation_succeeded(m_response_headers);
-            transition_to_state(State::ReadCache);
+            transition_to_state(m_type == Type::Fetch ? State::ReadCache : State::Complete);
             return;
         }
 
@@ -192,16 +215,27 @@ void Request::process()
 void Request::handle_initial_state()
 {
     if (m_disk_cache.has_value()) {
-        m_disk_cache->open_entry(*this, m_url, m_method, m_request_headers)
+        auto open_mode = m_type == Type::BackgroundRevalidation
+            ? HTTP::DiskCache::OpenMode::Revalidate
+            : HTTP::DiskCache::OpenMode::Read;
+
+        m_disk_cache->open_entry(*this, m_url, m_method, m_request_headers, open_mode)
             .visit(
                 [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
                     m_cache_entry_reader = cache_entry_reader;
 
                     if (m_cache_entry_reader.has_value()) {
-                        if (m_cache_entry_reader->must_revalidate())
+                        if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
+                            m_client.start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_proxy_data);
+
+                        if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
                         else
                             transition_to_state(State::ReadCache);
+                    } else if (m_type == Type::BackgroundRevalidation) {
+                        // If we were not able to open a cache entry reader for revalidation requests, there's no point
+                        // in issuing a request over the network.
+                        transition_to_state(State::Complete);
                     }
                 },
                 [&](HTTP::DiskCache::CacheHasOpenEntry) {
@@ -276,7 +310,7 @@ void Request::handle_dns_lookup_state()
                 dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}'", host);
                 m_network_error = Requests::NetworkError::UnableToResolveHost;
                 transition_to_state(State::Error);
-            } else if (m_type == Type::Fetch) {
+            } else if (m_type == Type::Fetch || m_type == Type::BackgroundRevalidation) {
                 m_dns_result = move(dns_result);
                 transition_to_state(State::Fetch);
             } else {
@@ -319,7 +353,7 @@ void Request::handle_fetch_state()
         return;
     }
 
-    auto is_revalidation_request = m_cache_entry_reader.has_value() && m_cache_entry_reader->must_revalidate();
+    auto is_revalidation_request = this->is_revalidation_request();
 
     if (!is_revalidation_request) {
         if (inform_client_request_started().is_error())
@@ -453,7 +487,7 @@ void Request::handle_complete_state()
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
     }
 
-    m_client.request_complete({}, m_request_id);
+    m_client.request_complete({}, *this);
 }
 
 void Request::handle_error_state()
@@ -463,7 +497,7 @@ void Request::handle_error_state()
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
     }
 
-    m_client.request_complete({}, m_request_id);
+    m_client.request_complete({}, *this);
 }
 
 size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void* user_data)
@@ -504,7 +538,7 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
 {
     auto& request = *static_cast<Request*>(user_data);
 
-    if (request.m_cache_entry_reader.has_value() && request.m_cache_entry_reader->must_revalidate()) {
+    if (request.is_revalidation_request()) {
         // If we arrive here, we did not receive an HTTP 304 response code. We must remove the cache entry and inform
         // the client of the new response headers and data.
         if (request.revalidation_failed().is_error())
@@ -541,6 +575,9 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
 
 ErrorOr<void> Request::inform_client_request_started()
 {
+    if (m_type == Type::BackgroundRevalidation)
+        return {};
+
     auto request_pipe = RequestPipe::create();
     if (request_pipe.is_error()) {
         dbgln("Request::handle_read_from_cache_state: Failed to create pipe: {}", request_pipe.error());
@@ -573,6 +610,9 @@ void Request::transfer_headers_to_client_if_needed()
         }
     }
 
+    if (m_type == Type::BackgroundRevalidation)
+        return;
+
     if (m_disk_cache.has_value() && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing) {
         switch (m_cache_status) {
         case CacheStatus::Unknown:
@@ -594,6 +634,30 @@ void Request::transfer_headers_to_client_if_needed()
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()
 {
+    Vector<u8> bytes_to_send;
+    bytes_to_send.resize(m_response_buffer.used_buffer_size());
+    m_response_buffer.peek_some(bytes_to_send);
+
+    auto write_bytes_to_disk_cache = [&](size_t byte_count) {
+        if (!m_cache_entry_writer.has_value())
+            return;
+
+        auto bytes_to_write = bytes_to_send.span().slice(0, byte_count);
+
+        if (m_cache_entry_writer->write_data(bytes_to_write).is_error())
+            m_cache_entry_writer.clear();
+    };
+
+    if (m_type == Type::BackgroundRevalidation) {
+        write_bytes_to_disk_cache(bytes_to_send.size());
+        MUST(m_response_buffer.discard(bytes_to_send.size()));
+
+        if (m_response_buffer.is_eof() && m_curl_result_code.has_value())
+            transition_to_state(State::Complete);
+
+        return {};
+    }
+
     if (!m_client_writer_notifier) {
         m_client_writer_notifier = Core::Notifier::construct(m_client_request_pipe->writer_fd(), Core::NotificationType::Write);
         m_client_writer_notifier->set_enabled(false);
@@ -604,10 +668,6 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         };
     }
 
-    Vector<u8> bytes_to_send;
-    bytes_to_send.resize(m_response_buffer.used_buffer_size());
-    m_response_buffer.peek_some(bytes_to_send);
-
     auto result = m_client_request_pipe->write(bytes_to_send);
     if (result.is_error()) {
         if (!first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
@@ -617,15 +677,10 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         return {};
     }
 
-    if (m_cache_entry_writer.has_value()) {
-        auto bytes_sent = bytes_to_send.span().slice(0, result.value());
-
-        if (m_cache_entry_writer->write_data(bytes_sent).is_error())
-            m_cache_entry_writer.clear();
-    }
+    write_bytes_to_disk_cache(result.value());
+    MUST(m_response_buffer.discard(result.value()));
 
     m_bytes_transferred_to_client += result.value();
-    MUST(m_response_buffer.discard(result.value()));
 
     m_client_writer_notifier->set_enabled(!m_response_buffer.is_eof());
     if (m_response_buffer.is_eof() && m_curl_result_code.has_value())
@@ -634,8 +689,24 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
     return {};
 }
 
+bool Request::is_revalidation_request() const
+{
+    switch (m_type) {
+    case Type::Fetch:
+        return m_cache_entry_reader.has_value() && m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::MustRevalidate;
+    case Type::Connect:
+        return false;
+    case Type::BackgroundRevalidation:
+        return m_cache_entry_reader.has_value();
+    }
+    VERIFY_NOT_REACHED();
+}
+
 ErrorOr<void> Request::revalidation_failed()
 {
+    if (m_type == Type::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
+        m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "expired"sv });
+
     m_cache_entry_reader->revalidation_failed();
     m_cache_entry_reader.clear();
 

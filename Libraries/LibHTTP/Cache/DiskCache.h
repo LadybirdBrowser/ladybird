@@ -40,7 +40,12 @@ public:
 
     struct CacheHasOpenEntry { };
     Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time);
-    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers);
+
+    enum class OpenMode {
+        Read,
+        Revalidate,
+    };
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, OpenMode);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
@@ -62,7 +67,11 @@ private:
 
     NonnullRefPtr<Database::Database> m_database;
 
-    HashMap<u64, Vector<NonnullOwnPtr<CacheEntry>, 1>> m_open_cache_entries;
+    struct OpenCacheEntry {
+        NonnullOwnPtr<CacheEntry> entry;
+        WeakPtr<CacheRequest> request;
+    };
+    HashMap<u64, Vector<OpenCacheEntry, 1>> m_open_cache_entries;
     HashMap<u64, Vector<WeakPtr<CacheRequest>, 1>> m_requests_waiting_completion;
 
     LexicalPath m_cache_directory;

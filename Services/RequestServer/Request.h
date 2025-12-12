@@ -49,7 +49,29 @@ public:
         URL::URL url,
         CacheLevel cache_level);
 
+    static NonnullOwnPtr<Request> revalidate(
+        u64 request_id,
+        Optional<HTTP::DiskCache&> disk_cache,
+        ConnectionFromClient& client,
+        void* curl_multi,
+        Resolver& resolver,
+        URL::URL url,
+        ByteString method,
+        NonnullRefPtr<HTTP::HeaderList> request_headers,
+        ByteBuffer request_body,
+        ByteString alt_svc_cache_path,
+        Core::ProxyData proxy_data);
+
     virtual ~Request() override;
+
+    enum class Type : u8 {
+        Fetch,
+        Connect,
+        BackgroundRevalidation,
+    };
+
+    u64 request_id() const { return m_request_id; }
+    Type type() const { return m_type; }
 
     URL::URL const& url() const { return m_url; }
     ByteString const& method() const { return m_method; }
@@ -60,11 +82,6 @@ public:
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
 private:
-    enum class Type : u8 {
-        Fetch,
-        Connect,
-    };
-
     enum class State : u8 {
         Init,         // Decide whether to service this request from cache or the network.
         ReadCache,    // Read the cached response from disk.
@@ -101,6 +118,7 @@ private:
 
     Request(
         u64 request_id,
+        Type type,
         Optional<HTTP::DiskCache&> disk_cache,
         ConnectionFromClient& client,
         void* curl_multi,
@@ -136,12 +154,12 @@ private:
     ErrorOr<void> inform_client_request_started();
     void transfer_headers_to_client_if_needed();
     ErrorOr<void> write_queued_bytes_without_blocking();
+
+    virtual bool is_revalidation_request() const override;
     ErrorOr<void> revalidation_failed();
 
     u32 acquire_status_code() const;
     Requests::RequestTimingInfo acquire_timing_info() const;
-
-    ConnectionFromClient& client();
 
     u64 m_request_id { 0 };
     Type m_type { Type::Fetch };

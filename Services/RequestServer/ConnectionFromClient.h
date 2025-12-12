@@ -25,7 +25,8 @@ public:
 
     virtual void die() override;
 
-    void request_complete(Badge<Request>, u64 request_id);
+    void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data);
+    void request_complete(Badge<Request>, Request const&);
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -59,6 +60,7 @@ private:
     void* m_curl_multi { nullptr };
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
+    HashMap<u64, NonnullOwnPtr<Request>> m_active_revalidation_requests;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     RefPtr<Core::Timer> m_timer;
@@ -67,6 +69,8 @@ private:
 
     NonnullRefPtr<Resolver> m_resolver;
     ByteString m_alt_svc_cache_path;
+
+    u64 m_next_revalidation_request_id { 0 };
 };
 
 constexpr inline uintptr_t websocket_private_tag = 0x1;
