@@ -199,7 +199,13 @@ private:
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
 
     WebIDL::ExceptionOr<void> setup_playback_manager(Function<void(String)> failure_callback);
-    WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
+    enum class FetchingStatus {
+        Ongoing,
+        Complete,
+        Error,
+    };
+    WebIDL::ExceptionOr<void> process_media_data(FetchingStatus);
+
     WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
