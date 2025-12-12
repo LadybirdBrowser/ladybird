@@ -476,7 +476,7 @@ public:
             // RESTORE
             empend((ByteCodeValueType)OpCodeId::Save);
             empend((ByteCodeValueType)OpCodeId::SetStepBack);
-            empend((ByteCodeValueType)match_length - 1);
+            empend((ByteCodeValueType)match_length > 0 ? match_length - 1 : match_length);
             empend((ByteCodeValueType)OpCodeId::IncStepBack);
             empend((ByteCodeValueType)OpCodeId::ForkJump);
             empend((ByteCodeValueType)1 + 2); // JUMP to label _BODY
@@ -485,6 +485,7 @@ public:
             empend((ByteCodeValueType)-6); // JUMP to label _START
             extend(move(lookaround_body));
             empend((ByteCodeValueType)OpCodeId::CheckSavedPosition);
+            empend((ByteCodeValueType)match_length);
             empend((ByteCodeValueType)OpCodeId::Restore);
             return;
         case LookAroundType::NegatedLookBehind: {
@@ -857,8 +858,9 @@ class OpCode_CheckSavedPosition final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::CheckSavedPosition; }
-    ALWAYS_INLINE size_t size() const override { return 1; }
-    ByteString arguments_string() const override { return ByteString::formatted("check saved back"); }
+    ALWAYS_INLINE size_t size() const override { return 2; }
+    ALWAYS_INLINE size_t body_lenght() const { return argument(0); }
+    ByteString arguments_string() const override { return ByteString::formatted("check saved back body_lenght={}", body_lenght()); }
 };
 
 class OpCode_Jump final : public OpCode {

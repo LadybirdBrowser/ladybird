@@ -299,8 +299,23 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckStepBack::execute(MatchInput const& in
 
 ALWAYS_INLINE ExecutionResult OpCode_CheckSavedPosition::execute(MatchInput const& input, MatchState& state) const
 {
-    if (state.string_position != input.saved_positions.last())
+    if (input.saved_positions.size() == 0) {
         return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        if (body_lenght() == 0) {
+            if (state.string_position + 1 != input.saved_positions.last()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+        } else {
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
+        }
+    }
     state.stepBacks.take_last();
     return ExecutionResult::Continue;
 }
@@ -383,15 +398,21 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& in
 {
     auto isword = [](auto ch) { return is_ascii_alphanumeric(ch) || ch == '_'; };
     auto is_word_boundary = [&] {
+        size_t prev_pos = state.string_position_in_code_units - 1;
+
+        if (state.stepBacks.size() > 0) {
+            prev_pos = state.string_position_in_code_units + 1;
+        }
+
         if (state.string_position == input.view.length()) {
-            return (state.string_position > 0 && isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
+            return (state.string_position > 0 && isword(input.view.code_point_at(prev_pos)));
         }
 
         if (state.string_position == 0) {
             return (isword(input.view.code_point_at(0)));
         }
 
-        return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
+        return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(prev_pos)));
     };
     switch (type()) {
     case BoundaryCheckType::Word: {
