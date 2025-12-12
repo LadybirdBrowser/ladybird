@@ -15,6 +15,7 @@
 #include <LibMedia/Providers/WrapperTimeProvider.h>
 #include <LibMedia/Sinks/AudioMixingSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/Sniffing.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Thread.h>
 
@@ -25,10 +26,11 @@ namespace Media {
 DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
 {
     auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto matroska_result = Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return TRY(FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor()));
+        if (sniff_webm(stream->create_cursor()))
+            return Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
+        if (sniff_mp4(stream->create_cursor()))
+            return FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor());
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No suitable demuxer found"sv);
     }());
     auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
