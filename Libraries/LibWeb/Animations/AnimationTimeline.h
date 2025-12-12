@@ -36,6 +36,7 @@ public:
 
     virtual bool is_inactive() const;
     bool is_monotonically_increasing() const { return m_is_monotonically_increasing; }
+    virtual bool is_progress_based() const { return false; }
 
     // https://www.w3.org/TR/web-animations-1/#timeline-time-to-origin-relative-time
     virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) { VERIFY_NOT_REACHED(); }
