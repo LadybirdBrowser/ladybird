@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -83,8 +83,11 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemBox.h>
+#include <LibWeb/Layout/MathMLFractionBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/MathML/MathMLElement.h>
+#include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -651,7 +654,13 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
         // https://w3c.github.io/mathml-core/#new-display-math-value
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
-        // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
+        if (auto* mathml_element = as_if<MathML::MathMLElement>(element)) {
+            auto const& tag_name = element->local_name();
+            if (tag_name == MathML::TagNames::mfrac)
+                return document.heap().allocate<Layout::MathMLFractionBox>(document, *mathml_element, move(style));
+            // FIXME: Create other MathML layout boxes.
+        }
+        // FIXME: Figure out what kind of node we should make for other elements. For now, we'll stick with a generic Box.
         return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
     }
 

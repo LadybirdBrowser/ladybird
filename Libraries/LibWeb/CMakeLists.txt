@@ -745,6 +745,8 @@ set(SOURCES
     Layout/Node.cpp
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
+    Layout/MathMLBox.cpp
+    Layout/MathMLFractionBox.cpp
     Layout/SVGBox.cpp
     Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
@@ -815,6 +817,7 @@ set(SOURCES
     Painting/ImagePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
+    Painting/MathMLFractionPaintable.cpp
     Painting/MediaPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
