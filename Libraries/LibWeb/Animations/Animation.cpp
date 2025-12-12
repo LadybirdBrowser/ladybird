@@ -329,7 +329,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     // -> If animation is associated with a monotonically increasing timeline and the previous time is resolved,
     if (m_timeline && m_timeline->is_monotonically_increasing() && previous_time.has_value()) {
         // set the current time of animation to previous time.
-        TRY(set_current_time_for_bindings(previous_time->as_css_numberish()));
+        TRY(set_current_time_for_bindings(previous_time->as_css_numberish(realm())));
     }
     // -> If animation is associated with a non-null timeline that is not monotonically increasing, the start time of
     //    animation is resolved, associated effect end is not infinity, and either:
@@ -526,7 +526,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
         AnimationPlaybackEventInit init;
-        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); }) : Optional<CSS::CSSNumberish> {};
+        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); }) : Optional<CSS::CSSNumberish> {};
         auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
 
         // 10. If animation has a document for timing, then append cancelEvent to its document for timing's pending
@@ -1202,9 +1202,9 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
             AnimationPlaybackEventInit init;
-            init.current_time = current_time()->as_css_numberish();
+            init.current_time = current_time()->as_css_numberish(realm);
             if (m_timeline && !m_timeline->is_inactive())
-                init.timeline_time = m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); });
+                init.timeline_time = m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); });
 
             auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
 

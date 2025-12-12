@@ -2713,6 +2713,10 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
         case Animations::TimeValue::Type::Milliseconds:
             elapsed_time_output = elapsed_time.value / 1000;
             break;
+        case Animations::TimeValue::Type::Percentage:
+            // FIXME: The spec doesn't specify how to handle this case
+            elapsed_time_output = 0;
+            break;
         }
 
         append_pending_animation_event({
@@ -2812,6 +2816,10 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
         switch (elapsed_time.type) {
         case Animations::TimeValue::Type::Milliseconds:
             elapsed_time_output = elapsed_time.value / 1000;
+            break;
+        case Animations::TimeValue::Type::Percentage:
+            // FIXME: The spec doesn't specify how to handle this case
+            elapsed_time_output = 0;
             break;
         }
 
@@ -5492,8 +5500,8 @@ void Document::remove_replaced_animations()
             // - Set removeEvent’s timelineTime attribute to the current time of the timeline with which animation is
             //   associated.
             Animations::AnimationPlaybackEventInit init;
-            init.current_time = animation->current_time().map([](auto const& value) { return value.as_css_numberish(); });
-            init.timeline_time = animation->timeline()->current_time().map([](auto const& value) { return value.as_css_numberish(); });
+            init.current_time = animation->current_time().map([&](auto const& value) { return value.as_css_numberish(realm()); });
+            init.timeline_time = animation->timeline()->current_time().map([&](auto const& value) { return value.as_css_numberish(realm()); });
             auto remove_event = Animations::AnimationPlaybackEvent::create(realm(), HTML::EventNames::remove, init);
 
             // - If animation has a document for timing, then append removeEvent to its document for timing's pending
