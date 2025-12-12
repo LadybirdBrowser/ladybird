@@ -150,7 +150,7 @@ static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string
             match_indices_array = get_match_index_pair(vm, string, *match_indices);
 
         // d. Perform ! CreateDataPropertyOrThrow(A, ! ToString(i), matchIndicesArray).
-        MUST(array->create_data_property_or_throw(i, match_indices_array));
+        array->indexed_properties().put(i, match_indices_array);
     }
 
     for (auto const& entry : group_names) {
@@ -292,7 +292,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 28. Let matchedSubstr be GetMatchString(S, match).
     // 29. Perform ! CreateDataPropertyOrThrow(A, "0", matchedSubstr).
-    MUST(array->create_data_property_or_throw(0, PrimitiveString::create(vm, match.view.u16_view())));
+    array->indexed_properties().put(0, PrimitiveString::create(vm, match.view.u16_view()));
 
     // 30. If R contains any GroupName, then
     //     a. Let groups be OrdinaryObjectCreate(null).
@@ -343,7 +343,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         }
 
         // d. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(i)), capturedValue).
-        MUST(array->create_data_property_or_throw(i, captured_value));
+        array->indexed_properties().put(i, captured_value);
 
         // e. If the ith capture of R was defined with a GroupName, then
         if (capture.capture_group_name >= 0) {
@@ -645,7 +645,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
         auto match_str = TRY(match_value.to_string(vm));
 
         // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), matchStr).
-        MUST(array->create_data_property_or_throw(n, PrimitiveString::create(vm, match_str)));
+        array->indexed_properties().put(n, PrimitiveString::create(vm, match_str));
 
         // 3. If matchStr is the empty String, then
         if (match_str.is_empty()) {
@@ -1021,7 +1021,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
             return array;
 
         // c. Perform ! CreateDataPropertyOrThrow(A, "0", S).
-        MUST(array->create_data_property_or_throw(0, string));
+        array->indexed_properties().put(0, string);
 
         // d. Return A.
         return array;
@@ -1072,7 +1072,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
         auto substring = string->utf16_string_view().substring_view(last_match_end, next_search_from - last_match_end);
 
         // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
-        MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, substring)));
+        array->indexed_properties().put(array_length, PrimitiveString::create(vm, substring));
 
         // 3. Set lengthA to lengthA + 1.
         ++array_length;
@@ -1098,7 +1098,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
             auto next_capture = TRY(result.get(vm, i));
 
             // b. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), nextCapture).
-            MUST(array->create_data_property_or_throw(array_length, next_capture));
+            array->indexed_properties().put(array_length, next_capture);
 
             // c. Set i to i + 1.
 
@@ -1118,7 +1118,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto substring = string->utf16_string_view().substring_view(last_match_end);
 
     // 21. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
-    MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, substring)));
+    array->indexed_properties().put(array_length, PrimitiveString::create(vm, substring));
 
     // 22. Return A.
     return array;
