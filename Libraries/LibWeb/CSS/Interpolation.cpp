@@ -1646,16 +1646,11 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             },
             [&](Ellipse const& from_ellipse) -> Optional<BasicShape> {
                 auto const& to_ellipse = to_shape.get<Ellipse>();
-                if (from_ellipse.radius_x->is_keyword() || to_ellipse.radius_x->is_keyword())
-                    return {};
-                if (from_ellipse.radius_y->is_keyword() || to_ellipse.radius_y->is_keyword())
-                    return {};
-                auto interpolated_radius_x = interpolate_value(element, basic_shape_calculation_context, from_ellipse.radius_x, to_ellipse.radius_x, delta, allow_discrete);
-                auto interpolated_radius_y = interpolate_value(element, basic_shape_calculation_context, from_ellipse.radius_y, to_ellipse.radius_y, delta, allow_discrete);
+                auto interpolated_radius = interpolate_value_impl(element, basic_shape_calculation_context, from_ellipse.radius, to_ellipse.radius, delta, AllowDiscrete::No);
                 auto interpolated_position = interpolate_value(element, basic_shape_calculation_context, from_ellipse.position, to_ellipse.position, delta, allow_discrete);
-                if (!interpolated_radius_x || !interpolated_radius_y || !interpolated_position)
+                if (!interpolated_radius || !interpolated_position)
                     return {};
-                return Ellipse { interpolated_radius_x.release_nonnull(), interpolated_radius_y.release_nonnull(), interpolated_position->as_position() };
+                return Ellipse { interpolated_radius.release_nonnull(), interpolated_position->as_position() };
             },
             [&](Polygon const& from_polygon) -> Optional<BasicShape> {
                 // If both shapes are of type polygon(), both polygons have the same number of vertices, and use the
