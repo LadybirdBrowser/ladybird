@@ -162,6 +162,30 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
     return first_element_position;
 }
 
+// https://mimesniff.spec.whatwg.org/#matches-the-signature-for-webm
+bool Reader::sniff_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
+{
+    auto result = [&] -> DecoderErrorOr<bool> {
+        Streamer streamer { stream_cursor };
+        auto first_element_id = TRY(streamer.read_variable_size_integer(false));
+        if (first_element_id != EBML_MASTER_ELEMENT_ID)
+            return DecoderError::corrupted("First element was not an EBML header"sv);
+        String doc_type;
+        TRY(parse_master_element(streamer, "Header"sv, [&](u64 element_id) -> DecoderErrorOr<IterationDecision> {
+            if (element_id != DOCTYPE_ELEMENT_ID) {
+                TRY(streamer.read_unknown_element());
+                return IterationDecision::Continue;
+            }
+            doc_type = TRY(streamer.read_string());
+            return IterationDecision::Break;
+        }));
+        return doc_type == "webm"sv;
+    }();
+    if (result.is_error())
+        return false;
+    return result.release_value();
+}
+
 static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer)
 {
     EBMLHeader header;

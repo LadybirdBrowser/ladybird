@@ -18,6 +18,7 @@ set(SOURCES
     Providers/VideoDataProvider.cpp
     Sinks/AudioMixingSink.cpp
     Sinks/DisplayingVideoSink.cpp
+    Sniff.cpp
     VideoFrame.cpp
 )
 

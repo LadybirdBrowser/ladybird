@@ -28,6 +28,8 @@ public:
 
     static DecoderErrorOr<Reader> from_stream(IncrementallyPopulatedStream::Cursor&);
 
+    static bool sniff_webm(IncrementallyPopulatedStream::Cursor&);
+
     EBMLHeader const& header() const { return m_header.value(); }
 
     DecoderErrorOr<SegmentInformation> segment_information();
