@@ -122,7 +122,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     case CacheLifetimeStatus::MustRevalidate:
         // We will hold an exclusive lock on the cache entry for revalidation requests.
         if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
-            return Optional<CacheEntryReader&> {};
+            return CacheHasOpenEntry {};
 
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36;1mMust revalidate disk cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
         cache_entry.value()->set_must_revalidate();
