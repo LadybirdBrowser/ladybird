@@ -9,6 +9,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/ImageFormats/WebPSharedLossless.h>
@@ -247,7 +248,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Options options = TRY(parse_options(arguments));
 
     auto file = TRY(Core::MappedFile::map(options.in_path));
-    auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(file->bytes()));
+    auto decoder_stream = adopt_ref(*new Gfx::ImageDecoderStream());
+    decoder_stream->append_chunk(TRY(file->read_until_eof()));
+    decoder_stream->close();
+    auto decoder = TRY(Gfx::ImageDecoder::try_create_for_stream(move(decoder_stream)));
     if (!decoder)
         return Error::from_string_literal("Could not find decoder for input file");
 

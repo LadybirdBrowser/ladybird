@@ -37,20 +37,24 @@ public:
 
 private:
     using Job = Threading::BackgroundAction<DecodeResult>;
+    struct PendingJob {
+        NonnullRefPtr<Job> job;
+        NonnullRefPtr<Gfx::ImageDecoderStream> stream;
+    };
 
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
-    virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
+    virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
     virtual void cancel_decoding(i64 image_id) override;
     virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
     virtual Messages::ImageDecoderServer::InitTransportResponse init_transport(int peer_pid) override;
 
     ErrorOr<IPC::File> connect_new_client();
 
-    NonnullRefPtr<Job> make_decode_image_job(i64 image_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
+    PendingJob make_decode_image_job(i64 image_id, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
 
     i64 m_next_image_id { 0 };
-    HashMap<i64, NonnullRefPtr<Job>> m_pending_jobs;
+    HashMap<i64, PendingJob> m_pending_jobs;
 };
 
 }
