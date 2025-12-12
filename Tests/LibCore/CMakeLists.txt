@@ -20,8 +20,8 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibCore)
 endforeach()
 
-target_link_libraries(TestLibCorePromise PRIVATE LibThreading)
-target_link_libraries(TestLibCoreStream PRIVATE LibThreading)
+target_link_libraries(TestLibCorePromise PRIVATE LibThreading LibSync)
+target_link_libraries(TestLibCoreStream PRIVATE LibThreading LibSync)
 
 if(NOT WIN32)
     # These tests use the .txt files in the current directory

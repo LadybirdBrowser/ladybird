@@ -10,7 +10,7 @@
 #include <AK/Vector.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/PlaybackStreamAudioUnit.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 #include <AudioUnit/AudioUnit.h>
 
@@ -116,7 +116,7 @@ public:
 
     void queue_task(AudioTask task)
     {
-        Threading::MutexLocker lock(m_task_queue_mutex);
+        Sync::MutexLocker lock(m_task_queue_mutex);
         m_task_queue.append(move(task));
         m_task_queue_is_empty = false;
     }
@@ -141,7 +141,7 @@ private:
         if (m_task_queue_is_empty.load())
             return {};
 
-        Threading::MutexLocker lock(m_task_queue_mutex);
+        Sync::MutexLocker lock(m_task_queue_mutex);
 
         m_task_queue_is_empty = m_task_queue.size() == 1;
         return m_task_queue.take_first();
@@ -210,7 +210,7 @@ private:
     AudioComponentInstance m_audio_unit { nullptr };
     AudioStreamBasicDescription m_description {};
 
-    Threading::Mutex m_task_queue_mutex;
+    Sync::Mutex m_task_queue_mutex;
     Vector<AudioTask, 4> m_task_queue;
     Atomic<bool> m_task_queue_is_empty { true };
 
