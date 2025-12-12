@@ -3,7 +3,6 @@ include(audio)
 include(ffmpeg)
 
 set(SOURCES
-    Audio/Loader.cpp
     Audio/SampleFormats.cpp
     Color/ColorConverter.cpp
     Color/ColorPrimaries.cpp
@@ -24,7 +23,6 @@ ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
 target_sources(LibMedia PRIVATE
-        Audio/FFmpegLoader.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegDemuxer.cpp
         FFmpeg/FFmpegIOContext.cpp
