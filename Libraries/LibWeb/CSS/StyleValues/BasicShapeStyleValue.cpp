@@ -135,11 +135,16 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 String Ellipse::to_string(SerializationMode mode) const
 {
     StringBuilder arguments_builder;
+    auto serialized_radius = radius->to_string(mode);
 
-    arguments_builder.append(radius->to_string(mode));
+    if (serialized_radius != "closest-side closest-side"sv)
+        arguments_builder.append(serialized_radius);
 
-    if (position)
-        arguments_builder.appendff(" at {}", position->to_string(mode));
+    if (position) {
+        if (!arguments_builder.is_empty())
+            arguments_builder.append(' ');
+        arguments_builder.appendff("at {}", position->to_string(mode));
+    }
 
     return MUST(String::formatted("ellipse({})", arguments_builder.to_string_without_validation()));
 }

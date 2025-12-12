@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 28 tests
 
-14 Pass
-14 Fail
-Fail	ellipse(at calc(10in) 50%) - inline style
-Fail	ellipse(at calc(10in + 20px) 50%) - inline style
-Fail	ellipse(at calc(30%) 50%) - inline style
-Fail	ellipse(at calc(100%/4) 50%) - inline style
-Fail	ellipse(at calc(25%*3) 50%) - inline style
-Fail	ellipse(at calc(25%*3 - 10in) 50%) - inline style
-Fail	ellipse(at calc((12.5%*6 + 10in) / 4) 50%) - inline style
+28 Pass
+Pass	ellipse(at calc(10in) 50%) - inline style
+Pass	ellipse(at calc(10in + 20px) 50%) - inline style
+Pass	ellipse(at calc(30%) 50%) - inline style
+Pass	ellipse(at calc(100%/4) 50%) - inline style
+Pass	ellipse(at calc(25%*3) 50%) - inline style
+Pass	ellipse(at calc(25%*3 - 10in) 50%) - inline style
+Pass	ellipse(at calc((12.5%*6 + 10in) / 4) 50%) - inline style
 Pass	ellipse(closest-side farthest-side at calc(10in) calc(10in)) - inline style
 Pass	ellipse(closest-side farthest-side at calc(10in + 20px) calc(10in + 20px)) - inline style
 Pass	ellipse(closest-side farthest-side at calc(30%) calc(30%)) - inline style
@@ -18,13 +17,13 @@ Pass	ellipse(closest-side farthest-side at calc(100%/4) calc(100%/4)) - inline s
 Pass	ellipse(closest-side farthest-side at calc(25%*3) calc(25%*3)) - inline style
 Pass	ellipse(closest-side farthest-side at calc(25%*3 - 10in) calc(25%*3 - 10in)) - inline style
 Pass	ellipse(closest-side farthest-side at calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4)) - inline style
-Fail	ellipse(at calc(10in) 50%) - computed style
-Fail	ellipse(at calc(10in + 20px) 50%) - computed style
-Fail	ellipse(at calc(30%) 50%) - computed style
-Fail	ellipse(at calc(100%/4) 50%) - computed style
-Fail	ellipse(at calc(25%*3) 50%) - computed style
-Fail	ellipse(at calc(25%*3 - 10in) 50%) - computed style
-Fail	ellipse(at calc((12.5%*6 + 10in) / 4) 50%) - computed style
+Pass	ellipse(at calc(10in) 50%) - computed style
+Pass	ellipse(at calc(10in + 20px) 50%) - computed style
+Pass	ellipse(at calc(30%) 50%) - computed style
+Pass	ellipse(at calc(100%/4) 50%) - computed style
+Pass	ellipse(at calc(25%*3) 50%) - computed style
+Pass	ellipse(at calc(25%*3 - 10in) 50%) - computed style
+Pass	ellipse(at calc((12.5%*6 + 10in) / 4) 50%) - computed style
 Pass	ellipse(closest-side farthest-side at calc(10in) calc(10in)) - computed style
 Pass	ellipse(closest-side farthest-side at calc(10in + 20px) calc(10in + 20px)) - computed style
 Pass	ellipse(closest-side farthest-side at calc(30%) calc(30%)) - computed style

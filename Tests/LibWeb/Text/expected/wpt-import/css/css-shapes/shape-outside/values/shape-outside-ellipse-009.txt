@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 38 tests
 
-38 Fail
+26 Pass
+12 Fail
 Fail	ellipse(at +50px) - inline
 Fail	ellipse(at -50px) - inline
 Fail	ellipse(at +50%) - inline
@@ -15,29 +16,29 @@ Fail	ellipse(at +50px top) - inline
 Fail	ellipse(at +50% top) - inline
 Fail	ellipse(at -50px bottom) - inline
 Fail	ellipse(at -50% bottom) - inline
-Fail	ellipse(at +50px +50px) - inline
-Fail	ellipse(at +50% +50%) - inline
-Fail	ellipse(at -50px -50px) - inline
-Fail	ellipse(at +50px -50px) - inline
-Fail	ellipse(at -50px +50px) - inline
-Fail	ellipse(at +50% -50%) - inline
-Fail	ellipse(at -50% +50%) - inline
-Fail	ellipse(at +50px) - computed
-Fail	ellipse(at -50px) - computed
-Fail	ellipse(at +50%) - computed
-Fail	ellipse(at -50%) - computed
-Fail	ellipse(at left +50px) - computed
-Fail	ellipse(at left +50%) - computed
-Fail	ellipse(at right -50px) - computed
-Fail	ellipse(at right -50%) - computed
-Fail	ellipse(at +50px top) - computed
-Fail	ellipse(at +50% top) - computed
-Fail	ellipse(at -50px bottom) - computed
-Fail	ellipse(at -50% bottom) - computed
-Fail	ellipse(at +50px +50px) - computed
-Fail	ellipse(at +50% +50%) - computed
-Fail	ellipse(at -50px -50px) - computed
-Fail	ellipse(at +50px -50px) - computed
-Fail	ellipse(at -50px +50px) - computed
-Fail	ellipse(at +50% -50%) - computed
-Fail	ellipse(at -50% +50%) - computed
+Pass	ellipse(at +50px +50px) - inline
+Pass	ellipse(at +50% +50%) - inline
+Pass	ellipse(at -50px -50px) - inline
+Pass	ellipse(at +50px -50px) - inline
+Pass	ellipse(at -50px +50px) - inline
+Pass	ellipse(at +50% -50%) - inline
+Pass	ellipse(at -50% +50%) - inline
+Pass	ellipse(at +50px) - computed
+Pass	ellipse(at -50px) - computed
+Pass	ellipse(at +50%) - computed
+Pass	ellipse(at -50%) - computed
+Pass	ellipse(at left +50px) - computed
+Pass	ellipse(at left +50%) - computed
+Pass	ellipse(at right -50px) - computed
+Pass	ellipse(at right -50%) - computed
+Pass	ellipse(at +50px top) - computed
+Pass	ellipse(at +50% top) - computed
+Pass	ellipse(at -50px bottom) - computed
+Pass	ellipse(at -50% bottom) - computed
+Pass	ellipse(at +50px +50px) - computed
+Pass	ellipse(at +50% +50%) - computed
+Pass	ellipse(at -50px -50px) - computed
+Pass	ellipse(at +50px -50px) - computed
+Pass	ellipse(at -50px +50px) - computed
+Pass	ellipse(at +50% -50%) - computed
+Pass	ellipse(at -50% +50%) - computed
