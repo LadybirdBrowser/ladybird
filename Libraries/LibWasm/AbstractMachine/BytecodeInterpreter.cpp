@@ -72,12 +72,12 @@ struct ConvertToRaw<double> {
         }                                                                                      \
     } while (false)
 
-#define TRAP_IN_LOOP_IF_NOT(x, ...)                                                            \
-    do {                                                                                       \
-        if (interpreter.trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                   \
-            dbgln_if(WASM_TRACE_DEBUG, "Trapped because {} failed, at line {}", #x, __LINE__); \
-            return Outcome::Return;                                                            \
-        }                                                                                      \
+#define TRAP_IN_LOOP_IF_NOT(x, ...)                                                                    \
+    do {                                                                                               \
+        if (interpreter.trap_if_not(x, #x##sv __VA_OPT__(, ) __VA_ARGS__)) {                           \
+            dbgln_if(WASM_TRACE_DEBUG, "Trapped in loop because {} failed, at line {}", #x, __LINE__); \
+            return Outcome::Return;                                                                    \
+        }                                                                                              \
     } while (false)
 
 void BytecodeInterpreter::interpret(Configuration& configuration)
@@ -1076,7 +1076,7 @@ HANDLE_INSTRUCTION(synthetic_call_00)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_00(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1088,7 +1088,7 @@ HANDLE_INSTRUCTION(synthetic_call_01)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_01(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1100,7 +1100,7 @@ HANDLE_INSTRUCTION(synthetic_call_10)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_10(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1112,7 +1112,7 @@ HANDLE_INSTRUCTION(synthetic_call_11)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_11(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1124,7 +1124,7 @@ HANDLE_INSTRUCTION(synthetic_call_20)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_20(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1136,7 +1136,7 @@ HANDLE_INSTRUCTION(synthetic_call_21)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_21(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1148,7 +1148,7 @@ HANDLE_INSTRUCTION(synthetic_call_30)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_30(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1160,7 +1160,7 @@ HANDLE_INSTRUCTION(synthetic_call_31)
     auto regs_copy = configuration.regs;
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    dbgln_if(WASM_TRACE_DEBUG, "[{}] call(#{} -> {})", current_ip_value, index.value(), address.value());
+    dbgln_if(WASM_TRACE_DEBUG, "[{}] call_31(#{} -> {})", current_ip_value, index.value(), address.value());
     if (interpreter.call_address(configuration, address) == Outcome::Return)
         return Outcome::Return;
     configuration.regs = regs_copy;
@@ -1927,7 +1927,7 @@ HANDLE_INSTRUCTION(select_typed)
 {
     // Note: The type seems to only be used for validation.
     auto value = configuration.take_source(0, addresses.sources).to<i32>(); // bounds checked by verifier.
-    dbgln_if(WASM_TRACE_DEBUG, "select({})", value);
+    dbgln_if(WASM_TRACE_DEBUG, "select_typed({})", value);
     auto rhs = configuration.take_source(1, addresses.sources);
     auto& lhs = configuration.source_value(2, addresses.sources); // bounds checked by verifier.
     lhs = value != 0 ? lhs : rhs;
