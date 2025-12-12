@@ -5,6 +5,7 @@
  */
 
 #include "TimeValue.h"
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
@@ -52,6 +53,14 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
         return { Type::Percentage, style_value->resolve_percentage(calculation_resolution_context).value().value() };
 
     VERIFY_NOT_REACHED();
+}
+
+TimeValue TimeValue::create_zero(GC::Ptr<AnimationTimeline> const& timeline)
+{
+    if (timeline && timeline->is_progress_based())
+        return TimeValue { Type::Percentage, 0.0 };
+
+    return TimeValue { Type::Milliseconds, 0.0 };
 }
 
 CSS::CSSNumberish TimeValue::as_css_numberish(JS::Realm& realm) const
