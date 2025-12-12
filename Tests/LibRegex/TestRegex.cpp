@@ -875,6 +875,11 @@ TEST_CASE(ECMA262_unicode_sets_parser_error)
         { "[[^\\u0430-\\u044f][\\p{RGI_Emoji}]]"sv, regex::Error::NoError },
         { "[^[[\\p{RGI_Emoji}]--[A-Z]]]"sv, regex::Error::NegatedCharacterClassStrings },
         { "[^[^\\p{RGI_Emoji}]]"sv, regex::Error::NegatedCharacterClassStrings },
+        { "[\\[]"sv, regex::Error::NoError },
+        { "[\\[\\]]"sv, regex::Error::NoError },
+        { "[\\S[\\[]]"sv, regex::Error::NoError },
+        { "[\\S&&[\\[]]"sv, regex::Error::NoError },
+        { "[\\S--[\\[]]"sv, regex::Error::NoError },
     };
 
     for (auto test : tests) {

@@ -2162,7 +2162,8 @@ bool ECMA262Parser::parse_nonempty_class_ranges(Vector<CompareTypeAndValuePair>&
 
 bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // ClassSetExpression :: ClassUnion | ClassIntersection | ClassSubtraction
     if (parse_class_subtraction(compares)) {
@@ -2172,7 +2173,9 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
+
     if (parse_class_intersection(compares)) {
         consume(TokenType::RightBracket, Error::MismatchingBracket);
         return true;
@@ -2180,7 +2183,9 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
+
     if (parse_class_union(compares)) {
         consume(TokenType::RightBracket, Error::MismatchingBracket);
         return true;
@@ -2191,8 +2196,7 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
 
 bool ECMA262Parser::parse_class_union(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     auto first = true;
 
@@ -2227,8 +2231,7 @@ bool ECMA262Parser::parse_class_intersection(Vector<CompareTypeAndValuePair>& co
     Vector<CompareTypeAndValuePair> lhs;
     Vector<CompareTypeAndValuePair> rhs;
 
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     if (!parse_class_set_operand(lhs))
         return false;
@@ -2262,8 +2265,7 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
     Vector<CompareTypeAndValuePair> lhs;
     Vector<CompareTypeAndValuePair> rhs;
 
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     if (!parse_class_set_operand(lhs))
         return false;
@@ -2291,8 +2293,7 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
 bool ECMA262Parser::parse_class_set_range(Vector<CompareTypeAndValuePair>& compares)
 {
     // ClassSetRange :: ClassSetCharacter "-" ClassSetCharacter
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     auto lhs = parse_class_set_character();
     if (!lhs.has_value())
@@ -2332,6 +2333,8 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         "&"sv, "-"sv, "!"sv, "#"sv, "%"sv, ","sv, ":"sv, ";"sv, "<"sv, "="sv, ">"sv, "@"sv, "`"sv, "~"sv
     };
 
+    auto restore = save_parser_state();
+
     if (done()) {
         set_error(Error::InvalidPattern);
         return {};
@@ -2342,12 +2345,10 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         consume();
 
         if (escape_value[0] == '\\' && escape_value.length() == 2) {
+            restore.disarm();
             return escape_value[1];
         }
     }
-
-    auto start_position = tell();
-    ArmedScopeGuard restore { [&] { back(tell() - start_position + 1); } };
 
     if (try_skip("\\"sv)) {
         if (done()) {
@@ -2404,7 +2405,8 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
 
 bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // ClassStringDisjunction :: "\q{" ClassStringDisjunctionContents "}"
     // ClassStringDisjunctionContents :: ClassString | ClassString "|" ClassStringDisjunctionContents
@@ -2513,13 +2515,15 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
     return false;
 }
 
 bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // NestedClass :: "[" [lookahead ≠ ^ ] ClassContents [+UnicodeMode, +UnicodeSetsMode] "]"
     //              | "[" "^" ClassContents[+UnicodeMode, +UnicodeSetsMode] "]"
@@ -2613,7 +2617,8 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
             return false;
     }
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
     return false;
 }
 
