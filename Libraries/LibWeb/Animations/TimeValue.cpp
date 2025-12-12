@@ -48,4 +48,17 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
     VERIFY_NOT_REACHED();
 }
 
+CSS::CSSNumberish TimeValue::as_css_numberish(JS::Realm& realm) const
+{
+    switch (type) {
+    case Type::Milliseconds:
+        return value;
+    case Type::Percentage:
+        GC::Ref<CSS::CSSNumericValue> numeric_value = CSS::CSSUnitValue::create(realm, value, "percent"_fly_string);
+        return GC::Root { numeric_value };
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }
