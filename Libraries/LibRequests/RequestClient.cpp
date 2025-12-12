@@ -43,7 +43,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     if (body_result_or_error.is_error())
         return nullptr;
 
-    static i32 s_next_request_id = 0;
+    static u64 s_next_request_id = 0;
     auto request_id = s_next_request_id++;
 
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
@@ -55,7 +55,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     return request;
 }
 
-void RequestClient::request_started(i32 request_id, IPC::File response_file)
+void RequestClient::request_started(u64 request_id, IPC::File response_file)
 {
     auto request = m_requests.get(request_id);
     if (!request.has_value()) {
@@ -99,7 +99,7 @@ void RequestClient::estimated_cache_size(u64 cache_size_estimation_id, CacheSize
         (*promise)->resolve(sizes);
 }
 
-void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
+void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
 {
     RefPtr<Request> request;
     if ((request = m_requests.get(request_id).value_or(nullptr))) {
@@ -108,7 +108,7 @@ void RequestClient::request_finished(i32 request_id, u64 total_size, RequestTimi
     m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(i32 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase)
+void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
@@ -118,7 +118,7 @@ void RequestClient::headers_became_available(i32 request_id, Vector<HTTP::Header
     request->did_receive_headers({}, HTTP::HeaderList::create(move(response_headers)), status_code, reason_phrase);
 }
 
-void RequestClient::certificate_requested(i32 request_id)
+void RequestClient::certificate_requested(u64 request_id)
 {
     if (auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr))) {
         request->did_request_certificates({});

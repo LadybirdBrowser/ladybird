@@ -47,10 +47,10 @@ public:
 private:
     virtual void die() override;
 
-    virtual void request_started(i32, IPC::File) override;
-    virtual void request_finished(i32, u64, RequestTimingInfo, Optional<NetworkError>) override;
-    virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
+    virtual void request_started(u64 request_id, IPC::File) override;
+    virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
+    virtual void certificate_requested(u64 request_id) override;
+    virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>) override;
 
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
@@ -62,7 +62,7 @@ private:
 
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
 
-    HashMap<i32, RefPtr<Request>> m_requests;
+    HashMap<u64, RefPtr<Request>> m_requests;
 
     HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
     u64 m_next_websocket_id { 0 };
