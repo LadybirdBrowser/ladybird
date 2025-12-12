@@ -175,6 +175,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
     TimeValue intrinsic_iteration_duration() const;
+    void convert_a_time_based_animation_to_a_proportional_animation();
     GC::Ptr<AnimationTimeline> associated_timeline() const;
     Optional<TimeValue> timeline_duration() const;
 
