@@ -18,10 +18,8 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer(ReadonlyBytes data, NonnullOwnPtr<SeekableStream>&& stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
-    : m_data(data)
-    , m_stream(move(stream))
-    , m_io_context(move(io_context))
+FFmpegDemuxer::FFmpegDemuxer(NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
+    : m_io_context(move(io_context))
 {
 }
 
@@ -47,32 +45,34 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     return {};
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_data(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer)
 {
-    auto stream = DECODER_TRY_ALLOC(try_make<FixedMemoryStream>(data));
-    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(data, move(stream), move(io_context))));
+    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream_consumer));
+    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(move(io_context))));
 
     TRY(initialize_format_context(demuxer->m_format_context, *demuxer->m_io_context->avio_context()));
 
     return demuxer;
 }
 
+void FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+{
+    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+
+    auto track_context = make<TrackContext>(move(io_context));
+
+    // We've already initialized a format context, so the only way this can fail is OOM.
+    MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
+
+    track_context->packet = av_packet_alloc();
+    VERIFY(track_context->packet != nullptr);
+
+    VERIFY(m_track_contexts.set(track, move(track_context)) == HashSetResult::InsertedNewEntry);
+}
+
 FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
 {
-    return *m_track_contexts.ensure(track, [&] {
-        auto stream = MUST(try_make<FixedMemoryStream>(m_data));
-        auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(*stream));
-
-        auto track_context = make<TrackContext>(move(stream), move(io_context));
-
-        // We've already initialized a format context, so the only way this can fail is OOM.
-        MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
-
-        track_context->packet = av_packet_alloc();
-        VERIFY(track_context->packet != nullptr);
-        return track_context;
-    });
+    return *m_track_contexts.get(track).release_value();
 }
 
 static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)

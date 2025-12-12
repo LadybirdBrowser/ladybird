@@ -323,7 +323,7 @@ private:
     GC::Ptr<TextTrackList> m_text_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#media-data
-    ByteBuffer m_media_data;
+    RefPtr<Media::IncrementallyPopulatedStream> m_media_data;
 
     // https://html.spec.whatwg.org/multipage/media.html#can-autoplay-flag
     bool m_can_autoplay { true };
