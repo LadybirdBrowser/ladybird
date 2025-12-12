@@ -8,12 +8,11 @@
 #include "Loader.h"
 #include "FFmpegLoader.h"
 #include <AK/TypedTransfer.h>
-#include <LibCore/MappedFile.h>
+#include <LibCore/File.h>
 
 namespace Audio {
 
-LoaderPlugin::LoaderPlugin(NonnullOwnPtr<SeekableStream> stream)
-    : m_stream(move(stream))
+LoaderPlugin::LoaderPlugin()
 {
 }
 
@@ -23,8 +22,8 @@ Loader::Loader(NonnullOwnPtr<LoaderPlugin> plugin)
 }
 
 struct LoaderPluginInitializer {
-    bool (*sniff)(SeekableStream&);
-    ErrorOr<NonnullOwnPtr<LoaderPlugin>> (*create)(NonnullOwnPtr<SeekableStream>);
+    bool (*sniff)(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor>);
+    ErrorOr<NonnullOwnPtr<LoaderPlugin>> (*create)(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor>);
 };
 
 static constexpr LoaderPluginInitializer s_initializers[] = {
@@ -33,19 +32,17 @@ static constexpr LoaderPluginInitializer s_initializers[] = {
 
 ErrorOr<NonnullRefPtr<Loader>> Loader::create(StringView path)
 {
-    auto stream = TRY(Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly));
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
     auto plugin = TRY(Loader::create_plugin(move(stream)));
     return adopt_ref(*new (nothrow) Loader(move(plugin)));
 }
 
-ErrorOr<NonnullOwnPtr<LoaderPlugin>> Loader::create_plugin(NonnullOwnPtr<SeekableStream> stream)
+ErrorOr<NonnullOwnPtr<LoaderPlugin>> Loader::create_plugin(NonnullRefPtr<Media::IncrementallyPopulatedStream> stream)
 {
     for (auto const& loader : s_initializers) {
-        if (loader.sniff(*stream)) {
-            TRY(stream->seek(0, SeekMode::SetPosition));
-            return loader.create(move(stream));
-        }
-        TRY(stream->seek(0, SeekMode::SetPosition));
+        if (loader.sniff(stream->create_cursor()))
+            return loader.create(stream->create_cursor());
     }
 
     return Error::from_string_literal("No loader plugin available");

@@ -22,13 +22,13 @@
 
 namespace Media {
 
-DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyBytes media_data, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
+DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
 {
     auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto matroska_result = Matroska::MatroskaDemuxer::from_data(media_data);
+        auto matroska_result = Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
         if (!matroska_result.is_error())
             return matroska_result.release_value();
-        return TRY(FFmpeg::FFmpegDemuxer::from_data(media_data));
+        return TRY(FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor()));
     }());
     auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
@@ -40,7 +40,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_video_tracks.ensure_capacity(all_video_tracks.size());
     supported_video_track_datas.ensure_capacity(all_video_tracks.size());
     for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
+        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
         if (video_data_provider_result.is_error())
             continue;
         supported_video_tracks.append(track);
@@ -57,7 +57,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
     supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
     for (auto const& track : all_audio_tracks) {
-        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
+        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
         if (audio_data_provider_result.is_error())
             continue;
         auto audio_data_provider = audio_data_provider_result.release_value();
@@ -134,11 +134,11 @@ PlaybackManager::~PlaybackManager()
     m_weak_wrapper->revoke();
 }
 
-void PlaybackManager::add_media_source(ReadonlyBytes media_data)
+void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> stream)
 {
-    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, media_data, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
+    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
         auto main_thread_event_loop = main_thread_event_loop_reference->take();
-        auto maybe_error = playback_manager->prepare_playback_from_media_data(media_data, main_thread_event_loop_reference);
+        auto maybe_error = playback_manager->prepare_playback_from_media_data(stream, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
             main_thread_event_loop->deferred_invoke([playback_manager, error = maybe_error.release_error()] mutable {
                 if (playback_manager->on_unsupported_format_error)
