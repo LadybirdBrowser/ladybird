@@ -26,7 +26,7 @@ struct curl_slist;
 
 namespace RequestServer {
 
-class Request : public HTTP::CacheRequest {
+class Request final : public HTTP::CacheRequest {
 public:
     static NonnullOwnPtr<Request> fetch(
         u64 request_id,

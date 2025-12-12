@@ -83,7 +83,7 @@ protected:
     bool m_marked_for_deletion { false };
 };
 
-class CacheEntryWriter : public CacheEntry {
+class CacheEntryWriter final : public CacheEntry {
 public:
     static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
     virtual ~CacheEntryWriter() override = default;
@@ -103,7 +103,7 @@ private:
     AK::Duration m_current_time_offset_for_testing;
 };
 
-class CacheEntryReader : public CacheEntry {
+class CacheEntryReader final : public CacheEntry {
 public:
     static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, NonnullRefPtr<HeaderList>, u64 data_size);
     virtual ~CacheEntryReader() override = default;
