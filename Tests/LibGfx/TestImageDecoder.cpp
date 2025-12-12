@@ -12,6 +12,7 @@
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
@@ -1151,8 +1152,12 @@ TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
 TEST_CASE(test_avif_simple_lossy)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
 
@@ -1165,8 +1170,12 @@ TEST_CASE(test_avif_simple_lossy)
 TEST_CASE(test_avif_simple_lossless)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossless.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 386, 395 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
@@ -1176,8 +1185,12 @@ TEST_CASE(test_avif_simple_lossless)
 TEST_CASE(test_avif_simple_lossy_bitdepth10)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-bitdepth10.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
 
@@ -1190,8 +1203,12 @@ TEST_CASE(test_avif_simple_lossy_bitdepth10)
 TEST_CASE(test_avif_icc_profile)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/icc_profile.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
     EXPECT(TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
@@ -1200,8 +1217,12 @@ TEST_CASE(test_avif_icc_profile)
 TEST_CASE(test_avif_no_icc_profile)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
     EXPECT(!TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
@@ -1210,8 +1231,12 @@ TEST_CASE(test_avif_no_icc_profile)
 TEST_CASE(test_avif_frame_out_of_bounds)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame1 = TRY_OR_FAIL(plugin_decoder->frame(0));
     EXPECT(plugin_decoder->frame(1).is_error());
@@ -1220,5 +1245,8 @@ TEST_CASE(test_avif_frame_out_of_bounds)
 TEST_CASE(test_avif_missing_pixi_property)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/missing-pixi-property.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(move(stream)));
 }

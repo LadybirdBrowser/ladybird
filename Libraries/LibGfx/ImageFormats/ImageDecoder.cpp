@@ -21,6 +21,24 @@ namespace Gfx {
 
 static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugin(NonnullRefPtr<ImageDecoderStream> stream)
 {
+    struct ImagePluginStreamingInitializer {
+        bool (*sniff)(NonnullRefPtr<ImageDecoderStream>) = nullptr;
+        ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> (*create)(NonnullRefPtr<ImageDecoderStream>) = nullptr;
+    };
+
+    static constexpr ImagePluginStreamingInitializer s_streaming_initializers[] = {
+        { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create },
+    };
+
+    for (auto& plugin : s_streaming_initializers) {
+        auto sniff_result = plugin.sniff(stream);
+        TRY(stream->seek(0, SeekMode::SetPosition));
+        if (!sniff_result)
+            continue;
+
+        return TRY(plugin.create(move(stream)));
+    }
+
     struct ImagePluginFullDataInitializer {
         bool (*sniff)(ReadonlyBytes) = nullptr;
         ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> (*create)(ReadonlyBytes) = nullptr;
@@ -36,7 +54,6 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
         { TinyVGImageDecoderPlugin::sniff, TinyVGImageDecoderPlugin::create },
         { WebPImageDecoderPlugin::sniff, WebPImageDecoderPlugin::create },
-        { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create }
     };
 
     TRY(stream->seek(0, SeekMode::SetPosition));
