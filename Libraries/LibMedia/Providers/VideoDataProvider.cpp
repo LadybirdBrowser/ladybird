@@ -138,6 +138,7 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
     m_seek_mode = seek_mode;
+    m_stream_cursor->abort();
     wake();
 }
 
@@ -273,6 +274,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
             mode = m_seek_mode;
+            m_stream_cursor->reset_abort();
         }
 
         auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;

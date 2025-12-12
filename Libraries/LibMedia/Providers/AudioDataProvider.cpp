@@ -138,6 +138,7 @@ void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionH
     m_seek_completion_handler = move(completion_handler);
     m_seek_id++;
     m_seek_timestamp = timestamp;
+    m_stream_cursor->abort();
     wake();
 }
 
@@ -261,6 +262,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
             auto locker = take_lock();
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
+            m_stream_cursor->reset_abort();
         }
 
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp);

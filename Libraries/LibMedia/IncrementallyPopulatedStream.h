@@ -45,9 +45,15 @@ public:
         auto position() const { return m_position; }
         auto size() const { return m_stream->size(); }
 
+        void abort();
+        void reset_abort() { m_aborted = false; }
+
     private:
+        friend class IncrementallyPopulatedStream;
+
         NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
         size_t m_position { 0 };
+        Atomic<bool> m_aborted { false };
     };
 
     auto create_cursor()
@@ -62,7 +68,9 @@ private:
     {
     }
 
-    DecoderErrorOr<size_t> read_at(size_t position, Bytes&);
+    friend class Cursor;
+
+    DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&);
 
     Threading::Mutex m_mutex;
     Threading::ConditionVariable m_state_changed { m_mutex };

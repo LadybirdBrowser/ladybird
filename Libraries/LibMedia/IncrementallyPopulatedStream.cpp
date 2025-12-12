@@ -41,13 +41,15 @@ u64 IncrementallyPopulatedStream::size()
     return m_buffer.size();
 }
 
-DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(size_t position, Bytes& bytes)
+DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& consumer, size_t position, Bytes& bytes)
 {
     Threading::MutexLocker locker { m_mutex };
-    while (position + bytes.size() > m_buffer.size() && !m_closed) {
+    while (position + bytes.size() > m_buffer.size() && !m_closed && !consumer.m_aborted) {
         m_state_changed.wait();
     }
 
+    if (consumer.m_aborted)
+        return DecoderError::with_description(DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
     if (position >= m_buffer.size())
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Blocking read reached end of stream"sv);
     return m_buffer.bytes().slice(position).copy_trimmed_to(bytes);
@@ -72,7 +74,7 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(size_t offset, S
     }
 
     Bytes empty;
-    TRY(m_stream->read_at(new_position, empty));
+    TRY(m_stream->read_at(*this, new_position, empty));
 
     m_position = new_position;
     return {};
@@ -80,9 +82,15 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(size_t offset, S
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes& bytes)
 {
-    auto read_count = TRY(m_stream->read_at(m_position, bytes));
+    auto read_count = TRY(m_stream->read_at(*this, m_position, bytes));
     m_position += read_count;
     return read_count;
+}
+
+void IncrementallyPopulatedStream::Cursor::abort()
+{
+    m_aborted = true;
+    m_stream->m_state_changed.broadcast();
 }
 
 }
