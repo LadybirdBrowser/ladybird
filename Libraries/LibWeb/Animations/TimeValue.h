@@ -13,13 +13,7 @@ namespace Web::Animations {
 
 struct TimeValue {
     static TimeValue from_css_numberish(CSS::CSSNumberish const&, DOM::AbstractElement const&);
-    static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline)
-    {
-        // FIXME: Return 0% rather than 0ms for progress based timelines
-        (void)timeline;
-
-        return TimeValue { Type::Milliseconds, 0.0 };
-    }
+    static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline);
 
     enum class Type : u8 {
         Milliseconds,
