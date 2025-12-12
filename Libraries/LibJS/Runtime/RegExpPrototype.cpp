@@ -269,14 +269,15 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
 
     // 20. Let A be ! ArrayCreate(n + 1).
     auto array = MUST(Array::create(realm, result.n_named_capture_groups + 1));
+    array->unsafe_set_shape(realm.intrinsics().regexp_builtin_exec_array_shape());
 
     // 21. Assert: The mathematical value of A's "length" property is n + 1.
 
     // 22. Perform ! CreateDataPropertyOrThrow(A, "index", 𝔽(lastIndex)).
-    MUST(array->create_data_property_or_throw(vm.names.index, Value(match_index)));
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_index_offset(), Value(match_index));
 
     // 23. Perform ! CreateDataPropertyOrThrow(A, "input", S).
-    MUST(array->create_data_property_or_throw(vm.names.input, string));
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_input_offset(), string);
 
     // 24. Let match be the Match Record { [[StartIndex]]: lastIndex, [[EndIndex]]: e }.
     auto match_indices = Match::create(match);
@@ -304,7 +305,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     auto groups = has_groups ? Object::create(realm, nullptr) : js_undefined();
 
     // 32. Perform ! CreateDataPropertyOrThrow(A, "groups", groups).
-    MUST(array->create_data_property_or_throw(vm.names.groups, groups));
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_groups_offset(), groups);
 
     // 33. Let matchedGroupNames be a new empty List.
     Vector<Utf16FlyString> matched_group_names;
