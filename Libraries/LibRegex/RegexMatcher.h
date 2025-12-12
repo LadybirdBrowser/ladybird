@@ -89,6 +89,7 @@ public:
 
     explicit Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
     Regex(regex::Parser::Result parse_result, ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
+    Regex(Regex const&);
     ~Regex() = default;
     Regex(Regex&&);
     Regex& operator=(Regex&&);

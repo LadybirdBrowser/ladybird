@@ -8,13 +8,14 @@
 
 namespace JS::Bytecode {
 
-RegexTableIndex RegexTable::insert(ParsedRegex regex)
+RegexTableIndex RegexTable::insert(ParsedRegex parsed_regex)
 {
+    Regex<ECMA262> regex(parsed_regex.regex, parsed_regex.pattern.to_byte_string(), parsed_regex.flags);
     m_regexes.append(move(regex));
     return m_regexes.size() - 1;
 }
 
-ParsedRegex const& RegexTable::get(RegexTableIndex index) const
+Regex<ECMA262> const& RegexTable::get(RegexTableIndex index) const
 {
     return m_regexes[index.value()];
 }
@@ -23,7 +24,7 @@ void RegexTable::dump() const
 {
     outln("Regex Table:");
     for (size_t i = 0; i < m_regexes.size(); i++)
-        outln("{}: {}", i, m_regexes[i].pattern);
+        outln("{}: {}", i, m_regexes[i].pattern_value);
 }
 
 }

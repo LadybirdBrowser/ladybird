@@ -9,6 +9,7 @@
 #include <AK/DistinctNumeric.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibRegex/Regex.h>
 #include <LibRegex/RegexParser.h>
 
 namespace JS::Bytecode {
@@ -29,12 +30,12 @@ public:
     RegexTable() = default;
 
     RegexTableIndex insert(ParsedRegex);
-    ParsedRegex const& get(RegexTableIndex) const;
+    Regex<ECMA262> const& get(RegexTableIndex) const;
     void dump() const;
     bool is_empty() const { return m_regexes.is_empty(); }
 
 private:
-    Vector<ParsedRegex> m_regexes;
+    Vector<Regex<ECMA262>> m_regexes;
 };
 
 }

@@ -98,6 +98,15 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
 }
 
 template<class Parser>
+Regex<Parser>::Regex(Regex const& other)
+    : pattern_value(other.pattern_value)
+    , parser_result(other.parser_result)
+{
+    if (other.matcher)
+        matcher = make<Matcher<Parser>>(this, other.matcher->options());
+}
+
+template<class Parser>
 Regex<Parser>::Regex(Regex&& regex)
     : pattern_value(move(regex.pattern_value))
     , parser_result(move(regex.parser_result))
