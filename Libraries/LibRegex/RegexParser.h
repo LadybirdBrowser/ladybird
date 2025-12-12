@@ -297,6 +297,17 @@ private:
 
     size_t ensure_total_number_of_capturing_parenthesis();
 
+    auto save_parser_state()
+    {
+        auto saved_token = m_parser_state.current_token;
+        auto saved_lexer_index = m_parser_state.lexer.tell();
+
+        return ArmedScopeGuard { [this, saved_token, saved_lexer_index] {
+            m_parser_state.current_token = saved_token;
+            m_parser_state.lexer.back(m_parser_state.lexer.tell() - saved_lexer_index);
+        } };
+    }
+
     void enter_capture_group_scope() { m_capture_groups_in_scope.empend(); }
 
     void exit_capture_group_scope()
