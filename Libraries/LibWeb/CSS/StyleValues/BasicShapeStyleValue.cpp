@@ -115,7 +115,14 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 {
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
     auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
-    auto center = position->resolved(node, translated_reference_box);
+
+    // https://www.w3.org/TR/css-shapes/#funcdef-basic-shape-circle
+    // The <position> argument defines the center of the ellipse. Unless otherwise specified, this defaults to center if omitted.
+    RefPtr<PositionStyleValue const> resolved_position = PositionStyleValue::create_computed_center();
+    if (position)
+        resolved_position = position->as_position();
+
+    auto center = resolved_position->resolved(node, translated_reference_box);
     auto size = radius->as_radial_size().resolve_ellipse_size(center, translated_reference_box, node);
 
     Gfx::Path path;
@@ -127,7 +134,14 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 
 String Ellipse::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("ellipse({} at {})", radius->to_string(mode), position->to_string(mode)));
+    StringBuilder arguments_builder;
+
+    arguments_builder.append(radius->to_string(mode));
+
+    if (position)
+        arguments_builder.appendff(" at {}", position->to_string(mode));
+
+    return MUST(String::formatted("ellipse({})", arguments_builder.to_string_without_validation()));
 }
 
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -302,12 +316,12 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
         },
         [&](Ellipse const& shape) -> BasicShape {
             auto absolutized_radius = shape.radius->absolutized(computation_context);
-            auto absolutized_position = shape.position->absolutized(computation_context);
+            auto absolutized_position = absolutize_if_nonnull(shape.position);
 
-            if (absolutized_radius == shape.radius && absolutized_position->as_position() == *shape.position)
+            if (absolutized_radius == shape.radius && absolutized_position == shape.position)
                 return shape;
 
-            return Ellipse { absolutized_radius, absolutized_position->as_position() };
+            return Ellipse { absolutized_radius, absolutized_position };
         },
         [&](Polygon const& shape) -> BasicShape {
             Vector<Polygon::Point> absolutized_points;

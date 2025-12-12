@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-2 Pass
-6 Fail
+4 Pass
+4 Fail
 Fail	No arguments - inline
-Fail	Radial arguments - inline
+Pass	Radial arguments - inline
 Fail	Position argument - inline
 Pass	Radial and position argument - inline
 Fail	No arguments - computed
-Fail	Radial arguments - computed
+Pass	Radial arguments - computed
 Fail	Position argument - computed
 Pass	Radial and position argument - computed
