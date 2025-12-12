@@ -160,11 +160,13 @@ TimeValue AnimationEffect::intrinsic_iteration_duration() const
         return TimeValue::create_zero(associated_timeline());
     }
 
-    // FIXME: Otherwise
+    // Otherwise
     else {
         // Return(100% - start delay - end delay) / iteration count
         // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
-        TODO();
+        auto one_hundred_percent = TimeValue { TimeValue::Type::Percentage, 100.0 };
+
+        return (one_hundred_percent - m_start_delay - m_end_delay) / m_iteration_count;
     }
 }
 
