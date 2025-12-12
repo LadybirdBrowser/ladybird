@@ -379,12 +379,12 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 {
     if (m_relationship & ~(Relationship::DNSPrefetch | Relationship::Preconnect | Relationship::Preload))
         default_fetch_and_process_linked_resource();
-    else if (m_relationship & Relationship::DNSPrefetch)
-        fetch_and_process_linked_dns_prefetch_resource();
-    else if (m_relationship & Relationship::Preconnect)
-        fetch_and_process_linked_preconnect_resource();
     else if (m_relationship & Relationship::Preload)
         fetch_and_process_linked_preload_resource();
+    else if (m_relationship & Relationship::Preconnect)
+        fetch_and_process_linked_preconnect_resource();
+    else if (m_relationship & Relationship::DNSPrefetch)
+        fetch_and_process_linked_dns_prefetch_resource();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#default-fetch-and-process-the-linked-resource
