@@ -17,6 +17,8 @@ class CacheRequest : public Weakable<CacheRequest> {
 public:
     virtual ~CacheRequest() = default;
 
+    virtual bool is_revalidation_request() const = 0;
+
     virtual void notify_request_unblocked(Badge<DiskCache>) = 0;
 
 protected:

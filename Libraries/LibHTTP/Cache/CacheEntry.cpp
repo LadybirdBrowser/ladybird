@@ -270,6 +270,9 @@ void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers
 
     update_header_fields(m_response_headers, response_headers);
     m_index.update_response_headers(m_cache_key, m_response_headers);
+
+    if (m_revalidation_type != RevalidationType::MustRevalidate)
+        close_and_destroy_cache_entry();
 }
 
 void CacheEntryReader::revalidation_failed()

@@ -57,16 +57,21 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 ConnectionFromClient::~ConnectionFromClient()
 {
     m_active_requests.clear();
+    m_active_revalidation_requests.clear();
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
 }
 
-void ConnectionFromClient::request_complete(Badge<Request>, u64 request_id)
+void ConnectionFromClient::request_complete(Badge<Request>, Request const& request)
 {
-    Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id] {
-        if (auto self = weak_self.strong_ref())
-            self->m_active_requests.remove(request_id);
+    Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id = request.request_id(), type = request.type()] {
+        if (auto self = weak_self.strong_ref()) {
+            if (type == Request::Type::BackgroundRevalidation)
+                self->m_active_revalidation_requests.remove(request_id);
+            else
+                self->m_active_requests.remove(request_id);
+        }
     });
 }
 
@@ -188,6 +193,16 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
 
     auto request = Request::fetch(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), m_alt_svc_cache_path, proxy_data);
     m_active_requests.set(request_id, move(request));
+}
+
+void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data)
+{
+    auto request_id = m_next_revalidation_request_id++;
+
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
+
+    auto request = Request::revalidate(request_id, g_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), m_alt_svc_cache_path, proxy_data);
+    m_active_revalidation_requests.set(request_id, move(request));
 }
 
 int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* user_data, void*)
