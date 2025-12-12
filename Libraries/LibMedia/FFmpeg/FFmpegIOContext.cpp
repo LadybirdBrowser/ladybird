@@ -43,6 +43,8 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<In
             Bytes buffer_bytes { buffer, AK::min<size_t>(size, PAGE_SIZE) };
             auto buffer_bytes_or_error = stream_cursor.read_into(buffer_bytes);
             if (buffer_bytes_or_error.is_error()) {
+                if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::Aborted)
+                    return AVERROR_EXIT;
                 if (buffer_bytes_or_error.error().category() == DecoderErrorCategory::EndOfStream)
                     return AVERROR_EOF;
                 return AVERROR_UNKNOWN;
@@ -69,6 +71,8 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<In
 
             auto maybe_seek_error = stream_cursor.seek(offset, seek_mode_from_whence(whence));
             if (maybe_seek_error.is_error()) {
+                if (maybe_seek_error.error().category() == DecoderErrorCategory::Aborted)
+                    return AVERROR_EXIT;
                 if (maybe_seek_error.error().category() == DecoderErrorCategory::EndOfStream)
                     return AVERROR_EOF;
                 return AVERROR_UNKNOWN;

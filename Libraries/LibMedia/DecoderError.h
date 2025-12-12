@@ -19,6 +19,7 @@ template<typename T>
 using DecoderErrorOr = ErrorOr<T, DecoderError>;
 
 enum class DecoderErrorCategory : u32 {
+    Aborted,
     Unknown,
     IO,
     NeedsMoreInput,
