@@ -84,6 +84,7 @@
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/MathMLFractionBox.h>
+#include <LibWeb/Layout/MathMLRadicalBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -658,6 +659,8 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
             auto const& tag_name = element->local_name();
             if (tag_name == MathML::TagNames::mfrac)
                 return document.heap().allocate<Layout::MathMLFractionBox>(document, *mathml_element, move(style));
+            if (first_is_one_of(tag_name, MathML::TagNames::msqrt, MathML::TagNames::mroot))
+                return document.heap().allocate<Layout::MathMLRadicalBox>(document, *mathml_element, move(style));
             // FIXME: Create other MathML layout boxes.
         }
         // FIXME: Figure out what kind of node we should make for other elements. For now, we'll stick with a generic Box.
