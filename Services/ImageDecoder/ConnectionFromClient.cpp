@@ -11,6 +11,7 @@
 #include <LibCore/System.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 
 namespace ImageDecoder {
@@ -26,8 +27,8 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
 void ConnectionFromClient::die()
 {
-    for (auto& [_, job] : m_pending_jobs) {
-        job->cancel();
+    for (auto& [_, pending_job] : m_pending_jobs) {
+        pending_job.job->cancel();
     }
     m_pending_jobs.clear();
 
@@ -103,9 +104,9 @@ static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder
     }
 }
 
-static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core::AnonymousBuffer const& encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> const& known_mime_type)
+static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(NonnullRefPtr<Gfx::ImageDecoderStream> stream, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> const& known_mime_type)
 {
-    auto decoder = TRY(Gfx::ImageDecoder::try_create_for_raw_bytes(ReadonlyBytes { encoded_buffer.data<u8>(), encoded_buffer.size() }, known_mime_type));
+    auto decoder = TRY(Gfx::ImageDecoder::try_create_for_stream(move(stream), known_mime_type));
 
     if (!decoder)
         return Error::from_string_literal("Could not find suitable image decoder plugin for data");
@@ -146,11 +147,13 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     return result;
 }
 
-NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image_job(i64 image_id, Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+ConnectionFromClient::PendingJob ConnectionFromClient::make_decode_image_job(i64 image_id, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
-    return Job::construct(
-        [encoded_buffer = move(encoded_buffer), ideal_size = move(ideal_size), mime_type = move(mime_type)](auto&) -> ErrorOr<DecodeResult> {
-            return TRY(decode_image_to_details(encoded_buffer, ideal_size, mime_type));
+    auto stream = adopt_ref(*new Gfx::ImageDecoderStream());
+
+    auto job = Job::construct(
+        [stream, ideal_size = move(ideal_size), mime_type = move(mime_type)](auto&) -> ErrorOr<DecodeResult> {
+            return TRY(decode_image_to_details(stream, ideal_size, mime_type));
         },
         [strong_this = NonnullRefPtr(*this), image_id](DecodeResult result) -> ErrorOr<void> {
             strong_this->async_did_decode_image(image_id, result.is_animated, result.loop_count, move(result.bitmaps), move(result.durations), result.scale, move(result.color_profile));
@@ -162,27 +165,27 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
                 strong_this->async_did_fail_to_decode_image(image_id, MUST(String::formatted("Decoding failed: {}", error)));
             strong_this->m_pending_jobs.remove(image_id);
         });
+
+    return PendingJob {
+        .job = move(job),
+        .stream = move(stream),
+    };
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer encoded_buffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     auto image_id = m_next_image_id++;
-
-    if (!encoded_buffer.is_valid()) {
-        dbgln_if(IMAGE_DECODER_DEBUG, "Encoded data is invalid");
-        async_did_fail_to_decode_image(image_id, "Encoded data is invalid"_string);
-        return image_id;
-    }
-
-    m_pending_jobs.set(image_id, make_decode_image_job(image_id, move(encoded_buffer), ideal_size, move(mime_type)));
-
+    auto job = make_decode_image_job(image_id, ideal_size, move(mime_type));
+    job.stream->append_chunk(MUST(ByteBuffer::copy(data.data<u8>(), data.size())));
+    job.stream->close();
+    m_pending_jobs.set(image_id, move(job));
     return image_id;
 }
 
 void ConnectionFromClient::cancel_decoding(i64 image_id)
 {
-    if (auto job = m_pending_jobs.take(image_id); job.has_value()) {
-        job.value()->cancel();
+    if (auto pending_job = m_pending_jobs.take(image_id); pending_job.has_value()) {
+        pending_job.value().job->cancel();
     }
 }
 

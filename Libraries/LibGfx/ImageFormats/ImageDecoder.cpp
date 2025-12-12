@@ -9,6 +9,7 @@
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
@@ -18,14 +19,14 @@
 
 namespace Gfx {
 
-static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugin(ReadonlyBytes bytes)
+static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugin(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    struct ImagePluginInitializer {
+    struct ImagePluginFullDataInitializer {
         bool (*sniff)(ReadonlyBytes) = nullptr;
         ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> (*create)(ReadonlyBytes) = nullptr;
     };
 
-    static constexpr ImagePluginInitializer s_initializers[] = {
+    static constexpr ImagePluginFullDataInitializer s_full_data_initializers[] = {
         { BMPImageDecoderPlugin::sniff, BMPImageDecoderPlugin::create },
         { GIFImageDecoderPlugin::sniff, GIFImageDecoderPlugin::create },
         { ICOImageDecoderPlugin::sniff, ICOImageDecoderPlugin::create },
@@ -38,12 +39,17 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create }
     };
 
-    for (auto& plugin : s_initializers) {
-        auto sniff_result = plugin.sniff(bytes);
+    TRY(stream->seek(0, SeekMode::SetPosition));
+    auto full_data = TRY(stream->read_until_eof());
+
+    for (auto& plugin : s_full_data_initializers) {
+        auto sniff_result = plugin.sniff(full_data);
         if (!sniff_result)
             continue;
-        return TRY(plugin.create(bytes));
+
+        return TRY(plugin.create(full_data));
     }
+
     return OwnPtr<ImageDecoderPlugin> {};
 }
 
@@ -59,9 +65,9 @@ ErrorOr<ColorSpace> ImageDecoder::color_space()
     return ColorSpace::load_from_icc_bytes(maybe_icc_data.value());
 }
 
-ErrorOr<RefPtr<ImageDecoder>> ImageDecoder::try_create_for_raw_bytes(ReadonlyBytes bytes, [[maybe_unused]] Optional<ByteString> mime_type)
+ErrorOr<RefPtr<ImageDecoder>> ImageDecoder::try_create_for_stream(NonnullRefPtr<ImageDecoderStream> stream, [[maybe_unused]] Optional<ByteString> mime_type)
 {
-    if (auto plugin = TRY(probe_and_sniff_for_appropriate_plugin(bytes)); plugin)
+    if (auto plugin = TRY(probe_and_sniff_for_appropriate_plugin(stream)); plugin)
         return adopt_ref_if_nonnull(new (nothrow) ImageDecoder(plugin.release_nonnull()));
 
     return RefPtr<ImageDecoder> {};
