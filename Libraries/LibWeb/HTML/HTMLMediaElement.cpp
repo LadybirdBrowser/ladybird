@@ -7,6 +7,7 @@
  */
 
 #include <LibJS/Runtime/Promise.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
@@ -1065,7 +1066,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
                 //    a canvas gets tainted when the video is drawn on it.
-                m_media_data = move(media_data);
+                m_media_data = Media::IncrementallyPopulatedStream::create_from_buffer(move(media_data));
 
                 queue_a_media_element_task([this, failure_callback = move(failure_callback)]() mutable {
                     process_media_data(move(failure_callback)).release_value_but_fixme_should_propagate_errors();
@@ -1411,7 +1412,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::setup_playback_manager(Function<void
         failure_callback(MUST(String::from_utf8(error.description())));
     };
 
-    m_playback_manager->add_media_source(m_media_data);
+    m_playback_manager->add_media_source(*m_media_data);
 
     m_playback_manager->on_playback_state_change = [weak_self = GC::Weak(*this)] {
         if (weak_self)

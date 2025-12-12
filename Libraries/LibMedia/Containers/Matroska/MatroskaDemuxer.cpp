@@ -10,14 +10,15 @@
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "MatroskaDemuxer.h"
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_data(ReadonlyBytes data)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(IncrementallyPopulatedStream::Cursor& stream_cursor)
 {
-    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_data(data)));
+    return make_ref_counted<MatroskaDemuxer>(TRY(Reader::from_stream(stream_cursor)));
 }
 
 static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
@@ -82,6 +83,12 @@ static Track track_from_track_entry(TrackEntry const& track_entry)
     return track;
 }
 
+void MatroskaDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+{
+    auto iterator = MUST(m_reader.create_sample_iterator(stream_cursor, track.identifier()));
+    VERIFY(m_track_statuses.set(track, TrackStatus(move(iterator))) == HashSetResult::InsertedNewEntry);
+}
+
 DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType type)
 {
     auto matroska_track_type = matroska_track_type_from_track_type(type);
@@ -108,11 +115,6 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
 
 DecoderErrorOr<MatroskaDemuxer::TrackStatus*> MatroskaDemuxer::get_track_status(Track const& track)
 {
-    if (!m_track_statuses.contains(track)) {
-        auto iterator = TRY(m_reader.create_sample_iterator(track.identifier()));
-        DECODER_TRY_ALLOC(m_track_statuses.try_set(track, TrackStatus(move(iterator))));
-    }
-
     return &m_track_statuses.get(track).release_value();
 }
 

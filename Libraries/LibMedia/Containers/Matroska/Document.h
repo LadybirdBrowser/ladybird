@@ -188,10 +188,10 @@ public:
     bool discardable() const { return m_discardable; }
     void set_discardable(bool discardable) { m_discardable = discardable; }
 
-    void set_frames(Vector<ReadonlyBytes>&& frames) { m_frames = move(frames); }
-    ReadonlyBytes const& frame(size_t index) const { return frames()[index]; }
+    void set_frames(Vector<ByteBuffer>&& frames) { m_frames = move(frames); }
+    ByteBuffer const& frame(size_t index) const { return frames()[index]; }
     u64 frame_count() const { return m_frames.size(); }
-    Vector<ReadonlyBytes> const& frames() const { return m_frames; }
+    Vector<ByteBuffer> const& frames() const { return m_frames; }
 
 private:
     u64 m_track_number { 0 };
@@ -201,7 +201,7 @@ private:
     bool m_invisible { false };
     Lacing m_lacing { None };
     bool m_discardable { true };
-    Vector<ReadonlyBytes> m_frames;
+    Vector<ByteBuffer> m_frames;
 };
 
 class Cluster {

@@ -16,6 +16,7 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/SeekMode.h>
 #include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
@@ -36,7 +37,7 @@ public:
     using FrameEndTimeHandler = Function<void(AK::Duration)>;
     using SeekCompletionHandler = Function<void(AK::Duration)>;
 
-    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
+    static DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream> const&, Track const&, RefPtr<MediaTimeProvider> const& = nullptr);
 
     VideoDataProvider(NonnullRefPtr<ThreadData> const&);
     ~VideoDataProvider();
@@ -53,7 +54,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&, Track const&, NonnullOwnPtr<VideoDecoder>&&, RefPtr<MediaTimeProvider> const&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -99,6 +100,7 @@ private:
         RequestedState m_requested_state { RequestedState::None };
 
         NonnullRefPtr<MutexedDemuxer> m_demuxer;
+        NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
         Track m_track;
         NonnullOwnPtr<VideoDecoder> m_decoder;
 
