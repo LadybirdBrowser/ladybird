@@ -6,7 +6,11 @@
  */
 
 #include <AK/Error.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/WebPLoader.h>
+#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SkiaUtils.h>
 
 #include <webp/decode.h>
 #include <webp/demux.h>
@@ -15,7 +19,25 @@
 namespace Gfx {
 
 struct WebPLoadingContext {
-    enum State {
+    WebPLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
+        : stream(move(stream))
+    {
+    }
+
+    ~WebPLoadingContext()
+    {
+        if (demuxer) {
+            WebPDemuxDelete(demuxer);
+            demuxer = nullptr;
+        }
+
+        if (current_frame_decoder) {
+            WebPIDelete(current_frame_decoder);
+            current_frame_decoder = nullptr;
+        }
+    }
+
+    enum class State {
         NotDecoded = 0,
         Error,
         HeaderDecoded,
@@ -23,23 +45,66 @@ struct WebPLoadingContext {
     };
 
     State state { State::NotDecoded };
-    ReadonlyBytes data;
+    NonnullRefPtr<ImageDecoderStream> stream;
 
     // Image properties
     IntSize size;
     bool has_alpha;
     bool has_animation;
-    size_t frame_count;
     size_t loop_count;
     ByteBuffer icc_data;
+    WebPDemuxer* demuxer { nullptr };
+    ByteBuffer demuxer_buffer;
+
+    RefPtr<Bitmap> current_frame_bitmap;
+    WebPIDecoder* current_frame_decoder { nullptr };
+
+    RefPtr<Bitmap> animation_output_buffer;
+    OwnPtr<Painter> animation_painter;
 
     Vector<ImageFrameDescriptor> frame_descriptors;
+
+    ErrorOr<void> populate_demuxer_with_more_data()
+    {
+        if (demuxer) {
+            WebPDemuxDelete(demuxer);
+            demuxer = nullptr;
+        }
+
+        for (;;) {
+            if (stream->is_eof())
+                return {};
+
+            constexpr size_t BUFFER_INCREMENT = 4 * KiB;
+            auto bytes = TRY(demuxer_buffer.get_bytes_for_writing(BUFFER_INCREMENT));
+            auto read_bytes = TRY(stream->read_some(bytes));
+            if (read_bytes.size() < bytes.size())
+                TRY(demuxer_buffer.try_resize(demuxer_buffer.size() - (bytes.size() - read_bytes.size())));
+
+            WebPData data { demuxer_buffer.data(), demuxer_buffer.size() };
+            WebPDemuxState demux_state;
+            demuxer = WebPDemuxPartial(&data, &demux_state);
+
+            if (demux_state == WEBP_DEMUX_PARSE_ERROR)
+                return Error::from_string_literal("Failed to parse WebP");
+
+            if (demuxer && (demux_state == WEBP_DEMUX_PARSED_HEADER || demux_state == WEBP_DEMUX_DONE))
+                return {};
+
+            if (demux_state != WEBP_DEMUX_PARSING_HEADER)
+                return Error::from_string_literal("Expected demuxer to be parsing header");
+
+            if (demuxer) {
+                WebPDemuxDelete(demuxer);
+                demuxer = nullptr;
+            }
+        }
+    }
 };
 
-WebPImageDecoderPlugin::WebPImageDecoderPlugin(ReadonlyBytes data, OwnPtr<WebPLoadingContext> context)
+WebPImageDecoderPlugin::WebPImageDecoderPlugin(NonnullOwnPtr<WebPLoadingContext> context)
     : m_context(move(context))
 {
-    m_context->data = data;
 }
 
 WebPImageDecoderPlugin::~WebPImageDecoderPlugin() = default;
@@ -51,130 +116,169 @@ IntSize WebPImageDecoderPlugin::size()
 
 static ErrorOr<void> decode_webp_header(WebPLoadingContext& context)
 {
-    if (context.state >= WebPLoadingContext::HeaderDecoded)
+    if (context.state >= WebPLoadingContext::State::HeaderDecoded)
         return {};
 
-    int width = 0;
-    int height = 0;
-    int getinfo_result = WebPGetInfo(context.data.data(), context.data.size(), &width, &height);
-    if (getinfo_result != 1)
-        return Error::from_string_literal("Failed to decode webp image data");
+    TRY(context.populate_demuxer_with_more_data());
 
-    WebPBitstreamFeatures webp_bitstream_features {};
-    VP8StatusCode vp8_result = WebPGetFeatures(context.data.data(), context.data.size(), &webp_bitstream_features);
-    if (vp8_result != VP8_STATUS_OK)
-        return Error::from_string_literal("Failed to get WebP bitstream features");
+    auto format_flags = WebPDemuxGetI(context.demuxer, WEBP_FF_FORMAT_FLAGS);
+    auto width = WebPDemuxGetI(context.demuxer, WEBP_FF_CANVAS_WIDTH);
+    auto height = WebPDemuxGetI(context.demuxer, WEBP_FF_CANVAS_HEIGHT);
+    auto loop_count = WebPDemuxGetI(context.demuxer, WEBP_FF_LOOP_COUNT);
 
     // Image header now decoded, save some results for fast access in other parts of the plugin.
     context.size = IntSize { width, height };
-    context.has_animation = webp_bitstream_features.has_animation;
-    context.has_alpha = webp_bitstream_features.has_alpha;
-    context.frame_count = 1;
-    context.loop_count = 0;
+    context.has_animation = (format_flags & ANIMATION_FLAG) != 0;
+    context.has_alpha = (format_flags & ALPHA_FLAG) != 0;
+    context.loop_count = loop_count;
 
-    if (webp_bitstream_features.has_animation == 1) {
-        WebPAnimDecoderOptions anim_decoder_options {};
-        WebPAnimDecoderOptionsInit(&anim_decoder_options);
-        anim_decoder_options.color_mode = MODE_BGRA;
-        anim_decoder_options.use_threads = 1;
-
-        WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
-        auto* anim_decoder = WebPAnimDecoderNew(&webp_data, &anim_decoder_options);
-        if (anim_decoder == nullptr)
-            return Error::from_string_literal("Failed to allocate WebPAnimDecoderNew failed");
-        ScopeGuard guard { [=]() { WebPAnimDecoderDelete(anim_decoder); } };
-
-        WebPAnimInfo anim_info {};
-        int anim_getinfo_result = WebPAnimDecoderGetInfo(anim_decoder, &anim_info);
-        if (anim_getinfo_result != 1)
-            return Error::from_string_literal("Failed to get WebP animation info");
-
-        context.frame_count = anim_info.frame_count;
-        context.loop_count = anim_info.loop_count;
+    if (context.has_animation) {
+        context.animation_output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, context.size));
+        context.animation_painter = Painter::create(*context.animation_output_buffer);
     }
 
-    WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
-    WebPMux* mux = WebPMuxCreate(&webp_data, 0);
-    ScopeGuard guard { [=]() { WebPMuxDelete(mux); } };
+    if (format_flags & ICCP_FLAG) {
+        WebPChunkIterator icc_profile;
 
-    uint32_t flag = 0;
-    WebPMuxError err = WebPMuxGetFeatures(mux, &flag);
-    if (err != WEBP_MUX_OK)
-        return Error::from_string_literal("Failed to get webp features");
+        for (;;) {
+            auto found = WebPDemuxGetChunk(context.demuxer, "ICCP", 1, &icc_profile);
+            if (!found) {
+                WebPDemuxReleaseChunkIterator(&icc_profile);
+                TRY(context.populate_demuxer_with_more_data());
+            } else {
+                break;
+            }
+        }
 
-    if (flag & ICCP_FLAG) {
-        WebPData icc_profile;
-        err = WebPMuxGetChunk(mux, "ICCP", &icc_profile);
-        if (err != WEBP_MUX_OK)
-            return Error::from_string_literal("Failed to get ICCP chunk of webp");
-
-        context.icc_data = TRY(context.icc_data.copy(icc_profile.bytes, icc_profile.size));
+        context.icc_data = TRY(context.icc_data.copy(icc_profile.chunk.bytes, icc_profile.chunk.size));
+        WebPDemuxReleaseChunkIterator(&icc_profile);
     }
 
     context.state = WebPLoadingContext::State::HeaderDecoded;
     return {};
 }
 
+static ErrorOr<NonnullRefPtr<Bitmap>> decode_webp_frame(WebPLoadingContext& context, WebPIterator& frame)
+{
+    if (!context.current_frame_decoder) {
+        auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
+        context.current_frame_bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, { frame.width, frame.height }));
+        context.current_frame_decoder = WebPINewRGB(MODE_BGRA, context.current_frame_bitmap->scanline_u8(0), context.current_frame_bitmap->size_in_bytes(), context.current_frame_bitmap->pitch());
+        if (!context.current_frame_decoder)
+            return Error::from_string_literal("Failed to allocate WebP decoder");
+    }
+
+    VERIFY(context.current_frame_decoder);
+    auto status_code = WebPIUpdate(context.current_frame_decoder, frame.fragment.bytes, frame.fragment.size);
+    if (status_code == VP8_STATUS_OK) {
+        WebPIDelete(context.current_frame_decoder);
+        context.current_frame_decoder = nullptr;
+        return *context.current_frame_bitmap;
+    }
+
+    if (status_code == VP8_STATUS_SUSPENDED)
+        return Error::from_errno(EAGAIN);
+
+    return Error::from_string_literal("Failed to decode WebP frame");
+}
+
 static ErrorOr<void> decode_webp_image(WebPLoadingContext& context)
 {
     VERIFY(context.state >= WebPLoadingContext::State::HeaderDecoded);
 
-    if (context.has_animation) {
-        WebPAnimDecoderOptions anim_decoder_options {};
-        WebPAnimDecoderOptionsInit(&anim_decoder_options);
-        anim_decoder_options.color_mode = MODE_BGRA;
-        anim_decoder_options.use_threads = 1;
+    ScopeGuard update_state = [&context] {
+        context.state = context.frame_descriptors.is_empty() ? WebPLoadingContext::State::Error : WebPLoadingContext::State::BitmapDecoded;
+    };
 
-        WebPData webp_data { .bytes = context.data.data(), .size = context.data.size() };
-        auto* anim_decoder = WebPAnimDecoderNew(&webp_data, &anim_decoder_options);
-        if (anim_decoder == nullptr)
-            return Error::from_string_literal("Failed to allocate WebPAnimDecoderNew failed");
-        ScopeGuard guard { [=]() { WebPAnimDecoderDelete(anim_decoder); } };
+    bool reached_eof = false;
 
-        int old_timestamp = 0;
-        while (WebPAnimDecoderHasMoreFrames(anim_decoder)) {
-            uint8_t* frame_data = nullptr;
-            int timestamp = 0;
-            if (!WebPAnimDecoderGetNext(anim_decoder, &frame_data, &timestamp))
-                return Error::from_string_literal("Failed to decode animated frame");
+    for (;;) {
+        WebPIterator frame;
+        ArmedScopeGuard free_frame = [&frame] {
+            WebPDemuxReleaseIterator(&frame);
+        };
 
-            auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-            auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
+        // We have to do + 1 here because 0 actually gives the last frame.
+        size_t frame_index = context.frame_descriptors.size() + 1;
+        while (!WebPDemuxGetFrame(context.demuxer, frame_index, &frame)) {
+            WebPDemuxReleaseIterator(&frame);
 
-            memcpy(bitmap->scanline_u8(0), frame_data, context.size.width() * context.size.height() * 4);
+            if (reached_eof)
+                return {};
 
-            auto duration = timestamp - old_timestamp;
-            old_timestamp = timestamp;
-
-            context.frame_descriptors.append(ImageFrameDescriptor { bitmap, duration });
+            TRY(context.populate_demuxer_with_more_data());
+            if (context.stream->is_eof())
+                reached_eof = true;
         }
-    } else {
-        auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-        auto bitmap = TRY(Bitmap::create(bitmap_format, Gfx::AlphaType::Unpremultiplied, context.size));
 
-        auto image_data = WebPDecodeBGRAInto(context.data.data(), context.data.size(), bitmap->scanline_u8(0), bitmap->data_size(), bitmap->pitch());
-        if (image_data == nullptr)
-            return Error::from_string_literal("Failed to decode webp image into bitmap");
+        if (frame.width <= 0 || frame.height <= 0) {
+            if (frame.complete || reached_eof)
+                return Error::from_string_literal("Failed to decode WebP: Encountered an empty frame");
 
-        auto duration = 0;
-        context.frame_descriptors.append(ImageFrameDescriptor { bitmap, duration });
+            free_frame.disarm();
+            WebPDemuxReleaseIterator(&frame);
+            TRY(context.populate_demuxer_with_more_data());
+            if (context.stream->is_eof())
+                reached_eof = true;
+
+            continue;
+        }
+
+        auto maybe_error = decode_webp_frame(context, frame);
+        if (!maybe_error.is_error()) {
+            auto bitmap = maybe_error.release_value();
+
+            if (context.has_animation) {
+                VERIFY(context.animation_painter);
+                FloatRect destination_rect(frame.x_offset, frame.y_offset, frame.width, frame.height);
+
+                auto blend_mode = CompositingAndBlendingOperator::Copy;
+                if (frame.has_alpha && frame.blend_method == WEBP_MUX_BLEND)
+                    blend_mode = CompositingAndBlendingOperator::SourceOver;
+
+                context.animation_painter->draw_bitmap(destination_rect, ImmutableBitmap::create(bitmap), bitmap->rect(), ScalingMode::None, {}, 1.0f, blend_mode);
+                auto final_bitmap = TRY(context.animation_output_buffer->clone());
+                context.frame_descriptors.append(ImageFrameDescriptor { move(final_bitmap), frame.duration });
+
+                if (frame.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND)
+                    context.animation_painter->clear_rect(destination_rect, Color::Transparent);
+            } else {
+                context.frame_descriptors.append(ImageFrameDescriptor { bitmap, frame.duration });
+            }
+            continue;
+        }
+
+        auto error = maybe_error.release_error();
+        if (error.is_errno() && error.code() == EAGAIN) {
+            if (reached_eof)
+                return {};
+
+            // We have to change the order of operations to free the frame before destroying the demuxer.
+            free_frame.disarm();
+            WebPDemuxReleaseIterator(&frame);
+            TRY(context.populate_demuxer_with_more_data());
+            if (context.stream->is_eof())
+                reached_eof = true;
+
+            continue;
+        }
+
+        return error;
     }
-
-    return {};
 }
 
-bool WebPImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool WebPImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    WebPLoadingContext context;
-    context.data = data;
+    WebPLoadingContext context(move(stream));
     return !decode_webp_header(context).is_error();
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> WebPImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> WebPImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto context = TRY(try_make<WebPLoadingContext>());
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) WebPImageDecoderPlugin(data, move(context))));
+    auto context = TRY(try_make<WebPLoadingContext>(move(stream)));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) WebPImageDecoderPlugin(move(context))));
     TRY(decode_webp_header(*plugin->m_context));
+    TRY(decode_webp_image(*plugin->m_context));
     return plugin;
 }
 
@@ -196,7 +300,7 @@ size_t WebPImageDecoderPlugin::frame_count()
     if (!is_animated())
         return 1;
 
-    return m_context->frame_count;
+    return m_context->frame_descriptors.size();
 }
 
 size_t WebPImageDecoderPlugin::first_animated_frame_index()
@@ -212,10 +316,8 @@ ErrorOr<ImageFrameDescriptor> WebPImageDecoderPlugin::frame(size_t index, Option
     if (m_context->state == WebPLoadingContext::State::Error)
         return Error::from_string_literal("WebPImageDecoderPlugin: Decoding failed");
 
-    if (m_context->state < WebPLoadingContext::State::BitmapDecoded) {
-        TRY(decode_webp_image(*m_context));
-        m_context->state = WebPLoadingContext::State::BitmapDecoded;
-    }
+    if (m_context->state != WebPLoadingContext::State::BitmapDecoded)
+        return Error::from_string_literal("WebPImageDecoderPlugin: Frames not ready yet");
 
     if (index >= m_context->frame_descriptors.size())
         return Error::from_string_literal("WebPImageDecoderPlugin: Invalid frame index");
