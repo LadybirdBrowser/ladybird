@@ -3448,32 +3448,6 @@ RefPtr<RadialSizeStyleValue const> Parser::parse_radial_size(TokenStream<Compone
     return RadialSizeStyleValue::create(values);
 }
 
-// https://www.w3.org/TR/css-shapes-1/#typedef-shape-radius
-RefPtr<StyleValue const> Parser::parse_shape_radius(TokenStream<ComponentValue>& tokens)
-{
-    // FIXME: <shape-radius> has been replaced <radial-size> as defined in CSS Images:
-    //        https://drafts.csswg.org/css-images-3/#typedef-radial-size
-
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-
-    if (auto length_percentage = parse_length_percentage_value(tokens); length_percentage) {
-        // Negative radius is invalid.
-        if ((length_percentage->is_length() && length_percentage->as_length().raw_value() < 0) || (length_percentage->is_percentage() && length_percentage->as_percentage().raw_value() < 0))
-            return {};
-
-        transaction.commit();
-        return length_percentage;
-    }
-
-    if (auto keyword = parse_keyword_value(tokens); keyword && keyword_to_fit_side(keyword->to_keyword()).has_value()) {
-        transaction.commit();
-        return keyword;
-    }
-
-    return nullptr;
-}
-
 RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -3675,18 +3649,19 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
     }
 
     if (function_name.equals_ignoring_ascii_case("ellipse"sv)) {
-        // ellipse() = ellipse( [ <shape-radius>{2} ]? [ at <position> ]? )
+        // ellipse() = ellipse( <radial-size>? [ at <position> ]? )
         auto arguments_tokens = TokenStream { component_value.function().value };
 
-        auto radius_x = parse_shape_radius(arguments_tokens);
-        auto radius_y = parse_shape_radius(arguments_tokens);
+        auto radius = parse_radial_size(arguments_tokens);
 
-        if (radius_x && !radius_y)
+        // NB: The spec doesn't specify whether a single value radius is valid here but WPT expects it to not be.
+        if (radius && radius->components().size() != 2)
             return nullptr;
 
-        if (!radius_x) {
-            radius_x = KeywordStyleValue::create(Keyword::ClosestSide);
-            radius_y = KeywordStyleValue::create(Keyword::ClosestSide);
+        if (!radius) {
+            // AD-HOC: The spec calls for this to default to `closest-side` but as outlined above it's not clear whether
+            //         the spec intends for single value radii to be valid.
+            radius = RadialSizeStyleValue::create({ RadialExtent::ClosestSide, RadialExtent::ClosestSide });
         }
 
         auto position = PositionStyleValue::create_center();
@@ -3706,7 +3681,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
             return nullptr;
 
         transaction.commit();
-        return BasicShapeStyleValue::create(Ellipse { radius_x.release_nonnull(), radius_y.release_nonnull(), position });
+        return BasicShapeStyleValue::create(Ellipse { radius.release_nonnull(), position });
     }
 
     if (function_name.equals_ignoring_ascii_case("polygon"sv)) {

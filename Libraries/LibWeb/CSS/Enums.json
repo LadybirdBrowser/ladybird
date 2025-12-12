@@ -307,10 +307,6 @@
     "nonzero",
     "evenodd"
   ],
-  "fit-side": [
-    "closest-side",
-    "farthest-side"
-  ],
   "flex-direction": [
     "row",
     "row-reverse",

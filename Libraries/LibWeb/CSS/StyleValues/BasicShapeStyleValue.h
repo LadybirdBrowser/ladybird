@@ -65,8 +65,7 @@ struct Ellipse {
 
     bool operator==(Ellipse const&) const = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> radius_x;
-    ValueComparingNonnullRefPtr<StyleValue const> radius_y;
+    ValueComparingNonnullRefPtr<StyleValue const> radius;
     ValueComparingNonnullRefPtr<PositionStyleValue const> position;
 };
 
