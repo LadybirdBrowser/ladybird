@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Jonathan Gamble <gamblej@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,7 +17,8 @@ CSS::SizeWithAspectRatio TextInputBox::compute_intrinsic_content_box_size() cons
 {
     return {
         .width = CSS::Length(dom_node().size(), CSS::LengthUnit::Ch).to_px(*this),
-        .height = computed_values().line_height() + CSSPixels(2), // FIXME - determine where 2px comes from
+        // line-height + 2px because of padding in HTMLInputElement.cpp shadow DOM css
+        .height = computed_values().line_height() + CSSPixels(2),
         .aspect_ratio = {}
     };
 }
