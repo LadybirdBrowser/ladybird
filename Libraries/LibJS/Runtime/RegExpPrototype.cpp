@@ -69,7 +69,8 @@ static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_objec
     last_index = advance_string_index(string, last_index, unicode);
 
     // Perform ? Set(rx, "lastIndex", 𝔽(nextIndex), true).
-    TRY(regexp_object.set(vm.names.lastIndex, Value(last_index), Object::ShouldThrowExceptions::Yes));
+    static Bytecode::PropertyLookupCache cache2;
+    TRY(regexp_object.set(vm.names.lastIndex, Value(last_index), cache2));
     return {};
 }
 
@@ -232,8 +233,10 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 13.d and 13.a
     if (!result.success || last_index > string->length_in_utf16_code_units()) {
         // 13.d.i, 13.a.i
-        if (sticky || global)
-            TRY(regexp_object.set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
+        if (sticky || global) {
+            static Bytecode::PropertyLookupCache cache2;
+            TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
+        }
 
         // 13.a.ii, 13.d.i.2
         return js_null();
@@ -255,7 +258,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 16. If global is true or sticky is true, then
     if (global || sticky) {
         // a. Perform ? Set(R, "lastIndex", 𝔽(e), true).
-        TRY(regexp_object.set(vm.names.lastIndex, Value(end_index), Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache3;
+        TRY(regexp_object.set(vm.names.lastIndex, Value(end_index), cache3));
     }
 
     // 17. Let n be the number of elements in r's captures List. (This is the same value as 22.2.2.1's NcapturingParens.)
@@ -385,7 +389,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
             MUST(groups.as_object().create_data_property_or_throw(group_name, value));
         }
 
-        MUST(array->set(vm.names.groups, groups, Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache4;
+        MUST(array->set(vm.names.groups, groups, cache4));
     }
 
     // https://github.com/tc39/proposal-regexp-legacy-features#regexpbuiltinexec--r-s-
@@ -432,7 +437,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
                 MUST(ordered_indices_groups_object->create_data_property_or_throw(group_name, value));
             }
 
-            MUST(indices_array.as_object().set(vm.names.groups, ordered_indices_groups_object, Object::ShouldThrowExceptions::Yes));
+            static Bytecode::PropertyLookupCache cache4;
+            MUST(indices_array.as_object().set(vm.names.groups, ordered_indices_groups_object, cache4));
         }
 
         // b. Perform ! CreateDataPropertyOrThrow(A, "indices", indicesArray).
@@ -605,7 +611,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match)
     bool full_unicode = flags.contains('u') || flags.contains('v');
 
     // b. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-    TRY(regexp_object->set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
+    static Bytecode::PropertyLookupCache cache2;
+    TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
 
     // c. Let A be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));
@@ -690,7 +697,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_match_all)
     auto last_index = TRY(last_index_value.to_length(vm));
 
     // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    TRY(matcher->set(vm.names.lastIndex, Value(last_index), Object::ShouldThrowExceptions::Yes));
+    static Bytecode::PropertyLookupCache cache3;
+    TRY(matcher->set(vm.names.lastIndex, Value(last_index), cache3));
 
     // 13. Return CreateRegExpStringIterator(matcher, S, global, fullUnicode).
     return RegExpStringIterator::create(realm, matcher, string, global, full_unicode);
@@ -730,7 +738,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     // 9. If global is true, then
     if (global) {
         // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-        TRY(regexp_object->set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache2;
+        TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
     }
 
     // 10. Let results be a new empty List.
@@ -903,7 +912,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     // 5. If SameValue(previousLastIndex, +0𝔽) is false, then
     if (!same_value(previous_last_index, Value(0))) {
         // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-        TRY(regexp_object->set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache2;
+        TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
     }
 
     // 6. Let result be ? RegExpExec(rx, S).
@@ -916,7 +926,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_search)
     // 8. If SameValue(currentLastIndex, previousLastIndex) is false, then
     if (!same_value(current_last_index, previous_last_index)) {
         // a. Perform ? Set(rx, "lastIndex", previousLastIndex, true).
-        TRY(regexp_object->set(vm.names.lastIndex, previous_last_index, Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache3;
+        TRY(regexp_object->set(vm.names.lastIndex, previous_last_index, cache3));
     }
 
     // 9. If result is null, return -1𝔽.
@@ -1027,7 +1038,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     // 19. Repeat, while q < size,
     while (next_search_from < string->length_in_utf16_code_units()) {
         // a. Perform ? Set(splitter, "lastIndex", 𝔽(q), SplitBehavior::KeepEmpty).
-        TRY(splitter->set(vm.names.lastIndex, Value(next_search_from), Object::ShouldThrowExceptions::Yes));
+        static Bytecode::PropertyLookupCache cache2;
+        TRY(splitter->set(vm.names.lastIndex, Value(next_search_from), cache2));
 
         // b. Let z be ? RegExpExec(splitter, S).
         auto result = TRY(regexp_exec(vm, splitter, string));
@@ -1041,8 +1053,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
         // d. Else,
 
         // i. Let e be ℝ(? ToLength(? Get(splitter, "lastIndex"))).
-        static Bytecode::PropertyLookupCache cache2;
-        auto last_index_value = TRY(splitter->get(vm.names.lastIndex, cache2));
+        static Bytecode::PropertyLookupCache cache3;
+        auto last_index_value = TRY(splitter->get(vm.names.lastIndex, cache3));
         auto last_index = TRY(last_index_value.to_length(vm));
 
         // ii. Set e to min(e, size).
