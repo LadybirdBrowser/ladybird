@@ -581,11 +581,18 @@ TEST_CASE(ECMA262_parse)
         { "a{9007199254740991}"sv }, // 2^53 - 1
         { "a{9007199254740991,}"sv },
         { "a{9007199254740991,9007199254740991}"sv },
-        { "a{9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740991,9007199254740992}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740991}"sv, regex::Error::InvalidBraceContent },
-        { "a{9007199254740992,9007199254740992}"sv, regex::Error::InvalidBraceContent },
+        { "a{9007199254740992}"sv },
+        { "a{9007199254740992,}"sv },
+        { "a{9007199254740991,9007199254740992}"sv },
+        { "a{9007199254740992,9007199254740991}"sv },
+        { "a{9007199254740992,9007199254740992}"sv },
+        { "a{1,99999999999999999999999999999999999999999999999999}"sv },
+        { "a{99999999999999999999999999999999999999999999999999,1}"sv, regex::Error::InvalidBraceContent },
+        { "a{99999999999999999999999999999999999999999999999999}"sv },
+        { "a{2147483647}"sv }, // 2^31 - 1
+        { "a{2147483648}"sv }, // 2^31
+        { "a{2147483648,2147483647}"sv },
+        { "a{2147483647,2147483646}"sv, regex::Error::InvalidBraceContent },
         { "(?<a>a)(?<a>b)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>a)(?<b>b)(?<a>c)"sv, regex::Error::DuplicateNamedCapture },
         { "(?<a>(?<a>a))"sv, regex::Error::DuplicateNamedCapture },
@@ -865,6 +872,14 @@ TEST_CASE(ECMA262_unicode_sets_parser_error)
     constexpr _test tests[] {
         { "[[]"sv, regex::Error::InvalidPattern },
         { "[[x[]]]"sv, regex::Error::NoError }, // #23691, should not crash on empty charclass within AndOr.
+        { "[[^\\u0430-\\u044f][\\p{RGI_Emoji}]]"sv, regex::Error::NoError },
+        { "[^[[\\p{RGI_Emoji}]--[A-Z]]]"sv, regex::Error::NegatedCharacterClassStrings },
+        { "[^[^\\p{RGI_Emoji}]]"sv, regex::Error::NegatedCharacterClassStrings },
+        { "[\\[]"sv, regex::Error::NoError },
+        { "[\\[\\]]"sv, regex::Error::NoError },
+        { "[\\S[\\[]]"sv, regex::Error::NoError },
+        { "[\\S&&[\\[]]"sv, regex::Error::NoError },
+        { "[\\S--[\\[]]"sv, regex::Error::NoError },
     };
 
     for (auto test : tests) {
@@ -1310,6 +1325,15 @@ TEST_CASE(inversion_state_in_char_class)
 
         auto result = re.match("\n"sv);
         EXPECT_EQ(result.success, false);
+    }
+    {
+        // /[^\S]/ should match whitespace characters
+        Regex<ECMA262> re("[^\\S]", ECMAScriptFlags::Global | (ECMAScriptFlags)regex::AllFlags::SingleMatch);
+
+        auto result = re.match("\t"sv);
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "\t"sv);
     }
 }
 

@@ -119,6 +119,7 @@ protected:
         size_t named_capture_groups_count { 0 };
         size_t match_length_minimum { 0 };
         size_t repetition_mark_count { 0 };
+        bool in_negated_character_class { false };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;
         OrderedHashMap<FlyString, Vector<NamedCaptureGroup>> named_capture_groups;
@@ -295,6 +296,17 @@ private:
     bool has_duplicate_in_current_alternative(FlyString const& name);
 
     size_t ensure_total_number_of_capturing_parenthesis();
+
+    auto save_parser_state()
+    {
+        auto saved_token = m_parser_state.current_token;
+        auto saved_lexer_index = m_parser_state.lexer.tell();
+
+        return ArmedScopeGuard { [this, saved_token, saved_lexer_index] {
+            m_parser_state.current_token = saved_token;
+            m_parser_state.lexer.back(m_parser_state.lexer.tell() - saved_lexer_index);
+        } };
+    }
 
     void enter_capture_group_scope() { m_capture_groups_in_scope.empend(); }
 

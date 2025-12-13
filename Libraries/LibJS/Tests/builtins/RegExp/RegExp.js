@@ -317,6 +317,7 @@ test("Unicode matching with u and v flags", () => {
         { pattern: /./gv, match: text, expected: ["𠮷", "a", "𠮷", "b", "𠮷"] },
         { pattern: /(?:)/gu, match: text, expected: ["", "", "", "", "", ""] },
         { pattern: /(?:)/gv, match: text, expected: ["", "", "", "", "", ""] },
+        { pattern: /[👨‍👩‍👧‍👦]/v, match: "𠮷a𠮷b𠮷c👨‍👩‍👧‍👦d", expected: ["👨"] },
     ];
 
     for (const test of cases) {

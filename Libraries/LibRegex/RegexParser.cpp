@@ -21,7 +21,7 @@
 namespace regex {
 
 static constexpr size_t s_maximum_repetition_count = 1024 * 1024;
-static constexpr u64 s_ecma262_maximum_repetition_count = (1ull << 53) - 1;
+static constexpr u64 s_ecma262_maximum_repetition_count = (1ull << 31) - 1;
 static constexpr auto s_alphabetic_characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"sv;
 static constexpr auto s_decimal_characters = "0123456789"sv;
 
@@ -1333,9 +1333,7 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
     auto low_bound_string = read_digits_as_string();
     chars_consumed += low_bound_string.length();
 
-    auto low_bound = low_bound_string.to_number<u64>();
-
-    if (!low_bound.has_value()) {
+    if (low_bound_string.is_empty()) {
         if (!m_should_use_browser_extended_grammar && done())
             return set_error(Error::MismatchingBrace);
 
@@ -1343,16 +1341,27 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
         return false;
     }
 
-    repeat_min = low_bound.value();
+    auto low_bound = low_bound_string.to_number<u64>();
+
+    if (!low_bound.has_value() || low_bound.value() > s_ecma262_maximum_repetition_count) {
+        repeat_min = s_ecma262_maximum_repetition_count;
+    } else {
+        repeat_min = low_bound.value();
+    }
 
     if (match(TokenType::Comma)) {
         consume();
         ++chars_consumed;
         auto high_bound_string = read_digits_as_string();
         auto high_bound = high_bound_string.to_number<u64>();
-        if (high_bound.has_value()) {
-            repeat_max = high_bound.value();
+        if (!high_bound_string.is_empty()) {
             chars_consumed += high_bound_string.length();
+
+            if (!high_bound.has_value() || high_bound.value() > s_ecma262_maximum_repetition_count) {
+                repeat_max = s_ecma262_maximum_repetition_count;
+            } else {
+                repeat_max = high_bound.value();
+            }
         }
     } else {
         repeat_max = repeat_min;
@@ -1373,9 +1382,6 @@ bool ECMA262Parser::parse_interval_quantifier(Optional<u64>& repeat_min, Optiona
         if (repeat_min.value() > repeat_max.value())
             set_error(Error::InvalidBraceContent);
     }
-
-    if ((*repeat_min > s_ecma262_maximum_repetition_count) || (repeat_max.has_value() && (*repeat_max > s_ecma262_maximum_repetition_count)))
-        return set_error(Error::InvalidBraceContent);
 
     return true;
 }
@@ -1835,12 +1841,20 @@ bool ECMA262Parser::parse_character_class(ByteCode& stack, size_t& match_length_
     Vector<CompareTypeAndValuePair> compares;
 
     auto uses_explicit_or_semantics = false;
+    bool is_negated = false;
     if (match(TokenType::Circumflex)) {
         // Negated charclass
         consume();
         compares.empend(CompareTypeAndValuePair { CharacterCompareType::Inverse, 0 });
         uses_explicit_or_semantics = true;
+        is_negated = true;
     }
+
+    auto previous_negated_state = m_parser_state.in_negated_character_class;
+    m_parser_state.in_negated_character_class = is_negated;
+    ArmedScopeGuard restore_negated_state { [&] {
+        m_parser_state.in_negated_character_class = previous_negated_state;
+    } };
 
     // ClassContents :: [empty]
     if (match(TokenType::RightBracket)) {
@@ -1852,12 +1866,18 @@ bool ECMA262Parser::parse_character_class(ByteCode& stack, size_t& match_length_
     }
 
     // ClassContents :: [~UnicodeSetsMode] NonemptyClassRanges[?UnicodeMode]
-    if (!flags.unicode_sets && !parse_nonempty_class_ranges(compares, flags))
+    if (!flags.unicode_sets && !parse_nonempty_class_ranges(compares, flags)) {
+        restore_negated_state.disarm();
         return false;
+    }
 
     // ClassContents :: [+UnicodeSetsMode] ClassSetExpression
-    if (flags.unicode_sets && !parse_class_set_expression(compares))
+    if (flags.unicode_sets && !parse_class_set_expression(compares)) {
+        restore_negated_state.disarm();
         return false;
+    }
+
+    restore_negated_state.disarm();
 
     if (uses_explicit_or_semantics && compares.size() > 2) {
         compares.insert(1, CompareTypeAndValuePair { CharacterCompareType::Or, 0 });
@@ -2142,7 +2162,8 @@ bool ECMA262Parser::parse_nonempty_class_ranges(Vector<CompareTypeAndValuePair>&
 
 bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // ClassSetExpression :: ClassUnion | ClassIntersection | ClassSubtraction
     if (parse_class_subtraction(compares)) {
@@ -2152,7 +2173,9 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
+
     if (parse_class_intersection(compares)) {
         consume(TokenType::RightBracket, Error::MismatchingBracket);
         return true;
@@ -2160,7 +2183,9 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
+
     if (parse_class_union(compares)) {
         consume(TokenType::RightBracket, Error::MismatchingBracket);
         return true;
@@ -2171,8 +2196,7 @@ bool ECMA262Parser::parse_class_set_expression(Vector<CompareTypeAndValuePair>& 
 
 bool ECMA262Parser::parse_class_union(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     auto first = true;
 
@@ -2207,8 +2231,7 @@ bool ECMA262Parser::parse_class_intersection(Vector<CompareTypeAndValuePair>& co
     Vector<CompareTypeAndValuePair> lhs;
     Vector<CompareTypeAndValuePair> rhs;
 
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     if (!parse_class_set_operand(lhs))
         return false;
@@ -2242,8 +2265,7 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
     Vector<CompareTypeAndValuePair> lhs;
     Vector<CompareTypeAndValuePair> rhs;
 
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     if (!parse_class_set_operand(lhs))
         return false;
@@ -2271,8 +2293,7 @@ bool ECMA262Parser::parse_class_subtraction(Vector<CompareTypeAndValuePair>& com
 bool ECMA262Parser::parse_class_set_range(Vector<CompareTypeAndValuePair>& compares)
 {
     // ClassSetRange :: ClassSetCharacter "-" ClassSetCharacter
-    auto start_position = tell();
-    ArmedScopeGuard restore_position { [&] { back(tell() - start_position + 1); } };
+    auto restore_position = save_parser_state();
 
     auto lhs = parse_class_set_character();
     if (!lhs.has_value())
@@ -2312,6 +2333,8 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         "&"sv, "-"sv, "!"sv, "#"sv, "%"sv, ","sv, ":"sv, ";"sv, "<"sv, "="sv, ">"sv, "@"sv, "`"sv, "~"sv
     };
 
+    auto restore = save_parser_state();
+
     if (done()) {
         set_error(Error::InvalidPattern);
         return {};
@@ -2322,12 +2345,10 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
         consume();
 
         if (escape_value[0] == '\\' && escape_value.length() == 2) {
+            restore.disarm();
             return escape_value[1];
         }
     }
-
-    auto start_position = tell();
-    ArmedScopeGuard restore { [&] { back(tell() - start_position + 1); } };
 
     if (try_skip("\\"sv)) {
         if (done()) {
@@ -2384,7 +2405,8 @@ Optional<u32> ECMA262Parser::parse_class_set_character()
 
 bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // ClassStringDisjunction :: "\q{" ClassStringDisjunctionContents "}"
     // ClassStringDisjunctionContents :: ClassString | ClassString "|" ClassStringDisjunctionContents
@@ -2427,11 +2449,7 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
         strings.append(MUST(current_string.to_string()));
         consume(TokenType::RightCurly, Error::MismatchingBrace);
 
-        bool is_negated = any_of(compares, [](auto const& compare) {
-            return compare.type == CharacterCompareType::Inverse;
-        });
-
-        if (is_negated && any_of(strings, has_multiple_code_points)) {
+        if (m_parser_state.in_negated_character_class && any_of(strings, has_multiple_code_points)) {
             set_error(Error::NegatedCharacterClassStrings);
             return false;
         }
@@ -2497,13 +2515,15 @@ bool ECMA262Parser::parse_class_set_operand(Vector<regex::CompareTypeAndValuePai
     if (has_error())
         return false;
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
     return false;
 }
 
 bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& compares)
 {
-    auto start_position = tell();
+    auto start_token = m_parser_state.current_token;
+    auto start_lexer_index = m_parser_state.lexer.tell();
 
     // NestedClass :: "[" [lookahead ≠ ^ ] ClassContents [+UnicodeMode, +UnicodeSetsMode] "]"
     //              | "[" "^" ClassContents[+UnicodeMode, +UnicodeSetsMode] "]"
@@ -2567,11 +2587,7 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
 
                         auto strings = Unicode::get_property_strings(property);
 
-                        bool is_negated = any_of(compares, [](auto const& compare) {
-                            return compare.type == CharacterCompareType::Inverse;
-                        });
-
-                        if (is_negated && any_of(strings, has_multiple_code_points)) {
+                        if (m_parser_state.in_negated_character_class && any_of(strings, has_multiple_code_points)) {
                             set_error(Error::NegatedCharacterClassStrings);
                             return;
                         }
@@ -2601,7 +2617,8 @@ bool ECMA262Parser::parse_nested_class(Vector<regex::CompareTypeAndValuePair>& c
             return false;
     }
 
-    back(tell() - start_position + 1);
+    m_parser_state.current_token = start_token;
+    m_parser_state.lexer.back(m_parser_state.lexer.tell() - start_lexer_index);
     return false;
 }
 
