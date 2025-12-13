@@ -43,6 +43,7 @@ public:
     virtual void autoplay_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
+    virtual void debug_dump_path_changed() { }
 };
 
 class WEBVIEW_API Settings {

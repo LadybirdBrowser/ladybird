@@ -46,6 +46,7 @@ static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
 
 static constexpr auto dns_settings_key = "dnsSettings"sv;
 
+
 static ErrorOr<JsonObject> read_settings_file(StringView settings_path)
 {
     auto settings_file = Core::File::open(settings_path, Core::File::OpenMode::Read);
@@ -240,6 +241,7 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
     settings.set(dns_settings_key, move(dns_settings));
+
 
     return settings;
 }

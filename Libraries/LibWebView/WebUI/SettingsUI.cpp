@@ -81,6 +81,7 @@ void SettingsUI::register_interfaces()
 void SettingsUI::load_current_settings()
 {
     auto settings = WebView::Application::settings().serialize_json();
+    dbgln("SettingsUI: Loading current settings: {}", settings);
     async_send_message("loadSettings"sv, settings);
 }
 

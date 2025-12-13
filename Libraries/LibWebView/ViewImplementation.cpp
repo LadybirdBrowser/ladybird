@@ -597,6 +597,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     languages_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
+    debug_dump_path_changed();
+
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
@@ -672,6 +674,7 @@ void ViewImplementation::global_privacy_control_changed()
     auto global_privacy_control = Application::settings().global_privacy_control();
     client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
 }
+
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
 {
