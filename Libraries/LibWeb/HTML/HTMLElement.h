@@ -196,6 +196,9 @@ public:
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     virtual bool uses_button_layout() const { return false; }
 
+    WebIDL::UnsignedLong computed_heading_level() const;
+    WebIDL::UnsignedLong computed_heading_offset() const;
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 

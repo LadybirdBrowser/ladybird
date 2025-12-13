@@ -3950,9 +3950,13 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         }
 
         if (attribute.extended_attributes.contains("Reflect")) {
+            // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#using-reflect-via-idl-extended-attributes:reflected-content-attribute-name
+            // For one of these primary reflection extended attributes, its reflected content attribute name is the
+            // string value it takes, if one is provided; otherwise it is the IDL attribute name converted to ASCII
+            // lowercase.
             auto attribute_name = attribute.extended_attributes.get("Reflect").value();
             if (attribute_name.is_empty())
-                attribute_name = attribute.name;
+                attribute_name = attribute.name.to_lowercase();
 
             attribute_generator.set("attribute.reflect_name", attribute_name);
         } else {

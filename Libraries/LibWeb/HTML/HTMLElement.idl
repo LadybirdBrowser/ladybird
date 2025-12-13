@@ -39,6 +39,10 @@ interface HTMLElement : Element {
     [ImplementedAs=hide_popover_for_bindings] undefined hidePopover();
     boolean togglePopover(optional (TogglePopoverOptions or boolean) options = {});
     [CEReactions] attribute DOMString? popover;
+    
+    // FIXME: Should be `[CEReactions, Reflect, ReflectRange=(0, 8)]`
+    [CEReactions, Reflect, ReflectRange=(0, 8)] attribute unsigned long headingOffset;
+    [CEReactions, Reflect] attribute boolean headingReset;
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-htmlelement-interface
     readonly attribute Element? scrollParent;

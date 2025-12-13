@@ -35,6 +35,7 @@
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 #include <LibWeb/HTML/Window.h>
@@ -2385,6 +2386,85 @@ void HTMLElement::set_autocorrect(bool given_value)
         set_attribute_value(HTML::AttributeNames::autocorrect, "on"_string);
     else
         set_attribute_value(HTML::AttributeNames::autocorrect, "off"_string);
+}
+
+// https://html.spec.whatwg.org/multipage/sections.html#get-an-element's-computed-heading-level
+WebIDL::UnsignedLong HTMLElement::computed_heading_level() const
+{
+    // 1. Let level be 0.
+    auto level = 0u;
+
+    // 2. If element's local name is h1, then set level to 1.
+    if (local_name() == TagNames::h1)
+        level = 1;
+    // 3. If element's local name is h2, then set level to 2.
+    else if (local_name() == TagNames::h2)
+        level = 2;
+    // 4. If element's local name is h3, then set level to 3.
+    else if (local_name() == TagNames::h3)
+        level = 3;
+    // 5. If element's local name is h4, then set level to 4.
+    else if (local_name() == TagNames::h4)
+        level = 4;
+    // 6. If element's local name is h5, then set level to 5.
+    else if (local_name() == TagNames::h5)
+        level = 5;
+    // 7. If element's local name is h6, then set level to 6.
+    else if (local_name() == TagNames::h6)
+        level = 6;
+
+    // 8. Assert: level is not 0.
+    VERIFY(level != 0);
+
+    // 9. Increment level by the result of getting an element's computed heading offset given element.
+    level += computed_heading_offset();
+
+    // 10. If level is greater than 9, then return 9.
+    if (level > 9)
+        return 9;
+
+    // 11. Return level.
+    return level;
+}
+
+WebIDL::UnsignedLong HTMLElement::computed_heading_offset() const
+{
+    // 1. Let offset be 0.
+    auto offset = 0u;
+
+    // 2. Let inclusiveAncestor be element.
+    DOM::Node const* inclusive_ancestor = this;
+
+    // 3. While inclusiveAncestor is not null:
+    while (inclusive_ancestor) {
+        // 1. Let nextOffset be 0.
+        auto next_offset = 0u;
+
+        // 2. If inclusiveAncestor is an HTML element and has a headingoffset attribute, then parse its value using the
+        //    rules for parsing non-negative integers.
+        //    If the result of parsing the value is not an error, then set nextOffset to that value.
+        auto const* inclusive_ancestor_html_element = as_if<HTMLElement>(*inclusive_ancestor);
+        if (inclusive_ancestor_html_element) {
+            if (auto attribute = inclusive_ancestor_html_element->get_attribute(AttributeNames::headingoffset); attribute.has_value()) {
+                if (auto heading_offset = parse_non_negative_integer(attribute.value()); heading_offset.has_value())
+                    next_offset = *heading_offset;
+            }
+        }
+
+        // 3. Increment offset by nextOffset.
+        offset += next_offset;
+
+        // 4. If inclusiveAncestor is an HTML element and has a headingreset attribute, then return offset.
+        if (inclusive_ancestor_html_element && inclusive_ancestor_html_element->has_attribute(AttributeNames::headingreset))
+            return offset;
+
+        // 5. Set inclusiveAncestor to the parent node of inclusiveAncestor within the flat tree.
+        // FIXME: Flat tree parent means following slots.
+        inclusive_ancestor = inclusive_ancestor->parent();
+    }
+
+    // 4. Return offset.
+    return offset;
 }
 
 }
