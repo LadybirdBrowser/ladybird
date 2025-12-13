@@ -9,6 +9,7 @@
 #include <AK/Types.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 
 namespace Gfx {
@@ -66,6 +67,11 @@ struct ICOImageDescriptor {
 };
 
 struct ICOLoadingContext {
+    ICOLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
+        : stream(move(stream))
+    {
+    }
+
     enum State {
         NotDecoded = 0,
         Error,
@@ -73,8 +79,7 @@ struct ICOLoadingContext {
         BitmapDecoded
     };
     State state { NotDecoded };
-    u8 const* data { nullptr };
-    size_t data_size { 0 };
+    NonnullRefPtr<ImageDecoderStream> stream;
     IconType file_type { IconType::ICO };
     Vector<ICOImageDescriptor> images;
     size_t largest_index;
@@ -138,17 +143,14 @@ static size_t find_largest_image(ICOLoadingContext const& context)
 
 static ErrorOr<void> load_ico_directory(ICOLoadingContext& context)
 {
-    FixedMemoryStream stream { { context.data, context.data_size } };
-
-    auto image_count = TRY(decode_ico_header(stream, context.file_type));
+    auto image_count = TRY(decode_ico_header(context.stream, context.file_type));
     if (image_count == 0)
         return Error::from_string_literal("ICO/CUR file has no images");
 
     for (size_t i = 0; i < image_count; ++i) {
-        auto desc = TRY(decode_ico_direntry(stream, context.file_type));
-        if (desc.offset + desc.size < desc.offset // detect integer overflow
-            || (desc.offset + desc.size) > context.data_size) {
-            dbgln_if(ICO_DEBUG, "load_ico_directory: offset: {} size: {} doesn't fit in ICO size: {}", desc.offset, desc.size, context.data_size);
+        auto desc = TRY(decode_ico_direntry(context.stream, context.file_type));
+        if (Checked<size_t>::addition_would_overflow(desc.offset, desc.size)) {
+            dbgln_if(ICO_DEBUG, "load_ico_directory: offset: {} size: {} doesn't fit in ICO size", desc.offset, desc.size);
             return Error::from_string_literal("ICO size too large");
         }
         dbgln_if(ICO_DEBUG, "load_ico_directory: index {} width: {} height: {} offset: {} size: {}", i, desc.width, desc.height, desc.offset, desc.size);
@@ -168,46 +170,48 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
         return Error::from_string_literal("Index out of bounds");
 
     ICOImageDescriptor& desc = context.images[real_index];
-    if (PNGImageDecoderPlugin::sniff({ context.data + desc.offset, desc.size })) {
-        auto png_decoder = TRY(PNGImageDecoderPlugin::create({ context.data + desc.offset, desc.size }));
+    TRY(context.stream->seek(desc.offset, SeekMode::SetPosition));
+
+    auto desc_bytes = TRY(ByteBuffer::create_uninitialized(desc.size));
+    TRY(context.stream->read_until_filled(desc_bytes));
+
+    if (PNGImageDecoderPlugin::sniff(desc_bytes)) {
+        auto png_decoder = TRY(PNGImageDecoderPlugin::create(desc_bytes));
         auto decoded_png_frame = TRY(png_decoder->frame(0));
         desc.bitmap = decoded_png_frame.image;
         return {};
-    } else {
-        auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, { context.data + desc.offset, desc.size }));
-        // NOTE: We don't initialize a BMP decoder in the usual way, but rather
-        // we just create an object and try to sniff for a frame when it's included
-        // inside an ICO image.
-        if (bmp_decoder->sniff_dib()) {
-            auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
-            desc.bitmap = decoded_bmp_frame.image;
-        } else {
-            dbgln_if(ICO_DEBUG, "load_ico_bitmap: encoded image not supported at index: {}", real_index);
-            return Error::from_string_literal("Encoded image not supported");
-        }
-        return {};
     }
+
+    auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, desc_bytes));
+    // NOTE: We don't initialize a BMP decoder in the usual way, but rather
+    // we just create an object and try to sniff for a frame when it's included
+    // inside an ICO image.
+    if (bmp_decoder->sniff_dib()) {
+        auto decoded_bmp_frame = TRY(bmp_decoder->frame(0));
+        desc.bitmap = decoded_bmp_frame.image;
+    } else {
+        dbgln_if(ICO_DEBUG, "load_ico_bitmap: encoded image not supported at index: {}", real_index);
+        return Error::from_string_literal("Encoded image not supported");
+    }
+    return {};
 }
 
-bool ICOImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool ICOImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    FixedMemoryStream stream { data };
     IconType file_type;
     return !decode_ico_header(stream, file_type).is_error();
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> ICOImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> ICOImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) ICOImageDecoderPlugin(data.data(), data.size())));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) ICOImageDecoderPlugin(move(stream))));
     TRY(load_ico_directory(*plugin->m_context));
     return plugin;
 }
 
-ICOImageDecoderPlugin::ICOImageDecoderPlugin(u8 const* data, size_t size)
+ICOImageDecoderPlugin::ICOImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    m_context = make<ICOLoadingContext>();
-    m_context->data = data;
-    m_context->data_size = size;
+    m_context = make<ICOLoadingContext>(move(stream));
 }
 
 ICOImageDecoderPlugin::~ICOImageDecoderPlugin() = default;
