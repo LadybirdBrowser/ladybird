@@ -49,14 +49,7 @@ static ErrorOr<ByteBuffer> encode_bitmap(Gfx::Bitmap const& bitmap, ExtraArgs...
 }
 
 template<class Writer, class Loader>
-static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> get_full_data_roundtrip_bitmap(Gfx::Bitmap const& bitmap)
-{
-    auto encoded_data = TRY(encode_bitmap<Writer>(bitmap));
-    return expect_single_frame_of_size(*TRY(Loader::create(encoded_data)), bitmap.size());
-}
-
-template<class Writer, class Loader>
-static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> get_streaming_roundtrip_bitmap(Gfx::Bitmap const& bitmap)
+static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> get_roundtrip_bitmap(Gfx::Bitmap const& bitmap)
 {
     auto encoded_data = TRY(encode_bitmap<Writer>(bitmap));
     auto encoded_data_stream = TRY(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
@@ -74,17 +67,9 @@ static void expect_bitmaps_equal(Gfx::Bitmap const& a, Gfx::Bitmap const& b)
 }
 
 template<class Writer, class Loader>
-static ErrorOr<void> test_full_data_roundtrip(Gfx::Bitmap const& bitmap)
+static ErrorOr<void> test_roundtrip(Gfx::Bitmap const& bitmap)
 {
-    auto decoded = TRY((get_full_data_roundtrip_bitmap<Writer, Loader>(bitmap)));
-    expect_bitmaps_equal(*decoded, bitmap);
-    return {};
-}
-
-template<class Writer, class Loader>
-static ErrorOr<void> test_streaming_roundtrip(Gfx::Bitmap const& bitmap)
-{
-    auto decoded = TRY((get_streaming_roundtrip_bitmap<Writer, Loader>(bitmap)));
+    auto decoded = TRY((get_roundtrip_bitmap<Writer, Loader>(bitmap)));
     expect_bitmaps_equal(*decoded, bitmap);
     return {};
 }
@@ -117,26 +102,26 @@ static ErrorOr<AK::NonnullRefPtr<Gfx::Bitmap>> create_test_rgba_bitmap()
 
 TEST_CASE(test_bmp)
 {
-    TRY_OR_FAIL((test_streaming_roundtrip<Gfx::BMPWriter, Gfx::BMPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
-    TRY_OR_FAIL((test_streaming_roundtrip<Gfx::BMPWriter, Gfx::BMPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::BMPWriter, Gfx::BMPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::BMPWriter, Gfx::BMPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
 }
 
 TEST_CASE(test_jpeg)
 {
     // JPEG is lossy, so the roundtripped bitmap won't match the original bitmap. But it should still have the same size.
-    (void)TRY_OR_FAIL((get_streaming_roundtrip_bitmap<Gfx::JPEGWriter, Gfx::JPEGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
+    (void)TRY_OR_FAIL((get_roundtrip_bitmap<Gfx::JPEGWriter, Gfx::JPEGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
 }
 
 TEST_CASE(test_png)
 {
-    TRY_OR_FAIL((test_full_data_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
-    TRY_OR_FAIL((test_full_data_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
 }
 
 TEST_CASE(test_webp)
 {
-    TRY_OR_FAIL((test_streaming_roundtrip<Gfx::WebPWriter, Gfx::WebPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
-    TRY_OR_FAIL((test_streaming_roundtrip<Gfx::WebPWriter, Gfx::WebPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::WebPWriter, Gfx::WebPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
+    TRY_OR_FAIL((test_roundtrip<Gfx::WebPWriter, Gfx::WebPImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgba_bitmap()))));
 }
 
 TEST_CASE(test_webp_color_indexing_transform)

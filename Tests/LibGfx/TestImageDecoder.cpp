@@ -570,8 +570,12 @@ TEST_CASE(test_jpeg_malformed_frame)
 TEST_CASE(test_png)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/buggie.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
@@ -579,8 +583,12 @@ TEST_CASE(test_png)
 TEST_CASE(test_apng)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-1-frame.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     EXPECT_EQ(plugin_decoder->loop_count(), 0u);
@@ -595,8 +603,12 @@ TEST_CASE(test_apng)
 TEST_CASE(test_apng_idat_not_affecting_next_frame)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-blend.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     EXPECT_EQ(plugin_decoder->loop_count(), 0u);
@@ -611,8 +623,12 @@ TEST_CASE(test_apng_idat_not_affecting_next_frame)
 TEST_CASE(test_exif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 200, 100 }));
     EXPECT(plugin_decoder->metadata().has_value());
@@ -632,7 +648,10 @@ TEST_CASE(test_png_malformed_frame)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder_or_error = Gfx::PNGImageDecoderPlugin::create(file->bytes());
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder_or_error = Gfx::PNGImageDecoderPlugin::create(move(stream));
         if (plugin_decoder_or_error.is_error())
             continue;
         auto plugin_decoder = plugin_decoder_or_error.release_value();

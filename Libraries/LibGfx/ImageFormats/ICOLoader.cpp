@@ -172,19 +172,21 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
     ICOImageDescriptor& desc = context.images[real_index];
     TRY(context.stream->seek(desc.offset, SeekMode::SetPosition));
 
+    auto desc_stream = TRY(adopt_nonnull_ref_or_enomem(new ImageDecoderStream()));
     auto desc_bytes = TRY(ByteBuffer::create_uninitialized(desc.size));
     TRY(context.stream->read_until_filled(desc_bytes));
+    desc_stream->append_chunk(move(desc_bytes));
+    desc_stream->close();
 
-    if (PNGImageDecoderPlugin::sniff(desc_bytes)) {
-        auto png_decoder = TRY(PNGImageDecoderPlugin::create(desc_bytes));
+    if (PNGImageDecoderPlugin::sniff(desc_stream)) {
+        TRY(desc_stream->seek(0, SeekMode::SetPosition));
+        auto png_decoder = TRY(PNGImageDecoderPlugin::create(desc_stream));
         auto decoded_png_frame = TRY(png_decoder->frame(0));
         desc.bitmap = decoded_png_frame.image;
         return {};
     }
 
-    auto desc_stream = TRY(adopt_nonnull_ref_or_enomem(new ImageDecoderStream()));
-    desc_stream->append_chunk(move(desc_bytes));
-    desc_stream->close();
+    TRY(desc_stream->seek(0, SeekMode::SetPosition));
     auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, desc_stream));
     // NOTE: We don't initialize a BMP decoder in the usual way, but rather
     // we just create an object and try to sniff for a frame when it's included
