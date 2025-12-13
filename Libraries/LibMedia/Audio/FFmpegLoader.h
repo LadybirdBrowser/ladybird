@@ -20,11 +20,11 @@ namespace Audio {
 
 class FFmpegLoaderPlugin : public LoaderPlugin {
 public:
-    explicit FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream>, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
+    explicit FFmpegLoaderPlugin(NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>);
     virtual ~FFmpegLoaderPlugin();
 
-    static bool sniff(SeekableStream& stream);
-    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create(NonnullOwnPtr<SeekableStream>);
+    static bool sniff(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor>);
+    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor>);
 
     virtual ErrorOr<Vector<FixedArray<Sample>>> load_chunks(size_t samples_to_read_from_input) override;
 

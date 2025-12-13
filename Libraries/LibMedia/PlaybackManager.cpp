@@ -15,6 +15,7 @@
 #include <LibMedia/Providers/WrapperTimeProvider.h>
 #include <LibMedia/Sinks/AudioMixingSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
+#include <LibMedia/Sniff.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Thread.h>
 
@@ -22,13 +23,14 @@
 
 namespace Media {
 
-DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyBytes media_data, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
+DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
 {
     auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        auto matroska_result = Matroska::MatroskaDemuxer::from_data(media_data);
-        if (!matroska_result.is_error())
-            return matroska_result.release_value();
-        return TRY(FFmpeg::FFmpegDemuxer::from_data(media_data));
+        if (sniff_webm(stream->create_cursor()))
+            return Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
+        if (sniff_mp4(stream->create_cursor()))
+            return FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor());
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No suitable demuxer found"sv);
     }());
     auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
@@ -40,7 +42,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_video_tracks.ensure_capacity(all_video_tracks.size());
     supported_video_track_datas.ensure_capacity(all_video_tracks.size());
     for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
+        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
         if (video_data_provider_result.is_error())
             continue;
         supported_video_tracks.append(track);
@@ -57,7 +59,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(ReadonlyB
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
     supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
     for (auto const& track : all_audio_tracks) {
-        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
+        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
         if (audio_data_provider_result.is_error())
             continue;
         auto audio_data_provider = audio_data_provider_result.release_value();
@@ -134,11 +136,11 @@ PlaybackManager::~PlaybackManager()
     m_weak_wrapper->revoke();
 }
 
-void PlaybackManager::add_media_source(ReadonlyBytes media_data)
+void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> stream)
 {
-    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, media_data, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
+    auto thread = Threading::Thread::construct([playback_manager = NonnullRefPtr { *this }, stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] -> int {
         auto main_thread_event_loop = main_thread_event_loop_reference->take();
-        auto maybe_error = playback_manager->prepare_playback_from_media_data(media_data, main_thread_event_loop_reference);
+        auto maybe_error = playback_manager->prepare_playback_from_media_data(stream, main_thread_event_loop_reference);
         if (maybe_error.is_error()) {
             main_thread_event_loop->deferred_invoke([playback_manager, error = maybe_error.release_error()] mutable {
                 if (playback_manager->on_unsupported_format_error)
@@ -167,6 +169,12 @@ void PlaybackManager::set_up_data_providers()
             if (!self)
                 return;
             self->check_for_duration_change(time);
+        });
+        video_track_data.provider->set_frames_queue_is_full_handler([weak_self = m_weak_wrapper] {
+            auto self = weak_self->take_strong();
+            if (!self)
+                return;
+            self->m_handler->exit_buffering();
         });
     }
 
@@ -221,6 +229,9 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
         track_data.display->pause_updates();
         track_data.display->set_provider(track, track_data.provider);
+        track_data.display->m_on_start_buffering = [this] {
+            m_handler->enter_buffering();
+        };
         track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate, [display = track_data.display](AK::Duration) {
             display->resume_updates();
         });

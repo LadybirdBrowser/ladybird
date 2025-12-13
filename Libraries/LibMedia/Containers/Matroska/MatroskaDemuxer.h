@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "Reader.h"
 
@@ -16,12 +17,14 @@ namespace Media::Matroska {
 
 class MEDIA_API MatroskaDemuxer final : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_data(ReadonlyBytes data);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_stream(IncrementallyPopulatedStream::Cursor&);
 
     MatroskaDemuxer(Reader&& reader)
         : m_reader(move(reader))
     {
     }
+
+    virtual void create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
 
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
     DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;

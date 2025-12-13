@@ -19,9 +19,8 @@ namespace Audio {
 
 static constexpr int BUFFER_MAX_PROBE_SIZE = 64 * KiB;
 
-FFmpegLoaderPlugin::FFmpegLoaderPlugin(NonnullOwnPtr<SeekableStream> stream, NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> io_context)
-    : LoaderPlugin(move(stream))
-    , m_io_context(move(io_context))
+FFmpegLoaderPlugin::FFmpegLoaderPlugin(NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext> io_context)
+    : m_io_context(move(io_context))
 {
 }
 
@@ -37,10 +36,10 @@ FFmpegLoaderPlugin::~FFmpegLoaderPlugin()
         avformat_close_input(&m_format_context);
 }
 
-ErrorOr<NonnullOwnPtr<LoaderPlugin>> FFmpegLoaderPlugin::create(NonnullOwnPtr<SeekableStream> stream)
+ErrorOr<NonnullOwnPtr<LoaderPlugin>> FFmpegLoaderPlugin::create(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor> stream_cursor)
 {
-    auto io_context = TRY(Media::FFmpeg::FFmpegIOContext::create(*stream));
-    auto loader = make<FFmpegLoaderPlugin>(move(stream), move(io_context));
+    auto io_context = TRY(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+    auto loader = make<FFmpegLoaderPlugin>(move(io_context));
     TRY(loader->initialize());
     return loader;
 }
@@ -123,9 +122,9 @@ double FFmpegLoaderPlugin::time_base() const
     return av_q2d(m_audio_stream->time_base);
 }
 
-bool FFmpegLoaderPlugin::sniff(SeekableStream& stream)
+bool FFmpegLoaderPlugin::sniff(NonnullRefPtr<Media::IncrementallyPopulatedStream::Cursor> stream_cursor)
 {
-    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream));
+    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
 #ifdef USE_CONSTIFIED_POINTERS
     AVInputFormat const* detected_format {};
 #else

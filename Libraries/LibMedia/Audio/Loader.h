@@ -14,10 +14,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/Stream.h>
-#include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 
 namespace Audio {
 
@@ -38,7 +37,7 @@ using Samples = FixedArray<Sample>;
 
 class LoaderPlugin {
 public:
-    explicit LoaderPlugin(NonnullOwnPtr<SeekableStream> stream);
+    explicit LoaderPlugin();
     virtual ~LoaderPlugin() = default;
 
     // Load as many audio chunks as necessary to get up to the required samples.
@@ -68,15 +67,11 @@ public:
     // Human-readable name of the file format, of the form <full abbreviation> (.<ending>)
     virtual ByteString format_name() = 0;
     virtual PcmSampleFormat pcm_format() = 0;
-
-protected:
-    NonnullOwnPtr<SeekableStream> m_stream;
 };
 
 class MEDIA_API Loader : public RefCounted<Loader> {
 public:
     static ErrorOr<NonnullRefPtr<Loader>> create(StringView path);
-    static ErrorOr<NonnullRefPtr<Loader>> create(ReadonlyBytes buffer);
 
     // Will only read less samples if we're at the end of the stream.
     ErrorOr<Samples> get_more_samples(size_t samples_to_read_from_input = 128 * KiB);
@@ -102,7 +97,7 @@ public:
     PcmSampleFormat pcm_format() const { return m_plugin->pcm_format(); }
 
 private:
-    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create_plugin(NonnullOwnPtr<SeekableStream> stream);
+    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create_plugin(NonnullRefPtr<Media::IncrementallyPopulatedStream> stream);
 
     explicit Loader(NonnullOwnPtr<LoaderPlugin>);
 

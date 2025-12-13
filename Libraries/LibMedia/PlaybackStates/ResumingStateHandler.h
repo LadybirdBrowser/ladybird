@@ -46,6 +46,9 @@ public:
         return m_playing;
     }
 
+    virtual void enter_buffering() override { }
+    virtual void exit_buffering() override { }
+
 private:
     bool m_playing { false };
 };

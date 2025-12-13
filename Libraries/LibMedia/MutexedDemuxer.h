@@ -28,6 +28,13 @@ public:
         });
     }
 
+    virtual void create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor) override
+    {
+        m_demuxer.with_locked([&](auto& demuxer) {
+            demuxer->create_context_for_track(track, stream_cursor);
+        });
+    }
+
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType type) override
     {
         return m_demuxer.with_locked([&](auto& demuxer) {
