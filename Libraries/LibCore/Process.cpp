@@ -20,11 +20,7 @@
 #include <spawn.h>
 #include <unistd.h>
 
-#if defined(AK_OS_SERENITY)
-#    include <serenity.h>
-#    include <sys/prctl.h>
-#    include <syscall.h>
-#elif defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_SOLARIS)
+#if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_SOLARIS)
 #    include <sys/sysctl.h>
 #elif defined(AK_OS_GNU_HURD)
 extern "C" {
@@ -157,13 +153,7 @@ ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> argume
 
 ErrorOr<String> Process::get_name()
 {
-#if defined(AK_OS_SERENITY)
-    char buffer[BUFSIZ];
-    int rc = get_process_name(buffer, BUFSIZ);
-    if (rc != 0)
-        return Error::from_syscall("get_process_name"sv, rc);
-    return String::from_utf8(StringView { buffer, strlen(buffer) });
-#elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
+#if defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
     return String::from_utf8(StringView { program_invocation_name, strlen(program_invocation_name) });
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     auto const* progname = getprogname();

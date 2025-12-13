@@ -184,9 +184,7 @@ ByteString StandardPaths::user_data_directory()
 
     StringBuilder builder;
     builder.append(home_directory());
-#if defined(AK_OS_SERENITY)
-    builder.append("/.data"sv);
-#elif defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS)
     builder.append("/Library/Application Support"sv);
 #elif defined(AK_OS_HAIKU)
     builder.append("/config/non-packaged/data"sv);

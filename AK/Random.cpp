@@ -23,7 +23,7 @@ namespace AK {
 //       See MathObject::random() from LibJS. Where cryptographic security is needed use LibCrypto/SecureRandom.h.
 void fill_with_random([[maybe_unused]] Bytes bytes)
 {
-#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
+#if defined(AK_OS_ANDROID) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU) || AK_LIBC_GLIBC_PREREQ(2, 36)
     arc4random_buf(bytes.data(), bytes.size());
 #elif defined(OSS_FUZZ)
 #else
