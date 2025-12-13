@@ -6,6 +6,7 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/Rect.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TVGIconEngine.h>
@@ -78,9 +79,21 @@ TVGIconEngine* TVGIconEngine::from_file(QString const& path)
     QFile icon_resource(path);
     if (!icon_resource.open(QIODeviceBase::ReadOnly))
         return nullptr;
-    auto icon_data = icon_resource.readAll();
-    FixedMemoryStream icon_bytes { ReadonlyBytes { icon_data.data(), static_cast<size_t>(icon_data.size()) } };
-    if (auto tvg = Gfx::TinyVGDecodedImageData::decode(icon_bytes); !tvg.is_error())
+
+    auto icon_resource_size = icon_resource.size();
+    auto icon_buffer_or_error = ByteBuffer::create_uninitialized(icon_resource_size);
+    if (icon_buffer_or_error.is_error())
+        return nullptr;
+
+    auto icon_buffer = icon_buffer_or_error.release_value();
+    auto read_result = icon_resource.read(reinterpret_cast<char*>(icon_buffer.data()), icon_resource_size);
+    if (read_result == -1 || read_result != icon_resource_size)
+        return nullptr;
+
+    auto stream = adopt_ref(*new Gfx::ImageDecoderStream());
+    stream->append_chunk(move(icon_buffer));
+    stream->close();
+    if (auto tvg = Gfx::TinyVGDecodedImageData::decode(move(stream)); !tvg.is_error())
         return new TVGIconEngine(tvg.release_value());
     return nullptr;
 }
