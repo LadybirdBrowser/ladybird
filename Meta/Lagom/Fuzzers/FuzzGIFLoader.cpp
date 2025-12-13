@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -15,7 +16,16 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
     if constexpr (!GIF_DEBUG) {
         AK::set_debug_enabled(false);
     }
-    auto decoder_or_error = Gfx::GIFImageDecoderPlugin::create({ data, size });
+
+    auto stream = adopt_ref(*new Gfx::ImageDecoderStream());
+    auto buffer_or_error = ByteBuffer::copy(data, size);
+    if (buffer_or_error.is_error())
+        return 0;
+
+    stream->append_chunk(buffer_or_error.release_value());
+    stream->close();
+
+    auto decoder_or_error = Gfx::GIFImageDecoderPlugin::create(move(stream));
     if (decoder_or_error.is_error())
         return 0;
     auto decoder = decoder_or_error.release_value();

@@ -97,10 +97,9 @@ public:
     {
     }
 
-    static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes bytes, u8 initial_code_size, i32 offset_for_size_change = 0)
+    static ErrorOr<ByteBuffer> decompress_all(MaybeOwned<Stream> stream, u8 initial_code_size, i32 offset_for_size_change = 0)
     {
-        auto memory_stream = make<FixedMemoryStream>(bytes);
-        auto lzw_stream = make<InputStream>(MaybeOwned<Stream>(move(memory_stream)));
+        auto lzw_stream = make<InputStream>(move(stream));
         LzwDecompressor lzw_decompressor { MaybeOwned<InputStream> { move(lzw_stream) }, initial_code_size, offset_for_size_change };
 
         ByteBuffer decompressed;

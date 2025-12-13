@@ -12,6 +12,7 @@
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
@@ -47,8 +48,12 @@ static ErrorOr<Gfx::ImageFrameDescriptor> expect_single_frame_of_size(Gfx::Image
 TEST_CASE(test_bmp)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/rgba32-1.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
@@ -56,8 +61,12 @@ TEST_CASE(test_bmp)
 TEST_CASE(test_bmp_top_down)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/top-down.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
     EXPECT_EQ(frame.image->format(), Gfx::BitmapFormat::RGBx8888);
@@ -68,8 +77,12 @@ TEST_CASE(test_bmp_top_down)
 TEST_CASE(test_bmp_1bpp)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/bitmap.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 399, 400 }));
     EXPECT_EQ(frame.image->begin()[0], 0xff'ff'ff'ff);
@@ -78,8 +91,12 @@ TEST_CASE(test_bmp_1bpp)
 TEST_CASE(test_bmp_too_many_palette_colors)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/too-many-palette-colors.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
 }
@@ -87,8 +104,12 @@ TEST_CASE(test_bmp_too_many_palette_colors)
 TEST_CASE(test_bmp_v4)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/2x2x32_v4.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 2, 2 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
@@ -97,8 +118,12 @@ TEST_CASE(test_bmp_v4)
 TEST_CASE(test_bmp_os2_3bit)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/os2_3bpc.bmp"sv)));
-    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::BMPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 300, 200 }));
     EXPECT_EQ(frame.image->get_pixel(150, 100), Gfx::Color::NamedColor::Black);
@@ -115,7 +140,10 @@ TEST_CASE(test_ico_malformed_frame)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(move(stream)));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
@@ -124,8 +152,12 @@ TEST_CASE(test_ico_malformed_frame)
 TEST_CASE(test_cur)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("cur/cursor.cur"sv)));
-    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 32, 32 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
@@ -136,8 +168,12 @@ TEST_CASE(test_cur)
 TEST_CASE(test_gif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/download-animation.gif"sv)));
-    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(move(stream)));
 
     EXPECT(plugin_decoder->frame_count());
     EXPECT(plugin_decoder->is_animated());
@@ -150,8 +186,12 @@ TEST_CASE(test_gif)
 TEST_CASE(test_corrupted_gif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/corrupted.gif"sv)));
-    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
@@ -208,7 +248,10 @@ TEST_CASE(test_gif_without_global_color_table)
         0x3B,
     };
 
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(gif_data));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(ByteBuffer::copy(gif_data)));
+    stream->close();
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(move(stream)));
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
     EXPECT_EQ(frame.image->size(), Gfx::IntSize(1, 1));
@@ -218,8 +261,12 @@ TEST_CASE(test_gif_without_global_color_table)
 TEST_CASE(test_gif_empty_lzw_data)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("gif/minimal-1x1.gif"sv)));
-    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::GIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::GIFImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     auto frame = TRY_OR_FAIL(plugin_decoder->frame(0));
@@ -229,15 +276,23 @@ TEST_CASE(test_gif_empty_lzw_data)
 TEST_CASE(test_not_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/buggie.png"sv)));
-    EXPECT(!Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
-    EXPECT(Gfx::ICOImageDecoderPlugin::create(file->bytes()).is_error());
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(!Gfx::ICOImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    EXPECT(Gfx::ICOImageDecoderPlugin::create(move(stream)).is_error());
 }
 
 TEST_CASE(test_bmp_embedded_in_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ico/serenity.ico"sv)));
-    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 16, 16 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Transparent);
@@ -247,8 +302,12 @@ TEST_CASE(test_bmp_embedded_in_ico)
 TEST_CASE(test_24bit_bmp_embedded_in_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ico/yt-favicon.ico"sv)));
-    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 16, 16 }));
     EXPECT_EQ(frame.image->get_pixel(14, 14), Gfx::Color(234, 0, 0));
@@ -258,8 +317,12 @@ TEST_CASE(test_24bit_bmp_embedded_in_ico)
 TEST_CASE(test_malformed_maskless_ico)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("ico/malformed_maskless.ico"sv)));
-    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::ICOImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::ICOImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 16, 16 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Transparent);
@@ -269,8 +332,12 @@ TEST_CASE(test_malformed_maskless_ico)
 TEST_CASE(test_jpeg_sof0_one_scan)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/rgb24.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
@@ -278,8 +345,12 @@ TEST_CASE(test_jpeg_sof0_one_scan)
 TEST_CASE(test_jpeg_sof0_several_scans)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/several_scans.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 592, 800 }));
 }
@@ -287,8 +358,12 @@ TEST_CASE(test_jpeg_sof0_several_scans)
 TEST_CASE(test_odd_mcu_restart_interval)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/odd-restart.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 102, 77 }));
 }
@@ -296,8 +371,12 @@ TEST_CASE(test_odd_mcu_restart_interval)
 TEST_CASE(test_jpeg_rgb_components)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/rgb_components.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 592, 800 }));
 }
@@ -312,8 +391,12 @@ TEST_CASE(test_jpeg_ycck)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+        TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
         auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 592, 800 }));
 
         // Compare difference between pixels so we don't depend on exact CMYK->RGB conversion behavior.
@@ -326,8 +409,12 @@ TEST_CASE(test_jpeg_ycck)
 TEST_CASE(test_jpeg_cmyk_no_adobe_marker)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/cmyk-no-adobe-marker.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
 
     EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(8, 1), Gfx::Color(44, 184, 97));
@@ -338,8 +425,12 @@ TEST_CASE(test_jpeg_cmyk_no_adobe_marker)
 TEST_CASE(test_jpeg_cmyk_adobe_transform_0)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/cmyk-adobe-transform-0.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
 
     EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(8, 1), Gfx::Color(44, 184, 97));
@@ -350,8 +441,12 @@ TEST_CASE(test_jpeg_cmyk_adobe_transform_0)
 TEST_CASE(test_jpeg_ycck_adobe_transform_2)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/ycck-adobe-transform-2.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
 
     EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(8, 1), Gfx::Color(197, 27, 134));
@@ -362,8 +457,12 @@ TEST_CASE(test_jpeg_ycck_adobe_transform_2)
 TEST_CASE(test_jpeg_sof2_spectral_selection)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/spectral_selection.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 592, 800 }));
 }
@@ -371,8 +470,12 @@ TEST_CASE(test_jpeg_sof2_spectral_selection)
 TEST_CASE(test_jpeg_sof0_several_scans_odd_number_mcu)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/several_scans_odd_number_mcu.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 600, 600 }));
 }
@@ -380,8 +483,12 @@ TEST_CASE(test_jpeg_sof0_several_scans_odd_number_mcu)
 TEST_CASE(test_jpeg_sof2_successive_approximation)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/successive_approximation.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 600, 800 }));
 }
@@ -389,8 +496,12 @@ TEST_CASE(test_jpeg_sof2_successive_approximation)
 TEST_CASE(test_jpeg_empty_icc)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/gradient_empty_icc.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 80, 80 }));
 }
@@ -398,8 +509,12 @@ TEST_CASE(test_jpeg_empty_icc)
 TEST_CASE(test_jpeg_grayscale_with_app14)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/grayscale_app14.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 80, 80 }));
 }
@@ -407,8 +522,12 @@ TEST_CASE(test_jpeg_grayscale_with_app14)
 TEST_CASE(test_jpeg_grayscale_with_weird_mcu_and_reset_marker)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/grayscale_mcu.jpg"sv)));
-    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 320, 240 }));
 }
@@ -421,7 +540,10 @@ TEST_CASE(test_jpeg_malformed_header)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
@@ -436,7 +558,10 @@ TEST_CASE(test_jpeg_malformed_frame)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(move(stream)));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
@@ -445,8 +570,12 @@ TEST_CASE(test_jpeg_malformed_frame)
 TEST_CASE(test_png)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/buggie.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
@@ -454,8 +583,12 @@ TEST_CASE(test_png)
 TEST_CASE(test_apng)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-1-frame.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     EXPECT_EQ(plugin_decoder->loop_count(), 0u);
@@ -470,8 +603,12 @@ TEST_CASE(test_apng)
 TEST_CASE(test_apng_idat_not_affecting_next_frame)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/apng-blend.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->frame_count(), 1u);
     EXPECT_EQ(plugin_decoder->loop_count(), 0u);
@@ -486,8 +623,12 @@ TEST_CASE(test_apng_idat_not_affecting_next_frame)
 TEST_CASE(test_exif)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif.png"sv)));
-    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 200, 100 }));
     EXPECT(plugin_decoder->metadata().has_value());
@@ -507,7 +648,10 @@ TEST_CASE(test_png_malformed_frame)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder_or_error = Gfx::PNGImageDecoderPlugin::create(file->bytes());
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder_or_error = Gfx::PNGImageDecoderPlugin::create(move(stream));
         if (plugin_decoder_or_error.is_error())
             continue;
         auto plugin_decoder = plugin_decoder_or_error.release_value();
@@ -519,8 +663,12 @@ TEST_CASE(test_png_malformed_frame)
 TEST_CASE(test_tiff_uncompressed)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/uncompressed.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -531,8 +679,12 @@ TEST_CASE(test_tiff_uncompressed)
 TEST_CASE(test_tiff_ccitt_rle)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt_rle.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -543,8 +695,12 @@ TEST_CASE(test_tiff_ccitt_rle)
 TEST_CASE(test_tiff_ccitt3)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt3.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -555,8 +711,12 @@ TEST_CASE(test_tiff_ccitt3)
 TEST_CASE(test_tiff_ccitt3_no_tags)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt3_no_tags.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 6, 4 }));
 
@@ -569,8 +729,12 @@ TEST_CASE(test_tiff_ccitt3_no_tags)
 TEST_CASE(test_tiff_ccitt3_fill)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt3_1d_fill.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 6, 4 }));
 
@@ -583,8 +747,12 @@ TEST_CASE(test_tiff_ccitt3_fill)
 TEST_CASE(test_tiff_ccitt3_2d)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt3_2d.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -595,8 +763,12 @@ TEST_CASE(test_tiff_ccitt3_2d)
 TEST_CASE(test_tiff_ccitt3_2d_fill)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt3_2d_fill.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -607,8 +779,12 @@ TEST_CASE(test_tiff_ccitt3_2d_fill)
 TEST_CASE(test_tiff_ccitt4)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/ccitt4.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -619,8 +795,12 @@ TEST_CASE(test_tiff_ccitt4)
 TEST_CASE(test_tiff_lzw)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/lzw.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -631,8 +811,12 @@ TEST_CASE(test_tiff_lzw)
 TEST_CASE(test_tiff_deflate)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/deflate.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -643,8 +827,12 @@ TEST_CASE(test_tiff_deflate)
 TEST_CASE(test_tiff_krita)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/krita.tif"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -655,8 +843,12 @@ TEST_CASE(test_tiff_krita)
 TEST_CASE(test_tiff_orientation)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/orientation.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 300, 400 }));
 
@@ -668,8 +860,12 @@ TEST_CASE(test_tiff_orientation)
 TEST_CASE(test_tiff_packed_bits)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/packed_bits.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -680,8 +876,12 @@ TEST_CASE(test_tiff_packed_bits)
 TEST_CASE(test_tiff_grayscale)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/grayscale.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -692,8 +892,12 @@ TEST_CASE(test_tiff_grayscale)
 TEST_CASE(test_tiff_grayscale_alpha)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/grayscale_alpha.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -704,8 +908,12 @@ TEST_CASE(test_tiff_grayscale_alpha)
 TEST_CASE(test_tiff_rgb_alpha)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/rgb_alpha.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -716,8 +924,12 @@ TEST_CASE(test_tiff_rgb_alpha)
 TEST_CASE(test_tiff_palette_alpha)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/rgb_palette_alpha.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -728,8 +940,12 @@ TEST_CASE(test_tiff_palette_alpha)
 TEST_CASE(test_tiff_alpha_predictor)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/alpha_predictor.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -740,8 +956,12 @@ TEST_CASE(test_tiff_alpha_predictor)
 TEST_CASE(test_tiff_16_bits)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/16_bits.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -752,8 +972,12 @@ TEST_CASE(test_tiff_16_bits)
 TEST_CASE(test_tiff_cmyk)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/cmyk.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -765,8 +989,12 @@ TEST_CASE(test_tiff_cmyk)
 TEST_CASE(test_tiff_tiled)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/tiled.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 300 }));
 
@@ -777,8 +1005,12 @@ TEST_CASE(test_tiff_tiled)
 TEST_CASE(test_tiff_invalid_tag)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/invalid_tag.tiff"sv)));
-    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TIFFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TIFFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 10, 10 }));
 
@@ -789,8 +1021,12 @@ TEST_CASE(test_tiff_invalid_tag)
 TEST_CASE(test_webp_simple_lossy)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/simple-vp8.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
 
@@ -803,8 +1039,12 @@ TEST_CASE(test_webp_simple_lossy)
 TEST_CASE(test_webp_simple_lossless)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/simple-vp8l.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     // Ironically, simple-vp8l.webp is a much more complex file than extended-lossless.webp tested below.
     // extended-lossless.webp tests the decoding basics.
@@ -824,8 +1064,12 @@ TEST_CASE(test_webp_simple_lossless_alpha_used_false)
     // This file is identical to simple-vp8l.webp, but the `is_alpha_used` used bit is false.
     // The file still contains alpha data. This tests that the decoder replaces the stored alpha data with 0xff if `is_alpha_used` is false.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/simple-vp8l-alpha-used-false.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 386, 395 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0xff));
@@ -835,8 +1079,12 @@ TEST_CASE(test_webp_extended_lossy)
 {
     // This extended lossy image has an ALPH chunk for (losslessly compressed) alpha data.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/extended-lossy.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 417, 223 }));
 
@@ -862,8 +1110,12 @@ TEST_CASE(test_webp_extended_lossy_alpha_horizontal_filter)
     // Also lossy rgb + lossless alpha, but with a horizontal alpha filtering method.
     // The image should look like smolkling.webp, but with a horizontal alpha gradient.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/smolkling-horizontal-alpha.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 264, 264 }));
 
@@ -878,8 +1130,12 @@ TEST_CASE(test_webp_extended_lossy_alpha_vertical_filter)
     // Also lossy rgb + lossless alpha, but with a vertical alpha filtering method.
     // The image should look like smolkling.webp, but with a vertical alpha gradient, and with a fully transparent first column.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/smolkling-vertical-alpha.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 264, 264 }));
 
@@ -894,8 +1150,12 @@ TEST_CASE(test_webp_extended_lossy_alpha_gradient_filter)
     // Also lossy rgb + lossless alpha, but with a gradient alpha filtering method.
     // The image should look like smolkling.webp, but with a few transparent pixels in the shape of a C on it. Most of the image should not be transparent.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/smolkling-gradient-alpha.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 264, 264 }));
 
@@ -909,8 +1169,12 @@ TEST_CASE(test_webp_extended_lossy_alpha_gradient_filter)
 TEST_CASE(test_webp_extended_lossy_uncompressed_alpha)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/extended-lossy-uncompressed-alpha.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 417, 223 }));
 
@@ -926,8 +1190,12 @@ TEST_CASE(test_webp_extended_lossy_uncompressed_alpha)
 TEST_CASE(test_webp_extended_lossy_negative_quantization_offset)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/smolkling.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 264, 264 }));
 
@@ -943,8 +1211,12 @@ TEST_CASE(test_webp_lossy_4)
     // as webp at https://developers.google.com/speed/webp/gallery1 and the webp version is from there.
     // No other changes have been made.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/4.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 772 }));
 
@@ -956,8 +1228,12 @@ TEST_CASE(test_webp_lossy_4_with_partitions)
 {
     // Same input file as in the previous test, but re-encoded to use 8 secondary partitions.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/4-with-8-partitions.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 772 }));
     EXPECT_EQ(frame.image->get_pixel(780, 570), Gfx::Color(0x72, 0xc7, 0xf8, 255));
@@ -966,8 +1242,12 @@ TEST_CASE(test_webp_lossy_4_with_partitions)
 TEST_CASE(test_webp_extended_lossless)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/extended-lossless.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 417, 223 }));
 
@@ -989,8 +1269,12 @@ TEST_CASE(test_webp_simple_lossless_color_index_transform)
 {
     // In addition to testing the index transform, this file also tests handling of explicitly setting max_symbol.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/Qpalette.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 256, 256 }));
 
@@ -1021,8 +1305,12 @@ TEST_CASE(test_webp_simple_lossless_color_index_transform_pixel_bundling)
 
     for (auto test_case : test_cases) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(MUST(String::formatted("{}{}", TEST_INPUT(""), test_case.file_name))));
-        EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+        TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
         auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 32, 32 }));
 
@@ -1045,7 +1333,10 @@ TEST_CASE(test_webp_simple_lossless_color_index_transform_pixel_bundling_odd_wid
 
     for (auto file_name : file_names) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(MUST(String::formatted("{}{}", TEST_INPUT(""), file_name))));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
         TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 11, 11 }));
     }
 }
@@ -1053,8 +1344,12 @@ TEST_CASE(test_webp_simple_lossless_color_index_transform_pixel_bundling_odd_wid
 TEST_CASE(test_webp_extended_lossless_animated)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/extended-lossless-animated.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     EXPECT_EQ(plugin_decoder->loop_count(), 42u);
     EXPECT_EQ(plugin_decoder->frame_count(), 8u);
@@ -1077,8 +1372,12 @@ TEST_CASE(test_webp_extended_lossless_animated)
 TEST_CASE(test_webp_unpremultiplied_alpha)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/semi-transparent-pixel.webp"sv)));
-    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::WebPImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
 
@@ -1090,8 +1389,12 @@ TEST_CASE(test_webp_unpremultiplied_alpha)
 TEST_CASE(test_tvg)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/yak.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 1024 }));
 }
@@ -1105,8 +1408,12 @@ TEST_CASE(test_everything_tvg)
 
     for (auto file_name : file_names) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(file_name));
-        EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+        TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
 
         TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 768 }));
     }
@@ -1120,7 +1427,10 @@ TEST_CASE(test_tvg_malformed)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
@@ -1129,8 +1439,12 @@ TEST_CASE(test_tvg_malformed)
 TEST_CASE(test_tvg_rgb565)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/green-rgb565.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 100, 100 }));
 
     // Should be a solid dark green:
@@ -1140,8 +1454,12 @@ TEST_CASE(test_tvg_rgb565)
 TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jxl/modular_simple_tree_upsample2_10bits_rct.jxl"sv)));
-    EXPECT(Gfx::JPEGXLImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGXLImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGXLImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGXLImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 128, 128 }));
 
@@ -1151,8 +1469,12 @@ TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
 TEST_CASE(test_avif_simple_lossy)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
 
@@ -1165,8 +1487,12 @@ TEST_CASE(test_avif_simple_lossy)
 TEST_CASE(test_avif_simple_lossless)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossless.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 386, 395 }));
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(0, 0, 0, 0));
@@ -1176,8 +1502,12 @@ TEST_CASE(test_avif_simple_lossless)
 TEST_CASE(test_avif_simple_lossy_bitdepth10)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-bitdepth10.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
 
@@ -1190,8 +1520,12 @@ TEST_CASE(test_avif_simple_lossy_bitdepth10)
 TEST_CASE(test_avif_icc_profile)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/icc_profile.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
     EXPECT(TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
@@ -1200,8 +1534,12 @@ TEST_CASE(test_avif_icc_profile)
 TEST_CASE(test_avif_no_icc_profile)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 240, 240 }));
     EXPECT(!TRY_OR_FAIL(plugin_decoder->icc_data()).has_value());
@@ -1210,8 +1548,12 @@ TEST_CASE(test_avif_no_icc_profile)
 TEST_CASE(test_avif_frame_out_of_bounds)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/simple-lossy.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(move(stream)));
 
     auto frame1 = TRY_OR_FAIL(plugin_decoder->frame(0));
     EXPECT(plugin_decoder->frame(1).is_error());
@@ -1220,5 +1562,8 @@ TEST_CASE(test_avif_frame_out_of_bounds)
 TEST_CASE(test_avif_missing_pixi_property)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/missing-pixi-property.avif"sv)));
-    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(move(stream)));
 }

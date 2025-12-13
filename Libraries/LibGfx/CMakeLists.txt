@@ -29,6 +29,7 @@ set(SOURCES
     ImageFormats/GIFLoader.cpp
     ImageFormats/ICOLoader.cpp
     ImageFormats/ImageDecoder.cpp
+    ImageFormats/ImageDecoderStream.cpp
     ImageFormats/JPEGLoader.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/JPEGXLLoader.cpp
