@@ -1,0 +1,90 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script type="plaintext" id="html-to-encode">
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+    <script>
+        window.parent.postMessage("PASS! Page loaded even with trailing garbage at the end of the compressed stream.", "*")
+    &lt;/script&gt;
+</body>
+</html>
+</script>
+<script type="plaintext" id="html-to-ignore">
+<script>
+    window.parent.postMessage("FAIL! The page should have loaded with this trailing garbage, but it should have been ignored.", "*")
+&lt;/script&gt;
+</script>
+<script type="text/javascript">
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+
+        window.onmessage = (event) => {
+            println(event.data);
+        };
+
+        const runTestFor = (streamType) => {
+            return new Promise(async (topLevelResolve, topLevelReject) => {
+                const textEncoder = new TextEncoder();
+                const dataThatShouldBeRead = document
+                    .getElementById("html-to-encode")
+                    .innerText.replaceAll("&lt;", "<")
+                    .replaceAll("&gt;", ">");
+                const dataThatShouldBeReadBytes = textEncoder.encode(dataThatShouldBeRead);
+
+                // https://developer.mozilla.org/en-US/docs/Web/API/CompressionStream/writable
+                const compressionStream = new CompressionStream(streamType);
+                const compressionWriter = compressionStream.writable.getWriter();
+                compressionWriter.write(dataThatShouldBeReadBytes);
+                compressionWriter.close();
+
+                const compressionReader = compressionStream.readable;
+                const compressionBuffer = new ArrayBuffer(0, { maxByteLength: 1024 });
+                const compressionBytes = new Uint8Array(compressionBuffer);
+                for await (const chunk of compressionReader) {
+                    const originalLength = compressionBytes.length;
+                    compressionBuffer.resize(originalLength + chunk.length);
+                    compressionBytes.set(chunk, originalLength);
+                }
+
+                const dataThatShouldBeIgnored = document
+                    .getElementById("html-to-ignore")
+                    .innerText.replaceAll("&lt;", "<")
+                    .replaceAll("&gt;", ">");
+                const dataThatShouldBeIgnoredBytes = textEncoder.encode(dataThatShouldBeIgnored);
+
+                const finalBytes = new Uint8Array(compressionBytes.length + dataThatShouldBeIgnoredBytes.length);
+                finalBytes.set(compressionBytes);
+                finalBytes.set(dataThatShouldBeIgnoredBytes, compressionBytes.length);
+
+                const url = await httpServer.createBinaryEcho("GET", `/${streamType}-trailing-garbage-test`, {
+                    status: 200,
+                    headers: {
+                        "Access-Control-Allow-Origin": "*",
+                        "Content-Encoding": streamType,
+                        "Content-Type": "text/html",
+                    },
+                    body: finalBytes,
+                });
+
+                const iframe = document.createElement("iframe");
+                iframe.onload = () => {
+                    topLevelResolve();
+                };
+
+                iframe.onerror = () => {
+                    topLevelReject();
+                };
+
+                iframe.src = url;
+
+                document.body.appendChild(iframe);
+            });
+        };
+
+        await Promise.all([runTestFor("gzip"), runTestFor("deflate")]);
+
+        done();
+    });
+</script>
