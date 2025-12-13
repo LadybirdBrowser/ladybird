@@ -799,6 +799,8 @@ TEST_CASE(lookbehind)
     constexpr _captureTest capture_tests[] {
         { "(?<=(a|cc))b"sv, "ccb"sv, 0, "cc"sv, ECMAScriptFlags::Global },
         { "((?<=\\b)[d-f]{3})"sv, "abc def"sv, 0, "def"sv, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "(?<=(b+))c"sv, "abbbbbbc"sv, 0, "bbbbbb"sv, ECMAScriptFlags::Global },
+        { "(?<=((?:b\\d{2})+))c"sv, "ab12b23b34c"sv, 0, "b12b23b34"sv, ECMAScriptFlags::Global },
     };
 
     for (auto& test : capture_tests) {
