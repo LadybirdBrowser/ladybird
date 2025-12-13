@@ -129,12 +129,6 @@ DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for
 
 DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions options)
 {
-    // Removing the track status will cause us to start from the beginning.
-    if (timestamp.is_zero()) {
-        m_track_statuses.remove(track);
-        return DemuxerSeekResult::MovedPosition;
-    }
-
     auto& track_status = *TRY(get_track_status(track));
     auto seeked_iterator = TRY(m_reader.seek_to_random_access_point(track_status.iterator, timestamp));
 
