@@ -22,10 +22,6 @@
 #    include <LibGfx/MetalContext.h>
 #endif
 
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
-
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
