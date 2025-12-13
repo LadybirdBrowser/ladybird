@@ -178,10 +178,10 @@
       "name": "skia",
       "platform": "windows",
       "features": [
+        "direct3d",
         "freetype",
         "harfbuzz",
-        "icu",
-        "vulkan"
+        "icu"
       ]
     },
     {
