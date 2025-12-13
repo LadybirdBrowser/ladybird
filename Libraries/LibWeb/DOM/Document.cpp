@@ -1341,10 +1341,22 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
         }
     }
 
-    // NOTE: This is where we assign the chosen overflow values to the viewport.
+    // If 'visible' is applied to the viewport, it must be interpreted as 'auto'. If 'clip' is applied to the viewport, it must be interpreted as 'hidden'.
     auto& overflow_origin_computed_values = overflow_origin_node->mutable_computed_values();
-    viewport_computed_values.set_overflow_x(overflow_origin_computed_values.overflow_x());
-    viewport_computed_values.set_overflow_y(overflow_origin_computed_values.overflow_y());
+    auto overflow_x_to_apply = overflow_origin_computed_values.overflow_x();
+    if (overflow_x_to_apply == CSS::Overflow::Visible) {
+        overflow_x_to_apply = CSS::Overflow::Auto;
+    } else if (overflow_x_to_apply == CSS::Overflow::Clip) {
+        overflow_x_to_apply = CSS::Overflow::Hidden;
+    }
+    auto overflow_y_to_apply = overflow_origin_computed_values.overflow_y();
+    if (overflow_y_to_apply == CSS::Overflow::Visible) {
+        overflow_y_to_apply = CSS::Overflow::Auto;
+    } else if (overflow_y_to_apply == CSS::Overflow::Clip) {
+        overflow_y_to_apply = CSS::Overflow::Hidden;
+    }
+    viewport_computed_values.set_overflow_x(overflow_x_to_apply);
+    viewport_computed_values.set_overflow_y(overflow_y_to_apply);
 
     // The element from which the value is propagated must then have a used overflow value of visible.
     overflow_origin_computed_values.set_overflow_x(CSS::Overflow::Visible);

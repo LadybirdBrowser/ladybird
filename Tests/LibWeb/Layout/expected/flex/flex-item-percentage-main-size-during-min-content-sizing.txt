@@ -1,4 +1,4 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   Box <html> at [0,0] flex-container(row) [0+0+0 60 0+0+740] [0+0+0 50 0+0+0] [FFC] children: not-inline
     Box <body> at [8,3] flex-container(row) flex-item [8+0+0 44 0+0+8] [8+0+0 44 0+0+8] [FFC] children: not-inline
       ImageBox <img> at [8,3] flex-item [0+0+0 44 0+0+0] [0+0+0 44 0+0+0] children: not-inline
