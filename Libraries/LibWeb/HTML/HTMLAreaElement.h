@@ -22,10 +22,16 @@ public:
     virtual ~HTMLAreaElement() override;
     GC::Ref<DOM::DOMTokenList> rel_list();
 
+    void activate(Web::DOM::Event const&);
+
+    bool check_if_contains_point(Gfx::IntPoint) const;
+
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_area_element() const override { return true; }
+
+    bool has_download_preference() const;
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

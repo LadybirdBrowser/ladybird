@@ -8,6 +8,7 @@
 
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
 
@@ -19,6 +20,8 @@ public:
     virtual ~HTMLMapElement() override;
 
     GC::Ref<DOM::HTMLCollection> areas();
+
+    void activate_area_by_point(CSSPixels x, CSSPixels y, Web::DOM::Event const&);
 
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);
