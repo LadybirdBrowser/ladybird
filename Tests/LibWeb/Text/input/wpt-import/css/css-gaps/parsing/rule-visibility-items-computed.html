@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSS Gaps: *-rule-visibility-items getComputedStyle()</title>
+  <link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+  <link rel="help" href="https://drafts.csswg.org/css-gaps-1">
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/css/support/computed-testcommon.js"></script>
+  <script src="/css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+  <div id="target"></div>
+  </div>
+  <script>
+    // TODO(samomekarajr): Add tests for shorthand 'rule-visibility-items' once implemented.
+    const properties = ["column-rule-visibility-items", "row-rule-visibility-items"];
+    for (const property of properties) {
+      test_computed_value(property, "all");
+      test_computed_value(property, "none");
+      test_computed_value(property, "around");
+      test_computed_value(property, "between");
+    }
+  </script>
+</body>
+</html>
