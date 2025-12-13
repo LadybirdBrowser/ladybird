@@ -260,6 +260,66 @@ ALWAYS_INLINE ExecutionResult OpCode_GoBack::execute(MatchInput const& input, Ma
     return ExecutionResult::Continue;
 }
 
+ALWAYS_INLINE ExecutionResult OpCode_SetStepBack::execute(MatchInput const&, MatchState& state) const
+{
+    if (step() > state.string_position)
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.stepBacks.append(step());
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_IncStepBack::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.stepBacks.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.stepBacks.last()++;
+
+    if (state.stepBacks.last() > state.string_position)
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    reverse_string_position(state, input.view, state.stepBacks.last());
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_CheckStepBack::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.stepBacks.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (input.saved_positions.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (state.stepBacks.last() > input.saved_positions.last())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.string_position = input.saved_positions.last();
+    state.string_position_in_code_units = input.saved_code_unit_positions.last();
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_CheckSavedPosition::execute(MatchInput const& input, MatchState& state) const
+{
+    if (input.saved_positions.size() == 0) {
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        if (body_lenght() == 0) {
+            if (state.string_position + 1 != input.saved_positions.last()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+        } else {
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
+        }
+    }
+    state.stepBacks.take_last();
+    return ExecutionResult::Continue;
+}
+
 ALWAYS_INLINE ExecutionResult OpCode_FailForks::execute(MatchInput const& input, MatchState& state) const
 {
     input.fail_counter += state.forks_since_last_save;
@@ -338,15 +398,21 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& in
 {
     auto isword = [](auto ch) { return is_ascii_alphanumeric(ch) || ch == '_'; };
     auto is_word_boundary = [&] {
+        size_t prev_pos = state.string_position_in_code_units - 1;
+
+        if (state.stepBacks.size() > 0) {
+            prev_pos = state.string_position_in_code_units + 1;
+        }
+
         if (state.string_position == input.view.length()) {
-            return (state.string_position > 0 && isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
+            return (state.string_position > 0 && isword(input.view.code_point_at(prev_pos)));
         }
 
         if (state.string_position == 0) {
             return (isword(input.view.code_point_at(0)));
         }
 
-        return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(state.string_position_in_code_units - 1)));
+        return !!(isword(input.view.code_point_at(state.string_position_in_code_units)) ^ isword(input.view.code_point_at(prev_pos)));
     };
     switch (type()) {
     case BoundaryCheckType::Word: {
@@ -419,7 +485,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
 
     auto length = state.string_position - start_position;
 
-    if (start_position < match.column)
+    if (start_position < match.column && state.stepBacks.is_empty())
         return ExecutionResult::Continue;
 
     VERIFY(start_position + length <= input.view.length_in_code_units());
