@@ -22,6 +22,9 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~RegExpPrototype() override = default;
 
+    static ThrowCompletionOr<Value> symbol_replace_impl(VM&, Object& regexp_object, GC::Ref<PrimitiveString> string, Value replace_value);
+    static ThrowCompletionOr<Value> symbol_split_impl(VM&, Object& regexp_object, GC::Ref<PrimitiveString> string, Value limit_value);
+
 private:
     explicit RegExpPrototype(Realm&);
 
