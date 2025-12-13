@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Pass
+Pass	Origin.from(<a>) throws.
+Pass	Origin.from(<area>) throws.
+Pass	Origin.from(<a href="about:blank">) returns an opaque origin.
+Pass	Origin.from(<area href="about:blank">) returns an opaque origin.
+Pass	Origin.from(<a href="data:text/plain,opaque">) returns an opaque origin.
+Pass	Origin.from(<area href="data:text/plain,opaque">) returns an opaque origin.
+Pass	Origin.from(<a href="weird-protocol:whatever">) returns an opaque origin.
+Pass	Origin.from(<area href="weird-protocol:whatever">) returns an opaque origin.
+Pass	Origin.from(<a href="weird-hierarchical-protocol://host/path?etc">) returns an opaque origin.
+Pass	Origin.from(<area href="weird-hierarchical-protocol://host/path?etc">) returns an opaque origin.
+Pass	Origin.from(<a href="blob:weird-protocol:whatever">) returns an opaque origin.
+Pass	Origin.from(<area href="blob:weird-protocol:whatever">) returns an opaque origin.
+Pass	Origin.from(<a href="blob:weird-hierarchical-protocol://host/path?etc">) returns an opaque origin.
+Pass	Origin.from(<area href="blob:weird-hierarchical-protocol://host/path?etc">) returns an opaque origin.
+Pass	Origin.from(<a href="http://site.example">) returns a tuple origin.
+Pass	Origin.from(<area href="http://site.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://site.example">) returns a tuple origin.
+Pass	Origin.from(<area href="https://site.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://site.example:123">) returns a tuple origin.
+Pass	Origin.from(<area href="https://site.example:123">) returns a tuple origin.
+Pass	Origin.from(<a href="http://sub.site.example">) returns a tuple origin.
+Pass	Origin.from(<area href="http://sub.site.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://sub.site.example">) returns a tuple origin.
+Pass	Origin.from(<area href="https://sub.site.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://sub.site.example:123">) returns a tuple origin.
+Pass	Origin.from(<area href="https://sub.site.example:123">) returns a tuple origin.
+Pass	Origin.from(<a href="https://xn--mlauted-m2a.example">) returns a tuple origin.
+Pass	Origin.from(<area href="https://xn--mlauted-m2a.example">) returns a tuple origin.
+Pass	Origin.from(<a href="ftp://ftp.example">) returns a tuple origin.
+Pass	Origin.from(<area href="ftp://ftp.example">) returns a tuple origin.
+Pass	Origin.from(<a href="ws://ws.example">) returns a tuple origin.
+Pass	Origin.from(<area href="ws://ws.example">) returns a tuple origin.
+Pass	Origin.from(<a href="wss://wss.example">) returns a tuple origin.
+Pass	Origin.from(<area href="wss://wss.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://trailing.slash/">) returns a tuple origin.
+Pass	Origin.from(<area href="https://trailing.slash/">) returns a tuple origin.
+Pass	Origin.from(<a href="https://user:pass@site.example">) returns a tuple origin.
+Pass	Origin.from(<area href="https://user:pass@site.example">) returns a tuple origin.
+Pass	Origin.from(<a href="https://has.a.port:1234/and/path">) returns a tuple origin.
+Pass	Origin.from(<area href="https://has.a.port:1234/and/path">) returns a tuple origin.
+Pass	Origin.from(<a href="https://ümlauted.example">) returns a tuple origin.
+Pass	Origin.from(<area href="https://ümlauted.example">) returns a tuple origin.
+Pass	Origin.from(<a href="file:///path/to/a/file.txt">) returns a tuple origin.
+Pass	Origin.from(<area href="file:///path/to/a/file.txt">) returns a tuple origin.
+Pass	Origin.from(<a href="blob:https://example.com/some-guid">) returns a tuple origin.
+Pass	Origin.from(<area href="blob:https://example.com/some-guid">) returns a tuple origin.
+Pass	Origin.from(<a href="ftp://example.com/">) returns a tuple origin.
+Pass	Origin.from(<area href="ftp://example.com/">) returns a tuple origin.
+Pass	Origin.from(<a href="https://example.com/path?query#fragment">) returns a tuple origin.
+Pass	Origin.from(<area href="https://example.com/path?query#fragment">) returns a tuple origin.
+Pass	Origin.from(<a href="https://127.0.0.1/">) returns a tuple origin.
+Pass	Origin.from(<area href="https://127.0.0.1/">) returns a tuple origin.
+Pass	Origin.from(<a href="https://[::1]/">) returns a tuple origin.
+Pass	Origin.from(<area href="https://[::1]/">) returns a tuple origin.

@@ -81,6 +81,8 @@ public:
     Optional<String> const& query() const { return m_url.query(); }
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
 
+    virtual Optional<URL::Origin> extract_an_origin() const override;
+
 private:
     DOMURL(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
 

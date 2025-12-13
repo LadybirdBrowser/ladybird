@@ -482,4 +482,10 @@ Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, O
     return url.release_value();
 }
 
+Optional<URL::Origin> DOMURL::extract_an_origin() const
+{
+    // Objects implementing the URL interface's extract an origin steps are to return this's URL's origin. [[HTML]]
+    return m_url.origin();
+}
+
 }
