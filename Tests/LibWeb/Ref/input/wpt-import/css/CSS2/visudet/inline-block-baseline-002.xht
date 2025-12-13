@@ -1,0 +1,27 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+  <title>Vertical-align: baseline of an inline-block depends on 'overflow'</title>
+
+  <link rel="help" href="http://www.w3.org/TR/CSS22/visudet.html#leading" title="10.8.1 Leading and half-leading" />
+  <link rel="help" href="http://www.w3.org/TR/CSS22/changes.html#s.10.8.1" title="C.1 Changes since the Recommendation of 7 June 2011" />
+  <meta name="assert" content="The baseline of an 'inline-block’ whose ‘overflow’ property has a computed value of ‘visible’ is the baseline of its last line box in the normal flow, unless it has no in-flow line boxes, in which case the baseline is the bottom margin edge." />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visudet/inline-block-baseline-001-ref.xht" />
+  <link rel="author" title="Bert Bos" href="mailto:bert@w3.org" />
+
+
+  <style type="text/css"><![CDATA[
+  body {background: white; color: black; font-size: 15px}
+  p {white-space: nowrap; line-height: 5}
+  span {display: inline-block; overflow: visible; line-height: 1}
+  ]]></style>
+ </head>
+
+ <body>
+   <p>
+     All the <span>&nbsp;<br />words</span> are aligned on the same baseline.
+   </p>
+ </body>
+</html>

@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -18,7 +19,7 @@ struct LineBoxFragmentCoordinate {
     size_t fragment_index { 0 };
 };
 
-struct IntrinsicSizes {
+struct IntrinsicMinMaxCache {
     Optional<CSSPixels> min_content_width;
     Optional<CSSPixels> max_content_width;
     HashMap<CSSPixels, Optional<CSSPixels>> min_content_height;
@@ -33,17 +34,9 @@ public:
     Painting::PaintableBox* paintable_box();
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
-    Optional<CSSPixels> natural_width() const;
-    Optional<CSSPixels> natural_height() const;
-    Optional<CSSPixelFraction> natural_aspect_ratio() const;
-
-    bool has_natural_width() const { return natural_width().has_value(); }
-    bool has_natural_height() const { return natural_height().has_value(); }
-    bool has_natural_aspect_ratio() const { return natural_aspect_ratio().has_value(); }
-
-    void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
-    void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
-    void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
+    virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
+    CSS::SizeWithAspectRatio intrinsic_content_box_size() const;
+    virtual bool has_intrinsic_content_box_size() const { return false; }
 
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
@@ -61,28 +54,25 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    IntrinsicSizes& cached_intrinsic_sizes() const
+    IntrinsicMinMaxCache& intrinsic_min_max_cache() const
     {
-        if (!m_cached_intrinsic_sizes)
-            m_cached_intrinsic_sizes = make<IntrinsicSizes>();
-        return *m_cached_intrinsic_sizes;
+        if (!m_intrinsic_min_max_cache)
+            m_intrinsic_min_max_cache = make<IntrinsicMinMaxCache>();
+        return *m_intrinsic_min_max_cache;
     }
-    void reset_cached_intrinsic_sizes() const { m_cached_intrinsic_sizes.clear(); }
+    void reset_cached_intrinsic_sizes() const { m_intrinsic_min_max_cache.clear(); }
 
 protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+    virtual CSS::SizeWithAspectRatio compute_intrinsic_content_box_size() const { return natural_size(); }
 
 private:
     virtual bool is_box() const final { return true; }
 
-    Optional<CSSPixels> m_natural_width;
-    Optional<CSSPixels> m_natural_height;
-    Optional<CSSPixelFraction> m_natural_aspect_ratio;
-
     Vector<GC::Ref<Node>> m_contained_abspos_children;
 
-    OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
+    OwnPtr<IntrinsicMinMaxCache> mutable m_intrinsic_min_max_cache;
 };
 
 template<>
