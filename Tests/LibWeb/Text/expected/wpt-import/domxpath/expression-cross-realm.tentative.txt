@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
+1 Pass
+3 Fail
 Fail	expression from realm with XML associated document, context node in XML document, no namespace resolver
 Fail	expression from realm with XML associated document, context node in HTML document, no namespace resolver
 Fail	expression from realm with HTML associated document, context node in XML document, no namespace resolver
-Fail	expression from realm with HTML associated document, context node in HTML document, no namespace resolver
+Pass	expression from realm with HTML associated document, context node in HTML document, no namespace resolver
