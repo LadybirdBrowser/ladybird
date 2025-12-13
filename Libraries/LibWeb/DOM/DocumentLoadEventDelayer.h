@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
-#include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -24,7 +24,7 @@ public:
     ~DocumentLoadEventDelayer();
 
 private:
-    GC::Root<Document> m_document;
+    GC::Weak<Document> m_document;
 };
 
 }
