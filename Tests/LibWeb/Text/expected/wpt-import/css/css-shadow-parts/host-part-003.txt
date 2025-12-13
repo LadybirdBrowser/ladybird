@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	:host::part() should only match when the part is in the same tree as the rule

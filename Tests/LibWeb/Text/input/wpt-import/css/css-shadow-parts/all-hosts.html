@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Shadow Parts - All Hosts</title>
+    <meta href="mailto:fergal@chromium.org" rel="author" title="Fergal Daly">
+    <link href="http://www.google.com/" rel="author" title="Google">
+    <link href="https://drafts.csswg.org/css-shadow-parts/" rel="help">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="support/shadow-helper.js"></script>
+  </head>
+  <body>
+    <style>::part(partp) { color: green; }</style>
+    <script>installCustomElement("custom-element", "custom-element-template");</script>
+    <template id="custom-element-template">
+      <style>span { color: red; }</style>
+      <span id="part" part="partp">This text</span>
+    </template>
+    The following text should be green:
+    <custom-element id="c-e-1"></custom-element>
+    The following text should be green:
+    <custom-element id="c-e-2"></custom-element>
+    <script>
+      "use strict";
+      const colorGreen = "rgb(0, 128, 0)";
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e-1", "part"]);
+        assert_equals(window.getComputedStyle(el).color, colorGreen);
+      }, "::part with host selector styles in first host");
+      test(function() {
+        const el = getElementByShadowIds(document, ["c-e-2", "part"]);
+        assert_equals(window.getComputedStyle(el).color, colorGreen);
+      }, "::part with host selector styles in second host");
+    </script>
+  </body>
+</html>

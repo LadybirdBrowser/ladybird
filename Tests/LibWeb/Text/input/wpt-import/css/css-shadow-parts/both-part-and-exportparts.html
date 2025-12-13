@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8">
+<title>CSS Shadow Parts - ::part() rules when element has both @part and @exportparts</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1347634">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  ::part(bar) {
+    color: green;
+  }
+  ::part(baz) {
+    background: lime;
+  }
+</style>
+<div id="foo"></div>
+<script>
+test(function() {
+  const foo = document.getElementById("foo");
+  foo.attachShadow({ mode: "open" }).innerHTML = `<div id="outer" part="bar" exportparts="baz"></div>`;
+  const outer = foo.shadowRoot.getElementById("outer");
+  outer.attachShadow({ mode: "open" }).innerHTML = `<div id="inner" part="baz">x</div>`;
+  const inner = outer.shadowRoot.getElementById("inner");
+
+  // outer should still match ::part(bar) rule, despite having @exportparts
+  assert_equals(getComputedStyle(outer).color, "rgb(0, 128, 0)",
+                "outer matches ::part(bar) rule");
+
+  // inner should match ::part(baz) rule, because of @exportparts in outer
+  assert_equals(getComputedStyle(inner).backgroundColor, "rgb(0, 255, 0)",
+                "inner matches ::part(baz) rule");
+}, "::part() rules match elements having both @part and @exportparts");
+</script>

@@ -1,0 +1,76 @@
+<!doctype html>
+<title>CSS Shadow Parts - Exporting multiple shadow parts</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1618509">
+<style>
+::part(inner-part) {
+  color: red;
+  background: blue;
+  width: 100px;
+  height: 100px;
+}
+::part(inner-part-alias) {
+  color: green;
+}
+.change-1::part(inner-part) {
+  background: green;
+}
+
+.change-2::part(inner-part-alias) {
+  color: blue;
+}
+</style>
+<div id="outer"></div>
+<script>
+test(function() {
+  let outer = document.getElementById("outer");
+  outer.attachShadow({ mode: "open" }).innerHTML = `
+    <div exportparts="inner-part, inner-part: inner-part-alias"></div>
+  `;
+
+  let inner = outer.shadowRoot.querySelector("div");
+  inner.attachShadow({ mode: "open" }).innerHTML = `
+    <div part="inner-part"></div>
+  `;
+
+  let innerPart = inner.shadowRoot.querySelector("div");
+  assert_equals(
+    getComputedStyle(innerPart).color,
+    "rgb(0, 128, 0)",
+    "color should be green from ::part(inner-part-alias) rule"
+  );
+  assert_equals(
+    getComputedStyle(innerPart).backgroundColor,
+    "rgb(0, 0, 255)",
+    "background should be blue from ::part(inner-part) rule"
+  );
+
+  outer.classList.add("change-1");
+  assert_equals(
+    getComputedStyle(innerPart).color,
+    "rgb(0, 128, 0)",
+    "color should be green from ::part(inner-part-alias) rule"
+  );
+  assert_equals(
+    getComputedStyle(innerPart).backgroundColor,
+    "rgb(0, 128, 0)",
+    "background should be green from .change-1::part(inner-part) rule"
+  );
+
+  outer.classList.add("change-2");
+  assert_equals(
+    getComputedStyle(innerPart).color,
+    "rgb(0, 0, 255)",
+    "color should be blue from .change-2::part(inner-part-alias) rule"
+  );
+  assert_equals(
+    getComputedStyle(innerPart).backgroundColor,
+    "rgb(0, 128, 0)",
+    "background should be green from .change-1::part(inner-part) rule"
+  );
+}, "Forwarding part under multiple names should work");
+</script>

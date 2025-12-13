@@ -1,0 +1,43 @@
+<!doctype html>
+<title>CSS Shadow Parts - :host::part()</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part">
+<link rel="help" href="https://drafts.csswg.org/css-scoping/#host-selector">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1624968">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=980506">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="host"></div>
+<script>
+test(function() {
+  let host = document.getElementById("host");
+  host.attachShadow({ mode: "open" }).innerHTML = `
+    <style>
+      :host::part(mypart) {
+        color: lime;
+      }
+      :host(.tweak)::part(mypart) {
+        color: blue;
+      }
+    </style>
+    <div part="mypart"></div>
+  `;
+
+  let part = host.shadowRoot.querySelector("[part]");
+
+  assert_equals(
+    window.getComputedStyle(part).color,
+    "rgb(0, 255, 0)",
+    ":host::part() works",
+  );
+
+  host.classList.add("tweak");
+
+  assert_equals(
+    window.getComputedStyle(part).color,
+    "rgb(0, 0, 255)",
+    ":host::part() invalidation works properly",
+  );
+}, ":host::part works");
+</script>

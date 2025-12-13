@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	:state() parsing passes
 Pass	:state() parsing failures
 Pass	deprecated :--state parsing failures
 Pass	:state(foo) serialization
 Pass	:state(foo) in simple cases
 Pass	:state(foo) and other pseudo classes
-Fail	:state(foo) and ::part()
+Pass	:state(foo) and ::part()
 Pass	:state(foo) and :host()

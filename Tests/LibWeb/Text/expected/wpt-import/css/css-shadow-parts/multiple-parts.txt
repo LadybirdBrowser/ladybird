@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Double-part in selected host is styled
+Pass	Single-part-1 in selected host is not styled
+Pass	Single-part-2 in selected host is not styled

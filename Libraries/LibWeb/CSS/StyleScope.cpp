@@ -206,8 +206,10 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     if (!matching_rule.contains_pseudo_element) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
+                            // FIXME: This wrongly assumes there is only one pseudo-element per selector.
                             pseudo_element = simple_selector.pseudo_element().type();
                             matching_rule.slotted = pseudo_element == PseudoElement::Slotted;
+                            matching_rule.contains_part_pseudo_element = pseudo_element == PseudoElement::Part;
                         }
                     }
                     if (!contains_root_pseudo_class) {
