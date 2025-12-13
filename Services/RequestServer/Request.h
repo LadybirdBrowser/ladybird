@@ -90,7 +90,7 @@ private:
         Connect,      // Issue a network request to connect to the URL.
         Fetch,        // Issue a network request to fetch the URL.
         Complete,     // Finalize the request with the client.
-        Error,        // Any error occured during the request's lifetime.
+        Error,        // Any error occurred during the request's lifetime.
     };
 
     static constexpr StringView state_name(State state)
