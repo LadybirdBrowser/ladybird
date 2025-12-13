@@ -32,6 +32,7 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { ICOImageDecoderPlugin::sniff, ICOImageDecoderPlugin::create },
         { JPEGImageDecoderPlugin::sniff, JPEGImageDecoderPlugin::create },
         { JPEGXLImageDecoderPlugin::sniff, JPEGXLImageDecoderPlugin::create },
+        { PNGImageDecoderPlugin::sniff, PNGImageDecoderPlugin::create },
         { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
         { TinyVGImageDecoderPlugin::sniff, TinyVGImageDecoderPlugin::create },
         { WebPImageDecoderPlugin::sniff, WebPImageDecoderPlugin::create },
@@ -45,26 +46,6 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
             continue;
 
         return TRY(plugin.create(move(stream)));
-    }
-
-    struct ImagePluginFullDataInitializer {
-        bool (*sniff)(ReadonlyBytes) = nullptr;
-        ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> (*create)(ReadonlyBytes) = nullptr;
-    };
-
-    static constexpr ImagePluginFullDataInitializer s_full_data_initializers[] = {
-        { PNGImageDecoderPlugin::sniff, PNGImageDecoderPlugin::create },
-    };
-
-    TRY(stream->seek(0, SeekMode::SetPosition));
-    auto full_data = TRY(stream->read_until_eof());
-
-    for (auto& plugin : s_full_data_initializers) {
-        auto sniff_result = plugin.sniff(full_data);
-        if (!sniff_result)
-            continue;
-
-        return TRY(plugin.create(full_data));
     }
 
     return OwnPtr<ImageDecoderPlugin> {};
