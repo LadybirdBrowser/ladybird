@@ -29,6 +29,7 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
     static constexpr ImagePluginStreamingInitializer s_streaming_initializers[] = {
         { JPEGImageDecoderPlugin::sniff, JPEGImageDecoderPlugin::create },
         { JPEGXLImageDecoderPlugin::sniff, JPEGXLImageDecoderPlugin::create },
+        { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
         { TinyVGImageDecoderPlugin::sniff, TinyVGImageDecoderPlugin::create },
         { WebPImageDecoderPlugin::sniff, WebPImageDecoderPlugin::create },
         { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create },
@@ -53,7 +54,6 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { GIFImageDecoderPlugin::sniff, GIFImageDecoderPlugin::create },
         { ICOImageDecoderPlugin::sniff, ICOImageDecoderPlugin::create },
         { PNGImageDecoderPlugin::sniff, PNGImageDecoderPlugin::create },
-        { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
     };
 
     TRY(stream->seek(0, SeekMode::SetPosition));
