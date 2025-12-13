@@ -36,6 +36,20 @@ struct DupFd {
 
 }
 
+#if defined(AK_OS_WINDOWS)
+
+namespace StartupInfo {
+
+struct UseStdHandles {
+    void* stderr_handle { nullptr };
+    void* stdout_handle { nullptr };
+    void* stdin_handle { nullptr };
+};
+
+}
+
+#endif
+
 struct ProcessSpawnOptions {
     StringView name {};
     ByteString executable {};
@@ -44,6 +58,11 @@ struct ProcessSpawnOptions {
 
     using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile, FileAction::DupFd>;
     Vector<FileActionType> file_actions {};
+
+#if defined(AK_OS_WINDOWS)
+    Optional<StartupInfo::UseStdHandles> use_std_handles_startup_info {};
+    bool create_new_process_group { false };
+#endif
 };
 
 class Process {
