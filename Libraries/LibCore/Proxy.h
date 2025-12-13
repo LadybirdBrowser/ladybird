@@ -20,7 +20,7 @@ struct ProxyData {
         SOCKS5,
     } type { Type::Direct };
 
-    u32 host_ipv4 { 0 };
+    IPv4Address host_ipv4;
     int port { 0 };
 
     bool operator==(ProxyData const& other) const = default;
@@ -33,9 +33,9 @@ struct ProxyData {
 
         proxy_data.type = ProxyData::Type::SOCKS5;
 
-        if (!url.host().has_value() || !url.host()->has<URL::IPv4Address>())
+        if (!url.host().has_value() || !url.host()->has<IPv4Address>())
             return Error::from_string_literal("Invalid proxy host, must be an IPv4 address");
-        proxy_data.host_ipv4 = url.host()->get<URL::IPv4Address>();
+        proxy_data.host_ipv4 = url.host()->get<IPv4Address>();
 
         auto port = url.port();
         if (!port.has_value())

@@ -8,6 +8,8 @@
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/IntegralMath.h>
 #include <AK/Optional.h>
 #include <AK/SourceLocation.h>
@@ -226,7 +228,7 @@ static Optional<IPv4Address> parse_ipv4_address(StringView input)
     }
 
     // 13. Return ipv4.
-    return ipv4;
+    return IPv4Address(ipv4);
 }
 
 // https://url.spec.whatwg.org/#concept-ipv6-parser
@@ -455,7 +457,7 @@ static Optional<IPv6Address> parse_ipv6_address(StringView input)
     }
 
     // 9. Return address.
-    return address;
+    return IPv6Address(address);
 }
 
 // https://url.spec.whatwg.org/#ends-in-a-number-checker
