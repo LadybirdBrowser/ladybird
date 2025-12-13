@@ -27,6 +27,7 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
     };
 
     static constexpr ImagePluginStreamingInitializer s_streaming_initializers[] = {
+        { JPEGImageDecoderPlugin::sniff, JPEGImageDecoderPlugin::create },
         { WebPImageDecoderPlugin::sniff, WebPImageDecoderPlugin::create },
         { AVIFImageDecoderPlugin::sniff, AVIFImageDecoderPlugin::create },
     };
@@ -49,7 +50,6 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
         { BMPImageDecoderPlugin::sniff, BMPImageDecoderPlugin::create },
         { GIFImageDecoderPlugin::sniff, GIFImageDecoderPlugin::create },
         { ICOImageDecoderPlugin::sniff, ICOImageDecoderPlugin::create },
-        { JPEGImageDecoderPlugin::sniff, JPEGImageDecoderPlugin::create },
         { JPEGXLImageDecoderPlugin::sniff, JPEGXLImageDecoderPlugin::create },
         { PNGImageDecoderPlugin::sniff, PNGImageDecoderPlugin::create },
         { TIFFImageDecoderPlugin::sniff, TIFFImageDecoderPlugin::create },
