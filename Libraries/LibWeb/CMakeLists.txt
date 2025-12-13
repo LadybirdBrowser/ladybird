@@ -88,7 +88,9 @@ set(SOURCES
     CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp
     CredentialManagement/FederatedCredential.cpp
+    CredentialManagement/FederatedCredentialOperations.cpp
     CredentialManagement/PasswordCredential.cpp
+    CredentialManagement/PasswordCredentialOperations.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
