@@ -191,7 +191,8 @@ static ErrorOr<void> decode_frame(GIFLoadingContext& context, size_t frame_index
 
         ByteBuffer decoded_stream;
         if (!image->lzw_encoded_bytes.is_empty()) {
-            decoded_stream = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(image->lzw_encoded_bytes, image->lzw_min_code_size));
+            auto stream = make<FixedMemoryStream>(image->lzw_encoded_bytes.bytes());
+            decoded_stream = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(move(stream), image->lzw_min_code_size));
         }
 
         auto const& color_map = image->use_global_color_map ? context.logical_screen.color_map : image->color_map;

@@ -8,6 +8,9 @@
 #include <AK/Vector.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
+
+#include "ImageDecoderStream.h"
+
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibGfx/ImmutableBitmap.h>
@@ -215,8 +218,12 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     u8* exif_data = nullptr;
     u32 exif_length = 0;
     int const num_exif_chunks = png_get_eXIf_1(m_context->png_ptr, m_context->info_ptr, &exif_length, &exif_data);
-    if (num_exif_chunks > 0)
-        m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ exif_data, exif_length }));
+    if (num_exif_chunks > 0) {
+        auto exif_stream = adopt_ref(*new Gfx::ImageDecoderStream());
+        exif_stream->append_chunk(TRY(ByteBuffer::copy(exif_data, exif_length)));
+        exif_stream->close();
+        m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata(move(exif_stream)));
+    }
 
     return {};
 }

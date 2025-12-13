@@ -15,6 +15,7 @@
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/CCITTDecoder.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 
 namespace Gfx {
@@ -54,7 +55,7 @@ public:
         FrameDecoded,
     };
 
-    TIFFLoadingContext(NonnullOwnPtr<FixedMemoryStream> stream)
+    TIFFLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
         : m_stream(move(stream))
     {
     }
@@ -334,7 +335,7 @@ private:
         }()));
 
         for (u32 segment_index = 0; segment_index < offsets.size(); ++segment_index) {
-            TRY(m_stream->seek(offsets[segment_index]));
+            TRY(m_stream->seek(offsets[segment_index], SeekMode::SetPosition));
 
             auto const rows_in_segment = segment_index < offsets.size() - 1 ? segment_length : *m_metadata.image_length() - segment_length * segment_index;
             auto const decoded_bytes = TRY(segment_decoder(byte_counts[segment_index], { segment_width, rows_in_segment }));
@@ -412,8 +413,8 @@ private:
             return b;
         };
 
-        auto const bytes = TRY(m_stream->read_in_place<u8 const>(bytes_to_read));
-        auto copy = TRY(ByteBuffer::copy(bytes));
+        auto copy = TRY(ByteBuffer::create_uninitialized(bytes_to_read));
+        TRY(m_stream->read_until_filled(copy.bytes()));
         if (m_metadata.fill_order() == FillOrder::RightToLeft) {
             for (auto& byte : copy.bytes())
                 byte = reverse_byte(byte);
@@ -426,8 +427,12 @@ private:
     {
         switch (*m_metadata.compression()) {
         case Compression::NoCompression: {
-            auto identity = [&](u32 num_bytes, IntSize) {
-                return m_stream->read_in_place<u8 const>(num_bytes);
+            ByteBuffer buffer;
+
+            auto identity = [&](u32 num_bytes, IntSize) -> ErrorOr<ReadonlyBytes> {
+                buffer = TRY(ByteBuffer::create_uninitialized(num_bytes));
+                TRY(m_stream->read_until_filled(buffer));
+                return buffer.bytes();
             };
 
             TRY(loop_over_pixels(move(identity)));
@@ -477,10 +482,13 @@ private:
         case Compression::LZW: {
             ByteBuffer decoded_bytes {};
             auto decode_lzw_segment = [&](u32 num_bytes, IntSize) -> ErrorOr<ReadonlyBytes> {
-                auto const encoded_bytes = TRY(m_stream->read_in_place<u8 const>(num_bytes));
+                auto encoded_bytes = TRY(ByteBuffer::create_uninitialized(num_bytes));
+                TRY(m_stream->read_until_filled(encoded_bytes.bytes()));
 
                 if (encoded_bytes.is_empty())
                     return Error::from_string_literal("TIFFImageDecoderPlugin: Unable to read from empty LZW segment");
+
+                auto encoded_byte_stream = make<FixedMemoryStream>(encoded_bytes.bytes());
 
                 // Note: AFAIK, there are two common ways to use LZW compression:
                 //          - With a LittleEndian stream and no Early-Change, this is used in the GIF format
@@ -490,9 +498,9 @@ private:
                 //       Fortunately, as the first byte of a LZW stream is a constant we can guess the endianness
                 //       and deduce the version from it. The first code is 0x100 (9-bits).
                 if (encoded_bytes[0] == 0x00)
-                    decoded_bytes = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(encoded_bytes, 8, 0));
+                    decoded_bytes = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(move(encoded_byte_stream), 8, 0));
                 else
-                    decoded_bytes = TRY(Compress::LzwDecompressor<BigEndianInputBitStream>::decompress_all(encoded_bytes, 8, -1));
+                    decoded_bytes = TRY(Compress::LzwDecompressor<BigEndianInputBitStream>::decompress_all(move(encoded_byte_stream), 8, -1));
 
                 return decoded_bytes;
             };
@@ -520,7 +528,8 @@ private:
             ByteBuffer decoded_bytes {};
 
             auto decode_packbits_segment = [&](u32 num_bytes, IntSize) -> ErrorOr<ReadonlyBytes> {
-                auto const encoded_bytes = TRY(m_stream->read_in_place<u8 const>(num_bytes));
+                auto encoded_bytes = TRY(ByteBuffer::create_uninitialized(num_bytes));
+                TRY(m_stream->read_until_filled(encoded_bytes));
                 decoded_bytes = TRY(Compress::PackBits::decode_all(encoded_bytes));
                 return decoded_bytes;
             };
@@ -602,7 +611,7 @@ private:
 
         dbgln_if(TIFF_DEBUG, "Reading image file directory at offset {}", m_next_ifd);
 
-        TRY(m_stream->seek(m_next_ifd.value()));
+        TRY(m_stream->seek(m_next_ifd.value(), SeekMode::SetPosition));
 
         auto const number_of_field = TRY(read_value<u16>());
         auto next_tag_offset = TRY(m_stream->tell());
@@ -615,7 +624,7 @@ private:
             // IFD Entry
             // Size of tag(u16) + type(u16) + count(u32) + value_or_offset(u32) = 12
             next_tag_offset += 12;
-            TRY(m_stream->seek(next_tag_offset));
+            TRY(m_stream->seek(next_tag_offset, SeekMode::SetPosition));
         }
 
         TRY(read_next_idf_offset());
@@ -625,12 +634,9 @@ private:
     ErrorOr<Vector<Value, 1>> read_tiff_value(Type type, u32 count, u32 offset)
     {
         auto const old_offset = TRY(m_stream->tell());
-        ScopeGuard reset_offset { [this, old_offset]() { MUST(m_stream->seek(old_offset)); } };
+        ScopeGuard reset_offset { [this, old_offset]() { MUST(m_stream->seek(old_offset, SeekMode::SetPosition)); } };
 
-        TRY(m_stream->seek(offset));
-
-        if (size_of_type(type) * count > m_stream->remaining())
-            return Error::from_string_literal("TIFFImageDecoderPlugin: Tag size claims to be bigger that remaining bytes");
+        TRY(m_stream->seek(offset, SeekMode::SetPosition));
 
         auto const read_every_values = [this, count]<typename T>() -> ErrorOr<Vector<Value>> {
             Vector<Value, 1> result {};
@@ -722,7 +728,7 @@ private:
         return {};
     }
 
-    NonnullOwnPtr<FixedMemoryStream> m_stream;
+    NonnullRefPtr<ImageDecoderStream> m_stream;
     State m_state {};
     RefPtr<Bitmap> m_bitmap {};
     RefPtr<CMYKBitmap> m_cmyk_bitmap {};
@@ -743,17 +749,20 @@ private:
 
 }
 
-TIFFImageDecoderPlugin::TIFFImageDecoderPlugin(NonnullOwnPtr<FixedMemoryStream> stream)
+TIFFImageDecoderPlugin::TIFFImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream)
 {
     m_context = make<TIFF::TIFFLoadingContext>(move(stream));
 }
 
 TIFFImageDecoderPlugin::~TIFFImageDecoderPlugin() = default;
 
-bool TIFFImageDecoderPlugin::sniff(ReadonlyBytes bytes)
+bool TIFFImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    if (bytes.size() < 4)
+    Array<u8, 4> bytes;
+    auto maybe_error = stream->read_until_filled(bytes);
+    if (maybe_error.is_error())
         return false;
+
     bool const valid_little_endian = bytes[0] == 0x49 && bytes[1] == 0x49 && bytes[2] == 0x2A && bytes[3] == 0x00;
     bool const valid_big_endian = bytes[0] == 0x4D && bytes[1] == 0x4D && bytes[2] == 0x00 && bytes[3] == 0x2A;
     return valid_little_endian || valid_big_endian;
@@ -764,10 +773,9 @@ IntSize TIFFImageDecoderPlugin::size()
     return m_context->size();
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> TIFFImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> TIFFImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto stream = TRY(try_make<FixedMemoryStream>(data));
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TIFFImageDecoderPlugin(move(stream))));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TIFFImageDecoderPlugin(stream)));
     TRY(plugin->m_context->decode_image_header());
     return plugin;
 }
@@ -799,9 +807,8 @@ ErrorOr<Optional<ReadonlyBytes>> TIFFImageDecoderPlugin::icc_data()
     return m_context->metadata().icc_profile().map([](auto const& buffer) -> ReadonlyBytes { return buffer.bytes(); });
 }
 
-ErrorOr<NonnullOwnPtr<ExifMetadata>> TIFFImageDecoderPlugin::read_exif_metadata(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ExifMetadata>> TIFFImageDecoderPlugin::read_exif_metadata(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto stream = TRY(try_make<FixedMemoryStream>(data));
     auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TIFFImageDecoderPlugin(move(stream))));
     TRY(plugin->m_context->decode_image_header());
     return try_make<ExifMetadata>(plugin->m_context->metadata());

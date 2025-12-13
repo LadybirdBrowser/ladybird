@@ -14,7 +14,8 @@ namespace {
 ErrorOr<bool> test_roundtrip_string(StringView input)
 {
     auto const compressed = TRY(Compress::LzwCompressor::compress_all(input.bytes(), 8));
-    auto const roundtrip = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(compressed, 8));
+    auto stream = TRY(try_make<FixedMemoryStream>(compressed.bytes()));
+    auto const roundtrip = TRY(Compress::LzwDecompressor<LittleEndianInputBitStream>::decompress_all(move(stream), 8));
     return roundtrip == input.bytes();
 }
 
