@@ -13,6 +13,8 @@
 namespace Crypto::Hash {
 
 class HKDF {
+    AK_MAKE_NONCOPYABLE(HKDF);
+
 public:
     HKDF(HashKind hash_kind);
 
