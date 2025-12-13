@@ -55,11 +55,13 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
 
-          test -e /opt/wabt-1.0.35 || (
-            cd /tmp
-            curl -f -L -o wabt-1.0.35-ubuntu-20.04.tar.gz https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
-            sudo tar xf wabt-1.0.35-ubuntu-20.04.tar.gz -C /opt
-            rm wabt-1.0.35-ubuntu-20.04.tar.gz
+          WASM_TOOLS_VERSION=1.243.0
+          test -e /opt/wasm-tools-${WASM_TOOLS_VERSION} || (
+            NAME="wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux"
+            curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${NAME}.tar.gz"
+            tar -xzf "./${NAME}.tar.gz"
+            rm "./${NAME}.tar.gz"
+            echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
           )
 
           # FIXME: Just use the setup action
@@ -95,8 +97,7 @@ jobs:
           #        Running as a normal user would make this a non-issue though
           export HOME=${{ github.workspace }}/home
           mkdir -p $HOME
-          env PATH="/opt/wabt-1.0.35/bin:$PATH" \
-            CC=clang-20 \
+          env CC=clang-20 \
             CXX=clang++-20 \
             cmake --preset Release -B libjs-test262/Build \
               -DCMAKE_C_COMPILER=clang-20 \
