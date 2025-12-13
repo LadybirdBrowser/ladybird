@@ -266,9 +266,14 @@ u32 Selector::specificity() const
                 ++tag_names;
                 break;
             case SimpleSelector::Type::PseudoElement:
+                // https://drafts.csswg.org/css-view-transitions-1/#named-view-transition-pseudo
+                // The specificity of a named view transition pseudo-element selector with a <custom-ident> argument is equivalent
+                // to a type selector. The specificity of a named view transition pseudo-element selector with a '*' argument is zero.
+                // NB: We just break before adding to the type (tag name) specificity in case this is a named view transition pseudo that uses '*'
+                if (first_is_one_of(simple_selector.pseudo_element().type(), CSS::PseudoElement::ViewTransitionGroup, CSS::PseudoElement::ViewTransitionImagePair, CSS::PseudoElement::ViewTransitionOld, CSS::PseudoElement::ViewTransitionNew) && simple_selector.pseudo_element().pt_name_selector().is_universal)
+                    break;
+
                 // count the number of type selectors and pseudo-elements in the selector (= C)
-                // FIXME: This needs special handling for view transition pseudos:
-                //        https://drafts.csswg.org/css-view-transitions-1/#named-view-transition-pseudo
                 ++tag_names;
                 break;
             case SimpleSelector::Type::Universal:
