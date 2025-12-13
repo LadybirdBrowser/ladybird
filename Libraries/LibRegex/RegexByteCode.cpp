@@ -1262,16 +1262,15 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
     RegexStringView const& view = input.has_value() ? input.value().view : StringView {};
 
     auto argument_count = arguments_count();
-    auto const* bytecode_data = m_bytecode->flat_data().data();
 
     for (size_t i = 0; i < argument_count; ++i) {
-        auto compare_type = (CharacterCompareType)bytecode_data[offset++];
+        auto compare_type = (CharacterCompareType)m_bytecode->at(offset++);
         result.empend(ByteString::formatted("type={} [{}]", (size_t)compare_type, character_compare_type_name(compare_type)));
 
         auto string_start_offset = state().string_position_before_match;
 
         if (compare_type == CharacterCompareType::Char) {
-            auto ch = bytecode_data[offset++];
+            auto ch = m_bytecode->at(offset++);
             auto is_ascii = is_ascii_printable(ch);
             if (is_ascii)
                 result.empend(ByteString::formatted(" value='{:c}'", static_cast<char>(ch)));
@@ -1292,7 +1291,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::Reference) {
-            auto ref = bytecode_data[offset++];
+            auto ref = m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" number={}", ref));
             if (input.has_value()) {
                 if (state().capture_group_matches_size() > input->match_index) {
@@ -1310,7 +1309,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::NamedReference) {
-            auto ref = bytecode_data[offset++];
+            auto ref = m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" named_number={}", ref));
             if (input.has_value()) {
                 if (state().capture_group_matches_size() > input->match_index) {
@@ -1328,40 +1327,40 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::String) {
-            auto& length = bytecode_data[offset++];
+            auto& length = m_bytecode->at(offset++);
             StringBuilder str_builder;
             for (size_t i = 0; i < length; ++i)
-                str_builder.append(bytecode_data[offset++]);
+                str_builder.append(m_bytecode->at(offset++));
             result.empend(ByteString::formatted(" value=\"{}\"", str_builder.string_view().substring_view(0, length)));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: \"{}\"",
                     input.value().view.substring_view(string_start_offset, string_start_offset + length > view.length() ? 0 : length).to_byte_string()));
         } else if (compare_type == CharacterCompareType::CharClass) {
-            auto character_class = (CharClass)bytecode_data[offset++];
+            auto character_class = (CharClass)m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" ch_class={} [{}]", (size_t)character_class, character_class_name(character_class)));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: '{}'",
                     input.value().view.substring_view(string_start_offset, state().string_position > view.length() ? 0 : 1).to_byte_string()));
         } else if (compare_type == CharacterCompareType::CharRange) {
-            auto value = (CharRange)bytecode_data[offset++];
+            auto value = (CharRange)m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" ch_range={:x}-{:x}", value.from, value.to));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: '{}'",
                     input.value().view.substring_view(string_start_offset, state().string_position > view.length() ? 0 : 1).to_byte_string()));
         } else if (compare_type == CharacterCompareType::LookupTable) {
-            auto count_sensitive = bytecode_data[offset++];
-            auto count_insensitive = bytecode_data[offset++];
+            auto count_sensitive = m_bytecode->at(offset++);
+            auto count_insensitive = m_bytecode->at(offset++);
             for (size_t j = 0; j < count_sensitive; ++j) {
-                auto range = (CharRange)bytecode_data[offset++];
+                auto range = (CharRange)m_bytecode->at(offset++);
                 result.append(ByteString::formatted(" {:x}-{:x}", range.from, range.to));
             }
             if (count_insensitive > 0) {
                 result.append(" [insensitive ranges:");
                 for (size_t j = 0; j < count_insensitive; ++j) {
-                    auto range = (CharRange)bytecode_data[offset++];
+                    auto range = (CharRange)m_bytecode->at(offset++);
                     result.append(ByteString::formatted("  {:x}-{:x}", range.from, range.to));
                 }
                 result.append(" ]");
@@ -1376,7 +1375,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
             || compare_type == CharacterCompareType::Script
             || compare_type == CharacterCompareType::ScriptExtension
             || compare_type == CharacterCompareType::StringSet) {
-            auto value = bytecode_data[offset++];
+            auto value = m_bytecode->at(offset++);
             result.empend(ByteString::formatted(" value={}", value));
         }
     }
