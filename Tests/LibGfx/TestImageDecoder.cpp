@@ -1220,8 +1220,12 @@ TEST_CASE(test_webp_unpremultiplied_alpha)
 TEST_CASE(test_tvg)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/yak.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1024, 1024 }));
 }
@@ -1235,8 +1239,12 @@ TEST_CASE(test_everything_tvg)
 
     for (auto file_name : file_names) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(file_name));
-        EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+        TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
 
         TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 400, 768 }));
     }
@@ -1250,7 +1258,10 @@ TEST_CASE(test_tvg_malformed)
 
     for (auto test_input : test_inputs) {
         auto file = TRY_OR_FAIL(Core::MappedFile::map(test_input));
-        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+        auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+        stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+        stream->close();
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
         auto frame_or_error = plugin_decoder->frame(0);
         EXPECT(frame_or_error.is_error());
     }
@@ -1259,8 +1270,12 @@ TEST_CASE(test_tvg_malformed)
 TEST_CASE(test_tvg_rgb565)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tvg/green-rgb565.tvg"sv)));
-    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::TinyVGImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::TinyVGImageDecoderPlugin::create(move(stream)));
     auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 100, 100 }));
 
     // Should be a solid dark green:
