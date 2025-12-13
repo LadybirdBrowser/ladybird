@@ -35,44 +35,71 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
     if (auto resolver = g_resolver.strong_ref())
         return *resolver;
 
-    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<DNS::Resolver::SocketResult> {
+    auto resolver = adopt_ref(*new Resolver([] -> NonnullRefPtr<Core::Promise<DNS::Resolver::SocketResult>> {
+        auto promise = Core::Promise<DNS::Resolver::SocketResult>::construct();
         auto& dns_info = DNSInfo::the();
 
-        if (!dns_info.server_address.has_value()) {
-            if (!dns_info.server_hostname.has_value())
-                return Error::from_string_literal("No DNS server configured");
+        auto make_resolver = [] -> ErrorOr<DNS::Resolver::SocketResult> {
+            auto& dns_info = DNSInfo::the();
 
-            auto resolved = TRY(default_resolver()->dns.lookup(*dns_info.server_hostname)->await());
-            if (!resolved->has_cached_addresses())
-                return Error::from_string_literal("Failed to resolve DNS server hostname");
+            if (dns_info.use_dns_over_tls) {
+                TLS::Options options;
 
-            auto address = resolved->cached_addresses().first().visit([&](auto& addr) -> Core::SocketAddress { return { addr, dns_info.port }; });
-            dns_info.server_address = address;
-        }
+                if (!g_default_certificate_path.is_empty())
+                    options.root_certificates_path = g_default_certificate_path;
 
-        if (dns_info.use_dns_over_tls) {
-            TLS::Options options;
-
-            if (!g_default_certificate_path.is_empty())
-                options.root_certificates_path = g_default_certificate_path;
+                return DNS::Resolver::SocketResult {
+                    MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*dns_info.server_address, *dns_info.server_hostname, move(options)))),
+                    DNS::Resolver::ConnectionMode::TCP,
+                };
+            }
 
             return DNS::Resolver::SocketResult {
-                MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(*dns_info.server_address, *dns_info.server_hostname, move(options)))),
-                DNS::Resolver::ConnectionMode::TCP,
+                MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*dns_info.server_address))))),
+                DNS::Resolver::ConnectionMode::UDP,
             };
+        };
+
+        if (!dns_info.server_address.has_value()) {
+            if (!dns_info.server_hostname.has_value()) {
+                promise->reject(Error::from_string_literal("No DNS server configured"));
+                return promise;
+            }
+
+            auto resolved_promise = default_resolver()->dns.lookup(*dns_info.server_hostname);
+            resolved_promise->when_resolved([promise, make_resolver = move(make_resolver)](NonnullRefPtr<DNS::LookupResult const> const& resolved) -> ErrorOr<void> {
+                if (!resolved->has_cached_addresses())
+                    return Error::from_string_literal("Failed to resolve DNS server hostname");
+
+                auto& dns_info = DNSInfo::the();
+                auto address = resolved->cached_addresses().first().visit([&](auto& addr) -> Core::SocketAddress { return { addr, dns_info.port }; });
+                dns_info.server_address = address;
+                promise->resolve(TRY(make_resolver()));
+                return {};
+            });
+
+            resolved_promise->when_rejected([promise](Error const& error) {
+                promise->reject(Error::copy(error));
+            });
+
+            promise->add_child(move(resolved_promise));
+        } else {
+            auto result = make_resolver();
+            if (!result.is_error()) {
+                promise->resolve(result.release_value());
+            } else {
+                promise->reject(result.release_error());
+            }
         }
 
-        return DNS::Resolver::SocketResult {
-            MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*dns_info.server_address))))),
-            DNS::Resolver::ConnectionMode::UDP,
-        };
+        return promise;
     }));
 
     g_resolver = resolver;
     return resolver;
 }
 
-Resolver::Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket)
+Resolver::Resolver(DNS::Resolver::CreateSocketFunction create_socket)
     : dns(move(create_socket))
 {
 }
