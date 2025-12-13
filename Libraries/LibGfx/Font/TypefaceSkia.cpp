@@ -18,6 +18,7 @@
 #    include <ports/SkTypeface_win.h>
 #else
 #    include <ports/SkFontMgr_fontconfig.h>
+#    include <ports/SkFontScanner_FreeType.h>
 #endif
 
 #ifdef AK_OS_MACOS
@@ -46,7 +47,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         s_font_manager = SkFontMgr_New_DirectWrite();
 #else
         if (!s_font_manager) {
-            s_font_manager = SkFontMgr_New_FontConfig(nullptr);
+            s_font_manager = SkFontMgr_New_FontConfig(nullptr, SkFontScanner_Make_FreeType());
         }
 #endif
     }

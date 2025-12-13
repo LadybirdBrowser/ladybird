@@ -9,9 +9,6 @@ if(unofficial-skia_FOUND)
         set(CMAKE_LINK_GROUP_USING_no_as_needed_SUPPORTED TRUE CACHE BOOL "Link group using no-as-needed supported")
         set(CMAKE_LINK_GROUP_USING_no_as_needed "LINKER:--push-state,--no-as-needed" "LINKER:--pop-state" CACHE STRING "Link group using no-as-needed")
         set_property(TARGET unofficial::skia::skia APPEND PROPERTY INTERFACE_LINK_LIBRARIES "$<LINK_GROUP:no_as_needed,Fontconfig::Fontconfig>")
-    elseif(WIN32)
-        # FIXME: Submit a proper patch to vcpkg and skia to the SKCMS header file to set this in a cross-platform way.
-        set_property(TARGET unofficial::skia::skia APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "SKCMS_API=__declspec(dllimport)")
     endif()
     if (ANDROID)
         # FIXME: Submit a proper patch to vcpkg in order not to bring host's libc++ when compiling for Android
@@ -41,7 +38,7 @@ else()
 
     pkg_check_modules(skia skia=${SKIA_REQUIRED_VERSION} REQUIRED IMPORTED_TARGET skia)
     set(SKIA_TARGET PkgConfig::skia)
-    set_property(TARGET PkgConfig::skia APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "SKCMS_API=__attribute__((visibility(\"default\")))")
+    set_property(TARGET PkgConfig::skia APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS "SKCMS_DLL")
 endif()
 swizzle_target_properties_for_swift(${SKIA_TARGET})
 add_library(skia ALIAS ${SKIA_TARGET})

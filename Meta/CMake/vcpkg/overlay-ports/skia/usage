@@ -1,6 +1,0 @@
-skia provides CMake targets:
-
-    find_package(unofficial-skia CONFIG REQUIRED)
-    target_link_libraries(main PRIVATE unofficial::skia::skia)
-
-    # Similar for optional components, e.g. unofficial::skia::modules::skparagraph
