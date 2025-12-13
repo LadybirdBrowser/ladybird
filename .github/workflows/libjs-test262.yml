@@ -58,7 +58,7 @@ jobs:
           WASM_TOOLS_VERSION=1.243.0
           test -e /opt/wasm-tools-${WASM_TOOLS_VERSION} || (
             NAME="wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux"
-            curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${NAME}.tar.gz"
+            curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/${NAME}.tar.gz"
             tar -xzf "./${NAME}.tar.gz"
             rm "./${NAME}.tar.gz"
             echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
