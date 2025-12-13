@@ -1270,8 +1270,12 @@ TEST_CASE(test_tvg_rgb565)
 TEST_CASE(test_jxl_modular_simple_tree_upsample2_10bits)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jxl/modular_simple_tree_upsample2_10bits_rct.jxl"sv)));
-    EXPECT(Gfx::JPEGXLImageDecoderPlugin::sniff(file->bytes()));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGXLImageDecoderPlugin::create(file->bytes()));
+    auto stream = TRY_OR_FAIL(adopt_nonnull_ref_or_enomem(new Gfx::ImageDecoderStream()));
+    stream->append_chunk(TRY_OR_FAIL(file->read_until_eof()));
+    stream->close();
+    EXPECT(Gfx::JPEGXLImageDecoderPlugin::sniff(stream));
+    TRY_OR_FAIL(stream->seek(0, SeekMode::SetPosition));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGXLImageDecoderPlugin::create(move(stream)));
 
     TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 128, 128 }));
 
