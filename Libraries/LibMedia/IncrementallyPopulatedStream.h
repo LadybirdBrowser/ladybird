@@ -25,6 +25,7 @@ public:
     void close();
 
     u64 size();
+    void set_expected_size(u64);
 
     class Cursor : public AtomicRefCounted<Cursor> {
     public:
@@ -82,6 +83,7 @@ private:
     Threading::Mutex m_mutex;
     Threading::ConditionVariable m_state_changed { m_mutex };
     ByteBuffer m_buffer;
+    Optional<u64> m_expected_size;
     Atomic<bool> m_closed { false };
 };
 
