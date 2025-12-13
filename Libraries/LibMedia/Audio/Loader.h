@@ -76,7 +76,6 @@ protected:
 class MEDIA_API Loader : public RefCounted<Loader> {
 public:
     static ErrorOr<NonnullRefPtr<Loader>> create(StringView path);
-    static ErrorOr<NonnullRefPtr<Loader>> create(ReadonlyBytes buffer);
 
     // Will only read less samples if we're at the end of the stream.
     ErrorOr<Samples> get_more_samples(size_t samples_to_read_from_input = 128 * KiB);

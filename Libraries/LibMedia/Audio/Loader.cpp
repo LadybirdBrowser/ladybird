@@ -38,13 +38,6 @@ ErrorOr<NonnullRefPtr<Loader>> Loader::create(StringView path)
     return adopt_ref(*new (nothrow) Loader(move(plugin)));
 }
 
-ErrorOr<NonnullRefPtr<Loader>> Loader::create(ReadonlyBytes buffer)
-{
-    auto stream = TRY(try_make<FixedMemoryStream>(buffer));
-    auto plugin = TRY(Loader::create_plugin(move(stream)));
-    return adopt_ref(*new (nothrow) Loader(move(plugin)));
-}
-
 ErrorOr<NonnullOwnPtr<LoaderPlugin>> Loader::create_plugin(NonnullOwnPtr<SeekableStream> stream)
 {
     for (auto const& loader : s_initializers) {
