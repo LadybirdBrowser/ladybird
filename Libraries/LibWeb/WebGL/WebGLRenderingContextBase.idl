@@ -125,7 +125,7 @@ interface mixin WebGLRenderingContextBase {
 
     DOMString? getShaderSource(WebGLShader shader);
 
-    [FIXME] any getTexParameter(GLenum target, GLenum pname);
+    any getTexParameter(GLenum target, GLenum pname);
 
     any getUniform(WebGLProgram program, WebGLUniformLocation location);
 
