@@ -44,7 +44,9 @@ private:
 
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
-    virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
+    virtual Messages::ImageDecoderServer::StartDecodingImageResponse start_decoding_image(Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
+    virtual void partial_image_data_became_available(i64 image_id, ByteBuffer data) override;
+    virtual void no_more_data_for_image(i64 image_id) override;
     virtual void cancel_decoding(i64 image_id) override;
     virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
     virtual Messages::ImageDecoderServer::InitTransportResponse init_transport(int peer_pid) override;

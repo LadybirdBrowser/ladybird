@@ -358,7 +358,9 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
                     return {};
                 };
 
-                (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
+                auto pending_decode = Web::Platform::ImageCodecPlugin::the().start_decoding_image(move(on_successful_decode), move(on_failed_decode));
+                Web::Platform::ImageCodecPlugin::the().partial_image_data_became_available(pending_decode, image_data);
+                Web::Platform::ImageCodecPlugin::the().no_more_data_for_image(pending_decode);
             }));
         },
         // -> ImageData
