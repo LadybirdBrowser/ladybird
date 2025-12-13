@@ -36,9 +36,19 @@ void IncrementallyPopulatedStream::close()
 u64 IncrementallyPopulatedStream::size()
 {
     Threading::MutexLocker locker { m_mutex };
-    while (!m_closed)
+    while (!m_closed && !m_expected_size.has_value())
         m_state_changed.wait();
-    return m_buffer.size();
+    if (m_closed)
+        return m_buffer.size();
+    return m_expected_size.value();
+}
+
+void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
+{
+    Threading::MutexLocker locker { m_mutex };
+    m_expected_size = expected_size;
+    m_buffer.ensure_capacity(expected_size);
+    m_state_changed.broadcast();
 }
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& consumer, size_t position, Bytes& bytes)
