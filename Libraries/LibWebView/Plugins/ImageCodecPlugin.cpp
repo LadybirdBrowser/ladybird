@@ -31,7 +31,7 @@ void ImageCodecPlugin::set_client(NonnullRefPtr<ImageDecoderClient::Client> clie
 
 ImageCodecPlugin::~ImageCodecPlugin() = default;
 
-NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::decode_image(ReadonlyBytes bytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected)
+ImageCodecPlugin::PendingDecode ImageCodecPlugin::start_decoding_image(Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected)
 {
     auto promise = Core::Promise<Web::Platform::DecodedImage>::construct();
     if (on_resolved)
@@ -41,11 +41,13 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
 
     if (!m_client) {
         promise->reject(Error::from_string_literal("ImageDecoderClient is disconnected"));
-        return promise;
+        return PendingDecode {
+            .image_id = -1,
+            .promise = move(promise),
+        };
     }
 
-    auto image_decoder_promise = m_client->decode_image(
-        bytes,
+    auto image_decoder_in_flight_decoding = m_client->start_decoding_image(
         [promise](ImageDecoderClient::DecodedImage& result) -> ErrorOr<void> {
             // FIXME: Remove this codec plugin and just use the ImageDecoderClient directly to avoid these copies
             Web::Platform::DecodedImage decoded_image;
@@ -62,7 +64,32 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
             promise->reject(Error::copy(error));
         });
 
-    return promise;
+    promise->add_child(image_decoder_in_flight_decoding.promise);
+
+    return PendingDecode {
+        .image_id = image_decoder_in_flight_decoding.image_id,
+        .promise = move(promise),
+    };
+}
+
+void ImageCodecPlugin::partial_image_data_became_available(PendingDecode const& pending_decode, ReadonlyBytes encoded_data)
+{
+    if (!m_client) {
+        pending_decode.promise->reject(Error::from_string_literal("ImageDecoderClient is disconnected"));
+        return;
+    }
+
+    m_client->partial_image_data_became_available(pending_decode.image_id, encoded_data);
+}
+
+void ImageCodecPlugin::no_more_data_for_image(PendingDecode const& pending_decode)
+{
+    if (!m_client) {
+        pending_decode.promise->reject(Error::from_string_literal("ImageDecoderClient is disconnected"));
+        return;
+    }
+
+    m_client->no_more_data_for_image(pending_decode.image_id);
 }
 
 }

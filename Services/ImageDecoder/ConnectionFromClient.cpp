@@ -172,14 +172,33 @@ ConnectionFromClient::PendingJob ConnectionFromClient::make_decode_image_job(i64
     };
 }
 
-Messages::ImageDecoderServer::DecodeImageResponse ConnectionFromClient::decode_image(Core::AnonymousBuffer data, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+Messages::ImageDecoderServer::StartDecodingImageResponse ConnectionFromClient::start_decoding_image(Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     auto image_id = m_next_image_id++;
-    auto job = make_decode_image_job(image_id, ideal_size, move(mime_type));
-    job.stream->append_chunk(MUST(ByteBuffer::copy(data.data<u8>(), data.size())));
-    job.stream->close();
-    m_pending_jobs.set(image_id, move(job));
+    m_pending_jobs.set(image_id, make_decode_image_job(image_id, ideal_size, move(mime_type)));
     return image_id;
+}
+
+void ConnectionFromClient::partial_image_data_became_available(i64 image_id, ByteBuffer data)
+{
+    auto pending_job_iterator = m_pending_jobs.find(image_id);
+    if (pending_job_iterator == m_pending_jobs.end()) {
+        dbgln("ConnectionFromClient::partial_image_data_became_available: No job found with ID {}", image_id);
+        return;
+    }
+
+    pending_job_iterator->value.stream->append_chunk(move(data));
+}
+
+void ConnectionFromClient::no_more_data_for_image(i64 image_id)
+{
+    auto pending_job_iterator = m_pending_jobs.find(image_id);
+    if (pending_job_iterator == m_pending_jobs.end()) {
+        dbgln("ConnectionFromClient::no_more_data_for_image: No job found with ID {}", image_id);
+        return;
+    }
+
+    pending_job_iterator->value.stream->close();
 }
 
 void ConnectionFromClient::cancel_decoding(i64 image_id)

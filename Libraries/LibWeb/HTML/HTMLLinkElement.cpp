@@ -922,7 +922,9 @@ static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_d
         return {};
     };
 
-    (void)Platform::ImageCodecPlugin::the().decode_image(favicon_data, move(on_successful_decode), move(on_failed_decode));
+    auto pending_decode = Platform::ImageCodecPlugin::the().start_decoding_image(move(on_successful_decode), move(on_failed_decode));
+    Platform::ImageCodecPlugin::the().partial_image_data_became_available(pending_decode, favicon_data);
+    Platform::ImageCodecPlugin::the().no_more_data_for_image(pending_decode);
 
     return promise;
 }
