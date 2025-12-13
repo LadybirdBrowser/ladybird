@@ -2,6 +2,7 @@
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2022, Bruno Conde <brunompconde@gmail.com>
  * Copyright (c) 2024, Pavel Shliak <shlyakpavel@gmail.com>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,9 +12,12 @@
 #include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
+#include <AK/MaybeOwned.h>
+#include <AK/MemoryStream.h>
 #include <AK/Try.h>
 #include <AK/Vector.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 
 namespace Gfx {
 
@@ -194,6 +198,11 @@ enum class DIBType {
 };
 
 struct BMPLoadingContext {
+    BMPLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
+        : stream(move(stream))
+    {
+    }
+
     enum class State {
         NotDecoded = 0,
         DIBDecoded,
@@ -203,8 +212,7 @@ struct BMPLoadingContext {
     };
     State state { State::NotDecoded };
 
-    u8 const* file_bytes { nullptr };
-    size_t file_size { 0 };
+    NonnullRefPtr<ImageDecoderStream> stream;
     u32 data_offset { 0 };
 
     bool is_included_in_ico { false };
@@ -238,62 +246,6 @@ struct BMPLoadingContext {
 
         VERIFY_NOT_REACHED();
     }
-};
-
-class InputStreamer {
-public:
-    InputStreamer(u8 const* data, size_t size)
-        : m_data_ptr(data)
-        , m_size_remaining(size)
-    {
-    }
-
-    u8 read_u8()
-    {
-        VERIFY(m_size_remaining >= 1);
-        m_size_remaining--;
-        return *(m_data_ptr++);
-    }
-
-    u16 read_u16()
-    {
-        return read_u8() | (read_u8() << 8);
-    }
-
-    u32 read_u24()
-    {
-        return read_u8() | (read_u8() << 8) | (read_u8() << 16);
-    }
-
-    i32 read_i32()
-    {
-        return static_cast<i32>(read_u16() | (read_u16() << 16));
-    }
-
-    u32 read_u32()
-    {
-        return read_u16() | (read_u16() << 16);
-    }
-
-    void drop_bytes(u8 num_bytes)
-    {
-        VERIFY(m_size_remaining >= num_bytes);
-        m_size_remaining -= num_bytes;
-        m_data_ptr += num_bytes;
-    }
-
-    bool at_end() const { return !m_size_remaining; }
-
-    bool has_u8() const { return m_size_remaining >= 1; }
-    bool has_u16() const { return m_size_remaining >= 2; }
-    bool has_u24() const { return m_size_remaining >= 3; }
-    bool has_u32() const { return m_size_remaining >= 4; }
-
-    size_t remaining() const { return m_size_remaining; }
-
-private:
-    u8 const* m_data_ptr { nullptr };
-    size_t m_size_remaining { 0 };
 };
 
 // Lookup table for distributing all possible 2-bit numbers evenly into 8-bit numbers
@@ -465,7 +417,7 @@ static bool check_for_invalid_bitmask_combinations(BMPLoadingContext& context)
     return true;
 }
 
-static bool set_dib_bitmasks(BMPLoadingContext& context, InputStreamer& streamer)
+static bool set_dib_bitmasks(BMPLoadingContext& context)
 {
     if (!check_for_invalid_bitmask_combinations(context))
         return false;
@@ -486,9 +438,10 @@ static bool set_dib_bitmasks(BMPLoadingContext& context, InputStreamer& streamer
         auto number_of_mask_fields = compression == Compression::ALPHABITFIELDS ? 4 : 3;
 
         for (auto i = 0; i < number_of_mask_fields; i++) {
-            if (!streamer.has_u32())
+            auto maybe_error = context.stream->read_value<u32>();
+            if (maybe_error.is_error())
                 return false;
-            context.dib.info.masks.append(streamer.read_u32());
+            context.dib.info.masks.append(maybe_error.release_value());
         }
     }
 
@@ -498,75 +451,49 @@ static bool set_dib_bitmasks(BMPLoadingContext& context, InputStreamer& streamer
 
 static ErrorOr<void> decode_bmp_header(BMPLoadingContext& context)
 {
-    if (!context.file_bytes || context.file_size < bmp_header_size) {
-        dbgln_if(BMP_DEBUG, "Missing BMP header");
-        context.state = BMPLoadingContext::State::Error;
-        return Error::from_string_literal("Missing BMP header");
-    }
-
-    InputStreamer streamer(context.file_bytes, bmp_header_size);
-
-    u16 header = streamer.read_u16();
+    u16 header = TRY(context.stream->read_value<u16>());
     if (header != 0x4d42) {
         dbgln_if(BMP_DEBUG, "BMP has invalid magic header number: {:#04x}", header);
         context.state = BMPLoadingContext::State::Error;
         return Error::from_string_literal("BMP has invalid magic header number");
     }
 
-    // The reported size of the file in the header is actually not important
-    // for decoding the file. Some specifications say that this value should
-    // be the size of the header instead, so we just rely on the known file
-    // size, instead of a possibly-correct-but-also-possibly-incorrect reported
-    // value of the file size.
-    streamer.drop_bytes(4);
+    // 1. The reported size of the file in the header is actually not important
+    //    for decoding the file. Some specifications say that this value should
+    //    be the size of the header instead, so we just rely on the known file
+    //    size, instead of a possibly-correct-but-also-possibly-incorrect reported
+    //    value of the file size.
+    // 2. Ignore reserved bytes
+    TRY(context.stream->discard(4 + 4));
 
-    // Ignore reserved bytes
-    streamer.drop_bytes(4);
-    context.data_offset = streamer.read_u32();
-    if (context.data_offset >= context.file_size) {
-        dbgln_if(BMP_DEBUG, "BMP has invalid data offset: {}", context.data_offset);
-        context.state = BMPLoadingContext::State::Error;
-        return Error::from_string_literal("BMP has invalid data offset");
-    }
-
-    if constexpr (BMP_DEBUG) {
-        dbgln("BMP file size: {}", context.file_size);
+    context.data_offset = TRY(context.stream->read_value<u32>());
+    if constexpr (BMP_DEBUG)
         dbgln("BMP data offset: {}", context.data_offset);
-    }
-
-    if (context.data_offset >= context.file_size) {
-        dbgln_if(BMP_DEBUG, "BMP data offset is beyond file end?!");
-        return Error::from_string_literal("BMP data offset is beyond file end");
-    }
 
     return {};
 }
 
-static bool decode_bmp_core_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_core_dib(BMPLoadingContext& context)
 {
     auto& core = context.dib.core;
 
     // The width and height are u16 fields in the actual BITMAPCOREHEADER format.
     if (context.dib_type == DIBType::Core) {
-        core.width = streamer.read_u16();
-        core.height = streamer.read_u16();
+        core.width = TRY(context.stream->read_value<u16>());
+        core.height = TRY(context.stream->read_value<u16>());
     } else {
-        core.width = streamer.read_i32();
-        core.height = streamer.read_i32();
+        core.width = TRY(context.stream->read_value<i32>());
+        core.height = TRY(context.stream->read_value<i32>());
     }
 
-    if (core.width < 0) {
-        dbgln("BMP has a negative width: {}", core.width);
-        return false;
-    }
+    if (core.width < 0)
+        return Error::from_string_literal("BMP has a negative width");
 
-    auto color_planes = streamer.read_u16();
-    if (color_planes != 1) {
-        dbgln("BMP has an invalid number of color planes: {}", color_planes);
-        return false;
-    }
+    auto color_planes = TRY(context.stream->read_value<u16>());
+    if (color_planes != 1)
+        return Error::from_string_literal("BMP has an invalid number of color planes");
 
-    core.bpp = streamer.read_u16();
+    core.bpp = TRY(context.stream->read_value<u16>());
     switch (core.bpp) {
     case 1:
     case 2:
@@ -577,9 +504,8 @@ static bool decode_bmp_core_dib(BMPLoadingContext& context, InputStreamer& strea
     case 32:
         break;
     default:
-        dbgln("BMP has an invalid bpp: {}", core.bpp);
         context.state = BMPLoadingContext::State::Error;
-        return false;
+        return Error::from_string_literal("BMP has an invalid bpp");
     }
 
     if constexpr (BMP_DEBUG) {
@@ -588,7 +514,7 @@ static bool decode_bmp_core_dib(BMPLoadingContext& context, InputStreamer& strea
         dbgln("BMP bits_per_pixel: {}", core.bpp);
     }
 
-    return true;
+    return {};
 }
 
 ALWAYS_INLINE static bool is_supported_compression_format(BMPLoadingContext& context, u32 compression)
@@ -598,25 +524,21 @@ ALWAYS_INLINE static bool is_supported_compression_format(BMPLoadingContext& con
         || compression == Compression::RLE4 || (compression == Compression::RLE24 && context.dib_type <= DIBType::OSV2);
 }
 
-static bool decode_bmp_osv2_dib(BMPLoadingContext& context, InputStreamer& streamer, bool short_variant = false)
+static ErrorOr<void> decode_bmp_osv2_dib(BMPLoadingContext& context, bool short_variant = false)
 {
     auto& core = context.dib.core;
 
-    core.width = streamer.read_u32();
-    core.height = streamer.read_u32();
+    core.width = TRY(context.stream->read_value<u32>());
+    core.height = TRY(context.stream->read_value<u32>());
 
-    if (core.width < 0) {
-        dbgln("BMP has a negative width: {}", core.width);
-        return false;
-    }
+    if (core.width < 0)
+        return Error::from_string_literal("BMP has a negative width");
 
-    auto color_planes = streamer.read_u16();
-    if (color_planes != 1) {
-        dbgln("BMP has an invalid number of color planes: {}", color_planes);
-        return false;
-    }
+    auto color_planes = TRY(context.stream->read_value<u16>());
+    if (color_planes != 1)
+        return Error::from_string_literal("BMP has an invalid number of color planes");
 
-    core.bpp = streamer.read_u16();
+    core.bpp = TRY(context.stream->read_value<u16>());
     switch (core.bpp) {
     case 1:
     case 2:
@@ -626,9 +548,8 @@ static bool decode_bmp_osv2_dib(BMPLoadingContext& context, InputStreamer& strea
         break;
     default:
         // OS/2 didn't expect 16- or 32-bpp to be popular.
-        dbgln("BMP has an invalid bpp: {}", core.bpp);
         context.state = BMPLoadingContext::State::Error;
-        return false;
+        return Error::from_string_literal("BMP has an invalid bpp");
     }
 
     if constexpr (BMP_DEBUG) {
@@ -638,36 +559,34 @@ static bool decode_bmp_osv2_dib(BMPLoadingContext& context, InputStreamer& strea
     }
 
     if (short_variant)
-        return true;
+        return {};
 
     auto& info = context.dib.info;
     auto& osv2 = context.dib.osv2;
 
-    info.compression = streamer.read_u32();
-    info.image_size = streamer.read_u32();
-    info.horizontal_resolution = streamer.read_u32();
-    info.vertical_resolution = streamer.read_u32();
-    info.number_of_palette_colors = streamer.read_u32();
-    info.number_of_important_palette_colors = streamer.read_u32();
+    info.compression = TRY(context.stream->read_value<u32>());
+    info.image_size = TRY(context.stream->read_value<u32>());
+    info.horizontal_resolution = TRY(context.stream->read_value<u32>());
+    info.vertical_resolution = TRY(context.stream->read_value<u32>());
+    info.number_of_palette_colors = TRY(context.stream->read_value<u32>());
+    info.number_of_important_palette_colors = TRY(context.stream->read_value<u32>());
 
-    if (!is_supported_compression_format(context, info.compression)) {
-        dbgln("BMP has unsupported compression value: {}", info.compression);
-        return false;
-    }
+    if (!is_supported_compression_format(context, info.compression))
+        return Error::from_string_literal("BMP has unsupported compression value");
 
     info.number_of_palette_colors = min(info.number_of_palette_colors, color_palette_limit);
     info.number_of_important_palette_colors = min(info.number_of_important_palette_colors, color_palette_limit);
 
     // Units (2) + reserved (2)
-    streamer.drop_bytes(4);
+    TRY(context.stream->discard(4));
 
-    osv2.recording = streamer.read_u16();
-    osv2.halftoning = streamer.read_u16();
-    osv2.size1 = streamer.read_u32();
-    osv2.size2 = streamer.read_u32();
+    osv2.recording = TRY(context.stream->read_value<u16>());
+    osv2.halftoning = TRY(context.stream->read_value<u16>());
+    osv2.size1 = TRY(context.stream->read_value<u32>());
+    osv2.size2 = TRY(context.stream->read_value<u32>());
 
     // ColorEncoding (4) + Identifier (4)
-    streamer.drop_bytes(8);
+    TRY(context.stream->discard(8));
 
     if constexpr (BMP_DEBUG) {
         dbgln("BMP compression: {}", info.compression);
@@ -678,28 +597,25 @@ static bool decode_bmp_osv2_dib(BMPLoadingContext& context, InputStreamer& strea
         dbgln("BMP important colors: {}", info.number_of_important_palette_colors);
     }
 
-    return true;
+    return {};
 }
 
-static bool decode_bmp_info_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_info_dib(BMPLoadingContext& context)
 {
-    if (!decode_bmp_core_dib(context, streamer))
-        return false;
+    TRY(decode_bmp_core_dib(context));
 
     auto& info = context.dib.info;
 
-    auto compression = streamer.read_u32();
+    auto compression = TRY(context.stream->read_value<u32>());
     info.compression = compression;
-    if (!is_supported_compression_format(context, compression)) {
-        dbgln("BMP has unsupported compression value: {}", compression);
-        return false;
-    }
+    if (!is_supported_compression_format(context, compression))
+        return Error::from_string_literal("BMP has unsupported compression value");
 
-    info.image_size = streamer.read_u32();
-    info.horizontal_resolution = streamer.read_i32();
-    info.vertical_resolution = streamer.read_i32();
-    info.number_of_palette_colors = streamer.read_u32();
-    info.number_of_important_palette_colors = streamer.read_u32();
+    info.image_size = TRY(context.stream->read_value<u32>());
+    info.horizontal_resolution = TRY(context.stream->read_value<i32>());
+    info.vertical_resolution = TRY(context.stream->read_value<i32>());
+    info.number_of_palette_colors = TRY(context.stream->read_value<u32>());
+    info.number_of_important_palette_colors = TRY(context.stream->read_value<u32>());
 
     info.number_of_palette_colors = min(info.number_of_palette_colors, color_palette_limit);
     info.number_of_important_palette_colors = min(info.number_of_important_palette_colors, color_palette_limit);
@@ -716,22 +632,21 @@ static bool decode_bmp_info_dib(BMPLoadingContext& context, InputStreamer& strea
         dbgln("BMP important colors: {}", info.number_of_important_palette_colors);
     }
 
-    return true;
+    return {};
 }
 
-static bool decode_bmp_v2_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_v2_dib(BMPLoadingContext& context)
 {
-    if (!decode_bmp_info_dib(context, streamer))
-        return false;
+    TRY(decode_bmp_info_dib(context));
 
     if (context.dib.info.compression != Compression::BITFIELDS && context.dib.info.compression != Compression::ALPHABITFIELDS) {
-        streamer.drop_bytes(12);
-        return true;
+        TRY(context.stream->discard(12));
+        return {};
     }
 
-    context.dib.info.masks.append(streamer.read_u32());
-    context.dib.info.masks.append(streamer.read_u32());
-    context.dib.info.masks.append(streamer.read_u32());
+    context.dib.info.masks.append(TRY(context.stream->read_value<u32>()));
+    context.dib.info.masks.append(TRY(context.stream->read_value<u32>()));
+    context.dib.info.masks.append(TRY(context.stream->read_value<u32>()));
 
     if constexpr (BMP_DEBUG) {
         dbgln("BMP red mask: {:#08x}", context.dib.info.masks[0]);
@@ -739,23 +654,22 @@ static bool decode_bmp_v2_dib(BMPLoadingContext& context, InputStreamer& streame
         dbgln("BMP blue mask: {:#08x}", context.dib.info.masks[2]);
     }
 
-    return true;
+    return {};
 }
 
-static bool decode_bmp_v3_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_v3_dib(BMPLoadingContext& context)
 {
-    if (!decode_bmp_v2_dib(context, streamer))
-        return false;
+    TRY(decode_bmp_v2_dib(context));
 
     // There is zero documentation about when alpha masks actually get applied.
     // Well, there's some, but it's not even close to comprehensive. So, this is
     // in no way based off of any spec, it's simply based off of the BMP test
     // suite results.
     if (context.dib.info.compression == Compression::ALPHABITFIELDS) {
-        context.dib.info.masks.append(streamer.read_u32());
+        context.dib.info.masks.append(TRY(context.stream->read_value<u32>()));
         dbgln_if(BMP_DEBUG, "BMP alpha mask: {:#08x}", context.dib.info.masks[3]);
     } else if (context.dib_size() >= 56 && context.dib.core.bpp >= 16) {
-        auto mask = streamer.read_u32();
+        auto mask = TRY(context.stream->read_value<u32>());
         if ((context.dib.core.bpp == 32 && mask != 0) || context.dib.core.bpp == 16) {
             context.dib.info.masks.append(mask);
             dbgln_if(BMP_DEBUG, "BMP alpha mask: {:#08x}", mask);
@@ -763,24 +677,23 @@ static bool decode_bmp_v3_dib(BMPLoadingContext& context, InputStreamer& streame
             dbgln_if(BMP_DEBUG, "BMP alpha mask (ignored): {:#08x}", mask);
         }
     } else {
-        streamer.drop_bytes(4);
+        TRY(context.stream->discard(4));
         dbgln_if(BMP_DEBUG, "BMP alpha mask skipped");
     }
 
-    return true;
+    return {};
 }
 
-static bool decode_bmp_v4_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_v4_dib(BMPLoadingContext& context)
 {
-    if (!decode_bmp_v3_dib(context, streamer))
-        return false;
+    TRY(decode_bmp_v3_dib(context));
 
     auto& v4 = context.dib.v4;
-    v4.color_space = streamer.read_u32();
-    v4.red_endpoint = { streamer.read_i32(), streamer.read_i32(), streamer.read_i32() };
-    v4.green_endpoint = { streamer.read_i32(), streamer.read_i32(), streamer.read_i32() };
-    v4.blue_endpoint = { streamer.read_i32(), streamer.read_i32(), streamer.read_i32() };
-    v4.gamma_endpoint = { streamer.read_u32(), streamer.read_u32(), streamer.read_u32() };
+    v4.color_space = TRY(context.stream->read_value<u32>());
+    v4.red_endpoint = { TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()) };
+    v4.green_endpoint = { TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()) };
+    v4.blue_endpoint = { TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()), TRY(context.stream->read_value<i32>()) };
+    v4.gamma_endpoint = { TRY(context.stream->read_value<u32>()), TRY(context.stream->read_value<u32>()), TRY(context.stream->read_value<u32>()) };
 
     if constexpr (BMP_DEBUG) {
         dbgln("BMP color space: {}", v4.color_space);
@@ -790,19 +703,18 @@ static bool decode_bmp_v4_dib(BMPLoadingContext& context, InputStreamer& streame
         dbgln("BMP gamma endpoint: {}", v4.gamma_endpoint);
     }
 
-    return true;
+    return {};
 }
 
-static bool decode_bmp_v5_dib(BMPLoadingContext& context, InputStreamer& streamer)
+static ErrorOr<void> decode_bmp_v5_dib(BMPLoadingContext& context)
 {
-    if (!decode_bmp_v4_dib(context, streamer))
-        return false;
+    TRY(decode_bmp_v4_dib(context));
 
     auto& v5 = context.dib.v5;
-    v5.intent = streamer.read_u32();
-    v5.profile_data = streamer.read_u32();
-    v5.profile_size = streamer.read_u32();
-    streamer.drop_bytes(4); // Ignore reserved field.
+    v5.intent = TRY(context.stream->read_value<u32>());
+    v5.profile_data = TRY(context.stream->read_value<u32>());
+    v5.profile_size = TRY(context.stream->read_value<u32>());
+    TRY(context.stream->discard(4)); // Ignore reserved field.
 
     if constexpr (BMP_DEBUG) {
         dbgln("BMP intent: {}", v5.intent);
@@ -810,7 +722,7 @@ static bool decode_bmp_v5_dib(BMPLoadingContext& context, InputStreamer& streame
         dbgln("BMP profile size: {}", v5.profile_size);
     }
 
-    return true;
+    return {};
 }
 
 static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
@@ -826,15 +738,9 @@ static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
 
     u8 header_size = context.is_included_in_ico ? 0 : bmp_header_size;
 
-    if (context.file_size < header_size + 4u)
-        return Error::from_string_literal("File size too short");
+    TRY(context.stream->seek(header_size, SeekMode::SetPosition));
 
-    InputStreamer streamer(context.file_bytes + header_size, 4);
-
-    u64 dib_size = streamer.read_u32();
-
-    if (context.file_size < header_size + dib_size)
-        return Error::from_string_literal("File size too short");
+    u64 dib_size = TRY(context.stream->read_value<u32>());
 
     if (!context.is_included_in_ico && (context.data_offset < header_size + dib_size)) {
         dbgln("Shenanigans! BMP pixel data and header usually don't overlap.");
@@ -843,18 +749,10 @@ static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
 
     // NOTE: If this is a headless BMP (embedded on ICO files), then we can only infer the data_offset after we know the data table size.
     // We are also assuming that no Extra bit masks are present
-    u64 dib_offset = dib_size;
-    if (!context.is_included_in_ico) {
-        if (context.data_offset < header_size + 4u)
-            return Error::from_string_literal("Data offset too small");
+    if (!context.is_included_in_ico && context.data_offset < header_size + 4u)
+        return Error::from_string_literal("Data offset too small");
 
-        dib_offset = context.data_offset - header_size - 4;
-    }
-
-    if (dib_offset + header_size + 4 >= context.file_size)
-        return Error::from_string_literal("DIB too large");
-
-    streamer = InputStreamer(context.file_bytes + header_size + 4, dib_offset);
+    TRY(context.stream->seek(header_size + 4, SeekMode::SetPosition));
 
     dbgln_if(BMP_DEBUG, "BMP dib size: {}", dib_size);
 
@@ -862,35 +760,35 @@ static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
 
     if (dib_size == 12) {
         context.dib_type = DIBType::Core;
-        if (!decode_bmp_core_dib(context, streamer))
+        if (decode_bmp_core_dib(context).is_error())
             error = true;
     } else if (dib_size == 64) {
         context.dib_type = DIBType::OSV2;
-        if (!decode_bmp_osv2_dib(context, streamer))
+        if (decode_bmp_osv2_dib(context).is_error())
             error = true;
     } else if (dib_size == 16) {
         context.dib_type = DIBType::OSV2Short;
-        if (!decode_bmp_osv2_dib(context, streamer, true))
+        if (decode_bmp_osv2_dib(context, true).is_error())
             error = true;
     } else if (dib_size == 40) {
         context.dib_type = DIBType::Info;
-        if (!decode_bmp_info_dib(context, streamer))
+        if (decode_bmp_info_dib(context).is_error())
             error = true;
     } else if (dib_size == 52) {
         context.dib_type = DIBType::V2;
-        if (!decode_bmp_v2_dib(context, streamer))
+        if (decode_bmp_v2_dib(context).is_error())
             error = true;
     } else if (dib_size == 56) {
         context.dib_type = DIBType::V3;
-        if (!decode_bmp_v3_dib(context, streamer))
+        if (decode_bmp_v3_dib(context).is_error())
             error = true;
     } else if (dib_size == 108) {
         context.dib_type = DIBType::V4;
-        if (!decode_bmp_v4_dib(context, streamer))
+        if (decode_bmp_v4_dib(context).is_error())
             error = true;
     } else if (dib_size == 124) {
         context.dib_type = DIBType::V5;
-        if (!decode_bmp_v5_dib(context, streamer))
+        if (decode_bmp_v5_dib(context).is_error())
             error = true;
     } else {
         dbgln("Unsupported BMP DIB size: {}", dib_size);
@@ -913,7 +811,7 @@ static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
         error = true;
     }
 
-    if (!error && !set_dib_bitmasks(context, streamer))
+    if (!error && !set_dib_bitmasks(context))
         error = true;
 
     if (error) {
@@ -932,12 +830,6 @@ static ErrorOr<void> decode_bmp_dib(BMPLoadingContext& context)
             auto size_of_color_table = (context.dib.info.number_of_palette_colors > 0 ? context.dib.info.number_of_palette_colors : max_colors) * bytes_per_color;
             context.data_offset = dib_size + size_of_color_table;
         }
-    }
-
-    if (context.data_offset >= context.file_size) {
-        dbgln_if(BMP_DEBUG, "BMP has invalid data offset: {}", context.data_offset);
-        context.state = BMPLoadingContext::State::Error;
-        return Error::from_string_literal("BMP has invalid data offset");
     }
 
     context.state = BMPLoadingContext::State::DIBDecoded;
@@ -999,16 +891,15 @@ static ErrorOr<void> decode_bmp_color_table(BMPLoadingContext& context)
         }
     }
 
-    InputStreamer streamer(context.file_bytes + header_size + context.dib_size(), size_of_color_table);
-    for (u32 i = 0; !streamer.at_end() && i < max_colors; ++i) {
+    TRY(context.stream->seek(header_size + context.dib_size(), SeekMode::SetPosition));
+    for (u32 i = 0; !context.stream->is_eof() && i < max_colors; ++i) {
         if (bytes_per_color == 4) {
-            if (!streamer.has_u32())
-                return Error::from_string_literal("Cannot read 32 bits");
-            context.color_table.append(streamer.read_u32() | 0xff'00'00'00);
+            context.color_table.append(TRY(context.stream->read_value<u32>()) | 0xff'00'00'00);
         } else {
-            if (!streamer.has_u24())
-                return Error::from_string_literal("Cannot read 24 bits");
-            context.color_table.append(streamer.read_u24() | 0xff'00'00'00);
+            u32 twenty_four_bit_color = TRY(context.stream->read_value<u8>())
+                | (TRY(context.stream->read_value<u8>()) << 8)
+                | (TRY(context.stream->read_value<u8>()) << 16);
+            context.color_table.append(twenty_four_bit_color | 0xff'00'00'00);
         }
     }
 
@@ -1034,7 +925,7 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
         return Error::from_string_literal("BMP is top-down and RLE compressed");
     }
 
-    InputStreamer streamer(context.file_bytes + context.data_offset, context.file_size - context.data_offset);
+    TRY(context.stream->seek(context.data_offset, SeekMode::SetPosition));
 
     auto compression = context.dib.info.compression;
 
@@ -1144,19 +1035,13 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
 
     if (compression == Compression::RLE24) {
         read_byte = [&]() -> ErrorOr<u32> {
-            if (!streamer.has_u24()) {
-                dbgln("BMP has badly-formatted RLE data");
-                return Error::from_string_literal("BMP has badly-formatted RLE data");
-            }
-            return streamer.read_u24();
+            return TRY(context.stream->read_value<u8>())
+                | (TRY(context.stream->read_value<u8>()) << 8)
+                | (TRY(context.stream->read_value<u8>()) << 16);
         };
     } else {
         read_byte = [&]() -> ErrorOr<u32> {
-            if (!streamer.has_u8()) {
-                dbgln("BMP has badly-formatted RLE data");
-                return Error::from_string_literal("BMP has badly-formatted RLE data");
-            }
-            return streamer.read_u8();
+            return TRY(context.stream->read_value<u8>());
         };
     }
 
@@ -1165,9 +1050,7 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
 
         switch (currently_consuming) {
         case RLEState::PixelCount:
-            if (!streamer.has_u8())
-                return Error::from_string_literal("Cannot read 8 bits");
-            byte = streamer.read_u8();
+            byte = TRY(context.stream->read_value<u8>());
             if (!byte) {
                 currently_consuming = RLEState::Meta;
             } else {
@@ -1189,9 +1072,7 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
             currently_consuming = RLEState::PixelCount;
             break;
         case RLEState::Meta:
-            if (!streamer.has_u8())
-                return Error::from_string_literal("Cannot read 8 bits");
-            byte = streamer.read_u8();
+            byte = TRY(context.stream->read_value<u8>());
             if (!byte) {
                 column = 0;
                 row++;
@@ -1201,12 +1082,8 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
             if (byte == 1)
                 return {};
             if (byte == 2) {
-                if (!streamer.has_u8())
-                    return Error::from_string_literal("Cannot read 8 bits");
-                u8 offset_x = streamer.read_u8();
-                if (!streamer.has_u8())
-                    return Error::from_string_literal("Cannot read 8 bits");
-                u8 offset_y = streamer.read_u8();
+                u8 offset_x = TRY(context.stream->read_value<u8>());
+                u8 offset_y = TRY(context.stream->read_value<u8>());
                 column += offset_x;
                 if (column >= total_columns) {
                     column -= total_columns;
@@ -1232,15 +1109,11 @@ static ErrorOr<void> uncompress_bmp_rle_data(BMPLoadingContext& context, ByteBuf
             // Optionally consume a padding byte
             if (compression != Compression::RLE4) {
                 if (pixel_count % 2) {
-                    if (!streamer.has_u8())
-                        return Error::from_string_literal("Cannot read 8 bits");
-                    byte = streamer.read_u8();
+                    byte = TRY(context.stream->read_value<u8>());
                 }
             } else {
                 if (((pixel_count + 1) / 2) % 2) {
-                    if (!streamer.has_u8())
-                        return Error::from_string_literal("Cannot read 8 bits");
-                    byte = streamer.read_u8();
+                    byte = TRY(context.stream->read_value<u8>());
                 }
             }
             currently_consuming = RLEState::PixelCount;
@@ -1301,37 +1174,31 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
     context.bitmap = TRY(Bitmap::create(format, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) }));
 
     ByteBuffer rle_buffer;
-    ReadonlyBytes bytes { context.file_bytes + context.data_offset, context.file_size - context.data_offset };
+    MaybeOwned<SeekableStream> stream { context.stream };
 
     if (context.dib.info.compression == Compression::RLE4 || context.dib.info.compression == Compression::RLE8
         || context.dib.info.compression == Compression::RLE24) {
         TRY(uncompress_bmp_rle_data(context, rle_buffer));
-        bytes = rle_buffer.bytes();
+        stream = TRY(try_make<FixedMemoryStream>(rle_buffer.bytes()));
+    } else {
+        TRY(stream->seek(context.data_offset, SeekMode::SetPosition));
     }
 
-    InputStreamer streamer(bytes.data(), bytes.size());
-
-    auto process_row_padding = [&](u8 const consumed) -> ErrorOr<void> {
+    auto process_row_padding = [&](size_t const consumed) -> ErrorOr<void> {
         // Calculate padding
         u8 remaining = consumed % 4;
         u8 bytes_to_drop = remaining == 0 ? 0 : 4 - remaining;
-
-        if (streamer.remaining() < bytes_to_drop)
-            return Error::from_string_literal("Not enough bytes available to drop");
-        streamer.drop_bytes(bytes_to_drop);
-
+        TRY(stream->discard(bytes_to_drop));
         return {};
     };
 
     auto process_row = [&](u32 row) -> ErrorOr<void> {
-        u32 space_remaining_before_consuming_row = streamer.remaining();
+        size_t offset_before_consuming_row = TRY(stream->tell());
 
         for (u32 column = 0; column < width;) {
             switch (bits_per_pixel) {
             case 1: {
-                if (!streamer.has_u8())
-                    return Error::from_string_literal("Cannot read 8 bits");
-                u8 byte = streamer.read_u8();
+                u8 byte = TRY(context.stream->read_value<u8>());
                 u8 mask = 8;
                 while (column < width && mask > 0) {
                     mask -= 1;
@@ -1344,9 +1211,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 break;
             }
             case 2: {
-                if (!streamer.has_u8())
-                    return Error::from_string_literal("Cannot read 8 bits");
-                u8 byte = streamer.read_u8();
+                u8 byte = TRY(context.stream->read_value<u8>());
                 u8 mask = 8;
                 while (column < width && mask > 0) {
                     mask -= 2;
@@ -1359,10 +1224,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 break;
             }
             case 4: {
-                if (!streamer.has_u8()) {
-                    return Error::from_string_literal("Cannot read 8 bits");
-                }
-                u8 byte = streamer.read_u8();
+                u8 byte = TRY(context.stream->read_value<u8>());
 
                 u32 high_color_idx = (byte >> 4) & 0xf;
                 u32 low_color_idx = byte & 0xf;
@@ -1378,10 +1240,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 break;
             }
             case 8: {
-                if (!streamer.has_u8())
-                    return Error::from_string_literal("Cannot read 8 bits");
-
-                u8 byte = streamer.read_u8();
+                u8 byte = TRY(context.stream->read_value<u8>());
                 if (byte >= context.color_table.size())
                     return Error::from_string_literal("Invalid color table index");
                 auto color = context.color_table[byte];
@@ -1389,16 +1248,13 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 break;
             }
             case 16: {
-                if (!streamer.has_u16())
-                    return Error::from_string_literal("Cannot read 16 bits");
-                context.bitmap->scanline(row)[column++] = int_to_scaled_rgb(context, streamer.read_u16());
+                context.bitmap->scanline(row)[column++] = int_to_scaled_rgb(context, TRY(context.stream->read_value<u16>()));
                 break;
             }
             case 24: {
-                if (!streamer.has_u24())
-                    return Error::from_string_literal("Cannot read 24 bits");
-
-                u32 pixel = streamer.read_u24();
+                u32 pixel = TRY(context.stream->read_value<u8>())
+                    | (TRY(context.stream->read_value<u8>()) << 8)
+                    | (TRY(context.stream->read_value<u8>()) << 16);
 
                 if (context.is_included_in_ico) {
                     // 24-bit ICO files already use BGRA8888 format
@@ -1414,30 +1270,25 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 break;
             }
             case 32:
-                if (!streamer.has_u32())
-                    return Error::from_string_literal("Cannot read 32 bits");
                 if (context.dib.info.masks.is_empty()) {
-                    context.bitmap->scanline(row)[column++] = streamer.read_u32();
+                    context.bitmap->scanline(row)[column++] = TRY(context.stream->read_value<u32>());
                 } else {
-                    context.bitmap->scanline(row)[column++] = int_to_scaled_rgb(context, streamer.read_u32());
+                    context.bitmap->scanline(row)[column++] = int_to_scaled_rgb(context, TRY(context.stream->read_value<u32>()));
                 }
                 break;
             }
         }
 
-        auto consumed = space_remaining_before_consuming_row - streamer.remaining();
-
+        size_t offset_after_consuming_row = TRY(stream->tell());
+        auto consumed = offset_after_consuming_row - offset_before_consuming_row;
         return process_row_padding(consumed);
     };
 
     auto process_mask_row = [&](u32 row) -> ErrorOr<void> {
-        u32 space_remaining_before_consuming_row = streamer.remaining();
+        size_t offset_before_consuming_row = TRY(stream->tell());
 
         for (u32 column = 0; column < width;) {
-            if (!streamer.has_u8())
-                return Error::from_string_literal("Cannot read 8 bits");
-
-            u8 byte = streamer.read_u8();
+            u8 byte = TRY(context.stream->read_value<u8>());
             u8 mask = 8;
             while (column < width && mask > 0) {
                 mask -= 1;
@@ -1457,7 +1308,8 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
             }
         }
 
-        auto consumed = space_remaining_before_consuming_row - streamer.remaining();
+        size_t offset_after_consuming_row = TRY(stream->tell());
+        auto consumed = offset_after_consuming_row - offset_before_consuming_row;
         return process_row_padding(consumed);
     };
 
@@ -1467,7 +1319,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
             TRY(process_row(row));
         }
 
-        if (context.is_included_in_ico && !streamer.at_end()) {
+        if (context.is_included_in_ico && !stream->is_eof()) {
             for (u32 row = 0; row < height; ++row) {
                 TRY(process_mask_row(row));
             }
@@ -1478,7 +1330,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
             TRY(process_row(row));
         }
 
-        if (context.is_included_in_ico && !streamer.at_end()) {
+        if (context.is_included_in_ico && !stream->is_eof()) {
             for (i32 row = height - 1; row >= 0; --row) {
                 TRY(process_mask_row(row));
             }
@@ -1490,11 +1342,9 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
     return {};
 }
 
-BMPImageDecoderPlugin::BMPImageDecoderPlugin(u8 const* data, size_t data_size, IncludedInICO is_included_in_ico)
+BMPImageDecoderPlugin::BMPImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream, IncludedInICO is_included_in_ico)
 {
-    m_context = make<BMPLoadingContext>();
-    m_context->file_bytes = data;
-    m_context->file_size = data_size;
+    m_context = make<BMPLoadingContext>(move(stream));
     m_context->is_included_in_ico = (is_included_in_ico == IncludedInICO::Yes);
 }
 
@@ -1505,29 +1355,27 @@ IntSize BMPImageDecoderPlugin::size()
     return { m_context->dib.core.width, abs(m_context->dib.core.height) };
 }
 
-bool BMPImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool BMPImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    BMPLoadingContext context;
-    context.file_bytes = data.data();
-    context.file_size = data.size();
+    BMPLoadingContext context(move(stream));
     return !decode_bmp_header(context).is_error();
 }
 
-ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> BMPImageDecoderPlugin::create_impl(ReadonlyBytes data, IncludedInICO included_in_ico)
+ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> BMPImageDecoderPlugin::create_impl(NonnullRefPtr<ImageDecoderStream> stream, IncludedInICO included_in_ico)
 {
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) BMPImageDecoderPlugin(data.data(), data.size(), included_in_ico)));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) BMPImageDecoderPlugin(move(stream), included_in_ico)));
     TRY(decode_bmp_dib(*plugin->m_context));
     return plugin;
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> BMPImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> BMPImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    return create_impl(data, IncludedInICO::No);
+    return create_impl(move(stream), IncludedInICO::No);
 }
 
-ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> BMPImageDecoderPlugin::create_as_included_in_ico(Badge<ICOImageDecoderPlugin>, ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> BMPImageDecoderPlugin::create_as_included_in_ico(Badge<ICOImageDecoderPlugin>, NonnullRefPtr<ImageDecoderStream> stream)
 {
-    return create_impl(data, IncludedInICO::Yes);
+    return create_impl(move(stream), IncludedInICO::Yes);
 }
 
 bool BMPImageDecoderPlugin::sniff_dib()
@@ -1552,6 +1400,9 @@ ErrorOr<ImageFrameDescriptor> BMPImageDecoderPlugin::frame(size_t index, Optiona
 
 ErrorOr<Optional<ReadonlyBytes>> BMPImageDecoderPlugin::icc_data()
 {
+    if (m_icc_data.has_value())
+        return m_icc_data->bytes();
+
     if (m_context->dib_type != DIBType::V5)
         return OptionalNone {};
 
@@ -1567,11 +1418,15 @@ ErrorOr<Optional<ReadonlyBytes>> BMPImageDecoderPlugin::icc_data()
 
     // FIXME: Do something with v5.intent (which has a GamutMappingIntent value).
 
-    u8 header_size = m_context->is_included_in_ico ? 0 : bmp_header_size;
-    if (v5.profile_data + header_size + v5.profile_size > m_context->file_size)
-        return Error::from_string_literal("BMPImageDecoderPlugin: ICC profile data out of bounds");
+    auto icc_data = TRY(ByteBuffer::create_uninitialized(v5.profile_size));
 
-    return ReadonlyBytes { m_context->file_bytes + header_size + v5.profile_data, v5.profile_size };
+    u8 header_size = m_context->is_included_in_ico ? 0 : bmp_header_size;
+    auto current_offset = TRY(m_context->stream->tell());
+    TRY(m_context->stream->seek(header_size + v5.profile_data, SeekMode::SetPosition));
+    TRY(m_context->stream->read_until_filled(m_icc_data.value().bytes()));
+    TRY(m_context->stream->seek(current_offset, SeekMode::SetPosition));
+    m_icc_data = move(icc_data);
+    return m_icc_data->bytes();
 }
 
 }
