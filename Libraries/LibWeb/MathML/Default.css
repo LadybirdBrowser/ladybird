@@ -116,3 +116,10 @@ munderover[accent="true" i] > :first-child {
 mmultiscripts > mprescripts ~ :nth-child(even) {
   math-shift: inherit;
 }
+
+/* FIXME: AD-HOC rules until we implement actual MathML layout */
+mroot > :first-child,
+msqrt > :first-child {
+  margin-left: 0.6em;
+  margin-right: 0.05em;
+}
