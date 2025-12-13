@@ -118,6 +118,7 @@ protected:
         size_t capture_groups_count { 0 };
         size_t named_capture_groups_count { 0 };
         size_t match_length_minimum { 0 };
+        bool greedy_lookaround { true };
         size_t repetition_mark_count { 0 };
         AllOptions regex_options;
         HashMap<size_t, size_t> capture_group_minimum_lengths;

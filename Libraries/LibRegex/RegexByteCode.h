@@ -422,7 +422,7 @@ public:
         NegatedLookAhead,
         NegatedLookBehind,
     };
-    void insert_bytecode_lookaround(ByteCode&& lookaround_body, LookAroundType type, size_t match_length = 0)
+    void insert_bytecode_lookaround(ByteCode&& lookaround_body, LookAroundType type, size_t match_length = 0, bool greedy_lookaround = true)
     {
         // FIXME: The save stack will grow infinitely with repeated failures
         //        as we do not discard that on failure (we don't necessarily know how many to pop with the current architecture).
@@ -462,7 +462,7 @@ public:
             empend((ByteCodeValueType)OpCodeId::Restore);
             return;
         }
-        case LookAroundType::LookBehind:
+        case LookAroundType::LookBehind: {
             // SAVE
             // SET_STEPBACK match_length(BODY)-1
             // LABEL _START
@@ -474,6 +474,7 @@ public:
             // LABEL BODY
             // REGEX
             // RESTORE
+            auto body_length = lookaround_body.size();
             empend((ByteCodeValueType)OpCodeId::Save);
             empend((ByteCodeValueType)OpCodeId::SetStepBack);
             empend((ByteCodeValueType)match_length > 0 ? match_length - 1 : match_length);
@@ -484,10 +485,15 @@ public:
             empend((ByteCodeValueType)OpCodeId::Jump);
             empend((ByteCodeValueType)-6); // JUMP to label _START
             extend(move(lookaround_body));
+            if (greedy_lookaround) {
+                empend((ByteCodeValueType)OpCodeId::ForkJump);
+                empend((ByteCodeValueType)(0 - 2 - body_length - 6));
+            }
             empend((ByteCodeValueType)OpCodeId::CheckSavedPosition);
             empend((ByteCodeValueType)match_length);
             empend((ByteCodeValueType)OpCodeId::Restore);
             return;
+        }
         case LookAroundType::NegatedLookBehind: {
             // JUMP _A
             // LABEL _L
