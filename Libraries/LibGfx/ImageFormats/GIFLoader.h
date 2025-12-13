@@ -17,8 +17,8 @@ struct GIFLoadingContext;
 
 class GIFImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
-    static bool sniff(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
+    static bool sniff(NonnullRefPtr<ImageDecoderStream> stream);
+    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(NonnullRefPtr<ImageDecoderStream> stream);
 
     virtual ~GIFImageDecoderPlugin() override;
 
@@ -31,7 +31,7 @@ public:
     virtual ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) override;
 
 private:
-    GIFImageDecoderPlugin(FixedMemoryStream);
+    GIFImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream);
 
     OwnPtr<GIFLoadingContext> m_context;
 };

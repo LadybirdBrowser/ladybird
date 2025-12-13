@@ -16,6 +16,7 @@
 #include <AK/Try.h>
 #include <LibCompress/Lzw.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/Painter.h>
 
 namespace Gfx {
@@ -61,7 +62,7 @@ struct LogicalScreen {
 };
 
 struct GIFLoadingContext {
-    GIFLoadingContext(FixedMemoryStream stream)
+    GIFLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
         : stream(move(stream))
     {
     }
@@ -80,7 +81,7 @@ struct GIFLoadingContext {
     };
     ErrorState error_state { NoError };
 
-    FixedMemoryStream stream;
+    NonnullRefPtr<ImageDecoderStream> stream;
 
     LogicalScreen logical_screen {};
     u8 background_color_index { 0 };
@@ -96,13 +97,13 @@ enum class GIFFormat {
     GIF89a,
 };
 
-static ErrorOr<GIFFormat> decode_gif_header(Stream& stream)
+static ErrorOr<GIFFormat> decode_gif_header(NonnullRefPtr<ImageDecoderStream> stream)
 {
     static auto valid_header_87 = "GIF87a"sv;
     static auto valid_header_89 = "GIF89a"sv;
 
     Array<u8, 6> header;
-    TRY(stream.read_until_filled(header));
+    TRY(stream->read_until_filled(header));
 
     if (header.span() == valid_header_87.bytes())
         return GIFFormat::GIF87a;
@@ -241,17 +242,14 @@ static ErrorOr<void> decode_frame(GIFLoadingContext& context, size_t frame_index
 
 static ErrorOr<void> load_header_and_logical_screen(GIFLoadingContext& context)
 {
-    if (TRY(context.stream.size()) < 26)
-        return Error::from_string_literal("Size too short for minimal GIF structure");
-
     TRY(decode_gif_header(context.stream));
 
-    context.logical_screen.width = TRY(context.stream.read_value<LittleEndian<u16>>());
-    context.logical_screen.height = TRY(context.stream.read_value<LittleEndian<u16>>());
+    context.logical_screen.width = TRY(context.stream->read_value<LittleEndian<u16>>());
+    context.logical_screen.height = TRY(context.stream->read_value<LittleEndian<u16>>());
 
-    auto packed_fields = TRY(context.stream.read_value<u8>());
-    context.background_color_index = TRY(context.stream.read_value<u8>());
-    [[maybe_unused]] auto pixel_aspect_ratio = TRY(context.stream.read_value<u8>());
+    auto packed_fields = TRY(context.stream->read_value<u8>());
+    context.background_color_index = TRY(context.stream->read_value<u8>());
+    [[maybe_unused]] auto pixel_aspect_ratio = TRY(context.stream->read_value<u8>());
 
     // Global Color Table; if the flag is set, the Global Color Table will
     // immediately follow the Logical Screen Descriptor.
@@ -262,9 +260,9 @@ static ErrorOr<void> load_header_and_logical_screen(GIFLoadingContext& context)
         size_t color_map_entry_count = 1 << bits_per_pixel;
 
         for (size_t i = 0; i < color_map_entry_count; ++i) {
-            u8 r = TRY(context.stream.read_value<u8>());
-            u8 g = TRY(context.stream.read_value<u8>());
-            u8 b = TRY(context.stream.read_value<u8>());
+            u8 r = TRY(context.stream->read_value<u8>());
+            u8 g = TRY(context.stream->read_value<u8>());
+            u8 b = TRY(context.stream->read_value<u8>());
             context.logical_screen.color_map[i] = { r, g, b };
         }
     }
@@ -276,21 +274,21 @@ static ErrorOr<void> load_gif_frame_descriptors(GIFLoadingContext& context)
 {
     NonnullOwnPtr<GIFImageDescriptor> current_image = make<GIFImageDescriptor>();
     for (;;) {
-        u8 sentinel = TRY(context.stream.read_value<u8>());
+        u8 sentinel = TRY(context.stream->read_value<u8>());
 
         if (sentinel == '!') {
-            u8 extension_type = TRY(context.stream.read_value<u8>());
+            u8 extension_type = TRY(context.stream->read_value<u8>());
 
             u8 sub_block_length = 0;
 
             Vector<u8> sub_block {};
             for (;;) {
-                sub_block_length = TRY(context.stream.read_value<u8>());
+                sub_block_length = TRY(context.stream->read_value<u8>());
                 if (sub_block_length == 0)
                     break;
 
                 TRY(sub_block.try_resize(sub_block.size() + sub_block_length));
-                TRY(context.stream.read_until_filled(sub_block.span().slice_from_end(sub_block_length)));
+                TRY(context.stream->read_until_filled(sub_block.span().slice_from_end(sub_block_length)));
             }
 
             if (extension_type == 0xF9) {
@@ -340,12 +338,12 @@ static ErrorOr<void> load_gif_frame_descriptors(GIFLoadingContext& context)
             context.images.append(move(current_image));
             auto& image = context.images.last();
 
-            image->x = TRY(context.stream.read_value<LittleEndian<u16>>());
-            image->y = TRY(context.stream.read_value<LittleEndian<u16>>());
-            image->width = TRY(context.stream.read_value<LittleEndian<u16>>());
-            image->height = TRY(context.stream.read_value<LittleEndian<u16>>());
+            image->x = TRY(context.stream->read_value<LittleEndian<u16>>());
+            image->y = TRY(context.stream->read_value<LittleEndian<u16>>());
+            image->width = TRY(context.stream->read_value<LittleEndian<u16>>());
+            image->height = TRY(context.stream->read_value<LittleEndian<u16>>());
 
-            auto packed_fields = TRY(context.stream.read_value<u8>());
+            auto packed_fields = TRY(context.stream->read_value<u8>());
 
             image->use_global_color_map = !(packed_fields & 0x80);
             image->interlaced = (packed_fields & 0x40) != 0;
@@ -356,24 +354,24 @@ static ErrorOr<void> load_gif_frame_descriptors(GIFLoadingContext& context)
                 size_t local_color_table_size = AK::exp2<size_t>((packed_fields & 7) + 1);
 
                 for (size_t i = 0; i < local_color_table_size; ++i) {
-                    u8 r = TRY(context.stream.read_value<u8>());
-                    u8 g = TRY(context.stream.read_value<u8>());
-                    u8 b = TRY(context.stream.read_value<u8>());
+                    u8 r = TRY(context.stream->read_value<u8>());
+                    u8 g = TRY(context.stream->read_value<u8>());
+                    u8 b = TRY(context.stream->read_value<u8>());
                     image->color_map[i] = { r, g, b };
                 }
             }
 
-            image->lzw_min_code_size = TRY(context.stream.read_value<u8>());
+            image->lzw_min_code_size = TRY(context.stream->read_value<u8>());
 
             for (;;) {
-                auto const lzw_encoded_bytes_expected = TRY(context.stream.read_value<u8>());
+                auto const lzw_encoded_bytes_expected = TRY(context.stream->read_value<u8>());
 
                 // Block terminator
                 if (lzw_encoded_bytes_expected == 0)
                     break;
 
                 auto const lzw_subblock = TRY(image->lzw_encoded_bytes.get_bytes_for_writing(lzw_encoded_bytes_expected));
-                TRY(context.stream.read_until_filled(lzw_subblock));
+                TRY(context.stream->read_until_filled(lzw_subblock));
             }
 
             current_image = make<GIFImageDescriptor>();
@@ -391,7 +389,7 @@ static ErrorOr<void> load_gif_frame_descriptors(GIFLoadingContext& context)
     return {};
 }
 
-GIFImageDecoderPlugin::GIFImageDecoderPlugin(FixedMemoryStream stream)
+GIFImageDecoderPlugin::GIFImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream)
 {
     m_context = make<GIFLoadingContext>(move(stream));
 }
@@ -403,15 +401,13 @@ IntSize GIFImageDecoderPlugin::size()
     return { m_context->logical_screen.width, m_context->logical_screen.height };
 }
 
-bool GIFImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool GIFImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    FixedMemoryStream stream { data };
-    return !decode_gif_header(stream).is_error();
+    return !decode_gif_header(move(stream)).is_error();
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> GIFImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> GIFImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    FixedMemoryStream stream { data };
     auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) GIFImageDecoderPlugin(move(stream))));
     TRY(load_header_and_logical_screen(*plugin->m_context));
     return plugin;
