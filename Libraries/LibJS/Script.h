@@ -32,7 +32,6 @@ public:
         virtual bool is_script() const { return false; }
         virtual bool is_classic_script() const { return false; }
         virtual bool is_module_script() const { return false; }
-        virtual bool is_javascript_module_script() const { return false; }
     };
 
     virtual ~Script() override;
