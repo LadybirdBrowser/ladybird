@@ -182,7 +182,10 @@ ErrorOr<void> ICOImageDecoderPlugin::load_ico_bitmap(ICOLoadingContext& context)
         return {};
     }
 
-    auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, desc_bytes));
+    auto desc_stream = TRY(adopt_nonnull_ref_or_enomem(new ImageDecoderStream()));
+    desc_stream->append_chunk(move(desc_bytes));
+    desc_stream->close();
+    auto bmp_decoder = TRY(BMPImageDecoderPlugin::create_as_included_in_ico({}, desc_stream));
     // NOTE: We don't initialize a BMP decoder in the usual way, but rather
     // we just create an object and try to sniff for a frame when it's included
     // inside an ICO image.
