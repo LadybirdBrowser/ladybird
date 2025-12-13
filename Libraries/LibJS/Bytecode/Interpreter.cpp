@@ -2417,6 +2417,9 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
         return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments[0])));
     case Builtin::MathTan:
         return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments[0])));
+    case Builtin::RegExpPrototypeExec:
+    case Builtin::RegExpPrototypeReplace:
+    case Builtin::RegExpPrototypeSplit:
     case Builtin::ArrayIteratorPrototypeNext:
     case Builtin::MapIteratorPrototypeNext:
     case Builtin::SetIteratorPrototypeNext:

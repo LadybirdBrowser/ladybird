@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/Intl/CollatorConstructor.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibJS/Runtime/RegExpPrototype.h>
 #include <LibJS/Runtime/StringIterator.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
@@ -876,6 +877,12 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
 
         // b. If replacer is not undefined, then
         if (replacer) {
+            if (replacer == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeReplace)) {
+                // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
+                auto& rx = search_value.as_object();
+                auto string = TRY(this_object.to_primitive_string(vm));
+                return TRY(RegExpPrototype::symbol_replace_impl(vm, rx, *string, replace_value));
+            }
             // i. Return ? Call(replacer, searchValue, « O, replaceValue »).
             return TRY(call(vm, *replacer, search_value, this_object, replace_value));
         }
@@ -972,6 +979,12 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
 
         // d. If replacer is not undefined, then
         if (replacer) {
+            if (replacer == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeReplace)) {
+                // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
+                auto& rx = search_value.as_object();
+                auto string = TRY(this_object.to_primitive_string(vm));
+                return TRY(RegExpPrototype::symbol_replace_impl(vm, rx, *string, replace_value));
+            }
             // i. Return ? Call(replacer, searchValue, « O, replaceValue »).
             return TRY(call(vm, *replacer, search_value, this_object, replace_value));
         }
@@ -1154,6 +1167,12 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
         auto splitter = TRY(separator_argument.get_method(vm, vm.well_known_symbol_split(), cache));
         // b. If splitter is not undefined, then
         if (splitter) {
+            if (splitter == realm.get_builtin_value(Bytecode::Builtin::RegExpPrototypeSplit)) {
+                // OPTIMIZATION: The common case of RegExp.prototype[@@split]
+                auto& rx = separator_argument.as_object();
+                auto string = TRY(object.to_primitive_string(vm));
+                return TRY(RegExpPrototype::symbol_split_impl(vm, rx, *string, limit_argument));
+            }
             // i. Return ? Call(splitter, separator, « O, limit »).
             return TRY(call(vm, *splitter, separator_argument, object, limit_argument));
         }

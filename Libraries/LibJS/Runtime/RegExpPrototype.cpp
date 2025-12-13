@@ -39,14 +39,14 @@ void RegExpPrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.test, test, 1, attr);
-    define_native_function(realm, vm.names.exec, exec, 1, attr);
+    define_native_function(realm, vm.names.exec, exec, 1, attr, Bytecode::Builtin::RegExpPrototypeExec);
     define_native_function(realm, vm.names.compile, compile, 2, attr);
 
     define_native_function(realm, vm.well_known_symbol_match(), symbol_match, 1, attr);
     define_native_function(realm, vm.well_known_symbol_match_all(), symbol_match_all, 1, attr);
-    define_native_function(realm, vm.well_known_symbol_replace(), symbol_replace, 2, attr);
+    define_native_function(realm, vm.well_known_symbol_replace(), symbol_replace, 2, attr, Bytecode::Builtin::RegExpPrototypeReplace);
     define_native_function(realm, vm.well_known_symbol_search(), symbol_search, 1, attr);
-    define_native_function(realm, vm.well_known_symbol_split(), symbol_split, 2, attr);
+    define_native_function(realm, vm.well_known_symbol_split(), symbol_split, 2, attr, Bytecode::Builtin::RegExpPrototypeSplit);
 
     define_native_accessor(realm, vm.names.flags, flags, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.source, source, {}, Attribute::Configurable);
@@ -459,8 +459,12 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
 
     // 2. If IsCallable(exec) is true, then
     if (exec.is_function()) {
+        auto& exec_function = exec.as_function();
+        if (&exec_function == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeExec))
+            return regexp_builtin_exec(vm, static_cast<RegExpObject&>(regexp_object), string);
+
         // a. Let result be ? Call(exec, R, « S »).
-        auto result = TRY(call(vm, exec.as_function(), &regexp_object, string));
+        auto result = TRY(call(vm, exec_function, &regexp_object, string));
 
         // b. If Type(result) is neither Object nor Null, throw a TypeError exception.
         if (!result.is_object() && !result.is_null())
@@ -718,6 +722,11 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     // 3. Let S be ? ToString(string).
     auto string = TRY(string_value.to_primitive_string(vm));
 
+    return symbol_replace_impl(vm, *regexp_object, string, replace_value);
+}
+
+ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string, Value replace_value)
+{
     // 4. Let lengthS be the number of code unit elements in S.
     // 5. Let functionalReplace be IsCallable(replaceValue).
 
@@ -730,7 +739,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
     static Bytecode::PropertyLookupCache cache;
-    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
+    auto flags_value = TRY(regexp_object.get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // 8. If flags contains "g", let global be true. Otherwise, let global be false.
@@ -740,7 +749,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
     if (global) {
         // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
         static Bytecode::PropertyLookupCache cache2;
-        TRY(regexp_object->set(vm.names.lastIndex, Value(0), cache2));
+        TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
     }
 
     // 10. Let results be a new empty List.
@@ -969,8 +978,6 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::source)
 // 22.2.6.14 RegExp.prototype [ @@split ] ( string, limit ), https://tc39.es/ecma262/#sec-regexp.prototype-@@split
 JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let rx be the this value.
     // 2. If Type(rx) is not Object, throw a TypeError exception.
     auto regexp_object = TRY(this_object(vm));
@@ -978,12 +985,19 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     // 3. Let S be ? ToString(string).
     auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
+    return symbol_split_impl(vm, *regexp_object, string, vm.argument(1));
+}
+
+ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string, Value limit_value)
+{
+    auto& realm = *vm.current_realm();
+
     // 4. Let C be ? SpeciesConstructor(rx, %RegExp%).
     auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
     static Bytecode::PropertyLookupCache cache;
-    auto flags_value = TRY(regexp_object->get(vm.names.flags, cache));
+    auto flags_value = TRY(regexp_object.get(vm.names.flags, cache));
     auto flags = TRY(flags_value.to_string(vm));
 
     // 6. If flags contains "u" or flags contains "v", let unicodeMatching be true.
@@ -995,7 +1009,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
     auto new_flags = flags.bytes_as_string_view().find('y').has_value() ? move(flags) : MUST(String::formatted("{}y", flags));
 
     // 10. Let splitter be ? Construct(C, « rx, newFlags »).
-    auto splitter = TRY(construct(vm, *constructor, regexp_object, PrimitiveString::create(vm, move(new_flags))));
+    auto splitter = TRY(construct(vm, *constructor, &regexp_object, PrimitiveString::create(vm, move(new_flags))));
 
     // 11. Let A be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));
@@ -1005,8 +1019,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_split)
 
     // 13. If limit is undefined, let lim be 2^32 - 1; else let lim be ℝ(? ToUint32(limit)).
     auto limit = NumericLimits<u32>::max();
-    if (!vm.argument(1).is_undefined())
-        limit = TRY(vm.argument(1).to_u32(vm));
+    if (!limit_value.is_undefined())
+        limit = TRY(limit_value.to_u32(vm));
 
     // 14. If lim is 0, return A.
     if (limit == 0)
