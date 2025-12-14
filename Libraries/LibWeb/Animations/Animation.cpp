@@ -722,6 +722,7 @@ WebIDL::ExceptionOr<void> Animation::play()
 }
 
 // https://drafts.csswg.org/web-animations-1/#playing-an-animation-section
+// https://drafts.csswg.org/web-animations-2/#play-an-animation
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 {
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
@@ -730,70 +731,54 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     // 2. Let has pending ready promise be a boolean flag that is initially false.
     auto has_pending_ready_promise = false;
 
-    // 3. Let seek time be a time value that is initially unresolved.
-    Optional<TimeValue> seek_time;
-
-    // 4. If the auto-rewind flag is true, perform the steps corresponding to the first matching condition from the
-    // following, if any:
-    if (auto_rewind == AutoRewind::Yes) {
-        auto effective_playback_rate = this->effective_playback_rate();
-        auto current_time = this->current_time();
-        auto associated_effect_end = this->associated_effect_end();
-
-        // -> If animation’s effective playback rate ≥ 0, and animation’s current time is either:
-        //    - unresolved, or
-        //    - less than zero, or
-        //    - greater than or equal to associated effect end,
-        if (effective_playback_rate >= 0.0 && (!current_time.has_value() || current_time->value < 0 || current_time.value() >= associated_effect_end)) {
-            // Set seek time to zero.
-            seek_time = TimeValue::create_zero(m_timeline);
-        }
-        // -> If animation’s effective playback rate < 0, and animation’s current time is either:
-        //    - unresolved, or
-        //    - less than or equal to zero, or
-        //    - greater than associated effect end,
-        else if (effective_playback_rate < 0.0 && (!current_time.has_value() || current_time->value <= 0 || current_time.value() > associated_effect_end)) {
-            // -> If associated effect end is positive infinity,
-            if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
-                // throw an "InvalidStateError" DOMException and abort these steps.
-                return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
-            }
-            // -> Otherwise,
-            //    Set seek time to animation’s associated effect end.
-            seek_time = associated_effect_end;
-        }
-    }
-
-    // 5. If the following three conditions are all satisfied:
-    //    - seek time is unresolved, and
-    //    - animation’s start time is unresolved, and
-    //    - animation’s current time is unresolved,
-    if (!seek_time.has_value() && !m_start_time.has_value() && !current_time().has_value()) {
-        // set seek time to zero.
-        seek_time = TimeValue::create_zero(m_timeline);
-    }
-
-    // 6. Let has finite timeline be true if animation has an associated timeline that is not monotonically increasing.
+    // 3. Let has finite timeline be true if animation has an associated timeline that is not monotonically increasing.
     auto has_finite_timeline = m_timeline && !m_timeline->is_monotonically_increasing();
 
-    // 7. If seek time is resolved,
-    if (seek_time.has_value()) {
-        // -> If has finite timeline is true,
-        if (has_finite_timeline) {
-            // 1. Set animation’s start time to seek time.
-            m_start_time = seek_time;
+    // 4. Let previous current time be the animation’s current time
+    auto previous_current_time = current_time();
 
-            // 2. Let animation’s hold time be unresolved.
-            m_hold_time = {};
+    // 5. Let enable seek be true if the auto-rewind flag is true and has finite timeline is false. Otherwise,
+    //    initialize to false.
+    auto enable_seek = (auto_rewind == AutoRewind::Yes) && !has_finite_timeline;
 
-            // 3. Apply any pending playback rate on animation.
-            apply_any_pending_playback_rate();
+    // 6. Perform the steps corresponding to the first matching condition from the following, if any:
+    auto const& effective_playback_rate = this->effective_playback_rate();
+    auto const& associated_effect_end = this->associated_effect_end();
+
+    // -> If animation’s effective playback rate > 0, enable seek is true and either animation’s:
+    //    - previous current time is unresolved, or
+    //    - previous current time < zero, or
+    //    - previous current time ≥ associated effect end,
+    if (effective_playback_rate > 0.0 && enable_seek && (!previous_current_time.has_value() || previous_current_time->value < 0 || previous_current_time.value() >= associated_effect_end)) {
+        // Set the animation’s hold time to zero.
+        m_hold_time = TimeValue::create_zero(m_timeline);
+    }
+
+    // -> If animation’s effective playback rate < 0, enable seek is true and either animation’s:
+    //    - previous current time is unresolved, or
+    //    - previous current time ≤ zero, or
+    //    - previous current time > associated effect end,
+    else if (effective_playback_rate < 0 && enable_seek && (!previous_current_time.has_value() || previous_current_time->value <= 0 || previous_current_time.value() > associated_effect_end)) {
+        // -> If associated effect end is positive infinity,
+        if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
+            // throw an "InvalidStateError" DOMException and abort these steps.
+            return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
         }
-        // Otherwise,
-        else {
-            // Set animation’s hold time to seek time.
-            m_hold_time = seek_time;
-        }
+
+        // -> Otherwise,
+        //    Set the animation’s hold time to the animation’s associated effect end.
+        m_hold_time = associated_effect_end;
+    }
+
+    // -> If animation’s effective playback rate = 0 and animation’s current time is unresolved,
+    else if (effective_playback_rate == 0.0 && !previous_current_time.has_value()) {
+        // Set the animation’s hold time to zero.
+        m_hold_time = TimeValue::create_zero(m_timeline);
+    }
+
+    // 7. If has finite timeline and previous current time is unresolved:
+    if (has_finite_timeline && !previous_current_time.has_value()) {
+        // FIXME: Set the flag auto align start time to true.
     }
 
     // 8. If animation’s hold time is resolved, let its start time be unresolved.
@@ -810,12 +795,11 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
         has_pending_ready_promise = true;
     }
 
-    // 10. If the following four conditions are all satisfied:
+    // 10. If the following three conditions are all satisfied:
     //     - animation’s hold time is unresolved, and
-    //     - seek time is unresolved, and
     //     - aborted pause is false, and
     //     - animation does not have a pending playback rate,
-    if (!m_hold_time.has_value() && !seek_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value()) {
+    if (!m_hold_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value()) {
         // abort this procedure.
         return {};
     }
