@@ -1034,7 +1034,7 @@ Utf16String Document::title() const
 
     // 1. If the document element is an SVG svg element, then let value be the child text content of the first SVG title
     //    element that is a child of the document element.
-    if (auto const* document_element = this->document_element(); is<SVG::SVGElement>(document_element)) {
+    if (auto const* document_element = this->document_element(); is<SVG::SVGSVGElement>(document_element)) {
         if (auto const* title_element = document_element->first_child_of_type<SVG::SVGTitleElement>())
             value = title_element->child_text_content();
     }
@@ -1058,7 +1058,7 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16String const& title)
     auto* document_element = this->document_element();
 
     // -> If the document element is an SVG svg element
-    if (is<SVG::SVGElement>(document_element)) {
+    if (is<SVG::SVGSVGElement>(document_element)) {
         GC::Ptr<Element> element;
 
         // 1. If there is an SVG title element that is a child of the document element, let element be the first such
