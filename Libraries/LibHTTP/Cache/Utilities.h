@@ -31,6 +31,7 @@ bool is_header_exempted_from_storage(StringView name);
 
 AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const&, AK::Duration current_time_offset_for_testing = {});
 AK::Duration calculate_age(HeaderList const&, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing = {});
+AK::Duration calculate_stale_while_revalidate_lifetime(HeaderList const&, AK::Duration freshness_lifetime);
 
 enum class CacheLifetimeStatus {
     Fresh,
