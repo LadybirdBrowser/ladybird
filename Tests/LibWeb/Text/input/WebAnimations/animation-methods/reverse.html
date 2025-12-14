@@ -23,14 +23,13 @@
 
         anim = foo.animate({}, { duration: Infinity });
         anim.cancel();
-        anim.playbackRate = -1;
         try {
             // anim.play() would throw here
             anim.reverse();
         } catch {
             println("Cannot reverse an animation with an infinite effect end");
         }
-        if (anim.playbackRate === -1)
+        if (anim.playbackRate === 1)
             println("reverse() does not update the playback rate if calling play() would throw an exception");
     });
 </script>

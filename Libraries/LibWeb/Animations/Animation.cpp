@@ -650,7 +650,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     // 4. If the auto-rewind flag is true, perform the steps corresponding to the first matching condition from the
     // following, if any:
     if (auto_rewind == AutoRewind::Yes) {
-        auto playback_rate = this->playback_rate();
+        auto effective_playback_rate = this->effective_playback_rate();
         auto current_time = this->current_time();
         auto associated_effect_end = this->associated_effect_end();
 
@@ -658,7 +658,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
         //    - unresolved, or
         //    - less than zero, or
         //    - greater than or equal to associated effect end,
-        if (playback_rate >= 0.0 && (!current_time.has_value() || current_time->value < 0 || current_time.value() >= associated_effect_end)) {
+        if (effective_playback_rate >= 0.0 && (!current_time.has_value() || current_time->value < 0 || current_time.value() >= associated_effect_end)) {
             // Set seek time to zero.
             seek_time = TimeValue::create_zero(m_timeline);
         }
@@ -666,7 +666,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
         //    - unresolved, or
         //    - less than or equal to zero, or
         //    - greater than associated effect end,
-        else if (playback_rate < 0.0 && (!current_time.has_value() || current_time->value <= 0 || current_time.value() > associated_effect_end)) {
+        else if (effective_playback_rate < 0.0 && (!current_time.has_value() || current_time->value <= 0 || current_time.value() > associated_effect_end)) {
             // -> If associated effect end is positive infinity,
             if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
                 // throw an "InvalidStateError" DOMException and abort these steps.
