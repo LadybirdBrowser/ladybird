@@ -104,6 +104,7 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
+// https://drafts.csswg.org/web-animations-2/#setting-the-timeline
 void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 {
     // 1. Let old timeline be the current timeline of animation, if any.
@@ -113,22 +114,97 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     if (new_timeline == old_timeline)
         return;
 
-    // 3. Let the timeline of animation be new timeline.
+    // 3. Let previous play state be animation’s play state.
+    auto previous_play_state = play_state();
+
+    // 4. Let previous current time be the animation’s current time.
+    auto previous_current_time = current_time();
+
+    // 5. Set previous progress based in the first condition that applies:
+    auto previous_progress = [&]() -> Optional<double> {
+        // If previous current time is unresolved:
+        // Set previous progress to unresolved.
+        if (!previous_current_time.has_value())
+            return {};
+
+        // If end time is zero:
+        // Set previous progress to zero.
+        if (m_effect && m_effect->end_time().value == 0)
+            return 0;
+
+        // Otherwise
+        // Set previous progress = previous current time / end time
+        return previous_current_time.value() / m_effect->end_time();
+    }();
+
+    // 6. Let from finite timeline be true if old timeline is not null and not monotonically increasing.
+    auto from_finite_timeline = old_timeline && !old_timeline->is_monotonically_increasing();
+
+    // 7. Let to finite timeline be true if timeline is not null and not monotonically increasing.
+    auto to_finite_timeline = new_timeline && !new_timeline->is_monotonically_increasing();
+
+    // 8. Let the timeline of animation be new timeline.
     if (m_timeline)
         m_timeline->disassociate_with_animation(*this);
     m_timeline = new_timeline;
     if (m_timeline)
         m_timeline->associate_with_animation(*this);
 
-    // 4. If the start time of animation is resolved, make animation’s hold time unresolved.
-    if (m_start_time.has_value())
-        m_hold_time = {};
+    auto const previous_progress_multiplied_by_end_time = [&]() -> TimeValue {
+        // AD-HOC: The spec doesn't say what to do if we have no effect so we just assume an end time of 0
+        if (!m_effect)
+            return TimeValue::create_zero(m_timeline);
+
+        return TimeValue {
+            m_timeline && m_timeline->is_progress_based() ? TimeValue::Type::Percentage : TimeValue::Type::Milliseconds,
+            m_effect->end_time().value * previous_progress.value()
+        };
+    };
 
     // AD-HOC: The normalization of the specified timing of the associated effect depends on the associated timeline.
+    //         This must be done before calling set_current_time_for_bindings() to ensure consistent units
     if (m_effect)
         m_effect->normalize_specified_timing();
 
-    // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
+    // 9. Perform the steps corresponding to the first matching condition from the following, if any:
+    // If to finite timeline,
+    if (to_finite_timeline) {
+        // 1. Apply any pending playback rate on animation
+        apply_any_pending_playback_rate();
+
+        // FIXME: 2. set auto align start time to true.
+
+        // 3. Set start time to unresolved.
+        m_start_time = {};
+
+        // 4. Set hold time to unresolved.
+        m_hold_time = {};
+
+        // 5. If previous play state is "finished" or "running"
+        if (first_is_one_of(previous_play_state, Bindings::AnimationPlayState::Finished, Bindings::AnimationPlayState::Running)) {
+            // 1. Schedule a pending play task
+            m_pending_play_task = TaskState::Scheduled;
+        }
+
+        // 6. If previous play state is "paused" and previous progress is resolved:
+        if (previous_play_state == Bindings::AnimationPlayState::Paused && previous_progress.has_value()) {
+            // 1. Set hold time to previous progress * end time.
+            m_hold_time = previous_progress_multiplied_by_end_time();
+        }
+        // NOTE: This step ensures that previous progress is preserved even in the case of a pause-pending animation with a resolved start time.
+    }
+    // If from finite timeline and previous progress is resolved,
+    else if (from_finite_timeline && previous_progress.has_value()) {
+        // Run the procedure to set the current time to previous progress * end time.
+        // NB: We know that the time we are passing is valid so we can wrap this in a MUST() to avoid error handling
+        MUST(set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish(realm())));
+    }
+
+    // 10. If the start time of animation is resolved, make animation’s hold time unresolved.
+    if (m_start_time.has_value())
+        m_hold_time = {};
+
+    // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
