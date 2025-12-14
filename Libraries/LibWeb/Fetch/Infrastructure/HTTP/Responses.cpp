@@ -257,31 +257,9 @@ AK::Duration Response::freshness_lifetime() const
     return HTTP::calculate_freshness_lifetime(m_status, m_header_list);
 }
 
-// https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
 AK::Duration Response::stale_while_revalidate_lifetime() const
 {
-    auto const elem = header_list()->get_decode_and_split("Cache-Control"sv);
-    if (!elem.has_value())
-        return {};
-
-    for (auto const& directive : *elem) {
-        if (directive.starts_with_bytes("stale-while-revalidate"sv)) {
-            auto equal_offset = directive.find_byte_offset('=');
-            if (!equal_offset.has_value()) {
-                dbgln("Bogus directive: '{}'", directive);
-                continue;
-            }
-            auto const value_string = directive.bytes_as_string_view().substring_view(equal_offset.value() + 1);
-            auto maybe_value = value_string.to_number<i64>();
-            if (!maybe_value.has_value()) {
-                dbgln("Bogus directive: '{}'", directive);
-                continue;
-            }
-            return AK::Duration::from_seconds(*maybe_value);
-        }
-    }
-
-    return {};
+    return HTTP::calculate_stale_while_revalidate_lifetime(m_header_list, freshness_lifetime());
 }
 
 FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)

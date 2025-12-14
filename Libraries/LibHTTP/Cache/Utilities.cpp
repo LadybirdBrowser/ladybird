@@ -328,6 +328,21 @@ AK::Duration calculate_age(HeaderList const& headers, UnixDateTime request_time,
     return current_age;
 }
 
+// https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
+AK::Duration calculate_stale_while_revalidate_lifetime(HeaderList const& headers, AK::Duration freshness_lifetime)
+{
+    auto cache_control = headers.get("Cache-Control"sv);
+    if (!cache_control.has_value())
+        return {};
+
+    if (auto swr = extract_cache_control_directive(*cache_control, "stale-while-revalidate"sv); swr.has_value()) {
+        if (auto seconds = swr->to_number<i64>(); seconds.has_value())
+            return freshness_lifetime + AK::Duration::from_seconds(*seconds);
+    }
+
+    return {};
+}
+
 CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
 {
     auto revalidation_status = [&](auto revalidation_type) {
@@ -355,12 +370,8 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duratio
         // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
         // When present in an HTTP response, the stale-while-revalidate Cache-Control extension indicates that caches
         // MAY serve the response it appears in after it becomes stale, up to the indicated number of seconds.
-        if (auto swr = extract_cache_control_directive(*cache_control, "stale-while-revalidate"sv); swr.has_value()) {
-            if (auto seconds = swr->to_number<i64>(); seconds.has_value()) {
-                if (freshness_lifetime + AK::Duration::from_seconds(*seconds) > current_age)
-                    return revalidation_status(CacheLifetimeStatus::StaleWhileRevalidate);
-            }
-        }
+        if (calculate_stale_while_revalidate_lifetime(headers, freshness_lifetime) > current_age)
+            return revalidation_status(CacheLifetimeStatus::StaleWhileRevalidate);
 
         // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
         // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT
