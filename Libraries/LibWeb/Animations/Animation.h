@@ -51,6 +51,8 @@ public:
     Optional<TimeValue> start_time() const { return m_start_time; }
     WebIDL::ExceptionOr<void> set_start_time_for_bindings(Optional<CSS::CSSNumberish> const&);
 
+    void calculate_auto_aligned_start_time();
+
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
     NullableCSSNumberish current_time_for_bindings() const
     {
@@ -190,6 +192,8 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#animation-start-time
     Optional<TimeValue> m_start_time {};
+
+    bool m_auto_align_start_time { false };
 
     // https://www.w3.org/TR/web-animations-1/#animation-hold-time
     Optional<TimeValue> m_hold_time {};
