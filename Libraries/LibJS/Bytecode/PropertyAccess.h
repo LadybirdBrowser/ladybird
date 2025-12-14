@@ -244,12 +244,13 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     auto cached_prototype = cache.prototype.ptr();
                     if (!cached_prototype) [[unlikely]]
                         break;
+                    auto cached_shape = cache.shape.ptr();
                     // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
                     bool can_use_cache = [&]() -> bool {
-                        if (&object->shape() != cache.shape) [[unlikely]]
+                        if (&object->shape() != cached_shape) [[unlikely]]
                             return false;
 
-                        if (cache.shape->is_dictionary()) {
+                        if (cached_shape->is_dictionary()) {
                             VERIFY(cache.shape_dictionary_generation.has_value());
                             if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value()) [[unlikely]]
                                 return false;
@@ -272,12 +273,13 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     break;
                 }
                 case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
-                    if (cache.shape != &object->shape()) [[unlikely]]
+                    auto cached_shape = cache.shape.ptr();
+                    if (cached_shape != &object->shape()) [[unlikely]]
                         break;
 
-                    if (cache.shape->is_dictionary()) {
+                    if (cached_shape->is_dictionary()) {
                         VERIFY(cache.shape_dictionary_generation.has_value());
-                        if (cache.shape->dictionary_generation() != cache.shape_dictionary_generation.value())
+                        if (cached_shape->dictionary_generation() != cache.shape_dictionary_generation.value())
                             break;
                     }
 
@@ -298,7 +300,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     if (!cached_shape) [[unlikely]]
                         break;
 
-                    if (cache.shape->is_dictionary()) {
+                    if (cached_shape->is_dictionary()) {
                         VERIFY(cache.shape_dictionary_generation.has_value());
                         if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value())
                             break;
@@ -338,8 +340,8 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
             if (cacheable_metadata.prototype) {
                 cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
             }
-            if (cache.shape->is_dictionary()) {
-                cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+            if (object->shape().is_dictionary()) {
+                cache.shape_dictionary_generation = object->shape().dictionary_generation();
             }
         }
 
@@ -358,8 +360,8 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 cache.shape = object->shape();
                 cache.property_offset = cacheable_metadata.property_offset.value();
 
-                if (cache.shape->is_dictionary()) {
-                    cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+                if (object->shape().is_dictionary()) {
+                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
                 }
                 break;
             case CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain:
@@ -369,8 +371,8 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                 cache.prototype = *cacheable_metadata.prototype;
                 cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
 
-                if (cache.shape->is_dictionary()) {
-                    cache.shape_dictionary_generation = cache.shape->dictionary_generation();
+                if (object->shape().is_dictionary()) {
+                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
                 }
                 break;
             case CacheableSetPropertyMetadata::Type::NotCacheable:
