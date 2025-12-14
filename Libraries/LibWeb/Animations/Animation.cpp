@@ -172,7 +172,8 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
         // 1. Apply any pending playback rate on animation
         apply_any_pending_playback_rate();
 
-        // FIXME: 2. set auto align start time to true.
+        // 2. set auto align start time to true.
+        m_auto_align_start_time = true;
 
         // 3. Set start time to unresolved.
         m_start_time = {};
@@ -280,7 +281,8 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::C
     //         there is no need to assign the `valid start time` variable here.
     auto new_start_time = TRY(validate_a_css_numberish_time(raw_new_start_time));
 
-    // FIXME: 3. Set auto align start time to false.
+    // 3. Set auto align start time to false.
+    m_auto_align_start_time = false;
 
     // 4. Let timeline time be the current time value of the timeline that animation is associated with. If there is no
     //    timeline associated with animation or the associated timeline is inactive, let the timeline time be
@@ -327,6 +329,47 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::C
     update_finished_state(DidSeek::Yes, SynchronouslyNotify::No);
 
     return {};
+}
+
+// https://drafts.csswg.org/web-animations-2/#auto-aligning-start-time
+void Animation::calculate_auto_aligned_start_time()
+{
+    VERIFY(m_timeline && m_timeline->is_progress_based());
+
+    // 1. If the auto-align start time flag is false, abort this procedure.
+    if (!m_auto_align_start_time)
+        return;
+
+    // 2. If the timeline is inactive, abort this procedure.
+    if (!m_timeline || m_timeline->is_inactive())
+        return;
+
+    // 3. If play state is idle, abort this procedure.
+    if (is_idle())
+        return;
+
+    // 4. If play state is paused, and hold time is resolved, abort this procedure.
+    if (play_state() == Bindings::AnimationPlayState::Paused && m_hold_time.has_value())
+        return;
+
+    // 5. FIXME: Let start offset be the resolved timeline time corresponding to the start of the animation attachment
+    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
+    //           range.
+    auto start_offset = TimeValue { TimeValue::Type::Percentage, 0 };
+
+    // 6. FIXME: Let end offset be the resolved timeline time corresponding to the end of the animation attachment
+    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
+    //           range.
+    auto end_offset = TimeValue { TimeValue::Type::Percentage, 100 };
+
+    // 7. Set start time to start offset if effective playback rate ≥ 0, and end offset otherwise.
+    if (effective_playback_rate() >= 0.0)
+        m_start_time = start_offset;
+    else
+        m_start_time = end_offset;
+
+    // 8. Clear hold time.
+    m_hold_time = {};
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-current-time
@@ -778,7 +821,8 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 
     // 7. If has finite timeline and previous current time is unresolved:
     if (has_finite_timeline && !previous_current_time.has_value()) {
-        // FIXME: Set the flag auto align start time to true.
+        // Set the flag auto align start time to true.
+        m_auto_align_start_time = true;
     }
 
     // 8. If animation’s hold time is resolved, let its start time be unresolved.
@@ -799,7 +843,10 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     //     - animation’s hold time is unresolved, and
     //     - aborted pause is false, and
     //     - animation does not have a pending playback rate,
-    if (!m_hold_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value()) {
+    // AD-HOC: We also don't abort if we have a pending auto-alignment of the start time, see
+    //         https://github.com/w3c/csswg-drafts/issues/13236
+    auto pending_auto_aligned_start_time = m_auto_align_start_time && !m_start_time.has_value();
+    if (!m_hold_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value() && !pending_auto_aligned_start_time) {
         // abort this procedure.
         return {};
     }
@@ -1073,6 +1120,12 @@ GC::Ptr<DOM::Document> Animation::document_for_timing() const
 
 void Animation::update()
 {
+    // https://drafts.csswg.org/scroll-animations-1/#event-loop
+    // When updating timeline current time, the start time of any attached animation is conditionally updated. For each
+    // attached animation, run the procedure for calculating an auto-aligned start time.
+    if (m_timeline && m_timeline->is_progress_based())
+        calculate_auto_aligned_start_time();
+
     // Update finished state if not already finished; prevents recurring invalidation when the timeline updates.
     if (!m_is_finished)
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
@@ -1145,7 +1198,8 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
     // 3. If valid seek time is false, abort this procedure.
     // AD-HOC: We have already validated in the caller.
 
-    // FIXME: 4. Set auto align start time to false.
+    // 4. Set auto align start time to false.
+    m_auto_align_start_time = false;
 
     // 5. Update either animation’s hold time or start time as follows:
 
