@@ -21,7 +21,7 @@ TEST_CASE(create_and_destroy_playback_stream)
     Core::EventLoop event_loop;
 
     bool has_implementation = false;
-#if defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS)
+#if defined(HAVE_PULSEAUDIO) || defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS)
     has_implementation = true;
 #endif
 
