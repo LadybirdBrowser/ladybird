@@ -661,7 +661,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
 
     auto* registers_and_constants_and_locals_and_arguments = context.registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < executable.constants.size(); ++i) {
-        registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants[i];
+        registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants.data()[i];
     }
 
     run_bytecode(entry_point.value_or(0));
@@ -1949,7 +1949,7 @@ ThrowCompletionOr<void> GetCalleeAndThisFromEnvironment::execute_impl(Bytecode::
 
 ThrowCompletionOr<void> GetGlobal::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), TRY(get_global(interpreter, m_identifier, strict(), interpreter.current_executable().global_variable_caches[m_cache_index])));
+    interpreter.set(dst(), TRY(get_global(interpreter, m_identifier, strict(), interpreter.current_executable().global_variable_caches.data()[m_cache_index])));
     return {};
 }
 
@@ -1959,7 +1959,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     auto& binding_object = interpreter.global_object();
     auto& declarative_record = interpreter.global_declarative_environment();
 
-    auto& cache = interpreter.current_executable().global_variable_caches[m_cache_index];
+    auto& cache = interpreter.current_executable().global_variable_caches.data()[m_cache_index];
     auto& shape = binding_object.shape();
     auto src = interpreter.get(m_src);
 
@@ -2211,7 +2211,7 @@ ThrowCompletionOr<void> SetVariableBinding::execute_impl(Bytecode::Interpreter& 
 ThrowCompletionOr<void> GetById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto base_value = interpreter.get(base());
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
+    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
 
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(interpreter.vm(), [&] { return interpreter.get_identifier(m_base_identifier); }, [&] -> PropertyKey const& { return interpreter.get_property_key(m_property); }, base_value, base_value, cache)));
     return {};
@@ -2221,7 +2221,7 @@ ThrowCompletionOr<void> GetByIdWithThis::execute_impl(Bytecode::Interpreter& int
 {
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
-    auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];
+    auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Normal>(interpreter.vm(), [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return interpreter.get_property_key(m_property); }, base_value, this_value, cache)));
     return {};
 }
@@ -2230,8 +2230,7 @@ ThrowCompletionOr<void> GetLength::execute_impl(Bytecode::Interpreter& interpret
 {
     auto base_value = interpreter.get(base());
     auto& executable = interpreter.current_executable();
-    auto& cache = executable.property_lookup_caches[m_cache_index];
-
+    auto& cache = executable.property_lookup_caches.data()[m_cache_index];
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), [&] { return interpreter.get_identifier(m_base_identifier); }, [&] { return executable.get_property_key(*executable.length_identifier); }, base_value, base_value, cache)));
     return {};
 }
@@ -2241,7 +2240,7 @@ ThrowCompletionOr<void> GetLengthWithThis::execute_impl(Bytecode::Interpreter& i
     auto base_value = interpreter.get(m_base);
     auto this_value = interpreter.get(m_this_value);
     auto& executable = interpreter.current_executable();
-    auto& cache = executable.property_lookup_caches[m_cache_index];
+    auto& cache = executable.property_lookup_caches.data()[m_cache_index];
     interpreter.set(dst(), TRY(get_by_id<GetByIdMode::Length>(interpreter.vm(), [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, this_value, cache)));
     return {};
 }
@@ -2293,7 +2292,7 @@ ThrowCompletionOr<void> PutBySpread::execute_impl(Bytecode::Interpreter& interpr
         auto base = interpreter.get(m_base);                                                                             \
         auto const& base_identifier = interpreter.get_identifier(m_base_identifier);                                     \
         auto const& property_key = interpreter.get_property_key(m_property);                                             \
-        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                            \
+        auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];                     \
         TRY(put_by_property_key<PutKind::kind>(vm, base, base, value, base_identifier, property_key, strict(), &cache)); \
         return {};                                                                                                       \
     }
@@ -2307,7 +2306,7 @@ JS_ENUMERATE_PUT_KINDS(DEFINE_PUT_KIND_BY_ID)
         auto value = interpreter.get(m_src);                                                                                 \
         auto base = interpreter.get(m_base);                                                                                 \
         auto const& name = interpreter.get_property_key(m_property);                                                         \
-        auto& cache = interpreter.current_executable().property_lookup_caches[m_cache_index];                                \
+        auto& cache = interpreter.current_executable().property_lookup_caches.data()[m_cache_index];                         \
         TRY(put_by_property_key<PutKind::kind>(vm, base, interpreter.get(m_this_value), value, {}, name, strict(), &cache)); \
         return {};                                                                                                           \
     }
@@ -2392,31 +2391,31 @@ static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& int
 {
     switch (builtin) {
     case Builtin::MathAbs:
-        return TRY(MathObject::abs_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::abs_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathLog:
-        return TRY(MathObject::log_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::log_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathPow:
-        return TRY(MathObject::pow_impl(interpreter.vm(), interpreter.get(arguments[0]), interpreter.get(arguments[1])));
+        return TRY(MathObject::pow_impl(interpreter.vm(), interpreter.get(arguments.data()[0]), interpreter.get(arguments.data()[1])));
     case Builtin::MathExp:
-        return TRY(MathObject::exp_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::exp_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathCeil:
-        return TRY(MathObject::ceil_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::ceil_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathFloor:
-        return TRY(MathObject::floor_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::floor_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathImul:
-        return TRY(MathObject::imul_impl(interpreter.vm(), interpreter.get(arguments[0]), interpreter.get(arguments[1])));
+        return TRY(MathObject::imul_impl(interpreter.vm(), interpreter.get(arguments.data()[0]), interpreter.get(arguments.data()[1])));
     case Builtin::MathRandom:
         return MathObject::random_impl();
     case Builtin::MathRound:
-        return TRY(MathObject::round_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::round_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathSqrt:
-        return TRY(MathObject::sqrt_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::sqrt_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathSin:
-        return TRY(MathObject::sin_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::sin_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathCos:
-        return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::MathTan:
-        return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments[0])));
+        return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
     case Builtin::RegExpPrototypeExec:
     case Builtin::RegExpPrototypeReplace:
     case Builtin::RegExpPrototypeSplit:
@@ -2458,7 +2457,7 @@ static ThrowCompletionOr<void> execute_call(
     auto const insn_argument_count = arguments.size();
 
     for (size_t i = 0; i < insn_argument_count; ++i)
-        callee_context_argument_values[i] = interpreter.get(arguments[i]);
+        callee_context_argument_values[i] = interpreter.get(arguments.data()[i]);
     for (size_t i = insn_argument_count; i < callee_context_argument_count; ++i)
         callee_context_argument_values[i] = js_undefined();
     callee_context->passed_argument_count = insn_argument_count;
