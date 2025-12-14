@@ -284,8 +284,6 @@ AK::Duration Response::stale_while_revalidate_lifetime() const
     return {};
 }
 
-// Non-standard
-
 FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
     : Response(move(header_list))
     , m_internal_response(internal_response)
