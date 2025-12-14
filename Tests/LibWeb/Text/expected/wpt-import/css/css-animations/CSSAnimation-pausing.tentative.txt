@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-2 Pass
-7 Fail
+3 Pass
+6 Fail
 Fail	play() overrides animation-play-state
 Pass	play() does NOT override the animation-play-state if there was an error
 Fail	pause() overrides animation-play-state
 Fail	reverse() overrides animation-play-state when it starts playing the animation
-Fail	reverse() does NOT override animation-play-state if the animation is already running
+Pass	reverse() does NOT override animation-play-state if the animation is already running
 Fail	Setting the startTime to null overrides animation-play-state if the animation is already running
 Fail	Setting the startTime to non-null overrides animation-play-state if the animation is paused
 Pass	Setting the startTime to non-null does NOT override the animation-play-state if the animation is already running

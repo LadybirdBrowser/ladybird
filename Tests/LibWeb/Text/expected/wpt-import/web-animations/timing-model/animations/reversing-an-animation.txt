@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+16 Pass
+2 Fail
+Pass	Reversing an animation inverts the playback rate
+Pass	Reversing an animation plays a pausing animation
+Pass	Reversing an animation maintains the same current time
+Pass	Reversing an animation does not cause it to leave the pending state
+Pass	Reversing an animation does not cause it to resolve the ready promise
+Pass	Reversing an animation when playbackRate > 0 and currentTime > effect end should make it play from the end
+Pass	Reversing an animation when playbackRate > 0 and currentTime < 0 should make it play from the end
+Pass	Reversing an animation when playbackRate < 0 and currentTime < 0 should make it play from the start
+Pass	Reversing an animation when playbackRate < 0 and currentTime > effect end should make it play from the start
+Pass	Reversing an animation when playbackRate > 0 and currentTime < 0 and the target effect end is positive infinity should throw an exception
+Pass	When reversing throws an exception, the playback rate remains unchanged
+Pass	Reversing animation when playbackRate = 0 and currentTime < 0 and the target effect end is positive infinity should NOT throw an exception
+Pass	Reversing an animation when playbackRate < 0 and currentTime < 0 and the target effect end is positive infinity should make it play from the start
+Fail	Reversing when when playbackRate == 0 should preserve the current time and playback rate
+Pass	Reversing an idle animation from starts playing the animation
+Fail	Reversing an animation without an active timeline throws an InvalidStateError
+Pass	Reversing should use the negative pending playback rate
+Pass	When reversing fails, it should restore any previous pending playback rate
