@@ -209,6 +209,13 @@ jobs:
         env:
           TESTS_ONLY: 1
 
+      - name: Test
+        if: ${{ inputs.build_preset == 'All_Debug' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 600 -E LibWeb
+        env:
+          TESTS_ONLY: 1
+
       - name: Upload LibWeb Test Artifacts
         if: ${{ always() && inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' }}
         uses: actions/upload-artifact@v5
