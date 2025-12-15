@@ -37,9 +37,9 @@ test_computed_value("outline-width", "thick", getComputedStyle(target).borderBot
 test(() => {
   target.style['outline-width'] = '10px';
   target.style['outline-style'] = 'none';
-  assert_equals(getComputedStyle(target)['outline-width'], '0px');
+  assert_equals(getComputedStyle(target)['outline-width'], '10px');
   target.style['outline-style'] = '';
-}, 'outline-width is 0 when outline-style is none');
+}, 'outline-width is independent of the value of outline-style');
 </script>
 </body>
 </html>

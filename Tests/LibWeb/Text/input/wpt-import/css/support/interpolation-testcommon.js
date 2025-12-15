@@ -45,6 +45,23 @@
       target.style.animationDelay = '-50s';
       target.style.animationTimingFunction = createEasing(at);
     },
+    interpolateWithComposition: function(property, from, fromComposite, to, toComposite, at, target) {
+      const id = cssAnimationsData.nextID++;
+      if (!cssAnimationsData.sharedStyle) {
+        cssAnimationsData.sharedStyle = createElement(document.body, 'style');
+      }
+      cssAnimationsData.sharedStyle.textContent += '' +
+        '@keyframes animation' + id + ' {' +
+          (isNeutralKeyframe(from)
+              ? '' : `from {${property}:${from};animation-composition:${fromComposite}}`) +
+          (isNeutralKeyframe(to)
+              ? '' : `to {${property}:${to};animation-composition:${toComposite}}`) +
+        '}';
+      target.style.animationName = 'animation' + id;
+      target.style.animationDuration = '100s';
+      target.style.animationDelay = '-50s';
+      target.style.animationTimingFunction = createEasing(at);
+    },
   };
 
   var cssTransitionsInterpolation = {
@@ -170,9 +187,9 @@
       return expectFlip(underlying, underlying, -Infinity);
     },
     interpolate: function(property, from, to, at, target) {
-      this.interpolateComposite(property, from, 'replace', to, 'replace', at, target);
+      this.interpolateWithComposition(property, from, 'replace', to, 'replace', at, target);
     },
-    interpolateComposite: function(property, from, fromComposite, to, toComposite, at, target) {
+    interpolateWithComposition: function(property, from, fromComposite, to, toComposite, at, target) {
       // This case turns into a test error later on.
       if (!this.isSupported())
         return;
@@ -395,7 +412,7 @@
     });
   }
 
-  function createCompositionTestTargets(compositionContainer, compositionTest) {
+  function createCompositionTestTargets(compositionMethod, compositionMethodContainer, compositionTest) {
     var options = compositionTest.options;
     var property = options.property;
     var underlying = options.underlying;
@@ -415,8 +432,8 @@
       }, `Composition tests must have valid setup`);
     }
 
-    var testText = `Compositing: property <${property}> underlying [${underlying}] from ${fromComposite} [${from}] to ${toComposite} [${to}]`;
-    var testContainer = createElement(compositionContainer, 'div');
+    var testText = `Compositing ${compositionMethod.name}: property <${property}> underlying [${underlying}] from ${fromComposite} [${from}] to ${toComposite} [${to}]`;
+    var testContainer = createElement(compositionMethodContainer, 'div');
     createElement(testContainer);
 
     // Setup a standard equality function if an override is not provided.
@@ -436,7 +453,7 @@
       var target = actualTargetContainer.target;
       target.style.setProperty(property, underlying);
       target.interpolate = function() {
-        webAnimationsInterpolation.interpolateComposite(property, from, fromComposite, to, toComposite, expectation.at, target);
+        compositionMethod.interpolateWithComposition(property, from, fromComposite, to, toComposite, expectation.at, target);
       };
       target.measure = function() {
         var expectedValue = getComputedStyle(expectedTargetContainer.target).getPropertyValue(property);
@@ -463,7 +480,7 @@
 
 
 
-  function createTestTargets(interpolationMethods, interpolationTests, compositionTests, container) {
+  function createTestTargets(interpolationMethods, interpolationTests, compositionMethods, compositionTests, container) {
     var targets = [];
     for (var interpolationMethod of interpolationMethods) {
       var interpolationMethodContainer = createElement(container);
@@ -474,9 +491,11 @@
           }
       }
     }
-    var compositionContainer = createElement(container);
-    for (var compositionTest of compositionTests) {
-      [].push.apply(targets, createCompositionTestTargets(compositionContainer, compositionTest));
+    for (var compositionMethod of compositionMethods) {
+      var compositionContainer = createElement(container);
+      for (var compositionTest of compositionTests) {
+        [].push.apply(targets, createCompositionTestTargets(compositionMethod, compositionContainer, compositionTest));
+      }
     }
     return targets;
   }
@@ -494,6 +513,10 @@
       cssAnimationsInterpolation,
       webAnimationsInterpolation,
     ];
+    var compositionMethods = [
+      cssAnimationsInterpolation,
+      webAnimationsInterpolation,
+    ];
     if (addAllowDiscreteTests) {
       interpolationMethods = [
         cssTransitionsInterpolationAllowDiscrete,
@@ -501,7 +524,9 @@
       ].concat(interpolationMethods);
     }
     var container = createElement(document.body);
-    var targets = createTestTargets(interpolationMethods, interpolationTests, compositionTests, container);
+    var targets = createTestTargets(interpolationMethods, interpolationTests,
+                                    compositionMethods, compositionTests,
+                                    container);
     // Separate interpolation and measurement into different phases to avoid O(n^2) of the number of targets.
     for (var target of targets) {
       target.interpolate();

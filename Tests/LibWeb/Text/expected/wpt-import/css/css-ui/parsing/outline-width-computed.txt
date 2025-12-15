@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 9 tests
 
-9 Pass
+8 Pass
+1 Fail
 Pass	Property outline-width value '2.5px'
 Pass	Property outline-width value '10px'
 Pass	Property outline-width value '0.5em'
@@ -11,4 +12,4 @@ Pass	Property outline-width value 'calc(10px - 0.5em)'
 Pass	Property outline-width value 'thin'
 Pass	Property outline-width value 'medium'
 Pass	Property outline-width value 'thick'
-Pass	outline-width is 0 when outline-style is none
+Fail	outline-width is independent of the value of outline-style
