@@ -11,6 +11,7 @@
 
 namespace regex {
 
+template<typename ByteCode>
 class RegexDebug {
 public:
     RegexDebug(FILE* file = stdout)
@@ -23,7 +24,7 @@ public:
     template<typename T>
     void print_raw_bytecode(Regex<T>& regex) const
     {
-        auto& bytecode = regex.parser_result.bytecode;
+        auto& bytecode = regex.parser_result.bytecode.template get<ByteCode>();
         size_t index { 0 };
         for (auto& value : bytecode) {
             outln(m_file, "OpCode i={:3} [{:#02X}]", index, value);
@@ -34,7 +35,7 @@ public:
     template<typename T>
     void print_bytecode(Regex<T> const& regex) const
     {
-        print_bytecode(regex.parser_result.bytecode);
+        print_bytecode(regex.parser_result.bytecode.template get<ByteCode>());
     }
 
     void print_bytecode(ByteCode const& bytecode) const
@@ -61,7 +62,7 @@ public:
         fflush(m_file);
     }
 
-    void print_opcode(ByteString const& system, OpCode& opcode, MatchState& state, size_t recursion = 0, bool newline = true) const
+    void print_opcode(ByteString const& system, OpCode<ByteCode>& opcode, MatchState& state, size_t recursion = 0, bool newline = true) const
     {
         out(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}",
             system.characters(),
@@ -78,7 +79,7 @@ public:
         }
     }
 
-    void print_result(OpCode const& opcode, ByteCode const& bytecode, MatchInput const& input, MatchState& state, ExecutionResult result) const
+    void print_result(OpCode<ByteCode> const& opcode, ByteCode const& bytecode, MatchInput const& input, MatchState& state, ExecutionResult result) const
     {
         StringBuilder builder;
         builder.append(execution_result_name(result));

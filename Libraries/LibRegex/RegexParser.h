@@ -53,7 +53,7 @@ struct NamedCaptureGroup {
 class REGEX_API Parser {
 public:
     struct Result {
-        ByteCode bytecode;
+        Variant<ByteCode, FlatByteCode> bytecode;
         size_t capture_groups_count;
         size_t named_capture_groups_count;
         size_t match_length_minimum;
