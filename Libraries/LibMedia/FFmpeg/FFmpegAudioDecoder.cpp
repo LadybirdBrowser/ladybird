@@ -12,7 +12,7 @@
 
 namespace Media::FFmpeg {
 
-DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
 {
     AVCodecContext* codec_context = nullptr;
     AVPacket* packet = nullptr;
@@ -36,6 +36,17 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
 
     codec_context->time_base = { 1, 1'000'000 };
     codec_context->thread_count = static_cast<int>(min(Core::System::hardware_concurrency(), 4));
+
+    if (sample_specification.sample_rate() > NumericLimits<int>::max())
+        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Sample rate is too large"sv);
+    codec_context->sample_rate = static_cast<int>(sample_specification.sample_rate());
+
+    if (sample_specification.channel_map().is_valid()) {
+        auto channel_layout_result = channel_map_to_av_channel_layout(sample_specification.channel_map());
+        if (channel_layout_result.is_error())
+            return DecoderError::format(DecoderErrorCategory::Invalid, channel_layout_result.error().string_literal());
+        codec_context->ch_layout = channel_layout_result.release_value();
+    }
 
     if (!codec_initialization_data.is_empty()) {
         if (codec_initialization_data.size() > NumericLimits<int>::max())
