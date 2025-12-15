@@ -30,7 +30,9 @@ GC_DEFINE_ALLOCATOR(TrustedTypePolicy);
 TrustedTypePolicy::TrustedTypePolicy(JS::Realm& realm, Utf16String const& name, TrustedTypePolicyOptions const& options)
     : PlatformObject(realm)
     , m_name(name)
-    , m_options(options)
+    , m_create_html(options.create_html)
+    , m_create_script(options.create_script)
+    , m_create_script_url(options.create_script_url)
 {
 }
 
@@ -38,6 +40,14 @@ void TrustedTypePolicy::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrustedTypePolicy);
     Base::initialize(realm);
+}
+
+void TrustedTypePolicy::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_create_html);
+    visitor.visit(m_create_script);
+    visitor.visit(m_create_script_url);
 }
 
 Utf16String to_string(TrustedTypeName trusted_type_name)
@@ -153,13 +163,13 @@ WebIDL::ExceptionOr<JS::Value> TrustedTypePolicy::get_trusted_type_policy_value(
     GC::Ptr<WebIDL::CallbackType> function;
     switch (trusted_type_name) {
     case TrustedTypeName::TrustedHTML:
-        function = m_options.create_html;
+        function = m_create_html;
         break;
     case TrustedTypeName::TrustedScript:
-        function = m_options.create_script;
+        function = m_create_script;
         break;
     case TrustedTypeName::TrustedScriptURL:
-        function = m_options.create_script_url;
+        function = m_create_script_url;
         break;
     default:
         VERIFY_NOT_REACHED();
