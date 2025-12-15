@@ -19,7 +19,7 @@
 namespace regex {
 
 #if REGEX_DEBUG
-static RegexDebug s_regex_dbg(stderr);
+static RegexDebug<FlatByteCode> s_regex_dbg(stderr);
 #endif
 
 template<class Parser>
@@ -52,12 +52,12 @@ static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 template<class Parser>
 static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Parser> const& key)
 {
-    auto bytecode_size = result.bytecode.size() * sizeof(ByteCodeValueType);
+    auto bytecode_size = result.bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
     if (bytecode_size > MaxRegexCachedBytecodeSize)
         return;
 
     while (bytecode_size + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
-        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.size() * sizeof(ByteCodeValueType);
+        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
 
     s_parser_cache<Parser>.set(key, result);
     s_cached_bytecode_size<Parser> += bytecode_size;
@@ -66,6 +66,7 @@ static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Par
 template<class Parser>
 Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
+    , parser_result(ByteCode {})
 {
     if (auto cache_entry = s_parser_cache<Parser>.get({ pattern_value, regex_options }); cache_entry.has_value()) {
         parser_result = cache_entry.value();
@@ -74,7 +75,7 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
 
         Parser parser(lexer, regex_options);
         parser_result = parser.parse();
-        parser_result.bytecode.flatten();
+        parser_result.bytecode.template get<ByteCode>().flatten();
 
         run_optimization_passes();
 
@@ -91,7 +92,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
-    parser_result.bytecode.flatten();
+    parser_result.bytecode.template get<ByteCode>().flatten();
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
         matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parser_result.options.value()));
@@ -517,7 +518,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
     size_t recursion_level = 0;
 #endif
 
-    auto& bytecode = m_pattern->parser_result.bytecode;
+    auto& bytecode = m_pattern->parser_result.bytecode.template get<FlatByteCode>();
 
     for (;;) {
         auto& opcode = bytecode.get_opcode(state);
