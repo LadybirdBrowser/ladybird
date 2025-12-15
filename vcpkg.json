@@ -224,6 +224,10 @@
       "version": "chromium_7258#0"
     },
     {
+      "name": "cpptrace",
+      "version": "1.0.2"
+    },
+    {
       "name": "curl",
       "version": "8.16.0#0"
     },
