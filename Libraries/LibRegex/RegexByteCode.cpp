@@ -166,20 +166,8 @@ OwnPtr<OpCode<FlatByteCode>> FlatByteCode::s_opcodes[(size_t)OpCodeId::Last + 1]
 bool FlatByteCode::s_opcodes_initialized { false };
 
 size_t ByteCode::s_next_checkpoint_serial_id { 0 };
-static u32 s_next_string_table_serial { 0 };
-
-StringTable::StringTable()
-    : m_serial(s_next_string_table_serial++)
-{
-}
-
-StringTable::~StringTable()
-{
-    if (m_serial == s_next_string_table_serial - 1 && m_table.is_empty())
-        --s_next_string_table_serial; // We didn't use this serial, put it back.
-}
-
-static u32 s_next_string_set_table_serial { 0 };
+u32 s_next_string_table_serial { 1 };
+static u32 s_next_string_set_table_serial { 1 };
 
 StringSetTable::StringSetTable()
     : m_serial(s_next_string_set_table_serial++)
@@ -678,21 +666,20 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare<ByteCode>::execute(MatchInput const
         case CharacterCompareType::String: {
             VERIFY(!current_inversion_state());
 
-            auto const& length = bytecode_data[offset++];
+            auto string_index = bytecode_data[offset++];
+            auto string = bytecode().get_u16_string(string_index);
 
             // We want to compare a string that is definitely longer than the available string
-            if (input.view.length() < state.string_position + length)
-                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            if (input.view.unicode()) {
+                if (input.view.length() < state.string_position + string.length_in_code_points())
+                    return ExecutionResult::Failed_ExecuteLowPrioForks;
+            } else {
+                if (input.view.length() < state.string_position_in_code_units + string.length_in_code_units())
+                    return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
 
-            Optional<ByteString> str;
-            Utf16String utf16;
-            Vector<u32> data;
-            data.ensure_capacity(length);
-            for (size_t i = offset; i < offset + length; ++i)
-                data.unchecked_append(bytecode_data[i]);
-
-            auto view = input.view.construct_as_same(data, str, utf16);
-            offset += length;
+            auto view = RegexStringView(string);
+            view.set_unicode(input.view.unicode());
             if (compare_string(input, state, view, had_zero_length_match)) {
                 if (current_inversion_state())
                     inverse_matched = true;
@@ -1328,10 +1315,8 @@ Vector<CompareTypeAndValuePair> OpCode_Compare<ByteCode>::flat_compares() const
             auto ref = bytecode[offset++];
             result.append({ compare_type, ref });
         } else if (compare_type == CharacterCompareType::String) {
-            auto& length = bytecode[offset++];
-            for (size_t k = 0; k < length; ++k)
-                result.append({ CharacterCompareType::Char, bytecode[offset + k] });
-            offset += length;
+            auto string_index = bytecode[offset++];
+            result.append({ compare_type, string_index });
         } else if (compare_type == CharacterCompareType::CharClass) {
             auto character_class = bytecode[offset++];
             result.append({ compare_type, character_class });
@@ -1433,15 +1418,13 @@ Vector<ByteString> OpCode_Compare<ByteCode>::variable_arguments_to_byte_string(O
                 }
             }
         } else if (compare_type == CharacterCompareType::String) {
-            auto& length = bytecode[offset++];
-            StringBuilder str_builder;
-            for (size_t i = 0; i < length; ++i)
-                str_builder.append(bytecode[offset++]);
-            result.empend(ByteString::formatted(" value=\"{}\"", str_builder.string_view().substring_view(0, length)));
+            auto id = bytecode[offset++];
+            auto string = this->bytecode().get_u16_string(id);
+            result.empend(ByteString::formatted(" value=\"{}\"", string));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: \"{}\"",
-                    input.value().view.substring_view(string_start_offset, string_start_offset + length > view.length() ? 0 : length).to_byte_string()));
+                    input.value().view.substring_view(string_start_offset, string_start_offset + string.length_in_code_units() > view.length() ? 0 : string.length_in_code_units()).to_byte_string()));
         } else if (compare_type == CharacterCompareType::CharClass) {
             auto character_class = (CharClass)bytecode[offset++];
             result.empend(ByteString::formatted(" ch_class={} [{}]", (size_t)character_class, character_class_name(character_class)));
