@@ -123,6 +123,7 @@
     "legacy-alias-for": "order"
   },
   "-webkit-text-fill-color": {
+    "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "currentColor",
@@ -155,6 +156,7 @@
     "legacy-alias-for": "user-select"
   },
   "accent-color": {
+    "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -421,6 +423,7 @@
     ]
   },
   "background-blend-mode": {
+    "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -592,6 +595,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-block-color": {
+    "affects-layout": false,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -885,6 +889,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-inline-color": {
+    "affects-layout": false,
     "inherited": false,
     "initial": "currentcolor",
     "positional-value-list-shorthand": true,
@@ -1267,6 +1272,7 @@
     ]
   },
   "clip": {
+    "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2931,6 +2937,7 @@
     ]
   },
   "mix-blend-mode": {
+    "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -2939,6 +2946,7 @@
     ]
   },
   "object-fit": {
+    "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "fill",
@@ -2947,6 +2955,7 @@
     ]
   },
   "object-position": {
+    "affects-layout": false,
     "animation-type": "repeatable-list",
     "affects-layout": false,
     "inherited": false,
@@ -3861,6 +3870,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "touch-action": {
+    "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
