@@ -147,6 +147,22 @@ DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index
             .pixel_height = static_cast<u64>(stream.codecpar->height),
             .cicp = CodingIndependentCodePoints(color_primaries, transfer_characteristics, matrix_coefficients, color_range),
         });
+    } else if (type == TrackType::Audio) {
+        auto channel_map = Audio::ChannelMap::invalid();
+
+        auto& channel_layout = stream.codecpar->ch_layout;
+        if (channel_layout.nb_channels != 0) {
+            auto channel_map_result = av_channel_layout_to_channel_map(channel_layout);
+            if (channel_map_result.is_error())
+                return DecoderError::with_description(DecoderErrorCategory::Invalid, channel_map_result.error().string_literal());
+            channel_map = channel_map_result.release_value();
+        }
+
+        auto sample_specification = Audio::SampleSpecification(stream.codecpar->sample_rate, channel_map);
+
+        track.set_audio_data({
+            .sample_specification = sample_specification,
+        });
     }
 
     return track;

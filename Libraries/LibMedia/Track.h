@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/TrackType.h>
 
@@ -24,6 +25,10 @@ class Track {
         CodingIndependentCodePoints cicp;
     };
 
+    struct AudioData {
+        Audio::SampleSpecification sample_specification;
+    };
+
 public:
     Track(TrackType type, size_t identifier, Utf16String const& name, Utf16String const& language)
         : m_type(type)
@@ -34,6 +39,9 @@ public:
         switch (m_type) {
         case TrackType::Video:
             m_track_data = VideoData {};
+            break;
+        case TrackType::Audio:
+            m_track_data = AudioData {};
             break;
         default:
             m_track_data = Empty {};
@@ -58,6 +66,18 @@ public:
         return m_track_data.get<VideoData>();
     }
 
+    void set_audio_data(AudioData data)
+    {
+        VERIFY(m_type == TrackType::Audio);
+        m_track_data = data;
+    }
+
+    AudioData const& audio_data() const
+    {
+        VERIFY(m_type == TrackType::Audio);
+        return m_track_data.get<AudioData>();
+    }
+
     bool operator==(Track const& other) const
     {
         return m_type == other.m_type && m_identifier == other.m_identifier;
@@ -74,7 +94,7 @@ private:
     Utf16String m_name;
     Utf16String m_language;
 
-    Variant<Empty, VideoData> m_track_data;
+    Variant<Empty, VideoData, AudioData> m_track_data;
 };
 
 }
