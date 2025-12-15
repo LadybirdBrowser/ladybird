@@ -389,7 +389,7 @@ public:
         if (is_empty())
             Base::append({});
         auto& last = Base::last_chunk();
-        last.ensure_capacity(value.size());
+        last.ensure_capacity(last.size() + value.size());
         for (auto v : value)
             last.unchecked_append(v);
     }
