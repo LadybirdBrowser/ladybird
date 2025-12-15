@@ -1192,14 +1192,20 @@ TEST_CASE(optimizer_alternation)
         Tuple { "(?!a)|(?!a)b"sv, "b"sv, 0u },
         // Optimizer should maintain the correct ordering between the alternatives
         Tuple { "\\\\junk|(\\\\[a-zA-Z@]+)|\\\\[^X]"sv, "\\sqrt"sv, 5u },
+        // Correctly calculate jump targets for each alternative when ForkIf is involved.
+        Tuple { "([A-Z]|^ms)"sv, "ms"sv, 2u },
     };
 
     for (auto& test : tests) {
         Regex<ECMA262> re(test.get<0>());
         auto result = re.match(test.get<1>());
         if (test.get<2>() != 0) {
-            EXPECT(result.success);
-            EXPECT_EQ(result.matches.first().view.length(), test.get<2>());
+            if (!result.success) {
+                dbgln("Failed to match pattern '{}' against subject '{}'", test.get<0>(), test.get<1>());
+                EXPECT(result.success);
+            } else {
+                EXPECT_EQ(result.matches.first().view.length(), test.get<2>());
+            }
         } else {
             EXPECT(!result.success);
         }

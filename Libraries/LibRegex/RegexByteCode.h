@@ -32,6 +32,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(ForkStay)                   \
     __ENUMERATE_OPCODE(ForkReplaceJump)            \
     __ENUMERATE_OPCODE(ForkReplaceStay)            \
+    __ENUMERATE_OPCODE(ForkIf)                     \
     __ENUMERATE_OPCODE(FailForks)                  \
     __ENUMERATE_OPCODE(PopSaved)                   \
     __ENUMERATE_OPCODE(SaveLeftCaptureGroup)       \
@@ -118,6 +119,16 @@ enum class BoundaryCheckType : ByteCodeValueType {
 #define __ENUMERATE_BOUNDARY_CHECK_TYPE(x) x,
     ENUMERATE_BOUNDARY_CHECK_TYPES
 #undef __ENUMERATE_BOUNDARY_CHECK_TYPE
+};
+
+#define ENUMERATE_FORK_IF_CONDITIONS             \
+    __ENUMERATE_FORK_IF_CONDITION(AtStartOfLine) \
+    __ENUMERATE_FORK_IF_CONDITION(Invalid) /* Must be last */
+
+enum class ForkIfCondition : ByteCodeValueType {
+#define __ENUMERATE_FORK_IF_CONDITION(x) x,
+    ENUMERATE_FORK_IF_CONDITIONS
+#undef __ENUMERATE_FORK_IF_CONDITION
 };
 
 struct CharRange {
@@ -761,6 +772,7 @@ StringView opcode_id_name(OpCodeId opcode_id);
 StringView boundary_check_type_name(BoundaryCheckType);
 StringView character_compare_type_name(CharacterCompareType result);
 StringView character_class_name(CharClass ch_class);
+StringView fork_if_condition_name(ForkIfCondition condition);
 
 template<typename ByteCode>
 class REGEX_API OpCode {
@@ -1187,6 +1199,29 @@ public:
             opcode_id_name(form()),
             offset(), state().instruction_position + size() + offset(),
             checkpoint());
+    }
+};
+
+template<typename ByteCode>
+class OpCode_ForkIf final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::ForkIf; }
+    ALWAYS_INLINE size_t size() const override { return 4; }
+    ALWAYS_INLINE ssize_t offset() const { return argument(0); }
+    ALWAYS_INLINE OpCodeId form() const { return (OpCodeId)argument(1); }
+    ALWAYS_INLINE ForkIfCondition condition() const { return (ForkIfCondition)argument(2); }
+    ByteString arguments_string() const override
+    {
+        return ByteString::formatted("{} {} offset={} [&{}]",
+            opcode_id_name(form()),
+            fork_if_condition_name(condition()),
+            offset(), state().instruction_position + size() + offset());
     }
 };
 

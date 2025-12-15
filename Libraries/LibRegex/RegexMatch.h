@@ -354,6 +354,8 @@ struct MatchInput {
     mutable Vector<size_t> saved_code_unit_positions;
     mutable Vector<size_t> saved_forks_since_last_save;
     mutable Optional<size_t> fork_to_replace;
+
+    bool in_the_middle_of_a_line { false };
 };
 
 struct MatchState {

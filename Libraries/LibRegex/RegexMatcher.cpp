@@ -19,7 +19,7 @@
 namespace regex {
 
 #if REGEX_DEBUG
-static RegexDebug s_regex_dbg(stderr);
+static RegexDebug<FlatByteCode> s_regex_dbg(stderr);
 #endif
 
 template<class Parser>
@@ -241,6 +241,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     };
 
     for (auto const& view : views) {
+        input.in_the_middle_of_a_line = false;
         if (lines_to_skip != 0) {
             ++input.line;
             --lines_to_skip;
@@ -291,7 +292,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             }
         }
 
-        for (; view_index <= view_length; ++view_index) {
+        for (; view_index <= view_length; ++view_index, input.in_the_middle_of_a_line = true) {
             if (view_index == view_length) {
                 if (input.regex_options.has_flag_set(AllFlags::Multiline))
                     break;
