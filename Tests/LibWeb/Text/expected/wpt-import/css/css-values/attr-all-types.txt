@@ -1,11 +1,11 @@
 Harness status: OK
 
-Found 139 tests
+Found 159 tests
 
-130 Pass
-9 Fail
+148 Pass
+11 Fail
 Pass	CSS Values and Units Test: attr
-Fail	CSS Values and Units Test: attr 1
+Pass	CSS Values and Units Test: attr 1
 Pass	CSS Values and Units Test: attr 2
 Pass	CSS Values and Units Test: attr 3
 Pass	CSS Values and Units Test: attr 4
@@ -13,11 +13,11 @@ Pass	CSS Values and Units Test: attr 5
 Pass	CSS Values and Units Test: attr 6
 Pass	CSS Values and Units Test: attr 7
 Pass	CSS Values and Units Test: attr 8
-Fail	CSS Values and Units Test: attr 9
+Pass	CSS Values and Units Test: attr 9
 Pass	CSS Values and Units Test: attr 10
 Pass	CSS Values and Units Test: attr 11
 Pass	CSS Values and Units Test: attr 12
-Pass	CSS Values and Units Test: attr 13
+Fail	CSS Values and Units Test: attr 13
 Pass	CSS Values and Units Test: attr 14
 Pass	CSS Values and Units Test: attr 15
 Pass	CSS Values and Units Test: attr 16
@@ -31,7 +31,7 @@ Pass	CSS Values and Units Test: attr 23
 Pass	CSS Values and Units Test: attr 24
 Pass	CSS Values and Units Test: attr 25
 Pass	CSS Values and Units Test: attr 26
-Fail	CSS Values and Units Test: attr 27
+Pass	CSS Values and Units Test: attr 27
 Pass	CSS Values and Units Test: attr 28
 Pass	CSS Values and Units Test: attr 29
 Pass	CSS Values and Units Test: attr 30
@@ -43,38 +43,38 @@ Pass	CSS Values and Units Test: attr 35
 Pass	CSS Values and Units Test: attr 36
 Pass	CSS Values and Units Test: attr 37
 Pass	CSS Values and Units Test: attr 38
-Pass	CSS Values and Units Test: attr 39
+Fail	CSS Values and Units Test: attr 39
 Pass	CSS Values and Units Test: attr 40
 Pass	CSS Values and Units Test: attr 41
 Pass	CSS Values and Units Test: attr 42
 Pass	CSS Values and Units Test: attr 43
 Pass	CSS Values and Units Test: attr 44
-Fail	CSS Values and Units Test: attr 45
+Pass	CSS Values and Units Test: attr 45
 Pass	CSS Values and Units Test: attr 46
 Pass	CSS Values and Units Test: attr 47
 Pass	CSS Values and Units Test: attr 48
 Pass	CSS Values and Units Test: attr 49
-Fail	CSS Values and Units Test: attr 50
+Pass	CSS Values and Units Test: attr 50
 Pass	CSS Values and Units Test: attr 51
 Pass	CSS Values and Units Test: attr 52
 Pass	CSS Values and Units Test: attr 53
 Pass	CSS Values and Units Test: attr 54
-Fail	CSS Values and Units Test: attr 55
+Pass	CSS Values and Units Test: attr 55
 Pass	CSS Values and Units Test: attr 56
-Pass	CSS Values and Units Test: attr 57
+Fail	CSS Values and Units Test: attr 57
 Pass	CSS Values and Units Test: attr 58
-Pass	CSS Values and Units Test: attr 59
+Fail	CSS Values and Units Test: attr 59
 Pass	CSS Values and Units Test: attr 60
 Pass	CSS Values and Units Test: attr 61
 Pass	CSS Values and Units Test: attr 62
-Pass	CSS Values and Units Test: attr 63
+Fail	CSS Values and Units Test: attr 63
 Pass	CSS Values and Units Test: attr 64
 Pass	CSS Values and Units Test: attr 65
 Pass	CSS Values and Units Test: attr 66
 Pass	CSS Values and Units Test: attr 67
-Pass	CSS Values and Units Test: attr 68
+Fail	CSS Values and Units Test: attr 68
 Pass	CSS Values and Units Test: attr 69
-Pass	CSS Values and Units Test: attr 70
+Fail	CSS Values and Units Test: attr 70
 Pass	CSS Values and Units Test: attr 71
 Pass	CSS Values and Units Test: attr 72
 Pass	CSS Values and Units Test: attr 73
@@ -105,8 +105,8 @@ Pass	CSS Values and Units Test: attr 97
 Pass	CSS Values and Units Test: attr 98
 Pass	CSS Values and Units Test: attr 99
 Pass	CSS Values and Units Test: attr 100
-Fail	CSS Values and Units Test: attr 101
-Fail	CSS Values and Units Test: attr 102
+Pass	CSS Values and Units Test: attr 101
+Pass	CSS Values and Units Test: attr 102
 Pass	CSS Values and Units Test: attr 103
 Pass	CSS Values and Units Test: attr 104
 Pass	CSS Values and Units Test: attr 105
@@ -119,12 +119,12 @@ Pass	CSS Values and Units Test: attr 111
 Pass	CSS Values and Units Test: attr 112
 Pass	CSS Values and Units Test: attr 113
 Pass	CSS Values and Units Test: attr 114
-Pass	CSS Values and Units Test: attr 115
+Fail	CSS Values and Units Test: attr 115
 Pass	CSS Values and Units Test: attr 116
-Pass	CSS Values and Units Test: attr 117
-Pass	CSS Values and Units Test: attr 118
+Fail	CSS Values and Units Test: attr 117
+Fail	CSS Values and Units Test: attr 118
 Pass	CSS Values and Units Test: attr 119
-Fail	CSS Values and Units Test: attr 120
+Pass	CSS Values and Units Test: attr 120
 Pass	CSS Values and Units Test: attr 121
 Pass	CSS Values and Units Test: attr 122
 Pass	CSS Values and Units Test: attr 123
@@ -140,6 +140,26 @@ Pass	CSS Values and Units Test: attr 132
 Pass	CSS Values and Units Test: attr 133
 Pass	CSS Values and Units Test: attr 134
 Pass	CSS Values and Units Test: attr 135
-Pass	CSS Values and Units Test: attr 136
+Fail	CSS Values and Units Test: attr 136
 Pass	CSS Values and Units Test: attr 137
 Pass	CSS Values and Units Test: attr 138
+Pass	CSS Values and Units Test: attr 139
+Pass	CSS Values and Units Test: attr 140
+Pass	CSS Values and Units Test: attr 141
+Pass	CSS Values and Units Test: attr 142
+Pass	CSS Values and Units Test: attr 143
+Pass	CSS Values and Units Test: attr 144
+Pass	CSS Values and Units Test: attr 145
+Pass	CSS Values and Units Test: attr 146
+Pass	CSS Values and Units Test: attr 147
+Pass	CSS Values and Units Test: attr 148
+Pass	CSS Values and Units Test: attr 149
+Pass	CSS Values and Units Test: attr 150
+Pass	CSS Values and Units Test: attr 151
+Pass	CSS Values and Units Test: attr 152
+Pass	CSS Values and Units Test: attr 153
+Pass	CSS Values and Units Test: attr 154
+Pass	CSS Values and Units Test: attr 155
+Pass	CSS Values and Units Test: attr 156
+Pass	CSS Values and Units Test: attr 157
+Pass	CSS Values and Units Test: attr 158
