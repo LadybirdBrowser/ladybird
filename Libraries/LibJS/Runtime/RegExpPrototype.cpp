@@ -457,11 +457,15 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
     static Bytecode::PropertyLookupCache cache;
     auto exec = TRY(regexp_object.get(vm.names.exec, cache));
 
+    auto* typed_regexp_object = as_if<RegExpObject>(regexp_object);
+
     // 2. If IsCallable(exec) is true, then
     if (exec.is_function()) {
         auto& exec_function = exec.as_function();
-        if (&exec_function == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeExec))
-            return regexp_builtin_exec(vm, static_cast<RegExpObject&>(regexp_object), string);
+        if (typed_regexp_object
+            && &exec_function == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeExec)) {
+            return regexp_builtin_exec(vm, *typed_regexp_object, string);
+        }
 
         // a. Let result be ? Call(exec, R, « S »).
         auto result = TRY(call(vm, exec_function, &regexp_object, string));
@@ -475,11 +479,11 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
     }
 
     // 3. Perform ? RequireInternalSlot(R, [[RegExpMatcher]]).
-    if (!is<RegExpObject>(regexp_object))
+    if (!typed_regexp_object)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "RegExp");
 
     // 4. Return ? RegExpBuiltinExec(R, S).
-    return regexp_builtin_exec(vm, static_cast<RegExpObject&>(regexp_object), string);
+    return regexp_builtin_exec(vm, *typed_regexp_object, string);
 }
 
 // 22.2.7.3 AdvanceStringIndex ( S, index, unicode ), https://tc39.es/ecma262/#sec-advancestringindex
