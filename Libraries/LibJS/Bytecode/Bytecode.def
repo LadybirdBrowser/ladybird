@@ -52,6 +52,11 @@ op BitwiseOr < Instruction
     m_rhs: Operand
 endop
 
+op ToInt32 < Instruction
+    m_dst: Operand
+    m_value: Operand
+endop
+
 op BitwiseXor < Instruction
     m_dst: Operand
     m_lhs: Operand

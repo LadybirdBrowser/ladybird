@@ -470,6 +470,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(BitwiseAnd);
             HANDLE_INSTRUCTION(BitwiseNot);
             HANDLE_INSTRUCTION(BitwiseOr);
+            HANDLE_INSTRUCTION(ToInt32);
             HANDLE_INSTRUCTION(BitwiseXor);
             HANDLE_INSTRUCTION(Call);
             HANDLE_INSTRUCTION(CallBuiltin);
@@ -1615,6 +1616,18 @@ ThrowCompletionOr<void> BitwiseAnd::execute_impl(Bytecode::Interpreter& interpre
         return {};
     }
     interpreter.set(m_dst, TRY(bitwise_and(vm, lhs, rhs)));
+    return {};
+}
+
+ThrowCompletionOr<void> ToInt32::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto const value = interpreter.get(m_value);
+    if (value.is_int32()) [[likely]] {
+        interpreter.set(m_dst, value);
+        return {};
+    }
+    interpreter.set(m_dst, Value(TRY(value.to_i32(vm))));
     return {};
 }
 
