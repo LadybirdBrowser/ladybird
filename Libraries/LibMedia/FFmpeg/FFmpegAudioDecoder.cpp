@@ -132,7 +132,7 @@ static float float_sample_from_frame_data(u8** data, size_t plane, size_t index)
 template<>
 float float_sample_from_frame_data<u8>(u8** data, size_t plane, size_t index)
 {
-    return static_cast<float>(data[plane][index] - 127) / 255;
+    return static_cast<float>(data[plane][index] - 128) / 128;
 }
 
 template<typename T>
