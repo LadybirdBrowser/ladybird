@@ -31,6 +31,6 @@ target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
 #   >>> lagom-unicode.lib(TimeZone.cpp.obj) has value 1
 #   >>> lagom-gfx.lib(PaintingSurface.cpp.obj) has value 0
-if (WIN32 AND ENABLE_WINDOWS_CI)
+if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
     target_compile_options(LibUnicode PRIVATE -fno-sanitize=address)
 endif()

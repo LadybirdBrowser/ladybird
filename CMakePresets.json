@@ -95,15 +95,20 @@
       }
     },
     {
-      "name": "Windows_Experimental",
+      "name": "Windows_Experimental_Release",
       "inherits": "windows_base",
-      "displayName": "Windows Experimental Config",
-      "description": "Experimental Windows build. Not all targets in this preset are supported",
+      "displayName": "Windows Experimental Release Config",
+      "description": "Experimental Windows Release build. Not all targets in this preset are built and there is minimal runtime support"
+    },
+    {
+      "name": "Windows_Experimental_Debug",
+      "inherits": "windows_base",
+      "displayName": "Windows Experimental Debug Config",
+      "description": "Experimental Windows Debug build. Not all targets in this preset are built and there is minimal runtime support",
       "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
-        "ENABLE_WINDOWS_CI": "OFF"
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
       }
     },
     {
@@ -134,42 +139,12 @@
       }
     },
     {
-      "name": "Windows_Sanitizer_Experimental",
-      "inherits": [
-        "Windows_Experimental"
-      ],
-      "displayName": "Windows Sanitizer Experimental Config",
-      "description": "Experimental sanitizer Windows build. Not all targets in this preset are supported",
+      "name": "Windows_Experimental_Sanitizer",
+      "inherits": "windows_base",
+      "displayName": "Windows Experimental Sanitizer Config",
+      "description": "Experimental Windows Sanitizer build. Not all targets in this preset are built and there is minimal runtime support",
       "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
-        "ENABLE_WINDOWS_CI": "OFF",
-        "ENABLE_UNDEFINED_SANITIZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON",
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
-      }
-    },
-    {
-      "name": "Windows_CI",
-      "inherits":  [
-        "windows_base"
-      ],
-      "displayName": "Windows CI Config",
-      "description": "CI Windows build",
-      "cacheVariables": {
-        "ENABLE_WINDOWS_CI": "ON"
-      }
-    },
-    {
-      "name": "Windows_Sanitizer_CI",
-      "inherits": [
-        "Windows_CI"
-      ],
-      "displayName": "Windows Sanitizer CI Config",
-      "description": "Sanitizer CI Windows build",
-      "binaryDir": "${fileDir}/Build/sanitizers",
-      "cacheVariables": {
-        "ENABLE_WINDOWS_CI": "ON",
         "ENABLE_UNDEFINED_SANITIZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
@@ -253,11 +228,18 @@
       "description": "Build the project in debug on Unix"
     },
     {
-      "name": "Windows_Experimental",
+      "name": "Windows_Experimental_Release",
       "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental",
-      "displayName": "Windows Experimental Build",
-      "description": "Build the project in debug on Windows. Not all targets in this preset are supported"
+      "configurePreset": "Windows_Experimental_Release",
+      "displayName": "Windows Experimental Release Build",
+      "description": "Build the project in release on Windows. Not all targets in this preset are built and there is minimal runtime support"
+    },
+    {
+      "name": "Windows_Experimental_Debug",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental_Debug",
+      "displayName": "Windows Experimental Debug Build",
+      "description": "Build the project in debug on Windows. Not all targets in this preset are built and there is minimal runtime support"
     },
     {
       "name": "Distribution",
@@ -274,25 +256,11 @@
       "description": "Build the project with Sanitizers on Unix"
     },
     {
-      "name": "Windows_Sanitizer_Experimental",
+      "name": "Windows_Experimental_Sanitizer",
       "inherits": "windows_base",
-      "configurePreset": "Windows_Sanitizer_Experimental",
-      "displayName": "Windows Sanitizer Experimental Build",
-      "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are supported"
-    },
-    {
-      "name": "Windows_CI",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_CI",
-      "displayName": "Windows CI Build",
-      "description": "Build the project for Windows CI"
-    },
-    {
-      "name": "Windows_Sanitizer_CI",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Sanitizer_CI",
-      "displayName": "Windows Sanitizer CI Build",
-      "description": "Build the project with sanitizers for Windows CI"
+      "configurePreset": "Windows_Experimental_Sanitizer",
+      "displayName": "Windows Experimental Sanitizer Build",
+      "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are built and there is minimal runtime support"
     },
     {
       "name": "Swift_Release",
@@ -358,9 +326,14 @@
       "configurePreset": "Debug"
     },
     {
-      "name": "Windows_Experimental",
+      "name": "Windows_Experimental_Release",
       "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental"
+      "configurePreset": "Windows_Experimental_Release"
+    },
+    {
+      "name": "Windows_Experimental_Debug",
+      "inherits": "windows_base",
+      "configurePreset": "Windows_Experimental_Debug"
     },
     {
       "name": "Distribution",
@@ -376,25 +349,12 @@
       "configurePreset": "Sanitizer"
     },
     {
-      "name": "Windows_Sanitizer_Experimental",
+      "name": "Windows_Experimental_Sanitizer",
       "inherits":  [
         "windows_base",
         "sanitizer_base"
       ],
-      "configurePreset": "Windows_Sanitizer_Experimental"
-    },
-    {
-      "name": "Windows_CI",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_CI"
-    },
-    {
-      "name": "Windows_Sanitizer_CI",
-      "inherits":  [
-        "windows_base",
-        "sanitizer_base"
-      ],
-      "configurePreset": "Windows_Sanitizer_CI"
+      "configurePreset": "Windows_Experimental_Sanitizer"
     },
     {
       "name": "Swift_Release",
