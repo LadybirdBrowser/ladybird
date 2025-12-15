@@ -933,25 +933,21 @@ TEST_CASE(moving_bigints)
 
 TEST_CASE(test_unsigned_bigint_fdivided_by)
 {
-    // Basic cases
     EXPECT_EQ(Crypto::UnsignedBigInteger(7).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::UnsignedBigInteger(2));
     EXPECT_EQ(Crypto::UnsignedBigInteger(9).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::UnsignedBigInteger(3));
     EXPECT_EQ(Crypto::UnsignedBigInteger(0).fdivided_by(Crypto::UnsignedBigInteger(5)), Crypto::UnsignedBigInteger(0));
     EXPECT_EQ(Crypto::UnsignedBigInteger(1).fdivided_by(Crypto::UnsignedBigInteger(1000000)), Crypto::UnsignedBigInteger(0));
 
-    // Powers of 10 (common use case in Temporal)
     EXPECT_EQ("1000000000"_bigint.fdivided_by("1000000"_bigint), "1000"_bigint);
     EXPECT_EQ("1234567890"_bigint.fdivided_by("1000000"_bigint), "1234"_bigint);
     EXPECT_EQ("999999"_bigint.fdivided_by("1000000"_bigint), "0"_bigint);
 
-    // Large Fibonacci numbers
     auto fib386 = bigint_fibonacci(386);
     auto fib238 = bigint_fibonacci(238);
     auto floor_result = fib386.fdivided_by(fib238);
     auto div_result = fib386.divided_by(fib238);
     EXPECT_EQ(floor_result, div_result.quotient);
 
-    // Property: floor(a/b) * b + (a mod b) == a
     for (size_t i = 100; i < 400; i += 47) {
         auto num = bigint_fibonacci(i);
         auto divisor = bigint_fibonacci(i / 2 + 1);
@@ -964,48 +960,34 @@ TEST_CASE(test_unsigned_bigint_fdivided_by)
 
 TEST_CASE(test_signed_bigint_fdivided_by_unsigned)
 {
-    // Positive / Positive - same as truncated
     EXPECT_EQ(Crypto::SignedBigInteger(7).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::SignedBigInteger(2));
     EXPECT_EQ(Crypto::SignedBigInteger(9).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::SignedBigInteger(3));
     EXPECT_EQ(Crypto::SignedBigInteger(0).fdivided_by(Crypto::UnsignedBigInteger(5)), Crypto::SignedBigInteger(0));
-
-    // Negative / Positive - floor rounds toward negative infinity
-    // -7 / 3: truncated = -2, floor = -3 (since -7 = -3*3 + 2)
     EXPECT_EQ(Crypto::SignedBigInteger(-7).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::SignedBigInteger(-3));
-    // -9 / 3: exact division, floor = truncated = -3
     EXPECT_EQ(Crypto::SignedBigInteger(-9).fdivided_by(Crypto::UnsignedBigInteger(3)), Crypto::SignedBigInteger(-3));
-    // -1 / 1000000: truncated = 0, floor = -1
     EXPECT_EQ(Crypto::SignedBigInteger(-1).fdivided_by(Crypto::UnsignedBigInteger(1000000)), Crypto::SignedBigInteger(-1));
-    // -999999 / 1000000: truncated = 0, floor = -1
     EXPECT_EQ(Crypto::SignedBigInteger(-999999).fdivided_by(Crypto::UnsignedBigInteger(1000000)), Crypto::SignedBigInteger(-1));
-    // -1000000 / 1000000: exact, floor = -1
     EXPECT_EQ(Crypto::SignedBigInteger(-1000000).fdivided_by(Crypto::UnsignedBigInteger(1000000)), Crypto::SignedBigInteger(-1));
-    // -1000001 / 1000000: truncated = -1, floor = -2
     EXPECT_EQ(Crypto::SignedBigInteger(-1000001).fdivided_by(Crypto::UnsignedBigInteger(1000000)), Crypto::SignedBigInteger(-2));
 
-    // Large numbers with Fibonacci
     auto fib200 = bigint_signed_fibonacci(200);
     auto fib100_unsigned = bigint_fibonacci(100);
     auto positive_result = fib200.fdivided_by(fib100_unsigned);
     EXPECT(!positive_result.is_negative());
 
-    // Negative large number
     auto neg_fib200 = fib200;
     neg_fib200.negate();
     auto negative_result = neg_fib200.fdivided_by(fib100_unsigned);
     EXPECT(negative_result.is_negative());
 
-    // Property verification for various Fibonacci pairs
     for (size_t i = 50; i < 300; i += 37) {
         auto num = bigint_signed_fibonacci(i);
         auto divisor = bigint_fibonacci(i / 3 + 1);
 
-        // Test positive
         auto floor_pos = num.fdivided_by(divisor);
         auto div_pos = num.divided_by(divisor);
         EXPECT_EQ(floor_pos, div_pos.quotient);
 
-        // Test negative
         num.negate();
         auto floor_neg = num.fdivided_by(divisor);
         auto div_neg = num.divided_by(divisor);
@@ -1019,27 +1001,21 @@ TEST_CASE(test_signed_bigint_fdivided_by_unsigned)
 
 TEST_CASE(test_signed_bigint_fdivided_by_signed)
 {
-    // (+) / (+) - same as truncated
     EXPECT_EQ(Crypto::SignedBigInteger(7).fdivided_by(Crypto::SignedBigInteger(3)), Crypto::SignedBigInteger(2));
     EXPECT_EQ(Crypto::SignedBigInteger(9).fdivided_by(Crypto::SignedBigInteger(3)), Crypto::SignedBigInteger(3));
 
-    // (-) / (+) - floor rounds down
     EXPECT_EQ(Crypto::SignedBigInteger(-7).fdivided_by(Crypto::SignedBigInteger(3)), Crypto::SignedBigInteger(-3));
     EXPECT_EQ(Crypto::SignedBigInteger(-9).fdivided_by(Crypto::SignedBigInteger(3)), Crypto::SignedBigInteger(-3));
 
-    // (+) / (-) - floor rounds down
     EXPECT_EQ(Crypto::SignedBigInteger(7).fdivided_by(Crypto::SignedBigInteger(-3)), Crypto::SignedBigInteger(-3));
     EXPECT_EQ(Crypto::SignedBigInteger(9).fdivided_by(Crypto::SignedBigInteger(-3)), Crypto::SignedBigInteger(-3));
 
-    // (-) / (-) - same as truncated (both negative = positive result)
     EXPECT_EQ(Crypto::SignedBigInteger(-7).fdivided_by(Crypto::SignedBigInteger(-3)), Crypto::SignedBigInteger(2));
     EXPECT_EQ(Crypto::SignedBigInteger(-9).fdivided_by(Crypto::SignedBigInteger(-3)), Crypto::SignedBigInteger(3));
 
-    // Zero cases
     EXPECT_EQ(Crypto::SignedBigInteger(0).fdivided_by(Crypto::SignedBigInteger(5)), Crypto::SignedBigInteger(0));
     EXPECT_EQ(Crypto::SignedBigInteger(0).fdivided_by(Crypto::SignedBigInteger(-5)), Crypto::SignedBigInteger(0));
 
-    // Large number tests with sign combinations
     auto large_pos = bigint_signed_fibonacci(150);
     auto medium_pos = bigint_signed_fibonacci(75);
     auto large_neg = large_pos;
@@ -1047,19 +1023,15 @@ TEST_CASE(test_signed_bigint_fdivided_by_signed)
     auto medium_neg = medium_pos;
     medium_neg.negate();
 
-    // (+) / (+)
     auto result_pp = large_pos.fdivided_by(medium_pos);
     EXPECT(!result_pp.is_negative());
 
-    // (-) / (+)
     auto result_np = large_neg.fdivided_by(medium_pos);
     EXPECT(result_np.is_negative());
 
-    // (+) / (-)
     auto result_pn = large_pos.fdivided_by(medium_neg);
     EXPECT(result_pn.is_negative());
 
-    // (-) / (-)
     auto result_nn = large_neg.fdivided_by(medium_neg);
     EXPECT(!result_nn.is_negative());
 }
