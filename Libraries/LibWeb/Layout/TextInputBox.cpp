@@ -15,12 +15,14 @@ TextInputBox::TextInputBox(DOM::Document& document, GC::Ptr<DOM::Element> elemen
 
 CSS::SizeWithAspectRatio TextInputBox::compute_intrinsic_content_box_size() const
 {
-    return {
-        .width = CSS::Length(dom_node().size(), CSS::LengthUnit::Ch).to_px(*this),
-        // line-height + 2px because of padding in HTMLInputElement.cpp shadow DOM css
-        .height = computed_values().line_height() + CSSPixels(2),
-        .aspect_ratio = {}
-    };
+    auto width = CSS::Length(dom_node().size(), CSS::LengthUnit::Ch).to_px(*this);
+    auto height = computed_values().line_height() + CSSPixels(2);
+    // AD-HOC: 2px is inline shadow DOM padding in HTMLInputElement::create_text_input_shadow_tree()
+
+    if (this->computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+        swap(width, height);
+
+    return { width, height, {} };
 }
 
 }
