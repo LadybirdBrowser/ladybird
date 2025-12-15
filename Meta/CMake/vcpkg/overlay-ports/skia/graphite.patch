@@ -1,0 +1,12 @@
+diff --git a/include/gpu/graphite/Recorder.h b/include/gpu/graphite/Recorder.h
+index 64e9fad..44a9aca 100644
+--- a/include/gpu/graphite/Recorder.h
++++ b/include/gpu/graphite/Recorder.h
+@@ -11,6 +11,7 @@
+ #include "include/core/SkRefCnt.h"
+ #include "include/core/SkSize.h"
+ #include "include/gpu/graphite/GraphiteTypes.h"
++#include "include/gpu/graphite/ImageProvider.h"
+ #include "include/gpu/graphite/Recording.h"
+ #include "include/private/base/SingleOwner.h"
+ #include "include/private/base/SkTArray.h"

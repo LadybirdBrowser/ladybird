@@ -5,8 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#define SK_SUPPORT_UNSPANNED_APIS
-
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
@@ -20,7 +18,7 @@
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
 #include <effects/SkRuntimeEffect.h>
-#include <gpu/ganesh/GrDirectContext.h>
+#include <gpu/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
@@ -838,9 +836,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
     SkMatrix matrix;
     // Skia does not support specifying of horizontal and vertical radius's separately,
     // so instead we apply scale matrix
-    auto const aspect_ratio = size.width() / size.height();
-    auto const sx = isinf(aspect_ratio) ? 1.0f : aspect_ratio;
-    matrix.setScale(sx, 1.0f, center.x(), center.y());
+    matrix.setScale(size.width() / size.height(), 1.0f, center.x(), center.y());
 
     SkTileMode tile_mode = SkTileMode::kClamp;
     if (repeat_length.has_value())
