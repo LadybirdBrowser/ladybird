@@ -15,7 +15,7 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegAudioDecoder final : public AudioDecoder {
 public:
-    static DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
+    static DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> try_create(CodecID, Audio::SampleSpecification const&, ReadonlyBytes codec_initialization_data);
     FFmpegAudioDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegAudioDecoder() override;
 
