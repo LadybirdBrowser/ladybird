@@ -55,6 +55,8 @@ private:
 
     HTMLOptionElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual bool is_html_option_element() const final { return true; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -83,5 +85,12 @@ private:
     // https://html.spec.whatwg.org/multipage/form-elements.html#cached-nearest-ancestor-select-element
     GC::Ptr<HTMLSelectElement> m_cached_nearest_select_element;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLOptionElement>() const { return is_html_option_element(); }
 
 }

@@ -19,6 +19,8 @@ class SVGMaskElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGMaskElement() override;
 
+    virtual bool is_svg_mask_element() const final { return true; }
+
     virtual Optional<ViewBox> active_view_box() const override
     {
         // maskContentUnits = objectBoundingBox acts like the mask is sized to the bounding box
@@ -44,5 +46,12 @@ private:
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGMaskElement>() const { return is_svg_mask_element(); }
 
 }
