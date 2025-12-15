@@ -48,6 +48,24 @@ static inline AVCodecID ffmpeg_codec_id_from_media_codec_id(CodecID codec)
         return AV_CODEC_ID_OPUS;
     case CodecID::FLAC:
         return AV_CODEC_ID_FLAC;
+    case CodecID::U8:
+        return AV_CODEC_ID_PCM_U8;
+    case CodecID::S16LE:
+        return AV_CODEC_ID_PCM_S16LE;
+    case CodecID::S24LE:
+        return AV_CODEC_ID_PCM_S24LE;
+    case CodecID::S32LE:
+        return AV_CODEC_ID_PCM_S32LE;
+    case CodecID::S64LE:
+        return AV_CODEC_ID_PCM_S64LE;
+    case CodecID::F32LE:
+        return AV_CODEC_ID_PCM_F32LE;
+    case CodecID::F64LE:
+        return AV_CODEC_ID_PCM_F64LE;
+    case CodecID::ALaw:
+        return AV_CODEC_ID_PCM_ALAW;
+    case CodecID::MuLaw:
+        return AV_CODEC_ID_PCM_MULAW;
     case CodecID::Unknown:
         return AV_CODEC_ID_NONE;
     }
@@ -86,6 +104,24 @@ static inline CodecID media_codec_id_from_ffmpeg_codec_id(AVCodecID codec)
         return CodecID::Opus;
     case AV_CODEC_ID_FLAC:
         return CodecID::FLAC;
+    case AV_CODEC_ID_PCM_U8:
+        return CodecID::U8;
+    case AV_CODEC_ID_PCM_S16LE:
+        return CodecID::S16LE;
+    case AV_CODEC_ID_PCM_S24LE:
+        return CodecID::S24LE;
+    case AV_CODEC_ID_PCM_S32LE:
+        return CodecID::S32LE;
+    case AV_CODEC_ID_PCM_S64LE:
+        return CodecID::S64LE;
+    case AV_CODEC_ID_PCM_F32LE:
+        return CodecID::F32LE;
+    case AV_CODEC_ID_PCM_F64LE:
+        return CodecID::F64LE;
+    case AV_CODEC_ID_PCM_ALAW:
+        return CodecID::ALaw;
+    case AV_CODEC_ID_PCM_MULAW:
+        return CodecID::MuLaw;
     default:
         return CodecID::Unknown;
     }
