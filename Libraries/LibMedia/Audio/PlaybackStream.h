@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "SampleFormats.h"
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/Time.h>

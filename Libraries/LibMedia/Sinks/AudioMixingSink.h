@@ -11,7 +11,6 @@
 #include <AK/RefPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/Forward.h>
-#include <LibMedia/Audio/SampleFormats.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
