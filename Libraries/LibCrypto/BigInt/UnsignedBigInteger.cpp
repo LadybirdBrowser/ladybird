@@ -336,6 +336,13 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
     return UnsignedDivisionResult { quotient, remainder };
 }
 
+FLATTEN UnsignedBigInteger UnsignedBigInteger::fdivided_by(UnsignedBigInteger const& divisor) const
+{
+    UnsignedBigInteger quotient;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, nullptr));
+    return quotient;
+}
+
 FLATTEN UnsignedBigInteger UnsignedBigInteger::pow(u32 exponent) const
 {
     UnsignedBigInteger result;
