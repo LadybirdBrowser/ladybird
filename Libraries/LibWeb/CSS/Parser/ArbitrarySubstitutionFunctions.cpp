@@ -130,13 +130,16 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
         if (syntax_ident.equals_ignoring_ascii_case("raw-string"sv)) {
             first_argument_tokens.discard_a_token(); // raw-string
             syntax = RawString {};
-        } else if (syntax_ident == "%"sv
-            || dimension_for_unit(syntax_ident).has_value()) {
+        } else if (dimension_for_unit(syntax_ident).has_value()) {
             syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
             unit_name = first_argument_tokens.consume_a_token().token().ident();
         } else {
             return failure();
         }
+    } else if (first_argument_tokens.next_token().is_delim('%')) {
+        first_argument_tokens.discard_a_token(); // %
+        syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
+        unit_name = "%"_fly_string;
     } else if (first_argument_tokens.next_token().is_function("type"sv)) {
         auto const& type_function = first_argument_tokens.consume_a_token().function();
         if (auto parsed_syntax = parse_as_syntax(type_function.value)) {
@@ -178,15 +181,18 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     if (unit_name.has_value()) {
         // https://drafts.csswg.org/css-values-5/#ref-for-typedef-attr-type%E2%91%A0
-        // If given as an <attr-unit> value, the value is first parsed as if type(<number>) was specified, then the
+        // If given as an <attr-unit> value, the value is first parsed as if number keyword was specified, then the
         // resulting numeric value is turned into a dimension with the corresponding unit, or a percentage if % was
-        // given. Values that fail to parse as a <number> trigger fallback.
+        // given. Same as for number <attr-type>, values that do not correspond to the <number-token> production
+        // trigger fallback.
 
         // FIXME: The spec is ambiguous about what we should do for non-number-literals.
         //        Chromium treats them as invalid, so copy that for now.
         //        Spec issue: https://github.com/w3c/csswg-drafts/issues/12479
         if (!parsed_value->is_number())
             return failure();
+        if (unit_name == "%"_fly_string)
+            return { Token::create_percentage(Number { Number::Type::Number, parsed_value->as_number().number() }) };
         return { Token::create_dimension(parsed_value->as_number().number(), unit_name.release_value()) };
     }
 
