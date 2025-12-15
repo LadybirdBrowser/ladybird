@@ -163,14 +163,14 @@ jobs:
           fi
 
       - name: Upload js package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ladybird-js-${{ matrix.package_type }}
           path: Build/distribution/ladybird-js-*.tar.gz
           retention-days: 7
 
       - name: Upload wasm package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ladybird-wasm-${{ matrix.package_type }}
           path: Build/distribution/ladybird-wasm-*.tar.gz

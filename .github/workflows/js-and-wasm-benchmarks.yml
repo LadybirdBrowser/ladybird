@@ -115,7 +115,7 @@ jobs:
           ./run.py ${run_options}
 
       - name: 'Save results as an artifact'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: js-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
           path: js-benchmarks/results.json
