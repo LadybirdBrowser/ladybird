@@ -32,6 +32,16 @@ enum class CodecID : u8 {
     Vorbis,
     Opus,
     FLAC,
+    // PCM
+    U8,
+    S16LE,
+    S24LE,
+    S32LE,
+    S64LE,
+    F32LE,
+    F64LE,
+    ALaw,
+    MuLaw,
 };
 
 inline TrackType track_type_from_codec_id(CodecID codec)
@@ -53,6 +63,15 @@ inline TrackType track_type_from_codec_id(CodecID codec)
     case CodecID::Vorbis:
     case CodecID::Opus:
     case CodecID::FLAC:
+    case CodecID::U8:
+    case CodecID::S16LE:
+    case CodecID::S24LE:
+    case CodecID::S32LE:
+    case CodecID::S64LE:
+    case CodecID::F32LE:
+    case CodecID::F64LE:
+    case CodecID::ALaw:
+    case CodecID::MuLaw:
         return TrackType::Audio;
     case CodecID::Unknown:
         break;
@@ -95,6 +114,24 @@ constexpr StringView codec_id_to_string(CodecID codec)
         return "Opus"sv;
     case Media::CodecID::FLAC:
         return "FLAC"sv;
+    case CodecID::U8:
+        return "unsigned 8-bit PCM"sv;
+    case CodecID::S16LE:
+        return "signed 16-bit PCM"sv;
+    case CodecID::S24LE:
+        return "signed 24-bit PCM"sv;
+    case CodecID::S32LE:
+        return "signed 32-bit PCM"sv;
+    case CodecID::S64LE:
+        return "signed 64-bit PCM"sv;
+    case CodecID::F32LE:
+        return "32-bit float PCM"sv;
+    case CodecID::F64LE:
+        return "64-bit float PCM"sv;
+    case CodecID::ALaw:
+        return "A-law PCM"sv;
+    case CodecID::MuLaw:
+        return "μ-law PCM"sv;
     }
     return "Unknown"sv;
 }
