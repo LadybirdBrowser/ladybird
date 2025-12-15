@@ -349,7 +349,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         // e. If the ith capture of R was defined with a GroupName, then
         if (capture.capture_group_name >= 0) {
             // i. Let s be the CapturingGroupName of that GroupName.
-            auto group_name = Utf16FlyString::from_utf8(regex.parser_result.bytecode.get_string(capture.capture_group_name));
+            auto group_name = Utf16FlyString::from_utf8(regex.parser_result.bytecode.visit([&](auto& bc) { return bc.get_string(capture.capture_group_name); }));
 
             // ii. If matchedGroupNames contains s, then
             if (matched_group_names.contains_slow(group_name)) {
