@@ -40,6 +40,11 @@ enum class Channel : u8 {
 
 class ChannelMap {
 public:
+    static constexpr ChannelMap invalid()
+    {
+        return ChannelMap();
+    }
+
     static constexpr ChannelMap mono()
     {
         return ChannelMap(Channel::FrontCenter);
@@ -103,6 +108,8 @@ public:
         VERIFY(channels.size() <= capacity());
         AK::TypedTransfer<Channel>::copy(m_channels, channels.data(), channels.size());
     }
+
+    bool is_valid() const { return m_channel_count > 0; }
 
     u8 channel_count() const { return m_channel_count; }
     Channel channel_at(u8 index) const
