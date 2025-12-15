@@ -31,6 +31,8 @@ class WEB_API HTMLSelectElement final
 public:
     virtual ~HTMLSelectElement() override;
 
+    virtual bool is_html_select_element() const final { return true; }
+
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     WebIDL::UnsignedLong size() const;
@@ -162,5 +164,12 @@ private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
     bool m_user_validity { false };
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLSelectElement>() const { return is_html_select_element(); }
 
 }

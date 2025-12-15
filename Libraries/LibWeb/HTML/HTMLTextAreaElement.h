@@ -137,6 +137,8 @@ public:
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual bool is_html_textarea_element() const final { return true; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -173,5 +175,12 @@ private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-api-value
     mutable Optional<Utf16String> m_api_value;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLTextAreaElement>() const { return is_html_textarea_element(); }
 
 }
