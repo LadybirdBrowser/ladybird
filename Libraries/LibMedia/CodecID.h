@@ -11,7 +11,7 @@
 
 namespace Media {
 
-enum class CodecID : u32 {
+enum class CodecID : u8 {
     Unknown,
     // On2 / Google
     VP8,
