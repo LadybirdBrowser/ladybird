@@ -384,8 +384,7 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
     count_fields = set(array_to_count.values())
 
     for f in op.fields:
-        # never print m_length
-        if f.name == "m_length":
+        if f.name == "m_length" or f.name == "m_cache_index":
             continue
 
         t = f.type.strip()
@@ -492,14 +491,25 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
             lines.append("")
             continue
 
+        if t == "PropertyKeyTableIndex":
+            lines.append(
+                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.property_key_table->get({f.name}).as_string()));'
+            )
+            lines.append("")
+            continue
+
         if t == "IdentifierTableIndex":
-            lines.append(f"    append_piece(executable.identifier_table->get({f.name}));")
+            lines.append(
+                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.identifier_table->get({f.name})));'
+            )
             lines.append("")
             continue
 
         if t == "Optional<IdentifierTableIndex>":
             lines.append(f"    if ({f.name}.has_value())")
-            lines.append(f"        append_piece(executable.identifier_table->get({f.name}.value()));")
+            lines.append(
+                f'        append_piece(ByteString::formatted("{label}:{{}}", executable.identifier_table->get({f.name}.value())));'
+            )
             lines.append("")
             continue
 
