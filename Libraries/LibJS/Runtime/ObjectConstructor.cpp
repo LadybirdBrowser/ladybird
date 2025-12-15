@@ -488,10 +488,8 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::prevent_extensions)
     auto status = TRY(argument.as_object().internal_prevent_extensions());
 
     // 3. If status is false, throw a TypeError exception.
-    if (!status) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectPreventExtensionsReturnedFalse);
-    }
+    if (!status)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectPreventExtensionsReturnedFalse, Value(argument));
 
     // 4. Return O.
     return argument;
@@ -537,10 +535,8 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectConstructor::set_prototype_of)
     auto status = TRY(object.as_object().internal_set_prototype_of(proto.is_null() ? nullptr : &proto.as_object()));
 
     // 5. If status is false, throw a TypeError exception.
-    if (!status) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectSetPrototypeOfReturnedFalse);
-    }
+    if (!status)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectSetPrototypeOfReturnedFalse, Value(object));
 
     // 6. Return O.
     return object;

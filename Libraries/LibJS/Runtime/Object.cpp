@@ -147,10 +147,8 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
     auto success = TRY(internal_set(property_key, value, this));
 
     // 2. If success is false and Throw is true, throw a TypeError exception.
-    if (!success && throw_exceptions == ShouldThrowExceptions::Yes) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
-    }
+    if (!success && throw_exceptions == ShouldThrowExceptions::Yes)
+       return vm.throw_completion<TypeError>(ErrorType::ObjectDefineOwnPropertyReturnedFalse, property_key, Value(this));
 
     // 3. Return unused.
     return {};
@@ -214,10 +212,8 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
     auto success = TRY(create_data_property(property_key, value));
 
     // 2. If success is false, throw a TypeError exception.
-    if (!success) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectDefineOwnPropertyReturnedFalse);
-    }
+    if (!success)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectDefineOwnPropertyReturnedFalse, property_key, Value(this));
 
     // 3. Return success.
     return success;
@@ -248,10 +244,8 @@ ThrowCompletionOr<void> Object::define_property_or_throw(PropertyKey const& prop
     auto success = TRY(internal_define_own_property(property_key, property_descriptor));
 
     // 2. If success is false, throw a TypeError exception.
-    if (!success) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectDefineOwnPropertyReturnedFalse);
-    }
+    if (!success)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectDefineOwnPropertyReturnedFalse, property_key, Value(this));
 
     // 3. Return unused.
     return {};
@@ -266,10 +260,8 @@ ThrowCompletionOr<void> Object::delete_property_or_throw(PropertyKey const& prop
     auto success = TRY(internal_delete(property_key));
 
     // 2. If success is false, throw a TypeError exception.
-    if (!success) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectDeleteReturnedFalse);
-    }
+    if (!success)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectDeleteReturnedFalse, property_key, Value(this));
 
     // 3. Return unused.
     return {};

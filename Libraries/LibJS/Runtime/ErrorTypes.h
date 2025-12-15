@@ -124,14 +124,14 @@
     M(NumberIsNaN, "{} must not be NaN")                                                                                            \
     M(NumberIsNaNOrInfinity, "Number must not be NaN or Infinity")                                                                  \
     M(NumberIsNegative, "{} must not be negative")                                                                                  \
-    M(ObjectDefineOwnPropertyReturnedFalse, "Object's [[DefineOwnProperty]] method returned false")                                 \
-    M(ObjectDeleteReturnedFalse, "Object's [[Delete]] method returned false")                                                       \
+    M(ObjectDefineOwnPropertyReturnedFalse, "Cannot define property '{}' on {}")                                                    \
+    M(ObjectDeleteReturnedFalse, "Cannot delete property '{}' from {}")                                                             \
     M(ObjectFreezeFailed, "Could not freeze object")                                                                                \
-    M(ObjectPreventExtensionsReturnedFalse, "Object's [[PreventExtensions]] method returned false")                                 \
+    M(ObjectPreventExtensionsReturnedFalse, "Cannot prevent extensions on {}")                                                      \
     M(ObjectPrototypeWrongType, "Prototype must be an object or null")                                                              \
     M(ObjectSealFailed, "Could not seal object")                                                                                    \
-    M(ObjectSetPrototypeOfReturnedFalse, "Object's [[SetPrototypeOf]] method returned false")                                       \
-    M(ObjectSetReturnedFalse, "Object's [[Set]] method returned false")                                                             \
+    M(ObjectSetPrototypeOfReturnedFalse, "Cannot set prototype of {}")                                                              \
+    M(ObjectSetReturnedFalse, "Cannot set property '{}' on {}")                                                                     \
     M(OptionIsNotValidValue, "{} is not a valid value for option {}")                                                               \
     M(OutOfMemory, "Out of memory")                                                                                                 \
     M(OverloadResolutionFailed, "Overload resolution failed")                                                                       \

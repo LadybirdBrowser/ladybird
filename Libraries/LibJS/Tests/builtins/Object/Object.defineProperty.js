@@ -167,7 +167,7 @@ describe("errors", () => {
 
         expect(() => {
             Object.defineProperty(o, "foo", { value: 2, writable: true, enumerable: false });
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'foo' on [object Object]");
     });
 
     test("redefine non-configurable symbol property", () => {
@@ -177,7 +177,7 @@ describe("errors", () => {
 
         expect(() => {
             Object.defineProperty(o, s, { value: 2, writable: true, enumerable: false });
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'Symbol(foo)' on [object Object]");
     });
 
     test("cannot define 'value' and 'get' in the same descriptor", () => {
@@ -222,6 +222,6 @@ describe("errors", () => {
                     return this.secret_foo + 2;
                 },
             });
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'foo' on [object Object]");
     });
 });

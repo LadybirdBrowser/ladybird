@@ -35,7 +35,7 @@ describe("[[PreventExtensions]] invariants", () => {
 
         expect(() => {
             Object.preventExtensions(p);
-        }).toThrowWithMessage(TypeError, "Object's [[PreventExtensions]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot prevent extensions on [object ProxyObject]");
     });
 
     test("cannot return true if the target is extensible", () => {

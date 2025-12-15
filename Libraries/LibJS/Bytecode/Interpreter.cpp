@@ -2030,7 +2030,7 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
                     return vm.throw_completion<TypeError>(ErrorType::DescWriteNonWritable, identifier);
                 }
             }
-            return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse);
+            return vm.throw_completion<TypeError>(ErrorType::ObjectSetReturnedFalse, identifier, Value(&binding_object));
         }
         if (cacheable_metadata.type == CacheableSetPropertyMetadata::Type::ChangeOwnProperty) {
             cache.entries[0].shape = shape;

@@ -8,5 +8,5 @@ test("is an immutable prototype exotic object", () => {
     const p = Object.create(null);
     expect(() => {
         Object.setPrototypeOf(Object.prototype, p);
-    }).toThrowWithMessage(TypeError, "Object's [[SetPrototypeOf]] method returned false");
+    }).toThrowWithMessage(TypeError, "Cannot set prototype of [object ObjectPrototype]");
 });

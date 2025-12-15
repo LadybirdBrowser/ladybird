@@ -33,7 +33,7 @@ describe("errors", () => {
 
         expect(() => {
             Object.setPrototypeOf(o, {});
-        }).toThrowWithMessage(TypeError, "Object's [[SetPrototypeOf]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot set prototype of [object Object]");
 
         expect(Object.setPrototypeOf(o, p)).toBe(o);
     });
@@ -45,6 +45,6 @@ describe("errors", () => {
 
         expect(() => {
             Object.setPrototypeOf(p, o);
-        }).toThrowWithMessage(TypeError, "Object's [[SetPrototypeOf]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot set prototype of [object Object]");
     });
 });
