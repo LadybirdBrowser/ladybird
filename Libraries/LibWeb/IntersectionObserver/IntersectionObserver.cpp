@@ -344,7 +344,6 @@ Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS:
         if (token.is(CSS::Parser::Token::Type::Dimension)) {
             auto length = CSS::Length(token.token().dimension_value(), CSS::string_to_length_unit(token.token().dimension_unit()).value());
             if (length.is_absolute()) {
-                length.absolute_length_to_px();
                 tokens_length_percentage.append(length);
                 continue;
             }

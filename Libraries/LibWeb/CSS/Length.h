@@ -102,12 +102,12 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    ALWAYS_INLINE CSSPixels absolute_length_to_px() const
+    [[nodiscard]] ALWAYS_INLINE CSSPixels absolute_length_to_px() const
     {
         return CSSPixels::nearest_value_for(absolute_length_to_px_without_rounding());
     }
 
-    ALWAYS_INLINE double absolute_length_to_px_without_rounding() const
+    [[nodiscard]] ALWAYS_INLINE double absolute_length_to_px_without_rounding() const
     {
         return ratio_between_units(m_unit, LengthUnit::Px) * m_value;
     }
