@@ -356,6 +356,7 @@ struct MatchInput {
     mutable Optional<size_t> fork_to_replace;
 
     bool in_the_middle_of_a_line { false };
+    StringView pattern {};
 };
 
 struct MatchState {

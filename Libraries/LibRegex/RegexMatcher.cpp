@@ -180,6 +180,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     MatchState state { m_pattern->parser_result.capture_groups_count };
     size_t operations = 0;
 
+    input.pattern = m_pattern->pattern_value;
+
     input.regex_options = m_regex_options | regex_options.value_or({}).value();
     input.start_offset = m_pattern->start_offset;
     size_t lines_to_skip = 0;

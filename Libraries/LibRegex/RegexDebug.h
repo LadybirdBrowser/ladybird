@@ -54,10 +54,17 @@ public:
 
         out(m_file, "String Table:\n");
         for (auto const& entry : bytecode.string_table().m_table)
-            outln(m_file, "+ {} -> {:x}\n", entry.key, entry.value);
+            outln(m_file, "+ {} -> {:x}", entry.key, entry.value);
         out(m_file, "Reverse String Table:\n");
         for (auto const& entry : bytecode.string_table().m_inverse_table)
-            outln(m_file, "+ {:x} -> {}\n", entry.key, entry.value);
+            outln(m_file, "+ {:x} -> {}", entry.key, entry.value);
+
+        out(m_file, "(u16) String Table:\n");
+        for (auto const& entry : bytecode.u16_string_table().m_table)
+            outln(m_file, "+ {} -> {:x}", entry.key, entry.value);
+        out(m_file, "Reverse (u16) String Table:\n");
+        for (auto const& entry : bytecode.u16_string_table().m_inverse_table)
+            outln(m_file, "+ {:x} -> {}", entry.key, entry.value);
 
         fflush(m_file);
     }

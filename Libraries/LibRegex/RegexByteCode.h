@@ -17,6 +17,7 @@
 #include <AK/Trie.h>
 #include <AK/TypeCasts.h>
 #include <AK/Types.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
 
@@ -155,15 +156,57 @@ struct CompareTypeAndValuePair {
     ByteCodeValueType value;
 };
 
+REGEX_API extern u32 s_next_string_table_serial;
+template<typename StringType>
 struct REGEX_API StringTable {
-    StringTable();
-    ~StringTable();
-    StringTable(StringTable const&) = default;
-    StringTable(StringTable&&) = default;
-    StringTable& operator=(StringTable const&) = default;
-    StringTable& operator=(StringTable&&) = default;
+    StringTable()
+        : m_serial(s_next_string_table_serial++)
+    {
+    }
+    ~StringTable()
+    {
+        if (m_serial != 0) {
+            if (m_serial == s_next_string_table_serial - 1 && m_table.is_empty())
+                --s_next_string_table_serial; // We didn't use this serial, put it back.
+        }
+    }
+    StringTable(StringTable const& other)
+    {
+        // Pull a new serial for this copy
+        m_serial = s_next_string_table_serial++;
+        m_table = other.m_table;
+        m_inverse_table = other.m_inverse_table;
+    }
+    StringTable(StringTable&& other)
+    {
+        m_serial = other.m_serial;
+        m_table = move(other.m_table);
+        m_inverse_table = move(other.m_inverse_table);
+        // Clear other's data to avoid double-deletion of serial
+        other.m_serial = 0;
+    }
+    StringTable& operator=(StringTable const& other)
+    {
+        if (this != &other) {
+            m_serial = s_next_string_table_serial++;
+            m_table = other.m_table;
+            m_inverse_table = other.m_inverse_table;
+        }
+        return *this;
+    }
+    StringTable& operator=(StringTable&& other)
+    {
+        if (this != &other) {
+            m_serial = other.m_serial;
+            m_table = move(other.m_table);
+            m_inverse_table = move(other.m_inverse_table);
+            // Clear other's data to avoid double-deletion of serial
+            other.m_serial = 0;
+        }
+        return *this;
+    }
 
-    ByteCodeValueType set(FlyString string)
+    ByteCodeValueType set(StringType string)
     {
         u32 local_index = m_table.size() + 0x4242;
         ByteCodeValueType global_index;
@@ -179,14 +222,14 @@ struct REGEX_API StringTable {
         return global_index;
     }
 
-    FlyString get(ByteCodeValueType index) const
+    StringType get(ByteCodeValueType index) const
     {
         return m_inverse_table.get(index).value();
     }
 
     u32 m_serial { 0 };
-    HashMap<FlyString, ByteCodeValueType> m_table;
-    HashMap<ByteCodeValueType, FlyString> m_inverse_table;
+    HashMap<StringType, ByteCodeValueType> m_table;
+    HashMap<ByteCodeValueType, StringType> m_inverse_table;
 };
 
 using StringSetTrie = Trie<u32, bool>;
@@ -249,6 +292,9 @@ struct ByteCodeBase {
     FlyString get_string(size_t index) const { return m_string_table.get(index); }
     auto const& string_table() const { return m_string_table; }
 
+    auto get_u16_string(size_t index) const { return m_u16_string_table.get(index); }
+    auto const& u16_string_table() const { return m_u16_string_table; }
+
     auto const& string_set_table() const { return m_string_set_table; }
     auto& string_set_table() { return m_string_set_table; }
 
@@ -258,7 +304,8 @@ struct ByteCodeBase {
     }
 
 protected:
-    StringTable m_string_table;
+    StringTable<FlyString> m_string_table;
+    StringTable<Utf16FlyString> m_u16_string_table;
     StringSetTable m_string_set_table;
     HashMap<size_t, size_t> m_group_name_mappings;
 };
@@ -366,6 +413,19 @@ public:
             }
             m_string_table.m_inverse_table.update(other.m_string_table.m_inverse_table);
 
+            for (auto const& entry : other.m_u16_string_table.m_table) {
+                auto const result = m_u16_string_table.m_inverse_table.set(entry.value, entry.key);
+                if (result != HashSetResult::InsertedNewEntry) {
+                    if (m_u16_string_table.m_inverse_table.get(entry.value) == entry.key) // Already in inverse table.
+                        continue;
+                    dbgln("StringTable: Detected ID clash in string tables! ID {} seems to be reused", entry.value);
+                    dbgln("Old: {}, New: {}", m_u16_string_table.m_inverse_table.get(entry.value), entry.key);
+                    VERIFY_NOT_REACHED();
+                }
+                m_u16_string_table.m_table.set(entry.key, entry.value);
+            }
+            m_u16_string_table.m_inverse_table.update(other.m_u16_string_table.m_inverse_table);
+
             for (auto const& entry : other.m_string_set_table.m_u8_tries) {
                 m_string_set_table.m_u8_tries.set(entry.key, MUST(const_cast<StringSetTrie&>(entry.value).deep_copy()));
             }
@@ -399,13 +459,14 @@ public:
         empend(index);
     }
 
-    void insert_bytecode_compare_string(StringView view)
+    void insert_bytecode_compare_string(Utf16FlyString string)
     {
         empend(static_cast<ByteCodeValueType>(OpCodeId::Compare));
         empend(static_cast<u64>(1)); // number of arguments
-        empend(2 + view.length());   // size of arguments
+        empend(static_cast<u64>(2)); // size of arguments
         empend(static_cast<ByteCodeValueType>(CharacterCompareType::String));
-        insert_string(view);
+        auto index = m_u16_string_table.set(move(string));
+        empend(index);
     }
 
     void insert_bytecode_group_capture_left(size_t capture_groups_count)
@@ -705,13 +766,6 @@ public:
     static void reset_checkpoint_serial_id() { s_next_checkpoint_serial_id = 0; }
 
 private:
-    void insert_string(StringView view)
-    {
-        empend((ByteCodeValueType)view.length());
-        for (size_t i = 0; i < view.length(); ++i)
-            empend((ByteCodeValueType)view[i]);
-    }
-
     void ensure_opcodes_initialized();
     ALWAYS_INLINE OpCode<ByteCode>& get_opcode_by_id(OpCodeId id) const;
     static OwnPtr<OpCode<ByteCode>> s_opcodes[(size_t)OpCodeId::Last + 1];
@@ -728,6 +782,7 @@ public:
         if (!bytecode.is_empty())
             flat_bytecode.m_data = move(static_cast<DisjointChunks<ByteCodeValueType>&>(bytecode).first_chunk());
         flat_bytecode.m_string_table = move(bytecode.m_string_table);
+        flat_bytecode.m_u16_string_table = move(bytecode.m_u16_string_table);
         flat_bytecode.m_string_set_table = move(bytecode.m_string_set_table);
         flat_bytecode.m_group_name_mappings = move(bytecode.m_group_name_mappings);
         return flat_bytecode;

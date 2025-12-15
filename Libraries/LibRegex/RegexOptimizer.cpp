@@ -264,6 +264,10 @@ void Regex<Parser>::run_optimization_passes()
     blocks = split_basic_blocks_for_atomic_groups<Parser>(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
+    // Join adjacent compares that only match single characters into a single compare that matches a string.
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    attempt_rewrite_adjacent_compares_as_string_compare(blocks);
+
     fill_optimization_data(split_basic_blocks(parser_result.bytecode.template get<ByteCode>()));
 }
 
@@ -1428,6 +1432,102 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
     }
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlockList const& basic_blocks)
+{
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty())
+        return;
+
+    // Find sequences of single-character compares
+    struct StringSequence {
+        size_t start_ip;
+        size_t end_ip;
+        Vector<u32> characters;
+    };
+    Vector<StringSequence> sequences;
+
+    for (auto const& block : basic_blocks) {
+        auto state = MatchState::only_for_enumeration();
+        Vector<u32> current_chars;
+        size_t sequence_start = 0;
+        bool in_sequence = false;
+
+        for (state.instruction_position = block.start; state.instruction_position <= block.end;) {
+            auto current_ip = state.instruction_position;
+            auto& opcode = bytecode.get_opcode(state);
+
+            bool is_single_char = false;
+            u32 character = 0;
+
+            if (opcode.opcode_id() == OpCodeId::Compare) {
+                auto& compare = to<OpCode_Compare>(opcode);
+                auto flat_compares = compare.flat_compares();
+
+                if (flat_compares.size() == 1
+                    && flat_compares[0].type == CharacterCompareType::Char) {
+                    is_single_char = true;
+                    character = flat_compares[0].value;
+                }
+            }
+
+            if (is_single_char) {
+                if (!in_sequence) {
+                    sequence_start = current_ip;
+                    current_chars.clear();
+                    in_sequence = true;
+                }
+                current_chars.append(character);
+            } else {
+                if (in_sequence && current_chars.size() >= 2) {
+                    sequences.append({ sequence_start, current_ip, move(current_chars) });
+                    current_chars.clear();
+                }
+                in_sequence = false;
+            }
+
+            state.instruction_position += opcode.size();
+        }
+
+        if (in_sequence && current_chars.size() >= 2) {
+            sequences.append({ sequence_start, state.instruction_position, move(current_chars) });
+        }
+    }
+
+    if (sequences.is_empty())
+        return;
+
+    BytecodeRewriter rewriter(bytecode);
+
+    for (auto& seq : sequences)
+        rewriter.mark_range_for_skip(seq.start_ip, seq.end_ip);
+
+    size_t seq_index = 0;
+    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
+        while (seq_index < sequences.size()) {
+            auto& seq = sequences[seq_index];
+
+            if (instr.old_ip == seq.start_ip) {
+                StringBuilder string_builder(StringBuilder::Mode::UTF16);
+                for (auto ch : seq.characters)
+                    string_builder.append_code_point(ch);
+
+                result.insert_bytecode_compare_string(string_builder.to_utf16_string());
+                seq_index++;
+                return;
+            }
+
+            if (instr.old_ip < seq.end_ip)
+                return;
+
+            seq_index++;
+        }
+    };
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
 }
 
 void Optimizer::append_alternation(ByteCode& target, ByteCode&& left, ByteCode&& right)
