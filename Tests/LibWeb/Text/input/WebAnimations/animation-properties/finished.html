@@ -6,6 +6,7 @@
         const foo = document.getElementById("foo");
         const timeline = internals.createInternalAnimationTimeline();
         let animation = foo.animate({ opacity: [0, 1] }, { duration: 100, timeline });
+        await animationFrame();
         let finishedPromise = animation.finished;
 
         timeline.setTime(100);

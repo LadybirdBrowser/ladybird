@@ -23,6 +23,7 @@
         const foo = document.getElementById("foo");
         const timeline = internals.createInternalAnimationTimeline();
         const anim = foo.getAnimations()[0];
+        await animationFrame();
         anim.timeline = timeline;
         timeline.setTime(1000);
 
