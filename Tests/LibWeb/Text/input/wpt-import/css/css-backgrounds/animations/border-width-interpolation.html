@@ -6,7 +6,7 @@
 
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
-<script src="../../support/interpolation-testcommon.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
 
 <style>
 .parent {
@@ -83,12 +83,12 @@ test_interpolation({
   from: 'inherit',
   to: '20px',
 }, [
-  {at: -0.3, expect: '0px'},
-  {at: 0, expect: '0px'},
-  {at: 0.3, expect: '6px'},
-  {at: 0.6, expect: '12px'},
+  {at: -0.3, expect: '33px'},
+  {at: 0, expect: '30px'},
+  {at: 0.3, expect: '27px'},
+  {at: 0.6, expect: '24px'},
   {at: 1, expect: '20px'},
-  {at: 1.5, expect: '30px'},
+  {at: 1.5, expect: '15px'},
 ]);
 
 test_interpolation({

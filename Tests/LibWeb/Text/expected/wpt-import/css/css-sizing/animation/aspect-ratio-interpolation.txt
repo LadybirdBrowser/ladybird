@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 246 tests
+Found 249 tests
 
-244 Pass
-2 Fail
+245 Pass
+4 Fail
 Pass	CSS Transitions: property <aspect-ratio> from [0.5] to [2] at (-0.5) should be [0.25 / 1]
 Pass	CSS Transitions: property <aspect-ratio> from [0.5] to [2] at (0) should be [0.5 / 1]
 Pass	CSS Transitions: property <aspect-ratio> from [0.5] to [2] at (0.5) should be [1 / 1]
@@ -247,6 +247,9 @@ Pass	Web Animations: property <aspect-ratio> from [1 / 1] to [0 / 1] at (0.5) sh
 Pass	Web Animations: property <aspect-ratio> from [1 / 1] to [0 / 1] at (0.6) should be [0 / 1]
 Pass	Web Animations: property <aspect-ratio> from [1 / 1] to [0 / 1] at (1) should be [0 / 1]
 Pass	Web Animations: property <aspect-ratio> from [1 / 1] to [0 / 1] at (1.5) should be [0 / 1]
-Pass	Compositing: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0) should be [0.5 / 1]
-Fail	Compositing: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0.5) should be [1 / 1]
-Fail	Compositing: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (1) should be [2 / 1]
+Pass	Compositing CSS Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0) should be [0.5 / 1]
+Fail	Compositing CSS Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0.5) should be [1 / 1]
+Fail	Compositing CSS Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (1) should be [2 / 1]
+Pass	Compositing Web Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0) should be [0.5 / 1]
+Fail	Compositing Web Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (0.5) should be [1 / 1]
+Fail	Compositing Web Animations: property <aspect-ratio> underlying [2 / 1] from replace [0.5 / 1] to add [1 / 1] at (1) should be [2 / 1]
