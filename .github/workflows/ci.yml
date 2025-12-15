@@ -38,6 +38,13 @@ jobs:
             runner_labels: '["macos-15", "self-hosted"]'
 
           - os_name: 'Linux'
+            arch: 'arm64'
+            build_preset: 'Sanitizer'
+            toolchain: 'Clang'
+            clang_plugins: false
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
+
+          - os_name: 'Linux'
             arch: 'x86_64'
             build_preset: 'Fuzzers'
             toolchain: 'Clang'
