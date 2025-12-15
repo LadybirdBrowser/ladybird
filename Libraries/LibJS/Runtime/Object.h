@@ -215,6 +215,7 @@ public:
     virtual bool is_html_location() const { return false; }
 
     virtual bool is_function() const { return false; }
+    virtual bool is_bound_function() const { return false; }
     virtual bool is_promise() const { return false; }
     virtual bool is_error_object() const { return false; }
     virtual bool is_date() const { return false; }
