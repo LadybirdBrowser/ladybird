@@ -19,8 +19,8 @@ elseif (WIN32)
     lagom_windows_bin(test-web CONSOLE)
 endif()
 
-# FIXME: Increase support for building targets on Windows
-if (WIN32 AND ENABLE_WINDOWS_CI)
+# FIXME: Add support for running test-web on Windows
+if (WIN32)
     return()
 endif()
 

@@ -38,7 +38,7 @@ def main():
         "--preset",
         required=False,
         default=os.environ.get(
-            "BUILD_PRESET", "Windows_Experimental" if platform.host_system == HostSystem.Windows else "Release"
+            "BUILD_PRESET", "Windows_Experimental_Release" if platform.host_system == HostSystem.Windows else "Release"
         ),
     )
 
@@ -276,9 +276,9 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
         "Swift_Release": build_root_dir / "swift",
-        "Windows_CI": build_root_dir / "release",
-        "Windows_Experimental": build_root_dir / "debug",
-        "Windows_Sanitizer_CI": build_root_dir / "sanitizers",
+        "Windows_Experimental_Debug": build_root_dir / "debug",
+        "Windows_Experimental_Release": build_root_dir / "release",
+        "Windows_Experimental_Sanitizer": build_root_dir / "sanitizers",
     }
 
     build_preset_dir = known_presets.get(preset, None)

@@ -107,7 +107,7 @@ if (WIN32)
     #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
     #   >>> lagom-ak.lib(Utf16View.cpp.obj) has value 1
     #   >>> lagom-unicode.lib(IDNA.cpp.obj) has value 0
-    if (ENABLE_WINDOWS_CI)
+    if (ENABLE_ADDRESS_SANITIZER)
         target_compile_options(AK PRIVATE -fno-sanitize=address)
     endif()
 elseif (APPLE)

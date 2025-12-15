@@ -41,7 +41,6 @@ ladybird_option(ENABLE_INSTALL_HEADERS ON CACHE BOOL "Enable installing headers"
 ladybird_option(ENABLE_INSTALL_FREEDESKTOP_FILES ${freedesktop_files_default} CACHE BOOL "Enable installing .desktop and .service files")
 ladybird_option(ENABLE_SWIFT OFF CACHE BOOL "Enable building Swift files")
 ladybird_option(LADYBIRD_ENABLE_CPPTRACE ON CACHE BOOL "Enable use of cpptrace as the default library for stacktraces. If not available falls back to backtrace.h")
-ladybird_option(ENABLE_WINDOWS_CI OFF CACHE BOOL "Enable building targets supported on Windows for CI")
 ladybird_option(ENABLE_CI_BASELINE_CPU OFF CACHE BOOL "Use a baseline CPU target for improved ccache sharing")
 
 if (ENABLE_FUZZERS_LIBFUZZER)

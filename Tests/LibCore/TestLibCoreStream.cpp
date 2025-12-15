@@ -326,7 +326,7 @@ TEST_CASE(udp_socket_read_write)
     auto small_buffer = ByteBuffer::create_uninitialized(8).release_value();
     EXPECT_EQ(client_socket->read_some(small_buffer).error().code(), SMALL_BUFFER_ERROR_CODE);
 
-    // FIXME: This works locally in the Windows_Experimental (Debug) preset, but not in Windows_Sanitizer_Preset
+    // FIXME: This works locally in the Windows Debug preset, but not in Windows Sanitizer preset
 #if !defined(AK_OS_WINDOWS) || defined(_NDEBUG)
     auto client_receive_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(CLIENT_RECEIVE_BUFFER_SIZE));
     auto read_bytes = TRY_OR_FAIL(client_socket->read_some(client_receive_buffer));

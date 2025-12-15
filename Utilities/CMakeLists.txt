@@ -15,7 +15,7 @@ if (ENABLE_GUI_TARGETS)
 endif()
 
 # FIXME: Increase support for building targets on Windows
-if (WIN32 AND ENABLE_WINDOWS_CI)
+if (WIN32)
     return()
 endif()
 
