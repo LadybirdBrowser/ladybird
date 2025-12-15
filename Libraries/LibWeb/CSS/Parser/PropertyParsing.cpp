@@ -1789,12 +1789,24 @@ RefPtr<StyleValue const> Parser::parse_border_image_slice_value(TokenStream<Comp
         fill);
 }
 
+// https://drafts.csswg.org/css-borders-4/#typedef-border-radius
 RefPtr<StyleValue const> Parser::parse_border_radius_value(TokenStream<ComponentValue>& tokens)
 {
+    // <border-radius> = <slash-separated-border-radius-syntax> | <legacy-border-radius-syntax>
+    // <slash-separated-border-radius-syntax> = <length-percentage [0,∞]> [ / <length-percentage [0,∞]> ]?
+    // <legacy-border-radius-syntax> = <length-percentage [0,∞]>{1,2}
+    // NB: So, 1 or 2 `<length-percentage>`s, optionally separated with a `/`.
+
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto horizontal = parse_length_percentage_value(tokens);
     tokens.discard_whitespace();
+
+    if (tokens.next_token().is_delim('/')) {
+        tokens.discard_a_token(); // '/'
+        tokens.discard_whitespace();
+    }
+
     auto vertical = parse_length_percentage_value(tokens);
     if (horizontal && vertical) {
         transaction.commit();
