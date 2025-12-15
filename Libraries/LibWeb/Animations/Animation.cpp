@@ -748,10 +748,7 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     //
     //     If a user agent determines that animation is immediately ready, it may schedule the above task as a microtask
     //     such that it runs at the next microtask checkpoint, but it must not perform the task synchronously.
-    // FIXME: Below actions should only happen when the animation is actually ready.
     m_pending_play_task = TaskState::Scheduled;
-    if (m_timeline)
-        m_saved_play_time = m_timeline->current_time();
 
     // 13. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //     and the synchronously notify flag set to false.
@@ -829,13 +826,9 @@ WebIDL::ExceptionOr<void> Animation::pause()
         m_current_ready_promise = WebIDL::create_promise(realm());
 
     // 10. Schedule a task to be executed at the first possible moment where both of the following conditions are true:
-    //     - the user agent has performed any processing necessary to suspend the playback of animation’s associated
-    //       effect, if any.
-    //     - the animation is associated with a timeline that is not inactive.
-    //
-    // Note: This is run_pending_pause_task()
+    // NB: Criteria has been listed out in is_ready_to_run_pending_pause_task()
+    // NB: This is run_pending_pause_task()
     m_pending_pause_task = TaskState::Scheduled;
-    m_saved_pause_time = m_timeline->current_time().value();
 
     // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //     and the synchronously notify flag set to false.
@@ -1015,12 +1008,12 @@ void Animation::update()
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
 
     // Act on the pending play or pause task
-    if (m_pending_play_task == TaskState::Scheduled) {
+    if (m_pending_play_task == TaskState::Scheduled && is_ready()) {
         m_pending_play_task = TaskState::None;
         run_pending_play_task();
     }
 
-    if (m_pending_pause_task == TaskState::Scheduled) {
+    if (m_pending_pause_task == TaskState::Scheduled && is_ready_to_run_pending_pause_task()) {
         m_pending_pause_task = TaskState::None;
         run_pending_pause_task();
     }
@@ -1305,6 +1298,26 @@ void Animation::reset_an_animations_pending_tasks()
     m_current_ready_promise = WebIDL::create_resolved_promise(realm, this);
 }
 
+// https://drafts.csswg.org/web-animations-2/#ready
+bool Animation::is_ready() const
+{
+    // An animation is ready at the first moment where all of the following conditions are true:
+
+    // FIXME: - the user agent has completed any setup required to begin the playback of each inclusive descendant of
+    //          the animation’s associated effect including rendering the first frame of any keyframe effect or
+    //          executing any custom effects associated with an animation effect
+
+    // - the animation is associated with a timeline that is not inactive.
+    if (!m_timeline || m_timeline->is_inactive())
+        return false;
+
+    // - the animation’s hold time or start time is resolved.
+    if (!m_hold_time.has_value() && !m_start_time.has_value())
+        return false;
+
+    return true;
+}
+
 // Step 12 of https://www.w3.org/TR/web-animations-1/#playing-an-animation-section
 void Animation::run_pending_play_task()
 {
@@ -1313,7 +1326,9 @@ void Animation::run_pending_play_task()
 
     // 2. Let ready time be the time value of the timeline associated with animation at the moment when animation became
     //    ready.
-    auto ready_time = m_saved_play_time.release_value();
+    // FIXME: We can get a more accurate time here if we record the actual instant we became ready rather than waiting
+    //        to try and run this task
+    auto ready_time = m_timeline->current_time().value();
 
     // 3. Perform the steps corresponding to the first matching condition below, if any:
 
@@ -1362,13 +1377,35 @@ void Animation::run_pending_play_task()
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
 
+bool Animation::is_ready_to_run_pending_pause_task() const
+{
+    // NB: Step 10 of the procedure to "pause an animation" requires us to schedule the pending pause task to run when
+    //     the following conditions are true:
+
+    // https://www.w3.org/TR/web-animations-1/#pause-an-animation
+    // https://drafts.csswg.org/web-animations-2/#pausing-an-animation-section
+    // FIXME: - the user agent has performed any processing necessary to suspend the playback of animation’s associated
+    //       effect, if any.
+
+    // - the animation is associated with a timeline that is not inactive.
+    if (!m_timeline || m_timeline->is_inactive())
+        return false;
+
+    // - the animation has a resolved hold time or start time.
+    if (!m_hold_time.has_value() && !m_start_time.has_value())
+        return false;
+
+    return true;
+}
+
 // Step 10 of https://www.w3.org/TR/web-animations-1/#pause-an-animation
 void Animation::run_pending_pause_task()
 {
     // 1. Let ready time be the time value of the timeline associated with animation at the moment when the user agent
     //    completed processing necessary to suspend playback of animation’s associated effect.
-    VERIFY(m_saved_pause_time.has_value());
-    auto ready_time = m_saved_pause_time.release_value();
+    // FIXME: We can get a more accurate time here if we record the actual instant the above is true rather than waiting
+    //        for this task to run
+    auto ready_time = m_timeline->current_time().value();
 
     // 2. If animation’s start time is resolved and its hold time is not resolved, let animation’s hold time be the
     //    result of evaluating (ready time - start time) × playback rate.

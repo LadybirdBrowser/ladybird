@@ -41,6 +41,7 @@
             iterations: 3,
             timeline,
         });
+        await animationFrame();
         timeline.setTime(1200);
         await animationFrame();
         timing = anim.effect.getComputedTiming();

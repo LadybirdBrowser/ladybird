@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+
+<html>
+    <div id="foo"></div>
+    <script>
+        (async () => {
+            const anim = new Animation(new KeyframeEffect(foo, [{ rotate: "0deg" }, { rotate: "360deg" }]));
+
+            // Ensure that the animation has no timeline when calling the play method
+            anim.timeline = null;
+            anim.play();
+
+            // Tick `notify_timeline_time_did_change` to run the pending play task
+            anim.timeline = document.timeline;
+        })();
+    </script>
+</html>
