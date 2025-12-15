@@ -604,8 +604,14 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         border.color = computed_style.color_or_fallback(color_property, color_resolution_context, computed_values.color());
         border.line_style = computed_style.line_style(style_property);
 
-        // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
-        border.width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
+        // If the border-style corresponding to a given border-width is none or hidden, then the used width is 0.
+        // https://drafts.csswg.org/css-backgrounds/#border-width
+        if (border.line_style == CSS::LineStyle::None || border.line_style == CSS::LineStyle::Hidden) {
+            border.width = 0;
+        } else {
+            // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
+            border.width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
+        }
     };
 
     do_border_style(computed_values.border_left(), CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);

@@ -2306,15 +2306,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::BackgroundSize:
         return repeat_style_value_list_to_n_elements(absolutized_value, get_property_specified_value(PropertyID::BackgroundImage)->as_value_list().size());
     case PropertyID::BorderBottomWidth:
-        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderBottomStyle), device_pixels_per_css_pixel);
     case PropertyID::BorderLeftWidth:
-        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderLeftStyle), device_pixels_per_css_pixel);
     case PropertyID::BorderRightWidth:
-        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderRightStyle), device_pixels_per_css_pixel);
     case PropertyID::BorderTopWidth:
-        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::BorderTopStyle), device_pixels_per_css_pixel);
     case PropertyID::OutlineWidth:
-        return compute_border_or_outline_width(absolutized_value, get_property_specified_value(PropertyID::OutlineStyle), device_pixels_per_css_pixel);
+        return compute_border_or_outline_width(absolutized_value, device_pixels_per_css_pixel);
     case PropertyID::CornerBottomLeftShape:
     case PropertyID::CornerBottomRightShape:
     case PropertyID::CornerTopLeftShape:
@@ -2399,13 +2395,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(N
     return StyleValueList::create(move(axis_tags), StyleValueList::Separator::Comma);
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, NonnullRefPtr<StyleValue const> const& style_specified_value, double device_pixels_per_css_pixel)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(NonnullRefPtr<StyleValue const> const& absolutized_value, double device_pixels_per_css_pixel)
 {
     // https://drafts.csswg.org/css-backgrounds/#border-width
-    // absolute length, snapped as a border width; zero if the border style is none or hidden
-    if (first_is_one_of(style_specified_value->to_keyword(), Keyword::None, Keyword::Hidden))
-        return LengthStyleValue::create(Length::make_px(0));
-
+    // absolute length, snapped as a border width
     auto const absolute_length = [&]() -> CSSPixels {
         if (absolutized_value->is_calculated())
             return absolutized_value->as_calculated().resolve_length({})->absolute_length_to_px();
