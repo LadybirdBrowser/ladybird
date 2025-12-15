@@ -46,6 +46,6 @@ private:
 };
 
 template<>
-inline bool FunctionObject::fast_is<BoundFunction>() const { return is_bound_function(); }
+inline bool Object::fast_is<BoundFunction>() const { return is_bound_function(); }
 
 }

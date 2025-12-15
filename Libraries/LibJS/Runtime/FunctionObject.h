@@ -44,9 +44,6 @@ public:
 
     virtual Utf16String name_for_call_stack() const = 0;
 
-    template<typename T>
-    bool fast_is() const = delete;
-
 protected:
     explicit FunctionObject(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit FunctionObject(Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
@@ -55,7 +52,6 @@ protected:
 
 private:
     virtual bool is_function() const override { return true; }
-    virtual bool is_bound_function() const { return false; }
 };
 
 template<>

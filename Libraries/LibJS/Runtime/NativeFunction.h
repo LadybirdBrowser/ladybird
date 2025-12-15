@@ -76,7 +76,4 @@ private:
 template<>
 inline bool Object::fast_is<NativeFunction>() const { return is_native_function(); }
 
-template<>
-inline bool FunctionObject::fast_is<NativeFunction>() const { return is_native_function(); }
-
 }
