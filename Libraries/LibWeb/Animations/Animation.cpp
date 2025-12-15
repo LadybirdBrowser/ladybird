@@ -1126,8 +1126,9 @@ void Animation::update()
     if (m_timeline && m_timeline->is_progress_based())
         calculate_auto_aligned_start_time();
 
-    // Update finished state if not already finished; prevents recurring invalidation when the timeline updates.
-    if (!m_is_finished)
+    // Prevent unnecessary work if the animation is already finished and can't exit the finished state due to timeline
+    // changes
+    if (!m_is_finished || !m_timeline->is_monotonically_increasing())
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
 
     // Act on the pending play or pause task
