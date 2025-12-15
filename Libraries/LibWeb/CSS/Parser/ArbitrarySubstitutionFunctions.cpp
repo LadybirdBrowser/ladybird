@@ -92,12 +92,15 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
 
     FlyString attribute_name;
 
-    struct RawString { };
-    Variant<Empty, NonnullOwnPtr<SyntaxNode>, RawString> syntax;
-    Optional<FlyString> unit_name;
+    struct RawStringKeyword { };
+    struct NumberKeyword { };
+    struct AttrUnit {
+        FlyString name;
+    };
+    Variant<Empty, NonnullOwnPtr<SyntaxNode>, RawStringKeyword, NumberKeyword, AttrUnit> syntax;
 
     auto failure = [&] -> Vector<ComponentValue> {
-        // This is step 6, but defined here for convenience.
+        // This is step 7, but defined here for convenience.
 
         // 1. If second arg is null, and syntax was omitted, return an empty CSS <string>.
         if (!second_argument.has_value() && syntax.has<Empty>())
@@ -124,22 +127,23 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     attribute_name = first_argument_tokens.consume_a_token().token().ident();
     first_argument_tokens.discard_whitespace();
 
-    // <attr-type> = type( <syntax> ) | raw-string | <attr-unit>
+    // <attr-type> = type( <syntax> ) | raw-string | number | <attr-unit>
     if (first_argument_tokens.next_token().is(Token::Type::Ident)) {
         auto const& syntax_ident = first_argument_tokens.next_token().token().ident();
         if (syntax_ident.equals_ignoring_ascii_case("raw-string"sv)) {
             first_argument_tokens.discard_a_token(); // raw-string
-            syntax = RawString {};
+            syntax = RawStringKeyword {};
+        } else if (syntax_ident.equals_ignoring_ascii_case("number"sv)) {
+            first_argument_tokens.discard_a_token(); // number
+            syntax = NumberKeyword {};
         } else if (dimension_for_unit(syntax_ident).has_value()) {
-            syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
-            unit_name = first_argument_tokens.consume_a_token().token().ident();
+            syntax = AttrUnit { first_argument_tokens.consume_a_token().token().ident() };
         } else {
             return failure();
         }
     } else if (first_argument_tokens.next_token().is_delim('%')) {
         first_argument_tokens.discard_a_token(); // %
-        syntax = TypeSyntaxNode::create("number"_fly_string).release_nonnull<SyntaxNode>();
-        unit_name = "%"_fly_string;
+        syntax = AttrUnit { "%"_fly_string };
     } else if (first_argument_tokens.next_token().is_function("type"sv)) {
         auto const& type_function = first_argument_tokens.consume_a_token().function();
         if (auto parsed_syntax = parse_as_syntax(type_function.value)) {
@@ -158,16 +162,70 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     if (!attribute_value.has_value())
         return failure();
 
-    // 4. If syntax is null or the keyword raw-string, return a CSS <string> whose value is attr value.
+    // 4. If syntax is the keyword number or an <attr-unit> value, parse attr value against <attr-type>.
+    //    If that succeeds, return the result; otherwise, jump to the last step (labeled FAILURE).
+    // NOTE: No parsing or modification of any kind is performed on the value.
+    auto parse_as_number = [&]() -> RefPtr<NumberStyleValue const> {
+        auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
+        auto unsubstituted_values = parser.parse_as_list_of_component_values();
+        auto syntax_node = TypeSyntaxNode::create("number"_fly_string);
+        auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, unsubstituted_values, *syntax_node, element);
+        if (parsed_value->is_guaranteed_invalid())
+            return {};
+
+        // FIXME: The spec is ambiguous about what we should do for non-number-literals.
+        //        Chromium treats them as invalid, so copy that for now.
+        //        Spec issue: https://github.com/w3c/csswg-drafts/issues/12479
+        if (!parsed_value->is_number())
+            return {};
+
+        return parsed_value->as_number();
+    };
+
+    bool return_from_step_4 = false;
+    auto step_4_result = syntax.visit(
+        // https://drafts.csswg.org/css-values-5/#ref-for-typedef-attr-type%E2%91%A0
+        [&](NumberKeyword) -> Optional<Vector<ComponentValue>> {
+            // If given as the number keyword, it causes the attribute’s literal value, after stripping leading and
+            // trailing whitespace, to be parsed as a <number-token>. Values that fail to parse trigger fallback.
+            return_from_step_4 = true;
+            auto parsed_number = parse_as_number();
+            if (!parsed_number)
+                return {};
+            return Vector<ComponentValue> { Token::create_number(Number { Number::Type::Number, parsed_number->number() }) };
+        },
+        [&](AttrUnit const& attr_unit) -> Optional<Vector<ComponentValue>> {
+            // If given as an <attr-unit> value, the value is first parsed as if number keyword was specified, then the
+            // resulting numeric value is turned into a dimension with the corresponding unit, or a percentage if % was
+            // given. Same as for number <attr-type>, values that do not correspond to the <number-token> production
+            // trigger fallback.
+            return_from_step_4 = true;
+            auto parsed_number = parse_as_number();
+            if (!parsed_number)
+                return {};
+            if (attr_unit.name == "%"_fly_string)
+                return Vector<ComponentValue> { Token::create_percentage(Number { Number::Type::Number, parsed_number->number() }) };
+            return Vector<ComponentValue> { Token::create_dimension(parsed_number->number(), attr_unit.name) };
+        },
+        [&](auto&) -> Optional<Vector<ComponentValue>> {
+            return OptionalNone {};
+        });
+    if (return_from_step_4) {
+        if (step_4_result.has_value())
+            return step_4_result.release_value();
+        return failure();
+    }
+
+    // 5. If syntax is null or the keyword raw-string, return a CSS <string> whose value is attr value.
     // NOTE: No parsing or modification of any kind is performed on the value.
     if (syntax.visit(
             [](Empty) { return true; },
-            [](RawString) { return true; },
+            [](RawStringKeyword) { return true; },
             [](auto&) { return false; })) {
         return { Token::create_string(*attribute_value) };
     }
 
-    // 5. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
+    // 6. Substitute arbitrary substitution functions in attr value, with «"attribute", attr name» as the substitution
     //    context, then parse with a <syntax> attr value, with syntax and el. If that succeeds, return the result;
     //    otherwise, jump to the last step (labeled FAILURE).
     auto parser = Parser::create(ParsingParams { element.element().document() }, attribute_value.value());
@@ -178,28 +236,10 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>(), element);
     if (parsed_value->is_guaranteed_invalid())
         return failure();
-
-    if (unit_name.has_value()) {
-        // https://drafts.csswg.org/css-values-5/#ref-for-typedef-attr-type%E2%91%A0
-        // If given as an <attr-unit> value, the value is first parsed as if number keyword was specified, then the
-        // resulting numeric value is turned into a dimension with the corresponding unit, or a percentage if % was
-        // given. Same as for number <attr-type>, values that do not correspond to the <number-token> production
-        // trigger fallback.
-
-        // FIXME: The spec is ambiguous about what we should do for non-number-literals.
-        //        Chromium treats them as invalid, so copy that for now.
-        //        Spec issue: https://github.com/w3c/csswg-drafts/issues/12479
-        if (!parsed_value->is_number())
-            return failure();
-        if (unit_name == "%"_fly_string)
-            return { Token::create_percentage(Number { Number::Type::Number, parsed_value->as_number().number() }) };
-        return { Token::create_dimension(parsed_value->as_number().number(), unit_name.release_value()) };
-    }
-
     return parsed_value->tokenize();
 
-    // 6. FAILURE:
-    // NB: Step 6 is a lambda defined at the top of the function.
+    // 7. FAILURE:
+    // NB: Step 7 is a lambda defined at the top of the function.
 }
 
 // https://drafts.csswg.org/css-env/#substitute-an-env
