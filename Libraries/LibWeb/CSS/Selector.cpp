@@ -157,33 +157,69 @@ void Selector::collect_ancestor_hashes()
         return false;
     };
 
-    auto last_combinator = m_compound_selectors.last().combinator;
-    for (ssize_t compound_selector_index = static_cast<ssize_t>(m_compound_selectors.size()) - 2; compound_selector_index >= 0; --compound_selector_index) {
-        auto const& compound_selector = m_compound_selectors[compound_selector_index];
-        if (last_combinator == Combinator::Descendant || last_combinator == Combinator::ImmediateChild) {
-            m_can_use_ancestor_filter = true;
-            for (auto const& simple_selector : compound_selector.simple_selectors) {
-                switch (simple_selector.type) {
-                case SimpleSelector::Type::Id:
-                case SimpleSelector::Type::Class:
-                    if (append_unique_hash(simple_selector.name().hash()))
-                        return;
-                    break;
-                case SimpleSelector::Type::TagName:
-                    if (append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash()))
-                        return;
-                    break;
-                case SimpleSelector::Type::Attribute:
-                    if (append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash()))
-                        return;
-                    break;
-                default:
-                    break;
-                }
+    auto append_hashes_from_compound = [&](CompoundSelector const& compound_selector) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            switch (simple_selector.type) {
+            case SimpleSelector::Type::Id:
+            case SimpleSelector::Type::Class:
+                if (append_unique_hash(simple_selector.name().hash()))
+                    return true;
+                break;
+            case SimpleSelector::Type::TagName:
+                if (append_unique_hash(simple_selector.qualified_name().name.lowercase_name.hash()))
+                    return true;
+                break;
+            case SimpleSelector::Type::Attribute:
+                if (append_unique_hash(simple_selector.attribute().qualified_name.name.lowercase_name.hash()))
+                    return true;
+                break;
+            default:
+                break;
             }
         }
-        last_combinator = compound_selector.combinator;
+        return false;
+    };
+
+    // Walk from the compound immediately to the left of the subject toward the left.
+    // The combinator that connects `i` to `i+1` is stored on `i+1`.
+    auto combinator_to_right = m_compound_selectors.last().combinator;
+
+    // If we cross a sibling combinator, compounds further to the left are not ancestors of the subject,
+    // but they *are* ancestors of that sibling and therefore shared ancestors of the subject (since siblings
+    // share all ancestors above their parent). We can safely require tokens from those shared ancestors.
+    for (ssize_t i = static_cast<ssize_t>(m_compound_selectors.size()) - 2; i >= 0; --i) {
+        auto const& compound_selector = m_compound_selectors[i];
+
+        switch (combinator_to_right) {
+        case Combinator::Descendant:
+        case Combinator::ImmediateChild:
+            // This compound is on the ancestor axis (directly, or as a shared ancestor past a sibling boundary).
+            if (append_hashes_from_compound(compound_selector)) {
+                m_can_use_ancestor_filter = (next_hash_index > 0);
+                return;
+            }
+            break;
+
+        case Combinator::NextSibling:
+        case Combinator::SubsequentSibling:
+            // The compound immediately to the left is a sibling constraint, not an ancestor.
+            // Do not collect hashes from it.
+            break;
+
+        case Combinator::Column:
+        default:
+            // Not representable by the ancestor-hash filter.
+            next_hash_index = 0;
+            m_can_use_ancestor_filter = false;
+            for (auto& slot : m_ancestor_hashes)
+                slot = 0;
+            return;
+        }
+
+        combinator_to_right = compound_selector.combinator;
     }
+
+    m_can_use_ancestor_filter = (next_hash_index > 0);
 
     for (size_t i = next_hash_index; i < m_ancestor_hashes.size(); ++i)
         m_ancestor_hashes[i] = 0;
