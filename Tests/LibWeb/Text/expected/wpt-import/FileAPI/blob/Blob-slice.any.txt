@@ -1,0 +1,156 @@
+Harness status: OK
+
+Found 150 tests
+
+145 Pass
+5 Fail
+Pass	no-argument Blob slice
+Pass	Slices
+Pass	blob1.
+Pass	blob2.
+Pass	undefined start/end Blob slice
+Pass	undefined start Blob slice
+Pass	undefined end Blob slice
+Pass	null type Blob slice
+Pass	undefined type Blob slice
+Pass	no type Blob slice
+Pass	Slicing test (0,0).
+Pass	Slicing test: slice (0,0).
+Pass	Slicing test (0,1).
+Pass	Slicing test: slice (0,1).
+Pass	Slicing test (0,2).
+Pass	Slicing test: slice (0,2).
+Pass	Slicing test (0,3).
+Pass	Slicing test: slice (0,3).
+Pass	Slicing test (0,4).
+Pass	Slicing test: slice (0,4).
+Pass	Slicing test (0,5).
+Pass	Slicing test: slice (0,5).
+Pass	Slicing test (0,6).
+Pass	Slicing test: slice (0,6).
+Pass	Slicing test (0,7).
+Pass	Slicing test: slice (0,7).
+Pass	Slicing test (0,8).
+Pass	Slicing test: slice (0,8).
+Pass	Slicing test (1,0).
+Fail	Slicing test: slice (1,0).
+Pass	Slicing test (1,1).
+Pass	Slicing test: slice (1,1).
+Pass	Slicing test (1,2).
+Fail	Slicing test: slice (1,2).
+Pass	Slicing test (1,3).
+Pass	Slicing test: slice (1,3).
+Pass	Slicing test (1,4).
+Fail	Slicing test: slice (1,4).
+Pass	Slicing test (1,5).
+Pass	Slicing test: slice (1,5).
+Pass	Slicing test (1,6).
+Fail	Slicing test: slice (1,6).
+Pass	Slicing test (1,7).
+Pass	Slicing test: slice (1,7).
+Pass	Slicing test (1,8).
+Fail	Slicing test: slice (1,8).
+Pass	Slicing test (1,9).
+Pass	Slicing test: slice (1,9).
+Pass	Slicing test (2,0).
+Pass	Slicing test: slice (2,0).
+Pass	Slicing test (2,1).
+Pass	Slicing test: slice (2,1).
+Pass	Slicing test (2,2).
+Pass	Slicing test: slice (2,2).
+Pass	Slicing test (2,3).
+Pass	Slicing test: slice (2,3).
+Pass	Slicing test (2,4).
+Pass	Slicing test: slice (2,4).
+Pass	Slicing test (2,5).
+Pass	Slicing test: slice (2,5).
+Pass	Slicing test (2,6).
+Pass	Slicing test: slice (2,6).
+Pass	Slicing test (2,7).
+Pass	Slicing test: slice (2,7).
+Pass	Slicing test (3,0).
+Pass	Slicing test: slice (3,0).
+Pass	Slicing test (3,1).
+Pass	Slicing test: slice (3,1).
+Pass	Slicing test (3,2).
+Pass	Slicing test: slice (3,2).
+Pass	Slicing test (3,3).
+Pass	Slicing test: slice (3,3).
+Pass	Slicing test (4,0).
+Pass	Slicing test: slice (4,0).
+Pass	Slicing test (4,1).
+Pass	Slicing test: slice (4,1).
+Pass	Slicing test (4,2).
+Pass	Slicing test: slice (4,2).
+Pass	Slicing test (4,3).
+Pass	Slicing test: slice (4,3).
+Pass	Slicing test (4,4).
+Pass	Slicing test: slice (4,4).
+Pass	Slicing test (4,5).
+Pass	Slicing test: slice (4,5).
+Pass	Slicing test (5,0).
+Pass	Slicing test: slice (5,0).
+Pass	Slicing test (5,1).
+Pass	Slicing test: slice (5,1).
+Pass	Slicing test (5,2).
+Pass	Slicing test: slice (5,2).
+Pass	Slicing test (5,3).
+Pass	Slicing test: slice (5,3).
+Pass	Slicing test (5,4).
+Pass	Slicing test: slice (5,4).
+Pass	Slicing test (6,0).
+Pass	Slicing test: slice (6,0).
+Pass	Slicing test (6,1).
+Pass	Slicing test: slice (6,1).
+Pass	Slicing test (6,2).
+Pass	Slicing test: slice (6,2).
+Pass	Slicing test (6,3).
+Pass	Slicing test: slice (6,3).
+Pass	Slicing test (7,0).
+Pass	Slicing test: slice (7,0).
+Pass	Slicing test (7,1).
+Pass	Slicing test: slice (7,1).
+Pass	Slicing test (7,2).
+Pass	Slicing test: slice (7,2).
+Pass	Slicing test (8,0).
+Pass	Slicing test: slice (8,0).
+Pass	Slicing test (8,1).
+Pass	Slicing test: slice (8,1).
+Pass	Slicing test (8,2).
+Pass	Slicing test: slice (8,2).
+Pass	Slicing test (8,3).
+Pass	Slicing test: slice (8,3).
+Pass	Slicing test (9,0).
+Pass	Slicing test: slice (9,0).
+Pass	Slicing test (9,1).
+Pass	Slicing test: slice (9,1).
+Pass	Slicing test (9,2).
+Pass	Slicing test: slice (9,2).
+Pass	Slicing test (9,3).
+Pass	Slicing test: slice (9,3).
+Pass	Invalid contentType ("ÿ")
+Pass	Invalid contentType ("te\txt/plain")
+Pass	Invalid contentType ("te\0xt/plain")
+Pass	Invalid contentType ("te\x1fxt/plain")
+Pass	Invalid contentType ("text/plain")
+Pass	Valid contentType ("te(xt/plain")
+Pass	Valid contentType ("te)xt/plain")
+Pass	Valid contentType ("te<xt/plain")
+Pass	Valid contentType ("te>xt/plain")
+Pass	Valid contentType ("te@xt/plain")
+Pass	Valid contentType ("te,xt/plain")
+Pass	Valid contentType ("te;xt/plain")
+Pass	Valid contentType ("te:xt/plain")
+Pass	Valid contentType ("te\\xt/plain")
+Pass	Valid contentType ("te\"xt/plain")
+Pass	Valid contentType ("te/xt/plain")
+Pass	Valid contentType ("te[xt/plain")
+Pass	Valid contentType ("te]xt/plain")
+Pass	Valid contentType ("te?xt/plain")
+Pass	Valid contentType ("te=xt/plain")
+Pass	Valid contentType ("te{xt/plain")
+Pass	Valid contentType ("te}xt/plain")
+Pass	Valid contentType ("te xt/plain")
+Pass	Valid contentType ("TEXT/PLAIN")
+Pass	Valid contentType ("text/plain;charset = UTF-8")
+Pass	Valid contentType ("text/plain;charset=UTF-8")
