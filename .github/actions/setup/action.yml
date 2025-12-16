@@ -21,6 +21,7 @@ runs:
       with:
         python-version: 3.12
         cache: 'pip'
+
     - name: 'Install Python dependencies'
       shell: bash
       run: pip install pyyaml requests six
@@ -116,16 +117,29 @@ runs:
       shell: bash
       run: |
         VERSION=1.243.0
-        if ${{ inputs.os == 'Linux' }} ; then
-          NAME="wasm-tools-$VERSION-x86_64-linux"
+        if ${{ inputs.arch == 'arm64' }} ; then
+          ARCH=aarch64
         else
-          NAME="wasm-tools-$VERSION-aarch64-macos"
+          ARCH=${{ inputs.arch }}
         fi
+        LOWERCASE_OS=$( echo -n '${{ inputs.os }}' | tr '[:upper:]' '[:lower:]')
+        if ${{ inputs.os == 'Windows' }} ; then
+          EXTENSION=zip
+        else
+          EXTENSION=tar.gz
+        fi
+        NAME="wasm-tools-${VERSION}-${ARCH}-${LOWERCASE_OS}"
+        FILENAME="${NAME}.${EXTENSION}"
 
-        curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${NAME}.tar.gz"
+        curl --fail --location --write-out '%{url}' --output "${FILENAME}" \
+          "https://github.com/bytecodealliance/wasm-tools/releases/download/v${VERSION}/${FILENAME}"
 
-        tar -xzf "./${NAME}.tar.gz"
-        rm "./${NAME}.tar.gz"
+        if [ "${EXTENSION}" == 'zip' ]; then
+          unzip "${FILENAME}"
+        else
+          tar -xzf "${FILENAME}"
+        fi
+        rm "${FILENAME}"
 
         echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
 
