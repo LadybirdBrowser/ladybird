@@ -5347,8 +5347,12 @@ void Document::update_animations_and_send_events(double timestamp)
         // - Running the update an animation’s finished state procedure for any animations whose current time has been
         //   updated.
         // - Queueing animation events for any such animations.
-        for (auto const& timeline : timelines_to_update)
+        for (auto const& timeline : timelines_to_update) {
             timeline->update_current_time(timestamp);
+
+            for (auto const& animation : timeline->associated_animations())
+                animation->update();
+        }
 
         // 2. Remove replaced animations for doc.
         remove_replaced_animations();
