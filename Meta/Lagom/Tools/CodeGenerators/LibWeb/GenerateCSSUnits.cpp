@@ -187,6 +187,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& dimensions_data, Core::Fi
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/Units.h>
 
 namespace Web::CSS {
@@ -233,20 +234,21 @@ Optional<DimensionType> dimension_for_unit(StringView unit_name)
         dimension_generator.set("canonical_unit:titlecase", title_casify(canonical_unit));
 
         dimension_generator.append(R"~~~(
-Optional<@dimension_name:titlecase@Unit> string_to_@dimension_name:snakecase@_unit(StringView unit_name)
-{
+static HashMap<StringView, @dimension_name:titlecase@Unit, AK::CaseInsensitiveASCIIStringViewTraits> @dimension_name:snakecase@_unit_table = {
 )~~~");
         units.for_each_member([&](String const& unit_name, JsonValue const&) {
             auto unit_generator = dimension_generator.fork();
             unit_generator.set("unit_name:lowercase", unit_name);
             unit_generator.set("unit_name:titlecase", title_casify(unit_name));
             unit_generator.append(R"~~~(
-    if (unit_name.equals_ignoring_ascii_case("@unit_name:lowercase@"sv))
-        return @dimension_name:titlecase@Unit::@unit_name:titlecase@;)~~~");
+    { "@unit_name:lowercase@"sv, @dimension_name:titlecase@Unit::@unit_name:titlecase@ },)~~~");
         });
-
         dimension_generator.append(R"~~~(
-    return {};
+};
+
+Optional<@dimension_name:titlecase@Unit> string_to_@dimension_name:snakecase@_unit(StringView unit_name)
+{
+    return @dimension_name:snakecase@_unit_table.get(unit_name);
 }
 
 FlyString to_string(@dimension_name:titlecase@Unit value)
