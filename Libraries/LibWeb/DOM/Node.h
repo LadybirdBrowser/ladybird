@@ -402,7 +402,7 @@ public:
     bool is_shadow_including_inclusive_ancestor_of(Node const&) const;
 
     [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
-    static Node* from_unique_id(UniqueNodeID);
+    static GC::Ptr<Node> from_unique_id(UniqueNodeID);
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
