@@ -140,63 +140,50 @@ private:
     CalculationContext m_context;
 };
 
+#define ENUMERATE_CALCULATION_NODE_TYPES(X) \
+    X(Numeric)                              \
+    X(Min)                                  \
+    X(Max)                                  \
+    X(Clamp)                                \
+    X(Sum)                                  \
+    X(Product)                              \
+    X(Negate)                               \
+    X(Invert)                               \
+    X(Abs)                                  \
+    X(Sign)                                 \
+    X(Sin)                                  \
+    X(Cos)                                  \
+    X(Tan)                                  \
+    X(Asin)                                 \
+    X(Acos)                                 \
+    X(Atan)                                 \
+    X(Atan2)                                \
+    X(Pow)                                  \
+    X(Sqrt)                                 \
+    X(Hypot)                                \
+    X(Log)                                  \
+    X(Exp)                                  \
+    X(Round)                                \
+    X(Mod)                                  \
+    X(Rem)                                  \
+    X(Random)                               \
+    X(NonMathFunction)
+
 // https://www.w3.org/TR/css-values-4/#calculation-tree
 class CalculationNode : public RefCounted<CalculationNode> {
 public:
+    // NOTE: Currently, any value with a `var()` or `attr()` function in it is always an
+    //       UnresolvedStyleValue so we do not have to implement them as CalculationNodes.
+
     enum class Type {
-        Numeric,
-        // NOTE: Currently, any value with a `var()` or `attr()` function in it is always an
-        //       UnresolvedStyleValue so we do not have to implement them as CalculationNodes.
-
-        // Comparison function nodes, a sub-type of operator node
-        // https://drafts.csswg.org/css-values-4/#comp-func
-        Min,
-        Max,
-        Clamp,
-
-        // Calc-operator nodes, a sub-type of operator node
-        // https://www.w3.org/TR/css-values-4/#calculation-tree-calc-operator-nodes
-        Sum,
-        Product,
-        Negate,
-        Invert,
-
-        // Sign-Related Functions, a sub-type of operator node
-        // https://drafts.csswg.org/css-values-4/#sign-funcs
-        Abs,
-        Sign,
-
-        // Trigonometric functions, a sub-type of operator node
-        // https://drafts.csswg.org/css-values-4/#trig-funcs
-        Sin,
-        Cos,
-        Tan,
-        Asin,
-        Acos,
-        Atan,
-        Atan2,
-
-        // Exponential functions, a sub-type of operator node
-        // https://drafts.csswg.org/css-values-4/#exponent-funcs
-        Pow,
-        Sqrt,
-        Hypot,
-        Log,
-        Exp,
-
-        // Stepped value functions, a sub-type of operator node
-        // https://drafts.csswg.org/css-values-4/#round-func
-        Round,
-        Mod,
-        Rem,
-
-        // Random value generation
-        // https://drafts.csswg.org/css-values-5/#random
-        Random,
-
-        // Non-math functions
-        NonMathFunction
+#define ENUMERATE_TYPE(name) name,
+        ENUMERATE_CALCULATION_NODE_TYPES(ENUMERATE_TYPE)
+#undef ENUMERATE_TYPE
     };
+
+    template<typename T>
+    bool fast_is() const = delete;
+
     using NumericValue = CalculatedStyleValue::CalculationResult::Value;
 
     virtual ~CalculationNode();
@@ -817,6 +804,12 @@ private:
     NonMathFunctionCalculationNode(AbstractNonMathCalcFunctionStyleValue const& function, NumericType);
     ValueComparingNonnullRefPtr<AbstractNonMathCalcFunctionStyleValue const> m_function;
 };
+
+#define ENUMERATE_TYPE(name) \
+    template<>               \
+    inline bool CalculationNode::fast_is<name##CalculationNode>() const { return type() == Type::name; }
+ENUMERATE_CALCULATION_NODE_TYPES(ENUMERATE_TYPE)
+#undef ENUMERATE_TYPE
 
 // https://drafts.csswg.org/css-values-4/#calc-simplification
 NonnullRefPtr<CalculationNode const> simplify_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, CalculationResolutionContext const& resolution_context);
