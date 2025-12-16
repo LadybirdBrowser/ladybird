@@ -54,6 +54,20 @@ runs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
 
+    - name: Ensure clang-cl is available
+      if: ${{ inputs.os == 'Windows' && inputs.toolchain == 'ClangCL' }}
+      shell: bash
+      run: |
+        if ! where clang-cl > /dev/null 2>&1 ; then
+          # Keep the LLVM version in sync with GitHub's Windows runner image:
+          # https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md
+          choco install -y llvm --no-progress --version=20.1.8
+
+          echo "C:/Program Files/LLVM/bin" >> "${GITHUB_PATH}"
+          export PATH="/c/Program Files/LLVM/bin:${PATH}"
+        fi
+        clang-cl --version
+
     - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
