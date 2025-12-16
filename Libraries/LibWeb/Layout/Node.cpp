@@ -122,6 +122,17 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
     if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
+    // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
+    // stacking context and a containing block for all descendants.
+    // FIXME: Check that the element is a transformable element.
+    if (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle))
+        return true;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-concept
+    // FIXME: The snapshot containing block is considered to be an absolute positioning containing block and a fixed
+    //        positioning containing block for ::view-transition and its descendants.
+
     return false;
 }
 
