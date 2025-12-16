@@ -75,7 +75,8 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
     return false;
 }
 
-bool Node::can_contain_boxes_with_position_absolute() const
+// https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
+bool Node::establishes_an_absolute_positioning_containing_block() const
 {
     if (!is<Box>(*this))
         return false;
@@ -149,7 +150,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
     // https://drafts.csswg.org/css-position-3/#absolute-cb
     if (position == CSS::Positioning::Absolute) {
         auto* ancestor = parent();
-        while (ancestor && !ancestor->can_contain_boxes_with_position_absolute())
+        while (ancestor && !ancestor->establishes_an_absolute_positioning_containing_block())
             ancestor = ancestor->parent();
         m_containing_block = static_cast<Box*>(ancestor);
         return;
