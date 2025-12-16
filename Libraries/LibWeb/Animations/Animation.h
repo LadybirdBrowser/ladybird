@@ -109,7 +109,7 @@ public:
     Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) const;
 
     GC::Ptr<DOM::Document> document_for_timing() const;
-    void notify_timeline_time_did_change();
+    void update();
 
     void effect_timing_changed(Badge<AnimationEffect>);
 

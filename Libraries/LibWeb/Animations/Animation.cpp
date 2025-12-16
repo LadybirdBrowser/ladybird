@@ -1008,7 +1008,7 @@ GC::Ptr<DOM::Document> Animation::document_for_timing() const
     return m_timeline->associated_document();
 }
 
-void Animation::notify_timeline_time_did_change()
+void Animation::update()
 {
     // Update finished state if not already finished; prevents recurring invalidation when the timeline updates.
     if (!m_is_finished)

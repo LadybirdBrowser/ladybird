@@ -2,10 +2,14 @@
 <div id="foo"></div>
 <script src="../../include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
         const foo = document.getElementById("foo");
         const timeline = internals.createInternalAnimationTimeline();
         const animation = foo.animate({ opacity: [0, 1] }, { duration: 1000, timeline });
+
+        // Wait for the pending play task
+        await animationFrame();
+
         animation.playbackRate = 2;
 
         timeline.setTime(100);
