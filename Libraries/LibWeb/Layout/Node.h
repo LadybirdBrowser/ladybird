@@ -156,6 +156,7 @@ public:
     bool establishes_stacking_context() const;
 
     bool establishes_an_absolute_positioning_containing_block() const;
+    bool establishes_a_fixed_positioning_containing_block() const;
 
     Gfx::Font const& first_available_font() const;
     Gfx::Font const& font(DisplayListRecordingContext&) const;

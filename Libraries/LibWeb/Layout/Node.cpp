@@ -97,7 +97,62 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
         return computed_values.will_change().has_property(property_id);
     };
 
-    // https://w3c.github.io/csswg-drafts/css-transforms-1/#propdef-transform
+    // https://drafts.csswg.org/css-transforms-1/#propdef-transform
+    // Any computed value other than none for the transform affects containing block and stacking context
+    if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
+        return true;
+    if (computed_values.translate() || will_change_property(CSS::PropertyID::Translate))
+        return true;
+    if (computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate))
+        return true;
+    if (computed_values.scale() || will_change_property(CSS::PropertyID::Scale))
+        return true;
+
+    // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
+    // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
+    // a containing block for all descendants, just like the 'transform' property does.
+    if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
+    //    containing block.
+    // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
+    //    containing block.
+    if (has_layout_containment() || has_paint_containment() || will_change_property(CSS::PropertyID::Contain))
+        return true;
+
+    // https://drafts.csswg.org/css-transforms-2/#transform-style-property
+    // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
+    // stacking context and a containing block for all descendants.
+    // FIXME: Check that the element is a transformable element.
+    if (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle))
+        return true;
+
+    // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-concept
+    // FIXME: The snapshot containing block is considered to be an absolute positioning containing block and a fixed
+    //        positioning containing block for ::view-transition and its descendants.
+
+    return false;
+}
+
+// https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
+bool Node::establishes_a_fixed_positioning_containing_block() const
+{
+    if (!is<Box>(*this))
+        return false;
+
+    auto const& computed_values = this->computed_values();
+
+    // https://drafts.csswg.org/css-will-change/#will-change
+    // If any non-initial value of a property would cause the element to generate a containing block for fixed
+    // positioned elements, specifying that property in will-change must cause the element to generate a containing
+    // block for fixed positioned elements.
+    auto will_change_property = [&](CSS::PropertyID property_id) {
+        return computed_values.will_change().has_property(property_id);
+    };
+
+    // https://drafts.csswg.org/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context
     if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
         return true;
@@ -167,8 +222,25 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
         return;
     }
 
+    // https://drafts.csswg.org/css-position-3/#fixed-cb
     if (position == CSS::Positioning::Fixed) {
-        m_containing_block = &root();
+        // The containing block is established by the nearest ancestor box that establishes an fixed positioning
+        // containing block, with the bounds of the containing block determined identically to the absolute positioning
+        // containing block.
+        auto* ancestor = parent();
+        while (ancestor && !ancestor->establishes_a_fixed_positioning_containing_block())
+            ancestor = ancestor->parent();
+        // If no ancestor establishes one, the box’s fixed positioning containing block is the initial fixed containing
+        // block:
+        if (!ancestor) {
+            //  - in continuous media, the layout viewport (whose size matches the dynamic viewport size); as a result,
+            //    fixed boxes do not move when the document is scrolled.
+            ancestor = &root();
+            // FIXME: - in paged media, the page area of each page; fixed positioned boxes are thus replicated on every
+            //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
+            //   viewport; as in the case of print preview, for example.)
+        }
+        m_containing_block = static_cast<Box*>(ancestor);
         return;
     }
 
