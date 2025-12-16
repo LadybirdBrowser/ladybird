@@ -83,9 +83,13 @@ protected:
     GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
 
 private:
+    virtual bool is_typed_array_base() const final { return true; }
     virtual void visit_edges(Visitor&) override;
     virtual bool eligible_for_own_property_enumeration_fast_path() const final override { return false; }
 };
+
+template<>
+inline bool Object::fast_is<TypedArrayBase>() const { return is_typed_array_base(); }
 
 // 10.4.5.9 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records
 struct TypedArrayWithBufferWitness {
@@ -516,7 +520,7 @@ ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM&, Object 
 ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 #define JS_DECLARE_TYPED_ARRAY(ClassName, snake_name, PrototypeName, ConstructorName, Type)                  \
-    class JS_API ClassName : public TypedArray<Type> {                                                       \
+    class JS_API ClassName final : public TypedArray<Type> {                                                 \
         JS_OBJECT(ClassName, TypedArray);                                                                    \
         GC_DECLARE_ALLOCATOR(ClassName);                                                                     \
                                                                                                              \
@@ -530,6 +534,9 @@ ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, Fu
                                                                                                              \
     protected:                                                                                               \
         ClassName(Object& prototype, u32 length, ArrayBuffer& array_buffer);                                 \
+                                                                                                             \
+    private:                                                                                                 \
+        virtual bool is_##snake_name() const final { return true; }                                          \
     };                                                                                                       \
     class PrototypeName final : public Object {                                                              \
         JS_OBJECT(PrototypeName, Object);                                                                    \
@@ -559,7 +566,9 @@ ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, Fu
         {                                                                                                    \
             return true;                                                                                     \
         }                                                                                                    \
-    };
+    };                                                                                                       \
+    template<>                                                                                               \
+    inline bool Object::fast_is<ClassName>() const { return is_##snake_name(); }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     JS_DECLARE_TYPED_ARRAY(ClassName, snake_name, PrototypeName, ConstructorName, Type);
