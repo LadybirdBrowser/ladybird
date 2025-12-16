@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Pass	scrollParent returns the nearest scroll container.
 Pass	hidden element is a scroll container.
 Pass	Element with no box has null scrollParent.
 Pass	scrollParent follows absolute positioned containing block chain.
 Pass	scrollParent follows fixed positioned containing block chain.
-Fail	scrollParent of element fixed to root is null.
+Pass	scrollParent of element fixed to root is null.
 Pass	scrollParent of child in root viewport returns document scrolling element.
 Pass	scrollParent of fixed element contained within root is document scrolling element.
 Pass	scrollParent of body is null.
