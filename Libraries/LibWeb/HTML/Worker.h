@@ -64,7 +64,6 @@ private:
     String m_script_url;
     WorkerOptions m_options;
 
-    GC::Ptr<DOM::Document> m_document;
     GC::Ptr<MessagePort> m_outside_port;
 
     GC::Ptr<WorkerAgentParent> m_agent;

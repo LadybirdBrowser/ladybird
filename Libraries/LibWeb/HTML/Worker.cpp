@@ -24,7 +24,6 @@ Worker::Worker(String const& script_url, WorkerOptions const& options, DOM::Docu
     : DOM::EventTarget(document.realm())
     , m_script_url(script_url)
     , m_options(options)
-    , m_document(&document)
 {
 }
 
@@ -37,7 +36,6 @@ void Worker::initialize(JS::Realm& realm)
 void Worker::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_document);
     visitor.visit(m_outside_port);
     visitor.visit(m_agent);
 }
