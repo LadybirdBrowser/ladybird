@@ -515,6 +515,47 @@ struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
 template<class Parser>
 bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
+    if (m_pattern->parser_result.optimization_data.pure_substring_search.has_value() && input.view.is_u16_view()) {
+        // Yay, we can do a simple substring search!
+        auto is_insensitive = input.regex_options.has_flag_set(AllFlags::Insensitive);
+        auto is_unicode = input.view.unicode() || input.regex_options.has_flag_set(AllFlags::Unicode) || input.regex_options.has_flag_set(AllFlags::UnicodeSets);
+        // Utf16View::equals_ignoring_case can't handle unicode case folding, so we can only use it for ASCII case insensitivity.
+        if (!(is_insensitive && is_unicode)) {
+            auto input_view = input.view.u16_view();
+            Span<u16 const> needle = m_pattern->parser_result.optimization_data.pure_substring_search->span();
+            Utf16View needle_view { bit_cast<char16_t const*>(needle.data()), needle.size() };
+
+            if (is_unicode) {
+                if (needle_view.length_in_code_points() + state.string_position > input_view.length_in_code_points())
+                    return false;
+            } else {
+                if (needle_view.length_in_code_units() + state.string_position_in_code_units > input_view.length_in_code_units())
+                    return false;
+            }
+
+            Utf16View haystack;
+            if (is_unicode)
+                haystack = input_view.unicode_substring_view(state.string_position, needle_view.length_in_code_points());
+            else
+                haystack = input_view.substring_view(state.string_position_in_code_units, needle_view.length_in_code_units());
+
+            if (is_insensitive) {
+                if (!haystack.equals_ignoring_ascii_case(needle_view))
+                    return false;
+            } else {
+                if (haystack != needle_view)
+                    return false;
+            }
+
+            if (input.view.unicode())
+                state.string_position += haystack.length_in_code_points();
+            else
+                state.string_position += haystack.length_in_code_units();
+            state.string_position_in_code_units += haystack.length_in_code_units();
+            return true;
+        }
+    }
+
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
     HashTable<u64, SufficientlyUniformValueTraits> seen_state_hashes;
 #if REGEX_DEBUG

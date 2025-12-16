@@ -51,6 +51,11 @@ public:
         return m_view.get<Utf16View>();
     }
 
+    bool is_u16_view() const
+    {
+        return m_view.has<Utf16View>();
+    }
+
     bool unicode() const { return m_unicode; }
     void set_unicode(bool unicode) { m_unicode = unicode; }
 
