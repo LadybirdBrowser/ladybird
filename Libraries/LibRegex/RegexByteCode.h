@@ -37,6 +37,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(SaveLeftCaptureGroup)       \
     __ENUMERATE_OPCODE(SaveRightCaptureGroup)      \
     __ENUMERATE_OPCODE(SaveRightNamedCaptureGroup) \
+    __ENUMERATE_OPCODE(SaveStaticCaptureGroup)     \
     __ENUMERATE_OPCODE(CheckBegin)                 \
     __ENUMERATE_OPCODE(CheckEnd)                   \
     __ENUMERATE_OPCODE(CheckBoundary)              \
@@ -320,6 +321,7 @@ public:
 
     FlyString get_string(size_t index) const { return m_string_table.get(index); }
     auto const& string_table() const { return m_string_table; }
+    auto& string_table() { return m_string_table; }
 
     auto const& string_set_table() const { return m_string_set_table; }
     auto& string_set_table() { return m_string_set_table; }
@@ -384,8 +386,8 @@ public:
     void insert_bytecode_compare_string(StringView view)
     {
         empend(static_cast<ByteCodeValueType>(OpCodeId::Compare));
-        empend(static_cast<u64>(1)); // number of arguments
-        empend(2 + view.length());   // size of arguments
+        empend(static_cast<ByteCodeValueType>(1));                                     // number of arguments
+        empend(2 + ceil_div(view.length(), sizeof(ByteCodeValueType) / sizeof(char))); // size of arguments (type+length+ceil(data/sizeof(ByteCodeValueType)))
         empend(static_cast<ByteCodeValueType>(CharacterCompareType::String));
         insert_string(view);
     }
@@ -690,8 +692,14 @@ private:
     void insert_string(StringView view)
     {
         empend((ByteCodeValueType)view.length());
-        for (size_t i = 0; i < view.length(); ++i)
-            empend((ByteCodeValueType)view[i]);
+        size_t string_length_in_bytecode_values = ceil_div(view.length(), sizeof(ByteCodeValueType) / sizeof(char));
+        // Allocate space for the string data
+        for (size_t i = 0; i < string_length_in_bytecode_values; i++)
+            append(0);
+        // Copy the string data into the allocated space
+        auto start_index = size() - string_length_in_bytecode_values;
+        auto* data_ptr = reinterpret_cast<char*>(&at(start_index));
+        memcpy(data_ptr, view.bytes().data(), view.length());
     }
 
     void ensure_opcodes_initialized();
@@ -928,6 +936,17 @@ public:
     {
         return ByteString::formatted("name_id={}, id={}", argument(0), id());
     }
+};
+
+class OpCode_SaveStaticCaptureGroup final : public OpCode {
+public:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SaveStaticCaptureGroup; }
+    ALWAYS_INLINE size_t size() const override { return 4; }
+    ALWAYS_INLINE size_t id() const { return argument(0); }
+    ALWAYS_INLINE size_t offset() const { return argument(1); }
+    ALWAYS_INLINE size_t length() const { return argument(2); }
+    ByteString arguments_string() const override { return ByteString::formatted("id={}, offset=-{}, length={}", id(), offset(), length()); }
 };
 
 class REGEX_API OpCode_Compare final : public OpCode {

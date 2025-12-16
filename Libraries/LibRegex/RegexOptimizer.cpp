@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Enumerate.h>
 #include <AK/Function.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
@@ -15,6 +16,7 @@
 #include <AK/Vector.h>
 #include <LibRegex/Regex.h>
 #include <LibRegex/RegexBytecodeStreamOptimizer.h>
+#include <LibRegex/RegexDebug.h>
 #include <LibUnicode/CharacterTypes.h>
 #if REGEX_DEBUG
 #    include <AK/ScopeGuard.h>
@@ -24,6 +26,250 @@
 namespace regex {
 
 using Detail::Block;
+
+struct BytecodeRewriter {
+    struct Instruction {
+        size_t old_ip;
+        size_t size;
+        OpCodeId id;
+        bool skip;
+    };
+    Vector<Instruction> instructions;
+    HashMap<size_t, size_t> new_ip_mapping;
+
+    BytecodeRewriter(ByteCode const& bytecode)
+    {
+        auto flat = bytecode.flat_data();
+        auto state = MatchState::only_for_enumeration();
+
+        for (size_t old_ip = 0; old_ip < flat.size();) {
+            state.instruction_position = old_ip;
+            auto& op = bytecode.get_opcode(state);
+            auto sz = op.size();
+
+            instructions.append({ old_ip, sz, op.opcode_id(), false });
+            old_ip += sz;
+        }
+    }
+
+    void mark_range_for_skip(size_t start, size_t end)
+    {
+        for (auto& instr : instructions) {
+            if (instr.old_ip >= start && instr.old_ip < end)
+                instr.skip = true;
+        }
+    }
+
+    void build_ip_mapping(ByteCode const& bytecode, Span<ByteCode const> replacements)
+    {
+        new_ip_mapping.ensure_capacity(instructions.size() + 1);
+        size_t current_new_ip = 0;
+        auto replacements_it = replacements.begin();
+
+        for (auto& instr : instructions) {
+            new_ip_mapping.set(instr.old_ip, current_new_ip);
+            auto& replacement = *replacements_it;
+            ++replacements_it;
+
+            if (!instr.skip)
+                current_new_ip += instr.size;
+            else
+                current_new_ip += replacement.size();
+        }
+
+        new_ip_mapping.set(bytecode.size(), current_new_ip);
+    }
+
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    void build_ip_mapping(ByteCode const& bytecode, Span<Range const> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        new_ip_mapping.ensure_capacity(instructions.size() + 1);
+        size_t current_new_ip = 0;
+        auto instruction_it = instructions.begin();
+
+        for (auto i = 0uz; i < replacements.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    new_ip_mapping.set(instr.old_ip, current_new_ip);
+                    break;
+                }
+                new_ip_mapping.set(instr.old_ip, current_new_ip);
+                current_new_ip += instr.size;
+                ++instruction_it;
+            }
+            current_new_ip += replacement.size();
+
+            // Skip instructions in the replacement range
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instruction_it;
+            }
+        }
+        // Map any remaining instructions
+        for (; instruction_it != instructions.end(); ++instruction_it) {
+            auto& instr = *instruction_it;
+            new_ip_mapping.set(instr.old_ip, current_new_ip);
+            current_new_ip += instr.size;
+        }
+        new_ip_mapping.set(bytecode.size(), current_new_ip);
+    }
+
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    ByteCode rebuild(ByteCode const& bytecode, Span<Range const> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        // Assumes that replacement_ranges and replacements are the same size
+        // As well as in order
+        VERIFY(replacement_ranges.size() == replacements.size());
+        auto flat = bytecode.flat_data();
+        ByteCode result;
+        result.merge_string_tables_from({ &bytecode, 1 });
+
+        size_t total_new_size = bytecode.size();
+        // FIXME: Get a zip(it...) helper
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            mark_range_for_skip(replacement_ranges[i].start_ip, replacement_ranges[i].end_ip);
+            total_new_size -= (replacement_ranges[i].end_ip - replacement_ranges[i].start_ip);
+            total_new_size += replacements[i].size();
+        }
+        build_ip_mapping<Range>(bytecode, replacement_ranges, replacements);
+        result.ensure_capacity(total_new_size);
+
+        // FIXME: Use a zip(...) helper
+        auto instructions_it = instructions.begin();
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            // Append and adjust all instructions before the replacement range
+            for (; instructions_it != instructions.end(); ++instructions_it) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    ++instructions_it;
+                    break;
+                }
+                VERIFY(instr.skip == false);
+                auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+                adjust_jump_in_slice(bytecode, slice, instr);
+                result.append(move(slice));
+            }
+            // Finally insert the replacement
+            result.extend(replacement);
+
+            // Skip instructions in the replacement range
+            while (instructions_it != instructions.end()) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instructions_it;
+            }
+        }
+        // Append any remaining instructions
+        for (; instructions_it != instructions.end(); ++instructions_it) {
+            auto& instr = *instructions_it;
+            auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+            adjust_jump_in_slice(bytecode, slice, instr);
+            result.append(move(slice));
+            VERIFY(instr.skip == false);
+        }
+
+        result.flatten();
+        return result;
+    }
+
+    ByteCode rebuild(ByteCode const& bytecode, Function<void(Instruction const&, ByteCode&)> insert_replacement = nullptr)
+    {
+        auto flat = bytecode.flat_data();
+        ByteCode result;
+        result.merge_string_tables_from({ &bytecode, 1 });
+
+        Vector<ByteCode> replacements;
+        replacements.resize_with_default_value(instructions.size(), ByteCode {});
+
+        size_t total_new_size = 0;
+        for (auto const& [i, instr] : enumerate(instructions)) {
+            if (!instr.skip) {
+                total_new_size += instr.size;
+            } else if (insert_replacement) {
+                ByteCode temp;
+                insert_replacement(instr, temp);
+                total_new_size += temp.size();
+                replacements[i] = move(temp);
+            }
+        }
+        build_ip_mapping(bytecode, replacements);
+        result.ensure_capacity(total_new_size);
+
+        auto replacements_it = replacements.begin();
+        for (auto& instr : instructions) {
+            auto& replacement = *replacements_it;
+            ++replacements_it;
+
+            if (instr.skip) {
+                result.extend(move(replacement));
+                continue;
+            }
+
+            auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+            adjust_jump_in_slice(bytecode, slice, instr);
+            result.append(move(slice));
+        }
+
+        result.flatten();
+        return result;
+    }
+
+private:
+    void adjust_jump_in_slice(ByteCode const& bytecode, Vector<ByteCodeValueType>& slice, Instruction const& instr)
+    {
+        auto adjust = [&](size_t idx, bool is_repeat) {
+            auto old_offset = slice[idx];
+            auto target_old = is_repeat
+                ? instr.old_ip - old_offset
+                : instr.old_ip + instr.size + old_offset;
+
+            if (!new_ip_mapping.contains(target_old)) {
+                dbgln("Target {} not found in new_ip mapping (in {})", target_old, instr.old_ip);
+                RegexDebug dbg(stderr);
+                dbg.print_bytecode(bytecode);
+                VERIFY_NOT_REACHED();
+            }
+
+            size_t target_new = *new_ip_mapping.get(target_old);
+            size_t source_new = *new_ip_mapping.get(instr.old_ip);
+            auto new_offset = is_repeat
+                ? source_new - target_new
+                : target_new - source_new - instr.size;
+
+            slice[idx] = static_cast<ByteCodeValueType>(new_offset);
+        };
+
+        switch (instr.id) {
+        case OpCodeId::Jump:
+        case OpCodeId::ForkJump:
+        case OpCodeId::ForkStay:
+        case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkReplaceStay:
+        case OpCodeId::JumpNonEmpty:
+            adjust(1, false);
+            break;
+        case OpCodeId::Repeat:
+            adjust(1, true);
+            break;
+        default:
+            break;
+        }
+    }
+};
 
 template<typename Parser>
 void Regex<Parser>::run_optimization_passes()
@@ -37,6 +283,8 @@ void Regex<Parser>::run_optimization_passes()
     // Rewrite fork loops as atomic groups
     // e.g. a*b -> (ATOMIC a*)b
     attempt_rewrite_loops_as_atomic_groups(blocks);
+    // Merge static compares across capture groups
+    attempt_rewrite_consecutive_static_compares(split_basic_blocks(parser_result.bytecode));
 
     fill_optimization_data(split_basic_blocks(parser_result.bytecode));
 
@@ -253,9 +501,11 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
 template<typename Parser>
 typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCode const& bytecode)
 {
-    BasicBlockList block_boundaries;
-    size_t end_of_last_block = 0;
-
+    struct SplitPoints {
+        size_t before_index;
+        StringView comment;
+    };
+    Vector<SplitPoints> split_points;
     auto bytecode_size = bytecode.size();
 
     auto state = MatchState::only_for_enumeration();
@@ -263,22 +513,14 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
     auto check_jump = [&]<typename T>(OpCode const& opcode) {
         auto& op = static_cast<T const&>(opcode);
         ssize_t jump_offset = op.size() + op.offset();
-        if (jump_offset >= 0) {
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
-        } else {
-            // This op jumps back, see if that's within this "block".
-            if (jump_offset + state.instruction_position > end_of_last_block) {
-                // Split the block!
-                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
-                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            } else {
-                // Nope, it's just a jump to another block
-                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            }
-        }
+        size_t target_ip = state.instruction_position + jump_offset;
+
+        // Split after current instruction:
+        split_points.empend(state.instruction_position + opcode.size(), "Jump source"sv);
+        // Split before target instruction:
+        // Note: Splitting before instruction 0 is meaningless.
+        if (target_ip != 0)
+            split_points.empend(target_ip, "Jump target"sv);
     };
     for (;;) {
         auto& opcode = bytecode.get_opcode(state);
@@ -297,17 +539,14 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             check_jump.template operator()<OpCode_ForkStay>(opcode);
             break;
         case OpCodeId::FailForks:
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            split_points.empend(state.instruction_position + opcode.size(), "FailForks"sv);
             break;
         case OpCodeId::Repeat: {
             // Repeat produces two blocks, one containing its repeated expr, and one after that.
             auto& repeat = static_cast<OpCode_Repeat const&>(opcode);
             auto repeat_start = state.instruction_position - repeat.offset();
-            if (repeat_start > end_of_last_block)
-                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
-            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            split_points.empend(repeat_start, "Repeat start"sv);
+            split_points.empend(state.instruction_position + opcode.size(), "Repeat after"sv);
             break;
         }
         default:
@@ -319,6 +558,36 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             state.instruction_position = next_ip;
         else
             break;
+    }
+    quick_sort(split_points, [](auto& a, auto& b) { return a.before_index < b.before_index; });
+
+    // Now build the blocks from the split points
+    // Note: Blocks are inclusive of start and end positions.
+    //       But the end position must be exactly the start of the last instruction in the block.
+    BasicBlockList block_boundaries;
+    size_t end_of_last_block = 0;
+    state.instruction_position = 0;
+    for (auto const& split_point : split_points) {
+        dbgln_if(REGEX_DEBUG, "Split point before {} ({})", split_point.before_index, split_point.comment);
+        // Ignore duplicate split points
+        if (split_point.before_index <= end_of_last_block) {
+            dbgln_if(REGEX_DEBUG, "  Already handled");
+            continue;
+        }
+        // find the end of the previous instruction
+        while (state.instruction_position < split_point.before_index) {
+            auto& opcode = bytecode.get_opcode(state);
+            auto next_ip = state.instruction_position + opcode.size();
+            if (next_ip == split_point.before_index) {
+                dbgln_if(REGEX_DEBUG, "  Found end of block at {} ({})", next_ip, OpCode::name(opcode.opcode_id()));
+                break;
+            }
+            VERIFY(next_ip < split_point.before_index);
+            state.instruction_position = next_ip;
+        }
+        block_boundaries.append({ end_of_last_block, state.instruction_position, split_point.comment });
+        state.instruction_position = split_point.before_index;
+        end_of_last_block = state.instruction_position;
     }
 
     if (end_of_last_block < bytecode_size)
@@ -1254,6 +1523,295 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         warnln("Transformed to:");
         RegexDebug dbg;
         dbg.print_bytecode(*this);
+    }
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_consecutive_static_compares(BasicBlockList const& basic_blocks)
+{
+    auto& bytecode = parser_result.bytecode;
+    if constexpr (REGEX_DEBUG) {
+        RegexDebug dbg;
+        dbg.print_bytecode(*this);
+        for (auto const& block : basic_blocks)
+            dbgln("block from {} to {} (comment: {})", block.start, block.end, block.comment);
+    }
+    // Patterns such as:
+    // 1.
+    // /(abc)def(ghi)/
+    // can be rewritten to:
+    // /abcdefghi/ and then statically setting the capture groups after a successful match.
+    // Which translates to
+    //     SaveLeftCaptureGroup 1
+    //     Compare str 'abc'
+    //     SaveRightCaptureGroup 1
+    //     Compare str 'def'
+    //     SaveLeftCaptureGroup 2
+    //     Compare str 'ghi'
+    //     SaveRightCaptureGroup 2
+    //     Exit
+    // becoming
+    //     Compare str 'abcdefghi'
+    //     SaveStaticCaptureGroup 1 "abc" -6
+    //     SaveStaticCaptureGroup 2 "ghi" -0
+    //     Exit
+    // 2.
+    // /(abc(def)ghi)/
+    //     SaveLeftCaptureGroup 1
+    //     Compare str 'abc'
+    //     SaveLeftCaptureGroup 2
+    //     Compare str 'def'
+    //     SaveRightCaptureGroup 2
+    //     Compare str 'ghi'
+    //     SaveRightCaptureGroup 1
+    //     Exit
+    // becoming
+    //     Compare str 'abcdefghi'
+    //     SaveStaticCaptureGroup 1 "abcdefghi" -0
+    //     SaveStaticCaptureGroup 2 "def" -3
+    //     Exit
+    //
+
+    struct ConsecutiveCompare {
+        size_t start_ip;
+        size_t end_ip;
+        size_t compare_count { 0 };
+    };
+
+    Vector<ConsecutiveCompare> candidates;
+    auto state = MatchState::only_for_enumeration();
+    // Temporary storage while scanning for candidates
+    // We need to make sure that we either have the full capture group, or only part of it, not leaving or entering halfway
+    // So let's save the start point of each capture group we see, to rollback if needed
+    // as well as the id of the capture groups in the current candidate (a counter should suffice)
+    // to verify check if we are allowed to exit the current capture group
+    Vector<size_t, 8> capture_group_rollbacks;
+    Vector<ByteCodeValueType, 8> capture_groups;
+    // Note: We should not cross basic block boundaries here,
+    //       as jumping between the compares would be impossible after merging them
+    for (auto const& block : basic_blocks) {
+        Optional<ConsecutiveCompare> current_candidate;
+
+        auto finalize_current_candidate = [&]() {
+            if (current_candidate.has_value()) {
+                if (current_candidate->end_ip > current_candidate->start_ip && current_candidate->compare_count >= 2)
+                    candidates.append(current_candidate.value());
+                current_candidate.clear();
+                capture_group_rollbacks.clear_with_capacity();
+                capture_groups.clear_with_capacity();
+            }
+        };
+
+        // Allowed patterns:
+        //    consecutive = ((SaveLeftCaptureGroup N) consecutive (SaveRightCaptureGroup N))+ | (Compare chr S)+
+        // So all opcodes must be one of those three, and compares must be str or char.
+        // As capture groups should be always matched properly, and no real other logic is needed here
+        // Note: The parser does not naturally emit string compares
+
+        // Case 1: We enter a capture group, do some compares in it, and leave it.
+        //         Nothing special, we need to record the capture group boundaries for later.
+        // Case 2: We do some compares, enter a capture group, which rejects
+        //         Here we need to rollback the candidate to before entering the capture group.
+        //         and roll back the iteration to the start of the capture group. (after SaveLeftCaptureGroup)
+        // Note: Blocks are inclusive of start and end positions.
+        for (state.instruction_position = block.start; state.instruction_position <= block.end;) {
+            auto& opcode = bytecode.get_opcode(state);
+            switch (opcode.opcode_id()) {
+            case OpCodeId::SaveLeftCaptureGroup:
+                if (!current_candidate.has_value()) {
+                    current_candidate = { state.instruction_position, state.instruction_position + opcode.size() };
+                } else {
+                    current_candidate->end_ip = state.instruction_position + opcode.size();
+                }
+                capture_group_rollbacks.append(state.instruction_position);
+                capture_groups.append(static_cast<OpCode_SaveLeftCaptureGroup const&>(opcode).id());
+                break;
+            case OpCodeId::SaveRightCaptureGroup:
+                if (!current_candidate.has_value()) {
+                    // We are leaving a capture group, but have no candidate - just skip
+                    break;
+                }
+                // We are leaving a capture group - make sure it's us
+                if (!capture_groups.is_empty()) {
+                    VERIFY(capture_groups.last() == static_cast<OpCode_SaveRightCaptureGroup const&>(opcode).id());
+                    // All good, we can pop the roll back point
+                    capture_group_rollbacks.take_last();
+                    capture_groups.take_last();
+                    current_candidate->end_ip = state.instruction_position + opcode.size();
+                } else {
+                    // We are leaving a capture group we did not enter
+                    // So we need to finalize the current candidate
+                    finalize_current_candidate();
+                }
+                break;
+            case OpCodeId::Compare: {
+                auto const& compare = static_cast<OpCode_Compare const&>(opcode);
+                bool all_char = true;
+                for (auto const& [type, value] : compare.flat_compares()) {
+                    if (type != CharacterCompareType::Char) {
+                        all_char = false;
+                        break;
+                    }
+                }
+                if (all_char) {
+                    if (!current_candidate.has_value()) {
+                        current_candidate = { state.instruction_position, state.instruction_position + opcode.size(), 1 };
+                    } else {
+                        current_candidate->compare_count += 1;
+                        current_candidate->end_ip = state.instruction_position + opcode.size();
+                    }
+                    break;
+                }
+            }
+                [[fallthrough]];
+            default:
+                // We are hitting an opcode that would break the candidate
+                // If we are in a capture group, we need to roll back to the start of it
+                // FIXME: Do we need a stack of roll backs here, or does an optional suffice?
+                if (!capture_group_rollbacks.is_empty()) {
+                    auto rollback_ip = capture_group_rollbacks.first();
+                    current_candidate->end_ip = rollback_ip;
+                    state.instruction_position = rollback_ip + 2; // after SaveLeftCaptureGroup
+                    capture_group_rollbacks.clear_with_capacity();
+                    capture_groups.clear_with_capacity();
+                    finalize_current_candidate();
+                    continue;
+                }
+                finalize_current_candidate();
+                break;
+            }
+            state.instruction_position += opcode.size();
+            // If we have reached the end of the block, we need to finalize the candidate,
+            // but it still may not cross capture group boundaries one way,
+            // so we need to roll back if needed.
+            if (state.instruction_position >= block.end) {
+                if (!capture_group_rollbacks.is_empty()) {
+                    auto rollback_ip = capture_group_rollbacks.first();
+                    current_candidate->end_ip = rollback_ip;
+                    state.instruction_position = rollback_ip + 2; // after SaveLeftCaptureGroup
+                    capture_group_rollbacks.clear_with_capacity();
+                    capture_groups.clear_with_capacity();
+                    finalize_current_candidate();
+                }
+            }
+        }
+        // Append last candidate if any
+        VERIFY(capture_group_rollbacks.is_empty());
+        finalize_current_candidate();
+    }
+
+    if (candidates.is_empty()) {
+        dbgln_if(REGEX_DEBUG, "No consecutive compares found for {}", pattern_value);
+        return;
+    }
+
+    for (auto& candidate : candidates) {
+        dbgln_if(REGEX_DEBUG, "Candidate consecutive compare from {} to {}", candidate.start_ip, candidate.end_ip);
+        state.instruction_position = candidate.start_ip;
+        while (state.instruction_position < candidate.end_ip) {
+            auto& opcode = bytecode.get_opcode(state);
+            dbgln_if(REGEX_DEBUG, "{:>04x} | {} {}", state.instruction_position, opcode.to_byte_string(), opcode.arguments_string());
+            state.instruction_position += opcode.size();
+        }
+    }
+
+    struct StaticCaptureGroupInfo {
+        size_t id;
+        size_t string_length;
+        size_t offset_in_full_string;
+    };
+    struct RewriteData {
+        size_t start_ip;
+        size_t end_ip;
+        // FIXME: Should this be more UTF8/16 aware?
+        String full_string;
+        Vector<StaticCaptureGroupInfo> static_capture_groups;
+    };
+    Vector<RewriteData> rewrite_ranges;
+    rewrite_ranges.ensure_capacity(candidates.size());
+
+    // Now, perform the actual rewriting.
+    BytecodeRewriter rewriter(bytecode);
+    for (auto const& candidate : candidates) {
+        dbgln_if(REGEX_DEBUG, "Rewriting consecutive static compares from {} to {}", candidate.start_ip, candidate.end_ip);
+        // Gather the full string, and the static capture group info.
+        // FIXME: Should this be more UTF8/16 aware?
+        StringBuilder full_string;
+        Vector<StaticCaptureGroupInfo> static_capture_groups;
+        Vector<StaticCaptureGroupInfo> active_capture_groups;
+
+        auto state = MatchState::only_for_enumeration();
+        for (state.instruction_position = candidate.start_ip; state.instruction_position < candidate.end_ip;) {
+            auto& opcode = bytecode.get_opcode(state);
+            // FIXME: Quick match `(str)` patterns
+            switch (opcode.opcode_id()) {
+            case OpCodeId::SaveLeftCaptureGroup: {
+                // We only need to start a new capture group here
+                auto const& save_left = static_cast<OpCode_SaveLeftCaptureGroup const&>(opcode);
+                auto capture_group_id = save_left.id();
+                active_capture_groups.append({ capture_group_id, 0, full_string.length() });
+            } break;
+            case OpCodeId::SaveRightCaptureGroup: {
+                // We need to finalize the current capture group string
+                size_t string_length = full_string.length() - active_capture_groups.last().offset_in_full_string;
+                active_capture_groups.last().string_length = string_length;
+                static_capture_groups.append(active_capture_groups.take_last());
+            } break;
+            case OpCodeId::Compare: {
+                auto const& compare = static_cast<OpCode_Compare const&>(opcode);
+                // This should only have one flat compare of type char or string
+                for (auto const& [type, value] : compare.flat_compares()) {
+                    ASSERT(type == CharacterCompareType::Char);
+                    full_string.append_code_point(value);
+                }
+            } break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+            state.instruction_position += opcode.size();
+        }
+        VERIFY(active_capture_groups.is_empty());
+        // rewrite offset_in_full_string to be relative to the string end
+        for (auto& scg : static_capture_groups) {
+            // Before:
+            //   full_string: |...............|
+            //                ^     ^   ^     ^
+            //                |-----|   |       offset_in_full_string
+            //                      |---|       string_length
+            // After:
+            //   full_string: |...............|
+            //                ^     ^   ^     ^
+            //                      |---+-----| -offset_in_full_string
+            //                      |---|        string_length
+            scg.offset_in_full_string = full_string.length() - scg.offset_in_full_string;
+        }
+
+        rewrite_ranges.empend(candidate.start_ip, candidate.end_ip, full_string.to_string_without_validation(), move(static_capture_groups));
+    }
+
+    Vector<ByteCode> rewrites;
+    rewrites.ensure_capacity(candidates.size());
+    quick_sort(rewrite_ranges, [](auto& a, auto& b) { return a.start_ip < b.start_ip; });
+    for (auto const& rewrite : rewrite_ranges) {
+        ByteCode new_bytecode;
+        // Insert the Compare instruction
+        new_bytecode.insert_bytecode_compare_string(rewrite.full_string.bytes_as_string_view());
+        // Insert the SaveStaticCaptureGroup instructions
+        for (auto const& scg : rewrite.static_capture_groups) {
+            new_bytecode.append(static_cast<ByteCodeValueType>(OpCodeId::SaveStaticCaptureGroup));
+            new_bytecode.append(static_cast<ByteCodeValueType>(scg.id));
+            new_bytecode.append(static_cast<ByteCodeValueType>(scg.offset_in_full_string));
+            new_bytecode.append(static_cast<ByteCodeValueType>(scg.string_length));
+        }
+        rewrites.unchecked_append(move(new_bytecode));
+    }
+    BytecodeRewriter rewriter_final(bytecode);
+    bytecode = rewriter_final.rebuild<RewriteData>(bytecode, rewrite_ranges, rewrites);
+
+    if constexpr (REGEX_DEBUG) {
+        warnln("After rewriting consecutive compares:");
+        RegexDebug dbg;
+        dbg.print_bytecode(bytecode);
     }
 }
 

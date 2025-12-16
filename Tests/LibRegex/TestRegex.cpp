@@ -12,6 +12,7 @@
 #include <LibRegex/Regex.h>
 #include <LibRegex/RegexDebug.h>
 #include <LibRegex/RegexMatcher.h>
+#include <LibRegex/RegexParser.h>
 #include <stdio.h>
 
 static ECMAScriptOptions match_test_api_options(ECMAScriptOptions const options)
@@ -1471,5 +1472,56 @@ TEST_CASE(backreference_to_undefined_capture_groups)
         EXPECT_EQ(result2.capture_group_matches.first().size(), 2u);
         EXPECT(result2.capture_group_matches.first()[0].view.is_null());
         EXPECT(result2.capture_group_matches.first()[1].view.is_null());
+    }
+}
+
+TEST_CASE(optimizer_static_coalescing)
+{
+    {
+        Regex<ECMA262> re("abc(def)ghi"sv);
+        auto result = re.match("abcdefghi"sv);
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "abcdefghi"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 1u);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "def"sv);
+
+        // Now look at the bytecode:
+        // We expect a single Compare instruction for "abcdefghi"
+        size_t compare_instructions = 0;
+        auto& bytecode = re.parser_result.bytecode;
+        auto state = regex::MatchState::only_for_enumeration();
+        while (state.instruction_position < bytecode.size()) {
+            auto const& insn = bytecode.get_opcode(state);
+            if (insn.opcode_id() == regex::OpCodeId::Compare) {
+                compare_instructions++;
+            }
+            state.instruction_position += insn.size();
+        }
+        EXPECT_EQ(compare_instructions, 1u);
+    }
+    {
+        Regex<ECMA262> re("(abc(def)g)hi"sv);
+        auto result = re.match("abcdefghi"sv);
+        EXPECT_EQ(result.success, true);
+        EXPECT_EQ(result.matches.size(), 1u);
+        EXPECT_EQ(result.matches.first().view.to_byte_string(), "abcdefghi"sv);
+        EXPECT_EQ(result.capture_group_matches.first().size(), 2u);
+        EXPECT_EQ(result.capture_group_matches.first()[0].view.to_byte_string(), "abcdefg"sv);
+        EXPECT_EQ(result.capture_group_matches.first()[1].view.to_byte_string(), "def"sv);
+
+        // Now look at the bytecode:
+        // We expect a single Compare instruction for "abcdefghi"
+        size_t compare_instructions = 0;
+        auto& bytecode = re.parser_result.bytecode;
+        auto state = regex::MatchState::only_for_enumeration();
+        while (state.instruction_position < bytecode.size()) {
+            auto const& insn = bytecode.get_opcode(state);
+            if (insn.opcode_id() == regex::OpCodeId::Compare) {
+                compare_instructions++;
+            }
+            state.instruction_position += insn.size();
+        }
+        EXPECT_EQ(compare_instructions, 1u);
     }
 }
