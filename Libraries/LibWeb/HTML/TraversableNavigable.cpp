@@ -1435,7 +1435,12 @@ void TraversableNavigable::process_screenshot_requests()
                 continue;
             }
             auto rect = page().enclosing_device_rect(dom_node->paintable_box()->absolute_border_box_rect());
-            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
             start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
@@ -1444,7 +1449,12 @@ void TraversableNavigable::process_screenshot_requests()
         } else {
             auto scrollable_overflow_rect = active_document()->layout_node()->paintable_box()->scrollable_overflow_rect();
             auto rect = page().enclosing_device_rect(scrollable_overflow_rect.value());
-            auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>()).release_value_but_fixme_should_propagate_errors();
+            auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, rect.size().to_type<int>());
+            if (bitmap_or_error.is_error()) {
+                client.page_did_take_screenshot({});
+                continue;
+            }
+            auto bitmap = bitmap_or_error.release_value();
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
             start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
