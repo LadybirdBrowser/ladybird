@@ -60,8 +60,8 @@ private:
     void update_name_to_element_mappings_if_needed() const;
 
     mutable u64 m_cached_dom_tree_version { 0 };
-    mutable Vector<GC::Ref<Element>> m_cached_elements;
-    mutable OwnPtr<OrderedHashMap<FlyString, GC::Ref<Element>>> m_cached_name_to_element_mappings;
+    mutable Vector<GC::Weak<Element>> m_cached_elements;
+    mutable OwnPtr<OrderedHashMap<FlyString, GC::Weak<Element>>> m_cached_name_to_element_mappings;
 
     GC::Ref<ParentNode> m_root;
     Function<bool(Element const&)> m_filter;

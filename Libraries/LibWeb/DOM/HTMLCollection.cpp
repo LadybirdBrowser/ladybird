@@ -49,9 +49,6 @@ void HTMLCollection::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_root);
-    visitor.visit(m_cached_elements);
-    if (m_cached_name_to_element_mappings)
-        visitor.visit(*m_cached_name_to_element_mappings);
 }
 
 void HTMLCollection::update_name_to_element_mappings_if_needed() const
@@ -59,7 +56,7 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
     update_cache_if_needed();
     if (m_cached_name_to_element_mappings)
         return;
-    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, GC::Ref<Element>>>();
+    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, GC::Weak<Element>>>();
     for (auto const& element : m_cached_elements) {
         // 1. If element has an ID which is not in result, append element’s ID to result.
         if (auto const& id = element->id(); id.has_value()) {
@@ -100,7 +97,7 @@ void HTMLCollection::update_cache_if_needed() const
 
     if (m_sort) {
         insertion_sort(m_cached_elements, [this](auto const& a, auto const& b) {
-            return this->m_sort(a, b);
+            return this->m_sort(*a, *b);
         });
     }
 
@@ -112,7 +109,7 @@ GC::RootVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() con
     update_cache_if_needed();
     GC::RootVector<GC::Ref<Element>> elements(heap());
     for (auto& element : m_cached_elements)
-        elements.append(element);
+        elements.append(*element);
     return elements;
 }
 
