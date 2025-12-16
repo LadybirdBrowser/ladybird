@@ -38,9 +38,9 @@ ALWAYS_INLINE bool is(NonnullRefPtr<InputType> const& input)
 template<typename OutputType, typename InputType>
 ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType& input)
 {
-    if (!is<OutputType>(input))
-        return nullptr;
     if constexpr (requires { static_cast<CopyConst<InputType, OutputType>*>(&input); }) {
+        if (!is<OutputType>(input))
+            return nullptr;
         return static_cast<CopyConst<InputType, OutputType>*>(&input);
     }
     return dynamic_cast<CopyConst<InputType, OutputType>*>(&input);
