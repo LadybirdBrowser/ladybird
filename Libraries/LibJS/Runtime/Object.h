@@ -235,6 +235,12 @@ public:
     virtual bool is_set_object() const { return false; }
     virtual bool is_map_object() const { return false; }
 
+    virtual bool is_typed_array_base() const { return false; }
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
+    virtual bool is_##snake_name() const { return false; }
+    JS_ENUMERATE_TYPED_ARRAYS
+#undef __JS_ENUMERATE
+
     virtual bool eligible_for_own_property_enumeration_fast_path() const { return true; }
 
     virtual BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined([[maybe_unused]] Value next_method) { return nullptr; }
