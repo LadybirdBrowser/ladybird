@@ -71,6 +71,13 @@ jobs:
             echo "host_cxx=$(swiftly use --print-location)/usr/bin/clang++" >> "$GITHUB_OUTPUT"
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_SWIFT=ON"
           elif ${{ inputs.os_name == 'Linux' }} ; then
+            # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+            #        wabt doesn't have binary releases for arm64 Linux
+            if ${{ inputs.arch == 'arm64' }} ; then
+              PKGCONFIG=$(which pkg-config)
+              CMAKE_OPTIONS="$CMAKE_OPTIONS -DPKG_CONFIG_EXECUTABLE=$PKGCONFIG"
+            fi
+
             if ${{ inputs.toolchain == 'Clang' }} ; then
               echo "host_cc=clang-20" >> "$GITHUB_OUTPUT"
               echo "host_cxx=clang++-20" >> "$GITHUB_OUTPUT"
@@ -88,14 +95,7 @@ jobs:
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_CLANG_PLUGINS=ON"
           else
             echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
-            if ${{ inputs.os_name == 'Linux' && inputs.arch == 'arm64' }} ; then
-                # FIXME: https://github.com/WebAssembly/wabt/issues/2533
-                #        wabt doesn't have binary releases for arm64 Linux
-                PKGCONFIG=$(which pkg-config)
-                CMAKE_OPTIONS="$CMAKE_OPTIONS -DPKG_CONFIG_EXECUTABLE=$PKGCONFIG"
-            else
-              CMAKE_OPTIONS="$CMAKE_OPTIONS -DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON"
-            fi
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON"
           fi
 
           echo "cmake_options=$CMAKE_OPTIONS" >> "$GITHUB_OUTPUT"
