@@ -443,7 +443,10 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::Compare: {
-            auto flat_compares = to<OpCode_Compare>(opcode).flat_compares();
+            auto& compare = to<OpCode_Compare>(opcode);
+            if (compare.arguments_count() == 0)
+                return; // This matches 'nothing', so there are no starting ranges that can satisfy it.
+            auto flat_compares = compare.flat_compares();
             StaticallyInterpretedCompares compares;
             if (!interpret_compares(flat_compares, compares))
                 return; // No idea, the bytecode is too complex.
@@ -1082,30 +1085,26 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
         return false;
 
     if (basic_blocks.is_empty()) {
-        parser_result.optimization_data.pure_substring_search = ""sv;
+        parser_result.optimization_data.pure_substring_search.emplace();
         return true; // Empty regex, sure.
     }
 
     auto& bytecode = parser_result.bytecode.get<ByteCode>();
 
-    auto is_unicode = parser_result.options.has_flag_set(AllFlags::Unicode) || parser_result.options.has_flag_set(AllFlags::UnicodeSets);
-
     // We have a single basic block, let's see if it's a series of character or string compares.
-    StringBuilder final_string;
+    Vector<u16> u16_units;
     auto state = MatchState::only_for_enumeration();
     while (state.instruction_position < bytecode.size()) {
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::Compare: {
             auto& compare = to<OpCode_Compare>(opcode);
+            if (compare.arguments_count() == 0)
+                return false; // This matches 'nothing', so we can't do a substring search.
             for (auto& flat_compare : compare.flat_compares()) {
                 if (flat_compare.type != CharacterCompareType::Char)
                     return false;
-
-                if (is_unicode || flat_compare.value <= 0x7f)
-                    final_string.append_code_point(flat_compare.value);
-                else
-                    final_string.append(bit_cast<char>(static_cast<u8>(flat_compare.value)));
+                (void)AK::UnicodeUtils::code_point_to_utf16(flat_compare.value, [&](auto code_unit) { u16_units.append(code_unit); });
             }
             break;
         }
@@ -1115,7 +1114,7 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
         state.instruction_position += opcode.size();
     }
 
-    parser_result.optimization_data.pure_substring_search = final_string.to_byte_string();
+    parser_result.optimization_data.pure_substring_search.emplace(move(u16_units));
     return true;
 }
 
