@@ -213,7 +213,7 @@ jobs:
         if: ${{ always() && inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' }}
         uses: actions/upload-artifact@v6
         with:
-          name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang-plugins }}
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang_plugins }}
           path: ${{ github.workspace }}/Build/Lagom/Tests/LibWeb/test-web/test-dumps/
           retention-days: 0
           if-no-files-found: ignore
