@@ -67,7 +67,7 @@ struct DataBlock {
     Shared is_shared = { Shared::No };
 };
 
-class JS_API ArrayBuffer : public Object {
+class JS_API ArrayBuffer final : public Object {
     JS_OBJECT(ArrayBuffer, Object);
     GC_DECLARE_ALLOCATOR(ArrayBuffer);
 
@@ -148,6 +148,8 @@ private:
     ArrayBuffer(ByteBuffer buffer, DataBlock::Shared, Object& prototype);
     ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared, Object& prototype);
 
+    virtual bool is_array_buffer() const final { return true; }
+
     virtual void visit_edges(Visitor&) override;
 
     DataBlock m_data_block;
@@ -157,6 +159,9 @@ private:
     // but are required to be available for the use of various harnesses like the Test262 test runner.
     Value m_detach_key;
 };
+
+template<>
+inline bool Object::fast_is<ArrayBuffer>() const { return is_array_buffer(); }
 
 JS_API ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size);
 JS_API void copy_data_block_bytes(ByteBuffer& to_block, u64 to_index, ByteBuffer const& from_block, u64 from_index, u64 count);
