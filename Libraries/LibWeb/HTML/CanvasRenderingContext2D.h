@@ -133,6 +133,8 @@ public:
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, CanvasRenderingContext2DSettings);
 
+    virtual bool is_canvas_rendering_context_2d() const final { return true; }
+
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -180,5 +182,12 @@ enum class CanvasImageSourceUsability {
 
 WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 bool image_is_not_origin_clean(CanvasImageSource const&);
+
+}
+
+namespace JS {
+
+template<>
+inline bool Object::fast_is<Web::HTML::CanvasRenderingContext2D>() const { return is_canvas_rendering_context_2d(); }
 
 }

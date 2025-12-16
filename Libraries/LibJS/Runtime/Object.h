@@ -208,11 +208,14 @@ public:
     void define_native_javascript_backed_function(PropertyKey const&, GC::Ref<NativeJavaScriptBackedFunction> function, i32 length, PropertyAttributes attributes);
 
     virtual bool is_dom_node() const { return false; }
+    virtual bool is_dom_document() const { return false; }
     virtual bool is_dom_element() const { return false; }
+    virtual bool is_dom_event_target() const { return false; }
     virtual bool is_dom_event() const { return false; }
     virtual bool is_html_window() const { return false; }
     virtual bool is_html_window_proxy() const { return false; }
     virtual bool is_html_location() const { return false; }
+    virtual bool is_canvas_rendering_context_2d() const { return false; }
 
     virtual bool is_function() const { return false; }
     virtual bool is_bound_function() const { return false; }
@@ -234,6 +237,7 @@ public:
     virtual bool is_raw_json_object() const { return false; }
     virtual bool is_set_object() const { return false; }
     virtual bool is_map_object() const { return false; }
+    virtual bool is_weak_map() const { return false; }
 
     virtual bool is_typed_array_base() const { return false; }
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \

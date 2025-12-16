@@ -69,10 +69,15 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual bool is_environment() const final { return true; }
+
     bool m_permanently_screwed_by_eval { false };
     bool m_declarative { false };
 
     GC::Ptr<Environment> m_outer_environment;
 };
+
+template<>
+inline bool Cell::fast_is<Environment>() const { return is_environment(); }
 
 }

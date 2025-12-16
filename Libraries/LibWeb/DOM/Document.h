@@ -971,6 +971,9 @@ protected:
     Document(JS::Realm&, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
 
 private:
+    // ^JS::Object
+    virtual bool is_dom_document() const final { return true; }
+
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
@@ -1370,5 +1373,12 @@ template<>
 inline bool Node::fast_is<Document>() const { return is_document(); }
 
 bool is_a_registrable_domain_suffix_of_or_is_equal_to(StringView host_suffix_string, URL::Host const& original_host);
+
+}
+
+namespace JS {
+
+template<>
+inline bool JS::Object::fast_is<Web::DOM::Document>() const { return is_dom_document(); }
 
 }
