@@ -446,6 +446,18 @@ Utf16String HTMLElement::outer_text()
     return get_the_text_steps();
 }
 
+static bool any_ancestor_establishes_a_fixed_position_containing_block(Layout::NodeWithStyle const& node)
+{
+    // https://www.w3.org/TR/css-position-3/#fixed-positioning-containing-block
+    // The containing block is established by the nearest ancestor box that establishes an fixed positioning containing
+    // block, with the bounds of the containing block determined identically to the absolute positioning containing block.
+    for (auto ancestor = node.containing_block(); ancestor; ancestor = ancestor->containing_block()) {
+        if (ancestor->establishes_a_fixed_positioning_containing_block())
+            return true;
+    }
+    return false;
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent
 GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 {
@@ -456,12 +468,15 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
     //    - The element does not have an associated box.
     //    - The element is the root element.
     //    - The element is the body element.
-    //    - FIXME: The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
+    //    - The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
     if (!layout_node())
         return nullptr;
     if (is_document_element())
         return nullptr;
     if (is_html_body_element())
+        return nullptr;
+    bool const no_ancestor_establishes_a_fixed_position_containing_block = !any_ancestor_establishes_a_fixed_position_containing_block(*layout_node());
+    if (layout_node()->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
         return nullptr;
 
     // 2. Let ancestor be the containing block of the element in the flat tree and repeat these substeps:
@@ -483,8 +498,10 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
             return const_cast<Element*>(static_cast<DOM::Element const*>(ancestor->dom_node()));
         }
 
-        // FIXME: 3. If the computed value of the position property of ancestor is fixed, and no ancestor establishes a fixed
+        // 3. If the computed value of the position property of ancestor is fixed, and no ancestor establishes a fixed
         //    position containing block, terminate this algorithm and return null.
+        if (ancestor->computed_values().position() == CSS::Positioning::Fixed && no_ancestor_establishes_a_fixed_position_containing_block)
+            return nullptr;
 
         // 4. Let ancestor be the containing block of ancestor in the flat tree.
         ancestor = ancestor->containing_block();
