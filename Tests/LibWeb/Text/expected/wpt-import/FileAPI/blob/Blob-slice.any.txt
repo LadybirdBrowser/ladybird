@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 150 tests
 
-145 Pass
-5 Fail
+150 Pass
 Pass	no-argument Blob slice
 Pass	Slices
 Pass	blob1.
@@ -33,23 +32,23 @@ Pass	Slicing test: slice (0,7).
 Pass	Slicing test (0,8).
 Pass	Slicing test: slice (0,8).
 Pass	Slicing test (1,0).
-Fail	Slicing test: slice (1,0).
+Pass	Slicing test: slice (1,0).
 Pass	Slicing test (1,1).
 Pass	Slicing test: slice (1,1).
 Pass	Slicing test (1,2).
-Fail	Slicing test: slice (1,2).
+Pass	Slicing test: slice (1,2).
 Pass	Slicing test (1,3).
 Pass	Slicing test: slice (1,3).
 Pass	Slicing test (1,4).
-Fail	Slicing test: slice (1,4).
+Pass	Slicing test: slice (1,4).
 Pass	Slicing test (1,5).
 Pass	Slicing test: slice (1,5).
 Pass	Slicing test (1,6).
-Fail	Slicing test: slice (1,6).
+Pass	Slicing test: slice (1,6).
 Pass	Slicing test (1,7).
 Pass	Slicing test: slice (1,7).
 Pass	Slicing test (1,8).
-Fail	Slicing test: slice (1,8).
+Pass	Slicing test: slice (1,8).
 Pass	Slicing test (1,9).
 Pass	Slicing test: slice (1,9).
 Pass	Slicing test (2,0).

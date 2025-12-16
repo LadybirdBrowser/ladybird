@@ -517,7 +517,7 @@ JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value value, EnforceRang
 
         // 2. Round x to the nearest integer, choosing the even integer if it lies halfway between two, and choosing +0 rather than −0.
         // 3. Return x.
-        return round(x);
+        return AK::round_to<T>(x);
     }
 
     // 8. If x is NaN, +0, +∞, or −∞, then return +0.
