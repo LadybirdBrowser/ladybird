@@ -78,7 +78,11 @@ ALWAYS_INLINE static f32x4 exp_approximate(f32x4 v)
 ALWAYS_INLINE static f32x4 sqrt(f32x4 v)
 {
 #if ARCH(X86_64)
+#    if defined(AK_COMPILER_CLANG)
+    return __builtin_elementwise_sqrt(v);
+#    else
     return __builtin_ia32_sqrtps(v);
+#    endif
 #else
     return f32x4 {
         AK::sqrt(v[0]),
