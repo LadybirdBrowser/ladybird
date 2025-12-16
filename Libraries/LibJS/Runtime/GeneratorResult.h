@@ -39,4 +39,7 @@ private:
     Value m_continuation;
 };
 
+template<>
+inline bool Cell::fast_is<GeneratorResult>() const { return is_generator_result(); }
+
 }

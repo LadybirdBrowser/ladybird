@@ -33,9 +33,13 @@ public:
 private:
     explicit WeakMap(Object& prototype);
 
+    virtual bool is_weak_map() const final { return true; }
     void visit_edges(Visitor&) override;
 
     HashMap<GC::Ptr<Cell>, Value> m_values; // This stores Cell pointers instead of Object pointers to aide with sweeping
 };
+
+template<>
+inline bool Object::fast_is<WeakMap>() const { return is_weak_map(); }
 
 }

@@ -71,6 +71,9 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    // ^JS::Object
+    virtual bool is_dom_event_target() const final { return true; }
+
     struct Data {
         Vector<GC::Ref<DOMEventListener>> event_listener_list;
 
@@ -89,5 +92,12 @@ private:
 };
 
 bool is_window_reflecting_body_element_event_handler(FlyString const& name);
+
+}
+
+namespace JS {
+
+template<>
+inline bool Object::fast_is<Web::DOM::EventTarget>() const { return is_dom_event_target(); }
 
 }
