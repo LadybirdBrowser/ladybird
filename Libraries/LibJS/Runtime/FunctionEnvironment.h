@@ -16,12 +16,6 @@ class FunctionEnvironment final : public DeclarativeEnvironment {
     GC_DECLARE_ALLOCATOR(FunctionEnvironment);
 
 public:
-    enum class ThisBindingStatus : u8 {
-        Lexical,
-        Initialized,
-        Uninitialized,
-    };
-
     virtual ~FunctionEnvironment() override = default;
 
     ThisBindingStatus this_binding_status() const { return m_this_binding_status; }
@@ -51,10 +45,9 @@ private:
     virtual bool is_function_environment() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
-    Value m_this_value;                                                           // [[ThisValue]]
-    ThisBindingStatus m_this_binding_status { ThisBindingStatus::Uninitialized }; // [[ThisBindingStatus]]
-    GC::Ptr<FunctionObject> m_function_object;                                    // [[FunctionObject]]
-    Value m_new_target { js_undefined() };                                        // [[NewTarget]]
+    Value m_this_value;                        // [[ThisValue]]
+    GC::Ptr<FunctionObject> m_function_object; // [[FunctionObject]]
+    Value m_new_target { js_undefined() };     // [[NewTarget]]
 };
 
 template<>

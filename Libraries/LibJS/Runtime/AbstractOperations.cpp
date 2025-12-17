@@ -443,10 +443,10 @@ GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& 
 
     // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
     if (function.this_mode() == ThisMode::Lexical)
-        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Lexical);
+        env->set_this_binding_status(ThisBindingStatus::Lexical);
     // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
     else
-        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Uninitialized);
+        env->set_this_binding_status(ThisBindingStatus::Uninitialized);
 
     // 5. Set env.[[NewTarget]] to newTarget.
     env->set_new_target(new_target ?: js_undefined());
@@ -473,10 +473,10 @@ GC::Ref<FunctionEnvironment> new_function_environment(NativeJavaScriptBackedFunc
 
     // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
     if (function.this_mode() == ThisMode::Lexical)
-        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Lexical);
+        env->set_this_binding_status(ThisBindingStatus::Lexical);
     // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
     else
-        env->set_this_binding_status(FunctionEnvironment::ThisBindingStatus::Uninitialized);
+        env->set_this_binding_status(ThisBindingStatus::Uninitialized);
 
     // 5. Set env.[[NewTarget]] to newTarget.
     env->set_new_target(new_target ?: js_undefined());

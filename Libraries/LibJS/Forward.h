@@ -157,6 +157,12 @@ enum class Strict : u8 {
     Yes,
 };
 
+enum class ThisBindingStatus : u8 {
+    Lexical,
+    Initialized,
+    Uninitialized,
+};
+
 class ASTNode;
 class Accessor;
 class Agent;
