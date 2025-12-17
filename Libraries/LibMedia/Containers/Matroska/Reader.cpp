@@ -199,7 +199,7 @@ static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer, ElementI
     return header;
 }
 
-bool Reader::sniff_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
+bool Reader::is_matroska_or_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
 {
     auto header = [&] -> DecoderErrorOr<EBMLHeader> {
         Streamer streamer { stream_cursor };
@@ -211,7 +211,11 @@ bool Reader::sniff_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
     if (header.is_error())
         return false;
     auto doc_type = header.release_value().doc_type;
-    return doc_type == "webm";
+    if (doc_type == "matroska")
+        return true;
+    if (doc_type == "webm")
+        return true;
+    return false;
 }
 
 DecoderErrorOr<void> Reader::parse_initial_data()
