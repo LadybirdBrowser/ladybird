@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMPoint.h>
@@ -967,26 +968,21 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     bool is_2d_transform = true;
     for (auto const& transform : parsed_value) {
         // https://www.w3.org/TR/css-transforms-1/#two-d-transform-functions
-        if (transform.function() != CSS::TransformFunction::Matrix
-            && transform.function() != CSS::TransformFunction::Translate
-            && transform.function() != CSS::TransformFunction::TranslateX
-            && transform.function() != CSS::TransformFunction::TranslateY
-            && transform.function() != CSS::TransformFunction::Scale
-            && transform.function() != CSS::TransformFunction::ScaleX
-            && transform.function() != CSS::TransformFunction::ScaleY
-            && transform.function() != CSS::TransformFunction::Rotate
-            && transform.function() != CSS::TransformFunction::Skew
-            && transform.function() != CSS::TransformFunction::SkewX
-            && transform.function() != CSS::TransformFunction::SkewY)
+        if (!first_is_one_of(transform->as_transformation().transform_function(),
+                CSS::TransformFunction::Matrix,
+                CSS::TransformFunction::Translate, CSS::TransformFunction::TranslateX, CSS::TransformFunction::TranslateY,
+                CSS::TransformFunction::Scale, CSS::TransformFunction::ScaleX, CSS::TransformFunction::ScaleY,
+                CSS::TransformFunction::Rotate,
+                CSS::TransformFunction::Skew, CSS::TransformFunction::SkewX, CSS::TransformFunction::SkewY))
             is_2d_transform = false;
     }
 
     // 5. Transform all <transform-function>s to 4x4 abstract matrices by following the “Mathematical Description of Transform Functions”. [CSS3-TRANSFORMS]
     // 6. Let matrix be a 4x4 abstract matrix as shown in the initial figure of this section. Post-multiply all matrices from left to right and set matrix to this product.
     for (auto const& transform : parsed_value) {
-        auto const& transform_matrix = transform.to_matrix({});
+        auto const& transform_matrix = transform->as_transformation().to_matrix({});
         if (transform_matrix.is_error())
-            return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_utf16);
+            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Failed to parse CSS transform string: {}", transform_matrix.error()));
         matrix = matrix * transform_matrix.value();
     }
 

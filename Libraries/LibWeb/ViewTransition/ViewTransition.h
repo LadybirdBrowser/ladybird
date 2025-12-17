@@ -7,14 +7,13 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <AK/Tuple.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ViewTransitionPrototype.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/Transformation.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -57,7 +56,7 @@ struct CapturedElement : public JS::Cell {
     CSSPixels old_width = 0;
     CSSPixels old_height = 0;
     // FIXME: Make this an identity transform function by default.
-    CSS::Transformation old_transform = CSS::Transformation(CSS::TransformFunction::Translate, Vector<CSS::TransformValue>());
+    NonnullRefPtr<CSS::TransformationStyleValue const> old_transform = CSS::TransformationStyleValue::identity_transformation(CSS::TransformFunction::Translate);
     Optional<CSS::WritingMode> old_writing_mode {};
     Optional<CSS::Direction> old_direction {};
     // FIXME: old_text_orientation

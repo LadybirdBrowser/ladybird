@@ -289,7 +289,6 @@ set(SOURCES
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
     CSS/SystemColor.cpp
     CSS/Time.cpp
-    CSS/Transformation.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
     CSS/ValueType.cpp

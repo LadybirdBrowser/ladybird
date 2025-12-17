@@ -100,11 +100,11 @@ bool Node::can_contain_boxes_with_position_absolute() const
     // Any computed value other than none for the transform affects containing block and stacking context
     if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
         return true;
-    if (computed_values.translate().has_value() || will_change_property(CSS::PropertyID::Translate))
+    if (computed_values.translate() || will_change_property(CSS::PropertyID::Translate))
         return true;
-    if (computed_values.rotate().has_value() || will_change_property(CSS::PropertyID::Rotate))
+    if (computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate))
         return true;
-    if (computed_values.scale().has_value() || will_change_property(CSS::PropertyID::Scale))
+    if (computed_values.scale() || will_change_property(CSS::PropertyID::Scale))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
@@ -230,13 +230,13 @@ bool Node::establishes_stacking_context() const
     if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
         return true;
 
-    if (computed_values.translate().has_value() || will_change_property(CSS::PropertyID::Translate))
+    if (computed_values.translate() || will_change_property(CSS::PropertyID::Translate))
         return true;
 
-    if (computed_values.rotate().has_value() || will_change_property(CSS::PropertyID::Rotate))
+    if (computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate))
         return true;
 
-    if (computed_values.scale().has_value() || will_change_property(CSS::PropertyID::Scale))
+    if (computed_values.scale() || will_change_property(CSS::PropertyID::Scale))
         return true;
 
     // Element that is a child of a flex container, with z-index value other than auto.
@@ -572,14 +572,14 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
-    if (auto rotate_value = computed_style.rotate(); rotate_value.has_value())
-        computed_values.set_rotate(rotate_value.release_value());
+    if (auto rotate_value = computed_style.rotate())
+        computed_values.set_rotate(rotate_value.release_nonnull());
 
-    if (auto translate_value = computed_style.translate(); translate_value.has_value())
-        computed_values.set_translate(translate_value.release_value());
+    if (auto translate_value = computed_style.translate())
+        computed_values.set_translate(translate_value.release_nonnull());
 
-    if (auto scale_value = computed_style.scale(); scale_value.has_value())
-        computed_values.set_scale(scale_value.release_value());
+    if (auto scale_value = computed_style.scale())
+        computed_values.set_scale(scale_value.release_nonnull());
 
     computed_values.set_transformations(computed_style.transformations());
     computed_values.set_transform_box(computed_style.transform_box());

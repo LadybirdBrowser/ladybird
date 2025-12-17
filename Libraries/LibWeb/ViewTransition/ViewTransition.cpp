@@ -7,6 +7,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -302,7 +303,11 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         // 6. Set capture’s old transform to a <transform-function> that would map element’s border box from the
         //    snapshot containing block origin to its current visual position.
         // FIXME: Actually compute the right transform here.
-        capture->old_transform = CSS::Transformation(CSS::TransformFunction::Translate, Vector<CSS::TransformValue>({ CSS::TransformValue(CSS::Length(0, CSS::LengthUnit::Px)), CSS::TransformValue(CSS::Length(0, CSS::LengthUnit::Px)) }));
+        capture->old_transform = CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Translate,
+            CSS::StyleValueVector {
+                CSS::LengthStyleValue::create(CSS::Length(0, CSS::LengthUnit::Px)),
+                CSS::LengthStyleValue::create(CSS::Length(0, CSS::LengthUnit::Px)),
+            });
 
         // 7. Set capture’s old writing-mode to the computed value of writing-mode on element.
         capture->old_writing_mode = element.layout_node()->computed_values().writing_mode();
@@ -807,7 +812,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
         //    colorScheme be null.
         Optional<CSSPixels> width = {};
         Optional<CSSPixels> height = {};
-        Optional<CSS::Transformation> transform = {};
+        RefPtr<CSS::TransformationStyleValue const> transform = {};
         Optional<CSS::WritingMode> writing_mode = {};
         Optional<CSS::Direction> direction = {};
         // FIXME: Implement this once we have text-orientation.
@@ -880,7 +885,11 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // 5. Set transform to a transform that would map newRect from the snapshot containing block origin
             //    to its current visual position.
             auto offset = new_rect.location() - captured_element->new_element->navigable()->snapshot_containing_block().location();
-            transform = CSS::Transformation(CSS::TransformFunction::Translate, Vector<CSS::TransformValue>({ CSS::TransformValue(CSS::Length::make_px(offset.x())), CSS::TransformValue(CSS::Length::make_px(offset.y())) }));
+            transform = CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Translate,
+                CSS::StyleValueVector {
+                    CSS::LengthStyleValue::create(CSS::Length::make_px(offset.x())),
+                    CSS::LengthStyleValue::create(CSS::Length::make_px(offset.y())),
+                });
 
             // 6. Set writingMode to the computed value of writing-mode on capturedElement’s new element.
             writing_mode = captured_element->new_element->layout_node()->computed_values().writing_mode();

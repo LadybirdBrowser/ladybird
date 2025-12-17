@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/TransformFunctions.h>
 
@@ -27,7 +28,7 @@ public:
     TransformFunction transform_function() const { return m_properties.transform_function; }
     StyleValueVector const& values() const { return m_properties.values; }
 
-    Transformation to_transformation() const;
+    ErrorOr<FloatMatrix4x4> to_matrix(Optional<Painting::PaintableBox const&>) const;
 
     virtual String to_string(SerializationMode) const override;
     ErrorOr<GC::Ref<CSSTransformComponent>> reify_a_transform_function(JS::Realm&) const;

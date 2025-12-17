@@ -390,7 +390,6 @@ class Time;
 class TimeOrCalculated;
 class TimePercentage;
 class TimeStyleValue;
-class Transformation;
 class TransformationStyleValue;
 class TreeCountingFunctionStyleValue;
 class UnicodeRangeStyleValue;

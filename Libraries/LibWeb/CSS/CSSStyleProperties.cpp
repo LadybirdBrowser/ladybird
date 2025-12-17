@@ -811,8 +811,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
         VERIFY(layout_node.first_paintable());
         auto const& paintable_box = as<Painting::PaintableBox const>(*layout_node.first_paintable());
-        for (auto transformation : transformations) {
-            transform = transform * transformation.to_matrix(paintable_box).release_value();
+        for (auto const& transformation : transformations) {
+            transform = transform * transformation->to_matrix(paintable_box).release_value();
         }
 
         // https://drafts.csswg.org/css-transforms-1/#2d-matrix
