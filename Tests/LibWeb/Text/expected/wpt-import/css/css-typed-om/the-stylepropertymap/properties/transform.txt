@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 33 tests
 
-32 Pass
-1 Fail
+33 Pass
 Pass	Can set 'transform' to CSS-wide keywords: initial
 Pass	Can set 'transform' to CSS-wide keywords: inherit
 Pass	Can set 'transform' to CSS-wide keywords: unset
@@ -36,4 +35,4 @@ Pass	Setting 'transform' to a number: 0 throws TypeError
 Pass	Setting 'transform' to a number: -3.14 throws TypeError
 Pass	Setting 'transform' to a number: 3.14 throws TypeError
 Pass	Setting 'transform' to a number: calc(2 + 3) throws TypeError
-Fail	'transform' does not support 'matrix(sibling-index(), 2, 3, 4, 5 ,6)'
+Pass	'transform' does not support 'matrix(sibling-index(), 2, 3, 4, 5 ,6)'

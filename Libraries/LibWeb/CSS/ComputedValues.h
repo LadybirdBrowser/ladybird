@@ -10,7 +10,6 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/Font/FontVariant.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
@@ -32,7 +31,7 @@
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
-#include <LibWeb/CSS/Transformation.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/URL.h>
 
 namespace Web::CSS {
@@ -648,13 +647,13 @@ public:
     LengthPercentage const& x() const { return m_noninherited.x; }
     LengthPercentage const& y() const { return m_noninherited.y; }
 
-    Vector<Transformation> const& transformations() const { return m_noninherited.transformations; }
+    Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations() const { return m_noninherited.transformations; }
     TransformBox const& transform_box() const { return m_noninherited.transform_box; }
     TransformOrigin const& transform_origin() const { return m_noninherited.transform_origin; }
     TransformStyle const& transform_style() const { return m_noninherited.transform_style; }
-    Optional<Transformation> const& rotate() const { return m_noninherited.rotate; }
-    Optional<Transformation> const& translate() const { return m_noninherited.translate; }
-    Optional<Transformation> const& scale() const { return m_noninherited.scale; }
+    RefPtr<TransformationStyleValue const> const& rotate() const { return m_noninherited.rotate; }
+    RefPtr<TransformationStyleValue const> const& translate() const { return m_noninherited.translate; }
+    RefPtr<TransformationStyleValue const> const& scale() const { return m_noninherited.scale; }
     Optional<CSSPixels> const& perspective() const { return m_noninherited.perspective; }
     Position const& perspective_origin() const { return m_noninherited.perspective_origin; }
 
@@ -813,7 +812,7 @@ protected:
         Overflow overflow_y { InitialValues::overflow() };
         float opacity { InitialValues::opacity() };
         Vector<ShadowData> box_shadow {};
-        Vector<Transformation> transformations {};
+        Vector<NonnullRefPtr<TransformationStyleValue const>> transformations {};
         TransformBox transform_box { InitialValues::transform_box() };
         TransformOrigin transform_origin {};
         TransformStyle transform_style { InitialValues::transform_style() };
@@ -856,9 +855,9 @@ protected:
         Optional<FlyString> view_transition_name;
         TouchActionData touch_action;
 
-        Optional<Transformation> rotate;
-        Optional<Transformation> translate;
-        Optional<Transformation> scale;
+        RefPtr<TransformationStyleValue const> rotate;
+        RefPtr<TransformationStyleValue const> translate;
+        RefPtr<TransformationStyleValue const> scale;
         Optional<CSSPixels> perspective;
         Position perspective_origin;
 
@@ -1011,15 +1010,15 @@ public:
     void set_justify_items(JustifyItems value) { m_noninherited.justify_items = value; }
     void set_justify_self(JustifySelf value) { m_noninherited.justify_self = value; }
     void set_box_shadow(Vector<ShadowData>&& value) { m_noninherited.box_shadow = move(value); }
-    void set_rotate(Transformation value) { m_noninherited.rotate = move(value); }
-    void set_scale(Transformation value) { m_noninherited.scale = move(value); }
+    void set_rotate(RefPtr<TransformationStyleValue const> value) { m_noninherited.rotate = move(value); }
+    void set_scale(RefPtr<TransformationStyleValue const> value) { m_noninherited.scale = move(value); }
     void set_perspective(Optional<CSSPixels> value) { m_noninherited.perspective = move(value); }
     void set_perspective_origin(Position value) { m_noninherited.perspective_origin = move(value); }
-    void set_transformations(Vector<Transformation> value) { m_noninherited.transformations = move(value); }
+    void set_transformations(Vector<NonnullRefPtr<TransformationStyleValue const>> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(TransformBox value) { m_noninherited.transform_box = value; }
-    void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = move(value); }
+    void set_transform_origin(TransformOrigin value) { m_noninherited.transform_origin = value; }
     void set_transform_style(TransformStyle value) { m_noninherited.transform_style = value; }
-    void set_translate(Transformation value) { m_noninherited.translate = move(value); }
+    void set_translate(RefPtr<TransformationStyleValue const> value) { m_noninherited.translate = move(value); }
     void set_box_sizing(BoxSizing value) { m_noninherited.box_sizing = value; }
     void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value) { m_noninherited.vertical_align = move(value); }
     void set_visibility(Visibility value) { m_inherited.visibility = value; }

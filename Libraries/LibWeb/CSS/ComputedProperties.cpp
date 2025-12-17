@@ -788,7 +788,7 @@ JustifySelf ComputedProperties::justify_self() const
     return keyword_to_justify_self(value.to_keyword()).release_value();
 }
 
-Vector<Transformation> ComputedProperties::transformations_for_style_value(StyleValue const& value)
+Vector<NonnullRefPtr<TransformationStyleValue const>> ComputedProperties::transformations_for_style_value(StyleValue const& value)
 {
     if (value.is_keyword() && value.to_keyword() == Keyword::None)
         return {};
@@ -797,43 +797,41 @@ Vector<Transformation> ComputedProperties::transformations_for_style_value(Style
         return {};
 
     auto& list = value.as_value_list();
-
-    Vector<Transformation> transformations;
-    for (auto& it : list.values()) {
-        if (!it->is_transformation())
-            return {};
-        transformations.append(it->as_transformation().to_transformation());
+    Vector<NonnullRefPtr<TransformationStyleValue const>> transformations;
+    for (auto const& transform_value : list.values()) {
+        VERIFY(transform_value->is_transformation());
+        transformations.append(transform_value->as_transformation());
     }
     return transformations;
 }
 
-Vector<Transformation> ComputedProperties::transformations() const
+Vector<NonnullRefPtr<TransformationStyleValue const>> ComputedProperties::transformations() const
 {
     return transformations_for_style_value(property(PropertyID::Transform));
 }
 
-Optional<Transformation> ComputedProperties::rotate() const
+RefPtr<TransformationStyleValue const> ComputedProperties::rotate() const
 {
     auto const& value = property(PropertyID::Rotate);
     if (!value.is_transformation())
         return {};
-    return value.as_transformation().to_transformation();
+    return value.as_transformation();
 }
 
-Optional<Transformation> ComputedProperties::translate() const
+RefPtr<TransformationStyleValue const> ComputedProperties::translate() const
 {
     auto const& value = property(PropertyID::Translate);
     if (!value.is_transformation())
         return {};
-    return value.as_transformation().to_transformation();
+    return value.as_transformation();
 }
 
-Optional<Transformation> ComputedProperties::scale() const
+RefPtr<TransformationStyleValue const> ComputedProperties::scale() const
 {
     auto const& value = property(PropertyID::Scale);
     if (!value.is_transformation())
         return {};
-    return value.as_transformation().to_transformation();
+    return value.as_transformation();
 }
 
 TransformBox ComputedProperties::transform_box() const
