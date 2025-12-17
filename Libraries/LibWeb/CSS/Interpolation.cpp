@@ -1165,7 +1165,12 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
             break;
         default:
             generic_function = TransformFunction::Matrix3d;
-            parameters = matrix_to_style_value_vector(MUST(transform->to_transformation().to_matrix({})));
+            auto paintable_box = [&] -> Optional<Painting::PaintableBox const&> {
+                if (auto* box = element.paintable_box())
+                    return *box;
+                return {};
+            }();
+            parameters = matrix_to_style_value_vector(MUST(transform->to_transformation().to_matrix(paintable_box)));
         }
         return TransformationStyleValue::create(PropertyID::Transform, generic_function, move(parameters));
     };
