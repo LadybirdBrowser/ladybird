@@ -97,27 +97,30 @@ ErrorOr<void> generate_implementation_file(JsonObject const& environment_variabl
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 
 namespace Web::CSS {
 
-Optional<EnvironmentVariable> environment_variable_from_string(StringView string)
-{
+static HashMap<StringView, EnvironmentVariable, AK::CaseInsensitiveASCIIStringViewTraits> environment_variable_table = {
 )~~~");
+
     environment_variables.for_each_member([&](auto& name, JsonValue const&) {
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
-        return EnvironmentVariable::@name:titlecase@;
+    { "@name@"sv, EnvironmentVariable::@name:titlecase@ },
 )~~~");
     });
 
     generator.append(R"~~~(
+};
 
-    return {};
+Optional<EnvironmentVariable> environment_variable_from_string(StringView string)
+{
+    return environment_variable_table.get(string);
 }
 
 StringView to_string(EnvironmentVariable environment_variable)
