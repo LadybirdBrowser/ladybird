@@ -1150,10 +1150,10 @@ void vout(FILE* file, StringView fmtstr, TypeErasedFormatParams& params, bool ne
 #if defined(AK_OS_WINDOWS)
 ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder& builder, Error const& error)
 {
-    thread_local HashMap<u32, ByteString> windows_errors;
+    static thread_local HashMap<u32, ByteString> windows_errors;
 
-    int code = error.code();
-    Optional<ByteString&> string = windows_errors.get(static_cast<u32>(code));
+    u32 code = error.code();
+    Optional<ByteString&> string = windows_errors.get(code);
     if (string.has_value()) {
         return Formatter<StringView>::format(builder, string->view());
     }
@@ -1162,7 +1162,7 @@ ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder& builder, Err
     u32 size = FormatMessage(
         FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
         nullptr,
-        static_cast<DWORD>(code),
+        code,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
         message,
         256,
@@ -1173,7 +1173,7 @@ ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder& builder, Err
     }
 
     auto& string_in_map = windows_errors.ensure(code, [message, size] { return ByteString { message, size }; });
-    return Formatter<StringView>::format(builder, string_in_map.view());
+    return Formatter<FormatString>::format(builder, "Error {:x}: {}"sv, code, string_in_map.view());
 }
 #else
 ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder&, Error const&)
