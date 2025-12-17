@@ -133,9 +133,18 @@ void serialize_unicode_ranges(StringBuilder& builder, Vector<Gfx::UnicodeRange> 
 void serialize_a_number(StringBuilder& builder, double value)
 {
     // -> <number>
-    // A base-ten number using digits 0-9 (U+0030 to U+0039) in the shortest form possible, using "." to separate
-    // decimals (if any), rounding the value if necessary to not produce more than 6 decimals, preceded by "-" (U+002D)
-    // if it is negative.
+    //    A base-ten number using digits 0-9 (U+0030 to U+0039) in the shortest form possible, using "." to separate
+    //    decimals (if any), rounding the value if necessary to not produce more than 6 decimals, preceded by "-"
+    //    (U+002D) if it is negative.
+    // NOTE: scientific notation is not used.
+
+    // AD-HOC: If the number is small enough that it would not print any digits when rounded, serialize it as 0.
+    if (AK::abs(value) < 0.0000005) {
+        builder.append("0"sv);
+        return;
+    }
+
+    // FIXME: Prevent scientific notation for large values.
     builder.appendff("{:.6}", value);
 }
 
