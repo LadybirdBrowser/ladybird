@@ -172,8 +172,8 @@ brew install qt
 
 ### Windows:
 
-WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being setup but does not fully
-build.
+WSL2 is the supported way to build Ladybird on Windows. A native build is also possible, however it is still experimental,
+and there are several issues. 
 
 #### WSL2
 - Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
@@ -187,7 +187,7 @@ MinGW/MSYS2 are not supported.
 ##### Clang-CL (experimental)
 
 > [!NOTE]
-> This only gets the cmake to configure. There is still a lot of work to do in terms of getting it to build.
+> There are still windows specific issues and the functionality is limited.
 
 In order to get pkg-config available for the vcpkg install, you can use Chocolatey to install it.
 To install Chocolatey, see `https://chocolatey.org/install`.
@@ -195,6 +195,10 @@ To install Chocolatey, see `https://chocolatey.org/install`.
 Then Install pkg-config using chocolatey.
 ```
 choco install pkgconfiglite -y
+```
+In a VS command prompt build using ladybird.py:
+```
+py Meta\ladybird.py build
 ```
 
 ### Android:
