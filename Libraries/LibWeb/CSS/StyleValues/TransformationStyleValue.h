@@ -30,7 +30,7 @@ public:
     Transformation to_transformation() const;
 
     virtual String to_string(SerializationMode) const override;
-    GC::Ref<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
+    ErrorOr<GC::Ref<CSSTransformComponent>> reify_a_transform_function(JS::Realm&) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
