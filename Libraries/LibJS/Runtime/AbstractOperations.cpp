@@ -1490,7 +1490,9 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
 
 void DisposeCapability::visit_edges(GC::Cell::Visitor& visitor) const
 {
-    for (auto const& disposable_resource : disposable_resource_stack)
+    if (!disposable_resource_stack)
+        return;
+    for (auto const& disposable_resource : *disposable_resource_stack)
         disposable_resource.visit_edges(visitor);
 }
 
@@ -1537,7 +1539,9 @@ ThrowCompletionOr<void> add_disposable_resource(VM& vm, DisposeCapability& dispo
     }
 
     // 3. Append resource to disposeCapability.[[DisposableResourceStack]].
-    dispose_capability.disposable_resource_stack.append(resource.release_value());
+    if (!dispose_capability.disposable_resource_stack)
+        dispose_capability.disposable_resource_stack = make<Vector<DisposableResource>>();
+    dispose_capability.disposable_resource_stack->append(resource.release_value());
 
     // 4. Return unused.
     return {};
@@ -1672,77 +1676,79 @@ Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Comp
     bool has_awaited = false;
 
     // 3. For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
-    for (auto const& resource : dispose_capability.disposable_resource_stack.in_reverse()) {
-        // a. Let value be resource.[[ResourceValue]].
-        auto value = resource.resource_value;
+    if (dispose_capability.disposable_resource_stack) {
+        for (auto const& resource : dispose_capability.disposable_resource_stack->in_reverse()) {
+            // a. Let value be resource.[[ResourceValue]].
+            auto value = resource.resource_value;
 
-        // b. Let hint be resource.[[Hint]].
-        auto hint = resource.hint;
+            // b. Let hint be resource.[[Hint]].
+            auto hint = resource.hint;
 
-        // c. Let method be resource.[[DisposeMethod]].
-        auto method = resource.dispose_method;
+            // c. Let method be resource.[[DisposeMethod]].
+            auto method = resource.dispose_method;
 
-        // d. If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
-        if (hint == Environment::InitializeBindingHint::SyncDispose && needs_await && !has_awaited) {
-            // i. Perform ! Await(undefined).
-            MUST(await(vm, js_undefined()));
+            // d. If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
+            if (hint == Environment::InitializeBindingHint::SyncDispose && needs_await && !has_awaited) {
+                // i. Perform ! Await(undefined).
+                MUST(await(vm, js_undefined()));
 
-            // ii. Set needsAwait to false.
-            needs_await = false;
-        }
-
-        // e. If method is not undefined, then
-        if (method) {
-            // i. Let result be Completion(Call(method, value)).
-            auto result = call(vm, *method, value);
-
-            // ii. If result is a normal completion and hint is async-dispose, then
-            if (!result.is_throw_completion() && hint == Environment::InitializeBindingHint::AsyncDispose) {
-                // 1. Set result to Completion(Await(result.[[Value]])).
-                result = await(vm, result.value());
-
-                // 2. Set hasAwaited to true.
-                has_awaited = true;
+                // ii. Set needsAwait to false.
+                needs_await = false;
             }
-            // iii. If result is a throw completion, then
-            else if (result.is_throw_completion()) {
-                // 1. If completion is a throw completion, then
-                if (completion.type() == Completion::Type::Throw) {
-                    // a. Set result to result.[[Value]].
-                    auto result_value = result.error().value();
 
-                    // b. Let suppressed be completion.[[Value]].
-                    auto suppressed = completion.value();
+            // e. If method is not undefined, then
+            if (method) {
+                // i. Let result be Completion(Call(method, value)).
+                auto result = call(vm, *method, value);
 
-                    // c. Let error be a newly created SuppressedError object.
-                    auto error = SuppressedError::create(*vm.current_realm());
+                // ii. If result is a normal completion and hint is async-dispose, then
+                if (!result.is_throw_completion() && hint == Environment::InitializeBindingHint::AsyncDispose) {
+                    // 1. Set result to Completion(Await(result.[[Value]])).
+                    result = await(vm, result.value());
 
-                    // d. Perform CreateNonEnumerableDataPropertyOrThrow(error, "error", result).
-                    error->create_non_enumerable_data_property_or_throw(vm.names.error, result_value);
-
-                    // e. Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
-                    error->create_non_enumerable_data_property_or_throw(vm.names.suppressed, suppressed);
-
-                    // f. Set completion to ThrowCompletion(error).
-                    completion = throw_completion(error);
+                    // 2. Set hasAwaited to true.
+                    has_awaited = true;
                 }
-                // 2. Else,
-                else {
-                    // a. Set completion to result.
-                    completion = result.release_error();
+                // iii. If result is a throw completion, then
+                else if (result.is_throw_completion()) {
+                    // 1. If completion is a throw completion, then
+                    if (completion.type() == Completion::Type::Throw) {
+                        // a. Set result to result.[[Value]].
+                        auto result_value = result.error().value();
+
+                        // b. Let suppressed be completion.[[Value]].
+                        auto suppressed = completion.value();
+
+                        // c. Let error be a newly created SuppressedError object.
+                        auto error = SuppressedError::create(*vm.current_realm());
+
+                        // d. Perform CreateNonEnumerableDataPropertyOrThrow(error, "error", result).
+                        error->create_non_enumerable_data_property_or_throw(vm.names.error, result_value);
+
+                        // e. Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
+                        error->create_non_enumerable_data_property_or_throw(vm.names.suppressed, suppressed);
+
+                        // f. Set completion to ThrowCompletion(error).
+                        completion = throw_completion(error);
+                    }
+                    // 2. Else,
+                    else {
+                        // a. Set completion to result.
+                        completion = result.release_error();
+                    }
                 }
             }
-        }
-        // f. Else,
-        else {
-            // i. Assert: hint is async-dispose.
-            VERIFY(hint == Environment::InitializeBindingHint::AsyncDispose);
+            // f. Else,
+            else {
+                // i. Assert: hint is async-dispose.
+                VERIFY(hint == Environment::InitializeBindingHint::AsyncDispose);
 
-            // ii. Set needsAwait to true.
-            needs_await = true;
+                // ii. Set needsAwait to true.
+                needs_await = true;
 
-            // iii. NOTE: This can only indicate a case where either null or undefined was the initialized value of an
-            //      await using declaration.
+                // iii. NOTE: This can only indicate a case where either null or undefined was the initialized value of an
+                //      await using declaration.
+            }
         }
     }
 
