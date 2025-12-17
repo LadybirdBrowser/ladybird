@@ -68,6 +68,9 @@ protected:
 
     virtual void visit_edges(Visitor&) override;
 
+    // NB: This belongs to FunctionEnvironment, but we keep it here to pack better.
+    ThisBindingStatus m_this_binding_status { ThisBindingStatus::Uninitialized }; // [[ThisBindingStatus]]
+
 private:
     virtual bool is_environment() const final { return true; }
 
