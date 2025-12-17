@@ -787,28 +787,36 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
     // 4. Assert: module.[[EvaluationError]] is empty.
     VERIFY(!m_evaluation_error.is_error());
 
-    // 5. Set module.[[EvaluationError]] to ThrowCompletion(error)
+    // 5. Set module.[[EvaluationError]] to ThrowCompletion(error).
     m_evaluation_error = throw_completion(error);
 
     // 6. Set module.[[Status]] to evaluated.
     m_status = ModuleStatus::Evaluated;
 
-    // 7. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
-    for (auto module : m_async_parent_modules) {
-        // a. Perform AsyncModuleExecutionRejected(m, error).
-        module->async_module_execution_rejected(vm, error);
-    }
+    // 7. Set module.[[AsyncEvaluationOrder]] to DONE.
+    // FIXME: [[AsyncEvaluation]] was editorially replaced with [[AsyncEvaluationOrder]]. See:
+    //        https://github.com/tc39/ecma262/commit/030dcd6c88e79e066a2d58ee39d045ba7d1e6e03
 
-    // 8. If module.[[TopLevelCapability]] is not empty, then
+    // 8. NOTE: module.[[AsyncEvaluationOrder]] is set to DONE for symmetry with AsyncModuleExecutionFulfilled. In
+    //    InnerModuleEvaluation, the value of a module's [[AsyncEvaluationOrder]] internal slot is unused when its
+    //    [[EvaluationError]] internal slot is not EMPTY.
+
+    // 9. If module.[[TopLevelCapability]] is not empty, then
     if (m_top_level_capability != nullptr) {
-        // a. Assert: module.[[CycleRoot]] is module.
+        // a. Assert: module.[[CycleRoot]] and module are the same Module Record.
         VERIFY(m_cycle_root == this);
 
         // b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]], undefined, « error »).
         MUST(call(vm, *m_top_level_capability->reject(), js_undefined(), error));
     }
 
-    // 9. Return unused.
+    // 10. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
+    for (auto module : m_async_parent_modules) {
+        // a. Perform AsyncModuleExecutionRejected(m, error).
+        module->async_module_execution_rejected(vm, error);
+    }
+
+    // 11. Return unused.
 }
 
 // 16.2.1.9 GetImportedModule ( referrer, request ), https://tc39.es/ecma262/#sec-GetImportedModule
