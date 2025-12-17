@@ -27,7 +27,7 @@ public:
 
     static DecoderErrorOr<Reader> from_stream(IncrementallyPopulatedStream::Cursor&);
 
-    static bool sniff_webm(IncrementallyPopulatedStream::Cursor&);
+    static bool is_matroska_or_webm(IncrementallyPopulatedStream::Cursor&);
 
     EBMLHeader const& header() const { return m_header.value(); }
 
