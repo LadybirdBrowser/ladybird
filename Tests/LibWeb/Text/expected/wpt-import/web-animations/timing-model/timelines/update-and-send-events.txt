@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
+5 Pass
+3 Fail
 Pass	Fires cancel event before requestAnimationFrame
 Pass	Fires finish event before requestAnimationFrame
 Fail	Sorts finish events by composite order
@@ -11,4 +11,4 @@ Fail	Sorts cancel events by composite order
 Pass	Queues a cancel event in transitionstart event callback
 Fail	Sorts events for the same transition
 Pass	Playback events with the same timeline retain the order in which they arequeued
-Fail	All timelines are updated before running microtasks
+Pass	All timelines are updated before running microtasks
