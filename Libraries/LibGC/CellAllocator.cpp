@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,7 @@
 
 namespace GC {
 
-CellAllocator::CellAllocator(size_t cell_size, char const* class_name)
+CellAllocator::CellAllocator(size_t cell_size, StringView class_name)
     : m_class_name(class_name)
     , m_cell_size(cell_size)
 {

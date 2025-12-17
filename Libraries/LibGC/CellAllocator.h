@@ -17,15 +17,16 @@
     static GC::TypeIsolatingCellAllocator<ClassName> cell_allocator
 
 #define GC_DEFINE_ALLOCATOR(ClassName) \
-    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName }
+    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv }
 
 namespace GC {
 
 class GC_API CellAllocator {
 public:
-    CellAllocator(size_t cell_size, char const* class_name = nullptr);
+    CellAllocator(size_t cell_size, StringView = {});
     ~CellAllocator() = default;
 
+    StringView class_name() const { return m_class_name; }
     size_t cell_size() const { return m_cell_size; }
 
     Cell* allocate_cell(Heap&);
@@ -55,7 +56,7 @@ public:
     FlatPtr max_block_address() const { return m_max_block_address; }
 
 private:
-    char const* const m_class_name { nullptr };
+    StringView m_class_name;
     size_t const m_cell_size;
 
     BlockAllocator m_block_allocator;
@@ -72,7 +73,7 @@ class GC_API TypeIsolatingCellAllocator {
 public:
     using CellType = T;
 
-    TypeIsolatingCellAllocator(char const* class_name)
+    TypeIsolatingCellAllocator(StringView class_name)
         : allocator(sizeof(T), class_name)
     {
     }

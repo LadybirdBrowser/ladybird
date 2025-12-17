@@ -19,6 +19,8 @@ public:
     void* allocate_block(char const* name);
     void deallocate_block(void*);
 
+    auto const& blocks() const { return m_blocks; }
+
 private:
     Vector<void*> m_blocks;
 };
