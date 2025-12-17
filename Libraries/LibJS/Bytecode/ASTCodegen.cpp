@@ -1191,14 +1191,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                     identifier = Utf16String::formatted("set {}", identifier);
 
                 auto name = generator.intern_identifier(identifier);
-                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name));
+                value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name, {}, property->is_method()));
             }
 
             auto property_key_table_index = generator.intern_property_key(string_literal.value());
             generator.emit_put_by_id(object, property_key_table_index, *value, property_kind, generator.next_property_lookup_cache());
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
-            auto value = TRY(property->value().generate_bytecode(generator)).value();
+            auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method()));
 
             generator.emit_put_by_value(object, property_name, value, property_kind, {});
         }
@@ -1285,7 +1285,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionDeclaration::ge
     return Optional<ScopedOperand> {};
 }
 
-Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst) const
+Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::generate_bytecode_with_lhs_name(Bytecode::Generator& generator, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, bool is_method) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
     bool has_name = !name().is_empty();
@@ -1299,7 +1299,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> FunctionExpression::gen
     }
 
     auto new_function = choose_dst(generator, preferred_dst);
-    generator.emit_new_function(new_function, *this, lhs_name);
+    generator.emit_new_function(new_function, *this, lhs_name, is_method);
 
     if (has_name) {
         generator.emit<Bytecode::Op::InitializeLexicalBinding>(*name_identifier, new_function);
