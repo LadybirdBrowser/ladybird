@@ -5,6 +5,8 @@
  */
 
 #include <AK/Format.h>
+#include <AK/HashMap.h>
+#include <AK/QuickSort.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
 
@@ -35,9 +37,14 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     return instance;
 }
 
-static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
+struct RankedVkPhysicalDeviceEntry {
+    VkPhysicalDevice device;
+    int score;
+};
+
+static ErrorOr<Vector<RankedVkPhysicalDeviceEntry>> get_ranked_physical_device_list(VkInstance instance)
 {
-    uint32_t device_count = 0;
+    u32 device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
     if (device_count == 0)
@@ -47,22 +54,48 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     devices.resize(device_count);
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
-    VkPhysicalDevice picked_device = VK_NULL_HANDLE;
-    // Pick discrete GPU or the first device in the list
-    for (auto const& device : devices) {
-        if (picked_device == VK_NULL_HANDLE)
-            picked_device = device;
+    Vector<RankedVkPhysicalDeviceEntry> ranked_devices;
+    ranked_devices.ensure_capacity(device_count);
 
-        VkPhysicalDeviceProperties device_properties;
+    static HashMap<StringView, int> extension_scores {
+#ifdef USE_VULKAN_IMAGES
+        { VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME ""sv, 10 },
+        { VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME ""sv, 10 },
+#endif
+    };
+
+    VkPhysicalDeviceProperties device_properties;
+    Vector<VkExtensionProperties> extension_properties;
+    // Score devices based on their type and feature support
+    for (auto const& device : devices) {
         vkGetPhysicalDeviceProperties(device, &device_properties);
+
+        int score = 0;
+
+        // Prefer discrete GPUs but also give priority to integrated GPUs
         if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-            picked_device = device;
+            score += 1000;
+        else if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+            score += 100;
+
+        u32 extension_count = 0;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+        extension_properties.resize_and_keep_capacity(extension_count);
+
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, extension_properties.data());
+        for (auto const& properties : extension_properties) {
+            StringView name(properties.extensionName, strlen(properties.extensionName));
+            score += extension_scores.get(name).value_or(0);
+        }
+
+        ranked_devices.append({ device, score });
     }
 
-    if (picked_device != VK_NULL_HANDLE)
-        return picked_device;
+    quick_sort(ranked_devices, [](auto const& a, auto const& b) {
+        return a.score > b.score;
+    });
 
-    VERIFY_NOT_REACHED();
+    return ranked_devices;
 }
 
 static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
@@ -118,7 +151,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     create_device_info.ppEnabledExtensionNames = device_extensions;
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
-        return Error::from_string_literal("Logical device creation failed");
+        return Error::from_string_literal("vkCreateDevice failed");
     }
 
     return device;
@@ -165,10 +198,26 @@ ErrorOr<VulkanContext> create_vulkan_context()
 {
     uint32_t const api_version = VK_API_VERSION_1_1; // v1.1 needed for vkGetPhysicalDeviceFormatProperties2
     auto* instance = TRY(create_instance(api_version));
-    auto* physical_device = TRY(pick_physical_device(instance));
+    auto ranked_physical_devices = TRY(get_ranked_physical_device_list(instance));
 
     uint32_t graphics_queue_family = 0;
-    auto* logical_device = TRY(create_logical_device(physical_device, &graphics_queue_family));
+    VkDevice logical_device = nullptr;
+    VkPhysicalDevice physical_device = nullptr;
+    for (auto const& entry : ranked_physical_devices) {
+        auto result = create_logical_device(entry.device, &graphics_queue_family);
+        if (!result.is_error()) {
+            logical_device = result.value();
+            physical_device = entry.device;
+            break;
+        }
+
+        dbgln("Failed creating logical device: {}", result.error());
+    }
+
+    if (logical_device == nullptr) {
+        return Error::from_string_literal("No logical device could be created");
+    }
+
     VkQueue graphics_queue;
     vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
