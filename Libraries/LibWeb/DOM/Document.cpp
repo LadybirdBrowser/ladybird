@@ -5335,24 +5335,27 @@ void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimati
 // https://www.w3.org/TR/web-animations-1/#update-animations-and-send-events
 void Document::update_animations_and_send_events(double timestamp)
 {
-    // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
-    //
-    // Note: Due to the hierarchical nature of the timing model, updating the current time of a timeline also involves:
-    // - Updating the current time of any animations associated with the timeline.
-    // - Running the update an animation’s finished state procedure for any animations whose current time has been
-    //   updated.
-    // - Queueing animation events for any such animations.
     m_last_animation_frame_timestamp = timestamp;
-
     auto timelines_to_update = GC::RootVector { heap(), m_associated_animation_timelines.values() };
-    for (auto const& timeline : timelines_to_update)
-        timeline->update_current_time(timestamp);
 
-    // 2. Remove replaced animations for doc.
-    remove_replaced_animations();
+    {
+        HTML::TemporaryExecutionContext temporary_execution_context { realm() };
+        // 1. Update the current time of all timelines associated with doc passing now as the timestamp.
+        //
+        // Note: Due to the hierarchical nature of the timing model, updating the current time of a timeline also involves:
+        // - Updating the current time of any animations associated with the timeline.
+        // - Running the update an animation’s finished state procedure for any animations whose current time has been
+        //   updated.
+        // - Queueing animation events for any such animations.
+        for (auto const& timeline : timelines_to_update)
+            timeline->update_current_time(timestamp);
 
-    // 3. Perform a microtask checkpoint.
-    HTML::perform_a_microtask_checkpoint();
+        // 2. Remove replaced animations for doc.
+        remove_replaced_animations();
+
+        // 3. Perform a microtask checkpoint.
+        // NB: This is executed by the destructor of the TemporaryExecutionContext above.
+    }
 
     // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
     auto events_to_dispatch = GC::ConservativeVector<Document::PendingAnimationEvent> { vm().heap() };

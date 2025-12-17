@@ -1199,7 +1199,6 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                 return;
 
             // 2. Resolve animation’s current finished promise object with animation.
-            HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(realm, current_finished_promise(), this);
             m_is_finished = true;
 
@@ -1255,7 +1254,12 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         //    animation unless there is already a microtask queued to run those steps for animation.
         else if (!m_pending_finish_microtask_id.has_value()) {
             auto& document = as<HTML::Window>(realm.global_object()).associated_document();
-            auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document, move(finish_notification_steps));
+
+            auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document, GC::create_function(heap(), [finish_notification_steps, &realm]() {
+                HTML::TemporaryExecutionContext context { realm };
+                finish_notification_steps->function()();
+            }));
+
             m_pending_finish_microtask_id = task->id();
             HTML::main_thread_event_loop().task_queue().add(move(task));
         }
@@ -1351,7 +1355,6 @@ void Animation::run_pending_play_task()
     }
 
     // 4. Resolve animation’s current ready promise with animation.
-    HTML::TemporaryExecutionContext execution_context { realm() };
     WebIDL::resolve_promise(realm(), current_ready_promise(), this);
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
@@ -1381,7 +1384,6 @@ void Animation::run_pending_pause_task()
     m_start_time = {};
 
     // 5. Resolve animation’s current ready promise with animation.
-    HTML::TemporaryExecutionContext execution_context { realm() };
     WebIDL::resolve_promise(realm(), current_ready_promise(), this);
 
     // 6. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
