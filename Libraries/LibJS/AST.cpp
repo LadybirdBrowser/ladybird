@@ -1182,8 +1182,8 @@ void VariableDeclarator::dump(int indent) const
 
 void ObjectProperty::dump(int indent) const
 {
-    ASTNode::dump(indent);
-
+    print_indent(indent);
+    outln("ObjectProperty (is_method: {})", is_method());
     if (m_property_type == Type::Spread) {
         print_indent(indent + 1);
         outln("...Spreading");

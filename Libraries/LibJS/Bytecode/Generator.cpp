@@ -1144,21 +1144,21 @@ void Generator::pop_home_object()
     m_home_objects.take_last();
 }
 
-void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name)
+void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
 {
-    if (m_home_objects.is_empty()) {
+    if (!is_method || m_home_objects.is_empty()) {
         emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {});
     } else {
         emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last());
     }
 }
 
-CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst)
+CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, bool is_method)
 {
     if (is<FunctionExpression>(expression)) {
         auto const& function_expression = static_cast<FunctionExpression const&>(expression);
         if (!function_expression.has_name()) {
-            return TRY(function_expression.generate_bytecode_with_lhs_name(*this, move(lhs_name), preferred_dst)).value();
+            return TRY(function_expression.generate_bytecode_with_lhs_name(*this, move(lhs_name), preferred_dst, is_method)).value();
         }
     }
 
