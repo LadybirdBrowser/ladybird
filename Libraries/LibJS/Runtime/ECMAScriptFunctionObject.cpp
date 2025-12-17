@@ -176,10 +176,7 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
     if (!is_arrow_function() && kind() == FunctionKind::Normal) {
         put_direct(realm.intrinsics().normal_function_length_offset(), Value(function_length()));
         put_direct(realm.intrinsics().normal_function_name_offset(), m_name_string);
-
-        auto prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
-        prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
-        put_direct(realm.intrinsics().normal_function_prototype_offset(), prototype);
+        m_may_need_lazy_prototype_instantiation = true;
     } else {
         PropertyDescriptor length_descriptor { .value = Value(function_length()), .writable = false, .enumerable = false, .configurable = true };
         MUST(define_property_or_throw(vm.names.length, length_descriptor));
@@ -639,6 +636,22 @@ ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data
 Utf16String ECMAScriptFunctionObject::name_for_call_stack() const
 {
     return m_name_string->utf16_string();
+}
+
+ThrowCompletionOr<Optional<PropertyDescriptor>> ECMAScriptFunctionObject::internal_get_own_property(PropertyKey const& property_key) const
+{
+    if (m_may_need_lazy_prototype_instantiation && property_key == vm().names.prototype) {
+        auto& realm = *this->realm();
+        auto metadata = shape().lookup(property_key);
+        if (!metadata.has_value()) {
+            auto prototype = Object::create_with_premade_shape(realm.intrinsics().normal_function_prototype_shape());
+            prototype->put_direct(realm.intrinsics().normal_function_prototype_constructor_offset(), this);
+            const_cast<ECMAScriptFunctionObject*>(this)->define_direct_property(vm().names.prototype, prototype, Attribute::Writable);
+        }
+        m_may_need_lazy_prototype_instantiation = false;
+    }
+
+    return Base::internal_get_own_property(property_key);
 }
 
 }

@@ -117,6 +117,8 @@ private:
         PrivateEnvironment* private_environment,
         Object& prototype);
 
+    virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override;
+
     virtual bool is_strict_mode() const override { return shared_data().m_strict; }
 
     ThrowCompletionOr<Value> ordinary_call_evaluate_body(VM&, ExecutionContext&);
@@ -145,6 +147,8 @@ private:
     };
     ClassData& ensure_class_data() const;
     mutable OwnPtr<ClassData> m_class_data;
+
+    mutable bool m_may_need_lazy_prototype_instantiation { false };
 };
 
 template<>
