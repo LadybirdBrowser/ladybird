@@ -183,9 +183,11 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView
         auto const& at_rule = value.as_object();
 
         auto at_rule_generator = generator.fork();
+        at_rule_generator.set("at_rule:snakecase", snake_casify(at_rule_name));
         at_rule_generator.set("at_rule:titlecase", title_casify(at_rule_name));
         at_rule_generator.append(R"~~~(
-    case AtRuleID::@at_rule:titlecase@:
+    case AtRuleID::@at_rule:titlecase@: {
+        static HashMap<StringView, DescriptorID, AK::CaseInsensitiveASCIIStringViewTraits> @at_rule:snakecase@_descriptor_table = {
 )~~~");
 
         auto const& descriptors = at_rule.get_object("descriptors"sv).value();
@@ -201,13 +203,14 @@ Optional<DescriptorID> descriptor_id_from_string(AtRuleID at_rule_id, StringView
                 descriptor_generator.set("result:titlecase", title_casify(descriptor_name));
             }
             descriptor_generator.append(R"~~~(
-        if (string.equals_ignoring_ascii_case("@descriptor@"sv))
-            return DescriptorID::@result:titlecase@;
+            { "@descriptor@"sv, DescriptorID::@result:titlecase@ },
 )~~~");
         });
 
         at_rule_generator.append(R"~~~(
-        break;
+        };
+        return @at_rule:snakecase@_descriptor_table.get(string);
+    }
 )~~~");
     });
 
