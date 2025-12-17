@@ -206,11 +206,16 @@ static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer)
             break;
         case DOCTYPE_VERSION_ELEMENT_ID:
             header.doc_type_version = TRY(streamer.read_u64());
+            if (header.doc_type_version == 0)
+                return DecoderError::corrupted("DocTypeVersion was 0"sv);
             dbgln_if(MATROSKA_DEBUG, "Read DocTypeVersion attribute: {}", header.doc_type_version);
             break;
         default:
             TRY(streamer.read_unknown_element());
         }
+
+        if (!header.doc_type.is_empty() && header.doc_type_version != 0)
+            return ElementIterationDecision::BreakAtEnd;
 
         return ElementIterationDecision::Continue;
     }));
