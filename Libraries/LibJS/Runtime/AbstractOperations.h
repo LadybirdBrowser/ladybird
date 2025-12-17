@@ -51,7 +51,7 @@ Object* create_mapped_arguments_object(VM&, FunctionObject&, NonnullRefPtr<Funct
 struct JS_API DisposeCapability {
     void visit_edges(GC::Cell::Visitor&) const;
 
-    Vector<DisposableResource> disposable_resource_stack; // [[DisposableResourceStack]]
+    OwnPtr<Vector<DisposableResource>> disposable_resource_stack; // [[DisposableResourceStack]]
 };
 
 // 2.1.2 DisposableResource Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposableresource-records
