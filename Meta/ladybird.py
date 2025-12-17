@@ -38,7 +38,7 @@ def main():
         "--preset",
         required=False,
         default=os.environ.get(
-            "BUILD_PRESET", "Windows_Experimental" if platform.host_system == HostSystem.Windows else "Release"
+            "BUILD_PRESET", "Windows_CI" if platform.host_system == HostSystem.Windows else "Release"
         ),
     )
 
