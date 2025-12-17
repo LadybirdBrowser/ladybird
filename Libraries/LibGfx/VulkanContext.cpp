@@ -150,7 +150,9 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     create_device_info.enabledExtensionCount = device_extension_count;
     create_device_info.ppEnabledExtensionNames = device_extensions;
 
-    if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
+    VkResult result = vkCreateDevice(physical_device, &create_device_info, nullptr, &device);
+    if (result != VK_SUCCESS) {
+        dbgln("vkCreateDevice returned {}", to_underlying(result));
         return Error::from_string_literal("vkCreateDevice failed");
     }
 
