@@ -94,26 +94,30 @@ ErrorOr<void> generate_implementation_file(JsonObject& media_feature_data, Core:
     StringBuilder builder;
     SourceGenerator generator { builder };
     generator.append(R"~~~(
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
 
-Optional<MediaFeatureID> media_feature_id_from_string(StringView string)
-{)~~~");
+static HashMap<StringView, MediaFeatureID, AK::CaseInsensitiveASCIIStringViewTraits> media_feature_table = {
+)~~~");
 
     media_feature_data.for_each_member([&](auto& name, auto&) {
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
-        return MediaFeatureID::@name:titlecase@;
+    { "@name@"sv, MediaFeatureID::@name:titlecase@ },
 )~~~");
     });
 
     generator.append(R"~~~(
-    return {};
+};
+
+Optional<MediaFeatureID> media_feature_id_from_string(StringView string)
+{
+    return media_feature_table.get(string);
 }
 
 StringView string_from_media_feature_id(MediaFeatureID media_feature_id)
