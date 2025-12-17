@@ -299,29 +299,33 @@ protected:
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
     // [[Extensible]]
-    bool m_is_extensible { true };
+    bool m_is_extensible : 1 { true };
 
     // [[ParameterMap]]
-    bool m_has_parameter_map { false };
+    bool m_has_parameter_map : 1 { false };
 
-    bool m_has_magical_length_property { false };
+    bool m_has_magical_length_property : 1 { false };
 
-    bool m_is_typed_array { false };
+    bool m_is_typed_array : 1 { false };
 
 private:
     void set_shape(Shape& shape) { m_shape = &shape; }
 
     Object* prototype() { return shape().prototype(); }
 
-    bool m_may_interfere_with_indexed_property_access { false };
+    bool m_may_interfere_with_indexed_property_access : 1 { false };
 
     // True if this object has lazily allocated intrinsic properties.
-    bool m_has_intrinsic_accessors { false };
+    bool m_has_intrinsic_accessors : 1 { false };
 
     GC::Ptr<Shape> m_shape;
     Vector<Value> m_storage;
     IndexedProperties m_indexed_properties;
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]
 };
+
+#if !defined(AK_OS_WINDOWS)
+static_assert(sizeof(Object) <= 64, "Keep the size of JS::Object down!");
+#endif
 
 }
