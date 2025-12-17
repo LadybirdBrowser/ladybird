@@ -171,31 +171,7 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
     return first_element_position;
 }
 
-// https://mimesniff.spec.whatwg.org/#matches-the-signature-for-webm
-bool Reader::sniff_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
-{
-    auto result = [&] -> DecoderErrorOr<bool> {
-        Streamer streamer { stream_cursor };
-        auto first_element_id = TRY(streamer.read_variable_size_integer(false));
-        if (first_element_id != EBML_MASTER_ELEMENT_ID)
-            return DecoderError::corrupted("First element was not an EBML header"sv);
-        String doc_type;
-        TRY(parse_master_element(streamer, "Header"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
-            if (element_id != DOCTYPE_ELEMENT_ID) {
-                TRY(streamer.read_unknown_element());
-                return ElementIterationDecision::Continue;
-            }
-            doc_type = TRY(streamer.read_string());
-            return ElementIterationDecision::BreakHere;
-        }));
-        return doc_type == "webm"sv;
-    }();
-    if (result.is_error())
-        return false;
-    return result.release_value();
-}
-
-static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer)
+static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer, ElementIterationDecision complete_decision)
 {
     EBMLHeader header;
     TRY(parse_master_element(streamer, "Header"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
@@ -215,12 +191,27 @@ static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer)
         }
 
         if (!header.doc_type.is_empty() && header.doc_type_version != 0)
-            return ElementIterationDecision::BreakAtEnd;
+            return complete_decision;
 
         return ElementIterationDecision::Continue;
     }));
 
     return header;
+}
+
+bool Reader::sniff_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
+{
+    auto header = [&] -> DecoderErrorOr<EBMLHeader> {
+        Streamer streamer { stream_cursor };
+        auto first_element_id = TRY(streamer.read_variable_size_integer(false));
+        if (first_element_id != EBML_MASTER_ELEMENT_ID)
+            return DecoderError::corrupted("First element was not an EBML header"sv);
+        return parse_ebml_header(streamer, ElementIterationDecision::BreakHere);
+    }();
+    if (header.is_error())
+        return false;
+    auto doc_type = header.release_value().doc_type;
+    return doc_type == "webm";
 }
 
 DecoderErrorOr<void> Reader::parse_initial_data()
@@ -231,7 +222,7 @@ DecoderErrorOr<void> Reader::parse_initial_data()
     if (first_element_id != EBML_MASTER_ELEMENT_ID)
         return DecoderError::corrupted("First element was not an EBML header"sv);
 
-    m_header = TRY(parse_ebml_header(streamer));
+    m_header = TRY(parse_ebml_header(streamer, ElementIterationDecision::BreakAtEnd));
     dbgln_if(MATROSKA_DEBUG, "Parsed EBML header");
 
     auto root_element_id = TRY(streamer.read_variable_size_integer(false));
