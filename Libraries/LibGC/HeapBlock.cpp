@@ -18,7 +18,7 @@
 
 namespace GC {
 
-NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] char const* class_name)
+NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] StringView class_name)
 {
     char const* name = nullptr;
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
