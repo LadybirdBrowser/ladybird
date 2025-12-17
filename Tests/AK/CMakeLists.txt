@@ -58,7 +58,6 @@ set(AK_TEST_SOURCES
     TestRedBlackTree.cpp
     TestRefPtr.cpp
     TestSegmentedVector.cpp
-    TestSIMD.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
     TestSourceLocation.cpp
