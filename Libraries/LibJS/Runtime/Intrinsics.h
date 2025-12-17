@@ -45,7 +45,6 @@ public:
     [[nodiscard]] GC::Ref<Shape> normal_function_shape() { return *m_normal_function_shape; }
     [[nodiscard]] u32 normal_function_length_offset() const { return m_normal_function_length_offset; }
     [[nodiscard]] u32 normal_function_name_offset() const { return m_normal_function_name_offset; }
-    [[nodiscard]] u32 normal_function_prototype_offset() const { return m_normal_function_prototype_offset; }
 
     [[nodiscard]] GC::Ref<Shape> native_function_shape() { return *m_native_function_shape; }
     [[nodiscard]] u32 native_function_length_offset() const { return m_native_function_length_offset; }
@@ -194,7 +193,6 @@ private:
     GC::Ptr<Shape> m_normal_function_shape;
     u32 m_normal_function_length_offset { 0 };
     u32 m_normal_function_name_offset { 0 };
-    u32 m_normal_function_prototype_offset { 0 };
 
     GC::Ptr<Shape> m_native_function_shape;
     u32 m_native_function_length_offset { 0 };

@@ -255,10 +255,8 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_normal_function_shape->set_prototype_without_transition(m_function_prototype);
     m_normal_function_shape->add_property_without_transition(vm.names.length, Attribute::Configurable);
     m_normal_function_shape->add_property_without_transition(vm.names.name, Attribute::Configurable);
-    m_normal_function_shape->add_property_without_transition(vm.names.prototype, Attribute::Writable);
     m_normal_function_length_offset = m_normal_function_shape->lookup(vm.names.length).value().offset;
     m_normal_function_name_offset = m_normal_function_shape->lookup(vm.names.name).value().offset;
-    m_normal_function_prototype_offset = m_normal_function_shape->lookup(vm.names.prototype).value().offset;
 
     m_native_function_shape = heap().allocate<Shape>(realm);
     m_native_function_shape->set_prototype_without_transition(m_function_prototype);
