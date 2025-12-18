@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 415 tests
 
-325 Pass
-90 Fail
+331 Pass
+84 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -272,12 +272,12 @@ Pass	Window interface: attribute scrollX
 Pass	Window interface: attribute pageXOffset
 Pass	Window interface: attribute scrollY
 Pass	Window interface: attribute pageYOffset
-Fail	Window interface: operation scroll(optional ScrollToOptions)
-Fail	Window interface: operation scroll(unrestricted double, unrestricted double)
-Fail	Window interface: operation scrollTo(optional ScrollToOptions)
-Fail	Window interface: operation scrollTo(unrestricted double, unrestricted double)
-Fail	Window interface: operation scrollBy(optional ScrollToOptions)
-Fail	Window interface: operation scrollBy(unrestricted double, unrestricted double)
+Pass	Window interface: operation scroll(optional ScrollToOptions)
+Pass	Window interface: operation scroll(unrestricted double, unrestricted double)
+Pass	Window interface: operation scrollTo(optional ScrollToOptions)
+Pass	Window interface: operation scrollTo(unrestricted double, unrestricted double)
+Pass	Window interface: operation scrollBy(optional ScrollToOptions)
+Pass	Window interface: operation scrollBy(unrestricted double, unrestricted double)
 Pass	Window interface: attribute screenX
 Pass	Window interface: attribute screenLeft
 Pass	Window interface: attribute screenY

@@ -219,7 +219,7 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    void scroll_viewport_by_delta(CSSPixelPoint delta);
+    GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta);
     void reset_zoom();
 
 protected:

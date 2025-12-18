@@ -1430,10 +1430,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_Down:
         if (modifiers && modifiers != UIEvents::KeyModifier::Mod_PlatformCtrl)
             break;
-        if (modifiers)
-            key == UIEvents::KeyCode::Key_Up ? document->scroll_to_the_beginning_of_the_document() : document->window()->scroll_by(0, INT64_MAX);
-        else
+        if (modifiers) {
+            if (key == UIEvents::KeyCode::Key_Up)
+                document->scroll_to_the_beginning_of_the_document();
+            else
+                document->window()->scroll_by(0, INT64_MAX);
+        } else {
             document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
+        }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
