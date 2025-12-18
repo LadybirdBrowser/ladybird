@@ -833,6 +833,15 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         auto layout_mask_or_clip_path = [&](GC::Ptr<SVG::SVGElement const> mask_or_clip_path) {
             TemporaryChange<bool> layout_mask(context.layout_svg_mask_or_clip_path, true);
             push_parent(as<NodeWithStyle>(*layout_node));
+
+            // Check for reference cycle
+            for (GC::Ref<NodeWithStyle> ancestor : m_ancestor_stack) {
+                if (ancestor->dom_node() == mask_or_clip_path) {
+                    // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
+                    pop_parent();
+                    return;
+                }
+            }
             update_layout_tree(const_cast<SVG::SVGElement&>(*mask_or_clip_path), context, MustCreateSubtree::Yes);
             pop_parent();
         };
