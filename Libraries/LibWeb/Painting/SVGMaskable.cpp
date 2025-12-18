@@ -118,6 +118,9 @@ RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(DisplayListRecor
         if (!mask_bitmap)
             mask_bitmap = clip_bitmap;
     }
+    if (!mask_bitmap)
+        return nullptr;
+
     return Gfx::ImmutableBitmap::create(*mask_bitmap);
 }
 
