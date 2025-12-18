@@ -669,8 +669,6 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
     if (pseudo_class_token.is(Token::Type::Ident)) {
         auto pseudo_name = pseudo_class_token.token().ident();
-        if (has_ignored_vendor_prefix(pseudo_name))
-            return ParseError::IncludesIgnoredVendorPrefix;
 
         auto make_pseudo_class_selector = [](auto pseudo_class) {
             return Selector::SimpleSelector {
@@ -690,6 +688,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             }
             return make_pseudo_class_selector(pseudo_class.value());
         }
+
+        if (has_ignored_vendor_prefix(pseudo_name))
+            return ParseError::IncludesIgnoredVendorPrefix;
 
         // Single-colon syntax allowed for ::after, ::before, ::first-letter and ::first-line for compatibility.
         // https://www.w3.org/TR/selectors/#pseudo-element-syntax
