@@ -5106,12 +5106,17 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
     }
 
     parse:
-        // 11. Set urlRecord to the result of encoding-parsing a URL given urlString, relative to document.
+        // 11. Parse: Set urlRecord to the result of encoding-parsing a URL given urlString, relative to document.
+        // 12. If urlRecord is failure, then return.
         auto maybe_url_record = encoding_parse_url(url_string);
         if (!maybe_url_record.has_value())
             return;
 
         url_record = maybe_url_record.release_value();
+
+        // 13. If urlRecord's scheme is "javascript", then return.
+        if (url_record.scheme() == "javascript"sv)
+            return;
     }
 
     // 12. Set document's will declaratively refresh to true.
