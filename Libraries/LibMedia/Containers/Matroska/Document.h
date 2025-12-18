@@ -20,7 +20,7 @@ namespace Media::Matroska {
 
 struct EBMLHeader {
     String doc_type;
-    u32 doc_type_version;
+    u32 doc_type_version { 0 };
 };
 
 class SegmentInformation {
