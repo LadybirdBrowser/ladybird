@@ -1,0 +1,4 @@
+maxTouchPoints in navigator: true
+typeof maxTouchPoints: number
+maxTouchPoints >= 0: true
+maxTouchPoints: 0
