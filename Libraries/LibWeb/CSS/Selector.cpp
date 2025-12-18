@@ -48,6 +48,7 @@ static bool can_selector_use_fast_matches(Selector const& selector)
                 if (!first_is_one_of(pseudo_class,
                         PseudoClass::Active,
                         PseudoClass::AnyLink,
+                        PseudoClass::Autofill,
                         PseudoClass::Checked,
                         PseudoClass::Disabled,
                         PseudoClass::Empty,

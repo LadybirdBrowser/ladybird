@@ -1011,6 +1011,13 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
 
         return false;
     }
+    case CSS::PseudoClass::Autofill: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-autofill
+        // FIXME: The :autofill and :-webkit-autofill pseudo-classes must match input elements which have been autofilled by
+        //        user agent. These pseudo-classes must stop matching if the user edits the autofilled field.
+        // NB: We don't support autofilling inputs yet, so this is always false.
+        return false;
+    }
     case CSS::PseudoClass::State: {
         // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-custom
         // The :state(identifier) pseudo-class must match all custom elements whose states set's set entries contains identifier.
