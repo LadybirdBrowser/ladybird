@@ -18,8 +18,6 @@
 
 namespace GC {
 
-size_t HeapBlockBase::block_size = PAGE_SIZE;
-
 NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] char const* class_name)
 {
     char const* name = nullptr;
@@ -34,7 +32,7 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size
     , m_cell_size(cell_size)
 {
     VERIFY(cell_size >= sizeof(FreelistEntry));
-    ASAN_POISON_MEMORY_REGION(m_storage, block_size - sizeof(HeapBlock));
+    ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));
 }
 
 void HeapBlock::deallocate(Cell* cell)

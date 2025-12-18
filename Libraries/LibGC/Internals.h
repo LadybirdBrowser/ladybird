@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -18,10 +18,10 @@ class GC_API HeapBlockBase {
     AK_MAKE_NONCOPYABLE(HeapBlockBase);
 
 public:
-    static size_t block_size;
+    static constexpr size_t BLOCK_SIZE = 16 * KiB;
     static HeapBlockBase* from_cell(Cell const* cell)
     {
-        return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(HeapBlockBase::block_size - 1));
+        return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(BLOCK_SIZE - 1));
     }
 
     Heap& heap() { return m_heap; }
