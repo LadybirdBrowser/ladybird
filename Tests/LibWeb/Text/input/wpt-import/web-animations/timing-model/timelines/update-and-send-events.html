@@ -1,0 +1,257 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Update animations and send events</title>
+<meta name="timeout" content="long">
+<link rel="help" href="https://drafts.csswg.org/web-animations/#update-animations-and-send-events">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate(null, 100 * MS_PER_SEC);
+
+  // The ready promise should be resolved as part of micro-task checkpoint
+  // after updating the current time of all timeslines in the procedure to
+  // "update animations and send events".
+  await animation.ready;
+
+  let rAFReceived = false;
+  requestAnimationFrame(() => rAFReceived = true);
+
+  const eventWatcher = new EventWatcher(t, animation, 'cancel');
+  animation.cancel();
+
+  await eventWatcher.wait_for('cancel');
+
+  assert_false(rAFReceived,
+    'cancel event should be fired before requestAnimationFrame');
+}, 'Fires cancel event before requestAnimationFrame');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const animation = div.animate(null, 100 * MS_PER_SEC);
+
+  // Like the above test, the ready promise should be resolved micro-task
+  // checkpoint after updating the current time of all timeslines in the
+  // procedure to "update animations and send events".
+  await animation.ready;
+
+  let rAFReceived = false;
+  requestAnimationFrame(() => rAFReceived = true);
+
+  const eventWatcher = new EventWatcher(t, animation, 'finish');
+  animation.finish();
+
+  await eventWatcher.wait_for('finish');
+
+  assert_false(rAFReceived,
+    'finish event should be fired before requestAnimationFrame');
+}, 'Fires finish event before requestAnimationFrame');
+
+function animationType(anim) {
+  if (anim instanceof CSSAnimation) {
+    return 'CSSAnimation';
+  } else if (anim instanceof CSSTransition) {
+    return 'CSSTransition';
+  } else {
+    return 'ScriptAnimation';
+  }
+}
+
+promise_test(async t => {
+  createStyle(t, { '@keyframes anim': '' });
+  const div = createDiv(t);
+
+  getComputedStyle(div).marginLeft;
+  div.style = 'animation: anim 100s; ' +
+              'transition: margin-left 100s; ' +
+              'margin-left: 100px;';
+  div.animate(null, 100 * MS_PER_SEC);
+  const animations = div.getAnimations();
+
+  let receivedEvents = [];
+  animations.forEach(anim => {
+    anim.onfinish = event => {
+      receivedEvents.push({
+        type: animationType(anim) + ':' + event.type,
+        timeStamp: event.timeStamp
+      });
+    };
+  });
+
+  await Promise.all(animations.map(anim => anim.ready));
+
+  // Setting current time to the time just before the effect end.
+  animations.forEach(anim => anim.currentTime = 100 * MS_PER_SEC - 1);
+
+  await waitForNextFrame();
+
+  assert_array_equals(receivedEvents.map(event => event.type),
+    [ 'CSSTransition:finish', 'CSSAnimation:finish',
+      'ScriptAnimation:finish' ],
+    'finish events for various animation type should be sorted by composite ' +
+    'order');
+}, 'Sorts finish events by composite order');
+
+promise_test(async t => {
+  createStyle(t, { '@keyframes anim': '' });
+  const div = createDiv(t);
+
+  let receivedEvents = [];
+  function receiveEvent(type, timeStamp) {
+    receivedEvents.push({ type, timeStamp });
+  }
+
+  div.onanimationcancel = event => receiveEvent(event.type, event.timeStamp);
+  div.ontransitioncancel = event => receiveEvent(event.type, event.timeStamp);
+
+  getComputedStyle(div).marginLeft;
+  div.style = 'animation: anim 100s; ' +
+              'transition: margin-left 100s; ' +
+              'margin-left: 100px;';
+  div.animate(null, 100 * MS_PER_SEC);
+  const animations = div.getAnimations();
+
+  animations.forEach(anim => {
+    anim.oncancel = event => {
+      receiveEvent(animationType(anim) + ':' + event.type, event.timeStamp);
+    };
+  });
+
+  await Promise.all(animations.map(anim => anim.ready));
+
+  const timeInAnimationReady = document.timeline.currentTime;
+
+  // Call cancel() in reverse composite order.  I.e. canceling for script
+  // animation happen first, then for CSS animation and CSS transition.
+  // 'cancel' events for these animations should be sorted by composite
+  // order.
+  animations.reverse().forEach(anim => anim.cancel());
+
+  // requestAnimationFrame callback which is actually the _same_ frame since we
+  // are currently operating in the `ready` callbac of the animations which
+  // happens as part of the "Update animations and send events" procedure
+  // _before_ we run animation frame callbacks.
+  await waitForAnimationFrames(1);
+
+  assert_times_equal(timeInAnimationReady, document.timeline.currentTime,
+    'A rAF callback should happen in the same frame');
+
+  assert_array_equals(receivedEvents.map(event => event.type),
+    // This ordering needs more clarification in the spec, but the intention is
+    // that the cancel playback event fires before the equivalent CSS cancel
+    // event in each case.
+    [ 'CSSTransition:cancel', 'CSSAnimation:cancel', 'ScriptAnimation:cancel',
+      'transitioncancel', 'animationcancel' ],
+    'cancel events should be sorted by composite order');
+}, 'Sorts cancel events by composite order');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  getComputedStyle(div).marginLeft;
+  div.style = 'transition: margin-left 100s; margin-left: 100px;';
+  const anim = div.getAnimations()[0];
+
+  let receivedEvents = [];
+  anim.oncancel = event => receivedEvents.push(event);
+
+  const eventWatcher = new EventWatcher(t, div, 'transitionstart');
+  await eventWatcher.wait_for('transitionstart');
+
+  const timeInEventCallback = document.timeline.currentTime;
+
+  // Calling cancel() queues a cancel event
+  anim.cancel();
+
+  await waitForAnimationFrames(1);
+  assert_times_equal(timeInEventCallback, document.timeline.currentTime,
+    'A rAF callback should happen in the same frame');
+
+  assert_array_equals(receivedEvents, [],
+    'The queued cancel event shouldn\'t be dispatched in the same frame');
+
+  await waitForAnimationFrames(1);
+  assert_array_equals(receivedEvents.map(event => event.type), ['cancel'],
+    'The cancel event should be dispatched in a later frame');
+}, 'Queues a cancel event in transitionstart event callback');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  getComputedStyle(div).marginLeft;
+  div.style = 'transition: margin-left 100s; margin-left: 100px;';
+  const anim = div.getAnimations()[0];
+
+  let receivedEvents = [];
+  anim.oncancel = event => receivedEvents.push(event);
+  div.ontransitioncancel = event => receivedEvents.push(event);
+
+  await anim.ready;
+
+  anim.cancel();
+
+  await waitForAnimationFrames(1);
+
+  assert_array_equals(receivedEvents.map(event => event.type),
+    [ 'cancel', 'transitioncancel' ],
+    'Playback and CSS events for the same transition should be sorted by ' +
+    'schedule event time and composite order');
+}, 'Sorts events for the same transition');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  const anim = div.animate(null, 100 * MS_PER_SEC);
+
+  let receivedEvents = [];
+  anim.oncancel = event => receivedEvents.push(event);
+  anim.onfinish = event => receivedEvents.push(event);
+
+  await anim.ready;
+
+  anim.finish();
+  anim.cancel();
+
+  await waitForAnimationFrames(1);
+
+  assert_array_equals(receivedEvents.map(event => event.type),
+    [ 'finish', 'cancel' ],
+    'Calling finish() synchronously queues a finish event when updating the ' +
+    'finish state so it should appear before the cancel event');
+}, 'Playback events with the same timeline retain the order in which they are' +
+   'queued');
+
+promise_test(async t => {
+  const div = createDiv(t);
+
+  // Create two animations with separate timelines
+
+  const timelineA = document.timeline;
+  const animA = div.animate(null, 100 * MS_PER_SEC);
+
+  const timelineB = new DocumentTimeline();
+  const animB = new Animation(
+    new KeyframeEffect(div, null, 100 * MS_PER_SEC),
+    timelineB
+  );
+  animB.play();
+
+  animA.currentTime = 99.9 * MS_PER_SEC;
+  animB.currentTime = 99.9 * MS_PER_SEC;
+
+  // When the next tick happens both animations should be updated, and we will
+  // notice that they are now finished. As a result their finished promise
+  // callbacks should be queued. All of that should happen before we run the
+  // next microtask checkpoint and actually run the promise callbacks and
+  // hence the calls to cancel should not stop the existing callbacks from
+  // being run.
+
+  animA.finished.then(() => { animB.cancel() });
+  animB.finished.then(() => { animA.cancel() });
+
+  await Promise.all([animA.finished, animB.finished]);
+}, 'All timelines are updated before running microtasks');
+
+</script>

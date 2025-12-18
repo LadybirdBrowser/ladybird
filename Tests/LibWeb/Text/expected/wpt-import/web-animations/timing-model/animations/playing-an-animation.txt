@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Pass	Playing a running animation leaves the current time unchanged
+Pass	Playing a finished animation seeks back to the start
+Pass	Playing a finished and reversed animation seeks to end
+Pass	Playing a pause-pending but previously finished animation seeks back to to the start
+Pass	Playing a finished animation clears the start time
+Pass	The ready promise should be replaced if the animation is not already pending
+Pass	A pending ready promise should be resolved and not replaced when the animation enters the running state
+Pass	Resuming an animation from paused calculates start time from hold time
+Pass	If a pause operation is interrupted, the ready promise is reused
+Fail	A pending playback rate is used when determining auto-rewind behavior
+Pass	Playing a canceled animation sets the start time
+Pass	Playing a canceled animation backwards sets the start time
