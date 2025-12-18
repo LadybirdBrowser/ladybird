@@ -72,8 +72,6 @@ public:
     GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
     void clear_registered_transitions(Optional<CSS::PseudoElement>);
 
-    void remove_animations_from_timeline();
-
 protected:
     void visit_edges(JS::Cell::Visitor&);
 
