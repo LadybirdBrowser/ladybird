@@ -53,7 +53,10 @@ namespace Web::CSS {
 enum class PseudoClass {
 )~~~");
 
-    pseudo_classes_data.for_each_member([&](auto& name, auto&) {
+    pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
+        if (value.as_object().has("legacy-alias-for"sv))
+            return;
+
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
 
@@ -106,10 +109,15 @@ Optional<PseudoClass> pseudo_class_from_string(StringView string)
 {
 )~~~");
 
-    pseudo_classes_data.for_each_member([&](auto& name, auto&) {
+    pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto member_generator = generator.fork();
         member_generator.set("name", name);
-        member_generator.set("name:titlecase", title_casify(name));
+
+        if (auto alias_for = value.as_object().get_string("legacy-alias-for"sv); alias_for.has_value()) {
+            member_generator.set("name:titlecase", title_casify(alias_for.value()));
+        } else {
+            member_generator.set("name:titlecase", title_casify(name));
+        }
 
         member_generator.append(R"~~~(
     if (string.equals_ignoring_ascii_case("@name@"sv))
@@ -129,7 +137,10 @@ StringView pseudo_class_name(PseudoClass pseudo_class)
         VERIFY_NOT_REACHED();
 )~~~");
 
-    pseudo_classes_data.for_each_member([&](auto& name, auto&) {
+    pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
+        if (value.as_object().has("legacy-alias-for"sv))
+            return;
+
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify(name));
@@ -153,8 +164,11 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
 )~~~");
 
     pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
-        auto member_generator = generator.fork();
         auto& pseudo_class = value.as_object();
+        if (pseudo_class.has("legacy-alias-for"sv))
+            return;
+
+        auto member_generator = generator.fork();
         auto argument_string = pseudo_class.get_string("argument"sv).value();
 
         bool is_valid_as_identifier = argument_string.is_empty();
