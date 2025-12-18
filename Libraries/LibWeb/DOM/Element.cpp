@@ -1428,7 +1428,6 @@ void Element::removed_from(Node* old_parent, Node& old_root)
     }
 
     play_or_cancel_animations_after_display_property_change();
-    remove_animations_from_timeline();
 }
 
 void Element::moved_from(GC::Ptr<Node> old_parent)

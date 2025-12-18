@@ -34,7 +34,7 @@ void AnimationTimeline::set_current_time(Optional<TimeValue> value)
     m_current_time = value;
 
     // The loop might modify the content of m_associated_animations, so let's iterate over a copy.
-    auto temporary_copy = GC::RootVector<GC::Ref<Animation>>(vm().heap());
+    auto temporary_copy = GC::RootVector<GC::Weak<Animation>>(vm().heap());
     temporary_copy.extend(m_associated_animations.values());
     for (auto& animation : temporary_copy)
         animation->notify_timeline_time_did_change();
@@ -89,7 +89,9 @@ void AnimationTimeline::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_document);
-    visitor.visit(m_associated_animations);
+    // We intentionally don't visit m_associated_animations here to avoid keeping Animations alive solely because they
+    // are associated with a timeline. Animations are disassociated from timelines in Animation::finalize() so we don't
+    // need to worry about dangling references.
 }
 
 }

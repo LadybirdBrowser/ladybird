@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
@@ -40,7 +41,7 @@ public:
 
     void associate_with_animation(GC::Ref<Animation> value) { m_associated_animations.set(value); }
     void disassociate_with_animation(GC::Ref<Animation> value) { m_associated_animations.remove(value); }
-    HashTable<GC::Ref<Animation>> const& associated_animations() const { return m_associated_animations; }
+    HashTable<GC::Weak<Animation>> const& associated_animations() const { return m_associated_animations; }
 
 protected:
     AnimationTimeline(JS::Realm&);
@@ -60,7 +61,7 @@ protected:
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     GC::Ptr<DOM::Document> m_associated_document {};
 
-    HashTable<GC::Ref<Animation>> m_associated_animations {};
+    HashTable<GC::Weak<Animation>> m_associated_animations {};
 };
 
 }

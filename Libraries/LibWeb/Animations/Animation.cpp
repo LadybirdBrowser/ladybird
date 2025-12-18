@@ -1445,4 +1445,10 @@ void Animation::visit_edges(Cell::Visitor& visitor)
         m_owning_element->visit(visitor);
 }
 
+void Animation::finalize()
+{
+    if (m_timeline)
+        m_timeline->disassociate_with_animation(*this);
+}
+
 }

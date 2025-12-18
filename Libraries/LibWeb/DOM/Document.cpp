@@ -5407,7 +5407,7 @@ void Document::update_animations_and_send_events(double timestamp)
     for (auto& timeline : timelines_to_update) {
         auto animations_to_dispatch = GC::RootVector { heap(), timeline->associated_animations().values() };
         for (auto& animation : animations_to_dispatch)
-            dispatch_events_for_animation_if_necessary(animation);
+            dispatch_events_for_animation_if_necessary(animation.as_nonnull());
     }
 }
 
@@ -5438,7 +5438,7 @@ void Document::remove_replaced_animations()
             if (!animation->effect()->is_keyframe_effect())
                 continue;
 
-            replaceable_animations.append(animation);
+            replaceable_animations.append(animation.as_nonnull());
         }
     }
 
