@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	":autofill" should be a valid selector
-Fail	":-webkit-autofill" should be a valid selector
+Pass	":-webkit-autofill" should be a valid selector
