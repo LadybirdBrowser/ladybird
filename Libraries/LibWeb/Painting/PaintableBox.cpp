@@ -153,12 +153,12 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
 
     GC::Ref<DOM::EventTarget> const event_target = *dom_node();
 
-    // 3. If the element is already in doc’s pending scroll event targets, abort these steps.
-    if (document.pending_scroll_event_targets().contains_slow(event_target))
+    // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
+    if (document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { event_target, HTML::EventNames::scroll }))
         return ScrollHandled::Yes;
 
-    // 4. Append the element to doc’s pending scroll event targets.
-    document.pending_scroll_event_targets().append(*dom_node());
+    // 4. Append (element, "scroll") to doc’s pending scroll events.
+    document.pending_scroll_events().append({ event_target, HTML::EventNames::scroll });
 
     set_needs_display(InvalidateDisplayList::No);
     return ScrollHandled::Yes;

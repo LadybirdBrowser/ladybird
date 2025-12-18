@@ -633,8 +633,12 @@ public:
     String domain() const;
     WebIDL::ExceptionOr<void> set_domain(String const&);
 
-    auto& pending_scroll_event_targets() { return m_pending_scroll_event_targets; }
-    auto& pending_scrollend_event_targets() { return m_pending_scrollend_event_targets; }
+    struct PendingScrollEvent {
+        GC::Ref<EventTarget> event_target;
+        FlyString event_type;
+        bool operator==(PendingScrollEvent const&) const = default;
+    };
+    Vector<PendingScrollEvent>& pending_scroll_events() { return m_pending_scroll_events; }
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
     bool is_completely_loaded() const;
@@ -1129,11 +1133,9 @@ private:
 
     HashTable<ViewportClient*> m_viewport_clients;
 
-    // https://w3c.github.io/csswg-drafts/cssom-view-1/#document-pending-scroll-event-targets
-    Vector<GC::Ref<EventTarget>> m_pending_scroll_event_targets;
-
-    // https://w3c.github.io/csswg-drafts/cssom-view-1/#document-pending-scrollend-event-targets
-    Vector<GC::Ref<EventTarget>> m_pending_scrollend_event_targets;
+    // https://drafts.csswg.org/cssom-view-1/#document-pending-scroll-events
+    // Each Document has an associated list of pending scroll events, which stores pairs of (EventTarget, DOMString), initially empty.
+    Vector<PendingScrollEvent> m_pending_scroll_events;
 
     // Used by evaluate_media_queries_and_report_changes().
     bool m_needs_media_query_evaluation { false };
