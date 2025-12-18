@@ -597,11 +597,10 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_scripts_to_execute_as_soon_as_possible);
     visitor.visit(m_node_iterators);
     visitor.visit(m_document_observers_being_notified);
-    visitor.visit(m_pending_scroll_event_targets);
-    visitor.visit(m_pending_scrollend_event_targets);
-    for (auto& resize_observer : m_resize_observers) {
+    for (auto& pending_scroll_event : m_pending_scroll_events)
+        visitor.visit(pending_scroll_event.event_target);
+    for (auto& resize_observer : m_resize_observers)
         visitor.visit(resize_observer);
-    }
 
     visitor.visit(m_shared_resource_requests);
 
@@ -3415,27 +3414,32 @@ void Document::run_the_resize_steps()
     }
 }
 
-// https://w3c.github.io/csswg-drafts/cssom-view-1/#document-run-the-scroll-steps
+// https://drafts.csswg.org/cssom-view-1/#document-run-the-scroll-steps
 void Document::run_the_scroll_steps()
 {
-    // 1. For each item target in doc’s pending scroll event targets, in the order they were added to the list, run these substeps:
-    for (auto& target : m_pending_scroll_event_targets) {
-        // 1. If target is a Document, fire an event named scroll that bubbles at target and fire an event named scroll at the VisualViewport that is associated with target.
-        if (is<Document>(*target)) {
-            auto event = DOM::Event::create(realm(), HTML::EventNames::scroll);
+    // FIXME: 1. For each scrolling box box that was scrolled:
+    //        ...
+
+    // 2. For each item (target, type) in doc’s pending scroll events, in the order they were added to the list, run
+    //    these substeps:
+    for (auto const& [target, type] : m_pending_scroll_events) {
+        // 1. If target is a Document, and type is "scroll" or "scrollend", fire an event named type that bubbles at target.
+        if (is<Document>(*target) && (type == HTML::EventNames::scroll || type == HTML::EventNames::scrollend)) {
+            auto event = DOM::Event::create(realm(), type);
             event->set_bubbles(true);
             target->dispatch_event(event);
-            // FIXME: Fire at the associated VisualViewport
         }
-        // 2. Otherwise, fire an event named scroll at target.
+        // FIXME: 2. Otherwise, if type is "scrollsnapchange", then:
+        // FIXME: 3. Otherwise, if type is "scrollsnapchanging", then:
+        // 4. Otherwise, fire an event named type at target.
         else {
             auto event = DOM::Event::create(realm(), HTML::EventNames::scroll);
             target->dispatch_event(event);
         }
     }
 
-    // 2. Empty doc’s pending scroll event targets.
-    m_pending_scroll_event_targets.clear();
+    // 3. Empty doc’s pending scroll events.
+    m_pending_scroll_events.clear();
 }
 
 void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_list)
