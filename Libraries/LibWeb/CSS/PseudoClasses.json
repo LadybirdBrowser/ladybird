@@ -1,4 +1,7 @@
 {
+  "-webkit-autofill": {
+    "legacy-alias-for": "autofill"
+  },
   "active": {
     "argument": ""
   },
