@@ -19,10 +19,6 @@
 #    include <sanitizer/lsan_interface.h>
 #endif
 
-#if defined(AK_OS_GNU_HURD) || (!defined(MADV_FREE) && !defined(MADV_DONTNEED))
-#    define USE_FALLBACK_BLOCK_DEALLOCATION
-#endif
-
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
 #    include <memoryapi.h>
@@ -78,16 +74,6 @@ void BlockAllocator::deallocate_block(void* block)
     DWORD ret = DiscardVirtualMemory(block, HeapBlock::block_size);
     if (ret != ERROR_SUCCESS) {
         warnln("{}", Error::from_windows_error(ret));
-        VERIFY_NOT_REACHED();
-    }
-#elif defined(USE_FALLBACK_BLOCK_DEALLOCATION)
-    // If we can't use any of the nicer techniques, unmap and remap the block to return the physical pages while keeping the VM.
-    if (munmap(block, HeapBlock::block_size) < 0) {
-        perror("munmap");
-        VERIFY_NOT_REACHED();
-    }
-    if (mmap(block, HeapBlock::block_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0) != block) {
-        perror("mmap");
         VERIFY_NOT_REACHED();
     }
 #elif defined(MADV_FREE)
