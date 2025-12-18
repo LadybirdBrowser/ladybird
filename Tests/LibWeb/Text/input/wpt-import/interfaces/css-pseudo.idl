@@ -1,0 +1,16 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Pseudo-Elements Module Level 4 (https://drafts.csswg.org/css-pseudo-4/)
+
+[Exposed=Window]
+interface CSSPseudoElement : EventTarget {
+    readonly attribute CSSOMString type;
+    readonly attribute Element element;
+    readonly attribute (Element or CSSPseudoElement) parent;
+    CSSPseudoElement? pseudo(CSSOMString type);
+};
+
+partial interface Element {
+  CSSPseudoElement? pseudo(CSSOMString type);
+};

@@ -1,0 +1,212 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSSOM View Module Level 1 (https://drafts.csswg.org/cssom-view-1/)
+
+enum ScrollBehavior { "auto", "instant", "smooth" };
+
+dictionary ScrollOptions {
+    ScrollBehavior behavior = "auto";
+};
+dictionary ScrollToOptions : ScrollOptions {
+    unrestricted double left;
+    unrestricted double top;
+};
+
+partial interface Window {
+    [NewObject] MediaQueryList matchMedia(CSSOMString query);
+    [SameObject, Replaceable] readonly attribute Screen screen;
+    [SameObject, Replaceable] readonly attribute VisualViewport? visualViewport;
+
+    // browsing context
+    undefined moveTo(long x, long y);
+    undefined moveBy(long x, long y);
+    undefined resizeTo(long width, long height);
+    undefined resizeBy(long x, long y);
+
+    // viewport
+    [Replaceable] readonly attribute long innerWidth;
+    [Replaceable] readonly attribute long innerHeight;
+
+    // viewport scrolling
+    [Replaceable] readonly attribute double scrollX;
+    [Replaceable] readonly attribute double pageXOffset;
+    [Replaceable] readonly attribute double scrollY;
+    [Replaceable] readonly attribute double pageYOffset;
+    Promise<undefined> scroll(optional ScrollToOptions options = {});
+    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+
+    // client
+    [Replaceable] readonly attribute long screenX;
+    [Replaceable] readonly attribute long screenLeft;
+    [Replaceable] readonly attribute long screenY;
+    [Replaceable] readonly attribute long screenTop;
+    [Replaceable] readonly attribute long outerWidth;
+    [Replaceable] readonly attribute long outerHeight;
+    [Replaceable] readonly attribute double devicePixelRatio;
+};
+
+[Exposed=Window]
+interface MediaQueryList : EventTarget {
+  readonly attribute CSSOMString media;
+  readonly attribute boolean matches;
+  undefined addListener(EventListener? callback);
+  undefined removeListener(EventListener? callback);
+           attribute EventHandler onchange;
+};
+
+[Exposed=Window]
+interface MediaQueryListEvent : Event {
+  constructor(CSSOMString type, optional MediaQueryListEventInit eventInitDict = {});
+  readonly attribute CSSOMString media;
+  readonly attribute boolean matches;
+};
+
+dictionary MediaQueryListEventInit : EventInit {
+  CSSOMString media = "";
+  boolean matches = false;
+};
+
+[Exposed=Window]
+interface Screen {
+  readonly attribute long availWidth;
+  readonly attribute long availHeight;
+  readonly attribute long width;
+  readonly attribute long height;
+  readonly attribute unsigned long colorDepth;
+  readonly attribute unsigned long pixelDepth;
+};
+
+partial interface Document {
+  Element? elementFromPoint(double x, double y);
+  sequence<Element> elementsFromPoint(double x, double y);
+  CaretPosition? caretPositionFromPoint(double x, double y, optional CaretPositionFromPointOptions options = {});
+  readonly attribute Element? scrollingElement;
+};
+
+dictionary CaretPositionFromPointOptions {
+  sequence<ShadowRoot> shadowRoots = [];
+};
+
+[Exposed=Window]
+interface CaretPosition {
+  readonly attribute Node offsetNode;
+  readonly attribute unsigned long offset;
+  [NewObject] DOMRect? getClientRect();
+};
+
+enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
+dictionary ScrollIntoViewOptions : ScrollOptions {
+  ScrollLogicalPosition block = "start";
+  ScrollLogicalPosition inline = "nearest";
+  ScrollIntoViewContainer container = "all";
+};
+
+enum ScrollIntoViewContainer { "all", "nearest" };
+
+dictionary CheckVisibilityOptions {
+    boolean checkOpacity = false;
+    boolean checkVisibilityCSS = false;
+    boolean contentVisibilityAuto = false;
+    boolean opacityProperty = false;
+    boolean visibilityProperty = false;
+};
+
+partial interface Element {
+  DOMRectList getClientRects();
+  [NewObject] DOMRect getBoundingClientRect();
+
+  boolean checkVisibility(optional CheckVisibilityOptions options = {});
+
+  Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+  Promise<undefined> scroll(optional ScrollToOptions options = {});
+  Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+  Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+  Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+  Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+  Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
+  attribute unrestricted double scrollTop;
+  attribute unrestricted double scrollLeft;
+  readonly attribute long scrollWidth;
+  readonly attribute long scrollHeight;
+  readonly attribute long clientTop;
+  readonly attribute long clientLeft;
+  readonly attribute long clientWidth;
+  readonly attribute long clientHeight;
+  readonly attribute double currentCSSZoom;
+};
+
+partial interface HTMLElement {
+  readonly attribute Element? scrollParent;
+  readonly attribute Element? offsetParent;
+  readonly attribute long offsetTop;
+  readonly attribute long offsetLeft;
+  readonly attribute long offsetWidth;
+  readonly attribute long offsetHeight;
+};
+
+partial interface HTMLImageElement {
+  readonly attribute long x;
+  readonly attribute long y;
+};
+
+partial interface Range {
+  DOMRectList getClientRects();
+  [NewObject] DOMRect getBoundingClientRect();
+};
+
+partial interface MouseEvent {
+  readonly attribute double pageX;
+  readonly attribute double pageY;
+  readonly attribute double x;
+  readonly attribute double y;
+  readonly attribute double offsetX;
+  readonly attribute double offsetY;
+};
+
+enum CSSBoxType { "margin", "border", "padding", "content" };
+dictionary BoxQuadOptions {
+  CSSBoxType box = "border";
+  GeometryNode relativeTo; // XXX default document (i.e. viewport)
+};
+
+dictionary ConvertCoordinateOptions {
+  CSSBoxType fromBox = "border";
+  CSSBoxType toBox = "border";
+};
+
+interface mixin GeometryUtils {
+  sequence<DOMQuad> getBoxQuads(optional BoxQuadOptions options = {});
+  DOMQuad convertQuadFromNode(DOMQuadInit quad, GeometryNode from, optional ConvertCoordinateOptions options = {});
+  DOMQuad convertRectFromNode(DOMRectReadOnly rect, GeometryNode from, optional ConvertCoordinateOptions options = {});
+  DOMPoint convertPointFromNode(DOMPointInit point, GeometryNode from, optional ConvertCoordinateOptions options = {}); // XXX z,w turns into 0
+};
+
+Text includes GeometryUtils; // like Range
+Element includes GeometryUtils;
+CSSPseudoElement includes GeometryUtils;
+Document includes GeometryUtils;
+
+typedef (Text or Element or CSSPseudoElement or Document) GeometryNode;
+
+[Exposed=Window]
+interface VisualViewport : EventTarget {
+  readonly attribute double offsetLeft;
+  readonly attribute double offsetTop;
+
+  readonly attribute double pageLeft;
+  readonly attribute double pageTop;
+
+  readonly attribute double width;
+  readonly attribute double height;
+
+  readonly attribute double scale;
+
+  attribute EventHandler onresize;
+  attribute EventHandler onscroll;
+  attribute EventHandler onscrollend;
+};
