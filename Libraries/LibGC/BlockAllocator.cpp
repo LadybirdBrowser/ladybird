@@ -14,6 +14,11 @@
 #include <LibGC/HeapBlock.h>
 #include <sys/mman.h>
 
+#if defined(AK_OS_MACOS)
+#    include <mach/mach.h>
+#    include <mach/mach_vm.h>
+#endif
+
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
 #    include <sanitizer/lsan_interface.h>
@@ -30,13 +35,16 @@ BlockAllocator::~BlockAllocator()
 {
     for (auto* block : m_blocks) {
         ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
-#if !defined(AK_OS_WINDOWS)
-        free(block);
-#else
+#if defined(AK_OS_MACOS)
+        kern_return_t kr = mach_vm_deallocate(mach_task_self(), reinterpret_cast<mach_vm_address_t>(block), HeapBlock::BLOCK_SIZE);
+        VERIFY(kr == KERN_SUCCESS);
+#elif defined(AK_OS_WINDOWS)
         if (!VirtualFree(block, 0, MEM_RELEASE)) {
             warnln("{}", Error::from_windows_error());
             VERIFY_NOT_REACHED();
         }
+#else
+        free(block);
 #endif
     }
 }
@@ -58,13 +66,29 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         return block;
     }
 
-#if !defined(AK_OS_WINDOWS)
+#if defined(AK_OS_MACOS)
+    mach_vm_address_t address = 0;
+    kern_return_t kr = mach_vm_map(
+        mach_task_self(),
+        &address,
+        HeapBlock::BLOCK_SIZE,
+        HeapBlock::BLOCK_SIZE - 1,
+        VM_FLAGS_ANYWHERE,
+        MEMORY_OBJECT_NULL,
+        0,
+        false,
+        VM_PROT_READ | VM_PROT_WRITE,
+        VM_PROT_READ | VM_PROT_WRITE,
+        VM_INHERIT_DEFAULT);
+    VERIFY(kr == KERN_SUCCESS);
+    auto* block = reinterpret_cast<void*>(address);
+#elif defined(AK_OS_WINDOWS)
+    auto* block = VirtualAlloc(NULL, HeapBlock::BLOCK_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    VERIFY(block);
+#else
     void* block = nullptr;
     auto rc = posix_memalign(&block, HeapBlock::BLOCK_SIZE, HeapBlock::BLOCK_SIZE);
     VERIFY(rc == 0);
-#else
-    auto* block = VirtualAlloc(NULL, HeapBlock::BLOCK_SIZE, MEM_COMMIT, PAGE_READWRITE);
-    VERIFY(block);
 #endif
     LSAN_REGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
     return block;
