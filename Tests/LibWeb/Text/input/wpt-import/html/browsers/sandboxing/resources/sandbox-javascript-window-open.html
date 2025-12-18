@@ -1,0 +1,18 @@
+<script>
+  // Forward message from the openee toward the parent.
+  window.addEventListener("message", event => top.postMessage(event.data, "*"));
+
+  let check_sandboxed = `"
+    <script>
+      try {
+        document.domain = document.domain;
+        opener.postMessage('allow-document-domain', '*');
+      } catch (error) {
+        opener.postMessage('disallow-document-domain', '*');
+      }
+    </scr`+`ipt>
+  "`;
+
+  window.open('about:blank', "window_name");
+  window.open("javascript:" + check_sandboxed, "window_name");
+</script>
