@@ -29,12 +29,9 @@ namespace GC {
 BlockAllocator::~BlockAllocator()
 {
     for (auto* block : m_blocks) {
-        ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::block_size);
+        ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
 #if !defined(AK_OS_WINDOWS)
-        if (munmap(block, HeapBlock::block_size) < 0) {
-            perror("munmap");
-            VERIFY_NOT_REACHED();
-        }
+        free(block);
 #else
         if (!VirtualFree(block, 0, MEM_RELEASE)) {
             warnln("{}", Error::from_windows_error());
@@ -50,19 +47,20 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
         // To reduce predictability, take a random block from the cache.
         size_t random_index = get_random_uniform(m_blocks.size());
         auto* block = m_blocks.unstable_take(random_index);
-        ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::block_size);
-        LSAN_REGISTER_ROOT_REGION(block, HeapBlock::block_size);
+        ASAN_UNPOISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
+        LSAN_REGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
         return block;
     }
 
 #if !defined(AK_OS_WINDOWS)
-    auto* block = (HeapBlock*)mmap(nullptr, HeapBlock::block_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    VERIFY(block != MAP_FAILED);
+    void* block = nullptr;
+    auto rc = posix_memalign(&block, HeapBlock::BLOCK_SIZE, HeapBlock::BLOCK_SIZE);
+    VERIFY(rc == 0);
 #else
-    auto* block = (HeapBlock*)VirtualAlloc(NULL, HeapBlock::block_size, MEM_COMMIT, PAGE_READWRITE);
+    auto* block = VirtualAlloc(NULL, HeapBlock::BLOCK_SIZE, MEM_COMMIT, PAGE_READWRITE);
     VERIFY(block);
 #endif
-    LSAN_REGISTER_ROOT_REGION(block, HeapBlock::block_size);
+    LSAN_REGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
     return block;
 }
 
@@ -71,25 +69,25 @@ void BlockAllocator::deallocate_block(void* block)
     VERIFY(block);
 
 #if defined(AK_OS_WINDOWS)
-    DWORD ret = DiscardVirtualMemory(block, HeapBlock::block_size);
+    DWORD ret = DiscardVirtualMemory(block, HeapBlock::BLOCK_SIZE);
     if (ret != ERROR_SUCCESS) {
         warnln("{}", Error::from_windows_error(ret));
         VERIFY_NOT_REACHED();
     }
 #elif defined(MADV_FREE)
-    if (madvise(block, HeapBlock::block_size, MADV_FREE) < 0) {
+    if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_FREE) < 0) {
         perror("madvise(MADV_FREE)");
         VERIFY_NOT_REACHED();
     }
 #elif defined(MADV_DONTNEED)
-    if (madvise(block, HeapBlock::block_size, MADV_DONTNEED) < 0) {
+    if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_DONTNEED) < 0) {
         perror("madvise(MADV_DONTNEED)");
         VERIFY_NOT_REACHED();
     }
 #endif
 
-    ASAN_POISON_MEMORY_REGION(block, HeapBlock::block_size);
-    LSAN_UNREGISTER_ROOT_REGION(block, HeapBlock::block_size);
+    ASAN_POISON_MEMORY_REGION(block, HeapBlock::BLOCK_SIZE);
+    LSAN_UNREGISTER_ROOT_REGION(block, HeapBlock::BLOCK_SIZE);
     m_blocks.append(block);
 }
 

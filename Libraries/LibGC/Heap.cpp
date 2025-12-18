@@ -99,7 +99,7 @@ void Heap::find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_a
     max_address = 0;
     for (auto& allocator : m_all_cell_allocators) {
         min_address = min(min_address, allocator.min_block_address());
-        max_address = max(max_address, allocator.max_block_address() + HeapBlockBase::block_size);
+        max_address = max(max_address, allocator.max_block_address() + HeapBlock::BLOCK_SIZE);
     }
 }
 
@@ -557,8 +557,8 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         dbgln("     Time spent: {} ms", time_spent.to_milliseconds());
         dbgln("     Live cells: {} ({} bytes)", live_cells, live_cell_bytes);
         dbgln("Collected cells: {} ({} bytes)", collected_cells, collected_cell_bytes);
-        dbgln("    Live blocks: {} ({} bytes)", live_block_count, live_block_count * HeapBlock::block_size);
-        dbgln("   Freed blocks: {} ({} bytes)", empty_blocks.size(), empty_blocks.size() * HeapBlock::block_size);
+        dbgln("    Live blocks: {} ({} bytes)", live_block_count, live_block_count * HeapBlock::BLOCK_SIZE);
+        dbgln("   Freed blocks: {} ({} bytes)", empty_blocks.size(), empty_blocks.size() * HeapBlock::BLOCK_SIZE);
         dbgln("=============================================");
     }
 }
