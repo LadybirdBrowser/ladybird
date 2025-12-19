@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Pausing an animation</title>
+<link rel="help"
+  href="https://drafts.csswg.org/web-animations/#pausing-an-animation-section">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  height: 100px;
+  width: 100px;
+  will-change: transform;
+}
+
+.contents {
+  height: 1000px;
+  width: 100%;
+}
+</style>
+<body>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+  await animation.ready;
+
+  const startTimeBeforePausing = animation.startTime;
+
+  animation.pause();
+  assert_percents_equal(animation.startTime, startTimeBeforePausing,
+                        'The start time does not change when pausing-pending');
+
+  await animation.ready;
+
+  assert_equals(animation.startTime, null,
+                'The start time is unresolved when paused');
+}, 'Pausing clears the start time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+  const promise = animation.ready;
+  animation.pause();
+
+  const promiseResult = await promise;
+
+  assert_equals(promiseResult, animation);
+  assert_equals(animation.ready, promise);
+  assert_false(animation.pending, 'No longer pause-pending');
+}, 'A pending ready promise should be resolved and not replaced when the'
+   + ' animation is paused');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+  // Let animation start roughly half-way through
+  animation.currentTime = CSSNumericValue.parse("50%");
+  await animation.ready;
+
+  // Go pause-pending and also set a pending playback rate
+  animation.pause();
+  animation.updatePlaybackRate(0.5);
+
+  await animation.ready;
+  // If the current time was updated using the new playback rate it will jump
+  // back to 25% but if we correctly used the old playback rate the current time
+  // will be > 50%.
+  assert_percents_equal(animation.currentTime, 50);
+}, 'A pause-pending animation maintains the current time when applying a'
+   + ' pending playback rate');
+
+promise_test(async t => {
+  // This test does not cover a specific step in the algorithm but serves as a
+  // high-level sanity check that pausing does, in fact, freeze the current
+  // time.
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  animation.play();
+  await animation.ready;
+
+  animation.pause();
+  await animation.ready;
+
+  const currentTimeAfterPausing = animation.currentTime;
+
+  await runAndWaitForFrameUpdate(() => {
+    scroller.scrollTop = 0.2 * maxScroll;
+  });
+  assert_percents_equal(animation.timeline.currentTime, 20,
+                        'Sanity check timeline time changed');
+
+  assert_percents_equal(animation.currentTime, currentTimeAfterPausing,
+                        'Animation.currentTime is unchanged after pausing');
+}, 'The animation\'s current time remains fixed after pausing');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+
+  const originalReadyPromise = animation.ready;
+  animation.cancel();
+  assert_equals(animation.startTime, null);
+  assert_equals(animation.currentTime, null);
+
+  const readyPromise = animation.ready;
+  assert_not_equals(originalReadyPromise, readyPromise,
+                    'Canceling an animation should create a new ready promise');
+
+  animation.pause();
+  assert_equals(animation.playState, 'paused',
+                'Pausing a canceled animation should update the play state');
+  assert_true(animation.pending, 'animation should be pause-pending');
+  await animation.ready;
+  assert_false(animation.pending,
+               'animation should no longer be pause-pending');
+  assert_equals(animation.startTime, null, 'start time should be unresolved');
+  assert_percents_equal(animation.currentTime, 0,
+                        'current time should be set to zero');
+}, 'Pausing a canceled animation sets the current time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await runAndWaitForFrameUpdate(() => {
+    // Make the scroll timeline inactive.
+    scroller.style.overflow = 'visible';
+  });
+  assert_equals(animation.timeline.currentTime, null,
+                'Sanity check the timeline is inactive.');
+  // Pause the animation when the timeline is inactive.
+  animation.pause();
+  assert_equals(animation.currentTime, null,
+                'The current time is null when the timeline is inactive.');
+  assert_equals(animation.startTime, null,
+                        'The start time is null in Pending state.');
+  await waitForNextFrame();
+  assert_true(animation.pending,
+      'Animation has pause pending task while the timeline is inactive.');
+  assert_equals(animation.playState, 'paused',
+                `State is 'paused' in Pending state.`);
+}, `Pause pending task doesn't run when the timeline is inactive.`);
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.2 * maxScroll;
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await runAndWaitForFrameUpdate(() => {
+    // Make the scroll timeline inactive.
+    scroller.style.overflow = 'visible';
+  });
+  assert_equals(animation.timeline.currentTime, null,
+                'Sanity check the timeline is inactive.');
+  // Play the animation when the timeline is inactive.
+  animation.pause();
+
+  // Make the scroll timeline active.
+  scroller.style.overflow = 'auto';
+  await animation.ready;
+  // Ready promise is resolved as a result of the timeline becoming active.
+  assert_percents_equal(animation.currentTime, 20,
+      'Animation current time is resolved when the animation is ready.');
+  assert_equals(animation.startTime, null,
+      'Animation start time is unresolved when the animation is ready.');
+}, 'Animation start and current times are correct if scroll timeline is ' +
+   'activated after animation.pause call.');
+
+</script>
+</body>

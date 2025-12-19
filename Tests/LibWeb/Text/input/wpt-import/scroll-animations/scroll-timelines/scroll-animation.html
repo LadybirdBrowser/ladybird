@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Test basic functionality of scroll linked animation.</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+  .scroller {
+    overflow: auto;
+    height: 100px;
+    width: 100px;
+    will-change: transform;
+  }
+  .contents {
+    height: 1000px;
+    width: 100%;
+  }
+</style>
+<div id="log"></div>
+<script>
+  'use strict';
+  promise_test(async t => {
+    const animation = createScrollLinkedAnimation(t);
+    const scroller = animation.timeline.source;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+    // Verify initial start and current times in Idle state.
+    assert_equals(animation.currentTime, null,
+      "The current time is null in Idle state.");
+    assert_equals(animation.startTime, null,
+      "The start time is null in Idle state.");
+    animation.play();
+    assert_true(animation.pending, "Animation is in the pending state.");
+    // Verify initial start and current times in the pending state.
+    assert_equals(animation.currentTime, null,
+      "The current time remains null while in the pending state.");
+    assert_equals(animation.startTime, null,
+      "The start time remains null while in the pending state.");
+
+    await animation.ready;
+    // Verify initial start and current times once ready.
+    assert_percents_equal(animation.currentTime, 0,
+      "The current time is resolved when ready.");
+    assert_percents_equal(animation.startTime, 0,
+      "The start time is resolved when ready.");
+
+    // Now do some scrolling and make sure that the Animation current time is
+    // correct.
+    scroller.scrollTop = 0.4 * maxScroll;
+    // Wait for new animation frame  which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+    assert_percents_equal(animation.currentTime, animation.timeline.currentTime,
+      "The current time corresponds to the scroll position of the scroller.");
+    assert_times_equal(
+      animation.effect.getComputedTiming().progress,
+      animation.timeline.currentTime.value / 100,
+      'Effect progress corresponds to the scroll position of the scroller.');
+}, 'Animation start and current times are correct for each animation state.');
+
+promise_test(async t => {
+    const animation = createScrollLinkedAnimation(t);
+    const scroller = animation.timeline.source;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+    // Advance the scroller.
+    scroller.scrollTop = 0.2 * maxScroll;
+    // Wait for new animation frame  which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+
+    // Verify initial start and current times in Idle state.
+    assert_equals(animation.currentTime, null,
+      "The current time is null in Idle state.");
+    assert_equals(animation.startTime, null,
+      "The start time is null in Idle state.");
+    animation.play();
+    // Verify initial start and current times in Pending state.
+    assert_equals(animation.currentTime, null,
+      "The current time remains unresolved while play-pending.");
+    assert_equals(animation.startTime, null,
+      "The start time remains unresolved while play-pending.");
+
+    await animation.ready;
+    // Verify initial start and current times in Playing state.
+    assert_percents_equal(animation.currentTime, animation.timeline.currentTime,
+      "The current corresponds to the scroll position of the scroller.");
+      assert_percents_equal(animation.startTime, 0,
+      "The start time is zero in Playing state.");
+}, 'Animation start and current times are correct for each animation state' +
+    ' when the animation starts playing with advanced scroller.');
+
+promise_test(async t => {
+    const animation = createScrollLinkedAnimation(t);
+    const scroller = animation.timeline.source;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+    animation.play();
+    await animation.ready;
+    // Advance the scroller to max position.
+    scroller.scrollTop = maxScroll;
+
+    await animation.finished;
+
+    assert_equals(animation.playState, 'finished',
+      'Animation state is in finished state.');
+      assert_percents_equal(animation.currentTime, 100,
+        'Animation current time is at 100% on reverse scrolling.');
+
+    // Scroll back.
+    scroller.scrollTop = 0.2 * maxScroll;
+
+    // Wait for new animation frame  which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+    // Verify animation state and current time on reverse scrolling.
+    assert_equals(animation.playState, 'running',
+      'Animation state is playing on reverse scrolling.');
+    assert_percents_equal(animation.currentTime, 20,
+      'Animation current time is updated on reverse scrolling.');
+}, 'Finished animation plays on reverse scrolling.');
+
+promise_test(async t => {
+    const animation = createScrollLinkedAnimation(t);
+    const scroller = animation.timeline.source;
+    const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+    animation.play();
+    await animation.ready;
+
+    // Advance the scroller to max position.
+    scroller.scrollTop =  maxScroll;
+    await animation.finished;
+
+    // Wait for the next animation frame for the previous "finish"
+    // event to have dispatched.
+    await waitForNextFrame();
+
+    var sent_finish_event = false;
+    animation.onfinish = function() {
+      sent_finish_event = true;
+    };
+
+    // Scroll back.
+    scroller.scrollTop = 0.2 * maxScroll;
+    // Wait for new animation frame  which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+    assert_false(sent_finish_event,
+                 "No animation finished event is sent on reverse scroll.");
+
+    scroller.scrollTop = maxScroll;
+    await animation.finished;
+
+    // Wait for next frame to allow the animation to send finish events. The
+    // finished promise fires before events are sent.
+    await waitForNextFrame();
+
+    assert_true(sent_finish_event,
+                 "Animation finished event is sent on reaching max scroll.");
+}, 'Sending animation finished events by finished animation on reverse ' +
+   'scrolling.');
+</script>

@@ -1,0 +1,72 @@
+Harness status: OK
+
+Found 67 tests
+
+67 Fail
+Fail	Allows setting the delay to a positive number
+Fail	Allows setting the delay to a negative number
+Fail	Allows setting the delay of an animation in progress: positive delay that causes the animation to be no longer in-effect
+Fail	Allows setting the delay of an animation in progress: negative delay that seeks into the active interval
+Fail	Allows setting the delay of an animation in progress: large negative delay that causes the animation to be finished
+Fail	Throws when setting invalid delay value: NaN
+Fail	Throws when setting invalid delay value: Infinity
+Fail	Throws when setting invalid delay value: -Infinity
+Fail	Allows setting the endDelay to a positive number
+Fail	Allows setting the endDelay to a negative number
+Fail	Throws when setting the endDelay to infinity
+Fail	Throws when setting the endDelay to negative infinity
+Fail	Allows setting the fill to 'none'
+Fail	Allows setting the fill to 'forwards'
+Fail	Allows setting the fill to 'backwards'
+Fail	Allows setting the fill to 'both'
+Fail	Allows setting the iterationStart of an animation in progress: backwards-filling
+Fail	Allows setting the iterationStart of an animation in progress: active phase
+Fail	Allows setting the iterationStart of an animation in progress: forwards-filling
+Fail	Throws when setting invalid iterationStart value: -1
+Fail	Throws when setting invalid iterationStart value: NaN
+Fail	Throws when setting invalid iterationStart value: Infinity
+Fail	Throws when setting invalid iterationStart value: -Infinity
+Fail	Allows setting iterations to a double value
+Fail	Throws when setting iterations to Infinity
+Fail	Allows setting the iterations of an animation in progress
+Fail	Allows setting the iterations of an animation in progress with duration "auto"
+Fail	Allows creating scroll linked animation with duration Infinity
+Fail	Allows setting the duration to 123.45
+Fail	Allows setting the duration to auto
+Fail	Allows setting the duration to Infinity
+Fail	Throws when setting invalid duration: -1
+Fail	Throws when setting invalid duration: NaN
+Fail	Throws when setting invalid duration: -Infinity
+Fail	Throws when setting invalid duration: "abc"
+Fail	Throws when setting invalid duration: "100"
+Fail	Allows setting the duration of an animation in progress
+Fail	Allows setting the duration of an animation in progress such that the the start and current time do not change
+Fail	Allows setting the direction to each of the possible keywords
+Fail	Allows setting the direction of an animation in progress from 'normal' to 'reverse'
+Fail	Allows setting the direction of an animation in progress from 'normal' to 'reverse' while at start of active interval
+Fail	Allows setting the direction of an animation in progress from 'normal' to 'reverse' while filling backwards
+Fail	Allows setting the direction of an animation in progress from 'normal' to 'alternate'
+Fail	Allows setting the direction of an animation in progress from 'alternate' to 'alternate-reverse'
+Fail	Allows setting the easing to a step-start function
+Fail	Allows setting the easing to a steps(1, start) function
+Fail	Allows setting the easing to a steps(2, start) function
+Fail	Allows setting the easing to a step-end function
+Fail	Allows setting the easing to a steps(1) function
+Fail	Allows setting the easing to a steps(1, end) function
+Fail	Allows setting the easing to a steps(2, end) function
+Fail	Allows setting the easing to a linear function
+Fail	Allows setting the easing to a ease function
+Fail	Allows setting the easing to a ease-in function
+Fail	Allows setting the easing to a ease-in-out function
+Fail	Allows setting the easing to a ease-out function
+Fail	Allows setting the easing to a easing function which produces values greater than 1
+Fail	Allows setting the easing to a easing function which produces values less than 1
+Fail	Updates the specified value when setting the easing to 'ease'
+Fail	Updates the specified value when setting the easing to 'linear'
+Fail	Updates the specified value when setting the easing to 'ease-in'
+Fail	Updates the specified value when setting the easing to 'ease-out'
+Fail	Updates the specified value when setting the easing to 'ease-in-out'
+Fail	Updates the specified value when setting the easing to 'cubic-bezier(0.1, 5, 0.23, 0)'
+Fail	Updates the specified value when setting the easing to 'steps(3, start)'
+Fail	Updates the specified value when setting the easing to 'steps(3)'
+Fail	Allows setting the easing of an animation in progress

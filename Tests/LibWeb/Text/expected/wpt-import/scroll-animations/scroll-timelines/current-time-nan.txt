@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	currentTime should be null for a display: inline source
+Fail	currentTime should be null for a display: none source
+Fail	currentTime should be null for an unattached source
+Fail	currentTime should be null when the source is not a scroller

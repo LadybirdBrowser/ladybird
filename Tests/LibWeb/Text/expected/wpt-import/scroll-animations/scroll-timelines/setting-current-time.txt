@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Fail
+Fail	Setting animation current time to null throws TypeError.
+Fail	Setting the current time to an absolute time value throws exception
+Fail	Set animation current time to a valid value without playing.
+Fail	Set animation current time to a valid value while playing.
+Fail	Set animation current time to a value beyond effect end.
+Fail	Set animation current time to a negative value.
+Fail	Setting current time while play pending overrides the current time
+Fail	Setting animation.currentTime then restarting the animation should reset the current time.
+Fail	Set Animation current time then scroll.
+Fail	Animation current time and play state are correct when current time is set while the timeline is inactive.
+Fail	Animation current time set while the timeline is inactive holds when the timeline becomes active again.

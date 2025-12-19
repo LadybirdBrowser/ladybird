@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ScrollTimeline invalidation</title>
+<link rel="help" href="https://wicg.github.io/scroll-animations/#current-time-algorithm">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+  .scroller {
+    overflow: auto;
+    height: 100px;
+    width: 100px;
+    will-change: transform;
+  }
+  .contents {
+    height: 1000px;
+    width: 100%;
+  }
+</style>
+<div id="log"></div>
+
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const effect_duration = 350;
+  animation.effect.updateTiming({ duration: effect_duration });
+  const scroller = animation.timeline.source;
+  let maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.2 * maxScroll;
+  const initial_progress = (scroller.scrollTop / maxScroll) * 100;
+
+  animation.play();
+  await animation.ready;
+
+  // Animation current time is at 20% because scroller was scrolled to 20%
+  assert_percents_equal(animation.currentTime, 20);
+  assert_equals(scroller.scrollTop, 180);
+  assert_equals(maxScroll, 900);
+
+  // Shrink scroller content size (from 1000 to 500).
+  // scroller.scrollTop maintains the same offset, which means shrinking the
+  // content has the effect of skipping the animation forward.
+  scroller.firstChild.style.height = "500px";
+  maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+  assert_equals(scroller.scrollTop, 180);
+  assert_equals(maxScroll, 400);
+  await waitForNextFrame();
+
+  const expected_progress = (scroller.scrollTop / maxScroll) * 100;
+  assert_true(expected_progress > initial_progress)
+  // @ 45%
+  assert_percents_equal(animation.currentTime, expected_progress);
+  assert_percents_equal(animation.timeline.currentTime, expected_progress);
+  assert_percents_equal(animation.effect.getComputedTiming().localTime, expected_progress);
+}, 'Animation current time and effect local time are updated after scroller ' +
+   'content size changes.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.effect.updateTiming({ duration: 350 });
+  const scroller = animation.timeline.source;
+  let maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  const scrollOffset = 0.2 * maxScroll
+  scroller.scrollTop = scrollOffset;
+  const initial_progress = (scroller.scrollTop / maxScroll) * 100;
+
+  animation.play();
+  await animation.ready;
+
+  // Animation current time is at 20% because scroller was scrolled to 20%
+  // assert_equals(animation.currentTime.value, 20);
+  assert_percents_equal(animation.currentTime, 20);
+  assert_equals(scroller.scrollTop, scrollOffset);
+  assert_equals(maxScroll, 900);
+
+  // Change scroller size.
+  scroller.style.height = "500px";
+  maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+  assert_equals(scroller.scrollTop, scrollOffset);
+  assert_equals(maxScroll, 500);
+  await waitForNextFrame();
+
+  const expected_progress = (scroller.scrollTop / maxScroll) * 100;
+  assert_true(expected_progress > initial_progress);
+  // @ 45%
+  assert_percents_equal(animation.currentTime, expected_progress);
+  assert_percents_equal(animation.timeline.currentTime, expected_progress);
+  assert_percents_equal(animation.effect.getComputedTiming().localTime,
+                        expected_progress);
+}, 'Animation current time and effect local time are updated after scroller ' +
+   'size changes.');
+
+promise_test(async t => {
+  await waitForNextFrame();
+
+  const timeline = createScrollTimeline(t);
+  const scroller = timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  // Instantiate scroll animation that resizes its scroll timeline scroller.
+  const animation = new Animation(
+    new KeyframeEffect(
+      timeline.source.firstChild,
+      [{ height: '1000px', easing: 'steps(2, jump-none)'},
+       { height: '2000px' }],
+    ), timeline);
+
+  animation.play();
+  await animation.ready;
+
+  assert_percents_equal(timeline.currentTime, 0);
+  assert_equals(scroller.scrollHeight, 1000);
+
+  await runAndWaitForFrameUpdate(() => {
+    scroller.scrollTop = 0.6 * maxScroll;
+  });
+
+  // Applying the animation effect alters the height of the scroll content and
+  // makes the scroll timeline stale.
+  // https://github.com/w3c/csswg-drafts/issues/8694
+
+  // runAndWaitForFrameUpdate will yield after the requestAnimationFrame callbacks
+  // have been serviced, which is prior to when stale timelines are updated.
+  // https://github.com/w3c/csswg-drafts/issues/12120
+  assert_approx_equals(timeline.currentTime.value, 60, 0.1);
+
+  // Now wait another beat such that the rest of the HTML Processing Model event loop
+  // has run and we can check whether stale timelines have been updated.
+  await new Promise(setTimeout);
+
+  // With a single layout, timeline current time would be at 60%, but the
+  // timeline would be stale.
+  const expected_progress = 60 * maxScroll / (maxScroll + 1000);
+  assert_approx_equals(timeline.currentTime.value, expected_progress, 0.1);
+
+}, 'If scroll animation resizes its scroll timeline scroller, ' +
+   'layout reruns once per frame.');
+</script>
