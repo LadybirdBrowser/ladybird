@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Pausing clears the start time
+Fail	A pending ready promise should be resolved and not replaced when the animation is paused
+Fail	A pause-pending animation maintains the current time when applying a pending playback rate
+Fail	The animation's current time remains fixed after pausing
+Fail	Pausing a canceled animation sets the current time
+Fail	Pause pending task doesn't run when the timeline is inactive.
+Fail	Animation start and current times are correct if scroll timeline is activated after animation.pause call.

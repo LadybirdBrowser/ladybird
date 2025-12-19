@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Setting the start time of scroll animation</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#setting-the-start-time-of-an-animation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  height: 200px;
+  width: 100px;
+  will-change: transform;
+}
+
+.contents {
+  height: 1000px;
+  width: 100%;
+}
+</style>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  assert_throws_js(TypeError, () => {
+    animation.startTime = CSSNumericValue.parse("300");
+  });
+  assert_throws_js(TypeError, () => {
+    animation.startTime = CSSNumericValue.parse("300ms");
+  });
+  assert_throws_js(TypeError, () => {
+    animation.startTime = CSSNumericValue.parse("0.3s");
+  });
+}, 'Setting the start time to an absolute time value throws exception');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await runAndWaitForFrameUpdate(() => {
+    scroller.scrollTop = 0.2 * maxScroll;
+  });
+
+  // So long as a hold time is set, querying the current time will return
+  // the hold time.
+
+  // Since the start time is unresolved at this point, setting the current time
+  // will set the hold time
+  animation.currentTime = CSSNumericValue.parse("30%");
+  assert_equals(animation.startTime, null, 'The start time stays unresolved');
+  assert_percents_equal(animation.currentTime, 30,
+                        'The current time is calculated from the hold time');
+
+  // If we set the start time, however, we should clear the hold time.
+  animation.startTime = CSSNumericValue.parse("0%");
+  assert_percents_equal(animation.startTime, 0,
+                        'The start time is set to the requested value');
+  assert_percents_equal(animation.currentTime, 20,
+                        'The current time is calculated from the start time, ' +
+                        'not the hold time');
+  // Sanity check
+  assert_equals(animation.playState, 'running',
+                'Animation reports it is running after setting a resolved ' +
+                'start time');
+}, 'Setting the start time clears the hold time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  // Make the scroll timeline inactive.
+  scroller.style.overflow = 'visible';
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  assert_equals(animation.timeline.currentTime, null,
+                'Sanity check the timeline is inactive');
+
+  // So long as a hold time is set, querying the current time will return
+  // the hold time.
+
+  // Since the start time is unresolved at this point, setting the current time
+  // will set the hold time
+  animation.currentTime = CSSNumericValue.parse("30%");
+  assert_equals(animation.startTime, null, 'The start time stays unresolved');
+  assert_percents_equal(animation.currentTime, 30,
+                        'The current time is calculated from the hold time');
+
+  // If we set the start time, however, we should clear the hold time.
+  animation.startTime = CSSNumericValue.parse("0%");
+  assert_percents_equal(animation.startTime, 0,
+                        'The start time is set to the requested value');
+  assert_equals(animation.currentTime, null,
+                'The current time is calculated from the start time, not' +
+                ' the hold time');
+  // Sanity check
+  assert_equals(animation.playState, 'running',
+                'Animation reports it is running after setting a resolved ' +
+                'start time');
+}, 'Setting the start time clears the hold time when the timeline is inactive');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.2 * maxScroll;
+
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  // Set up a running animation (i.e. both start time and current time
+  // are resolved).
+  animation.startTime = CSSNumericValue.parse("5%");
+  assert_equals(animation.playState, 'running');
+  assert_percents_equal(animation.startTime, 5,
+                        'The start time is set to the requested value');
+  assert_percents_equal(animation.currentTime, 15,
+                        'Current time is resolved for a running animation');
+
+  // Clear start time
+  animation.startTime = null;
+  assert_equals(animation.startTime, null,
+                'The start time is set to the requested value');
+  assert_percents_equal(animation.currentTime, 15,
+                        'Hold time is set after start time is made unresolved');
+  assert_equals(animation.playState, 'paused',
+                'Animation reports it is paused after setting an unresolved'
+                + ' start time');
+}, 'Setting an unresolved start time sets the hold time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  // Make the scroll timeline inactive.
+  scroller.style.overflow = 'visible';
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  assert_equals(animation.timeline.currentTime, null,
+                'Sanity check the timeline is inactive');
+
+  // Set up a running animation (i.e. both start time and current time
+  // are resolved).
+  animation.startTime = CSSNumericValue.parse("5%");
+  assert_equals(animation.playState, 'running');
+  assert_percents_equal(animation.startTime, 5,
+                        'The start time is set to the requested value');
+  assert_equals(animation.currentTime, null,
+                'Current time is unresolved for a running animation when the ' +
+                'timeline is inactive');
+
+  // Clear start time
+  animation.startTime = null;
+  assert_equals(animation.startTime, null,
+                'The start time is set to the requested value');
+  assert_equals(animation.currentTime, null,
+                'Hold time is set to unresolved after start time is made ' +
+                'unresolved');
+  assert_equals(animation.playState, 'idle',
+                'Animation reports it is idle after setting an unresolved'
+                + ' start time');
+}, 'Setting an unresolved start time sets the hold time to unresolved when ' +
+   'the timeline is inactive');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  let readyPromiseCallbackCalled = false;
+  animation.ready.then(() => { readyPromiseCallbackCalled = true; } );
+
+  // Put the animation in the play-pending state
+  animation.play();
+
+  // Sanity check
+  assert_true(animation.pending && animation.playState === 'running',
+              'Animation is in play-pending state');
+
+  // Setting the start time should resolve the 'ready' promise, i.e.
+  // it should schedule a microtask to run the promise callbacks.
+  animation.startTime = CSSNumericValue.parse("10%");
+  assert_percents_equal(animation.startTime, 10,
+                        'The start time is set to the requested value');
+  assert_false(readyPromiseCallbackCalled,
+               'Ready promise callback is not called synchronously');
+
+  // If we schedule another microtask then it should run immediately after
+  // the ready promise resolution microtask.
+  await Promise.resolve();
+  assert_true(readyPromiseCallbackCalled,
+              'Ready promise callback called after setting startTime');
+}, 'Setting the start time resolves a pending ready promise');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  // Make the scroll timeline inactive.
+  scroller.style.overflow = 'visible';
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  assert_equals(animation.timeline.currentTime, null,
+                'Sanity check the timeline is inactive');
+
+  let readyPromiseCallbackCalled = false;
+  animation.ready.then(() => { readyPromiseCallbackCalled = true; } );
+
+  // Put the animation in the play-pending state
+  animation.play();
+
+  // Sanity check
+  assert_true(animation.pending && animation.playState === 'running',
+              'Animation is in play-pending state');
+
+  // Setting the start time should resolve the 'ready' promise, i.e.
+  // it should schedule a microtask to run the promise callbacks.
+  animation.startTime = CSSNumericValue.parse("10%");
+  assert_percents_equal(animation.startTime, 10,
+                        'The start time is set to the requested value');
+  assert_false(readyPromiseCallbackCalled,
+               'Ready promise callback is not called synchronously');
+
+  // If we schedule another microtask then it should run immediately after
+  // the ready promise resolution microtask.
+  await Promise.resolve();
+  assert_true(readyPromiseCallbackCalled,
+              'Ready promise callback called after setting startTime');
+}, 'Setting the start time resolves a pending ready promise when the timeline' +
+   'is inactive');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  // Put the animation in the play-pending state
+  animation.play();
+
+  // Sanity check
+  assert_true(animation.pending, 'Animation is pending');
+  assert_equals(animation.playState, 'running', 'Animation is play-pending');
+  assert_equals(animation.startTime, null, 'Start time is unresolved');
+
+  // Setting start time should cancel the pending task.
+  animation.startTime = null;
+  assert_false(animation.pending, 'Animation is no longer pending');
+  assert_equals(animation.playState, 'idle', 'Animation is idle');
+}, 'Setting an unresolved start time on a play-pending animation makes it'
+   + ' idle');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  // Set start time such that the current time is past the end time
+  animation.startTime = CSSNumericValue.parse("-110%");
+  assert_percents_equal(animation.startTime, -110,
+                        'The start time is set to the requested value');
+  assert_equals(animation.playState, 'finished',
+                'Seeked to finished state using the startTime');
+
+  // If the 'did seek' flag is true, the current time should be greater than
+  // the effect end.
+  assert_greater_than(animation.currentTime.value,
+                      animation.effect.getComputedTiming().endTime.value,
+                      'Setting the start time updated the finished state with'
+                      + ' the \'did seek\' flag set to true');
+
+  // Furthermore, that time should persist if we have correctly updated
+  // the hold time
+  const finishedCurrentTime = animation.currentTime;
+  await waitForNextFrame();
+  assert_percents_equal(animation.currentTime, finishedCurrentTime,
+                        'Current time does not change after seeking past the ' +
+                        'effect end time by setting the current time');
+}, 'Setting the start time updates the finished state');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+
+  await animation.ready;
+  assert_equals(animation.playState, 'running');
+
+  // Setting the start time updates the finished state. The hold time is not
+  // constrained by the effect end time.
+  animation.startTime = CSSNumericValue.parse("-110%");
+  assert_equals(animation.playState, 'finished');
+
+  assert_percents_equal(animation.currentTime, 110);
+}, 'Setting the start time on a running animation updates the play state');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+  await animation.ready;
+
+  // Setting the start time updates the finished state. The hold time is not
+  // constrained by the normal range of the animation time.
+  animation.currentTime = CSSNumericValue.parse("100%");
+  assert_equals(animation.playState, 'finished', 'Animation is finished');
+  animation.playbackRate = -1;
+  assert_equals(animation.playState, 'running', 'Animation is running');
+  animation.startTime = CSSNumericValue.parse("-200%");
+  assert_equals(animation.playState, 'finished', 'Animation is finished');
+  assert_percents_equal(animation.currentTime, -200);
+}, 'Setting the start time on a reverse running animation updates the play '
+   + 'state');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  let readyPromiseCallbackCalled = false;
+  animation.ready.then(() => { readyPromiseCallbackCalled = true; } );
+  animation.pause();
+
+  // Sanity check
+  assert_true(animation.pending && animation.playState === 'paused',
+              'Animation is in pause-pending state');
+
+  // Setting the start time should resolve the 'ready' promise although
+  // the resolution callbacks when be run in a separate microtask.
+  animation.startTime = null;
+  assert_false(readyPromiseCallbackCalled,
+               'Ready promise callback is not called synchronously');
+
+  await Promise.resolve();
+  assert_true(readyPromiseCallbackCalled,
+              'Ready promise callback called after setting startTime');
+}, 'Setting the start time resolves a pending pause task');
+
+promise_test(async t => {
+  const anim = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  anim.play();
+
+  // We should be play-pending now
+  assert_true(anim.pending);
+  assert_equals(anim.playState, 'running');
+
+  // Apply a pending playback rate
+  anim.updatePlaybackRate(2);
+  assert_equals(anim.playbackRate, 1);
+  assert_true(anim.pending);
+
+  // Setting the start time should apply the pending playback rate
+  anim.startTime = CSSNumericValue.parse(
+    anim.timeline.currentTime.value - 2500 + "%");
+  assert_equals(anim.playbackRate, 2);
+  assert_false(anim.pending);
+
+  // Sanity check that the start time is preserved and current time is
+  // calculated using the new playback rate
+  assert_percents_equal(anim.startTime,
+                        anim.timeline.currentTime.value - 2500);
+  assert_percents_equal(anim.currentTime, 5000);
+}, 'Setting the start time of a play-pending animation applies a pending '
+   + 'playback rate');
+
+promise_test(async t => {
+  const anim = createScrollLinkedAnimation(t);
+  anim.play();
+  await anim.ready;
+
+  // We should be running now
+  assert_false(anim.pending);
+  assert_equals(anim.playState, 'running');
+
+  // Apply a pending playback rate
+  anim.updatePlaybackRate(2);
+  assert_equals(anim.playbackRate, 1);
+  assert_true(anim.pending);
+
+  // Setting the start time should apply the pending playback rate
+  anim.startTime =  CSSNumericValue.parse(
+    anim.timeline.currentTime.value - 25 + "%");
+  assert_equals(anim.playbackRate, 2);
+  assert_false(anim.pending);
+
+  // Sanity check that the start time is preserved and current time is
+  // calculated using the new playback rate
+  assert_percents_equal(anim.startTime,
+                        anim.timeline.currentTime.value - 25);
+  assert_percents_equal(anim.currentTime, 50);
+}, 'Setting the start time of a playing animation applies a pending playback '
+   + 'rate');
+</script>
+</body>

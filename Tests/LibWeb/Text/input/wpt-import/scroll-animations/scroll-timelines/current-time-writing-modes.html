@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ScrollTimeline current time algorithm - interaction with writing modes</title>
+<link rel="help" href="https://wicg.github.io/scroll-animations/#current-time-algorithm">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="./testcommon.js"></script>
+
+<body></body>
+
+<script>
+'use strict';
+
+promise_test(async t => {
+  const scrollerOverrides = new Map([['direction', 'rtl']]);
+  const scroller = setupScrollTimelineTest(scrollerOverrides);
+  const verticalScrollRange = scroller.scrollHeight - scroller.clientHeight;
+  const horizontalScrollRange = scroller.scrollWidth - scroller.clientWidth;
+
+  const blockScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'block'});
+  const inlineScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'inline'});
+  const horizontalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'x'});
+  const verticalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'y'});
+
+  // Unscrolled, all timelines should read a current time of 0 even though the
+  // X-axis will have started at the right hand side for rtl.
+  assert_percents_equal(blockScrollTimeline.currentTime, 0,
+                        'Unscrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 0,
+                        'Unscrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 0,
+                        'Unscrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 0,
+                        'Unscrolled vertical timeline');
+
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await runAndWaitForFrameUpdate(() => {
+    // The offset in the inline/horizontal direction should be inverted. The
+    // block/vertical direction should be unaffected.
+    scroller.scrollTop = 0.1 * verticalScrollRange;
+    scroller.scrollLeft = -0.8 * horizontalScrollRange;
+  });
+
+  assert_percents_equal(blockScrollTimeline.currentTime, 10,
+                        'Scrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 80,
+                        'Scrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 80,
+                        'Scrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 10,
+                        'Scrolled vertical timeline');
+}, 'currentTime handles direction: rtl correctly');
+
+for (const writingMode of ['vertical-rl', 'sideways-rl']) {
+  promise_test(async t => {
+    const scrollerOverrides = new Map([['writing-mode', writingMode]]);
+    const scroller = setupScrollTimelineTest(scrollerOverrides);
+    const verticalScrollRange = scroller.scrollHeight - scroller.clientHeight;
+    const horizontalScrollRange = scroller.scrollWidth - scroller.clientWidth;
+
+    const blockScrollTimeline = new ScrollTimeline(
+        {source: scroller, axis: 'block'});
+    const inlineScrollTimeline = new ScrollTimeline(
+        {source: scroller, axis: 'inline'});
+    const horizontalScrollTimeline = new ScrollTimeline(
+        {source: scroller, axis: 'x'});
+    const verticalScrollTimeline = new ScrollTimeline(
+        {source: scroller, axis: 'y'});
+
+    // Unscrolled, all timelines should read a current time of 0 even though the
+    // X-axis will have started at the right hand side for *-rl.
+    assert_percents_equal(blockScrollTimeline.currentTime, 0,
+                          'Unscrolled block timeline');
+    assert_percents_equal(inlineScrollTimeline.currentTime, 0,
+                          'Unscrolled inline timeline');
+    assert_percents_equal(horizontalScrollTimeline.currentTime, 0,
+                          'Unscrolled horizontal timeline');
+    assert_percents_equal(verticalScrollTimeline.currentTime, 0,
+                          'Unscrolled vertical timeline');
+
+    // For *-rl, the X-axis starts on the right-hand-side and is the block
+    // axis. The Y-axis is normal but is the inline axis. For the
+    // horizontal/vertical cases, horizontal starts on the right-hand-side and
+    // vertical is normal.
+    scroller.scrollTop = 0.1 * verticalScrollRange;
+    scroller.scrollLeft = -0.8 * horizontalScrollRange;
+    // Wait for new animation frame  which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+
+    assert_percents_equal(blockScrollTimeline.currentTime, 80,
+                          'Scrolled block timeline');
+    assert_percents_equal(inlineScrollTimeline.currentTime, 10,
+                          'Scrolled inline timeline');
+    assert_percents_equal(horizontalScrollTimeline.currentTime, 80,
+                          'Scrolled horizontal timeline');
+    assert_percents_equal(verticalScrollTimeline.currentTime, 10,
+                          'Scrolled vertical timeline');
+  }, `currentTime handles writing-mode: ${writingMode} correctly`);
+}
+
+promise_test(async t => {
+  const scrollerOverrides = new Map([['writing-mode', 'vertical-lr']]);
+  const scroller = setupScrollTimelineTest(scrollerOverrides);
+  const verticalScrollRange = scroller.scrollHeight - scroller.clientHeight;
+  const horizontalScrollRange = scroller.scrollWidth - scroller.clientWidth;
+
+  const blockScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'block'});
+  const inlineScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'inline'});
+  const horizontalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'x'});
+  const verticalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'y'});
+
+  // Unscrolled, all timelines should read a current time of 0.
+  assert_percents_equal(blockScrollTimeline.currentTime, 0,
+                        'Unscrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 0,
+                        'Unscrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 0,
+                        'Unscrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 0,
+                        'Unscrolled vertical timeline');
+
+  // For vertical-lr, both axes start at their 'normal' positions but the X-axis
+  // is the block direction and the Y-axis is the inline direction. This does
+  // not affect horizontal/vertical.
+  scroller.scrollTop = 0.1 * verticalScrollRange;
+  scroller.scrollLeft = 0.2 * horizontalScrollRange;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  assert_percents_equal(blockScrollTimeline.currentTime, 20,
+                        'Scrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 10,
+                        'Scrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 20,
+                        'Scrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 10,
+                        'Scrolled vertical timeline');
+}, 'currentTime handles writing-mode: vertical-lr correctly');
+
+promise_test(async t => {
+  const scrollerOverrides = new Map([['writing-mode', 'sideways-lr']]);
+  const scroller = setupScrollTimelineTest(scrollerOverrides);
+  const verticalScrollRange = scroller.scrollHeight - scroller.clientHeight;
+  const horizontalScrollRange = scroller.scrollWidth - scroller.clientWidth;
+
+  const blockScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'block'});
+  const inlineScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'inline'});
+  const horizontalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'x'});
+  const verticalScrollTimeline = new ScrollTimeline(
+      {source: scroller, axis: 'y'});
+
+  // Unscrolled, all timelines should read a current time of 0.
+  assert_percents_equal(blockScrollTimeline.currentTime, 0,
+                        'Unscrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 0,
+                        'Unscrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 0,
+                        'Unscrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 0,
+                        'Unscrolled vertical timeline');
+
+  // For sideways-lr, the Y-axis starts on the end side and is the inline axis.
+  // The X-axis is normal but is the block axis.
+  scroller.scrollTop = -0.8 * verticalScrollRange;
+  scroller.scrollLeft = 0.2 * horizontalScrollRange;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  assert_percents_equal(blockScrollTimeline.currentTime, 20,
+                        'Scrolled block timeline');
+  assert_percents_equal(inlineScrollTimeline.currentTime, 80,
+                        'Scrolled inline timeline');
+  assert_percents_equal(horizontalScrollTimeline.currentTime, 20,
+                        'Scrolled horizontal timeline');
+  assert_percents_equal(verticalScrollTimeline.currentTime, 80,
+                        'Scrolled vertical timeline');
+}, 'currentTime handles writing-mode: sideways-lr correctly');
+</script>

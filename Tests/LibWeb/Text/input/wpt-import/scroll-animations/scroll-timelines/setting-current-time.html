@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Setting the current time of an animation</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations-1/#setting-the-current-time-of-an-animation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  height: 200px;
+  width: 100px;
+  will-change: transform;
+}
+.contents {
+  height: 1000px;
+  width: 100%;
+}
+</style>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+
+  assert_throws_js(TypeError, () => {
+    animation.currentTime = null;
+  });
+}, 'Setting animation current time to null throws TypeError.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  assert_throws_js(TypeError, () => {
+    animation.currentTime = CSSNumericValue.parse("300");
+  });
+  assert_throws_js(TypeError, () => {
+    animation.currentTime = CSSNumericValue.parse("300ms");
+  });
+  assert_throws_js(TypeError, () => {
+    animation.currentTime = CSSNumericValue.parse("0.3s");
+  });
+}, 'Setting the current time to an absolute time value throws exception');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  animation.currentTime = CSSNumericValue.parse("33.3%");
+
+  assert_percents_equal(animation.currentTime, 33.3,
+    "Animation current time should be equal to the set value."
+  );
+}, 'Set animation current time to a valid value without playing.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+  animation.currentTime = CSSNumericValue.parse("33.3%");
+
+  assert_percents_equal(animation.currentTime, 33.3,
+    "Animation current time should be equal to the set value."
+  );
+}, 'Set animation current time to a valid value while playing.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+  animation.currentTime = CSSNumericValue.parse("200%");
+
+  assert_equals(animation.playState, "finished");
+  assert_percents_equal(animation.currentTime, 200,
+    "Animation current time should be equal to the set value."
+  );
+}, 'Set animation current time to a value beyond effect end.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+  animation.currentTime = CSSNumericValue.parse("-10%");
+
+  assert_equals(animation.playState, "running");
+  assert_percents_equal(animation.currentTime, -10,
+    "Animation current time should be equal to the set value."
+  );
+}, 'Set animation current time to a negative value.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  animation.currentTime = CSSNumericValue.parse("30%");
+
+  assert_equals(animation.playState, "running");
+  assert_true(animation.pending);
+  assert_percents_equal(animation.currentTime, 30);
+}, "Setting current time while play pending overrides the current time");
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+  animation.currentTime = CSSNumericValue.parse("33.3%");
+
+  assert_percents_equal(animation.currentTime, 33.3,
+    "Animation current time should be equal to the set value."
+  );
+
+  // Cancel the animation and play it again, check that current time has reset
+  // to scroll offset based current time.
+  animation.cancel();
+  animation.play();
+  await animation.ready;
+
+  assert_percents_equal(animation.currentTime, animation.timeline.currentTime,
+    "Animation current time should return to a value matching its" +
+    " timeline current time after animation is cancelled and played again."
+  );
+}, 'Setting animation.currentTime then restarting the animation should' +
+  ' reset the current time.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+  const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = 0.25 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  await animation.ready;
+  const originalCurrentTime = animation.currentTime.value;
+
+  // Set the current time to something other than where the scroll offset.
+  animation.currentTime = CSSNumericValue.parse("50%");
+
+  // Setting current time is internally setting the start time to
+  // scrollTimeline.currentTime - newAnimationCurrentTime.
+  // Which results in current time of (timeline.currentTime - start_time).
+  // This behavior puts the animation in a strange "out of sync" state between
+  // the scroller and the animation effect, this is currently expected
+  // behavior.
+
+  const expectedStartTime = originalCurrentTime - animation.currentTime.value;
+  assert_percents_equal(animation.startTime, expectedStartTime,
+    "Animation current time should be updated when setting the current time" +
+    " to a time within the range of the animation.");
+
+  scroller.scrollTop = 0.7 * maxScroll;
+  // Wait for new animation frame  which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+
+  assert_percents_equal(animation.startTime, expectedStartTime,
+    "Animation start time should remain unchanged when the scroller changes" +
+    " position."
+  );
+  assert_percents_equal(animation.currentTime,
+    animation.timeline.currentTime.value - animation.startTime.value,
+    "Animation current time should return to a value equal to" +
+    " (timeline.currentTime - animation.startTime) after timeline scroll" +
+    " source has been scrolled."
+  );
+}, 'Set Animation current time then scroll.');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  const scroller = animation.timeline.source;
+
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  await animation.ready;
+
+  // Make the timeline inactive.
+  await runAndWaitForFrameUpdate(() => {
+    scroller.style.overflow = 'visible';
+  });
+
+  assert_equals(animation.currentTime, null,
+    'Current time is unresolved when the timeline is inactive.');
+
+  animation.currentTime = CSSNumericValue.parse("30%");
+  assert_percents_equal(animation.currentTime, 30,
+    'Animation current time should be equal to the set value.');
+  assert_equals(animation.playState, 'paused',
+    'Animation play state is \'paused\' when current time is set and ' +
+    'timeline is inactive.');
+}, 'Animation current time and play state are correct when current time is ' +
+   'set while the timeline is inactive.');
+
+promise_test(async t => {
+    const animation = createScrollLinkedAnimation(t);
+    const scroller = animation.timeline.source;
+
+    // Wait for new animation frame which allows the timeline to compute new
+    // current time.
+    await waitForNextFrame();
+    animation.play();
+    await animation.ready;
+
+    // Make the timeline inactive.
+    await runAndWaitForFrameUpdate(() => {
+      scroller.style.overflow = 'visible';
+    });
+
+    assert_equals(animation.timeline.currentTime, null,
+      'Current time is unresolved when the timeline is inactive.');
+
+    animation.currentTime = CSSNumericValue.parse("30%");
+    assert_percents_equal(animation.currentTime, 30,
+      'Animation current time should be equal to the set value.');
+    assert_equals(animation.playState, 'paused',
+      'Animation play state is \'paused\' when current time is set and ' +
+      'timeline is inactive.');
+
+    // Make the timeline active.
+    await runAndWaitForFrameUpdate(() => {
+      scroller.style.overflow = 'auto';
+    });
+
+    assert_percents_equal(animation.timeline.currentTime, 0,
+      'Current time is resolved when the timeline is active.');
+    assert_percents_equal(animation.currentTime, 30,
+      'Animation current time holds the set value.');
+    assert_equals(animation.playState, 'paused',
+      'Animation holds \'paused\' state.');
+}, 'Animation current time set while the timeline is inactive holds when the ' +
+   'timeline becomes active again.');
+</script>
+</body>

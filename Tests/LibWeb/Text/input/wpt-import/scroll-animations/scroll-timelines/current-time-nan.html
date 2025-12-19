@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ScrollTimeline current time algorithm - NaN cases</title>
+<link rel="help" href="https://wicg.github.io/scroll-animations/#current-time-algorithm">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.scroller {
+  height: 100px;
+  width: 100px;
+  overflow: auto;
+}
+
+.content {
+  height: 500px;
+  width: 500px;
+}
+</style>
+
+<div id='inlineScroller' class='scroller' style='display: inline;'>
+  <div class='content'></div>
+</div>
+<script>
+'use strict';
+
+test(function() {
+  const scroller = document.querySelector('#inlineScroller');
+  const scrollTimeline = new ScrollTimeline(
+      { source: scroller, orientation: 'block' });
+
+  assert_equals(scrollTimeline.currentTime, null);
+}, 'currentTime should be null for a display: inline source');
+</script>
+
+<div id='displayNoneScroller' class='scroller' style='display: none;'>
+  <div class='content'></div>
+</div>
+<script>
+test(function() {
+  const scroller = document.querySelector('#displayNoneScroller');
+  const scrollTimeline = new ScrollTimeline(
+      { source: scroller, orientation: 'block' });
+
+  assert_equals(scrollTimeline.currentTime, null);
+}, 'currentTime should be null for a display: none source');
+</script>
+
+<script>
+test(function() {
+  const scroller = document.createElement('div');
+  const content = document.createElement('div');
+
+  scroller.style.overflow = 'auto';
+  scroller.style.height = '100px';
+  scroller.style.width = '100px';
+  content.style.height = '250px';
+  content.style.width = '250px';
+
+  scroller.appendChild(content);
+
+  const scrollTimeline = new ScrollTimeline(
+      { source: scroller, orientation: 'block' });
+
+  assert_equals(scrollTimeline.currentTime, null);
+}, 'currentTime should be null for an unattached source');
+</script>
+
+<div id='notAScroller' class='scroller' style='overflow: visible;'>
+  <div class='content'></div>
+</div>
+<script>
+test(function() {
+  const scroller = document.querySelector('#notAScroller');
+  const scrollTimeline = new ScrollTimeline(
+      { source: scroller, orientation: 'block' });
+
+  assert_equals(scrollTimeline.currentTime, null);
+}, 'currentTime should be null when the source is not a scroller');
+</script>

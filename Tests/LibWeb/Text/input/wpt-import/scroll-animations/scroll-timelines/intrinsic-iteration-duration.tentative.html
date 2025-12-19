@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Scroll based animation: AnimationEffect.getComputedTiming</title>
+<link rel="help" href="https://www.w3.org/TR/web-animations-2/#dom-animationeffect-getcomputedtiming">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+  .scroller {
+    overflow: auto;
+    height: 100px;
+    width: 100px;
+    will-change: transform;
+  }
+  .contents {
+    height: 1000px;
+    width: 100%;
+  }
+</style>
+<body>
+<div id="log"></div>
+<script type="text/javascript">
+
+//------------------------------------
+// Time-based duration
+//------------------------------------
+
+test(t => {
+  const anim = createScrollLinkedAnimationWithTiming(t, {duration: 1000 });
+  assert_equals(anim.effect.getTiming().duration, 1000);
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 100);
+}, 'Computed duration in percent even when specified in ms');
+
+test(t => {
+  const anim = createScrollLinkedAnimationWithTiming(t, { duration: 1000 });
+  anim.rangeStart = { offset: CSS.percent(20) };
+  anim.rangeEnd = { offset: CSS.percent(80) };
+  assert_equals(anim.effect.getTiming().duration, 1000);
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 60);
+}, 'Time-based duration normalized to fill animation range.');
+
+test(t => {
+  const anim =
+      createScrollLinkedAnimationWithTiming(
+          t, {duration: 700, delay: 100, endDelay: 200 });
+  assert_equals(anim.effect.getTiming().duration, 700);
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 70);
+}, 'Time-based duration normalized to preserve proportional delays.');
+
+//-------------------------------------------------
+// Duration 'auto' = Intrinsic iteration duration
+//-------------------------------------------------
+
+test(t => {
+  const anim = createScrollLinkedAnimationWithTiming(t, {});
+  assert_equals(anim.effect.getTiming().duration, 'auto');
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 100);
+}, 'Intrinsic iteration duration fills timeline.');
+
+test(t => {
+  const anim = createScrollLinkedAnimationWithTiming(t, {});
+  anim.rangeStart = { offset: CSS.percent(30) };
+  anim.rangeEnd = { offset: CSS.percent(90) };
+  assert_equals(anim.effect.getTiming().duration, 'auto');
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 60);
+}, 'Intrinsic iteration duration accounts for animation range.');
+
+test(t => {
+  const anim =
+      createScrollLinkedAnimationWithTiming(
+          t, { iterations: 4 });
+  assert_equals(anim.effect.getTiming().duration, 'auto');
+  assert_percents_equal(anim.effect.getComputedTiming().duration, 25);
+}, 'Intrinsic iteration duration accounts for number of iterations');
+
+</script>
+</body>
