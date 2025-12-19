@@ -1065,10 +1065,8 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
     return {};
 }
 
-DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp)
+DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp, Vector<TrackCuePoint> const& cue_points, CuePointTarget target)
 {
-    auto const& cue_points = MUST(cue_points_for_track(iterator.m_track->track_number())).release_value();
-
     // Take a guess at where in the cues the timestamp will be and correct from there.
     auto duration = TRY(segment_information()).duration();
     size_t index = 0;
@@ -1079,7 +1077,7 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
     dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp.to_milliseconds());
 
     if (prev_cue_point->timestamp == timestamp) {
-        TRY(iterator.seek_to_cue_point(*prev_cue_point));
+        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
         return {};
     }
 
@@ -1088,7 +1086,7 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
             prev_cue_point = &cue_points[--index];
             dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp.to_milliseconds());
         }
-        TRY(iterator.seek_to_cue_point(*prev_cue_point));
+        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
         return {};
     }
 
@@ -1100,7 +1098,7 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
         prev_cue_point = &cue_point;
     }
 
-    TRY(iterator.seek_to_cue_point(*prev_cue_point));
+    TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
     return {};
 }
 
@@ -1150,14 +1148,25 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
 {
     timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
 
-    if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
-        TRY(seek_to_cue_for_timestamp(iterator, timestamp));
+    auto cue_points = TRY(cue_points_for_track(iterator.m_track->track_number()));
+    auto seek_target = CuePointTarget::Block;
+
+    // If no cues are present for the track, use the first track's cues.
+    if (!cue_points.has_value() && !m_cues.is_empty()) {
+        auto first_track_number = m_tracks.begin()->key;
+        cue_points = m_cues.get(first_track_number);
+        seek_target = CuePointTarget::Cluster;
+    }
+
+    if (cue_points.has_value()) {
+        TRY(seek_to_cue_for_timestamp(iterator, timestamp, cue_points.value(), seek_target));
         VERIFY(iterator.last_timestamp().has_value());
-        return iterator;
     }
 
     if (!iterator.last_timestamp().has_value() || timestamp < iterator.last_timestamp().value()) {
         // If the timestamp is before the iterator's current position, then we need to start from the beginning of the Segment.
+        if (timestamp > AK::Duration::zero())
+            warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track->track_number());
         iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track->track_number()));
         TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
         return iterator;
@@ -1217,7 +1226,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_point)
+DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget target)
 {
     // This is a private function. The position getter can return optional, but the caller should already know that this track has a position.
     auto const& cue_position = cue_point.position;
@@ -1231,8 +1240,13 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_
     m_current_cluster = TRY(parse_cluster(streamer, m_segment_timestamp_scale));
     dbgln_if(MATROSKA_DEBUG, "SampleIterator set to cue point at timestamp {}ms", m_current_cluster->timestamp().to_milliseconds());
 
-    m_position = streamer.position() + cue_position.block_offset();
-    m_last_timestamp = cue_point.timestamp;
+    if (target == CuePointTarget::Cluster) {
+        m_position = streamer.position();
+        m_last_timestamp = m_current_cluster->timestamp();
+    } else {
+        m_position = streamer.position() + cue_position.block_offset();
+        m_last_timestamp = cue_point.timestamp;
+    }
     return {};
 }
 
