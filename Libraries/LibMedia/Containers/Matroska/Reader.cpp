@@ -774,11 +774,13 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset.value());
 }
 
-static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block::Lacing lacing, size_t content_size)
+DecoderErrorOr<Vector<ByteBuffer>> Reader::get_frames(Block block)
 {
+    Streamer streamer { m_stream_cursor };
+    TRY(streamer.seek_to_position(block.data_position()));
     Vector<ByteBuffer> frames;
 
-    if (lacing == Block::Lacing::EBML) {
+    if (block.lacing() == Block::Lacing::EBML) {
         auto octets_read_before_frame_sizes = streamer.octets_read();
         auto frame_count = TRY(streamer.read_octet()) + 1;
         Vector<u64> frame_sizes;
@@ -803,19 +805,19 @@ static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block
             frame_size_sum += frame_size;
             previous_frame_size = frame_size;
         }
-        frame_sizes.append(content_size - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
+        frame_sizes.append(block.data_size() - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
 
         for (int i = 0; i < frame_count; i++) {
             // FIXME: ReadonlyBytes instead of copying the frame data?
             auto current_frame_size = frame_sizes.at(i);
             frames.append(TRY(streamer.read_raw_octets(current_frame_size)));
         }
-    } else if (lacing == Block::Lacing::FixedSize) {
+    } else if (block.lacing() == Block::Lacing::FixedSize) {
         auto frame_count = TRY(streamer.read_octet()) + 1;
-        auto individual_frame_size = content_size / frame_count;
+        auto individual_frame_size = block.data_size() / frame_count;
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY(streamer.read_raw_octets(individual_frame_size)));
-    } else if (lacing == Block::Lacing::XIPH) {
+    } else if (block.lacing() == Block::Lacing::XIPH) {
         auto frames_start_position = streamer.octets_read();
 
         auto frame_count_minus_one = TRY(streamer.read_octet());
@@ -836,9 +838,9 @@ static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block
 
         for (auto i = 0; i < frame_count_minus_one; i++)
             frames.append(TRY(streamer.read_raw_octets(frame_sizes[i])));
-        frames.append(TRY(streamer.read_raw_octets(content_size - (streamer.octets_read() - frames_start_position))));
+        frames.append(TRY(streamer.read_raw_octets(block.data_size() - (streamer.octets_read() - frames_start_position))));
     } else {
-        frames.append(TRY(streamer.read_raw_octets(content_size)));
+        frames.append(TRY(streamer.read_raw_octets(block.data_size())));
     }
 
     return frames;
@@ -869,8 +871,10 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     block.set_lacing(static_cast<Block::Lacing>((flags & 0b110u) >> 1u));
     block.set_discardable((flags & 1u) != 0);
 
-    auto data_size = content_end - streamer.position();
-    block.set_frames(TRY(parse_frames(streamer, block.lacing(), data_size)));
+    auto data_position = streamer.position();
+    auto data_size = content_end - data_position;
+    block.set_data(data_position, data_size);
+    TRY(streamer.seek_to_position(content_end));
     return block;
 }
 
@@ -898,8 +902,10 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
             block.set_invisible((flags & (1u << 3)) != 0);
             block.set_lacing(static_cast<Block::Lacing>((flags & 0b110) >> 1u));
 
-            auto data_size = content_end - streamer.position();
-            block.set_frames(TRY(parse_frames(streamer, block.lacing(), data_size)));
+            auto data_position = streamer.position();
+            auto data_size = content_end - data_position;
+            block.set_data(data_position, data_size);
+            TRY(streamer.seek_to_position(content_end));
             break;
         }
         case BLOCK_DURATION_ID: {
