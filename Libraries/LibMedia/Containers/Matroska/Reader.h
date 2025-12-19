@@ -26,6 +26,11 @@ struct TrackCuePoint {
     CueTrackPosition position;
 };
 
+enum class CuePointTarget : u8 {
+    Cluster,
+    Block,
+};
+
 class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
@@ -65,7 +70,7 @@ private:
 
     DecoderErrorOr<void> parse_cues(Streamer&);
     DecoderErrorOr<void> ensure_cues_are_parsed();
-    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&);
+    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
 
@@ -105,7 +110,7 @@ private:
     {
     }
 
-    DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point);
+    DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
     NonnullRefPtr<TrackEntry> m_track;
