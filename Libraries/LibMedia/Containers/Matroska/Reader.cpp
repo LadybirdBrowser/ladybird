@@ -856,8 +856,8 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     set_block_duration_to_default(block, track);
 
     auto content_size = TRY(streamer.read_variable_size_integer());
+    auto content_end = streamer.position() + content_size;
 
-    auto position_before_track_number = streamer.position();
     block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
     auto timestamp_offset = TRY(streamer.read_i16());
@@ -869,8 +869,8 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     block.set_lacing(static_cast<Block::Lacing>((flags & 0b110u) >> 1u));
     block.set_discardable((flags & 1u) != 0);
 
-    auto remaining_size = content_size - (streamer.position() - position_before_track_number);
-    block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+    auto data_size = content_end - streamer.position();
+    block.set_frames(TRY(parse_frames(streamer, block.lacing(), data_size)));
     return block;
 }
 
@@ -887,8 +887,8 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
                 return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Block group contained multiple blocks"sv);
 
             auto content_size = TRY(streamer.read_variable_size_integer());
+            auto content_end = streamer.position() + content_size;
 
-            auto position_before_track_number = streamer.position();
             block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
             auto timestamp_offset = TRY(streamer.read_i16());
@@ -898,8 +898,8 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
             block.set_invisible((flags & (1u << 3)) != 0);
             block.set_lacing(static_cast<Block::Lacing>((flags & 0b110) >> 1u));
 
-            auto remaining_size = content_size - (streamer.position() - position_before_track_number);
-            block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+            auto data_size = content_end - streamer.position();
+            block.set_frames(TRY(parse_frames(streamer, block.lacing(), data_size)));
             break;
         }
         case BLOCK_DURATION_ID: {
