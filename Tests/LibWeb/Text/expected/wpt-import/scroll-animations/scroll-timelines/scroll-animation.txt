@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Animation start and current times are correct for each animation state.
+Fail	Animation start and current times are correct for each animation state when the animation starts playing with advanced scroller.
+Fail	Finished animation plays on reverse scrolling.
+Fail	Sending animation finished events by finished animation on reverse scrolling.

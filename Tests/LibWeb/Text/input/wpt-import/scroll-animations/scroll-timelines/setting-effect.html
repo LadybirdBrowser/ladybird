@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Setting the effect of a scroll-driven animation</title>
+<link rel="help"
+      href="https://drafts.csswg.org/web-animations-1/#setting-the-associated-effect">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    height: 100px;
+    width: 100px;
+  }
+
+  #target {
+    width: 100%;
+    height: 1000%;
+    background-color: green;
+  }
+</style>
+<body>
+
+<div id="scroller">
+    <div id="target"></div>
+</div>
+
+<script>
+'use strict';
+
+test(() => {
+  const scroller = document.getElementById("scroller");
+  const target = document.getElementById("target");
+
+  const timeline = new ScrollTimeline({ source: scroller });
+  const animation = target.animate(null, { timeline });
+  assert_percents_equal(animation.effect.getComputedTiming().endTime, 100);
+
+  animation.effect = new KeyframeEffect(target, { opacity: [0, 1] });
+  assert_percents_equal(animation.effect.getComputedTiming().endTime, 100);
+}, 'Setting the effect of scroll-driven animation computes percentage timing values.');
+
+</script>
+</body>
