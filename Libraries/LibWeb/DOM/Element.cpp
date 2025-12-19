@@ -1771,17 +1771,17 @@ bool Element::is_potentially_scrollable() const
     VERIFY(is<HTML::HTMLBodyElement>(this) || is<HTML::HTMLFrameSetElement>(this));
 
     // Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
-    VERIFY(parent());
+    VERIFY(parent_element());
 
     // - body has an associated box.
     // - body’s parent element’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
     // - body’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
     return layout_node()
-        && (parent()->layout_node()
-            && parent()->layout_node()->computed_values().overflow_x() != CSS::Overflow::Visible && parent()->layout_node()->computed_values().overflow_x() != CSS::Overflow::Clip
-            && parent()->layout_node()->computed_values().overflow_y() != CSS::Overflow::Visible && parent()->layout_node()->computed_values().overflow_y() != CSS::Overflow::Clip)
-        && (layout_node()->computed_values().overflow_x() != CSS::Overflow::Visible && layout_node()->computed_values().overflow_x() != CSS::Overflow::Clip
-            && layout_node()->computed_values().overflow_y() != CSS::Overflow::Visible && layout_node()->computed_values().overflow_y() != CSS::Overflow::Clip);
+        && (parent_element()->computed_properties()
+            && !first_is_one_of(parent_element()->computed_properties()->overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip)
+            && !first_is_one_of(parent_element()->computed_properties()->overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
+        && (!first_is_one_of(computed_properties()->overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip)
+            && !first_is_one_of(computed_properties()->overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip));
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrolltop

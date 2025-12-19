@@ -1,0 +1,16 @@
+<!DOCTYPE quirks>
+<html>
+    <style>
+        html,
+        body {
+            overflow: hidden;
+        }
+    </style>
+    <body></body>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(document.scrollingElement == null);
+        });
+    </script>
+</html>
