@@ -1113,15 +1113,15 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
         SampleIterator rewind_iterator = iterator;
         auto block = TRY(iterator.next_block());
 
+        if (block.timestamp() > timestamp)
+            break;
+
         if (block.only_keyframes()) {
             last_keyframe.emplace(rewind_iterator);
 #if MATROSKA_DEBUG
             inter_frames_count = 0;
 #endif
         }
-
-        if (block.timestamp() > timestamp)
-            break;
 
 #if MATROSKA_DEBUG
         inter_frames_count++;
