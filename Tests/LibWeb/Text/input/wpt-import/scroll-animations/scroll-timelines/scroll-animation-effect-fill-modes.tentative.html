@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Verify applied effect output for all fill modes in all timeline states: before start, at start, in range, at end, after end while using various effect delay values</title>
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+  .scroller {
+    overflow: hidden;
+    height: 200px;
+    width: 200px;
+  }
+  .contents {
+    /* Make scroll range 1000 to simplify the math and avoid rounding errors */
+    height: 1200px;
+    width: 100%;
+  }
+</style>
+<div id="log"></div>
+<script>
+  'use strict';
+
+  test(t => {
+    const effect = new KeyframeEffect(createDiv(t), { opacity: [0.3, 0.7] });
+    const animation = new Animation(effect, createScrollTimeline(t));
+
+    assert_equals(effect.getTiming().fill, "auto");
+    assert_equals(effect.getComputedTiming().fill, "none");
+  }, "Scroll based animation effect fill mode should return 'auto' for" +
+     " getTiming() and should return 'none' for getComputedTiming().")
+
+  /* All interesting transitions:
+      before start delay
+      at start delay
+      within active phase
+      at effect end
+      after effect end
+
+      test_case data structure:
+      fill_mode: {
+        scroll_percentage: ["state description", expected applied effect value]
+      }
+  */
+  const test_cases = {
+    "none": {
+      0.10: ["before start delay", 1],
+      0.25: ["at start delay", 0.3],
+      0.50: ["at midpoint", 0.5],
+      0.75: ["at effect end", 1],
+      0.90: ["after effect end", 1]
+    },
+    "backwards": {
+      0.10: ["before start delay", 0.3],
+      0.25: ["at start delay", 0.3],
+      0.50: ["at midpoint", 0.5],
+      0.75: ["at effect end", 1],
+      0.90: ["after effect end", 1]
+    },
+    "forwards": {
+      0.10: ["before timeline start", 1],
+      0.25: ["at timeline start", 0.3],
+      0.50: ["in timeline range", 0.5],
+      0.75: ["at timeline end", 0.7],
+      0.90: ["after timeline end", 0.7]
+    },
+    "both": {
+      0.10: ["before timeline start", 0.3],
+      0.25: ["at timeline start", 0.3],
+      0.50: ["in timeline range", 0.5],
+      0.75: ["at timeline end", 0.7],
+      0.90: ["after timeline end", 0.7]
+    },
+    "auto": {
+      0.10: ["before timeline start", 1],
+      0.25: ["at timeline start", 0.3],
+      0.50: ["in timeline range", 0.5],
+      0.75: ["at timeline end", 1],
+      0.90: ["after timeline end", 1]
+    }
+  }
+
+  for (const fill_mode in test_cases) {
+    const scroll_percents = test_cases[fill_mode]
+
+    for (const scroll_percentage in scroll_percents) {
+      const expectation = scroll_percents[scroll_percentage];
+
+      const [test_name, expected_value] = expectation;
+
+      const description =
+          `Applied effect value ${test_name} with fill: ${fill_mode}`
+      promise_test(
+          create_scroll_timeline_fill_test(
+              fill_mode, scroll_percentage, expected_value),
+          description);
+    }
+  }
+
+  function create_scroll_timeline_fill_test(
+      fill_mode, scroll_percentage, expected){
+    return async t => {
+      const target = createDiv(t);
+
+      const timeline = createScrollTimeline(t);
+      const effect =
+          new KeyframeEffect(target,
+                             { opacity: [0.3, 0.7] },
+                             {
+                               fill: fill_mode,
+                               /* Animation times normalized to fill scroll
+                                  range */
+                               duration: 2000,
+                               delay: 1000,
+                               endDelay: 1000
+                             });
+      const animation = new Animation(effect, timeline);
+      const scroller = timeline.source;
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+      animation.play();
+
+      await animation.ready;
+
+      scroller.scrollTop = scroll_percentage * maxScroll;
+
+      // Wait for new animation frame which allows the timeline to compute
+      // new current time.
+      await waitForNextFrame();
+      await waitForNextFrame();
+
+      assert_equals(parseFloat(window.getComputedStyle(target).opacity),
+                    expected,
+                    "animation effect applied property value");
+    }
+  }
+</script>

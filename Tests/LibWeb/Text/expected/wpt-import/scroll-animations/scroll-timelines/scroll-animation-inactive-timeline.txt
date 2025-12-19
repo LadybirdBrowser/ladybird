@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	Play pending task doesn't run when the timeline is inactive.
+Fail	Animation start and current times are correct if scroll timeline is activated after animation.play call.
+Fail	Animation start and current times are correct if scroll timeline is activated after setting start time.
+Fail	Animation current time is correct when the timeline becomes newly inactive and then active again.

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	A ScrollTimeline can be created with a source
+Fail	A ScrollTimeline can be created with a non-scrolling source
+Fail	A ScrollTimeline created with a null source should have no source
+Fail	A ScrollTimeline created without a source should use the document.scrollingElement
+Fail	A ScrollTimeline created with the default axis should default to 'block'
+Fail	'block' is a valid axis value
+Fail	'inline' is a valid axis value
+Fail	'x' is a valid axis value
+Fail	'y' is a valid axis value
+Fail	Creating a ScrollTimeline with an invalid axis value should throw
