@@ -117,7 +117,7 @@ private:
     Bindings::IDBTransactionDurability m_durability { Bindings::IDBTransactionDurability::Default };
 
     // A transaction has a state
-    TransactionState m_state;
+    TransactionState m_state { TransactionState::Active };
 
     // A transaction has a error which is set if the transaction is aborted.
     GC::Ptr<WebIDL::DOMException> m_error;
