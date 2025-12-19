@@ -1037,7 +1037,7 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
 
             for (auto const& [track_id, track_position] : cue_point.track_positions()) {
                 auto& cue_points_for_track = m_cues.ensure(track_id);
-                cue_points_for_track.append(cue_point);
+                cue_points_for_track.append({ cue_point.timestamp(), track_position });
             }
             break;
         }
@@ -1075,18 +1075,18 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
     if (duration.has_value())
         index = clamp(((timestamp.to_nanoseconds() * cue_points.size()) / TRY(segment_information()).duration()->to_nanoseconds()), 0, cue_points.size() - 1);
 
-    CuePoint const* prev_cue_point = &cue_points[index];
-    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp().to_milliseconds());
+    auto const* prev_cue_point = &cue_points[index];
+    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp.to_milliseconds());
 
-    if (prev_cue_point->timestamp() == timestamp) {
+    if (prev_cue_point->timestamp == timestamp) {
         TRY(iterator.seek_to_cue_point(*prev_cue_point));
         return {};
     }
 
-    if (prev_cue_point->timestamp() > timestamp) {
-        while (index > 0 && prev_cue_point->timestamp() > timestamp) {
+    if (prev_cue_point->timestamp > timestamp) {
+        while (index > 0 && prev_cue_point->timestamp > timestamp) {
             prev_cue_point = &cue_points[--index];
-            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp().to_milliseconds());
+            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp.to_milliseconds());
         }
         TRY(iterator.seek_to_cue_point(*prev_cue_point));
         return {};
@@ -1094,8 +1094,8 @@ DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator,
 
     while (++index < cue_points.size()) {
         auto const& cue_point = cue_points[index];
-        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", cue_point.timestamp().to_milliseconds());
-        if (cue_point.timestamp() > timestamp)
+        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", cue_point.timestamp.to_milliseconds());
+        if (cue_point.timestamp > timestamp)
             break;
         prev_cue_point = &cue_point;
     }
@@ -1167,7 +1167,7 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
     return iterator;
 }
 
-DecoderErrorOr<Optional<Vector<CuePoint> const&>> Reader::cue_points_for_track(u64 track_number)
+DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> Reader::cue_points_for_track(u64 track_number)
 {
     TRY(ensure_cues_are_parsed());
     return m_cues.get(track_number);
@@ -1217,10 +1217,10 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point)
+DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_point)
 {
     // This is a private function. The position getter can return optional, but the caller should already know that this track has a position.
-    auto const& cue_position = cue_point.position_for_track(m_track->track_number()).release_value();
+    auto const& cue_position = cue_point.position;
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(m_segment_contents_position + cue_position.cluster_position()));
 
@@ -1232,7 +1232,7 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point
     dbgln_if(MATROSKA_DEBUG, "SampleIterator set to cue point at timestamp {}ms", m_current_cluster->timestamp().to_milliseconds());
 
     m_position = streamer.position() + cue_position.block_offset();
-    m_last_timestamp = cue_point.timestamp();
+    m_last_timestamp = cue_point.timestamp;
     return {};
 }
 

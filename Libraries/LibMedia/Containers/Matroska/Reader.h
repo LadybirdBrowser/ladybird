@@ -21,6 +21,11 @@ namespace Media::Matroska {
 class SampleIterator;
 class Streamer;
 
+struct TrackCuePoint {
+    AK::Duration timestamp;
+    CueTrackPosition position;
+};
+
 class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
@@ -40,7 +45,7 @@ public:
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
-    DecoderErrorOr<Optional<Vector<CuePoint> const&>> cue_points_for_track(u64 track_number);
+    DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> cue_points_for_track(u64 track_number);
     DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
 
 private:
@@ -77,7 +82,7 @@ private:
     OrderedHashMap<u64, NonnullRefPtr<TrackEntry>> m_tracks;
 
     // The vectors must be sorted by timestamp at all times.
-    HashMap<u64, Vector<CuePoint>> m_cues;
+    HashMap<u64, Vector<TrackCuePoint>> m_cues;
     bool m_cues_have_been_parsed { false };
 };
 
@@ -100,7 +105,7 @@ private:
     {
     }
 
-    DecoderErrorOr<void> seek_to_cue_point(CuePoint const& cue_point);
+    DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
     NonnullRefPtr<TrackEntry> m_track;
