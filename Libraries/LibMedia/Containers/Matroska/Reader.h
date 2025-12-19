@@ -53,6 +53,8 @@ public:
     DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> cue_points_for_track(u64 track_number);
     DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
 
+    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
+
 private:
     Reader(IncrementallyPopulatedStream::Cursor& stream_cursor)
         : m_stream_cursor(stream_cursor)
@@ -94,6 +96,7 @@ private:
 class MEDIA_API SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
+    DecoderErrorOr<AK::Duration> next_block_timestamp();
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
