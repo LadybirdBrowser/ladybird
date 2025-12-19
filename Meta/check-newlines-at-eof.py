@@ -41,35 +41,27 @@ def find_files_here_or_argv():
 def run():
     """Check files checked in to git for trailing newlines at end of file."""
     no_newline_at_eof_errors = []
-    blank_lines_at_eof_errors = []
+    whitespace_at_eof_errors = []
 
-    did_fail = False
     for filename in find_files_here_or_argv():
-        with open(filename, "r") as f:
-            f.seek(0, os.SEEK_END)
+        with open(filename, "r", newline="") as f:
+            content = f.read()
 
-            f.seek(f.tell() - 1, os.SEEK_SET)
-            if f.read(1) != "\n":
-                did_fail = True
-                no_newline_at_eof_errors.append(filename)
-                continue
+        if not content.endswith("\n"):
+            no_newline_at_eof_errors.append(filename)
+            continue
 
-            while True:
-                f.seek(f.tell() - 2, os.SEEK_SET)
-                char = f.read(1)
-                if not char.isspace():
-                    break
-                if char == "\n":
-                    did_fail = True
-                    blank_lines_at_eof_errors.append(filename)
-                    break
+        stripped = content.rstrip()
+        trailing_whitespace = len(content) - len(stripped)
+        if trailing_whitespace > 1:
+            whitespace_at_eof_errors.append(filename)
 
     if no_newline_at_eof_errors:
         print("Files with no newline at the end:", " ".join(no_newline_at_eof_errors))
-    if blank_lines_at_eof_errors:
-        print("Files that have blank lines at the end:", " ".join(blank_lines_at_eof_errors))
+    if whitespace_at_eof_errors:
+        print("Files that have whitespace at the end:", " ".join(whitespace_at_eof_errors))
 
-    if did_fail:
+    if no_newline_at_eof_errors or whitespace_at_eof_errors:
         sys.exit(1)
 
 
