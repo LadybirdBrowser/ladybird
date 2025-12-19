@@ -23,16 +23,15 @@ jobs:
       && contains(github.event.pull_request.labels.*.name, 'flatpak')
     name: Flatpak ${{ matrix.arch }}
 
-    # FIXME: Temporarily run on GitHub runners until Blacksmith runners have overlay redirect_dir enabled.
     strategy:
       fail-fast: false
       matrix:
         arch: ['x86_64']
-        runner_labels: ['["ubuntu-24.04"]']
+        runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
 
         include:
           - arch: 'aarch64'
-            runner_labels: '["ubuntu-24.04-arm"]'
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
 
     secrets: inherit
     uses: ./.github/workflows/flatpak-template.yml
