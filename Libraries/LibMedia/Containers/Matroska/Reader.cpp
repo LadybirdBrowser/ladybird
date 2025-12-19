@@ -1036,9 +1036,7 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
             //        but if it turns out that Matroska files with out-of-order cue points are valid, sort them instead.
 
             for (auto track_position_entry : cue_point.track_positions()) {
-                if (!m_cues.contains(track_position_entry.key))
-                    DECODER_TRY_ALLOC(m_cues.try_set(track_position_entry.key, Vector<CuePoint>()));
-                Vector<CuePoint>& cue_points_for_track = m_cues.get(track_position_entry.key).release_value();
+                auto& cue_points_for_track = m_cues.ensure(track_position_entry.key);
                 cue_points_for_track.append(cue_point);
             }
             break;
