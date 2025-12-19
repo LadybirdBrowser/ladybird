@@ -1035,8 +1035,8 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
             // FIXME: Verify that these are already in order of timestamp. If they are not, return a corrupted error for now,
             //        but if it turns out that Matroska files with out-of-order cue points are valid, sort them instead.
 
-            for (auto track_position_entry : cue_point.track_positions()) {
-                auto& cue_points_for_track = m_cues.ensure(track_position_entry.key);
+            for (auto const& [track_id, track_position] : cue_point.track_positions()) {
+                auto& cue_points_for_track = m_cues.ensure(track_id);
                 cue_points_for_track.append(cue_point);
             }
             break;
