@@ -8,6 +8,7 @@
 import json
 import os
 import pathlib
+import platform
 import subprocess
 
 
@@ -40,7 +41,12 @@ def build_vcpkg():
     subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
-    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
+    arguments = [vcpkg_checkout / bootstrap_script, "-disableMetrics"]
+    libc, _ = platform.libc_ver()
+    if libc == "musl":
+        arguments.append("-musl")
+
+    subprocess.check_call(args=arguments, cwd=vcpkg_checkout)
 
 
 def main():
