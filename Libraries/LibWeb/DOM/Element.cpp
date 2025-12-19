@@ -1895,8 +1895,8 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
     const_cast<Document&>(document()).update_layout(UpdateLayoutReason::ElementIsPotentiallyScrollable);
     const_cast<Document&>(document()).update_style();
 
-    // NOTE: Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
-    VERIFY(parent());
+    // NB: Since this should always be the body element, the body element must have a <html> element parent. See Document::body().
+    VERIFY(parent_element());
 
     // An element body (which will be the body element) is potentially scrollable if all of the following conditions are true:
     VERIFY(is<HTML::HTMLBodyElement>(this) || is<HTML::HTMLFrameSetElement>(this));
@@ -1906,14 +1906,14 @@ bool Element::is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowH
         return false;
 
     // - body’s parent element’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
-    if (parent()->layout_node()->computed_values().overflow_x() == CSS::Overflow::Visible || parent()->layout_node()->computed_values().overflow_y() == CSS::Overflow::Visible)
+    if (parent_element()->computed_properties()->overflow_x() == CSS::Overflow::Visible || parent_element()->computed_properties()->overflow_y() == CSS::Overflow::Visible)
         return false;
     // NOTE: When treating 'overflow:clip' as 'overflow:hidden', we can never fail this condition
-    if (treat_overflow_clip_on_body_parent_as_overflow_hidden == TreatOverflowClipOnBodyParentAsOverflowHidden::No && (parent()->layout_node()->computed_values().overflow_x() == CSS::Overflow::Clip || parent()->layout_node()->computed_values().overflow_y() == CSS::Overflow::Clip))
+    if (treat_overflow_clip_on_body_parent_as_overflow_hidden == TreatOverflowClipOnBodyParentAsOverflowHidden::No && (parent_element()->computed_properties()->overflow_x() == CSS::Overflow::Clip || parent_element()->computed_properties()->overflow_y() == CSS::Overflow::Clip))
         return false;
 
     // - body’s computed value of the overflow-x or overflow-y properties is neither visible nor clip.
-    if (first_is_one_of(layout_node()->computed_values().overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || first_is_one_of(layout_node()->computed_values().overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
+    if (first_is_one_of(computed_properties()->overflow_x(), CSS::Overflow::Visible, CSS::Overflow::Clip) || first_is_one_of(computed_properties()->overflow_y(), CSS::Overflow::Visible, CSS::Overflow::Clip))
         return false;
 
     return true;
