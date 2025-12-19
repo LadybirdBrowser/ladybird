@@ -1,3 +1,4 @@
 PASS: isTypeSupported
 PASS: created MediaSource
-FAIL: setup: TypeError: No union types matched
+PASS: assigned object URL to video.src
+FAIL: timeout
