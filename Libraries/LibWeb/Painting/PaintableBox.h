@@ -234,6 +234,8 @@ public:
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
+    [[nodiscard]] bool is_resizer_south_west() const;
+    [[nodiscard]] bool has_resizer() const;
 
     void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
@@ -282,7 +284,7 @@ protected:
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;
-        CSSPixelFraction scroll_length { 0 };
+        CSSPixelFraction scroll_ratio { 0 };
     };
     enum class ScrollDirection {
         Horizontal,
@@ -295,8 +297,12 @@ protected:
     Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection, AdjustThumbRectForScrollOffset = AdjustThumbRectForScrollOffset::No) const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
 
-    TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
+    TraversalDecision hit_test_chrome(CSSPixelPoint adjusted_position, Function<TraversalDecision(HitTestResult)> const& callback) const;
     CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint) const;
+    CSSPixels available_scrollbar_length(ScrollDirection direction) const;
+    Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter) const;
+    Optional<CSSPixelRect> absolute_resizer_rect() const;
+    bool resizer_contains(CSSPixelPoint adjusted_position) const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
@@ -306,7 +312,7 @@ private:
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
     virtual void handle_mouseleave(Badge<EventHandler>) override;
 
-    bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
+    bool scrollbar_contains(ScrollDirection, CSSPixelPoint adjusted_position) const;
     void scroll_to_mouse_position(CSSPixelPoint);
 
     OwnPtr<StackingContext> m_stacking_context;
@@ -338,8 +344,8 @@ private:
 
     Optional<CSSPixels> m_scroll_thumb_grab_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
-    bool m_draw_enlarged_horizontal_scrollbar { false };
-    bool m_draw_enlarged_vertical_scrollbar { false };
+    mutable bool m_draw_enlarged_horizontal_scrollbar { false };
+    mutable bool m_draw_enlarged_vertical_scrollbar { false };
 
     ResolvedBackground m_resolved_background;
 
