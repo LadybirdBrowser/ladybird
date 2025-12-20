@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -35,14 +35,19 @@ private:
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    void pull_bytes_into_stream(ByteBuffer&&);
+    void pull_bytes_into_stream();
     void close_stream();
+
+    bool buffer_is_eof() const { return m_pulled_bytes == m_buffer.size(); }
+    ByteBuffer copy_unpulled_bytes();
 
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ref<Streams::ReadableStream> m_stream;
     GC::Ptr<WebIDL::Promise> m_pending_promise;
 
     ByteBuffer m_buffer;
+    size_t m_pulled_bytes { 0 };
+
     enum class LifecycleState {
         Receiving,
         CompletePending,

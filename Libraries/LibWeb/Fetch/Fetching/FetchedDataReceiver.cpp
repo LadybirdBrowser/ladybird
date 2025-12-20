@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -41,8 +41,8 @@ void FetchedDataReceiver::set_pending_promise(GC::Ref<WebIDL::Promise> promise)
     VERIFY(!m_has_unfulfilled_promise);
     m_pending_promise = promise;
 
-    if (!m_buffer.is_empty()) {
-        pull_bytes_into_stream(move(m_buffer));
+    if (!buffer_is_eof()) {
+        pull_bytes_into_stream();
     } else if (m_lifecycle_state == LifecycleState::ReadyToClose) {
         close_stream();
     }
@@ -59,10 +59,11 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
         m_lifecycle_state = LifecycleState::CompletePending;
     }
 
+    if (state == NetworkState::Ongoing)
+        m_buffer.append(bytes);
+
     if (!m_pending_promise) {
-        if (state == NetworkState::Ongoing)
-            m_buffer.append(bytes);
-        if (m_lifecycle_state == LifecycleState::CompletePending && m_buffer.is_empty() && !m_has_unfulfilled_promise)
+        if (m_lifecycle_state == LifecycleState::CompletePending && buffer_is_eof() && !m_has_unfulfilled_promise)
             m_lifecycle_state = LifecycleState::ReadyToClose;
         return;
     }
@@ -78,7 +79,7 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
         // FIXME: 6. If bytes is failure, then terminate fetchParams’s controller.
 
         // 7. Append bytes to buffer.
-        pull_bytes_into_stream(MUST(ByteBuffer::copy(bytes)));
+        pull_bytes_into_stream();
 
         // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
         //           to suspend the ongoing fetch.
@@ -94,18 +95,23 @@ void FetchedDataReceiver::handle_network_bytes(ReadonlyBytes bytes, NetworkState
 
 // This implements the parallel steps of the pullAlgorithm in HTTP-network-fetch.
 // https://fetch.spec.whatwg.org/#ref-for-in-parallel④
-void FetchedDataReceiver::pull_bytes_into_stream(ByteBuffer&& bytes)
+void FetchedDataReceiver::pull_bytes_into_stream()
 {
+    VERIFY(m_lifecycle_state == LifecycleState::Receiving || m_lifecycle_state == LifecycleState::CompletePending);
+
     // FIXME: 1. If the size of buffer is smaller than a lower limit chosen by the user agent and the ongoing fetch
     //           is suspended, resume the fetch.
 
     // 2. Wait until buffer is not empty.
+    // NB: It would be nice to avoid a copy here, but ReadableStream::pull_from_bytes currently requires an allocated
+    //     ByteBuffer to create a JS::ArrayBuffer.
+    auto bytes = copy_unpulled_bytes();
     VERIFY(!bytes.is_empty());
-    VERIFY(m_lifecycle_state == LifecycleState::Receiving || m_lifecycle_state == LifecycleState::CompletePending);
 
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination.
     VERIFY(!m_has_unfulfilled_promise);
     m_has_unfulfilled_promise = true;
+
     Infrastructure::queue_fetch_task(
         m_fetch_params->controller(),
         m_fetch_params->task_destination(),
@@ -132,7 +138,7 @@ void FetchedDataReceiver::pull_bytes_into_stream(ByteBuffer&& bytes)
             // 3. Resolve promise with undefined.
             WebIDL::resolve_promise(m_stream->realm(), *pending_promise, JS::js_undefined());
 
-            if (m_lifecycle_state == LifecycleState::CompletePending && m_buffer.is_empty())
+            if (m_lifecycle_state == LifecycleState::CompletePending && buffer_is_eof())
                 m_lifecycle_state = LifecycleState::ReadyToClose;
         }));
 
@@ -142,10 +148,20 @@ void FetchedDataReceiver::pull_bytes_into_stream(ByteBuffer&& bytes)
 void FetchedDataReceiver::close_stream()
 {
     VERIFY(m_has_unfulfilled_promise == 0);
+    VERIFY(buffer_is_eof());
+
     WebIDL::resolve_promise(m_stream->realm(), *m_pending_promise, JS::js_undefined());
     m_pending_promise = {};
     m_lifecycle_state = LifecycleState::Closed;
     m_stream->close();
+}
+
+ByteBuffer FetchedDataReceiver::copy_unpulled_bytes()
+{
+    auto bytes = MUST(m_buffer.slice(m_pulled_bytes, m_buffer.size() - m_pulled_bytes));
+    m_pulled_bytes += bytes.size();
+
+    return bytes;
 }
 
 }
