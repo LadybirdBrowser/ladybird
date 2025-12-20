@@ -52,12 +52,12 @@ public:
     void set_node_set(Vector<GC::Ptr<DOM::Node>> node_set, unsigned short type);
 
 private:
-    WebIDL::UnsignedShort m_result_type;
-    WebIDL::Double m_number_value;
+    WebIDL::UnsignedShort m_result_type { 0 };
+    WebIDL::Double m_number_value { 0 };
     String m_string_value;
-    WebIDL::Boolean m_boolean_value;
-    WebIDL::Boolean m_invalid_iterator_state;
-    WebIDL::UnsignedLong m_snapshot_length;
+    WebIDL::Boolean m_boolean_value { false };
+    WebIDL::Boolean m_invalid_iterator_state { false };
+    WebIDL::UnsignedLong m_snapshot_length { 0 };
 
     Vector<GC::Ptr<DOM::Node>> m_node_set;
     Vector<GC::Ptr<DOM::Node>>::Iterator m_node_set_iter;
