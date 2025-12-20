@@ -769,6 +769,7 @@ TEST_CASE(lookbehind)
     constexpr _test tests[] {
         { "(?<=(ab|abc))d"sv, "abcd"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
         { "(?<=a.*)b"sv, "a b"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
+        { "(?<=[a|b|c]*)[^a|b|c]{3}"sv, "abcdef"sv, true, (ECMAScriptFlags)regex::AllFlags::Global },
     };
 
     for (auto& test : tests) {

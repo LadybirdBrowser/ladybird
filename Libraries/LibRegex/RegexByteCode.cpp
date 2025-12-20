@@ -299,9 +299,21 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckStepBack::execute(MatchInput const& in
 
 ALWAYS_INLINE ExecutionResult OpCode_CheckSavedPosition::execute(MatchInput const& input, MatchState& state) const
 {
-    if (state.string_position != input.saved_positions.last())
+    if (input.saved_positions.is_empty()) {
         return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        if (body_length() == 0) {
+            if (state.string_position + 1 != input.saved_positions.last()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+        } else {
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
+        }
+    }
     state.step_backs.take_last();
+
     return ExecutionResult::Continue;
 }
 
