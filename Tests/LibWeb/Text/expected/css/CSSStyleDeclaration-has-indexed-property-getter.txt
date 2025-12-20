@@ -254,6 +254,7 @@ All properties associated with getComputedStyle(document.body):
     "position-try-order",
     "position-visibility",
     "r",
+    "resize",
     "right",
     "rotate",
     "row-gap",

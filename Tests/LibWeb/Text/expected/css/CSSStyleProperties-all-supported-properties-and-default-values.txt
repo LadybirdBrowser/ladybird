@@ -691,6 +691,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'position-visibility': 'anchors-visible'
 'quotes': 'auto'
 'r': '0px'
+'resize': 'none'
 'right': 'auto'
 'rotate': 'none'
 'rowGap': 'normal'
