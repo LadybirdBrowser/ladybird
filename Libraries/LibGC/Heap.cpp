@@ -328,7 +328,7 @@ void Heap::dump_allocators()
         builder.appendff(" x {}", total_live_cells);
 
         size_t cost = blocks.size() * HeapBlock::BLOCK_SIZE / KiB;
-        size_t reserved = allocator.block_allocator().blocks().size() / KiB;
+        size_t reserved = allocator.block_allocator().blocks().size() * HeapBlock::BLOCK_SIZE / KiB;
         builder.appendff(", cost: {} KiB, reserved: {} KiB", cost, reserved);
 
         size_t total_dead_bytes = ((blocks.size() * cell_count) - total_live_cells) * allocator.cell_size();
