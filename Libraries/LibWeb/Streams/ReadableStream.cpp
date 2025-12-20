@@ -304,8 +304,7 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     auto pulled = pull_size == available ? move(bytes) : MUST(bytes.slice(0, pull_size));
 
     // 7. Remove the first pullSize bytes from bytes.
-    if (pull_size != available)
-        bytes = MUST(bytes.slice(pull_size, available - pull_size));
+    // NB: We skip this step. No caller actually wants its bytes trimmed, and we don't take the bytes by reference anyways.
 
     // 8. If stream’s current BYOB request view is non-null, then:
     if (auto byob_view = current_byob_request_view()) {
