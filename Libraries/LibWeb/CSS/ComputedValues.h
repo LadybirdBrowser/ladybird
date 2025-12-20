@@ -289,6 +289,7 @@ public:
         };
     }
     static ScrollbarWidth scrollbar_width() { return ScrollbarWidth::Auto; }
+    static Resize resize() { return Resize::None; }
     static ShapeRendering shape_rendering() { return ShapeRendering::Auto; }
     static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
     static WillChange will_change() { return WillChange::make_auto(); }
@@ -681,7 +682,7 @@ public:
 
     ScrollbarColorData scrollbar_color() const { return m_inherited.scrollbar_color; }
     ScrollbarWidth scrollbar_width() const { return m_noninherited.scrollbar_width; }
-
+    Resize resize() const { return m_noninherited.resize; }
     WillChange will_change() const { return m_noninherited.will_change; }
 
     NonnullOwnPtr<ComputedValues> clone_inherited_values() const
@@ -875,6 +876,7 @@ protected:
         LengthPercentage y { InitialValues::x() };
 
         ScrollbarWidth scrollbar_width { InitialValues::scrollbar_width() };
+        Resize resize { InitialValues::resize() };
         Vector<CounterData, 0> counter_increment;
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
@@ -1098,6 +1100,7 @@ public:
 
     void set_scrollbar_color(ScrollbarColorData value) { m_inherited.scrollbar_color = move(value); }
     void set_scrollbar_width(ScrollbarWidth value) { m_noninherited.scrollbar_width = value; }
+    void set_resize(Resize value) { m_noninherited.resize = value; }
 
     void set_counter_increment(Vector<CounterData> value) { m_noninherited.counter_increment = move(value); }
     void set_counter_reset(Vector<CounterData> value) { m_noninherited.counter_reset = move(value); }
