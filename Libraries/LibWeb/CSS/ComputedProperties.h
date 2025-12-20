@@ -268,6 +268,7 @@ public:
 
     ScrollbarColorData scrollbar_color(Layout::NodeWithStyle const& layout_node) const;
     ScrollbarWidth scrollbar_width() const;
+    Resize resize() const;
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
 

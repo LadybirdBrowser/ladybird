@@ -39,6 +39,7 @@ textarea {
     display: inline-block;
     overflow: auto;
     font-family: monospace;
+    resize: both;
 }
 
 input::placeholder, textarea::placeholder {
