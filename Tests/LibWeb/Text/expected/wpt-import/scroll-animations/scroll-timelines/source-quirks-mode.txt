@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Style of <body> is reflected in source attribute in quirks mode
+1 Pass
+Pass	Style of <body> is reflected in source attribute in quirks mode
