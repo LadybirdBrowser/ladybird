@@ -195,7 +195,7 @@
     "affects-layout": true,
     "affects-stacking-context": true,
     "initial": "initial",
-    "longhands": [],
+    "longhands": [ ],
     "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
   },
   "anchor-name": {
@@ -3341,6 +3341,15 @@
     "percentages-resolve-to": "length",
     "quirks": [
       "unitless-length"
+    ]
+  },
+  "resize": {
+    "animation-type": "none",
+    "inherited": false,
+    "affects-layout": false,
+    "initial": "none",
+    "valid-types": [
+      "resize"
     ]
   },
   "right": {
