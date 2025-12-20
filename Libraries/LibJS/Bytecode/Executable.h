@@ -39,7 +39,6 @@ struct PropertyLookupCache {
             ChangePropertyInPrototypeChain,
             GetPropertyInPrototypeChain,
         };
-        Type type { Type::Empty };
         u32 property_offset { 0 };
         u32 shape_dictionary_generation { 0 };
         GC::Weak<Shape> from_shape;
@@ -47,6 +46,19 @@ struct PropertyLookupCache {
         GC::Weak<Object> prototype;
         GC::Weak<PrototypeChainValidity> prototype_chain_validity;
     };
+
+    void update(Entry::Type type, auto callback)
+    {
+        // First, move all entries one step back.
+        for (size_t i = entries.size() - 1; i >= 1; --i) {
+            entries[i] = entries[i - 1];
+        }
+        types[0] = type;
+        entries[0] = {};
+        callback(entries[0]);
+    }
+
+    AK::Array<Entry::Type, max_number_of_shapes_to_remember> types;
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };
 

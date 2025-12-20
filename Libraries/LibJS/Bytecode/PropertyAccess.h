@@ -234,11 +234,12 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
         if (caches) [[likely]] {
-            for (auto& cache : caches->entries) {
-                switch (cache.type) {
+            for (size_t i = 0; i < caches->entries.size(); ++i) {
+                switch (caches->types[i]) {
                 case PropertyLookupCache::Entry::Type::Empty:
                     break;
                 case PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain: {
+                    auto& cache = caches->entries[i];
                     auto cached_prototype = cache.prototype.ptr();
                     if (!cached_prototype) [[unlikely]]
                         break;
@@ -270,6 +271,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     break;
                 }
                 case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
+                    auto& cache = caches->entries[i];
                     auto cached_shape = cache.shape.ptr();
                     if (cached_shape != &object->shape()) [[unlikely]]
                         break;
@@ -288,6 +290,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     return {};
                 }
                 case PropertyLookupCache::Entry::Type::AddOwnProperty: {
+                    auto& cache = caches->entries[i];
                     // OPTIMIZATION: If the object's shape is the same as the one cached before adding the new property, we can
                     //               reuse the resulting shape from the cache.
                     if (cache.from_shape != &object->shape()) [[unlikely]]
@@ -318,57 +321,50 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
         CacheableSetPropertyMetadata cacheable_metadata;
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
-        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
-            for (size_t i = caches->entries.size() - 1; i >= 1; --i) {
-                caches->entries[i] = caches->entries[i - 1];
-            }
-            caches->entries[0] = {};
-            return caches->entries[0];
-        };
-
         if (succeeded && caches && cacheable_metadata.type == CacheableSetPropertyMetadata::Type::AddOwnProperty) {
-            auto& cache = get_cache_slot();
-            cache.type = PropertyLookupCache::Entry::Type::AddOwnProperty;
-            cache.from_shape = from_shape;
-            cache.property_offset = cacheable_metadata.property_offset.value();
-            cache.shape = &object->shape();
-            if (cacheable_metadata.prototype) {
-                cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
-            }
-            if (object->shape().is_dictionary()) {
-                cache.shape_dictionary_generation = object->shape().dictionary_generation();
-            }
+            caches->update(PropertyLookupCache::Entry::Type::AddOwnProperty, [&](auto& cache) {
+                cache.from_shape = from_shape;
+                cache.property_offset = cacheable_metadata.property_offset.value();
+                cache.shape = &object->shape();
+                if (cacheable_metadata.prototype) {
+                    cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                }
+                if (object->shape().is_dictionary()) {
+                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
+                }
+            });
         }
 
         // If internal_set() caused object's shape change, we can no longer be sure
         // that collected metadata is valid, e.g. if setter in prototype chain added
         // property with the same name into the object itself.
         if (succeeded && caches && &from_shape == &object->shape()) {
-            auto& cache = get_cache_slot();
             switch (cacheable_metadata.type) {
             case CacheableSetPropertyMetadata::Type::AddOwnProperty:
                 // Something went wrong if we ended up here, because cacheable addition of a new property should've changed the shape.
                 VERIFY_NOT_REACHED();
                 break;
             case CacheableSetPropertyMetadata::Type::ChangeOwnProperty:
-                cache.type = PropertyLookupCache::Entry::Type::ChangeOwnProperty;
-                cache.shape = object->shape();
-                cache.property_offset = cacheable_metadata.property_offset.value();
+                caches->update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& cache) {
+                    cache.shape = object->shape();
+                    cache.property_offset = cacheable_metadata.property_offset.value();
 
-                if (object->shape().is_dictionary()) {
-                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
-                }
+                    if (object->shape().is_dictionary()) {
+                        cache.shape_dictionary_generation = object->shape().dictionary_generation();
+                    }
+                });
                 break;
             case CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain:
-                cache.type = PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain;
-                cache.shape = object->shape();
-                cache.property_offset = cacheable_metadata.property_offset.value();
-                cache.prototype = *cacheable_metadata.prototype;
-                cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
+                caches->update(PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain, [&](auto& cache) {
+                    cache.shape = object->shape();
+                    cache.property_offset = cacheable_metadata.property_offset.value();
+                    cache.prototype = *cacheable_metadata.prototype;
+                    cache.prototype_chain_validity = *cacheable_metadata.prototype->shape().prototype_chain_validity();
 
-                if (object->shape().is_dictionary()) {
-                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
-                }
+                    if (object->shape().is_dictionary()) {
+                        cache.shape_dictionary_generation = object->shape().dictionary_generation();
+                    }
+                });
                 break;
             case CacheableSetPropertyMetadata::Type::NotCacheable:
                 break;
