@@ -153,33 +153,33 @@ Shape::Shape(Realm& realm)
 }
 
 Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType transition_type)
-    : m_realm(previous_shape.m_realm)
+    : m_attributes(attributes)
+    , m_transition_type(transition_type)
+    , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
     , m_prototype(previous_shape.m_prototype)
     , m_property_count(transition_type == TransitionType::Put ? previous_shape.m_property_count + 1 : previous_shape.m_property_count)
-    , m_attributes(attributes)
-    , m_transition_type(transition_type)
 {
 }
 
 Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType transition_type)
-    : m_realm(previous_shape.m_realm)
+    : m_transition_type(transition_type)
+    , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
     , m_prototype(previous_shape.m_prototype)
     , m_property_count(previous_shape.m_property_count - 1)
-    , m_transition_type(transition_type)
 {
     VERIFY(transition_type == TransitionType::Delete);
 }
 
 Shape::Shape(Shape& previous_shape, Object* new_prototype)
-    : m_realm(previous_shape.m_realm)
+    : m_transition_type(TransitionType::Prototype)
+    , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_prototype(new_prototype)
     , m_property_count(previous_shape.m_property_count)
-    , m_transition_type(TransitionType::Prototype)
 {
 }
 
