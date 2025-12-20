@@ -2112,8 +2112,6 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
 
-    // NOTE: Using LoadRequest::create_for_url_on_page here will unconditionally add cookies as long as there's a page available.
-    //       However, it is up to http_network_or_cache_fetch to determine if cookies should be added to the request.
     LoadRequest load_request { request->header_list() };
     load_request.set_url(request->current_url());
     load_request.set_page(page);
