@@ -150,7 +150,7 @@ private:
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 104, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 96, "Keep the size of JS::Shape down!");
 #endif
 
 }
