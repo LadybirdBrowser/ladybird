@@ -929,8 +929,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
-            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset);
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
             return value;
@@ -1979,12 +1979,12 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
-        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation.value())) {
-            auto value = binding_object.get_direct(cache.entries[0].property_offset.value());
+        if (&shape == cache.entries[0].shape && (!shape.is_dictionary() || shape.dictionary_generation() == cache.entries[0].shape_dictionary_generation)) {
+            auto value = binding_object.get_direct(cache.entries[0].property_offset);
             if (value.is_accessor())
                 TRY(call(vm, value.as_accessor().setter(), &binding_object, src));
             else
-                binding_object.put_direct(cache.entries[0].property_offset.value(), src);
+                binding_object.put_direct(cache.entries[0].property_offset, src);
             return {};
         }
 
