@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	The duration of a scroll timeline is 100%
+1 Pass
+Pass	The duration of a scroll timeline is 100%

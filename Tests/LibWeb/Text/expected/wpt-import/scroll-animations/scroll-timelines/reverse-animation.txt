@@ -2,15 +2,16 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
-Fail	Setting current time while reverse-pending preserves currentTime
-Fail	Reversing an animation inverts the playback rate
+8 Pass
+3 Fail
+Pass	Setting current time while reverse-pending preserves currentTime
+Pass	Reversing an animation inverts the playback rate
 Fail	Reversing an animation resets a sticky start time.
-Fail	Reversing an animation does not cause it to leave the pending state
-Fail	Reversing an animation does not cause it to resolve the ready promise
-Fail	Reversing an animation with a negative playback rate should cause the animation to play in a forward direction
+Pass	Reversing an animation does not cause it to leave the pending state
+Pass	Reversing an animation does not cause it to resolve the ready promise
+Pass	Reversing an animation with a negative playback rate should cause the animation to play in a forward direction
 Fail	Reversing when when playbackRate == 0 should preserve the playback rate
 Fail	Reversing an idle animation aligns startTime with the rangeEnd boundary
-Fail	Reversing an animation without an active timeline throws an InvalidStateError
-Fail	Reversing an animation plays a pausing animation
-Fail	Reversing should use the negative pending playback rate
+Pass	Reversing an animation without an active timeline throws an InvalidStateError
+Pass	Reversing an animation plays a pausing animation
+Pass	Reversing should use the negative pending playback rate
