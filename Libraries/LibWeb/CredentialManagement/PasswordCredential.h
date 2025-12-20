@@ -40,7 +40,6 @@ private:
 struct PasswordCredentialData : CredentialData {
     Optional<String> name;
     Optional<String> icon_url;
-    String origin;
     String password;
 };
 

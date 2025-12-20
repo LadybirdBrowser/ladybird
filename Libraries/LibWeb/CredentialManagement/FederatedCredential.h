@@ -44,7 +44,6 @@ struct FederatedCredentialRequestOptions {
 struct FederatedCredentialInit : CredentialData {
     Optional<String> name;
     Optional<String> icon_url;
-    String origin;
     String provider;
     Optional<String> protocol;
 };
