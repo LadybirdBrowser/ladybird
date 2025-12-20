@@ -200,7 +200,28 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
 
     // 28. Let F be OrdinaryFunctionCreate(proto, sourceText, parameters, body, non-lexical-this, env, privateEnv).
     parsing_insights.might_need_arguments_object = true;
-    auto function = ECMAScriptFunctionObject::create(realm, "anonymous"_utf16_fly_string, *prototype, move(source_text), expr->body(), expr->parameters(), expr->function_length(), expr->local_variables_names(), &environment, private_environment, expr->kind(), expr->is_strict_mode(), parsing_insights);
+
+    auto function_data = vm.heap().allocate<SharedFunctionInstanceData>(
+        vm,
+        kind,
+        "anonymous"_utf16_fly_string,
+        function_length,
+        parameters,
+        expr->body(),
+        Utf16View {},
+        expr->is_strict_mode(),
+        false,
+        parsing_insights,
+        expr->local_variables_names());
+    function_data->m_source_text_owner = Utf16String::from_utf8(source_text);
+    function_data->m_source_text = function_data->m_source_text_owner.utf16_view();
+
+    auto function = ECMAScriptFunctionObject::create_from_function_data(
+        realm,
+        function_data,
+        &environment,
+        private_environment,
+        *prototype);
 
     // FIXME: Remove the name argument from create() and do this instead.
     // 29. Perform SetFunctionName(F, "anonymous").

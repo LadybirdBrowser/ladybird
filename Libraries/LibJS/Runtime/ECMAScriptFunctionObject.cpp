@@ -34,23 +34,53 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+static GC::Ref<Object> prototype_for_function_kind(Realm& realm, FunctionKind kind)
 {
-    Object* prototype = nullptr;
     switch (kind) {
     case FunctionKind::Normal:
-        prototype = realm.intrinsics().function_prototype();
-        break;
+        return realm.intrinsics().function_prototype();
     case FunctionKind::Generator:
-        prototype = realm.intrinsics().generator_function_prototype();
-        break;
+        return realm.intrinsics().generator_function_prototype();
     case FunctionKind::Async:
-        prototype = realm.intrinsics().async_function_prototype();
-        break;
+        return realm.intrinsics().async_function_prototype();
     case FunctionKind::AsyncGenerator:
-        prototype = realm.intrinsics().async_generator_function_prototype();
-        break;
+        return realm.intrinsics().async_generator_function_prototype();
     }
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Utf16String source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+{
+    auto prototype = prototype_for_function_kind(realm, kind);
+
+    auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
+        realm.vm(),
+        kind,
+        move(name),
+        function_length,
+        *parameters,
+        ecmascript_code,
+        Utf16View {},
+        is_strict,
+        is_arrow_function,
+        parsing_insights,
+        move(local_variables_names));
+
+    shared_data->m_class_field_initializer_name = move(class_field_initializer_name);
+
+    shared_data->m_source_text_owner = move(source_text);
+    shared_data->m_source_text = shared_data->m_source_text_owner.utf16_view();
+
+    return realm.create<ECMAScriptFunctionObject>(
+        move(shared_data),
+        parent_environment,
+        private_environment,
+        *prototype);
+}
+
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Utf16View source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+{
+    auto prototype = prototype_for_function_kind(realm, kind);
 
     auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
         realm.vm(),
@@ -74,7 +104,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
         *prototype);
 }
 
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Object& prototype, Utf16View source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
         realm.vm(),
@@ -91,6 +121,20 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm,
     shared_data->m_class_field_initializer_name = move(class_field_initializer_name);
     return realm.create<ECMAScriptFunctionObject>(
         move(shared_data),
+        parent_environment,
+        private_environment,
+        prototype);
+}
+
+GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function_data(
+    GC::Ref<Realm> realm,
+    GC::Ref<SharedFunctionInstanceData> shared_data,
+    GC::Ptr<Environment> parent_environment,
+    GC::Ptr<PrivateEnvironment> private_environment,
+    Object& prototype)
+{
+    return realm->create<ECMAScriptFunctionObject>(
+        *shared_data,
         parent_environment,
         private_environment,
         prototype);
@@ -137,7 +181,8 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
         function_node.set_shared_data(shared_data);
     }
 
-    return realm->create<ECMAScriptFunctionObject>(
+    return create_from_function_data(
+        realm,
         *shared_data,
         parent_environment,
         private_environment,

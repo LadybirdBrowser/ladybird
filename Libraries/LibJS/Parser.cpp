@@ -1170,7 +1170,7 @@ RefPtr<FunctionExpression const> Parser::try_parse_arrow_function_expression(boo
     auto source_text = m_state.lexer.source().substring_view(function_start_offset, function_end_offset - function_start_offset);
 
     return create_ast_node<FunctionExpression>(
-        { m_source_code, rule_start.position(), position() }, nullptr, MUST(source_text.to_byte_string()),
+        { m_source_code, rule_start.position(), position() }, nullptr, source_text,
         move(body), move(parameters), function_length, function_kind, body->in_strict_mode(),
         parsing_insights, move(local_variables_names), /* is_arrow_function */ true);
 }
@@ -1671,7 +1671,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             parsing_insights.uses_this_from_environment = true;
             parsing_insights.uses_this = true;
             constructor = create_ast_node<FunctionExpression>(
-                { m_source_code, rule_start.position(), position() }, class_name, "",
+                { m_source_code, rule_start.position(), position() }, class_name, Utf16View {},
                 move(constructor_body), FunctionParameters::create(Vector { FunctionParameter { move(argument_name), nullptr, true } }), 0, FunctionKind::Normal,
                 /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<LocalVariable> {});
         } else {
@@ -1679,7 +1679,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
             parsing_insights.uses_this_from_environment = true;
             parsing_insights.uses_this = true;
             constructor = create_ast_node<FunctionExpression>(
-                { m_source_code, rule_start.position(), position() }, class_name, "",
+                { m_source_code, rule_start.position(), position() }, class_name, Utf16View {},
                 move(constructor_body), FunctionParameters::empty(), 0, FunctionKind::Normal,
                 /* is_strict_mode */ true, parsing_insights, /* local_variables_names */ Vector<LocalVariable> {});
         }
@@ -1701,7 +1701,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
     auto source_text = m_state.lexer.source().substring_view(function_start_offset, function_end_offset - function_start_offset);
 
-    return create_ast_node<ClassExpression>({ m_source_code, rule_start.position(), position() }, move(class_name), MUST(source_text.to_byte_string()), move(constructor), move(super_class), move(elements));
+    return create_ast_node<ClassExpression>({ m_source_code, rule_start.position(), position() }, move(class_name), source_text, move(constructor), move(super_class), move(elements));
 }
 
 Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
@@ -3039,7 +3039,7 @@ NonnullRefPtr<FunctionNodeType> Parser::parse_function_node(u16 parse_options, O
     }
     return create_ast_node<FunctionNodeType>(
         { m_source_code, rule_start.position(), position() },
-        name, MUST(source_text.to_byte_string()), move(body), parameters.release_nonnull(), function_length,
+        name, source_text, move(body), parameters.release_nonnull(), function_length,
         function_kind, has_strict_directive, parsing_insights,
         move(local_variables_names));
 }
