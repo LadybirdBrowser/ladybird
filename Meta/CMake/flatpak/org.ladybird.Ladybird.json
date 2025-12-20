@@ -15,7 +15,8 @@
     "--socket=wayland",
     "--socket=fallback-x11",
     "--socket=pulseaudio",
-    "--socket=session-bus"
+    "--socket=session-bus",
+    "--env=SSL_CERT_DIR=/etc/ssl/certs"
   ],
   "cleanup": [
     "/sbin",
