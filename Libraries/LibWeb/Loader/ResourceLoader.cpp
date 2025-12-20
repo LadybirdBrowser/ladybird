@@ -361,19 +361,21 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
     }
 
     if (url.scheme() == "about"sv) {
-        handle_about_load_request(request, [on_headers_received, on_data_received, on_complete, request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
-            log_success(request);
-            on_headers_received->function()(response_headers, {}, {});
-            on_data_received->function()(data);
-            on_complete->function()(true, timing_info, {});
-        });
+        handle_about_load_request(
+            request,
+            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete = move(on_complete), request](ReadonlyBytes data, Requests::RequestTimingInfo const& timing_info, HTTP::HeaderList const& response_headers) {
+                log_success(request);
+                on_headers_received->function()(response_headers, {}, {});
+                on_data_received->function()(data);
+                on_complete->function()(true, timing_info, {});
+            });
         return;
     }
 
     if (url.scheme() == "resource"sv) {
         handle_resource_load_request(
             request,
-            [on_headers_received, on_data_received, on_complete](FileLoadResult const& load_result) {
+            [on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 on_headers_received->function()(load_result.response_headers, {}, {});
                 on_data_received->function()(load_result.data);
                 on_complete->function()(true, load_result.timing_info, {});
@@ -388,7 +390,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
     if (url.scheme() == "file"sv) {
         handle_file_load_request(
             request,
-            [request, on_headers_received, on_data_received, on_complete](FileLoadResult const& load_result) {
+            [request, on_headers_received = move(on_headers_received), on_data_received = move(on_data_received), on_complete](FileLoadResult const& load_result) {
                 log_success(request);
                 on_headers_received->function()(load_result.response_headers, {}, {});
                 on_data_received->function()(load_result.data);
@@ -415,16 +417,16 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
         return;
     }
 
-    auto protocol_headers_received = [this, on_headers_received, request](auto const& response_headers, auto status_code, auto const& reason_phrase) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request](auto const& response_headers, auto status_code, auto const& reason_phrase) {
         handle_network_response_headers(request, response_headers);
         on_headers_received->function()(response_headers, move(status_code), reason_phrase);
     };
 
-    auto protocol_data_received = [on_data_received](auto data) {
+    auto protocol_data_received = [on_data_received = move(on_data_received)](auto data) {
         on_data_received->function()(data);
     };
 
-    auto protocol_complete = [this, on_complete, request, &protocol_request = *protocol_request](u64, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
+    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
         finish_network_request(protocol_request);
 
         if (!network_error.has_value()) {
