@@ -115,7 +115,7 @@ i64 Duration::to_truncated_milliseconds() const
     }
     if (!milliseconds.has_overflow())
         return milliseconds.value();
-    return m_seconds < 0 ? -0x8000'0000'0000'0000LL : 0x7fff'ffff'ffff'ffffLL;
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 i64 Duration::to_truncated_microseconds() const
@@ -134,7 +134,7 @@ i64 Duration::to_truncated_microseconds() const
     }
     if (!microseconds.has_overflow())
         return microseconds.value();
-    return m_seconds < 0 ? -0x8000'0000'0000'0000LL : 0x7fff'ffff'ffff'ffffLL;
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 i64 Duration::to_seconds() const
@@ -143,7 +143,7 @@ i64 Duration::to_seconds() const
     if (m_seconds >= 0 && m_nanoseconds) {
         Checked<i64> seconds(m_seconds);
         seconds++;
-        return seconds.has_overflow() ? 0x7fff'ffff'ffff'ffffLL : seconds.value();
+        return seconds.has_overflow() ? NumericLimits<i64>::max() : seconds.value();
     }
     return m_seconds;
 }
@@ -168,7 +168,7 @@ i64 Duration::to_milliseconds() const
     }
     if (!milliseconds.has_overflow())
         return milliseconds.value();
-    return m_seconds < 0 ? -0x8000'0000'0000'0000LL : 0x7fff'ffff'ffff'ffffLL;
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 i64 Duration::to_microseconds() const
@@ -185,7 +185,7 @@ i64 Duration::to_microseconds() const
     }
     if (!microseconds.has_overflow())
         return microseconds.value();
-    return m_seconds < 0 ? -0x8000'0000'0000'0000LL : 0x7fff'ffff'ffff'ffffLL;
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 i64 Duration::to_nanoseconds() const
@@ -200,7 +200,7 @@ i64 Duration::to_nanoseconds() const
     }
     if (!nanoseconds.has_overflow())
         return nanoseconds.value();
-    return m_seconds < 0 ? -0x8000'0000'0000'0000LL : 0x7fff'ffff'ffff'ffffLL;
+    return m_seconds < 0 ? NumericLimits<i64>::min() : NumericLimits<i64>::max();
 }
 
 timespec Duration::to_timespec() const
