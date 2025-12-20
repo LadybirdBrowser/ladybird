@@ -253,6 +253,7 @@ position-try-fallbacks: none
 position-try-order: normal
 position-visibility: anchors-visible
 r: 0px
+resize: none
 right: auto
 rotate: none
 row-gap: normal
