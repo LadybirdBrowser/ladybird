@@ -40,12 +40,12 @@ struct PropertyLookupCache {
             GetPropertyInPrototypeChain,
         };
         Type type { Type::Empty };
+        u32 property_offset { 0 };
+        u32 shape_dictionary_generation { 0 };
         GC::Weak<Shape> from_shape;
         GC::Weak<Shape> shape;
-        Optional<u32> property_offset;
         GC::Weak<Object> prototype;
         GC::Weak<PrototypeChainValidity> prototype_chain_validity;
-        Optional<u32> shape_dictionary_generation;
     };
     AK::Array<Entry, max_number_of_shapes_to_remember> entries;
 };

@@ -101,8 +101,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
                     return false;
 
                 if (shape.is_dictionary()) {
-                    VERIFY(cache_entry.shape_dictionary_generation.has_value());
-                    if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) [[unlikely]] {
+                    if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]] {
                         return false;
                     }
                 }
@@ -115,7 +114,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
                 return true;
             }();
             if (can_use_cache) [[likely]] {
-                auto value = cached_prototype->get_direct(cache_entry.property_offset.value());
+                auto value = cached_prototype->get_direct(cache_entry.property_offset);
                 if (value.is_accessor())
                     return TRY(call(vm, value.as_accessor().getter(), this_value));
                 return value;
@@ -124,14 +123,13 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
             bool can_use_cache = true;
             if (shape.is_dictionary()) {
-                VERIFY(cache_entry.shape_dictionary_generation.has_value());
-                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation.value()) [[unlikely]] {
+                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]] {
                     can_use_cache = false;
                 }
             }
 
             if (can_use_cache) [[likely]] {
-                auto value = base_obj->get_direct(cache_entry.property_offset.value());
+                auto value = base_obj->get_direct(cache_entry.property_offset);
                 if (value.is_accessor()) {
                     return TRY(call(vm, value.as_accessor().getter(), this_value));
                 }
@@ -251,8 +249,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                             return false;
 
                         if (cached_shape->is_dictionary()) {
-                            VERIFY(cache.shape_dictionary_generation.has_value());
-                            if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value()) [[unlikely]]
+                            if (object->shape().dictionary_generation() != cache.shape_dictionary_generation) [[unlikely]]
                                 return false;
                         }
 
@@ -264,7 +261,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                         return true;
                     }();
                     if (can_use_cache) [[likely]] {
-                        auto value_in_prototype = cached_prototype->get_direct(cache.property_offset.value());
+                        auto value_in_prototype = cached_prototype->get_direct(cache.property_offset);
                         if (value_in_prototype.is_accessor()) [[unlikely]] {
                             (void)TRY(call(vm, value_in_prototype.as_accessor().setter(), this_value, value));
                             return {};
@@ -278,16 +275,15 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                         break;
 
                     if (cached_shape->is_dictionary()) {
-                        VERIFY(cache.shape_dictionary_generation.has_value());
-                        if (cached_shape->dictionary_generation() != cache.shape_dictionary_generation.value())
+                        if (cached_shape->dictionary_generation() != cache.shape_dictionary_generation)
                             break;
                     }
 
-                    auto value_in_object = object->get_direct(cache.property_offset.value());
+                    auto value_in_object = object->get_direct(cache.property_offset);
                     if (value_in_object.is_accessor()) [[unlikely]] {
                         (void)TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
                     } else {
-                        object->put_direct(*cache.property_offset, value);
+                        object->put_direct(cache.property_offset, value);
                     }
                     return {};
                 }
@@ -301,8 +297,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                         break;
 
                     if (cached_shape->is_dictionary()) {
-                        VERIFY(cache.shape_dictionary_generation.has_value());
-                        if (object->shape().dictionary_generation() != cache.shape_dictionary_generation.value())
+                        if (object->shape().dictionary_generation() != cache.shape_dictionary_generation)
                             break;
                     }
 
@@ -311,7 +306,7 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     if (cached_prototype_chain_validity && !cached_prototype_chain_validity->is_valid()) [[unlikely]]
                         break;
                     object->unsafe_set_shape(*cached_shape);
-                    object->put_direct(*cache.property_offset, value);
+                    object->put_direct(cache.property_offset, value);
                     return {};
                 }
                 default:
