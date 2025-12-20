@@ -759,6 +759,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         }
     }
 
+#if defined(AK_OS_WINDOWS)
+    // Flush any remaining events in the event queue so when the destructor is invoked
+    // on main thread exit, which does not happen with Unix pthread, we are not destructing any
+    // WebContentClient's which access a HashTable that has already been destroyed.
+    Core::EventLoop::current().pump(Core::EventLoop::WaitMode::PollForEvents);
+#endif
+
     return fail_count + timeout_count + crashed_count + tests_remaining;
 }
 
