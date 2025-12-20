@@ -1002,7 +1002,7 @@ void Identifier::dump(int indent) const
 {
     print_indent(indent);
     if (is_local()) {
-        outln("Identifier \"{}\" is_local=(true) index=({})", m_string, m_local_index->index);
+        outln("Identifier \"{}\" is_local=(true) index=({})", m_string, m_local_index);
     } else if (is_global()) {
         outln("Identifier \"{}\" is_global=(true)", m_string);
     } else {

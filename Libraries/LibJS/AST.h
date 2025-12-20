@@ -679,28 +679,37 @@ public:
     Utf16FlyString const& string() const { return m_string; }
 
     struct Local {
-        enum Type {
+        enum Type : u8 {
+            None,
             Argument,
             Variable,
         };
         Type type;
-        size_t index;
+        u32 index;
 
         bool is_argument() const { return type == Argument; }
         bool is_variable() const { return type == Variable; }
 
-        static Local variable(size_t index) { return { Variable, index }; }
-        static Local argument(size_t index) { return { Argument, index }; }
+        static Local variable(u32 index) { return { Variable, index }; }
+        static Local argument(u32 index) { return { Argument, index }; }
     };
 
-    bool is_local() const { return m_local_index.has_value(); }
+    bool is_local() const { return m_local_type != Local::Type::None; }
     Local local_index() const
     {
-        VERIFY(m_local_index.has_value());
-        return m_local_index.value();
+        VERIFY(m_local_type != Local::Type::None);
+        return Local { m_local_type, m_local_index };
     }
-    void set_local_variable_index(size_t index) { m_local_index = Local::variable(index); }
-    void set_argument_index(size_t index) { m_local_index = Local::argument(index); }
+    void set_local_variable_index(u32 index)
+    {
+        m_local_type = Local::Type::Variable;
+        m_local_index = index;
+    }
+    void set_argument_index(u32 index)
+    {
+        m_local_type = Local::Type::Argument;
+        m_local_index = index;
+    }
 
     bool is_global() const { return m_is_global; }
     void set_is_global() { m_is_global = true; }
@@ -714,9 +723,11 @@ public:
 private:
     virtual bool is_identifier() const override { return true; }
 
+    u32 m_local_index;
     Utf16FlyString m_string;
 
-    Optional<Local> m_local_index;
+    Local::Type m_local_type { Local::Type::None };
+
     bool m_is_global { false };
     DeclarationKind m_declaration_kind { DeclarationKind::None };
 };
