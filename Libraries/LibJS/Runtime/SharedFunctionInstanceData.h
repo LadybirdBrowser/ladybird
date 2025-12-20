@@ -38,7 +38,7 @@ public:
         i32 function_length,
         NonnullRefPtr<FunctionParameters const>,
         NonnullRefPtr<Statement const> ecmascript_code,
-        ByteString source_text,
+        Utf16View source_text,
         bool strict,
         bool is_arrow_function,
         FunctionParsingInsights const&,
@@ -50,7 +50,11 @@ public:
     RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
 
     Utf16FlyString m_name;
-    ByteString m_source_text; // [[SourceText]]
+
+    // NB: m_source_text_owner is used if the source text needs to be owned by the function data.
+    //     Otherwise, m_source_text is a view into the underlying JS::SourceCode we parsed the AST from.
+    Utf16String m_source_text_owner;
+    Utf16View m_source_text; // [[SourceText]]
 
     Vector<LocalVariable> m_local_variables_names;
 

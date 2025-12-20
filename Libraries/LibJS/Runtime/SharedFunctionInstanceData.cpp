@@ -18,7 +18,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     i32 function_length,
     NonnullRefPtr<FunctionParameters const> formal_parameters,
     NonnullRefPtr<Statement const> ecmascript_code,
-    ByteString source_text,
+    Utf16View source_text,
     bool strict,
     bool is_arrow_function,
     FunctionParsingInsights const& parsing_insights,

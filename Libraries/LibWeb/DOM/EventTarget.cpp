@@ -429,7 +429,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         auto& settings_object = document->relevant_settings_object();
 
         // NOTE: ECMAScriptFunctionObject::create expects a parsed body as input, so we must do the spec's sourceText steps here.
-        StringBuilder builder;
+        StringBuilder builder(StringBuilder::Mode::UTF16);
 
         // sourceText
         if (name == HTML::EventNames::error && is<HTML::Window>(this)) {
@@ -442,9 +442,9 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
             builder.appendff("function {}(event) {{\n{}\n}}", name, body);
         }
 
-        auto source_text = builder.to_byte_string();
+        auto source_text = builder.to_utf16_string();
 
-        auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(source_text))));
+        auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, source_text)));
 
         // FIXME: This should only be parsing the `body` instead of `source_text` and therefore use `JS::FunctionBody` instead of `JS::FunctionExpression`.
         //        However, JS::ECMAScriptFunctionObject::create wants parameters and length and JS::FunctionBody does not inherit JS::FunctionNode.
@@ -510,7 +510,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
 
         //  6. Return scope. (NOTE: Not necessary)
 
-        auto function = JS::ECMAScriptFunctionObject::create(realm, Utf16FlyString::from_utf8(name), builder.to_byte_string(), program->body(), program->parameters(), program->function_length(), program->local_variables_names(), scope, nullptr, JS::FunctionKind::Normal, program->is_strict_mode(),
+        auto function = JS::ECMAScriptFunctionObject::create(realm, Utf16FlyString::from_utf8(name), move(source_text), program->body(), program->parameters(), program->function_length(), program->local_variables_names(), scope, nullptr, JS::FunctionKind::Normal, program->is_strict_mode(),
             program->parsing_insights(), is_arrow_function);
 
         // 10. Remove settings object's realm execution context from the JavaScript execution context stack.
