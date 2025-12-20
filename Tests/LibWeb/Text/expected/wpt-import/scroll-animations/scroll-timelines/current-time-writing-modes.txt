@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
+1 Pass
+4 Fail
 Fail	currentTime handles direction: rtl correctly
 Fail	currentTime handles writing-mode: vertical-rl correctly
 Fail	currentTime handles writing-mode: sideways-rl correctly
-Fail	currentTime handles writing-mode: vertical-lr correctly
+Pass	currentTime handles writing-mode: vertical-lr correctly
 Fail	currentTime handles writing-mode: sideways-lr correctly

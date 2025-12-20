@@ -22,6 +22,7 @@ set(SOURCES
     Animations/DocumentTimeline.cpp
     Animations/KeyframeEffect.cpp
     Animations/PseudoElementParsing.cpp
+    Animations/ScrollTimeline.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp
     ARIA/AttributeNames.cpp

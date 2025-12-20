@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-9 Fail
-Fail	Updating the playback rate maintains the current time
-Fail	Updating the playback rate while running makes the animation pending
-Fail	Updating the playback rate on a play-pending animation maintains the current time
-Fail	Updating the playback rate on a pause-pending animation maintains the current time
-Fail	If a pending playback rate is set multiple times, the latest wins
-Fail	In the idle state, the playback rate is applied immediately
-Fail	In the paused state, the playback rate is applied immediately
-Fail	Updating the playback rate on a finished animation maintains the current time
-Fail	Updating the playback rate to zero on a finished animation maintains the current time
+9 Pass
+Pass	Updating the playback rate maintains the current time
+Pass	Updating the playback rate while running makes the animation pending
+Pass	Updating the playback rate on a play-pending animation maintains the current time
+Pass	Updating the playback rate on a pause-pending animation maintains the current time
+Pass	If a pending playback rate is set multiple times, the latest wins
+Pass	In the idle state, the playback rate is applied immediately
+Pass	In the paused state, the playback rate is applied immediately
+Pass	Updating the playback rate on a finished animation maintains the current time
+Pass	Updating the playback rate to zero on a finished animation maintains the current time
