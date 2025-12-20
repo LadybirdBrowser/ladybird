@@ -179,6 +179,18 @@ public:
 
 private:
     friend Traits<PropertyKey>;
+    friend class Optional<PropertyKey>;
+
+    enum class ShouldMakeEmptyOptional {
+        Indeed,
+    };
+
+    explicit PropertyKey(ShouldMakeEmptyOptional)
+        : m_bits(0)
+    {
+    }
+
+    [[nodiscard]] bool is_empty_optional() const { return m_bits == 0; }
 
     union {
         Utf16FlyString m_string;
@@ -227,6 +239,102 @@ struct Formatter<JS::PropertyKey> : Formatter<Utf16String> {
             return builder.put_u64(property_key.as_number());
         return Formatter<Utf16String>::format(builder, property_key.to_string());
     }
+};
+
+template<>
+class Optional<JS::PropertyKey> : public OptionalBase<JS::PropertyKey> {
+    template<typename U>
+    friend class Optional;
+
+public:
+    using ValueType = JS::PropertyKey;
+
+    Optional() = default;
+
+    template<SameAs<OptionalNone> V>
+    Optional(V) { }
+
+    Optional(Optional<JS::PropertyKey> const& other)
+    {
+        if (other.has_value())
+            m_value = other.m_value;
+    }
+
+    Optional(Optional&& other)
+        : m_value(other.m_value)
+    {
+    }
+
+    template<typename U = JS::PropertyKey>
+    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
+    explicit(!IsConvertible<U&&, JS::PropertyKey>) Optional(U&& value)
+    requires(!IsSame<RemoveCVReference<U>, Optional<JS::PropertyKey>> && IsConstructible<JS::PropertyKey, U &&>)
+        : m_value(forward<U>(value))
+    {
+    }
+
+    template<SameAs<OptionalNone> V>
+    Optional& operator=(V)
+    {
+        clear();
+        return *this;
+    }
+
+    Optional& operator=(Optional const& other)
+    {
+        if (this != &other) {
+            clear();
+            m_value = other.m_value;
+        }
+        return *this;
+    }
+
+    Optional& operator=(Optional&& other)
+    {
+        if (this != &other) {
+            clear();
+            m_value = other.m_value;
+        }
+        return *this;
+    }
+
+    void clear()
+    {
+        m_value = JS::PropertyKey { JS::PropertyKey::ShouldMakeEmptyOptional::Indeed };
+    }
+
+    [[nodiscard]] bool has_value() const
+    {
+        return !m_value.is_empty_optional();
+    }
+
+    [[nodiscard]] JS::PropertyKey& value() &
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] JS::PropertyKey const& value() const&
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] JS::PropertyKey value() &&
+    {
+        return release_value();
+    }
+
+    [[nodiscard]] JS::PropertyKey release_value()
+    {
+        VERIFY(has_value());
+        JS::PropertyKey released_value = m_value;
+        clear();
+        return released_value;
+    }
+
+private:
+    JS::PropertyKey m_value { JS::PropertyKey::ShouldMakeEmptyOptional::Indeed };
 };
 
 }
