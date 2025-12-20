@@ -441,6 +441,7 @@ SVGViewElement
 Screen
 ScreenOrientation
 ScriptProcessorNode
+ScrollTimeline
 SecurityPolicyViolationEvent
 Selection
 Serial

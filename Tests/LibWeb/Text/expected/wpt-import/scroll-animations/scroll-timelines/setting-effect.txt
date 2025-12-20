@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Setting the effect of scroll-driven animation computes percentage timing values.
+1 Pass
+Pass	Setting the effect of scroll-driven animation computes percentage timing values.
