@@ -419,10 +419,8 @@ CSSPixels PaintableBox::available_scrollbar_length(ScrollDirection direction) co
             return full_scrollport_length;
         return max(CSSPixels { 0 }, full_scrollport_length - ChromeMetrics::ScrollGutterThickness);
     }
-    if (is_horizontal || !is_resizer_south_west()) {
-        // Vertical scrollbar only overlaps the resize handle when both are on the right.
+    if (is_horizontal || !is_resizer_south_west())
         return max(CSSPixels { 0 }, full_scrollport_length - ChromeMetrics::ResizeGripperSize);
-    }
     return full_scrollport_length;
 }
 
@@ -508,8 +506,7 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         CSSPixels scroll_offset = is_horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
         CSSPixels thumb_offset = scroll_offset * scrollbar_data.thumb_travel_to_scroll_ratio;
 
-        scrollbar_data.thumb_rect.set_primary_offset_for_orientation(
-            orientation, scrollbar_data.thumb_rect.primary_offset_for_orientation(orientation) + thumb_offset);
+        scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_offset);
     }
 
     return scrollbar_data;
