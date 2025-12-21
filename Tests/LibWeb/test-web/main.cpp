@@ -595,6 +595,15 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return Error::from_string_literal("No tests found matching filter");
     }
 
+    // CTest cannot forward the -j flag, so look for the bridge variable set by ladybird.py
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    if (char* env_concurrency = getenv("LADYBIRD_TEST_CONCURRENCY")) {
+        if (auto val = StringView { env_concurrency, strlen(env_concurrency) }.to_number<size_t>(); val.has_value()) {
+            app.test_concurrency = val.value();
+            outln("Forcing concurrency to {} via LADYBIRD_TEST_CONCURRENCY", app.test_concurrency);
+        }
+    }
+
     auto concurrency = min(app.test_concurrency, tests.size());
     size_t loaded_web_views = 0;
 
