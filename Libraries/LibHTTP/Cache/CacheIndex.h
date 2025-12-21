@@ -21,8 +21,6 @@ namespace HTTP {
 // the entire cache entry has been successfully written to disk.
 class CacheIndex {
     struct Entry {
-        u64 cache_key { 0 };
-
         String url;
         NonnullRefPtr<HeaderList> response_headers;
         u64 data_size { 0 };
@@ -62,7 +60,7 @@ private:
     NonnullRawPtr<Database::Database> m_database;
     Statements m_statements;
 
-    HashMap<u32, Entry> m_entries;
+    HashMap<u64, Entry> m_entries;
 };
 
 }

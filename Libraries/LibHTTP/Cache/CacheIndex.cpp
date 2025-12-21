@@ -125,7 +125,6 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderLis
     }
 
     Entry entry {
-        .cache_key = cache_key,
         .url = move(url),
         .response_headers = move(response_headers),
         .data_size = data_size,
@@ -134,7 +133,7 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderLis
         .last_access_time = now,
     };
 
-    m_database->execute_statement(m_statements.insert_entry, {}, entry.cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
     m_entries.set(cache_key, move(entry));
 }
 
@@ -196,7 +195,7 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
             auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
             auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
-            Entry entry { cache_key, move(url), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
+            Entry entry { move(url), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
             m_entries.set(cache_key, move(entry));
         },
         cache_key);
