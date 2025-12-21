@@ -19,12 +19,9 @@ static Optional<CSSPixelSize> containing_block_padding_box_size(Layout::Node con
     auto parent_box = layout_node.containing_block();
     if (!parent_box)
         return {};
-
-    auto const* parent_paintable = parent_box->first_paintable();
-    if (!parent_paintable || !parent_paintable->is_paintable_box())
-        return {};
-
-    return static_cast<Painting::PaintableBox const*>(parent_paintable)->absolute_padding_box_rect().size();
+    if (auto const* paintable_box = as_if<Painting::PaintableBox>(parent_box->first_paintable()))
+        return paintable_box->absolute_padding_box_rect().size();
+    return {};
 }
 
 ElementResizeAction::ElementResizeAction(GC::Ref<DOM::Element> element, CSSPixelPoint pointer_down_origin)
@@ -86,9 +83,8 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
 
     MUST(style->set_property(CSS::PropertyID::Width, width_str));
     MUST(style->set_property(CSS::PropertyID::Height, height_str));
-    CSSPixelRect invalidated = paintable_box->absolute_border_box_rect();
-    invalidated.set_size(css_width, css_height);
-    m_element->document().set_needs_display(invalidated, InvalidateDisplayList::No);
+
+    m_element->document().set_needs_display();
 }
 
 void ElementResizeAction::visit_edges(GC::Cell::Visitor& visitor) const

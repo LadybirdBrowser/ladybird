@@ -11,10 +11,12 @@
 namespace Web {
 
 struct ChromeMetrics {
-    static constexpr CSSPixels ScrollThumbThickness { 6 };
-    static constexpr CSSPixels ScrollThumbExpandedThickness { 12 };
-
     static constexpr CSSPixels ScrollThumbMinLength { 24 };
+    static constexpr CSSPixels ScrollThumbMarginThin { 2 };
+    static constexpr CSSPixels ScrollThumbThicknessThin { 6 };
+    static constexpr CSSPixels ScrollThumbThickness { 8 };
+    static constexpr CSSPixels ScrollGutterThickness { 12 };
+
     static constexpr CSSPixels ResizeGripperSize { 12 };
 };
 

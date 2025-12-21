@@ -417,7 +417,7 @@ CSSPixels PaintableBox::available_scrollbar_length(ScrollDirection direction) co
     if (!has_resizer()) {
         if (!is_horizontal || !could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))
             return full_scrollport_length;
-        return max(CSSPixels { 0 }, full_scrollport_length - ChromeMetrics::ScrollThumbExpandedThickness);
+        return max(CSSPixels { 0 }, full_scrollport_length - ChromeMetrics::ScrollGutterThickness);
     }
     if (is_horizontal || !is_resizer_south_west()) {
         // Vertical scrollbar only overlaps the resize handle when both are on the right.
@@ -433,24 +433,28 @@ Optional<CSSPixelRect> PaintableBox::absolute_scrollbar_rect(ScrollDirection dir
 
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     bool adjusting_for_resizer = has_resizer();
-    CSSPixels thickness = with_gutter ? ChromeMetrics::ScrollThumbExpandedThickness : ChromeMetrics::ScrollThumbThickness;
+    CSSPixels rect_thickness;
+    if (with_gutter)
+        rect_thickness = ChromeMetrics::ScrollGutterThickness;
+    else
+        rect_thickness = (ChromeMetrics::ScrollThumbThicknessThin + ChromeMetrics::ScrollThumbMarginThin);
     CSSPixelRect scrollbar_rect = absolute_padding_box_rect();
 
     if (is_horizontal) {
         if (!adjusting_for_resizer && could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))
-            scrollbar_rect.set_width(max(CSSPixels { 0 }, scrollbar_rect.width() - ChromeMetrics::ScrollThumbExpandedThickness));
+            scrollbar_rect.set_width(max(CSSPixels { 0 }, scrollbar_rect.width() - ChromeMetrics::ScrollGutterThickness));
         else if (adjusting_for_resizer) {
             scrollbar_rect.set_width(available_scrollbar_length(ScrollDirection::Horizontal));
             if (is_resizer_south_west())
                 scrollbar_rect.set_x(scrollbar_rect.x() + ChromeMetrics::ResizeGripperSize);
         }
-        scrollbar_rect.set_y(max(CSSPixels { 0 }, scrollbar_rect.bottom() - thickness));
-        scrollbar_rect.set_height(thickness);
+        scrollbar_rect.set_y(max(CSSPixels { 0 }, scrollbar_rect.bottom() - rect_thickness));
+        scrollbar_rect.set_height(rect_thickness);
     } else {
         if (adjusting_for_resizer)
             scrollbar_rect.set_height(available_scrollbar_length(ScrollDirection::Vertical));
-        scrollbar_rect.set_x(max(CSSPixels { 0 }, scrollbar_rect.right() - thickness));
-        scrollbar_rect.set_width(thickness);
+        scrollbar_rect.set_x(max(CSSPixels { 0 }, scrollbar_rect.right() - rect_thickness));
+        scrollbar_rect.set_width(rect_thickness);
     }
     return scrollbar_rect;
 }
@@ -458,56 +462,54 @@ Optional<CSSPixelRect> PaintableBox::absolute_scrollbar_rect(ScrollDirection dir
 Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, AdjustThumbRectForScrollOffset adjust_thumb_rect_for_scroll_offset) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
-    CSS::Overflow overflow = is_horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
+    auto orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
+    auto overflow = is_horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
 
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (!own_scroll_frame_id().has_value()) {
+    if (!own_scroll_frame_id().has_value())
         return {};
-    }
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-    auto scrollable_overflow_length = is_horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
+
+    CSSPixelRect scrollable_overflow_rect = this->scrollable_overflow_rect().value();
+    CSSPixels scrollable_overflow_length = scrollable_overflow_rect.primary_size_for_orientation(orientation);
     if (scrollable_overflow_length == 0)
         return {};
 
-    auto scrollbar_length = available_scrollbar_length(direction);
     bool with_gutter = is_horizontal ? m_draw_enlarged_horizontal_scrollbar : m_draw_enlarged_vertical_scrollbar;
     auto scrollbar_rect = absolute_scrollbar_rect(direction, with_gutter);
     if (!scrollbar_rect.has_value())
         return {};
 
-    CSSPixels thickness = with_gutter ? ChromeMetrics::ScrollThumbExpandedThickness : ChromeMetrics::ScrollThumbThickness;
-    auto scrollport_size = is_horizontal ? absolute_padding_box_rect().width() : absolute_padding_box_rect().height();
-    auto min_thumb_length = min(scrollbar_length, ChromeMetrics::ScrollThumbMinLength);
-    auto thumb_length = max(scrollbar_length * (scrollport_size / scrollable_overflow_length), min_thumb_length);
+    CSSPixels thumb_thickness = with_gutter ? ChromeMetrics::ScrollThumbThickness : ChromeMetrics::ScrollThumbThicknessThin;
+    CSSPixels thumb_margin = ChromeMetrics::ScrollThumbMarginThin;
+    if (with_gutter)
+        thumb_margin = CSSPixels { (ChromeMetrics::ScrollGutterThickness - ChromeMetrics::ScrollThumbThickness) / 2.0 };
 
-    ScrollbarData scrollbar_data = { .gutter_rect = {}, .thumb_rect = scrollbar_rect.value(), .scroll_ratio = 0 };
+    CSSPixels scrollbar_length = scrollbar_rect->primary_size_for_orientation(orientation);
+    CSSPixels usable_scrollbar_length = max(CSSPixels { 0 }, scrollbar_length - (2 * thumb_margin));
+    CSSPixels scrollport_size = absolute_padding_box_rect().primary_size_for_orientation(orientation);
+    CSSPixels min_thumb_length = min(usable_scrollbar_length, ChromeMetrics::ScrollThumbMinLength);
+    CSSPixels thumb_length = max(usable_scrollbar_length * (scrollport_size / scrollable_overflow_length), min_thumb_length);
 
-    if (scrollable_overflow_length > scrollport_size)
-        scrollbar_data.scroll_ratio = (scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
+    ScrollbarData scrollbar_data = { .gutter_rect = {}, .thumb_rect = scrollbar_rect.value(), .thumb_travel_to_scroll_ratio = 0 };
 
-    CSSPixels inner_edge_shrink = with_gutter ? 2 : -2;
-    if (is_horizontal) {
-        scrollbar_data.thumb_rect.set_size(thumb_length, thickness);
-        scrollbar_data.thumb_rect.shrink(inner_edge_shrink, 2, 2, 2);
-        if (with_gutter)
-            scrollbar_data.gutter_rect = { scrollbar_rect->x(), scrollbar_rect->y(), scrollbar_rect->width(), thickness };
-    } else {
-        scrollbar_data.thumb_rect.set_size(thickness, thumb_length);
-        scrollbar_data.thumb_rect.shrink(2, 2, 2, inner_edge_shrink);
-        if (with_gutter)
-            scrollbar_data.gutter_rect = { scrollbar_rect->x(), scrollbar_rect->y(), thickness, scrollbar_rect->height() };
+    scrollbar_data.thumb_rect.set_primary_size_for_orientation(orientation, thumb_length);
+    scrollbar_data.thumb_rect.set_secondary_size_for_orientation(orientation, thumb_thickness);
+    scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_margin);
+    if (with_gutter) {
+        scrollbar_data.thumb_rect.translate_secondary_offset_for_orientation(orientation, thumb_margin);
+        scrollbar_data.gutter_rect = scrollbar_rect.value();
     }
+    if (scrollable_overflow_length > scrollport_size)
+        scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (adjust_thumb_rect_for_scroll_offset == AdjustThumbRectForScrollOffset::Yes) {
-        auto scroll_offset = is_horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
-        auto thumb_offset = scroll_offset * scrollbar_data.scroll_ratio;
+        CSSPixels scroll_offset = is_horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
+        CSSPixels thumb_offset = scroll_offset * scrollbar_data.thumb_travel_to_scroll_ratio;
 
-        if (is_horizontal)
-            scrollbar_data.thumb_rect.translate_by(thumb_offset, 0);
-        else
-            scrollbar_data.thumb_rect.translate_by(0, thumb_offset);
+        scrollbar_data.thumb_rect.set_primary_offset_for_orientation(
+            orientation, scrollbar_data.thumb_rect.primary_offset_for_orientation(orientation) + thumb_offset);
     }
 
     return scrollbar_data;
@@ -570,12 +572,12 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
             if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
                 auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
                 auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_ratio, scrollbar_colors.thumb_color, scrollbar_colors.track_color, true);
+                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->thumb_travel_to_scroll_ratio, scrollbar_colors.thumb_color, scrollbar_colors.track_color, true);
             }
             if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
                 auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
                 auto thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>();
-                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->scroll_ratio, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
+                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), gutter_rect, thumb_rect, scrollbar_data->thumb_travel_to_scroll_ratio, scrollbar_colors.thumb_color, scrollbar_colors.track_color, false);
             }
         }
         if (auto resizer_rect = absolute_resizer_rect(); resizer_rect.has_value()) {
@@ -1209,7 +1211,8 @@ void PaintableBox::handle_mouseleave(Badge<EventHandler>)
 
 bool PaintableBox::scrollbar_contains(ScrollDirection direction, CSSPixelPoint adjusted_position) const
 {
-    if (auto rect = absolute_scrollbar_rect(direction, true); rect.has_value())
+    bool with_gutter = direction == ScrollDirection::Horizontal ? m_draw_enlarged_horizontal_scrollbar : m_draw_enlarged_vertical_scrollbar;
+    if (auto rect = absolute_scrollbar_rect(direction, with_gutter); rect.has_value())
         return rect->contains(adjusted_position);
     return false;
 }
