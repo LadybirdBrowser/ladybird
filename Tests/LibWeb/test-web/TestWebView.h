@@ -29,6 +29,10 @@ public:
     TestPromise& test_promise() { return *m_test_promise; }
     void on_test_complete(TestCompletion);
 
+    void restart_web_content_process();
+    size_t run_count() const { return m_run_count; }
+    void increment_run_count() { ++m_run_count; }
+
 private:
     TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
@@ -37,6 +41,8 @@ private:
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;
+
+    size_t m_run_count { 0 };
 };
 
 }

@@ -60,4 +60,10 @@ void TestWebView::on_test_complete(TestCompletion completion)
     m_test_promise->resolve(move(completion));
 }
 
+void TestWebView::restart_web_content_process()
+{
+    initialize_client(CreateNewClient::Yes);
+    m_run_count = 0;
+}
+
 }

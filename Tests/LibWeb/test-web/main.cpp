@@ -704,6 +704,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             if (result.result != TestResult::Pass)
                 non_passing_tests.append(move(result));
 
+            view->increment_run_count();
+            if (view->run_count() >= 50) {
+                view->restart_web_content_process();
+            }
+
             if (--tests_remaining == 0)
                 s_all_tests_complete->resolve({});
             else
