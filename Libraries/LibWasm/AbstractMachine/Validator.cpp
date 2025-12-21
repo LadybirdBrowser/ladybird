@@ -252,7 +252,8 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
     size_t index = m_context.imported_function_count;
     for (auto& entry : section.functions()) {
         auto function_index = index++;
-        TRY(validate(FunctionIndex { function_index }));
+        VERIFY(function_index <= NumericLimits<u32>::max());
+        TRY(validate(FunctionIndex { static_cast<u32>(function_index) }));
         auto& function_type = m_context.functions[function_index];
         auto& function = entry.func();
 
