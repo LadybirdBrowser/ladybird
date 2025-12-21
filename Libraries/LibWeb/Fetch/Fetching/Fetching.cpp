@@ -12,6 +12,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
@@ -81,6 +82,72 @@ bool g_http_memory_cache_enabled = false;
             "Do not return a reference from a fallible expression");                                 \
         _temporary_result.release_value();                                                           \
     })
+
+class HTTPCache {
+public:
+    HTTP::MemoryCache& get(Infrastructure::NetworkPartitionKey const& key)
+    {
+        return *m_cache.ensure(key, [] {
+            return HTTP::MemoryCache::create();
+        });
+    }
+
+    static HTTPCache& the()
+    {
+        static HTTPCache s_cache;
+        return s_cache;
+    }
+
+    void clear_cache()
+    {
+        m_cache.clear();
+    }
+
+private:
+    HashMap<Infrastructure::NetworkPartitionKey, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
+};
+
+// https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
+static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructure::Request const& request)
+{
+    if (!g_http_memory_cache_enabled)
+        return nullptr;
+
+    // 1. Let key be the result of determining the network partition key given request.
+    auto key = Infrastructure::determine_the_network_partition_key(request);
+
+    // 2. If key is null, then return null.
+    if (!key.has_value())
+        return nullptr;
+
+    // 3. Return the unique HTTP cache associated with key. [HTTP-CACHING]
+    return HTTPCache::the().get(key.value());
+}
+
+static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& realm, HTTP::MemoryCache const& http_cache, Infrastructure::Request const& request)
+{
+    auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list());
+    if (!cache_entry.has_value())
+        return {};
+
+    auto response = Infrastructure::Response::create(realm.vm());
+    response->url_list().append(request.current_url());
+    response->set_method(request.method());
+
+    response->set_status(cache_entry->status_code);
+    response->set_status_message(cache_entry->reason_phrase);
+    response->set_header_list(cache_entry->response_headers);
+
+    auto [response_body, _] = safely_extract_body(realm, cache_entry->response_body.bytes());
+    response->set_body(response_body);
+
+    return response;
+}
+
+static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response const& response)
+{
+    http_cache.create_entry(request.current_url(), request.method(), response.status(), response.status_message(), response.header_list());
+}
 
 // https://fetch.spec.whatwg.org/#concept-fetch
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
@@ -1414,104 +1481,6 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     return main_fetch(realm, fetch_params, recursive);
 }
 
-class CachePartition : public RefCounted<CachePartition> {
-public:
-    // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-    GC::Ptr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, StringView method, HTTP::HeaderList const& headers) const
-    {
-        // When presented with a request, a cache MUST NOT reuse a stored response unless:
-
-        // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
-        auto it = m_cache.find(url);
-        if (it == m_cache.end()) {
-            dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
-            return {};
-        }
-        auto const& cached_response = it->value;
-
-        // - the request method associated with the stored response allows it to be used for the presented request, and
-        if (method != cached_response->method()) {
-            dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
-            return {};
-        }
-
-        // FIXME: - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
-        (void)headers;
-
-        // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
-
-        // FIXME: - the stored response is one of the following:
-        //          + fresh (see Section 4.2), or
-        //          + allowed to be served stale (see Section 4.2.4), or
-        //          + successfully validated (see Section 4.3).
-
-        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
-        return cached_response->clone(realm);
-    }
-
-    void store_response(JS::Realm& realm, Infrastructure::Request const& http_request, Infrastructure::Response const& response)
-    {
-        if (!HTTP::is_cacheable(http_request.method()))
-            return;
-        if (!HTTP::is_cacheable(response.status(), response.header_list()))
-            return;
-
-        auto cached_response = Infrastructure::Response::create(realm.vm());
-
-        HTTP::store_header_and_trailer_fields(cached_response->header_list(), response.header_list());
-        cached_response->set_body(response.body()->clone(realm));
-        cached_response->set_body_info(response.body_info());
-        cached_response->set_method(http_request.method());
-        cached_response->set_status(response.status());
-        cached_response->url_list().append(http_request.current_url());
-        m_cache.set(http_request.current_url(), cached_response);
-    }
-
-private:
-    HashMap<URL::URL, GC::Root<Infrastructure::Response>> m_cache;
-};
-
-class HTTPCache {
-public:
-    CachePartition& get(Infrastructure::NetworkPartitionKey const& key)
-    {
-        return *m_cache.ensure(key, [] {
-            return adopt_ref(*new CachePartition);
-        });
-    }
-
-    static HTTPCache& the()
-    {
-        static HTTPCache s_cache;
-        return s_cache;
-    }
-
-    void clear_cache()
-    {
-        m_cache.clear();
-    }
-
-private:
-    HashMap<Infrastructure::NetworkPartitionKey, NonnullRefPtr<CachePartition>> m_cache;
-};
-
-// https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
-static RefPtr<CachePartition> determine_the_http_cache_partition(Infrastructure::Request const& request)
-{
-    if (!g_http_memory_cache_enabled)
-        return nullptr;
-
-    // 1. Let key be the result of determining the network partition key given request.
-    auto key = Infrastructure::determine_the_network_partition_key(request);
-
-    // 2. If key is null, then return null.
-    if (!key.has_value())
-        return nullptr;
-
-    // 3. Return the unique HTTP cache associated with key. [HTTP-CACHING]
-    return HTTPCache::the().get(key.value());
-}
-
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
 GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch)
 {
@@ -1536,8 +1505,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     GC::Ptr<Infrastructure::Response> stored_response;
 
     // 6. Let httpCache be null.
-    // (Typeless until we actually implement it, needed for checks below)
-    RefPtr<CachePartition> http_cache;
+    RefPtr<HTTP::MemoryCache> http_cache;
 
     // 7. Let the revalidatingFlag be unset.
     auto revalidating_flag = RefCountedFlag::create(false);
@@ -1802,7 +1770,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
             // NOTE: As mandated by HTTP, this still takes the `Vary` header into account.
-            stored_response = http_cache->select_response(realm, http_request->current_url(), http_request->method(), *http_request->header_list());
+            stored_response = select_response_from_cache(realm, *http_cache, *http_request);
 
             // 2. If storedResponse is non-null, then:
             if (stored_response) {
@@ -1880,7 +1848,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
         //    and isNewConnectionFetch.
-        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch);
+        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
     } else {
         pending_forward_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
     }
@@ -1930,7 +1898,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 //       sometimes known as "negative caching".
                 // NOTE: The associated body info is stored in the cache alongside the response.
                 if (http_cache)
-                    http_cache->store_response(realm, *http_request, *forward_response);
+                    store_response_in_cache(*http_cache, *http_request, *forward_response);
             }
         }
 
@@ -2094,7 +2062,7 @@ static void log_response(auto const& status_code, auto const& headers, auto cons
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 // Drop-in replacement for 'HTTP-network fetch', but obviously non-standard :^)
 // It also handles file:// URLs since those can also go through ResourceLoader.
-GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch)
+GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, IncludeCredentials include_credentials, IsNewConnectionFetch is_new_connection_fetch, RefPtr<HTTP::MemoryCache> http_cache)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'non-standard HTTP-network fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -2145,7 +2113,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto stream = realm.create<Streams::ReadableStream>(realm);
 
     // 9. Let buffer be an empty byte sequence.
-    auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream);
+    auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream, move(http_cache));
 
     // 11. Let pullAlgorithm be the following steps:
     auto pull_algorithm = GC::create_function(realm.heap(), [&realm, fetched_data_receiver]() {

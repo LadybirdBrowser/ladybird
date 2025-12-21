@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/Function.h>
+#include <LibHTTP/Cache/MemoryCache.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -19,9 +20,10 @@ namespace Web::Fetch::Fetching {
 
 GC_DEFINE_ALLOCATOR(FetchedDataReceiver);
 
-FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream)
+FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream, RefPtr<HTTP::MemoryCache> http_cache)
     : m_fetch_params(fetch_params)
     , m_stream(stream)
+    , m_http_cache(move(http_cache))
 {
 }
 
@@ -154,6 +156,11 @@ void FetchedDataReceiver::close_stream()
     m_pending_promise = {};
     m_lifecycle_state = LifecycleState::Closed;
     m_stream->close();
+
+    if (m_http_cache) {
+        m_http_cache->finalize_entry(m_fetch_params->request()->current_url(), m_fetch_params->request()->method(), move(m_buffer));
+        m_http_cache.clear();
+    }
 }
 
 ByteBuffer FetchedDataReceiver::copy_unpulled_bytes()
