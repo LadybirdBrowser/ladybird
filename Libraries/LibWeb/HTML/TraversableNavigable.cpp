@@ -1017,7 +1017,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
 
 TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload)
 {
-    return check_if_unloading_is_canceled(navigables_that_need_before_unload, {}, {}, {});
+    return check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {});
 }
 
 Vector<GC::Ref<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable> navigable, int target_step)
