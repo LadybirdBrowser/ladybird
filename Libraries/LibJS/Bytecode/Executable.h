@@ -51,6 +51,7 @@ struct PropertyLookupCache {
     {
         // First, move all entries one step back.
         for (size_t i = entries.size() - 1; i >= 1; --i) {
+            types[i] = types[i - 1];
             entries[i] = entries[i - 1];
         }
         types[0] = type;
