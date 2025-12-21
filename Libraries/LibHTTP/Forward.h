@@ -17,6 +17,7 @@ class DiskCache;
 class HeaderList;
 class HttpRequest;
 class HttpResponse;
+class MemoryCache;
 
 struct Header;
 

@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibGC/CellAllocator.h>
+#include <LibHTTP/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
 
@@ -31,7 +32,7 @@ public:
     void handle_network_bytes(ReadonlyBytes, NetworkState);
 
 private:
-    FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>);
+    FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
 
     virtual void visit_edges(Visitor& visitor) override;
 
@@ -44,6 +45,8 @@ private:
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ref<Streams::ReadableStream> m_stream;
     GC::Ptr<WebIDL::Promise> m_pending_promise;
+
+    RefPtr<HTTP::MemoryCache> m_http_cache;
 
     ByteBuffer m_buffer;
     size_t m_pulled_bytes { 0 };
