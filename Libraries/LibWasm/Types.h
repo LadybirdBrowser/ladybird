@@ -67,17 +67,17 @@ WASM_API ByteString parse_error_to_byte_string(ParseError);
 template<typename T>
 using ParseResult = ErrorOr<T, ParseError>;
 
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, TypeIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, FunctionIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, TableIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, ElementIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, MemoryIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, TagIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, LocalIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, GlobalIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, LabelIndex);
-AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, DataIndex);
-AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, TypeIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, FunctionIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, TableIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, ElementIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, MemoryIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, TagIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, LocalIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, GlobalIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, LabelIndex);
+AK_TYPEDEF_DISTINCT_ORDERED_ID(u32, DataIndex);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, InstructionPointer, Arithmetic, Comparison, Flags, Increment);
 
 ParseError with_eof_check(Stream const& stream, ParseError error_if_not_eof);
 
@@ -88,7 +88,7 @@ struct GenericIndexParser {
         auto value_or_error = stream.read_value<LEB128<u32>>();
         if (value_or_error.is_error())
             return with_eof_check(stream, ParseError::ExpectedIndex);
-        size_t value = value_or_error.release_value();
+        u32 value = value_or_error.release_value();
         return T { value };
     }
 };
