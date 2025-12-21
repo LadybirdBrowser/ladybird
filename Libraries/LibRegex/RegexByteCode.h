@@ -463,6 +463,12 @@ public:
             return;
         }
         case LookAroundType::LookBehind:
+            // CheckBoundary already compares the previous and current positions,
+            // so applying the generic lookbehind stepback would rewind twice.
+            if (lookaround_body.size() == 2 && lookaround_body[0] == (ByteCodeValueType)OpCodeId::CheckBoundary) {
+                extend(move(lookaround_body));
+                return;
+            }
             // SAVE
             // SET_STEPBACK match_length(BODY)-1
             // LABEL _START
