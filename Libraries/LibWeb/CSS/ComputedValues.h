@@ -180,6 +180,7 @@ public:
     static CSSPixels text_underline_offset() { return 2; }
     static TextUnderlinePosition text_underline_position() { return { .horizontal = TextUnderlinePositionHorizontal::Auto, .vertical = TextUnderlinePositionVertical::Auto }; }
     static Display display() { return Display { DisplayOutside::Inline, DisplayInside::Flow }; }
+    static Color accent_color() { return {}; };
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
     static Filter backdrop_filter() { return Filter::make_none(); }
@@ -709,7 +710,7 @@ protected:
         Color color { InitialValues::color() };
         ColorInterpolation color_interpolation { InitialValues::color_interpolation() };
         PreferredColorScheme color_scheme { InitialValues::color_scheme() };
-        Optional<Color> accent_color {};
+        Optional<Color> accent_color { InitialValues::accent_color() };
         Color webkit_text_fill_color { InitialValues::color() };
         ContentVisibility content_visibility { InitialValues::content_visibility() };
         Vector<CursorData> cursor { InitialValues::cursor() };
