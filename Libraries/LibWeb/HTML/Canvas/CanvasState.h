@@ -36,7 +36,7 @@ public:
     void reset();
     bool is_context_lost();
 
-    using FillOrStrokeVariant = Variant<Gfx::Color, GC::Root<CanvasGradient>, GC::Root<CanvasPattern>>;
+    using FillOrStrokeVariant = Variant<Gfx::Color, GC::Ref<CanvasGradient>, GC::Ref<CanvasPattern>>;
 
     struct FillOrStrokeStyle {
         FillOrStrokeStyle(Gfx::Color color)
@@ -44,12 +44,12 @@ public:
         {
         }
 
-        FillOrStrokeStyle(GC::Root<CanvasGradient> gradient)
+        FillOrStrokeStyle(GC::Ref<CanvasGradient> gradient)
             : m_fill_or_stroke_style(gradient)
         {
         }
 
-        FillOrStrokeStyle(GC::Root<CanvasPattern> pattern)
+        FillOrStrokeStyle(GC::Ref<CanvasPattern> pattern)
             : m_fill_or_stroke_style(pattern)
         {
         }
@@ -68,7 +68,15 @@ public:
                     return color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
                 },
                 [&](auto handle) -> JsFillOrStrokeStyle {
-                    return handle;
+                    return GC::make_root(handle);
+                });
+        }
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            m_fill_or_stroke_style.visit([&](Gfx::Color) {},
+                [&](auto& handle) {
+                    visitor.visit(handle);
                 });
         }
 
@@ -111,6 +119,14 @@ public:
     void reset_drawing_state() { m_drawing_state = {}; }
 
     virtual void reset_to_default_state() = 0;
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        for (auto& state : m_drawing_state_stack) {
+            state.fill_style.visit_edges(visitor);
+            state.stroke_style.visit_edges(visitor);
+        }
+    }
 
 protected:
     CanvasState() = default;
