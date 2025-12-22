@@ -317,8 +317,7 @@ struct Traits<ByteString> : public DefaultTraits<ByteString> {
     static unsigned hash(ByteString const& s) { return s.impl()->hash(); }
 };
 
-// FIXME: Rename this to indicate that it's about ASCII-only case insensitivity.
-struct CaseInsensitiveStringTraits : public Traits<ByteString> {
+struct CaseInsensitiveASCIIStringTraits : public Traits<ByteString> {
     static unsigned hash(ByteString const& s) { return s.impl()->case_insensitive_hash(); }
     static bool equals(ByteString const& a, ByteString const& b) { return a.equals_ignoring_ascii_case(b); }
 };
@@ -328,6 +327,6 @@ ByteString escape_html_entities(StringView html);
 }
 
 #if USING_AK_GLOBALLY
-using AK::CaseInsensitiveStringTraits;
+using AK::CaseInsensitiveASCIIStringTraits;
 using AK::escape_html_entities;
 #endif

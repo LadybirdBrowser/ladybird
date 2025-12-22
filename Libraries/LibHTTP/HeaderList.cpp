@@ -259,7 +259,7 @@ Variant<Empty, u64, HeaderList::ExtractLengthFailure> HeaderList::extract_length
 // Non-standard
 Vector<ByteString> HeaderList::unique_names() const
 {
-    HashTable<StringView, CaseInsensitiveStringTraits> header_names_seen;
+    HashTable<StringView, CaseInsensitiveASCIIStringTraits> header_names_seen;
     Vector<ByteString> header_names;
 
     for (auto const& header : m_headers) {
