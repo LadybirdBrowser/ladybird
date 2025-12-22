@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/Enumerate.h>
 #include <AK/Function.h>
+#include <AK/GenericShorthands.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
@@ -273,6 +274,10 @@ void Regex<Parser>::run_optimization_passes()
     blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_dot_star_sequences_as_seek(blocks);
 
+    // Simplify compares where possible
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    rewrite_simple_compares(blocks);
+
     fill_optimization_data(split_basic_blocks(parser_result.bytecode.template get<ByteCode>()));
 }
 
@@ -459,6 +464,27 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
             auto& compare = to<OpCode_Compare>(opcode);
             if (compare.arguments_count() == 0)
                 return; // This matches 'nothing', so there are no starting ranges that can satisfy it.
+            auto flat_compares = compare.flat_compares();
+            StaticallyInterpretedCompares compares;
+            if (!interpret_compares(flat_compares, compares))
+                return; // No idea, the bytecode is too complex.
+
+            if (compares.has_any_unicode_property)
+                return; // Faster to just run the bytecode.
+
+            // FIXME: We should be able to handle these cases (jump ahead while...)
+            if (!compares.char_classes.is_empty() || !compares.negated_char_classes.is_empty() || !compares.negated_ranges.is_empty())
+                return;
+
+            for (auto it = compares.ranges.begin(); it != compares.ranges.end(); ++it) {
+                parser_result.optimization_data.starting_ranges.append({ it.key(), *it });
+                parser_result.optimization_data.starting_ranges_insensitive.append({ to_ascii_lowercase(it.key()), to_ascii_lowercase(*it) });
+                quick_sort(parser_result.optimization_data.starting_ranges_insensitive, [](CharRange a, CharRange b) { return a.from < b.from; });
+            }
+            return;
+        }
+        case OpCodeId::CompareSimple: {
+            auto& compare = to<OpCode_CompareSimple>(opcode);
             auto flat_compares = compare.flat_compares();
             StaticallyInterpretedCompares compares;
             if (!interpret_compares(flat_compares, compares))
@@ -1819,6 +1845,93 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
 
     if constexpr (REGEX_DEBUG) {
         dbgln("After dot-star rewrite as SeekTo:");
+        RegexDebug<ByteCode> dbg;
+        dbg.print_bytecode(*this);
+    }
+}
+
+template<typename Parser>
+void Regex<Parser>::rewrite_simple_compares(BasicBlockList const& basic_blocks)
+{
+    // If a Compare opcode only has a single compare and that's a match opcode
+    // we can rewrite it as a CompareSimple to avoid the overhead of handling multiple compares:
+    //   Compare argc=1 args=S
+    //       Char 'a'
+    // -->
+    //   CompareSimple args=S
+    //       Char 'a'
+
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty())
+        return;
+
+    struct SimpleCompareCandidate {
+        size_t compare_ip;
+        Vector<ByteCodeValueType> compare_data;
+    };
+    Vector<SimpleCompareCandidate> candidates;
+
+    auto state = MatchState::only_for_enumeration();
+
+    for (auto const& block : basic_blocks) {
+        for (state.instruction_position = block.start; state.instruction_position <= block.end;) {
+            auto current_ip = state.instruction_position;
+            auto& opcode = bytecode.get_opcode(state);
+
+            if (opcode.opcode_id() == OpCodeId::Compare) {
+                auto& compare = to<OpCode_Compare>(opcode);
+                auto flat_compares = compare.flat_compares();
+
+                if (flat_compares.size() == 1 && !first_is_one_of(flat_compares[0].type, CharacterCompareType::And, CharacterCompareType::Or, CharacterCompareType::Inverse, CharacterCompareType::TemporaryInverse, CharacterCompareType::Subtract, CharacterCompareType::Undefined)) {
+                    auto slice = bytecode.spans().slice(current_ip + 2, opcode.size() - 2);
+                    Vector<ByteCodeValueType> data;
+                    data.ensure_capacity(slice.size());
+                    for (auto value : slice)
+                        data.append(value);
+                    candidates.append({ current_ip, move(data) }); // +2 to skip opcode id and argc
+                }
+            }
+
+            state.instruction_position += opcode.size();
+        }
+    }
+
+    if (candidates.is_empty())
+        return;
+
+    dbgln_if(REGEX_DEBUG, "Found {} simple compare candidates to rewrite", candidates.size());
+
+    BytecodeRewriter rewriter(bytecode);
+
+    for (auto& candidate : candidates) {
+        auto& instr = *rewriter.instructions.find_if([&](auto& i) { return i.old_ip == candidate.compare_ip; });
+        instr.skip = true;
+    }
+
+    size_t candidate_index = 0;
+    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
+        while (candidate_index < candidates.size()) {
+            auto& candidate = candidates[candidate_index];
+
+            if (instr.old_ip == candidate.compare_ip) {
+                result.empend(static_cast<ByteCodeValueType>(OpCodeId::CompareSimple));
+                result.extend(move(candidate.compare_data));
+                candidate_index++;
+                return;
+            }
+
+            if (instr.old_ip < candidate.compare_ip)
+                return;
+
+            candidate_index++;
+        }
+    };
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("After simple compare rewrite:");
         RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
     }

@@ -50,6 +50,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(Repeat)                     \
     __ENUMERATE_OPCODE(ResetRepeat)                \
     __ENUMERATE_OPCODE(Checkpoint)                 \
+    __ENUMERATE_OPCODE(CompareSimple)              \
     __ENUMERATE_OPCODE(Exit)
 
 // clang-format off
@@ -1166,25 +1167,19 @@ public:
     }
 };
 
-template<typename ByteCode>
-class REGEX_API OpCode_Compare final : public OpCode<ByteCode> {
+template<typename ByteCode, bool IsSimple>
+class REGEX_API CompareInternals : public OpCode<ByteCode> {
 public:
     using OpCode<ByteCode>::argument;
     using OpCode<ByteCode>::name;
     using OpCode<ByteCode>::state;
     using OpCode<ByteCode>::bytecode;
-
-    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
-    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::Compare; }
-    ALWAYS_INLINE size_t size() const override { return arguments_size() + 3; }
-    ALWAYS_INLINE size_t arguments_count() const { return argument(0); }
-    ALWAYS_INLINE size_t arguments_size() const { return argument(1); }
-    ByteString arguments_string() const override;
-    Vector<ByteString> variable_arguments_to_byte_string(Optional<MatchInput const&> input = {}) const;
-    Vector<CompareTypeAndValuePair> flat_compares() const;
     static bool matches_character_class(CharClass, u32, bool insensitive);
 
-private:
+    Vector<CompareTypeAndValuePair> flat_compares() const;
+
+protected:
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE static void compare_char(MatchInput const& input, MatchState& state, u32 ch1, bool inverse, bool& inverse_matched);
     ALWAYS_INLINE static bool compare_string(MatchInput const& input, MatchState& state, RegexStringView str, bool& had_zero_length_match);
     ALWAYS_INLINE static void compare_character_class(MatchInput const& input, MatchState& state, CharClass character_class, u32 ch, bool inverse, bool& inverse_matched);
@@ -1193,6 +1188,39 @@ private:
     ALWAYS_INLINE static void compare_general_category(MatchInput const& input, MatchState& state, Unicode::GeneralCategory general_category, bool inverse, bool& inverse_matched);
     ALWAYS_INLINE static void compare_script(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched);
     ALWAYS_INLINE static void compare_script_extension(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched);
+};
+
+template<typename ByteCode>
+class REGEX_API OpCode_Compare : public CompareInternals<ByteCode, false> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+    using CompareInternals<ByteCode, false>::flat_compares;
+
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::Compare; }
+    ALWAYS_INLINE size_t size() const override { return arguments_size() + 3; }
+    ALWAYS_INLINE size_t arguments_count() const { return argument(0); }
+    ALWAYS_INLINE size_t arguments_size() const { return argument(1); }
+    ByteString arguments_string() const override;
+    Vector<ByteString> variable_arguments_to_byte_string(Optional<MatchInput const&> input = {}) const;
+};
+
+template<typename ByteCode>
+class REGEX_API OpCode_CompareSimple final : public CompareInternals<ByteCode, true> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+    using CompareInternals<ByteCode, true>::flat_compares;
+
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::CompareSimple; }
+    ALWAYS_INLINE size_t size() const override { return 2 + arguments_size(); } // CompareSimple <arg_size> <arg_type> <arg_value>*
+    ALWAYS_INLINE size_t arguments_count() const { return 1; }
+    ALWAYS_INLINE size_t arguments_size() const { return argument(0); }
+    ByteString arguments_string() const override;
 };
 
 template<typename ByteCode>
