@@ -555,6 +555,20 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup<ByteCode>::execu
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    auto ch = argument(0);
+    auto last_position = exchange(state.string_position_before_rseek, state.string_position);
+    auto last_position_in_code_units = exchange(state.string_position_in_code_units_before_rseek, state.string_position_in_code_units);
+    auto next = input.view.find_index_of_previous(ch, last_position, last_position_in_code_units);
+    if (!next.has_value())
+        return ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches;
+    state.string_position = next->code_point_index;
+    state.string_position_in_code_units = next->code_unit_index;
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_Compare<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto const argument_count = arguments_count();
