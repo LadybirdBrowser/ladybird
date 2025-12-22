@@ -239,6 +239,7 @@ private:
     bool attempt_rewrite_entire_match_as_substring_search(BasicBlockList const&);
     void attempt_rewrite_adjacent_compares_as_string_compare(BasicBlockList const&);
     void attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList const&);
+    void rewrite_simple_compares(BasicBlockList const&);
     void fill_optimization_data(BasicBlockList const&);
 };
 

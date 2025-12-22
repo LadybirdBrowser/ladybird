@@ -584,6 +584,341 @@ ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CompareSimple<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    size_t string_position = state.string_position;
+    bool inverse_matched { false };
+    bool had_zero_length_match { false };
+    state.string_position_before_match = state.string_position;
+
+    bool has_string_set = false;
+    bool string_set_matched = false;
+    size_t best_match_position = state.string_position;
+    size_t best_match_position_in_code_units = state.string_position_in_code_units;
+
+    size_t offset { state.instruction_position + 2 };
+    auto const* bytecode_data = bytecode().flat_data().data();
+
+    for (size_t i = 0; i < 1; ++i) {
+        if (state.string_position > string_position)
+            break;
+
+        auto compare_type = (CharacterCompareType)bytecode_data[offset++];
+
+        switch (compare_type) {
+        case CharacterCompareType::Char: {
+            u32 ch = bytecode_data[offset++];
+
+            // We want to compare a string that is longer or equal in length to the available string
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            compare_char(input, state, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::AnyChar: {
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
+            auto is_equivalent_to_newline = input_view == '\n'
+                || (input.regex_options.has_flag_set(AllFlags::Internal_ECMA262DotSemantics)
+                        ? (input_view == '\r' || input_view == LineSeparator || input_view == ParagraphSeparator)
+                        : false);
+
+            if (!is_equivalent_to_newline || (input.regex_options.has_flag_set(AllFlags::SingleLine) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)))
+                advance_string_position(state, input.view, input_view);
+            break;
+        }
+        case CharacterCompareType::String: {
+            auto string_index = bytecode_data[offset++];
+            auto string = bytecode().get_u16_string(string_index);
+
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() < state.string_position + string.length_in_code_units())
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto view = RegexStringView(string);
+            view.set_unicode(input.view.unicode());
+            compare_string(input, state, view, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::CharClass: {
+            if (input.view.length_in_code_units() <= state.string_position_in_code_units)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto character_class = (CharClass)bytecode_data[offset++];
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            compare_character_class(input, state, character_class, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::LookupTable: {
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto count_sensitive = bytecode_data[offset++];
+            auto count_insensitive = bytecode_data[offset++];
+            auto sensitive_range_data = bytecode().flat_data().slice(offset, count_sensitive);
+            offset += count_sensitive;
+            auto insensitive_range_data = bytecode().flat_data().slice(offset, count_insensitive);
+            offset += count_insensitive;
+
+            bool const insensitive = input.regex_options & AllFlags::Insensitive;
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            if (insensitive)
+                ch = to_ascii_lowercase(ch);
+
+            auto const ranges = insensitive && !insensitive_range_data.is_empty() ? insensitive_range_data : sensitive_range_data;
+            auto const* matching_range = binary_search(ranges, ch, nullptr, [](auto needle, CharRange range) {
+                if (needle >= range.from && needle <= range.to)
+                    return 0;
+                if (needle > range.to)
+                    return 1;
+                return -1;
+            });
+
+            if (matching_range)
+                advance_string_position(state, input.view, ch);
+            break;
+        }
+        case CharacterCompareType::CharRange: {
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto value = (CharRange)bytecode_data[offset++];
+
+            auto from = value.from;
+            auto to = value.to;
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            compare_character_range(input, state, from, to, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::Reference: {
+            auto reference_number = ((size_t)bytecode_data[offset++]) - 1;
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto groups = state.capture_group_matches(input.match_index);
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto str = groups.at(reference_number).view;
+
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() < state.string_position + str.length())
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            compare_string(input, state, str, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::NamedReference: {
+            auto reference_number = ((size_t)bytecode_data[offset++]) - 1;
+
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto groups = state.capture_group_matches(input.match_index);
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            RegexStringView str {};
+
+            auto reference_name_index = bytecode().get_group_name_index(reference_number);
+
+            if (reference_name_index.has_value()) {
+                auto target_name_string = bytecode().get_string(reference_name_index.value());
+
+                for (size_t i = 0; i < groups.size(); ++i) {
+                    if (groups[i].view.is_null())
+                        continue;
+
+                    auto group_name_index = bytecode().get_group_name_index(i);
+
+                    if (group_name_index.has_value()) {
+                        auto group_name_string = bytecode().get_string(group_name_index.value());
+
+                        if (group_name_string == target_name_string) {
+                            str = groups[i].view;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (input.view.length() < state.string_position + str.length()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+
+            compare_string(input, state, str, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::Property: {
+            auto property = static_cast<Unicode::Property>(bytecode_data[offset++]);
+            compare_property(input, state, property, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::GeneralCategory: {
+            auto general_category = static_cast<Unicode::GeneralCategory>(bytecode_data[offset++]);
+            compare_general_category(input, state, general_category, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::Script: {
+            auto script = static_cast<Unicode::Script>(bytecode_data[offset++]);
+            compare_script(input, state, script, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::ScriptExtension: {
+            auto script = static_cast<Unicode::Script>(bytecode_data[offset++]);
+            compare_script_extension(input, state, script, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::StringSet: {
+            has_string_set = true;
+            auto string_set_index = bytecode_data[offset++];
+
+            bool matched = false;
+            size_t longest_match_length = 0;
+
+            auto find_longest_match = [&](auto const& view, auto const& trie) {
+                auto const* current = &trie;
+                size_t current_code_unit_offset = state.string_position_in_code_units;
+
+                if (current->has_metadata() && current->metadata_value()) {
+                    matched = true;
+                    longest_match_length = 0;
+                }
+
+                while (true) {
+                    u32 value;
+
+                    if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                        if (current_code_unit_offset >= view.length_in_code_units())
+                            break;
+                        value = view.code_unit_at(current_code_unit_offset);
+                    } else {
+                        if (current_code_unit_offset >= input.view.length_in_code_units())
+                            break;
+                        value = input.view.code_point_at(current_code_unit_offset);
+                    }
+
+                    if (input.regex_options & AllFlags::Insensitive) {
+                        bool found_child = false;
+                        for (auto const& [key, child] : current->children()) {
+                            if (to_ascii_lowercase(key) == to_ascii_lowercase(value)) {
+                                current = static_cast<StringSetTrie const*>(child.ptr());
+                                current_code_unit_offset++;
+                                found_child = true;
+                                break;
+                            }
+                        }
+                        if (!found_child)
+                            break;
+                    } else {
+                        auto it = current->children().find(value);
+                        if (it == current->children().end())
+                            break;
+
+                        current = static_cast<StringSetTrie const*>(it->value.ptr());
+                        current_code_unit_offset++;
+                    }
+
+                    auto is_terminal = current->has_metadata() && current->metadata_value();
+                    if (is_terminal) {
+                        size_t match_length_in_code_points;
+                        if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = view.code_point_at(i);
+                                i += code_point >= 0x10000 ? 2 : 1;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        } else {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = input.view.code_point_at(i);
+                                if (code_point <= 0x7F)
+                                    i += 1;
+                                else if (code_point <= 0x7FF)
+                                    i += 2;
+                                else if (code_point <= 0xFFFF)
+                                    i += 3;
+                                else
+                                    i += 4;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        }
+
+                        if (match_length_in_code_points > longest_match_length) {
+                            matched = true;
+                            longest_match_length = match_length_in_code_points;
+                        }
+                    }
+                }
+            };
+
+            if (input.view.u16_view().is_null()) {
+                auto const& trie = bytecode().string_set_table().get_u8_trie(string_set_index);
+                StringView view;
+                find_longest_match(view, trie);
+            } else {
+                auto const& view = input.view.u16_view();
+                auto const& trie = bytecode().string_set_table().get_u16_trie(string_set_index);
+                find_longest_match(view, trie);
+            }
+
+            if (matched) {
+                if (longest_match_length == 0)
+                    had_zero_length_match = true;
+                state.string_position += longest_match_length;
+                if (input.view.unicode()) {
+                    state.string_position_in_code_units = input.view.code_unit_offset_of(state.string_position);
+                } else {
+                    state.string_position_in_code_units = state.string_position;
+                }
+            }
+            break;
+        }
+        default:
+            warnln("Undefined simple comparison: {}", (int)compare_type);
+            VERIFY_NOT_REACHED();
+            break;
+        }
+
+        if (has_string_set && state.string_position > best_match_position) {
+            best_match_position = state.string_position;
+            best_match_position_in_code_units = state.string_position_in_code_units;
+            string_set_matched = true;
+        }
+    }
+
+    if (has_string_set && string_set_matched) {
+        state.string_position = best_match_position;
+        state.string_position_in_code_units = best_match_position_in_code_units;
+    }
+
+    if ((!had_zero_length_match && string_position == state.string_position) || state.string_position > input.view.length())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_Compare<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto const argument_count = arguments_count();
@@ -1365,6 +1700,80 @@ Vector<CompareTypeAndValuePair> OpCode_Compare<ByteCode>::flat_compares() const
         }
     }
     return result;
+}
+
+template<typename ByteCode>
+ByteString OpCode_CompareSimple<ByteCode>::arguments_string() const
+{
+    StringBuilder builder;
+    auto type = (CharacterCompareType)argument(1);
+    builder.append(character_compare_type_name(type));
+    switch (type) {
+    case CharacterCompareType::Char: {
+        auto ch = argument(2);
+        if (is_ascii_printable(ch))
+            builder.append(ByteString::formatted(" '{:c}'", static_cast<char>(ch)));
+        else
+            builder.append(ByteString::formatted(" 0x{:x}", ch));
+        break;
+    }
+    case CharacterCompareType::String: {
+        auto string_index = argument(2);
+        auto string = this->bytecode().get_u16_string(string_index);
+        builder.appendff(" \"{}\"", string);
+        break;
+    }
+    case CharacterCompareType::CharClass: {
+        auto character_class = (CharClass)argument(2);
+        builder.appendff(" {}", character_class_name(character_class));
+        break;
+    }
+    case CharacterCompareType::Reference: {
+        auto ref = argument(2);
+        builder.appendff(" number={}", ref);
+        break;
+    }
+    case CharacterCompareType::NamedReference: {
+        auto ref = argument(2);
+        builder.appendff(" named_number={}", ref);
+        break;
+    }
+    case CharacterCompareType::GeneralCategory:
+    case CharacterCompareType::Property:
+    case CharacterCompareType::Script:
+    case CharacterCompareType::ScriptExtension:
+    case CharacterCompareType::StringSet: {
+        builder.appendff(" value={}", argument(2));
+        break;
+    }
+    case CharacterCompareType::LookupTable: {
+        auto count_sensitive = argument(2);
+        auto count_insensitive = argument(3);
+        for (size_t j = 0; j < count_sensitive; ++j) {
+            auto range = (CharRange)argument(4 + j);
+            builder.appendff(" {:x}-{:x}", range.from, range.to);
+        }
+        if (count_insensitive > 0) {
+            builder.append(" [insensitive ranges:"sv);
+            for (size_t j = 0; j < count_insensitive; ++j) {
+                auto range = (CharRange)argument(4 + count_sensitive + j);
+                builder.appendff("  {:x}-{:x}", range.from, range.to);
+            }
+            builder.append(" ]"sv);
+        }
+        break;
+    }
+    case CharacterCompareType::CharRange: {
+        auto value = argument(2);
+        auto range = (CharRange)value;
+        builder.appendff(" {:x}-{:x}", range.from, range.to);
+        break;
+    }
+    default:
+        break;
+    }
+
+    return builder.to_byte_string();
 }
 
 template<typename ByteCode>
