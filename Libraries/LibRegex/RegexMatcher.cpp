@@ -277,9 +277,9 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            auto success = execute(input, state, temp_operations);
+            auto result = execute(input, state, temp_operations);
             // This success is acceptable only if it doesn't read anything from the input (input length is 0).
-            if (success && (state.string_position <= view_index)) {
+            if (result == ExecuteResult::Matched && (state.string_position <= view_index)) {
                 operations = temp_operations;
                 if (!match_count) {
                     // Nothing was *actually* matched, so append an empty match.
@@ -337,7 +337,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            if (execute(input, state, operations)) {
+            if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;
 
                 if (input.regex_options.has_flag_set(AllFlags::MatchNotEndOfLine) && state.string_position == input.view.length()) {
@@ -374,6 +374,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 }
 
                 append_match(input, state, view_index);
+                break;
+            } else if (result == ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView) {
                 break;
             }
 
@@ -513,7 +515,7 @@ struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
 };
 
 template<class Parser>
-bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
+Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
     if (m_pattern->parser_result.optimization_data.pure_substring_search.has_value() && input.view.is_u16_view()) {
         // Yay, we can do a simple substring search!
@@ -527,10 +529,10 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
 
             if (is_unicode) {
                 if (needle_view.length_in_code_points() + state.string_position > input_view.length_in_code_points())
-                    return false;
+                    return ExecuteResult::DidNotMatch;
             } else {
                 if (needle_view.length_in_code_units() + state.string_position_in_code_units > input_view.length_in_code_units())
-                    return false;
+                    return ExecuteResult::DidNotMatch;
             }
 
             Utf16View haystack;
@@ -541,10 +543,10 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
 
             if (is_insensitive) {
                 if (!haystack.equals_ignoring_ascii_case(needle_view))
-                    return false;
+                    return ExecuteResult::DidNotMatch;
             } else {
                 if (haystack != needle_view)
-                    return false;
+                    return ExecuteResult::DidNotMatch;
             }
 
             if (input.view.unicode())
@@ -552,7 +554,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             else
                 state.string_position += haystack.length_in_code_units();
             state.string_position_in_code_units += haystack.length_in_code_units();
-            return true;
+            return ExecuteResult::Matched;
         }
     }
 
@@ -607,6 +609,8 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
                 states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
                 states_to_try_next.last().instruction_position = state.fork_at_position;
             }
+            state.string_position_before_rseek = NumericLimits<size_t>::max();
+            state.string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
             continue;
         }
         case ExecutionResult::Fork_PrioHigh: {
@@ -625,6 +629,8 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             if (!found) {
                 states_to_try_next.append(state);
                 states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
+                states_to_try_next.last().string_position_before_rseek = NumericLimits<size_t>::max();
+                states_to_try_next.last().string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
             }
             state.instruction_position = state.fork_at_position;
 #if REGEX_DEBUG
@@ -635,7 +641,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
         case ExecutionResult::Continue:
             continue;
         case ExecutionResult::Succeeded:
-            return true;
+            return ExecuteResult::Matched;
         case ExecutionResult::Failed: {
             bool found = false;
             while (!states_to_try_next.is_empty()) {
@@ -649,7 +655,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             }
             if (found)
                 continue;
-            return false;
+            return ExecuteResult::DidNotMatch;
         }
         case ExecutionResult::Failed_ExecuteLowPrioForks: {
             bool found = false;
@@ -663,7 +669,25 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
                 break;
             }
             if (!found)
-                return false;
+                return ExecuteResult::DidNotMatch;
+#if REGEX_DEBUG
+            ++recursion_level;
+#endif
+            continue;
+        }
+        case ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches: {
+            bool found = false;
+            while (!states_to_try_next.is_empty()) {
+                state = states_to_try_next.take_last();
+                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
+                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
+                    continue;
+                }
+                found = true;
+                break;
+            }
+            if (!found)
+                return ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView;
 #if REGEX_DEBUG
             ++recursion_level;
 #endif

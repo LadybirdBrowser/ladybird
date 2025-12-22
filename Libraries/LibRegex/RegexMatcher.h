@@ -71,7 +71,12 @@ public:
     }
 
 private:
-    bool execute(MatchInput const& input, MatchState& state, size_t& operations) const;
+    enum class ExecuteResult {
+        DidNotMatch,
+        Matched,
+        DidNotMatchAndNoFurtherPossibleMatchesInView,
+    };
+    ExecuteResult execute(MatchInput const& input, MatchState& state, size_t& operations) const;
 
     Regex<Parser> const* m_pattern;
     typename ParserTraits<Parser>::OptionsType const m_regex_options;
@@ -233,6 +238,7 @@ private:
     void attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&);
     bool attempt_rewrite_entire_match_as_substring_search(BasicBlockList const&);
     void attempt_rewrite_adjacent_compares_as_string_compare(BasicBlockList const&);
+    void attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList const&);
     void fill_optimization_data(BasicBlockList const&);
 };
 

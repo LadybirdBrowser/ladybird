@@ -39,6 +39,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(SaveLeftCaptureGroup)       \
     __ENUMERATE_OPCODE(SaveRightCaptureGroup)      \
     __ENUMERATE_OPCODE(SaveRightNamedCaptureGroup) \
+    __ENUMERATE_OPCODE(RSeekTo)                    \
     __ENUMERATE_OPCODE(CheckBegin)                 \
     __ENUMERATE_OPCODE(CheckEnd)                   \
     __ENUMERATE_OPCODE(CheckBoundary)              \
@@ -808,12 +809,13 @@ private:
     Vector<ByteCodeValueType> m_data;
 };
 
-#define ENUMERATE_EXECUTION_RESULTS                          \
-    __ENUMERATE_EXECUTION_RESULT(Continue)                   \
-    __ENUMERATE_EXECUTION_RESULT(Fork_PrioHigh)              \
-    __ENUMERATE_EXECUTION_RESULT(Fork_PrioLow)               \
-    __ENUMERATE_EXECUTION_RESULT(Failed)                     \
-    __ENUMERATE_EXECUTION_RESULT(Failed_ExecuteLowPrioForks) \
+#define ENUMERATE_EXECUTION_RESULTS                                                     \
+    __ENUMERATE_EXECUTION_RESULT(Continue)                                              \
+    __ENUMERATE_EXECUTION_RESULT(Fork_PrioHigh)                                         \
+    __ENUMERATE_EXECUTION_RESULT(Fork_PrioLow)                                          \
+    __ENUMERATE_EXECUTION_RESULT(Failed)                                                \
+    __ENUMERATE_EXECUTION_RESULT(Failed_ExecuteLowPrioForks)                            \
+    __ENUMERATE_EXECUTION_RESULT(Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches) \
     __ENUMERATE_EXECUTION_RESULT(Succeeded)
 
 enum class ExecutionResult : u8 {
@@ -1141,6 +1143,26 @@ public:
     ByteString arguments_string() const override
     {
         return ByteString::formatted("name_id={}, id={}", argument(0), id());
+    }
+};
+
+template<typename ByteCode>
+class REGEX_API OpCode_RSeekTo final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::RSeekTo; }
+    ALWAYS_INLINE size_t size() const override { return 2; }
+    ByteString arguments_string() const override
+    {
+        auto ch = argument(0);
+        if (ch <= 0x7f)
+            return ByteString::formatted("before '{}'", ch);
+        return ByteString::formatted("before u+{:04x}", argument(0));
     }
 };
 

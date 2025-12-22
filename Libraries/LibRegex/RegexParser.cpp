@@ -740,7 +740,7 @@ ALWAYS_INLINE bool PosixExtendedParser::parse_sub_expression(ByteCode& stack, si
             if (length > 1) {
                 // last character is inserted into 'bytecode' for duplication symbol handling
                 auto new_length = length - (match_repetition_symbol() ? 1 : 0);
-                auto substring = start_token.value().substring_view(0, new_length);
+                auto substring = m_parser_state.lexer.source().substring_view_starting_from_substring(start_token.value()).substring_view(0, new_length);
                 stack.insert_bytecode_compare_string(Utf16FlyString::from_utf8(substring));
             }
 
