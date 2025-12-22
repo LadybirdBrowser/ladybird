@@ -271,7 +271,12 @@ public:
             [&](StringView view) {
                 return other.m_view.visit(
                     [&](StringView other_view) { return view.equals_ignoring_ascii_case(other_view); },
-                    [](auto&) -> bool { TODO(); });
+                    [&](Utf16View other_view) -> bool {
+                        auto result = other_view.to_utf8();
+                        if (result.is_error())
+                            return false;
+                        return view.equals_ignoring_ascii_case(result.value().bytes_as_string_view());
+                    });
             },
             [&](Utf16View view) {
                 return other.m_view.visit(
@@ -288,6 +293,45 @@ public:
                 TODO();
             },
             [&](StringView view) { return view.starts_with(str); });
+    }
+
+    struct FoundIndex {
+        size_t code_unit_index;
+        size_t code_point_index;
+    };
+    Optional<FoundIndex> find_index_of_previous(u32 code_point, size_t end_code_point_index, size_t end_code_unit_index) const
+    {
+        return m_view.visit(
+            [&](Utf16View const& view) -> Optional<FoundIndex> {
+                auto result = view.find_last_code_unit_offset(code_point, end_code_unit_index);
+                if (!result.has_value())
+                    return {};
+                return FoundIndex { result.value(), view.code_point_offset_of(result.value()) };
+            },
+            [&](StringView const& view) -> Optional<FoundIndex> {
+                if (unicode()) {
+                    Utf8View utf8_view { view };
+                    auto it = utf8_view.begin();
+                    size_t current_code_point_index = 0;
+                    Optional<FoundIndex> found_index;
+
+                    for (; it != utf8_view.end(); ++it, ++current_code_point_index) {
+                        if (current_code_point_index > end_code_point_index)
+                            break;
+                        if (*it == code_point) {
+                            auto byte_index = utf8_view.byte_offset_of(it);
+                            found_index = { byte_index, current_code_point_index };
+                        }
+                    }
+
+                    return found_index;
+                }
+
+                auto byte_index = view.substring_view(0, min(end_code_unit_index, view.length())).find_last(code_point);
+                if (!byte_index.has_value())
+                    return {};
+                return FoundIndex { byte_index.value(), byte_index.value() };
+            });
     }
 
 private:
@@ -372,6 +416,8 @@ struct MatchState {
     size_t instruction_position { 0 };
     size_t fork_at_position { 0 };
     size_t forks_since_last_save { 0 };
+    size_t string_position_before_rseek { NumericLimits<size_t>::max() };
+    size_t string_position_in_code_units_before_rseek { NumericLimits<size_t>::max() };
     Optional<size_t> initiating_fork;
     COWVector<Match> matches;
     COWVector<Match> flat_capture_group_matches; // Vector<Vector<Match>> indexed by match index, then by capture group id; flattened for performance

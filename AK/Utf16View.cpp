@@ -266,6 +266,38 @@ Optional<size_t> Utf16View::find_code_unit_offset(char16_t needle, size_t start_
     return result - start + start_offset;
 }
 
+Optional<size_t> Utf16View::find_last_code_unit_offset(char16_t needle, size_t end_offset) const
+{
+    if (end_offset == 0)
+        return {};
+
+    if (has_ascii_storage()) {
+        if (!AK::is_ascii(needle))
+            return {};
+        auto ascii_end_offset = min(end_offset, length_in_code_units());
+        auto ascii_view = StringView { m_string.ascii, ascii_end_offset };
+        auto index = ascii_view.find_last(static_cast<char>(needle));
+        if (!index.has_value())
+            return {};
+        return *index;
+    }
+
+    auto const* start = m_string.utf16;
+    auto const* end = m_string.utf16 + end_offset;
+
+    auto const* last_result = simdutf::find(start, end, needle);
+    while (true) {
+        auto const* result = simdutf::find(last_result + 1, end, needle);
+        if (result == end)
+            break;
+        last_result = result;
+    }
+    if (last_result == end)
+        return {};
+
+    return last_result - start;
+}
+
 Vector<Utf16View> Utf16View::split_view(char16_t separator, SplitBehavior split_behavior) const
 {
     Utf16View separator_view { &separator, 1 };

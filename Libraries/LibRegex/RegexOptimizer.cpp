@@ -256,8 +256,9 @@ void Regex<Parser>::run_optimization_passes()
     rewrite_with_useless_jumps_removed();
 
     auto blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
-    if (attempt_rewrite_entire_match_as_substring_search(blocks))
+    if (attempt_rewrite_entire_match_as_substring_search(blocks)) {
         return;
+    }
 
     // Rewrite fork loops as atomic groups
     // e.g. a*b -> (ATOMIC a*)b
@@ -267,6 +268,10 @@ void Regex<Parser>::run_optimization_passes()
     // Join adjacent compares that only match single characters into a single compare that matches a string.
     blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_adjacent_compares_as_string_compare(blocks);
+
+    // Rewrite /.*x/ as a seek to x
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    attempt_rewrite_dot_star_sequences_as_seek(blocks);
 
     fill_optimization_data(split_basic_blocks(parser_result.bytecode.template get<ByteCode>()));
 }
@@ -288,7 +293,7 @@ struct StaticallyInterpretedCompares {
     HashTable<Unicode::Script> negated_unicode_script_extensions;
 };
 
-static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares)
+static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares, ByteCodeBase const* bytecode = nullptr, bool as_follow = false)
 {
     bool inverse { false };
     bool temporary_inverse { false };
@@ -337,10 +342,18 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
             else
                 lhs_negated_ranges.insert(pair.value, pair.value);
             break;
-        case CharacterCompareType::String:
-            // FIXME: We just need to look at the last character of this string, but we only have the first character here.
-            //        Just bail out to avoid false positives.
-            return false;
+        case CharacterCompareType::String: {
+            if (!as_follow)
+                return false;
+            auto string = bytecode->get_u16_string(pair.value);
+            u32 ch = string.code_point_at(0);
+
+            if (!current_lhs_inversion_state())
+                lhs_ranges.insert(ch, ch);
+            else
+                lhs_negated_ranges.insert(ch, ch);
+            break;
+        }
         case CharacterCompareType::StringSet:
             return false;
         case CharacterCompareType::CharClass:
@@ -1527,6 +1540,288 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
     };
 
     parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList const& basic_blocks)
+{
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty()) {
+        dbgln_if(REGEX_DEBUG, "No basic blocks, skipping /.*/ rewrite");
+        return;
+    }
+
+    // If a /.*/ sequence is followed by a compare C (with some non-matching ops {O} in between), we can rewrite:
+    //     bbN: {O0}                     (optional non-matching ops before the pattern)
+    //          ForkStay bbM
+    //          Checkpoint p
+    //          Compare AnyChar
+    //          JumpNonEmpty (back to ForkStay) p
+    //     bbM: {O1}                     (optional non-matching ops)
+    //          Compare C
+    // as
+    //     bbN: {O0}
+    //     bbR: RSeekTo C
+    //          ForkStay bbR
+    //     bbM: {O1}
+    //          Compare C
+    //
+    // Note: bbM is determined by the ForkStay's target, not necessarily the next sequential block
+    // Note: The pattern may span across multiple basic blocks
+
+    struct DotStarCandidate {
+        size_t fork_ip;
+        size_t checkpoint_ip;
+        size_t compare_ip;
+        size_t jump_ip;
+        size_t following_block_start;
+        u64 checkpoint_id;
+        u32 seek_code_point;
+    };
+    Vector<DotStarCandidate> candidates;
+
+    auto state = MatchState::only_for_enumeration();
+
+    for (size_t i = 0; i < basic_blocks.size(); ++i) {
+        auto const& block = basic_blocks[i];
+
+        state.instruction_position = block.start;
+
+        if (state.instruction_position > block.end)
+            continue;
+
+        // Skip non-matching ops at the start of the block
+        while (state.instruction_position <= block.end) {
+            auto& op = bytecode.get_opcode(state);
+
+            switch (op.opcode_id()) {
+            case OpCodeId::Checkpoint:
+            case OpCodeId::Save:
+            case OpCodeId::SaveLeftCaptureGroup:
+            case OpCodeId::SaveRightCaptureGroup:
+            case OpCodeId::SaveRightNamedCaptureGroup:
+            case OpCodeId::ClearCaptureGroup:
+                state.instruction_position += op.size();
+                continue;
+
+            default:
+                goto found_potential_fork;
+            }
+        }
+
+        {
+            if (state.instruction_position >= bytecode.size())
+                continue;
+
+            auto& op_at_boundary = bytecode.get_opcode(state);
+            if (op_at_boundary.opcode_id() != OpCodeId::ForkStay)
+                continue;
+        }
+
+    found_potential_fork:
+        // (1) ForkStay bbM
+        dbgln_if(REGEX_DEBUG, "Examining block {} from {} to {}", i, block.start, block.end);
+        auto& first_op = bytecode.get_opcode(state);
+        if (first_op.opcode_id() != OpCodeId::ForkStay) {
+            dbgln_if(REGEX_DEBUG, "  did not find ForkStay at {}", state.instruction_position);
+            continue;
+        }
+
+        auto fork_ip = state.instruction_position;
+        auto& fork_op = to<OpCode_ForkStay>(first_op);
+
+        // Find the actual following block by the fork target
+        auto fork_target = fork_ip + fork_op.size() + fork_op.offset();
+
+        size_t following_block_idx = 0;
+        bool found_following_block = false;
+        for (size_t j = 0; j < basic_blocks.size(); ++j) {
+            if (basic_blocks[j].start == fork_target) {
+                if (basic_blocks[j].start < basic_blocks[j].end) {
+                    following_block_idx = j;
+                    found_following_block = true;
+                    break;
+                }
+                continue;
+            }
+        }
+
+        if (!found_following_block) {
+            dbgln_if(REGEX_DEBUG, "  did not find non-empty following block for fork target {}", fork_target);
+            continue;
+        }
+
+        auto const& following_block = basic_blocks[following_block_idx];
+        dbgln_if(REGEX_DEBUG, "  Fork target {} is in block {} (from {} to {})", fork_target, following_block_idx, following_block.start, following_block.end);
+
+        state.instruction_position += first_op.size();
+
+        // (2) Checkpoint p
+        auto& second_op = bytecode.get_opcode(state);
+        if (second_op.opcode_id() != OpCodeId::Checkpoint) {
+            dbgln_if(REGEX_DEBUG, "  did not find Checkpoint at {} (found opcode {})", state.instruction_position, (int)second_op.opcode_id());
+            continue;
+        }
+
+        auto checkpoint_ip = state.instruction_position;
+        auto checkpoint_id = to<OpCode_Checkpoint>(second_op).id();
+
+        state.instruction_position += second_op.size();
+
+        // (3) Compare AnyChar
+        auto& third_op = bytecode.get_opcode(state);
+        if (third_op.opcode_id() != OpCodeId::Compare) {
+            dbgln_if(REGEX_DEBUG, "  did not find Compare at {} (found opcode {})", state.instruction_position, (int)third_op.opcode_id());
+            continue;
+        }
+
+        auto compare_ip = state.instruction_position;
+        auto& compare_op = to<OpCode_Compare>(third_op);
+        auto flat_compares = compare_op.flat_compares();
+
+        if (flat_compares.size() != 1 || flat_compares[0].type != CharacterCompareType::AnyChar) {
+            dbgln_if(REGEX_DEBUG, "  Compare at {} is not AnyChar", state.instruction_position);
+            continue;
+        }
+
+        state.instruction_position += third_op.size();
+
+        // (4) JumpNonEmpty back to ForkStay
+        auto& fourth_op = bytecode.get_opcode(state);
+        if (fourth_op.opcode_id() != OpCodeId::JumpNonEmpty) {
+            dbgln_if(REGEX_DEBUG, "  did not find JumpNonEmpty at {} (found opcode {})", state.instruction_position, (int)fourth_op.opcode_id());
+            continue;
+        }
+
+        auto jump_ip = state.instruction_position;
+        auto& jump_op = to<OpCode_JumpNonEmpty>(fourth_op);
+
+        if (jump_ip + jump_op.size() + jump_op.offset() != fork_ip) {
+            dbgln_if(REGEX_DEBUG, "  JumpNonEmpty at {} does not jump back to ForkStay at {} (instead jumps to {})",
+                state.instruction_position, fork_ip, jump_ip + jump_op.size() + jump_op.offset());
+            continue;
+        }
+        if ((size_t)jump_op.checkpoint() != checkpoint_id) {
+            dbgln_if(REGEX_DEBUG, "  JumpNonEmpty at {} does not reference Checkpoint id {} (instead references {})",
+                state.instruction_position, checkpoint_id, jump_op.checkpoint());
+            continue;
+        }
+
+        dbgln_if(REGEX_DEBUG, "  Found .* pattern from IP {} to {}", fork_ip, jump_ip + jump_op.size());
+
+        // The following block must contain a Compare C, with only non-matching ops in between
+        state.instruction_position = following_block.start;
+        while (state.instruction_position < following_block.end) {
+            auto& op = bytecode.get_opcode(state);
+
+            switch (op.opcode_id()) {
+            case OpCodeId::Checkpoint:
+            case OpCodeId::Save:
+            case OpCodeId::SaveLeftCaptureGroup:
+            case OpCodeId::SaveRightCaptureGroup:
+            case OpCodeId::SaveRightNamedCaptureGroup:
+            case OpCodeId::ClearCaptureGroup:
+                state.instruction_position += op.size();
+                continue;
+
+            case OpCodeId::Compare: {
+                auto& following_compare_op = to<OpCode_Compare>(op);
+                auto following_compares = following_compare_op.flat_compares();
+
+                StaticallyInterpretedCompares compares;
+                if (!interpret_compares(following_compares, compares, &bytecode, true)) {
+                    dbgln_if(REGEX_DEBUG, "  could not statically interpret compares at {} in following block", state.instruction_position);
+                    goto next_block;
+                }
+
+                // Must be able to pull a single code point from this compare (i.e. a single 1-long range, no negations, no char classes, and no unicode properties)
+                if (compares.ranges.size() != 1 || !compares.negated_ranges.is_empty()
+                    || !compares.char_classes.is_empty() || !compares.negated_char_classes.is_empty()
+                    || compares.has_any_unicode_property
+                    || !compares.unicode_general_categories.is_empty()
+                    || !compares.unicode_properties.is_empty()
+                    || !compares.unicode_scripts.is_empty()
+                    || !compares.unicode_script_extensions.is_empty()
+                    || !compares.negated_unicode_general_categories.is_empty()
+                    || !compares.negated_unicode_properties.is_empty()
+                    || !compares.negated_unicode_scripts.is_empty()
+                    || !compares.negated_unicode_script_extensions.is_empty()) {
+                    dbgln_if(REGEX_DEBUG, "  compares at {} in following block are too complex to rewrite as SeekTo", state.instruction_position);
+                    goto next_block;
+                }
+
+                auto it = compares.ranges.begin();
+                if (it.key() != *it) {
+                    // Not a single code point
+                    dbgln_if(REGEX_DEBUG, "  compares at {} in following block are a range, not a single code point ({}..{})", state.instruction_position, it.key(), *it);
+                    goto next_block;
+                }
+
+                auto seeked_code_point = it.key();
+
+                candidates.append({ fork_ip,
+                    checkpoint_ip,
+                    compare_ip,
+                    jump_ip,
+                    following_block.start,
+                    checkpoint_id,
+                    seeked_code_point });
+
+                dbgln_if(REGEX_DEBUG, "  Found sequence from {} to {} followed by Compare '{}' at {}, can rewrite as SeekTo",
+                    fork_ip, jump_ip + 4, (char)seeked_code_point, state.instruction_position);
+                goto next_block;
+            }
+
+            default:
+                dbgln_if(REGEX_DEBUG, "  Hit non-matching, non-skippable opcode {} at {} in following block", (int)op.opcode_id(), state.instruction_position);
+                goto next_block;
+            }
+        }
+
+    next_block:
+        continue;
+    }
+
+    dbgln_if(REGEX_DEBUG, "Found {} dot-star sequences to rewrite as SeekTo", candidates.size());
+
+    if (candidates.is_empty())
+        return;
+
+    BytecodeRewriter rewriter(bytecode);
+
+    for (auto& candidate : candidates) {
+        rewriter.mark_range_for_skip(candidate.fork_ip, candidate.jump_ip + 4); // JumpNonEmpty = 4
+    }
+
+    size_t candidate_index = 0;
+    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
+        while (candidate_index < candidates.size()) {
+            auto& candidate = candidates[candidate_index];
+
+            if (instr.old_ip == candidate.fork_ip) {
+                result.empend(static_cast<ByteCodeValueType>(OpCodeId::RSeekTo));
+                result.empend(candidate.seek_code_point);
+                result.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkStay));
+                result.empend(static_cast<ByteCodeValueType>(-4)); // Offset back to RSeekTo
+                candidate_index++;
+                return;
+            }
+
+            if (instr.old_ip < candidate.jump_ip + 4)
+                return;
+
+            candidate_index++;
+        }
+    };
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("After dot-star rewrite as SeekTo:");
+        RegexDebug<ByteCode> dbg;
+        dbg.print_bytecode(*this);
+    }
 }
 
 void Optimizer::append_alternation(ByteCode& target, ByteCode&& left, ByteCode&& right)
