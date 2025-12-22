@@ -142,7 +142,7 @@ TEST_CASE(take_all_matching)
 
 TEST_CASE(case_insensitive)
 {
-    HashMap<ByteString, int, CaseInsensitiveStringTraits> casemap;
+    HashMap<ByteString, int, CaseInsensitiveASCIIStringTraits> casemap;
     EXPECT_EQ(ByteString("nickserv").to_lowercase(), ByteString("NickServ").to_lowercase());
     EXPECT_EQ(casemap.set("nickserv", 3), AK::HashSetResult::InsertedNewEntry);
     EXPECT_EQ(casemap.set("NickServ", 3), AK::HashSetResult::ReplacedExistingEntry);
