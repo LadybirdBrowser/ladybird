@@ -124,7 +124,8 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
         return;
     }
 
-    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), m_href->fragment().value())) {
+    auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
+    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), id)) {
         shadow_root()->remove_all_children();
     }
 }
@@ -138,8 +139,10 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
     if (!m_href->fragment().has_value())
         return nullptr;
 
-    if (is_referenced_element_same_document())
-        return document().get_element_by_id(*m_href->fragment());
+    if (is_referenced_element_same_document()) {
+        auto id = String::from_utf8_with_replacement_character(URL::percent_decode(*m_href->fragment()), String::WithBOMHandling::No);
+        return document().get_element_by_id(id);
+    }
 
     if (!m_resource_request)
         return nullptr;
