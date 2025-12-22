@@ -964,22 +964,44 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         // 3. Let requestEnvironment be the result of determining the environment given request.
         auto request_environment = determine_the_environment(request);
 
-        // 4. Let isTopLevelNavigation be true if request’s destination is "document"; otherwise, false.
-        bool is_top_level_navigation = request->destination() == Infrastructure::Request::Destination::Document;
+        // 4. Let isTopLevelSelfFetch be false.
+        bool is_top_level_self_fetch = false;
 
-        // 5. If isTopLevelNavigation is false and requestEnvironment is null, then return a network error.
-        if (!is_top_level_navigation && !request_environment)
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request is missing fetch client"_string));
+        // 5. If request’s client is non-null:
+        if (request->client() != nullptr) {
+            // 1. Let global be request’s client’s global object.
+            auto const* global_window = as_if<HTML::Window>(request->client()->global_object());
 
-        // 6. Let navigationOrEnvironment be the string "navigation" if isTopLevelNavigation is true; otherwise, requestEnvironment.
-        auto navigation_or_environment = [&]() -> Variant<FileAPI::NavigationEnvironment, GC::Ref<HTML::Environment>> {
-            if (is_top_level_navigation)
-                return FileAPI::NavigationEnvironment {};
-            return GC::Ref { *request_environment };
+            // 2. If all of the following conditions are true:
+            if (
+                // global is a Window object;
+                global_window != nullptr &&
+                // global’s navigable is not null;
+                global_window->navigable() != nullptr &&
+                // global’s navigable’s parent is null; and
+                global_window->navigable()->parent() == nullptr &&
+                // requestEnvironment’s creation URL equals request’s current URL,
+                request_environment->creation_url == request->current_url())
+                // then set isTopLevelSelfFetch to true.
+                is_top_level_self_fetch = true;
+        }
+
+        // 6. Let stringOrEnvironment be the result of these steps:
+        auto string_or_environment = [&]() -> Variant<GC::Ref<HTML::Environment>, FileAPI::TopLevelNavigation, FileAPI::TopLevelSelfFetch> {
+            // 1. If request’s destination is "document", then return "top-level-navigation".
+            if (request->destination() == Infrastructure::Request::Destination::Document)
+                return FileAPI::TopLevelNavigation();
+
+            // 2. If isTopLevelSelfFetch is true, then return "top-level-self-fetch".
+            if (is_top_level_self_fetch)
+                return FileAPI::TopLevelSelfFetch();
+
+            // 3. Return requestEnvironment.
+            return GC::Ref(*request_environment);
         }();
 
         // 7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
-        auto maybe_blob_object = FileAPI::obtain_a_blob_object(blob_url_entry.value(), navigation_or_environment);
+        auto maybe_blob_object = FileAPI::obtain_a_blob_object(blob_url_entry.value(), string_or_environment);
 
         // 8. If blob is not a Blob object, then return a network error.
         if (!maybe_blob_object.has_value())
