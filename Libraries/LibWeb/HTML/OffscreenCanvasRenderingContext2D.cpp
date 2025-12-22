@@ -59,6 +59,7 @@ void OffscreenCanvasRenderingContext2D::initialize(JS::Realm& realm)
 void OffscreenCanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    CanvasState::visit_edges(visitor);
     visitor.visit(m_canvas);
 }
 
