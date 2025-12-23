@@ -29,6 +29,13 @@ CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRec
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 
+ValueComparingNonnullRefPtr<StyleValue const> PositionStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    return PositionStyleValue::create(
+        edge_x()->absolutized(computation_context)->as_edge(),
+        edge_y()->absolutized(computation_context)->as_edge());
+}
+
 String PositionStyleValue::to_string(SerializationMode mode) const
 {
     return MUST(String::formatted("{} {}", m_properties.edge_x->to_string(mode), m_properties.edge_y->to_string(mode)));
