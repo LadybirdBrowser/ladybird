@@ -164,6 +164,7 @@ public:
     static ContentVisibility content_visibility() { return ContentVisibility::Visible; }
     static CursorData cursor() { return { CursorPredefined::Auto }; }
     static WhiteSpaceCollapse white_space_collapse() { return WhiteSpaceCollapse::Collapse; }
+    static OverflowWrap overflow_wrap() { return OverflowWrap::Normal; }
     static WordBreak word_break() { return WordBreak::Normal; }
     static CSSPixels word_spacing() { return 0; }
     static CSSPixels letter_spacing() { return 0; }
@@ -527,6 +528,8 @@ public:
     Positioning position() const { return m_noninherited.position; }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
+    OverflowWrap overflow_wrap() const { return m_inherited.overflow_wrap; }
+    WordBreak word_break() const { return m_inherited.word_break; }
     CSSPixels const& word_spacing() const { return m_inherited.word_spacing; }
     CSSPixels letter_spacing() const { return m_inherited.letter_spacing; }
     FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
@@ -724,6 +727,7 @@ protected:
         CSSPixels text_underline_offset { InitialValues::text_underline_offset() };
         TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
         WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
+        OverflowWrap overflow_wrap { InitialValues::overflow_wrap() };
         WordBreak word_break { InitialValues::word_break() };
         CSSPixels word_spacing { InitialValues::word_spacing() };
         CSSPixels letter_spacing { InitialValues::letter_spacing() };
@@ -943,6 +947,7 @@ public:
     void set_white_space_collapse(WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSSPixels value) { m_inherited.word_spacing = value; }
+    void set_overflow_wrap(OverflowWrap value) { m_inherited.overflow_wrap = value; }
     void set_word_break(WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSSPixels value) { m_inherited.letter_spacing = value; }
     void set_width(Size const& width) { m_noninherited.width = width; }
