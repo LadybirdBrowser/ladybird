@@ -908,6 +908,7 @@ void TreeBuilder::for_each_in_tree_with_inside_display(NodeWithStyle& root, Call
     });
 }
 
+// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
 void TreeBuilder::fixup_tables(NodeWithStyle& root)
 {
     remove_irrelevant_boxes(root);
@@ -916,13 +917,15 @@ void TreeBuilder::fixup_tables(NodeWithStyle& root)
     missing_cells_fixup(table_root_boxes);
 }
 
+// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+// 1. Remove irrelevant boxes:
 void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
 {
     // The following boxes are discarded as if they were display:none:
 
     Vector<GC::Root<Node>> to_remove;
 
-    // Children of a table-column.
+    // 1. Children of a table-column.
     for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableColumn>(root, [&](Box& table_column) {
         table_column.for_each_child([&](auto& child) {
             to_remove.append(child);
@@ -930,7 +933,7 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
         });
     });
 
-    // Children of a table-column-group which are not a table-column.
+    // 2. Children of a table-column-group which are not a table-column.
     for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableColumnGroup>(root, [&](Box& table_column_group) {
         table_column_group.for_each_child([&](auto& child) {
             if (!child.display().is_table_column())
@@ -940,11 +943,11 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
     });
 
     // FIXME:
-    // Anonymous inline boxes which contain only white space and are between two immediate siblings each of which is a table-non-root box.
-    // Anonymous inline boxes which meet all of the following criteria:
-    // - they contain only white space
-    // - they are the first and/or last child of a tabular container
-    // - whose immediate sibling, if any, is a table-non-root box
+    // 3. Anonymous inline boxes which contain only white space and are between two immediate siblings each of which is a table-non-root box.
+    // 4. Anonymous inline boxes which meet all of the following criteria:
+    //    - they contain only white space
+    //    - they are the first and/or last child of a tabular container
+    //    - whose immediate sibling, if any, is a table-non-root box
 
     for (auto& box : to_remove)
         box->parent()->remove_child(*box);
@@ -985,6 +988,11 @@ static bool is_not_table_row(Node const& node)
     return !TableGrid::is_table_row(node);
 }
 
+static bool is_table_column(Node const& node)
+{
+    return node.display().is_table_column();
+}
+
 static bool is_table_cell(Node const& node)
 {
     return node.display().is_table_cell();
@@ -995,6 +1003,12 @@ static bool is_not_table_cell(Node const& node)
     if (!node.has_style())
         return true;
     return !is_table_cell(node);
+}
+
+static bool is_table_row_group_column_group_or_caption(Node const& node)
+{
+    auto const display = node.display();
+    return is_table_track_group(display) || display.is_table_caption();
 }
 
 template<typename Matcher, typename Callback>
@@ -1044,16 +1058,20 @@ static void wrap_in_anonymous(Vector<GC::Root<Node>>& sequence, Node* nearest_si
         parent.append_child(*wrapper);
 }
 
+// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+// 2. Generate missing child wrappers:
 void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
 {
-    // An anonymous table-row box must be generated around each sequence of consecutive children of a table-root box which are not proper table child boxes.
+    // 1. An anonymous table-row box must be generated around each sequence of consecutive children of a table-root box
+    //    which are not proper table child boxes.
     for_each_in_tree_with_inside_display<CSS::DisplayInside::Table>(root, [&](auto& parent) {
         for_each_sequence_of_consecutive_children_matching(parent, is_not_proper_table_child, [&](auto sequence, auto nearest_sibling) {
             wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
         });
     });
 
-    // An anonymous table-row box must be generated around each sequence of consecutive children of a table-row-group box which are not table-row boxes.
+    // 2. An anonymous table-row box must be generated around each sequence of consecutive children of a table-row-group
+    //    box which are not table-row boxes.
     for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableRowGroup>(root, [&](auto& parent) {
         for_each_sequence_of_consecutive_children_matching(parent, is_not_table_row, [&](auto& sequence, auto nearest_sibling) {
             wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
@@ -1072,7 +1090,8 @@ void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
         });
     });
 
-    // An anonymous table-cell box must be generated around each sequence of consecutive children of a table-row box which are not table-cell boxes. !Testcase
+    // 3. An anonymous table-cell box must be generated around each sequence of consecutive children of a table-row box
+    //    which are not table-cell boxes.
     for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableRow>(root, [&](auto& parent) {
         for_each_sequence_of_consecutive_children_matching(parent, is_not_table_cell, [&](auto& sequence, auto nearest_sibling) {
             wrap_in_anonymous<BlockContainer>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableCell });
@@ -1080,32 +1099,51 @@ void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
     });
 }
 
+// https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+// 3. Generate missing parents:
 Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
 {
     Vector<GC::Root<Box>> table_roots_to_wrap;
     root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& parent) {
-        // An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose parent is not a table-row.
+        // 1. An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose
+        //    parent is not a table-row.
         if (is_not_table_row(parent)) {
             for_each_sequence_of_consecutive_children_matching(parent, is_table_cell, [&](auto& sequence, auto nearest_sibling) {
                 wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display { CSS::DisplayInternal::TableRow });
             });
         }
 
-        // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
-        if (!parent.display().is_table_inside() && !is_proper_table_child(parent)) {
-            for_each_sequence_of_consecutive_children_matching(parent, TableGrid::is_table_row, [&](auto& sequence, auto nearest_sibling) {
-                wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display::from_short(parent.display().is_inline_outside() ? CSS::Display::Short::InlineTable : CSS::Display::Short::Table));
-            });
+        // 2. An anonymous table or inline-table box must be generated around each sequence of consecutive proper table
+        //    child boxes which are misparented.
+        {
+            // If the box’s parent is an inline, run-in, or ruby box (or any box that would perform inlinification of
+            // its children), then an inline-table box must be generated; otherwise it must be a table box.
+            // FIXME: run-in and ruby boxes
+            auto display = CSS::Display::from_short(parent.display().is_inline_outside() ? CSS::Display::Short::InlineTable : CSS::Display::Short::Table);
+
+            // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
+            if (!TableGrid::is_table_row_group(parent) && !parent.display().is_table_inside()) {
+                for_each_sequence_of_consecutive_children_matching(parent, TableGrid::is_table_row, [&](auto& sequence, auto nearest_sibling) {
+                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
+                });
+            }
+
+            // A table-column box is misparented if its parent is neither a table-column-group box nor a table-root box.
+            if (!TableGrid::is_table_column_group(parent) && !parent.display().is_table_inside()) {
+                for_each_sequence_of_consecutive_children_matching(parent, is_table_column, [&](auto& sequence, auto nearest_sibling) {
+                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
+                });
+            }
+
+            // A table-row-group, table-column-group, or table-caption box is misparented if its parent is not a table-root box.
+            if (!parent.display().is_table_inside()) {
+                for_each_sequence_of_consecutive_children_matching(parent, is_table_row_group_column_group_or_caption, [&](auto& sequence, auto nearest_sibling) {
+                    wrap_in_anonymous<Box>(sequence, nearest_sibling, display);
+                });
+            }
         }
 
-        // A table-row-group, table-column-group, or table-caption box is misparented if its parent is not a table-root box.
-        if (!parent.display().is_table_inside() && !is_proper_table_child(parent)) {
-            for_each_sequence_of_consecutive_children_matching(parent, is_proper_table_child, [&](auto& sequence, auto nearest_sibling) {
-                wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display::from_short(parent.display().is_inline_outside() ? CSS::Display::Short::InlineTable : CSS::Display::Short::Table));
-            });
-        }
-
-        // An anonymous table-wrapper box must be generated around each table-root.
+        // 3. An anonymous table-wrapper box must be generated around each table-root.
         if (parent.display().is_table_inside()) {
             if (parent.has_been_wrapped_in_table_wrapper()) {
                 VERIFY(parent.parent());
@@ -1163,9 +1201,12 @@ static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_inde
     }
 }
 
+// https://drafts.csswg.org/css-tables-3/#missing-cells-fixup
 void TreeBuilder::missing_cells_fixup(Vector<GC::Root<Box>> const& table_root_boxes)
 {
-    // Implements https://www.w3.org/TR/css-tables-3/#missing-cells-fixup.
+    // Once the amount of columns in a table is known, any table-row box must be modified such that it owns enough
+    // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
+    // be appended to its rows content until this condition is met.
     for (auto& table_box : table_root_boxes) {
         auto table_grid = TableGrid::calculate_row_column_grid(*table_box);
         size_t row_index = 0;
