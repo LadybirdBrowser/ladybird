@@ -2784,7 +2784,7 @@ RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+void Navigable::scroll_viewport_by_delta_without_promise(CSSPixelPoint delta)
 {
     // 1. Let doc be the viewport’s associated Document.
     auto doc = active_document();
@@ -2834,7 +2834,7 @@ GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta
     // FIXME: Get a Promise from this.
     // AD-HOC: Skip scrolling unscrollable boxes.
     if (!doc->paintable_box()->could_be_scrolled_by_wheel_event())
-        return WebIDL::create_resolved_promise(doc->realm(), JS::js_undefined());
+        return;
     auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();
     auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
     // NOTE: Clamp to the scrolling area.
@@ -2848,6 +2848,14 @@ GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta
     // FIXME: Get a Promise from this.
     vv->scroll_by({ visual_dx, visual_dy });
     doc->set_needs_display(InvalidateDisplayList::No);
+}
+
+// https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+{
+    auto doc = active_document();
+
+    scroll_viewport_by_delta_without_promise(delta);
 
     // 16. Let scrollPromise be a new Promise.
     auto scroll_promise = WebIDL::create_promise(doc->realm());
