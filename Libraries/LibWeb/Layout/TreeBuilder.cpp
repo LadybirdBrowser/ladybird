@@ -978,16 +978,11 @@ static bool is_not_proper_table_child(Node const& node)
     return !is_proper_table_child(node);
 }
 
-static bool is_table_row(Node const& node)
-{
-    return node.display().is_table_row();
-}
-
 static bool is_not_table_row(Node const& node)
 {
     if (!node.has_style())
         return true;
-    return !is_table_row(node);
+    return !TableGrid::is_table_row(node);
 }
 
 static bool is_table_cell(Node const& node)
@@ -1098,7 +1093,7 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
 
         // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
         if (!parent.display().is_table_inside() && !is_proper_table_child(parent)) {
-            for_each_sequence_of_consecutive_children_matching(parent, is_table_row, [&](auto& sequence, auto nearest_sibling) {
+            for_each_sequence_of_consecutive_children_matching(parent, TableGrid::is_table_row, [&](auto& sequence, auto nearest_sibling) {
                 wrap_in_anonymous<Box>(sequence, nearest_sibling, CSS::Display::from_short(parent.display().is_inline_outside() ? CSS::Display::Short::InlineTable : CSS::Display::Short::Table));
             });
         }
@@ -1152,16 +1147,6 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
     return table_roots_to_wrap;
 }
 
-template<typename Matcher, typename Callback>
-static void for_each_child_box_matching(Box& parent, Matcher matcher, Callback callback)
-{
-    parent.for_each_child_of_type<Box>([&](Box& child_box) {
-        if (matcher(child_box))
-            callback(child_box);
-        return IterationDecision::Continue;
-    });
-}
-
 static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_index)
 {
     for (size_t column_index = 0; column_index < table_grid.column_count(); ++column_index) {
@@ -1184,15 +1169,15 @@ void TreeBuilder::missing_cells_fixup(Vector<GC::Root<Box>> const& table_root_bo
     for (auto& table_box : table_root_boxes) {
         auto table_grid = TableGrid::calculate_row_column_grid(*table_box);
         size_t row_index = 0;
-        for_each_child_box_matching(*table_box, TableGrid::is_table_row_group, [&](auto& row_group_box) {
-            for_each_child_box_matching(row_group_box, is_table_row, [&](auto& row_box) {
+        TableGrid::for_each_child_box_matching(*table_box, TableGrid::is_table_row_group, [&](auto& row_group_box) {
+            TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row_box) {
                 fixup_row(row_box, table_grid, row_index);
                 ++row_index;
                 return IterationDecision::Continue;
             });
         });
 
-        for_each_child_box_matching(*table_box, is_table_row, [&](auto& row_box) {
+        TableGrid::for_each_child_box_matching(*table_box, TableGrid::is_table_row, [&](auto& row_box) {
             fixup_row(row_box, table_grid, row_index);
             ++row_index;
             return IterationDecision::Continue;
