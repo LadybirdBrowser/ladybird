@@ -63,7 +63,7 @@ elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
     # ISA or target string. Unfortunately hardware probing is also neither easy nor reliable at the moment.
     # For the time being use the defaults for the best compatibility with existing hardware and toolchains.
     # FIXME: Remove this branch once -march=native is supported.
-else()
+elseif (NOT CMAKE_CROSSCOMPILING)
     # In all other cases, compile for the native architecture of the host system.
     add_cxx_compile_options(-march=native)
 endif()
