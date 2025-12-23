@@ -37,6 +37,14 @@ public:
         Rtl,
     };
 
+    struct BreakSegmentResult {
+        size_t glyph_count { 0 };
+        size_t utf16_units { 0 };
+        float inline_advance { 0.0f };
+    };
+
+    static NonnullRefPtr<GlyphRun> create_empty_with_metrics_of(GlyphRun const& other);
+
     GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width, float line_height)
         : m_glyphs(move(glyphs))
         , m_font(move(font))
@@ -53,6 +61,7 @@ public:
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
     [[nodiscard]] FloatRect bounding_rect() const;
+    BreakSegmentResult fit_glyphs(double max_inline_available) const;
 
 private:
     Vector<DrawGlyph> m_glyphs;
