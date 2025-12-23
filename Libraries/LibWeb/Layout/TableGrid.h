@@ -55,26 +55,36 @@ public:
     size_t column_count() const { return m_column_count; }
     HashMap<GridPosition, bool> const& occupancy_grid() const { return m_occupancy_grid; }
 
-    static bool is_table_row_group(Box const& box)
+    static bool is_table_row_group(Node const& node)
     {
-        auto const& display = box.display();
+        auto const& display = node.display();
         return display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group();
     }
 
-    static bool is_table_row(Box const& box)
+    static bool is_table_row(Node const& node)
     {
-        return box.display().is_table_row();
+        return node.display().is_table_row();
     }
 
-    static bool is_table_column_group(Box const& box)
+    static bool is_table_column_group(Node const& node)
     {
-        return box.display().is_table_column_group();
+        return node.display().is_table_column_group();
     }
 
     template<typename Matcher, typename Callback>
     static void for_each_child_box_matching(Box const& parent, Matcher matcher, Callback callback)
     {
         parent.for_each_child_of_type<Box>([&](Box const& child_box) {
+            if (matcher(child_box))
+                callback(child_box);
+            return IterationDecision::Continue;
+        });
+    }
+
+    template<typename Matcher, typename Callback>
+    static void for_each_child_box_matching(Box& parent, Matcher matcher, Callback callback)
+    {
+        parent.for_each_child_of_type<Box>([&](Box& child_box) {
             if (matcher(child_box))
                 callback(child_box);
             return IterationDecision::Continue;
