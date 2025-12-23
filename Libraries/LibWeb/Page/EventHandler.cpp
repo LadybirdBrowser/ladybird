@@ -445,7 +445,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
             auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
-                m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
+                m_navigable->scroll_viewport_by_delta_without_promise({ wheel_delta_x, wheel_delta_y });
             }
 
             handled_event = EventResult::Handled;
