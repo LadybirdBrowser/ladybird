@@ -64,6 +64,21 @@ public:
     Weak(T const* ptr);
     Weak(T const& ptr);
 
+    Weak(Weak&& other)
+        : m_impl(exchange(other.m_impl, WeakImpl::the_null_weak_impl))
+    {
+    }
+
+    Weak& operator=(Weak&& other)
+    {
+        if (this != &other) {
+            m_impl = exchange(other.m_impl, WeakImpl::the_null_weak_impl);
+        }
+        return *this;
+    }
+
+    Weak(Weak const&) = default;
+
     template<typename U>
     Weak(Weak<U> const& other)
     requires(IsConvertible<U*, T*>);
@@ -73,6 +88,8 @@ public:
     template<typename U>
     Weak(Ref<U> const& other)
     requires(IsConvertible<U*, T*>);
+
+    Weak& operator=(Weak const& other) = default;
 
     template<typename U>
     Weak& operator=(Weak<U> const& other)
