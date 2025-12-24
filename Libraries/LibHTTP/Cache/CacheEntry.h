@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -90,7 +90,7 @@ public:
 
     ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const&);
     ErrorOr<void> write_data(ReadonlyBytes);
-    ErrorOr<void> flush(NonnullRefPtr<HeaderList>);
+    ErrorOr<void> flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
     void on_network_error();
 
 private:

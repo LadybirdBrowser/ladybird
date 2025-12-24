@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,7 @@ namespace HTTP {
 class CacheIndex {
     struct Entry {
         String url;
+        NonnullRefPtr<HeaderList> request_headers;
         NonnullRefPtr<HeaderList> response_headers;
         u64 data_size { 0 };
 
@@ -33,7 +34,7 @@ class CacheIndex {
 public:
     static ErrorOr<CacheIndex> create(Database::Database&);
 
-    void create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList>, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
+    void create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key)> on_entry_removed);
 

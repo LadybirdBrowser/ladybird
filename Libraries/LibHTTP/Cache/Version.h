@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,6 @@
 namespace HTTP {
 
 // Increment this version when a breaking change is made to the cache index or cache entry formats.
-static constexpr inline u32 CACHE_VERSION = 4u;
+static constexpr inline u32 CACHE_VERSION = 5u;
 
 }

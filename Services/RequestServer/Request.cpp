@@ -150,7 +150,7 @@ Request::~Request()
         curl_slist_free_all(string_list);
 
     if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush(m_response_headers);
+        (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
 }
 
 void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)

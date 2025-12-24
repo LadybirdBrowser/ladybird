@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -183,7 +183,7 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -199,7 +199,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> response_headers
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_url, move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
+    m_index.create_entry(m_cache_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
