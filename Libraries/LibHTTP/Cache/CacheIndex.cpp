@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -83,7 +83,8 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
         CREATE TABLE IF NOT EXISTS CacheIndex (
             cache_key INTEGER,
             url TEXT,
-            response_headers TEXT,
+            request_headers BLOB,
+            response_headers BLOB,
             data_size INTEGER,
             request_time INTEGER,
             response_time INTEGER,
@@ -94,7 +95,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     database.execute_statement(create_cache_index_table, {});
 
     Statements statements {};
-    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?);"sv));
+    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?);"sv));
     statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.remove_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE last_access_time >= ? RETURNING cache_key;"sv));
     statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
@@ -111,21 +112,27 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements)
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
-    for (size_t i = 0; i < response_headers->headers().size();) {
-        auto const& header = response_headers->headers()[i];
+    auto remove_exempted_headers = [](HeaderList& headers) {
+        for (size_t i = 0; i < headers.headers().size();) {
+            auto const& header = headers.headers()[i];
 
-        if (is_header_exempted_from_storage(header.name))
-            response_headers->delete_(header.name);
-        else
-            ++i;
-    }
+            if (is_header_exempted_from_storage(header.name))
+                headers.delete_(header.name);
+            else
+                ++i;
+        }
+    };
+
+    remove_exempted_headers(request_headers);
+    remove_exempted_headers(response_headers);
 
     Entry entry {
         .url = move(url),
+        .request_headers = move(request_headers),
         .response_headers = move(response_headers),
         .data_size = data_size,
         .request_time = request_time,
@@ -133,7 +140,7 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderLis
         .last_access_time = now,
     };
 
-    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, entry.url, serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, entry.url, serialize_headers(entry.request_headers), serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
     m_entries.set(cache_key, move(entry));
 }
 
@@ -189,13 +196,14 @@ Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
 
             auto cache_key = m_database->result_column<u64>(statement_id, column++);
             auto url = m_database->result_column<String>(statement_id, column++);
+            auto request_headers = m_database->result_column<ByteString>(statement_id, column++);
             auto response_headers = m_database->result_column<ByteString>(statement_id, column++);
             auto data_size = m_database->result_column<u64>(statement_id, column++);
             auto request_time = m_database->result_column<UnixDateTime>(statement_id, column++);
             auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
             auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
-            Entry entry { move(url), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
+            Entry entry { move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
             m_entries.set(cache_key, move(entry));
         },
         cache_key);

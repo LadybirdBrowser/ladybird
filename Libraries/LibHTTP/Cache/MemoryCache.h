@@ -22,7 +22,7 @@ public:
     struct Entry {
         u32 status_code { 0 };
         ByteString reason_phrase;
-
+        NonnullRefPtr<HeaderList> request_headers;
         NonnullRefPtr<HeaderList> response_headers;
         ByteBuffer response_body;
 
