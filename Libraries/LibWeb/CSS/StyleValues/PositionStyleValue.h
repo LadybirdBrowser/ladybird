@@ -38,7 +38,7 @@ public:
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_x() const { return m_properties.edge_x; }
     ValueComparingNonnullRefPtr<EdgeStyleValue const> edge_y() const { return m_properties.edge_y; }
-    bool is_center() const;
+    bool is_center(SerializationMode) const;
     CSSPixelPoint resolved(Layout::Node const&, CSSPixelRect const&) const;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
