@@ -15,10 +15,10 @@ namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#dictdef-underlyingsink
 struct WEB_API UnderlyingSink {
-    GC::Root<WebIDL::CallbackType> start;
-    GC::Root<WebIDL::CallbackType> write;
-    GC::Root<WebIDL::CallbackType> close;
-    GC::Root<WebIDL::CallbackType> abort;
+    GC::Ptr<WebIDL::CallbackType> start;
+    GC::Ptr<WebIDL::CallbackType> write;
+    GC::Ptr<WebIDL::CallbackType> close;
+    GC::Ptr<WebIDL::CallbackType> abort;
     Optional<JS::Value> type;
 
     static JS::ThrowCompletionOr<UnderlyingSink> from_value(JS::VM&, JS::Value);
