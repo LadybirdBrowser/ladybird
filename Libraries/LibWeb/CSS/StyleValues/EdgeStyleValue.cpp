@@ -7,17 +7,23 @@
 #include "EdgeStyleValue.h"
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/ValueType.h>
 
 namespace Web::CSS {
 
+bool EdgeStyleValue::is_center() const
+{
+    if (m_properties.edge == PositionEdge::Center)
+        return true;
+
+    if (m_properties.offset && m_properties.offset->is_percentage() && m_properties.offset->as_percentage().percentage().value() == 50)
+        return true;
+
+    return false;
+}
+
 String EdgeStyleValue::to_string(SerializationMode mode) const
 {
-    if (mode == SerializationMode::ResolvedValue) {
-        // FIXME: Figure out how to get the proper calculation context here
-        CalculationContext context {};
-        return resolved_value(context)->offset()->to_string(mode);
-    }
-
     StringBuilder builder;
 
     if (m_properties.edge.has_value())
@@ -32,27 +38,31 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::resolved_value(CalculationContext context) const
+ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    if (edge() == PositionEdge::Right || edge() == PositionEdge::Bottom) {
-        if (offset()->is_percentage()) {
-            auto flipped_percentage = 100 - offset()->as_percentage().percentage().value();
-            return create({}, PercentageStyleValue::create(Percentage(flipped_percentage)));
-        }
+    if (m_properties.edge == PositionEdge::Center)
+        return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(50)));
 
-        Vector<NonnullRefPtr<CalculationNode const>> sum_parts;
-        sum_parts.append(NumericCalculationNode::create(Percentage(100), context));
-        if (offset()->is_length()) {
-            sum_parts.append(NegateCalculationNode::create(NumericCalculationNode::create(offset()->as_length().length(), context)));
-        } else {
-            // FIXME: Flip calculated offsets (convert CalculatedStyleValue to CalculationNode, then negate and append)
-            return *this;
-        }
-        auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), NumericType(NumericType::BaseType::Length, 1), context);
-        return create({}, flipped_absolute);
+    CalculationContext calculation_context {
+        .percentages_resolve_as = ValueType::Length,
+    };
+
+    if (m_properties.edge == PositionEdge::Right || m_properties.edge == PositionEdge::Bottom) {
+        if (!m_properties.offset)
+            return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(100)));
+
+        auto flipped_percentage = SumCalculationNode::create({ NumericCalculationNode::create(Percentage { 100 }, calculation_context),
+            NegateCalculationNode::create(CalculationNode::from_style_value(*m_properties.offset, calculation_context)) });
+
+        auto flipped_percentage_style_value = CalculatedStyleValue::create(flipped_percentage, NumericType(NumericType::BaseType::Length, 1), calculation_context);
+
+        return EdgeStyleValue::create({}, flipped_percentage_style_value->absolutized(computation_context));
     }
 
-    return *this;
+    if (!m_properties.offset)
+        return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(0)));
+
+    return EdgeStyleValue::create({}, m_properties.offset->absolutized(computation_context));
 }
 
 }

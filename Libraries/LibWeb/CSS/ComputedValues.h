@@ -369,10 +369,8 @@ struct BackgroundLayerData {
     BackgroundAttachment attachment { BackgroundAttachment::Scroll };
     BackgroundBox origin { BackgroundBox::PaddingBox };
     BackgroundBox clip { BackgroundBox::BorderBox };
-    PositionEdge position_edge_x { PositionEdge::Left };
-    LengthPercentage position_offset_x { Length::make_px(0) };
-    PositionEdge position_edge_y { PositionEdge::Top };
-    LengthPercentage position_offset_y { Length::make_px(0) };
+    LengthPercentage position_x { Length::make_px(0) };
+    LengthPercentage position_y { Length::make_px(0) };
     BackgroundSize size_type { BackgroundSize::LengthPercentage };
     LengthPercentageOrAuto size_x { LengthPercentageOrAuto::make_auto() };
     LengthPercentageOrAuto size_y { LengthPercentageOrAuto::make_auto() };

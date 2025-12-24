@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-30 Pass
-5 Fail
+34 Pass
+1 Fail
 Pass	Property background-attachment value 'local'
 Pass	Property background-attachment value 'scroll, fixed'
 Pass	Property background-attachment value 'local, fixed, scroll'
@@ -23,14 +23,14 @@ Pass	Property background-position value '50% 6px'
 Pass	Property background-position value '12px 13px, 50% 6px'
 Pass	Property background-position value '12px 13px, 50% 6px, 30px -10px'
 Pass	Property background-position value '12px 13px, 50% 6px, 30px -10px, -7px 8px'
-Fail	Property background-position-x value '0.5em'
+Pass	Property background-position-x value '0.5em'
 Pass	Property background-position-x value '-20%, 10px'
 Pass	Property background-position-x value 'center, left, right'
-Fail	Property background-position-x value 'calc(10px - 0.5em), -20%, right, 15%'
-Fail	Property background-position-y value '0.5em'
+Pass	Property background-position-x value 'calc(10px - 0.5em), -20%, right, 15%'
+Pass	Property background-position-y value '0.5em'
 Pass	Property background-position-y value '-20%, 10px'
 Pass	Property background-position-y value 'center, top, bottom'
-Fail	Property background-position-y value 'calc(10px - 0.5em), -20%, bottom, 15%'
+Pass	Property background-position-y value 'calc(10px - 0.5em), -20%, bottom, 15%'
 Pass	Property background-repeat value 'round'
 Pass	Property background-repeat value 'repeat-x, repeat'
 Pass	Property background-repeat value 'repeat space, round no-repeat, repeat-x'
