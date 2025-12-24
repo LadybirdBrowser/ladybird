@@ -22,7 +22,7 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
         builder.append("repeating-"sv);
     builder.append("conic-gradient("sv);
     bool has_from_angle = m_properties.from_angle;
-    bool has_at_position = !m_properties.position->is_center();
+    bool has_at_position = !m_properties.position->is_center(mode);
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     if (has_from_angle)

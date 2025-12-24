@@ -23,7 +23,7 @@ public:
     // This is nonnull as it is only called after absolutization
     NonnullRefPtr<StyleValue const> offset() const { return *m_properties.offset; }
 
-    bool is_center() const;
+    bool is_center(SerializationMode) const;
 
     virtual String to_string(SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;

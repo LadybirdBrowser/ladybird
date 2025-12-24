@@ -11,12 +11,12 @@
 
 namespace Web::CSS {
 
-bool EdgeStyleValue::is_center() const
+bool EdgeStyleValue::is_center(SerializationMode mode) const
 {
     if (m_properties.edge == PositionEdge::Center)
         return true;
 
-    if (m_properties.offset && m_properties.offset->is_percentage() && m_properties.offset->as_percentage().percentage().value() == 50)
+    if (m_properties.offset && m_properties.offset->to_string(mode) == "50%"sv)
         return true;
 
     return false;

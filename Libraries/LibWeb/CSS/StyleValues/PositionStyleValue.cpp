@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-bool PositionStyleValue::is_center() const
+bool PositionStyleValue::is_center(SerializationMode mode) const
 {
-    return edge_x()->is_center() && edge_y()->is_center();
+    return edge_x()->is_center(mode) && edge_y()->is_center(mode);
 }
 
 CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRect const& rect) const
