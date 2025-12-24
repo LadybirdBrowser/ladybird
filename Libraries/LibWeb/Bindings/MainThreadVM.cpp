@@ -809,12 +809,14 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
-void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_queue)
+void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue)
 {
     // 1. While queue is not empty:
     while (!element_queue.is_empty()) {
         // 1. Let element be the result of dequeuing from queue.
         auto element = element_queue.take_first();
+        if (!element)
+            continue;
 
         // 2. Let reactions be element's custom element reaction queue.
         auto* reactions = element->custom_element_reaction_queue();
