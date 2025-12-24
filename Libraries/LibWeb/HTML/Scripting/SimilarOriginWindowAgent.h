@@ -40,8 +40,8 @@ struct SimilarOriginWindowAgent : public Agent {
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#current-element-queue
     // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
-    Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
-    Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
+    auto& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
+    auto const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
 
 private:
     SimilarOriginWindowAgent(GC::Heap&, CanBlock);

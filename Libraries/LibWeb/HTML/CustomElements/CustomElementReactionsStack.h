@@ -21,11 +21,11 @@ struct CustomElementReactionsStack {
     // https://html.spec.whatwg.org/multipage/custom-elements.html#element-queue
     // Each item in the stack is an element queue, which is initially empty as well. Each item in an element queue is an element.
     // (The elements are not necessarily custom yet, since this queue is used for upgrades as well.)
-    Vector<Vector<GC::Root<DOM::Element>>> element_queue_stack;
+    Vector<Vector<GC::Weak<DOM::Element>>> element_queue_stack;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#backup-element-queue
     // Each custom element reactions stack has an associated backup element queue, which an initially-empty element queue.
-    Vector<GC::Root<DOM::Element>> backup_element_queue;
+    Vector<GC::Weak<DOM::Element>> backup_element_queue;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#processing-the-backup-element-queue
     // To prevent reentrancy when processing the backup element queue, each custom element reactions stack also has a processing the backup element queue flag, initially unset.
