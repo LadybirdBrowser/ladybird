@@ -16,10 +16,8 @@ struct ResolvedBackgroundLayerData {
     RefPtr<CSS::AbstractImageStyleValue const> background_image;
     CSS::BackgroundAttachment attachment;
     CSS::BackgroundBox clip;
-    CSS::PositionEdge position_edge_x;
-    CSS::PositionEdge position_edge_y;
-    CSSPixels offset_x;
-    CSSPixels offset_y;
+    CSSPixels position_x;
+    CSSPixels position_y;
     CSSPixelRect background_positioning_area;
     CSSPixelRect image_rect;
     CSS::Repetition repeat_x;

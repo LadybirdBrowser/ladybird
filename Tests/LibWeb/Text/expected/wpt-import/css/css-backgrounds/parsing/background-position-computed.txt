@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 29 tests
 
-26 Pass
-3 Fail
+29 Pass
 Pass	Property background-position value '1px'
 Pass	Property background-position value '1px center'
 Pass	Property background-position value '-2% -3%'
@@ -26,10 +25,10 @@ Pass	Property background-position value 'right top 14%'
 Pass	Property background-position value 'bottom'
 Pass	Property background-position value 'top 15px center'
 Pass	Property background-position value 'bottom 16% left'
-Fail	Property background-position value 'top 17px right -18px'
+Pass	Property background-position value 'top 17px right -18px'
 Pass	Property background-position value 'bottom center'
 Pass	Property background-position value 'top left'
 Pass	Property background-position value 'bottom right 19%'
-Fail	Property background-position value 'calc(10px + 0.5em) calc(10px - 0.5em)'
-Fail	Property background-position value 'calc(10px - 0.5em) calc(10px + 0.5em)'
+Pass	Property background-position value 'calc(10px + 0.5em) calc(10px - 0.5em)'
+Pass	Property background-position value 'calc(10px - 0.5em) calc(10px + 0.5em)'
 Pass	Property background-position value '12px 13px, 50% 6px, 30px -10px'

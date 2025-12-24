@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 16 tests
 
-8 Pass
-8 Fail
+13 Pass
+3 Fail
 Pass	Property background-position-y value 'center'
 Pass	Property background-position-y value 'top'
 Pass	Property background-position-y value 'bottom'
@@ -11,12 +11,12 @@ Fail	Property background-position-y value 'y-start'
 Fail	Property background-position-y value 'y-end'
 Pass	Property background-position-y value '-20%'
 Pass	Property background-position-y value '10px'
-Fail	Property background-position-y value '0.5em'
-Fail	Property background-position-y value 'calc(10px - 0.5em)'
+Pass	Property background-position-y value '0.5em'
+Pass	Property background-position-y value 'calc(10px - 0.5em)'
 Pass	Property background-position-y value 'top -20%'
-Fail	Property background-position-y value 'bottom -10px'
+Pass	Property background-position-y value 'bottom -10px'
 Pass	Property background-position-y value '-20%, 10px'
 Pass	Property background-position-y value 'center, top, bottom'
 Fail	Property background-position-y value '0.5em, y-start, y-end'
-Fail	Property background-position-y value 'calc(10px - 0.5em), -20%, 10px'
-Fail	Property background-position-y value 'calc(10px - 0.5em), top -20%, bottom 10px'
+Pass	Property background-position-y value 'calc(10px - 0.5em), -20%, 10px'
+Pass	Property background-position-y value 'calc(10px - 0.5em), top -20%, bottom 10px'

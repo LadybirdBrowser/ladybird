@@ -13,8 +13,7 @@ namespace Web::CSS {
 
 bool PositionStyleValue::is_center() const
 {
-    return (edge_x()->offset()->is_percentage() && edge_x()->offset()->as_percentage().percentage() == Percentage { 50 })
-        && (edge_y()->offset()->is_percentage() && edge_y()->offset()->as_percentage().percentage() == Percentage { 50 });
+    return edge_x()->is_center() && edge_y()->is_center();
 }
 
 CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRect const& rect) const
@@ -22,10 +21,6 @@ CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRec
     // Note: A preset + a none default x/y_relative_to is impossible in the syntax (and makes little sense)
     CSSPixels x = LengthPercentage::from_style_value(m_properties.edge_x->offset()).to_px(node, rect.width());
     CSSPixels y = LengthPercentage::from_style_value(m_properties.edge_y->offset()).to_px(node, rect.height());
-    if (m_properties.edge_x->edge() == PositionEdge::Right)
-        x = rect.width() - x;
-    if (m_properties.edge_y->edge() == PositionEdge::Bottom)
-        y = rect.height() - y;
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 

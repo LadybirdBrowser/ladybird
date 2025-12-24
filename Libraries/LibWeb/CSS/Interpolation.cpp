@@ -1723,13 +1723,11 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern);
     }
     case StyleValue::Type::Edge: {
-        auto resolved_from = from.as_edge().resolved_value(calculation_context);
-        auto resolved_to = to.as_edge().resolved_value(calculation_context);
-        auto const& edge = delta >= 0.5f ? resolved_to->edge() : resolved_from->edge();
-        auto const& from_offset = resolved_from->offset();
-        auto const& to_offset = resolved_to->offset();
+        auto const& from_offset = from.as_edge().offset();
+        auto const& to_offset = to.as_edge().offset();
+
         if (auto interpolated_value = interpolate_value_impl(element, calculation_context, from_offset, to_offset, delta, allow_discrete))
-            return EdgeStyleValue::create(edge, interpolated_value);
+            return EdgeStyleValue::create({}, interpolated_value);
 
         return {};
     }

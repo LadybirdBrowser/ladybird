@@ -20,29 +20,13 @@ public:
     }
     virtual ~EdgeStyleValue() override = default;
 
-    Optional<PositionEdge> edge() const
-    {
-        if (m_properties.edge == PositionEdge::Center)
-            return {};
+    // This is nonnull as it is only called after absolutization
+    NonnullRefPtr<StyleValue const> offset() const { return *m_properties.offset; }
 
-        return m_properties.edge;
-    }
-
-    NonnullRefPtr<StyleValue const> offset() const
-    {
-        if (m_properties.edge == PositionEdge::Center)
-            return PercentageStyleValue::create(Percentage(50));
-
-        if (!m_properties.offset)
-            return PercentageStyleValue::create(Percentage(0));
-
-        return *m_properties.offset;
-    }
+    bool is_center() const;
 
     virtual String to_string(SerializationMode) const override;
-
-    ValueComparingNonnullRefPtr<EdgeStyleValue const> resolved_value(CalculationContext context) const;
-
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
     bool properties_equal(EdgeStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
