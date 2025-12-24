@@ -20,9 +20,9 @@ enum class ReadableStreamType {
 };
 
 struct WEB_API UnderlyingSource {
-    GC::Root<WebIDL::CallbackType> start;
-    GC::Root<WebIDL::CallbackType> pull;
-    GC::Root<WebIDL::CallbackType> cancel;
+    GC::Ptr<WebIDL::CallbackType> start;
+    GC::Ptr<WebIDL::CallbackType> pull;
+    GC::Ptr<WebIDL::CallbackType> cancel;
     Optional<ReadableStreamType> type;
     Optional<u64> auto_allocate_chunk_size;
 

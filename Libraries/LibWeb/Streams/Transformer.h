@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGC/Root.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -16,13 +16,13 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#dictdef-transformer
 struct WEB_API Transformer {
     // https://streams.spec.whatwg.org/#dom-transformer-start
-    GC::Root<WebIDL::CallbackType> start;
+    GC::Ptr<WebIDL::CallbackType> start;
     // https://streams.spec.whatwg.org/#dom-transformer-transform
-    GC::Root<WebIDL::CallbackType> transform;
+    GC::Ptr<WebIDL::CallbackType> transform;
     // https://streams.spec.whatwg.org/#dom-transformer-flush
-    GC::Root<WebIDL::CallbackType> flush;
+    GC::Ptr<WebIDL::CallbackType> flush;
     // https://streams.spec.whatwg.org/#dom-transformer-cancel
-    GC::Root<WebIDL::CallbackType> cancel;
+    GC::Ptr<WebIDL::CallbackType> cancel;
 
     // https://streams.spec.whatwg.org/#dom-transformer-readabletype
     Optional<JS::Value> readable_type;
