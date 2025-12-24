@@ -10,6 +10,7 @@
 
 #include <AK/Forward.h>
 #include <AK/String.h>
+#include <LibGC/HeapVector.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
@@ -60,7 +61,7 @@ private:
     GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
-    Vector<GC::Root<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
+    GC::Ptr<GC::HeapVector<GC::Ref<JS::Promise>>> m_about_to_be_notified_rejected_promises_list;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
     // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.

@@ -34,6 +34,7 @@ void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_count_queuing_strategy_size_function);
     visitor.visit(m_byte_length_queuing_strategy_size_function);
     visitor.ignore(m_outstanding_rejected_promises_weak_set);
+    visitor.visit(m_about_to_be_notified_rejected_promises_list);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
@@ -167,12 +168,16 @@ bool UniversalGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_s
 
 void UniversalGlobalScopeMixin::push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
 {
-    m_about_to_be_notified_rejected_promises_list.append(GC::make_root(promise));
+    if (!m_about_to_be_notified_rejected_promises_list)
+        m_about_to_be_notified_rejected_promises_list = JS::VM::the().heap().allocate<GC::HeapVector<GC::Ref<JS::Promise>>>();
+    m_about_to_be_notified_rejected_promises_list->elements().append(promise);
 }
 
 bool UniversalGlobalScopeMixin::remove_from_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
 {
-    return m_about_to_be_notified_rejected_promises_list.remove_first_matching([&](auto& promise_in_list) {
+    if (!m_about_to_be_notified_rejected_promises_list)
+        return false;
+    return m_about_to_be_notified_rejected_promises_list->elements().remove_first_matching([&](auto& promise_in_list) {
         return promise == promise_in_list;
     });
 }
@@ -186,11 +191,11 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
     auto list = m_about_to_be_notified_rejected_promises_list;
 
     // 2. If list is empty, return.
-    if (list.is_empty())
+    if (!list || list->elements().is_empty())
         return;
 
     // 3. Clear settings object's about-to-be-notified rejected promises list.
-    m_about_to_be_notified_rejected_promises_list.clear();
+    m_about_to_be_notified_rejected_promises_list = nullptr;
 
     // 4. Let global be settings object's global object.
     auto& global = this_impl();
@@ -200,7 +205,7 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
         auto& realm = global.realm();
 
         // 1. For each promise p in list:
-        for (auto const& promise : list) {
+        for (auto const& promise : list->elements()) {
 
             // 1. If p's [[PromiseIsHandled]] internal slot is true, continue to the next iteration of the loop.
             if (promise->is_handled())
