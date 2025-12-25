@@ -338,7 +338,7 @@ private:
 
     Vector<GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>> m_promise_jobs;
 
-    Vector<GC::Ptr<FinalizationRegistry>> m_finalization_registry_cleanup_jobs;
+    Vector<GC::Ref<FinalizationRegistry>> m_finalization_registry_cleanup_jobs;
 
     GC::Ptr<PrimitiveString> m_empty_string;
     GC::Ptr<PrimitiveString> m_single_ascii_character_strings[128] {};
