@@ -465,7 +465,7 @@ void VM::enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> j
 void VM::run_queued_finalization_registry_cleanup_jobs()
 {
     while (!m_finalization_registry_cleanup_jobs.is_empty()) {
-        auto registry = m_finalization_registry_cleanup_jobs.take_first();
+        auto registry = m_finalization_registry_cleanup_jobs.take_last();
         // FIXME: Handle any uncatched exceptions here.
         (void)registry->cleanup();
     }
@@ -474,7 +474,7 @@ void VM::run_queued_finalization_registry_cleanup_jobs()
 // 9.10.4.1 HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), https://tc39.es/ecma262/#sec-host-cleanup-finalization-registry
 void VM::enqueue_finalization_registry_cleanup_job(FinalizationRegistry& registry)
 {
-    m_finalization_registry_cleanup_jobs.append(&registry);
+    m_finalization_registry_cleanup_jobs.append(registry);
 }
 
 // 27.2.1.9 HostPromiseRejectionTracker ( promise, operation ), https://tc39.es/ecma262/#sec-host-promise-rejection-tracker
