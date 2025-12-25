@@ -483,6 +483,16 @@ public:
         return const_cast<Node*>(this)->containing_shadow_root();
     }
 
+    template<typename Pred>
+    Node const* find_in_shadow_including_ancestor_chain(Pred&& pred) const
+    {
+        for (auto const* iter = this; iter; iter = as<Node const>(iter->parent_or_shadow_host())) {
+            if (pred(*iter))
+                return iter;
+        }
+        return nullptr;
+    }
+
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
