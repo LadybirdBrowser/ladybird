@@ -934,6 +934,8 @@ void FormAssociatedTextControlElement::selection_was_changed()
     } else {
         text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
     }
+    if (auto selection = text_node->document().get_selection())
+        MUST(selection->set_base_and_extent(*text_node, m_selection_start, *text_node, m_selection_end));
     text_paintable->set_needs_display();
 }
 
