@@ -509,18 +509,20 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
 
     MarkingVisitor visitor(*this, roots);
 
+    for_each_block([&](auto& block) {
+        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+            if (cell_must_survive_garbage_collection(*cell)) {
+                cell->set_marked(true);
+                cell->visit_edges(visitor);
+            }
+        });
+        return IterationDecision::Continue;
+    });
+
     visitor.mark_all_live_cells();
 
     for (auto& inverse_root : m_uprooted_cells)
         inverse_root->set_marked(false);
-
-    for_each_block([&](auto& block) {
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked() && cell_must_survive_garbage_collection(*cell))
-                cell->visit_edges(visitor);
-        });
-        return IterationDecision::Continue;
-    });
 
     m_uprooted_cells.clear();
 }
