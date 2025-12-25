@@ -42,9 +42,6 @@ void WeakRef::remove_dead_cells(Badge<GC::Heap>)
         return;
 
     m_value = Empty {};
-    // This is an optimization, we deregister from the garbage collector early (even if we were not garbage collected ourself yet)
-    // to reduce the garbage collection overhead, which we can do because a cleared weak ref cannot be reused.
-    WeakContainer::deregister();
 }
 
 void WeakRef::visit_edges(Visitor& visitor)
