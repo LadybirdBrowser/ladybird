@@ -68,16 +68,6 @@ public:
 
     void set_host_defined(OwnPtr<HostDefined> host_defined) { m_host_defined = move(host_defined); }
 
-    void define_builtin(Bytecode::Builtin builtin, GC::Ref<NativeFunction> value)
-    {
-        m_builtins[to_underlying(builtin)] = value;
-    }
-
-    GC::Ref<NativeFunction> get_builtin_value(Bytecode::Builtin builtin)
-    {
-        return *m_builtins[to_underlying(builtin)];
-    }
-
 private:
     Realm() = default;
 
@@ -87,7 +77,6 @@ private:
     GC::Ptr<Object> m_global_object;                 // [[GlobalObject]]
     GC::Ptr<GlobalEnvironment> m_global_environment; // [[GlobalEnv]]
     OwnPtr<HostDefined> m_host_defined;              // [[HostDefined]]
-    AK::Array<GC::Ptr<NativeFunction>, to_underlying(Bytecode::Builtin::__Count)> m_builtins;
 };
 
 }

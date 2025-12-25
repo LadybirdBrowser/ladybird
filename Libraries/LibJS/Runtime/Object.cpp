@@ -1428,8 +1428,6 @@ void Object::define_native_function(Realm& realm, PropertyKey const& property_ke
 {
     auto function = NativeFunction::create(realm, move(native_function), length, property_key, &realm, {}, builtin);
     define_direct_property(property_key, function, attribute);
-    if (builtin.has_value())
-        realm.define_builtin(builtin.value(), function);
 }
 
 void Object::define_native_javascript_backed_function(PropertyKey const& property_key, GC::Ref<NativeJavaScriptBackedFunction> function, i32, PropertyAttributes attributes)
