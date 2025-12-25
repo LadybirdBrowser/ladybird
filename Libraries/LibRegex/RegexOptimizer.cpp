@@ -80,6 +80,112 @@ struct BytecodeRewriter {
         new_ip_mapping.set(bytecode.size(), current_new_ip);
     }
 
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    void build_ip_mapping(ByteCode const& bytecode, Span<Range const> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        new_ip_mapping.ensure_capacity(instructions.size() + 1);
+        size_t current_new_ip = 0;
+        auto instruction_it = instructions.begin();
+
+        for (auto i = 0uz; i < replacements.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    new_ip_mapping.set(instr.old_ip, current_new_ip);
+                    break;
+                }
+                new_ip_mapping.set(instr.old_ip, current_new_ip);
+                current_new_ip += instr.size;
+                ++instruction_it;
+            }
+            current_new_ip += replacement.size();
+
+            // Skip instructions in the replacement range
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instruction_it;
+            }
+        }
+        // Map any remaining instructions
+        for (; instruction_it != instructions.end(); ++instruction_it) {
+            auto& instr = *instruction_it;
+            new_ip_mapping.set(instr.old_ip, current_new_ip);
+            current_new_ip += instr.size;
+        }
+        new_ip_mapping.set(bytecode.size(), current_new_ip);
+    }
+
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    ByteCode rebuild(ByteCode const& bytecode, Span<Range> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        // Assumes that replacement_ranges and replacements are the same size
+        // As well as in order
+        VERIFY(replacement_ranges.size() == replacements.size());
+        auto flat = bytecode.flat_data();
+        ByteCode result;
+        result.merge_string_tables_from({ &bytecode, 1 });
+
+        size_t total_new_size = bytecode.size();
+        // FIXME: Get a zip(it...) helper
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            mark_range_for_skip(replacement_ranges[i].start_ip, replacement_ranges[i].end_ip);
+            total_new_size -= (replacement_ranges[i].end_ip - replacement_ranges[i].start_ip);
+            total_new_size += replacements[i].size();
+        }
+        build_ip_mapping<Range>(bytecode, replacement_ranges, replacements);
+        result.ensure_capacity(total_new_size);
+
+        // FIXME: Use a zip(...) helper
+        auto instructions_it = instructions.begin();
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            // Append and adjust all instructions before the replacement range
+            for (; instructions_it != instructions.end(); ++instructions_it) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    ++instructions_it;
+                    break;
+                }
+                VERIFY(instr.skip == false);
+                auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+                adjust_jump_in_slice(bytecode, slice, instr);
+                result.append(move(slice));
+            }
+            // Finally insert the replacement
+            result.extend(replacement);
+
+            // Skip instructions in the replacement range
+            while (instructions_it != instructions.end()) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instructions_it;
+            }
+        }
+        // Append any remaining instructions
+        for (; instructions_it != instructions.end(); ++instructions_it) {
+            auto& instr = *instructions_it;
+            auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+            adjust_jump_in_slice(bytecode, slice, instr);
+            result.append(move(slice));
+            VERIFY(instr.skip == false);
+        }
+
+        result.flatten();
+        return result;
+    }
+
     ByteCode rebuild(ByteCode const& bytecode, Function<void(Instruction const&, ByteCode&)> insert_replacement = nullptr)
     {
         auto flat = bytecode.flat_data();
@@ -1539,33 +1645,18 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
         return;
 
     BytecodeRewriter rewriter(bytecode);
+    Vector<ByteCode> replacements;
+    replacements.ensure_capacity(sequences.size());
+    for (auto const& seq : sequences) {
+        StringBuilder string_builder(StringBuilder::Mode::UTF16);
+        for (auto ch : seq.characters)
+            string_builder.append_code_point(ch);
+        ByteCode replacement;
+        replacement.insert_bytecode_compare_string(string_builder.to_utf16_string());
+        replacements.append(move(replacement));
+    }
 
-    for (auto& seq : sequences)
-        rewriter.mark_range_for_skip(seq.start_ip, seq.end_ip);
-
-    size_t seq_index = 0;
-    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
-        while (seq_index < sequences.size()) {
-            auto& seq = sequences[seq_index];
-
-            if (instr.old_ip == seq.start_ip) {
-                StringBuilder string_builder(StringBuilder::Mode::UTF16);
-                for (auto ch : seq.characters)
-                    string_builder.append_code_point(ch);
-
-                result.insert_bytecode_compare_string(string_builder.to_utf16_string());
-                seq_index++;
-                return;
-            }
-
-            if (instr.old_ip < seq.end_ip)
-                return;
-
-            seq_index++;
-        }
-    };
-
-    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+    parser_result.bytecode = rewriter.rebuild(bytecode, sequences.span(), replacements.span());
 }
 
 template<typename Parser>
@@ -1816,32 +1907,27 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
 
     BytecodeRewriter rewriter(bytecode);
 
-    for (auto& candidate : candidates) {
-        rewriter.mark_range_for_skip(candidate.fork_ip, candidate.jump_ip + 4); // JumpNonEmpty = 4
-    }
-
-    size_t candidate_index = 0;
-    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
-        while (candidate_index < candidates.size()) {
-            auto& candidate = candidates[candidate_index];
-
-            if (instr.old_ip == candidate.fork_ip) {
-                result.empend(static_cast<ByteCodeValueType>(OpCodeId::RSeekTo));
-                result.empend(candidate.seek_code_point);
-                result.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkStay));
-                result.empend(static_cast<ByteCodeValueType>(-4)); // Offset back to RSeekTo
-                candidate_index++;
-                return;
-            }
-
-            if (instr.old_ip < candidate.jump_ip + 4)
-                return;
-
-            candidate_index++;
-        }
+    struct Range {
+        size_t start_ip;
+        size_t end_ip;
     };
 
-    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+    Vector<Range> ranges_to_skip;
+    Vector<ByteCode> replacements;
+    ranges_to_skip.ensure_capacity(candidates.size());
+    replacements.ensure_capacity(candidates.size());
+
+    for (auto& candidate : candidates) {
+        ranges_to_skip.empend(candidate.fork_ip, candidate.jump_ip + 4); // JumpNonEmpty = 4
+        ByteCode replacement;
+        replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::RSeekTo));
+        replacement.empend(candidate.seek_code_point);
+        replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkStay));
+        replacement.empend(static_cast<ByteCodeValueType>(-4)); // Offset back to RSeekTo
+        replacements.append(move(replacement));
+    }
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, ranges_to_skip.span(), replacements.span());
 
     if constexpr (REGEX_DEBUG) {
         dbgln("After dot-star rewrite as SeekTo:");
