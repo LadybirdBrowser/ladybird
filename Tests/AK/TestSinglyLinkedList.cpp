@@ -65,9 +65,9 @@ TEST_CASE(removal_during_iteration)
     auto list = make_list();
     auto size = list.size();
 
-    for (auto it = list.begin(); it != list.end(); ++it, --size) {
+    for (auto it = list.begin(); it != list.end(); --size) {
         VERIFY(list.size() == size);
-        it.remove(list);
+        it = list.remove(it);
     }
 }
 
@@ -112,7 +112,7 @@ TEST_CASE(should_decrease_size_when_removing)
     SinglyLinkedList<int, TestSizeCalculationPolicy> list {};
     list.append(0);
     auto begin = list.begin();
-    list.remove(begin);
+    (void)list.remove(begin);
     EXPECT_EQ(1u, calls_to_decrease);
 }
 
@@ -188,4 +188,19 @@ TEST_CASE(should_increase_size_when_inserting_after)
     SinglyLinkedList<int, TestSizeCalculationPolicy> list {};
     list.insert_after(list.begin(), 42);
     EXPECT_EQ(1u, calls_to_increase);
+}
+
+TEST_CASE(singly_linked_list_remove_does_not_leave_dangling_iterator)
+{
+    SinglyLinkedList<int> list;
+    list.append(1);
+    list.append(2);
+    auto it = list.begin();
+    it = list.remove(it); // remove first element
+
+    EXPECT(it != list.end());
+    EXPECT_EQ(*it, 2);
+    it = list.remove(it);
+    EXPECT(it == list.end());
+    EXPECT(list.is_empty());
 }

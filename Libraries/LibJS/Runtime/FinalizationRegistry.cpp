@@ -32,15 +32,18 @@ bool FinalizationRegistry::remove_by_token(Cell& unregister_token)
     auto removed = false;
 
     // 5. For each Record { [[WeakRefTarget]], [[HeldValue]], [[UnregisterToken]] } cell of finalizationRegistry.[[Cells]], do
-    for (auto it = m_records.begin(); it != m_records.end(); ++it) {
+    for (auto it = m_records.begin(); it != m_records.end();) {
         //  a. If cell.[[UnregisterToken]] is not empty and SameValue(cell.[[UnregisterToken]], unregisterToken) is true, then
         if (it->unregister_token == &unregister_token) {
             // i. Remove cell from finalizationRegistry.[[Cells]].
-            it.remove(m_records);
+            it = m_records.remove(it);
 
             // ii. Set removed to true.
             removed = true;
+
+            continue;
         }
+        ++it;
     }
 
     // 6. Return removed.
@@ -78,15 +81,17 @@ ThrowCompletionOr<void> FinalizationRegistry::cleanup(GC::Ptr<JobCallback> callb
     auto cleanup_callback = callback ? callback : m_cleanup_callback;
 
     // 3. While finalizationRegistry.[[Cells]] contains a Record cell such that cell.[[WeakRefTarget]] is empty, an implementation may perform the following steps:
-    for (auto it = m_records.begin(); it != m_records.end(); ++it) {
+    for (auto it = m_records.begin(); it != m_records.end();) {
         // a. Choose any such cell.
-        if (it->target != nullptr)
+        if (it->target != nullptr) {
+            ++it;
             continue;
+        }
 
         // b. Remove cell from finalizationRegistry.[[Cells]].
         GC::RootVector<Value> arguments(vm.heap());
         arguments.append(it->held_value);
-        it.remove(m_records);
+        it = m_records.remove(it);
 
         // c. Perform ? HostCallJobCallback(callback, undefined, « cell.[[HeldValue]] »).
         TRY(vm.host_call_job_callback(*cleanup_callback, js_undefined(), move(arguments)));
