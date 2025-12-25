@@ -877,7 +877,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace)
 
         // b. If replacer is not undefined, then
         if (replacer) {
-            if (replacer == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeReplace)) {
+            if (replacer->builtin() == Bytecode::Builtin::RegExpPrototypeReplace) {
                 // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
                 auto& rx = search_value.as_object();
                 auto string = TRY(this_object.to_primitive_string(vm));
@@ -979,7 +979,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::replace_all)
 
         // d. If replacer is not undefined, then
         if (replacer) {
-            if (replacer == vm.current_realm()->get_builtin_value(Bytecode::Builtin::RegExpPrototypeReplace)) {
+            if (replacer->builtin() == Bytecode::Builtin::RegExpPrototypeReplace) {
                 // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
                 auto& rx = search_value.as_object();
                 auto string = TRY(this_object.to_primitive_string(vm));
@@ -1167,7 +1167,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
         auto splitter = TRY(separator_argument.get_method(vm, vm.well_known_symbol_split(), cache));
         // b. If splitter is not undefined, then
         if (splitter) {
-            if (splitter == realm.get_builtin_value(Bytecode::Builtin::RegExpPrototypeSplit)) {
+            if (splitter->builtin() == Bytecode::Builtin::RegExpPrototypeSplit) {
                 // OPTIMIZATION: The common case of RegExp.prototype[@@split]
                 auto& rx = separator_argument.as_object();
                 auto string = TRY(object.to_primitive_string(vm));

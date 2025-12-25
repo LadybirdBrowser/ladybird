@@ -9,7 +9,6 @@
 
 #include <AK/Badge.h>
 #include <AK/Optional.h>
-#include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -45,13 +44,6 @@ public:
     Optional<Utf16FlyString> const& initial_name() const { return m_initial_name; }
     void set_initial_name(Badge<FunctionObject>, Utf16FlyString initial_name) { m_initial_name = move(initial_name); }
 
-    bool is_array_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::ArrayIteratorPrototypeNext; }
-    bool is_map_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::MapIteratorPrototypeNext; }
-    bool is_set_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::SetIteratorPrototypeNext; }
-    bool is_string_prototype_next_builtin() const { return m_builtin.has_value() && *m_builtin == Bytecode::Builtin::StringIteratorPrototypeNext; }
-
-    Optional<Bytecode::Builtin> builtin() const { return m_builtin; }
-
     virtual bool function_environment_needed() const { return false; }
     virtual size_t function_environment_bindings_count() const { return 0; }
 
@@ -68,7 +60,6 @@ private:
 
     Utf16FlyString m_name;
     Optional<Utf16FlyString> m_initial_name; // [[InitialName]]
-    Optional<Bytecode::Builtin> m_builtin;
     AK::Function<ThrowCompletionOr<Value>(VM&)> m_native_function;
     GC::Ref<Realm> m_realm;
 };

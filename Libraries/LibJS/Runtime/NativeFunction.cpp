@@ -69,10 +69,10 @@ GC::Ref<NativeFunction> NativeFunction::create(Realm& realm, Utf16FlyString cons
 
 NativeFunction::NativeFunction(AK::Function<ThrowCompletionOr<Value>(VM&)> native_function, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     : FunctionObject(realm, prototype)
-    , m_builtin(builtin)
     , m_native_function(move(native_function))
     , m_realm(realm)
 {
+    m_builtin = builtin;
 }
 
 // FIXME: m_realm is supposed to be the realm argument of CreateBuiltinFunction, or the current
