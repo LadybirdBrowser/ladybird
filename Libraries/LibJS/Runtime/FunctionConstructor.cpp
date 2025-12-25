@@ -203,10 +203,10 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
 
     auto function_data = vm.heap().allocate<SharedFunctionInstanceData>(
         vm,
-        kind,
+        expr->kind(),
         "anonymous"_utf16_fly_string,
-        function_length,
-        parameters,
+        expr->function_length(),
+        expr->parameters(),
         expr->body(),
         Utf16View {},
         expr->is_strict_mode(),
