@@ -197,9 +197,10 @@ public:
         return AK::find(begin(), end(), value);
     }
 
-    void remove(Iterator it)
+    [[nodiscard]] Iterator remove(Iterator const& it)
     {
         VERIFY(it.m_node);
+        auto next = it.m_node->next;
         auto* node = it.m_node;
         if (node->prev) {
             VERIFY(node != m_head);
@@ -217,6 +218,7 @@ public:
         }
         m_size -= 1;
         drop_node(node);
+        return Iterator(next);
     }
 
     T take_first()
