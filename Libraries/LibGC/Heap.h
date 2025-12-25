@@ -121,6 +121,7 @@ private:
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
     void sweep_weak_blocks();
+    void run_post_gc_tasks();
 
     ALWAYS_INLINE CellAllocator& allocator_for_size(size_t cell_size)
     {

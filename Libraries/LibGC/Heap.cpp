@@ -269,14 +269,19 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         finalize_unmarked_cells();
         sweep_weak_blocks();
         sweep_dead_cells(print_report, collection_measurement_timer);
+
+        if (print_report)
+            dump_allocators();
     }
 
+    run_post_gc_tasks();
+}
+
+void Heap::run_post_gc_tasks()
+{
     auto tasks = move(m_post_gc_tasks);
     for (auto& task : tasks)
         task();
-
-    if (print_report)
-        dump_allocators();
 }
 
 void Heap::dump_allocators()
