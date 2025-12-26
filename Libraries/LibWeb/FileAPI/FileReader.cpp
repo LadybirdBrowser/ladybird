@@ -51,6 +51,9 @@ void FileReader::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_error);
+    m_result.visit(
+        [&](GC::Ref<JS::ArrayBuffer> const& array_buffer) { visitor.visit(array_buffer); },
+        [](auto&) {});
 }
 
 GC::Ref<FileReader> FileReader::create(JS::Realm& realm)
