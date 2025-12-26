@@ -44,9 +44,9 @@ GC::Ref<FileReaderSync> FileReaderSync::construct_impl(JS::Realm& realm)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsArrayBufferSync
-WebIDL::ExceptionOr<GC::Root<JS::ArrayBuffer>> FileReaderSync::read_as_array_buffer(Blob& blob)
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> FileReaderSync::read_as_array_buffer(Blob& blob)
 {
-    return read_as<GC::Root<JS::ArrayBuffer>>(blob, FileReader::Type::ArrayBuffer);
+    return read_as<GC::Ref<JS::ArrayBuffer>>(blob, FileReader::Type::ArrayBuffer);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-readAsBinaryStringSync

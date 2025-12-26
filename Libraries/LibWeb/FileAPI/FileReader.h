@@ -21,7 +21,7 @@ class FileReader : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(FileReader);
 
 public:
-    using Result = Variant<Empty, String, GC::Root<JS::ArrayBuffer>>;
+    using Result = Variant<Empty, String, GC::Ref<JS::ArrayBuffer>>;
 
     virtual ~FileReader() override;
 
