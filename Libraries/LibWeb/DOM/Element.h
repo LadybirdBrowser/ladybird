@@ -342,7 +342,7 @@ public:
     WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, Utf16String const& data);
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
-    GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});
+    ErrorOr<void> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute) \
@@ -387,10 +387,10 @@ public:
     void set_custom_element_state(CustomElementState);
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value);
 
-    GC::Ref<WebIDL::Promise> scroll(HTML::ScrollToOptions);
-    GC::Ref<WebIDL::Promise> scroll(double x, double y);
-    GC::Ref<WebIDL::Promise> scroll_by(HTML::ScrollToOptions);
-    GC::Ref<WebIDL::Promise> scroll_by(double x, double y);
+    void scroll(HTML::ScrollToOptions);
+    void scroll(double x, double y);
+    void scroll_by(HTML::ScrollToOptions);
+    void scroll_by(double x, double y);
 
     bool check_visibility(Optional<CheckVisibilityOptions>);
 

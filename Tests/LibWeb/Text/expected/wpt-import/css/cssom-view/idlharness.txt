@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 415 tests
 
-338 Pass
-77 Fail
+331 Pass
+84 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -348,13 +348,13 @@ Fail	Document interface: calling convertPointFromNode(DOMPointInit, GeometryNode
 Pass	Element interface: operation getClientRects()
 Pass	Element interface: operation getBoundingClientRect()
 Pass	Element interface: operation checkVisibility(optional CheckVisibilityOptions)
-Pass	Element interface: operation scrollIntoView(optional (boolean or ScrollIntoViewOptions))
-Pass	Element interface: operation scroll(optional ScrollToOptions)
-Pass	Element interface: operation scroll(unrestricted double, unrestricted double)
-Pass	Element interface: operation scrollTo(optional ScrollToOptions)
-Pass	Element interface: operation scrollTo(unrestricted double, unrestricted double)
-Pass	Element interface: operation scrollBy(optional ScrollToOptions)
-Pass	Element interface: operation scrollBy(unrestricted double, unrestricted double)
+Fail	Element interface: operation scrollIntoView(optional (boolean or ScrollIntoViewOptions))
+Fail	Element interface: operation scroll(optional ScrollToOptions)
+Fail	Element interface: operation scroll(unrestricted double, unrestricted double)
+Fail	Element interface: operation scrollTo(optional ScrollToOptions)
+Fail	Element interface: operation scrollTo(unrestricted double, unrestricted double)
+Fail	Element interface: operation scrollBy(optional ScrollToOptions)
+Fail	Element interface: operation scrollBy(unrestricted double, unrestricted double)
 Pass	Element interface: attribute scrollTop
 Pass	Element interface: attribute scrollLeft
 Pass	Element interface: attribute scrollWidth
