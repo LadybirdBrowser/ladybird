@@ -445,7 +445,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
             auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
-                m_navigable->scroll_viewport_by_delta_without_promise({ wheel_delta_x, wheel_delta_y });
+                m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
             }
 
             handled_event = EventResult::Handled;
@@ -1430,14 +1430,10 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_Down:
         if (modifiers && modifiers != UIEvents::KeyModifier::Mod_PlatformCtrl)
             break;
-        if (modifiers) {
-            if (key == UIEvents::KeyCode::Key_Up)
-                document->scroll_to_the_beginning_of_the_document();
-            else
-                document->window()->scroll_by(0, INT64_MAX);
-        } else {
+        if (modifiers)
+            key == UIEvents::KeyCode::Key_Up ? document->scroll_to_the_beginning_of_the_document() : document->window()->scroll_by(0, INT64_MAX);
+        else
             document->window()->scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
-        }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
