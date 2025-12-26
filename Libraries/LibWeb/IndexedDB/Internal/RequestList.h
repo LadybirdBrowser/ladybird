@@ -13,7 +13,7 @@
 
 namespace Web::IndexedDB {
 
-class RequestList final : public AK::Vector<GC::Root<IDBRequest>> {
+class RequestList final : public AK::Vector<GC::Weak<IDBRequest>> {
     AK_MAKE_NONMOVABLE(RequestList);
     AK_MAKE_NONCOPYABLE(RequestList);
 
