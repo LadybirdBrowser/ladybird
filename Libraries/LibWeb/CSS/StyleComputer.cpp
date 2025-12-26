@@ -2393,16 +2393,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_border_or_outline_width(N
     // https://drafts.csswg.org/css-backgrounds/#border-width
     // absolute length, snapped as a border width
     auto const absolute_length = [&]() -> CSSPixels {
-        if (absolutized_value->is_calculated())
-            return absolutized_value->as_calculated().resolve_length({})->absolute_length_to_px();
-
-        if (absolutized_value->is_length())
-            return absolutized_value->as_length().length().absolute_length_to_px();
-
         if (absolutized_value->is_keyword())
             return line_width_keyword_to_css_pixels(absolutized_value->to_keyword());
 
-        VERIFY_NOT_REACHED();
+        return Length::from_style_value(absolutized_value, {}).absolute_length_to_px();
     }();
 
     return LengthStyleValue::create(Length::make_px(snap_a_length_as_a_border_width(device_pixels_per_css_pixel, absolute_length)));

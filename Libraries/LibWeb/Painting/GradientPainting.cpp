@@ -225,16 +225,9 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
     auto gradient_angle = linear_gradient.angle_degrees(gradient_size);
     auto gradient_length_px = Gfx::calculate_gradient_length(gradient_size.to_type<float>(), gradient_angle);
 
-    CSS::CalculationResolutionContext context {
-        .percentage_basis = CSS::Length::make_px(gradient_length_px),
-    };
     auto resolved_color_stops = resolve_color_stop_positions(
         node, linear_gradient.color_stop_list(), [&](auto const& position) -> float {
-            if (position.is_length())
-                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_length_px;
-            if (position.is_percentage())
-                return position.as_percentage().percentage().as_fraction();
-            return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_length_px;
+            return CSS::Length::from_style_value(position, CSS::Length::make_px(gradient_length_px)).absolute_length_to_px_without_rounding() / gradient_length_px;
         },
         linear_gradient.is_repeating());
 
@@ -262,18 +255,10 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node,
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
 {
-    CSS::CalculationResolutionContext context {
-        .percentage_basis = CSS::Length::make_px(gradient_size.width()),
-    };
-
     // Start center, goes right to ending point, where the gradient line intersects the ending shape
     auto resolved_color_stops = resolve_color_stop_positions(
         node, radial_gradient.color_stop_list(), [&](auto const& position) -> float {
-            if (position.is_length())
-                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
-            if (position.is_percentage())
-                return position.as_percentage().percentage().as_fraction();
-            return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
+            return CSS::Length::from_style_value(position, CSS::Length::make_px(gradient_size.width())).absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
         },
         radial_gradient.is_repeating());
 

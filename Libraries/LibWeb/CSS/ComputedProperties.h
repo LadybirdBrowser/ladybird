@@ -103,8 +103,8 @@ public:
     TextUnderlinePosition text_underline_position() const;
     Vector<BackgroundLayerData> background_layers() const;
     BackgroundBox background_color_clip() const;
-    Length border_spacing_horizontal(Layout::Node const&) const;
-    Length border_spacing_vertical(Layout::Node const&) const;
+    Length border_spacing_horizontal() const;
+    Length border_spacing_vertical() const;
     CaptionSide caption_side() const;
     Clip clip() const;
     Display display() const;
