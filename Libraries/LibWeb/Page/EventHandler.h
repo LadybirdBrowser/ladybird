@@ -112,6 +112,10 @@ private:
     OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
+
+    // Keyboard scrolling state
+    GC::Weak<Painting::PaintableBox> m_keyboard_scroll_target;
+    GC::Weak<DOM::Node> m_keyboard_scroll_focused_node;
 };
 
 }
