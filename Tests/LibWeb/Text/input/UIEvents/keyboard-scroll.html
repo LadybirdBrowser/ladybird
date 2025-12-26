@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Keyboard scrolling targets the last clicked element</title>
+<link rel="author" href="ahmed.n.abdeltwab@gmail.com">
+<style>
+    .scroller {
+        overflow: auto;
+        height: 200px;
+        border: 1px solid black;
+    }
+    .spacer {
+        height: 200vh;
+    }
+</style>
+<body id="body">
+<div class="scroller" id="outer">
+    <div class="scroller" id="inner">
+        <div id="target"><span>This is the targeted node</span></div>
+        <div class="spacer"></div>
+    </div>
+    <div class="spacer"></div>
+</div>
+<div class="spacer"></div>
+</body>
+<script src="../include.js"></script>
+<script>
+    const target = document.getElementById("target");
+    const outer = document.getElementById("outer");
+    const inner = document.getElementById("inner");
+
+    function friendlyName(node) {
+        if (node == document) return "document";
+        if (node.id) return `#${node.id}`;
+        return `<${node.tagName}>`;
+    }
+
+    function resetScroll() {
+        document.scrollingElement.scrollTo(0, 0);
+        outer.scrollTo(0, 0);
+        inner.scrollTo(0, 0);
+    }
+
+    function findScrolledElement() {
+        if (inner.scrollTop > 0) return inner;
+        if (outer.scrollTop > 0) return outer;
+        if (document.scrollingElement.scrollTop > 0) return document;
+        return null;
+    }
+
+    asyncTest(async done => {
+        // Ensure layout is complete
+        document.body.offsetWidth;
+        await animationFrame();
+
+        // Test 1: Keyboard scrolling scrolls the scroller when clicked target is removed
+        resetScroll();
+        const targetRect = target.getBoundingClientRect();
+        internals.click(targetRect.left + 5, targetRect.top + 5);
+        await animationFrame();
+
+        target.remove();
+        internals.sendKey(document.body, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled1 = findScrolledElement();
+        println(`Test 1 - Target removed: scrolled=${friendlyName(scrolled1)}`);
+        inner.insertBefore(target, inner.firstChild);
+
+        // Test 2: Keyboard scrolling scrolls the scroller when clicked children are removed
+        resetScroll();
+        await animationFrame();
+
+        const spanRect = target.firstElementChild.getBoundingClientRect();
+        internals.click(spanRect.left + 5, spanRect.top + 5);
+        await animationFrame();
+
+        const previousHTML = target.innerHTML;
+        target.innerHTML = "";
+        internals.sendKey(document.body, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled2 = findScrolledElement();
+        println(`Test 2 - Children removed: scrolled=${friendlyName(scrolled2)}`);
+        target.innerHTML = previousHTML;
+
+        // Test 3: Keyboard scrolling scrolls the next nearest scroller if the clicked scroller is removed
+        resetScroll();
+        await animationFrame();
+
+        const targetRect3 = target.getBoundingClientRect();
+        internals.click(targetRect3.left + 5, targetRect3.top + 5);
+        await animationFrame();
+
+        inner.remove();
+        internals.sendKey(document.body, "Down");
+        await animationFrame();
+        await animationFrame();
+
+        const scrolled3 = findScrolledElement();
+        println(`Test 3 - Scroller removed: scrolled=${friendlyName(scrolled3)}`);
+        outer.insertBefore(inner, outer.firstChild);
+
+        done();
+    });
+</script>
