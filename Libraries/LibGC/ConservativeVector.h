@@ -42,6 +42,12 @@ public:
     {
     }
 
+    ConservativeVector(Heap& heap, Vector<T, inline_capacity> const& other)
+        : ConservativeVectorBase(heap)
+        , Vector<T, inline_capacity>(other)
+    {
+    }
+
     ~ConservativeVector() = default;
 
     ConservativeVector(ConservativeVector const& other)
