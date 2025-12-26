@@ -605,6 +605,42 @@
                     assert_unreached("Window must not be clonable");
                 });
             },
+            function() {
+                var t = async_test("QuotaExceededError objects can be cloned");
+                t.id = 41;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), QuotaExceededError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, QuotaExceededError, "Checking constructor");
+                    assert_equals(e.data.name, "QuotaExceededError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.code, DOMException.QUOTA_EXCEEDED_ERR, "Checking code");
+                    assert_equals(e.data.quota, 0.1, "Checking quota");
+                    assert_equals(e.data.requested, 1.0, "Checking requested");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = new QuotaExceededError(message = "some message", options = {quota: 0.1, requested: 1.0});
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("QuotaExceededError objects with empty quota/requested can be cloned");
+                t.id = 42;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), QuotaExceededError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, QuotaExceededError, "Checking constructor");
+                    assert_equals(e.data.name, "QuotaExceededError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.code, DOMException.QUOTA_EXCEEDED_ERR, "Checking code");
+                    assert_equals(e.data.quota, null, "Checking quota");
+                    assert_equals(e.data.requested, null, "Checking requested");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = new QuotaExceededError(message = "some message");
+                    worker.postMessage(error);
+                });
+            },
         ];
     }, {explicit_done:true});
 

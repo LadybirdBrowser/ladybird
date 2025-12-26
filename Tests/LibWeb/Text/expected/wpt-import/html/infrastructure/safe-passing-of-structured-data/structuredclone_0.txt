@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 41 tests
+Found 43 tests
 
-41 Pass
+43 Pass
 Pass	Primitive string is cloned
 Pass	Primitive integer is cloned
 Pass	Primitive floating point is cloned
@@ -44,3 +44,5 @@ Pass	Error.message: getter is ignored when cloning
 Pass	Error.message: undefined property is stringified
 Pass	DOMException objects can be cloned
 Pass	DOMException objects created by the UA can be cloned
+Pass	QuotaExceededError objects can be cloned
+Pass	QuotaExceededError objects with empty quota/requested can be cloned

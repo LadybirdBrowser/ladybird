@@ -34,6 +34,7 @@ enum class SerializeType : u8 {
     DOMPoint = 12,
     DOMQuad = 13,
     ImageData = 14,
+    QuotaExceededError = 15,
 };
 
 enum class TransferType : u8 {
