@@ -2611,7 +2611,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
     }
 
     // 5. Queue a mutation observer microtask.
-    Bindings::queue_mutation_observer_microtask(document);
+    Bindings::queue_mutation_observer_microtask();
 
     // AD-HOC: Notify the UI if it is interested in DOM mutations (i.e. for DevTools).
     if (page.listen_for_dom_mutations())

@@ -710,7 +710,7 @@ JS::VM& main_thread_vm()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
-void queue_mutation_observer_microtask(DOM::Document const& document)
+void queue_mutation_observer_microtask()
 {
     auto& vm = main_thread_vm();
     auto& surrounding_agent = as<HTML::SimilarOriginWindowAgent>(*vm.agent());
@@ -723,9 +723,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
     surrounding_agent.mutation_observer_microtask_queued = true;
 
     // 3. Queue a microtask to notify mutation observers.
-    // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node
-    //       context, so document should be that node's document.
-    HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&surrounding_agent, &heap = document.heap()]() {
+    HTML::queue_a_microtask(nullptr, GC::create_function(vm.heap(), [&surrounding_agent]() {
         // https://dom.spec.whatwg.org/#notify-mutation-observers
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
         surrounding_agent.mutation_observer_microtask_queued = false;

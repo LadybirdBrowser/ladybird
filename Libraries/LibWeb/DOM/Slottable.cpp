@@ -262,7 +262,7 @@ void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement> slottable)
         signal_slots.append(slottable);
 
     // 2. Queue a mutation observer microtask.
-    Bindings::queue_mutation_observer_microtask(slottable->document());
+    Bindings::queue_mutation_observer_microtask();
 }
 
 }
