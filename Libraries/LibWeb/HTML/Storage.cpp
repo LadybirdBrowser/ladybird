@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -159,10 +159,14 @@ void Storage::remove_item(String const& key)
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
 void Storage::clear()
 {
-    // 1. Clear this's map.
+    // 1. If this's map is empty, then return.
+    if (m_storage_bottle->size() == 0)
+        return;
+
+    // 2. Clear this's map.
     m_storage_bottle->clear();
 
-    // 2. Broadcast this with null, null, and null.
+    // 3. Broadcast this with null, null, and null.
     broadcast({}, {}, {});
 }
 
