@@ -118,7 +118,7 @@ public:
         bool is_same_document,
         UserNavigationInvolvement = UserNavigationInvolvement::None,
         GC::Ptr<DOM::Element> source_element = {},
-        Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list = {},
+        Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list = {},
         Optional<SerializationRecord> navigation_api_state = {},
         Optional<SerializationRecord> classic_history_api_state = {});
     bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename);
@@ -157,7 +157,7 @@ private:
         GC::Ref<NavigationDestination>,
         UserNavigationInvolvement,
         GC::Ptr<DOM::Element> source_element,
-        Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list,
+        Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
         Optional<String> download_request_filename,
         Optional<SerializationRecord> classic_history_api_state);
 

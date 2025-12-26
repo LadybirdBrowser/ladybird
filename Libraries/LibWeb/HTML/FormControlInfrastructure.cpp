@@ -63,11 +63,11 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set
-WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<String> encoding)
+WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<String> encoding)
 {
     // 1. If form's constructing entry list is true, then return null.
     if (form.constructing_entry_list())
-        return Optional<Vector<XHR::FormDataEntry>> {};
+        return OptionalNone {};
 
     // 2. Set form's constructing entry list to true.
     form.set_constructing_entry_list(true);
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
     auto controls = form.get_submittable_elements();
 
     // 4. Let entry list be a new empty entry list.
-    Vector<XHR::FormDataEntry> entry_list;
+    GC::ConservativeVector<XHR::FormDataEntry> entry_list { realm.heap() };
 
     // 5. For each element field in controls, in tree order:
     for (auto const& control : controls) {
@@ -236,7 +236,7 @@ ErrorOr<String> normalize_line_breaks(StringView value)
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
-ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDataEntry> const& entry_list)
+ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVector<XHR::FormDataEntry> const& entry_list)
 {
     auto escape_line_feed_carriage_return_double_quote = [](StringView value) -> ErrorOr<String> {
         StringBuilder builder;

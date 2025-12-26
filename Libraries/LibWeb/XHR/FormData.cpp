@@ -22,7 +22,7 @@ GC_DEFINE_ALLOCATOR(FormData);
 // https://xhr.spec.whatwg.org/#dom-formdata
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter)
 {
-    Vector<FormDataEntry> list;
+    GC::ConservativeVector<FormDataEntry> list { realm.heap() };
     // 1. If form is given, then:
     if (form) {
         // 1. If submitter is non-null, then:
@@ -49,20 +49,20 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm
         if (!entry_list.has_value())
             return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_utf16);
         // 4. Set this’s entry list to list.
-        list = entry_list.release_value();
+        list = move(entry_list.release_value());
     }
 
     return construct_impl(realm, move(list));
 }
 
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, Vector<FormDataEntry> entry_list)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
 {
     return realm.create<FormData>(realm, move(entry_list));
 }
 
 WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
 {
-    Vector<FormDataEntry> list;
+    GC::ConservativeVector<FormDataEntry> list { realm.heap() };
     list.ensure_capacity(entry_list.size());
     for (auto& entry : entry_list)
         list.unchecked_append({ .name = move(entry.name), .value = move(entry.value) });
@@ -70,14 +70,14 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector
     return construct_impl(realm, move(list));
 }
 
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<FormDataEntry> entry_list)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
 {
     return construct_impl(realm, move(entry_list));
 }
 
-FormData::FormData(JS::Realm& realm, Vector<FormDataEntry> entry_list)
+FormData::FormData(JS::Realm& realm, GC::ConservativeVector<FormDataEntry> entry_list)
     : PlatformObject(realm)
-    , m_entry_list(move(entry_list))
+    , m_entry_list(entry_list)
 {
 }
 
@@ -87,6 +87,15 @@ void FormData::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(FormData);
     Base::initialize(realm);
+}
+
+void FormData::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto const& entry : m_entry_list) {
+        entry.value.visit([&](GC::Ref<FileAPI::File> const& file) { visitor.visit(file); },
+            [&](auto const&) {});
+    }
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append
@@ -174,6 +183,11 @@ WebIDL::ExceptionOr<void> FormData::set(String const& name, GC::Ref<FileAPI::Blo
 {
     auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
     return set_impl(name, blob_value, inner_filename);
+}
+
+GC::ConservativeVector<FormDataEntry> FormData::entry_list() const
+{
+    return { realm().heap(), m_entry_list };
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set
