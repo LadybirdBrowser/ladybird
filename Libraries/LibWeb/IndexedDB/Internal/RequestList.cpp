@@ -17,13 +17,14 @@ void RequestList::all_requests_processed(GC::Heap& heap, GC::Ref<GC::Function<vo
 {
     GC::Ptr<PendingRequestProcess> pending_request_process;
 
+    remove_all_matching([](auto const& entry) { return !entry; });
     for (auto const& entry : *this) {
         if (!entry->processed()) {
             if (!pending_request_process) {
                 pending_request_process = heap.allocate<PendingRequestProcess>();
             }
 
-            pending_request_process->add_request_to_observe(*entry.cell());
+            pending_request_process->add_request_to_observe(*entry);
         }
     }
 
@@ -46,6 +47,7 @@ void RequestList::all_previous_requests_processed(GC::Heap& heap, GC::Ref<IDBReq
 {
     GC::Ptr<PendingRequestProcess> pending_request_process;
 
+    remove_all_matching([](auto const& entry) { return !entry; });
     for (auto const& entry : *this) {
         if (entry == request)
             break;
@@ -55,7 +57,7 @@ void RequestList::all_previous_requests_processed(GC::Heap& heap, GC::Ref<IDBReq
                 pending_request_process = heap.allocate<PendingRequestProcess>();
             }
 
-            pending_request_process->add_request_to_observe(*entry.cell());
+            pending_request_process->add_request_to_observe(*entry);
         }
     }
 
