@@ -15,14 +15,14 @@
 namespace GC {
 
 class GC_API ConservativeVectorBase {
+    AK_MAKE_NONCOPYABLE(ConservativeVectorBase);
+
 public:
     virtual ReadonlySpan<FlatPtr> possible_values() const = 0;
 
 protected:
     explicit ConservativeVectorBase(Heap&);
     ~ConservativeVectorBase();
-
-    ConservativeVectorBase& operator=(ConservativeVectorBase const&);
 
     Heap* m_heap { nullptr };
     IntrusiveListNode<ConservativeVectorBase> m_list_node;
@@ -58,8 +58,9 @@ public:
 
     ConservativeVector& operator=(ConservativeVector const& other)
     {
+        if (&other == this)
+            return *this;
         Vector<T, inline_capacity>::operator=(other);
-        ConservativeVectorBase::operator=(other);
         return *this;
     }
 
