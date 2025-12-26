@@ -47,7 +47,7 @@ class FontLoader final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontLoader);
 
 public:
-    FontLoader(FontComputer& font_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
+    FontLoader(FontComputer& font_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     virtual ~FontLoader();
 
@@ -73,7 +73,7 @@ private:
     RefPtr<Gfx::Typeface const> m_vector_font;
     Vector<URL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
-    Function<void(RefPtr<Gfx::Typeface const>)> m_on_load;
+    GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> m_on_load;
 };
 
 class WEB_API FontComputer final : public GC::Cell {
@@ -95,7 +95,7 @@ public:
 
     void did_load_font(FlyString const& family_name);
 
-    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, ESCAPING Function<void(RefPtr<Gfx::Typeface const>)> on_load = {});
+    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     void load_fonts_from_sheet(CSSStyleSheet&);
     void unload_fonts_from_sheet(CSSStyleSheet&);
