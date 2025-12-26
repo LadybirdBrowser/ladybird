@@ -119,7 +119,7 @@ Optional<String> LocalStorageBottle::get(String const& key) const
     return m_page->client().page_did_request_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key);
 }
 
-WebView::StorageOperationError LocalStorageBottle::set(String const& key, String const& value)
+WebView::StorageSetResult LocalStorageBottle::set(String const& key, String const& value)
 {
     return m_page->client().page_did_set_storage_item(Web::StorageAPI::StorageEndpointType::LocalStorage, m_storage_key.to_string(), key, value);
 }
@@ -151,8 +151,10 @@ Optional<String> SessionStorageBottle::get(String const& key) const
     return OptionalNone {};
 }
 
-WebView::StorageOperationError SessionStorageBottle::set(String const& key, String const& value)
+WebView::StorageSetResult SessionStorageBottle::set(String const& key, String const& value)
 {
+    auto old_value = get(key);
+
     if (m_quota.has_value()) {
         size_t current_size = 0;
         for (auto const& [existing_key, existing_value] : m_map) {
@@ -167,7 +169,7 @@ WebView::StorageOperationError SessionStorageBottle::set(String const& key, Stri
     }
 
     m_map.set(key, value);
-    return WebView::StorageOperationError::None;
+    return old_value;
 }
 
 void SessionStorageBottle::clear()
