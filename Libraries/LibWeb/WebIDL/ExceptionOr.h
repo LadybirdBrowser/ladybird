@@ -91,6 +91,13 @@ public:
     ExceptionOr(ExceptionOr const& other) = default;
     ~ExceptionOr() = default;
 
+    template<typename E>
+    requires(IsBaseOf<DOMException, E>)
+    ExceptionOr(GC::Ref<E> exception)
+        : ExceptionOr(GC::Ref<DOMException> { exception })
+    {
+    }
+
     ValueType& value()
     requires(!IsSame<ValueType, Empty>)
     {
