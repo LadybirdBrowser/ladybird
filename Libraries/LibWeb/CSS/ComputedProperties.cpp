@@ -703,48 +703,30 @@ BackgroundBox ComputedProperties::background_color_clip() const
     return keyword_to_background_box(background_clip_values[final_layer_index]->to_keyword()).value();
 }
 
-Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
+Length ComputedProperties::border_spacing_horizontal() const
 {
-    auto resolve_value = [&](auto const& style_value) -> Optional<Length> {
-        if (style_value.is_length())
-            return style_value.as_length().length();
-        if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length::make_px(0));
-        return {};
-    };
-
     auto const& style_value = property(PropertyID::BorderSpacing);
-    auto resolved_value = resolve_value(style_value);
-    if (!resolved_value.has_value()) {
+
+    if (style_value.is_value_list()) {
         auto const& list = style_value.as_value_list();
         VERIFY(list.size() > 0);
-        resolved_value = resolve_value(*list.value_at(0, false));
+        return Length::from_style_value(list.value_at(0, false), {});
     }
 
-    VERIFY(resolved_value.has_value());
-    return *resolved_value;
+    return Length::from_style_value(style_value, {});
 }
 
-Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_node) const
+Length ComputedProperties::border_spacing_vertical() const
 {
-    auto resolve_value = [&](auto const& style_value) -> Optional<Length> {
-        if (style_value.is_length())
-            return style_value.as_length().length();
-        if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length::make_px(0));
-        return {};
-    };
-
     auto const& style_value = property(PropertyID::BorderSpacing);
-    auto resolved_value = resolve_value(style_value);
-    if (!resolved_value.has_value()) {
+
+    if (style_value.is_value_list()) {
         auto const& list = style_value.as_value_list();
         VERIFY(list.size() > 1);
-        resolved_value = resolve_value(*list.value_at(1, false));
+        return Length::from_style_value(list.value_at(1, false), {});
     }
 
-    VERIFY(resolved_value.has_value());
-    return *resolved_value;
+    return Length::from_style_value(style_value, {});
 }
 
 CaptionSide ComputedProperties::caption_side() const
@@ -837,12 +819,7 @@ Optional<CSSPixels> ComputedProperties::perspective() const
     if (value.is_keyword() && value.to_keyword() == Keyword::None)
         return {};
 
-    if (value.is_length())
-        return value.as_length().length().absolute_length_to_px();
-    if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .length_resolution_context = {} })->absolute_length_to_px();
-
-    VERIFY_NOT_REACHED();
+    return Length::from_style_value(value, {}).absolute_length_to_px();
 }
 
 Position ComputedProperties::perspective_origin() const
@@ -1024,20 +1001,8 @@ CSSPixels ComputedProperties::text_underline_offset() const
         return InitialValues::text_underline_offset();
 
     // <length>
-    if (computed_text_underline_offset.is_length())
-        return computed_text_underline_offset.as_length().length().absolute_length_to_px();
-
     // <percentage>
-    if (computed_text_underline_offset.is_percentage())
-        return font_size().scaled(computed_text_underline_offset.as_percentage().percentage().as_fraction());
-
-    // NOTE: We also support calc()'d <length-percentage>
-    if (computed_text_underline_offset.is_calculated())
-        // NOTE: We don't need to pass a length resolution context here as lengths have already been absolutized in
-        //       StyleComputer::compute_text_underline_offset
-        return computed_text_underline_offset.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
-
-    VERIFY_NOT_REACHED();
+    return Length::from_style_value(computed_text_underline_offset, Length::make_px(font_size())).absolute_length_to_px();
 }
 
 TextUnderlinePosition ComputedProperties::text_underline_position() const
@@ -1087,16 +1052,7 @@ CSSPixels ComputedProperties::word_spacing() const
     if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
         return 0;
 
-    if (value.is_length())
-        return value.as_length().length().absolute_length_to_px();
-
-    if (value.is_percentage())
-        return font_size().scale_by(value.as_percentage().percentage().as_fraction());
-
-    if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
-
-    VERIFY_NOT_REACHED();
+    return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
 }
 
 WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
@@ -1143,16 +1099,7 @@ CSSPixels ComputedProperties::letter_spacing() const
     if (value.is_keyword() && value.to_keyword() == Keyword::Normal)
         return 0;
 
-    if (value.is_length())
-        return value.as_length().length().absolute_length_to_px();
-
-    if (value.is_percentage())
-        return font_size().scale_by(value.as_percentage().percentage().as_fraction());
-
-    if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .percentage_basis = Length::make_px(font_size()), .length_resolution_context = {} })->absolute_length_to_px();
-
-    VERIFY_NOT_REACHED();
+    return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
 }
 
 LineStyle ComputedProperties::line_style(PropertyID property_id) const
@@ -1436,32 +1383,16 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
 {
     auto const& value = property(property_id);
 
-    auto resolve_to_length = [&layout_node](NonnullRefPtr<StyleValue const> const& value) -> Optional<Length> {
-        if (value->is_length())
-            return value->as_length().length();
-        if (value->is_calculated())
-            return value->as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
-        return {};
-    };
-
-    auto make_shadow_data = [resolve_to_length, &layout_node](ShadowStyleValue const& value) -> Optional<ShadowData> {
-        auto maybe_offset_x = resolve_to_length(value.offset_x());
-        if (!maybe_offset_x.has_value())
-            return {};
-        auto maybe_offset_y = resolve_to_length(value.offset_y());
-        if (!maybe_offset_y.has_value())
-            return {};
-        auto maybe_blur_radius = resolve_to_length(value.blur_radius());
-        if (!maybe_blur_radius.has_value())
-            return {};
-        auto maybe_spread_distance = resolve_to_length(value.spread_distance());
-        if (!maybe_spread_distance.has_value())
-            return {};
+    auto make_shadow_data = [&layout_node](ShadowStyleValue const& value) -> Optional<ShadowData> {
+        auto offset_x = Length::from_style_value(value.offset_x(), {});
+        auto offset_y = Length::from_style_value(value.offset_y(), {});
+        auto blur_radius = Length::from_style_value(value.blur_radius(), {});
+        auto spread_distance = Length::from_style_value(value.spread_distance(), {});
         return ShadowData {
-            maybe_offset_x.release_value(),
-            maybe_offset_y.release_value(),
-            maybe_blur_radius.release_value(),
-            maybe_spread_distance.release_value(),
+            offset_x,
+            offset_y,
+            blur_radius,
+            spread_distance,
             value.color()->to_color(ColorResolutionContext::for_layout_node_with_style(as<Layout::NodeWithStyle>(layout_node))).value(),
             value.placement()
         };
