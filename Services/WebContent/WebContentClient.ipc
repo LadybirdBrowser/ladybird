@@ -24,7 +24,7 @@
 #include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
-#include <LibWebView/StorageOperationError.h>
+#include <LibWebView/StorageSetResult.h>
 #include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
@@ -83,7 +83,7 @@ endpoint WebContentClient
     did_update_cookie(Web::Cookie::Cookie cookie) =|
     did_expire_cookies_with_time_offset(AK::Duration offset) =|
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)
-    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageOperationError error)
+    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageSetResult result)
     did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => ()
     did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<String> keys)
     did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()

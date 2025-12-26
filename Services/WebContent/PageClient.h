@@ -17,7 +17,7 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/StorageOperationError.h>
+#include <LibWebView/StorageSetResult.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {
@@ -160,7 +160,7 @@ private:
     virtual void page_did_update_cookie(Web::Cookie::Cookie const&) override;
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual Optional<String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key) override;
-    virtual WebView::StorageOperationError page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value) override;
+    virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value) override;
     virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key) override;
     virtual Vector<String> page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
     virtual void page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
