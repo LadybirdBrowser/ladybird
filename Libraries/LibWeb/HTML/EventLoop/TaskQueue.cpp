@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2021-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibGC/RootVector.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
@@ -28,6 +29,11 @@ void TaskQueue::visit_edges(Visitor& visitor)
 
 void TaskQueue::add(GC::Ref<Task> task)
 {
+    // AD-HOC: Don't enqueue tasks for temporary (inert) documents used for fragment parsing.
+    // FIXME: There's ongoing spec work to remove such documents: https://github.com/whatwg/html/pull/11970
+    if (task->document() && task->document()->is_temporary_document_for_fragment_parsing())
+        return;
+
     m_tasks.append(task);
     m_event_loop->schedule();
 }
