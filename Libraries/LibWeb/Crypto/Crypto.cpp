@@ -15,6 +15,7 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::Crypto {
 

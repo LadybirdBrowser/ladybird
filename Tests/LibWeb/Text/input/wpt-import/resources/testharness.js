@@ -875,6 +875,54 @@
             });
     }
 
+/**
+     * Assert that a `Promise` is rejected with a `QuotaExceededError` with the
+     * expected values.
+     *
+     * For the remaining arguments, there are two ways of calling
+     * `promise_rejects_quotaexceedederror`:
+     *
+     * 1) If the `QuotaExceededError` is expected to come from the
+     *    current global, the second argument should be the promise
+     *    expected to reject, the third and a fourth the expected
+     *    `requested` and `quota` property values, and the fifth,
+     *    optional, argument is the assertion description.
+     *
+     * 2) If the `QuotaExceededError` is expected to come from some
+     *    other global, the second argument should be the
+     *    `QuotaExceededError` constructor from that global, the third
+     *    argument should be the promise expected to reject, the fourth
+     *    and fifth the expected `requested` and `quota` property
+     *    values, and the sixth, optional, argument is the assertion
+     *    description.
+     *
+     */
+    function promise_rejects_quotaexceedederror(test, promiseOrConstructor, requestedOrPromise, quotaOrRequested, descriptionOrQuota, maybeDescription)
+    {
+        let constructor, promise, requested, quota, description;
+        if (typeof promiseOrConstructor === "function" &&
+            promiseOrConstructor.name === "QuotaExceededError") {
+            constructor = promiseOrConstructor;
+            promise = requestedOrPromise;
+            requested = quotaOrRequested;
+            quota = descriptionOrQuota;
+            description = maybeDescription;
+        } else {
+            constructor = self.QuotaExceededError;
+            promise = promiseOrConstructor;
+            requested = requestedOrPromise;
+            quota = quotaOrRequested;
+            description = descriptionOrQuota;
+            assert(maybeDescription === undefined,
+                   "Too many args passed to no-constructor version of promise_rejects_quotaexceedederror");
+        }
+        return bring_promise_to_current_realm(promise)
+            .then(test.unreached_func("Should have rejected: " + description))
+            .catch(function(e) {
+                assert_throws_quotaexceedederror_impl(function() { throw e; }, requested, quota, description, "promise_rejects_quotaexceedederror", constructor);
+            });
+    }
+
     /**
      * Assert that a Promise is rejected with the provided value.
      *
@@ -1140,7 +1188,7 @@
      *
      * Typically this function is called implicitly on page load; it's
      * only necessary for users to call this when either the
-     * ``explicit_done`` or ``single_page`` properties have been set
+     * ``explicit_done`` or ``single_test`` properties have been set
      * via the :js:func:`setup` function.
      *
      * For single page tests this marks the test as complete and sets its status.
@@ -1248,6 +1296,7 @@
     expose(promise_test, 'promise_test');
     expose(promise_rejects_js, 'promise_rejects_js');
     expose(promise_rejects_dom, 'promise_rejects_dom');
+    expose(promise_rejects_quotaexceedederror, 'promise_rejects_quotaexceedederror');
     expose(promise_rejects_exactly, 'promise_rejects_exactly');
     expose(generate_tests, 'generate_tests');
     expose(setup, 'setup');
@@ -2304,7 +2353,6 @@
                 NETWORK_ERR: 'NetworkError',
                 ABORT_ERR: 'AbortError',
                 URL_MISMATCH_ERR: 'URLMismatchError',
-                QUOTA_EXCEEDED_ERR: 'QuotaExceededError',
                 TIMEOUT_ERR: 'TimeoutError',
                 INVALID_NODE_TYPE_ERR: 'InvalidNodeTypeError',
                 DATA_CLONE_ERR: 'DataCloneError'
@@ -2329,7 +2377,6 @@
                 NetworkError: 19,
                 AbortError: 20,
                 URLMismatchError: 21,
-                QuotaExceededError: 22,
                 TimeoutError: 23,
                 InvalidNodeTypeError: 24,
                 DataCloneError: 25,
@@ -2360,12 +2407,19 @@
             if (typeof type === "number") {
                 if (type === 0) {
                     throw new AssertionError('Test bug: ambiguous DOMException code 0 passed to assert_throws_dom()');
-                } else if (!(type in code_name_map)) {
+                }
+                if (type === 22) {
+                    throw new AssertionError('Test bug: QuotaExceededError needs to be tested for using assert_throws_quotaexceedederror()');
+                }
+                if (!(type in code_name_map)) {
                     throw new AssertionError('Test bug: unrecognized DOMException code "' + type + '" passed to assert_throws_dom()');
                 }
                 name = code_name_map[type];
                 required_props.code = type;
             } else if (typeof type === "string") {
+                if (name === "QuotaExceededError") {
+                    throw new AssertionError('Test bug: QuotaExceededError needs to be tested for using assert_throws_quotaexceedederror()');
+                }
                 name = type in codename_name_map ? codename_name_map[type] : type;
                 if (!(name in name_code_map)) {
                     throw new AssertionError('Test bug: unrecognized DOMException code name or name "' + type + '" passed to assert_throws_dom()');
@@ -2397,6 +2451,137 @@
                    "${func} threw an exception from the wrong global",
                    {func});
 
+        }
+    }
+
+    /**
+     * Assert a `QuotaExceededError` with the expected values is thrown.
+     *
+     * There are two ways of calling `assert_throws_quotaexceedederror`:
+     *
+     * 1) If the `QuotaExceededError` is expected to come from the
+     *    current global, the first argument should be the function
+     *    expected to throw, the second and a third the expected
+     *    `requested` and `quota` property values, and the fourth,
+     *    optional, argument is the assertion description.
+     *
+     * 2) If the `QuotaExceededError` is expected to come from some
+     *    other global, the first argument should be the
+     *    `QuotaExceededError` constructor from that global, the second
+     *    argument should be the function expected to throw, the third
+     *    and fourth the expected `requested` and `quota` property
+     *    values, and the fifth, optional, argument is the assertion
+     *    description.
+     *
+     * For the `requested` and `quota` values, instead of `null` or a
+     * number, the caller can provide a function which determines
+     * whether the value is acceptable by returning a boolean.
+     *
+     */
+    function assert_throws_quotaexceedederror(funcOrConstructor, requestedOrFunc, quotaOrRequested, descriptionOrQuota, maybeDescription)
+    {
+        let constructor, func, requested, quota, description;
+        if (funcOrConstructor.name === "QuotaExceededError") {
+            constructor = funcOrConstructor;
+            func = requestedOrFunc;
+            requested = quotaOrRequested;
+            quota = descriptionOrQuota;
+            description = maybeDescription;
+        } else {
+            constructor = self.QuotaExceededError;
+            func = funcOrConstructor;
+            requested = requestedOrFunc;
+            quota = quotaOrRequested;
+            description = descriptionOrQuota;
+            assert(maybeDescription === undefined,
+                   "Too many args passed to no-constructor version of assert_throws_quotaexceedederror");
+        }
+        assert_throws_quotaexceedederror_impl(func, requested, quota, description, "assert_throws_quotaexceedederror", constructor);
+    }
+    expose_assert(assert_throws_quotaexceedederror, "assert_throws_quotaexceedederror");
+
+    /**
+     * Similar to `assert_throws_quotaexceedederror` but allows
+     * specifying the assertion type
+     * (`"assert_throws_quotaexceedederror"` or
+     * `"promise_rejects_quotaexceedederror"`, in practice). The
+     * `constructor` argument must be the `QuotaExceededError`
+     * constructor from the global we expect the exception to come from.
+     */
+    function assert_throws_quotaexceedederror_impl(func, requested, quota, description, assertion_type, constructor)
+    {
+        try {
+            func.call(this);
+            assert(false, assertion_type, description, "${func} did not throw",
+                   {func});
+        } catch (e) {
+            if (e instanceof AssertionError) {
+                throw e;
+            }
+
+            // Basic sanity-checks on the thrown exception.
+            assert(typeof e === "object",
+                   assertion_type, description,
+                   "${func} threw ${e} with type ${type}, not an object",
+                   {func, e, type:typeof e});
+
+            assert(e !== null,
+                   assertion_type, description,
+                   "${func} threw null, not an object",
+                   {func});
+
+            // Sanity-check our requested and quota.
+            assert(requested === null ||
+                   typeof requested === "number" ||
+                   typeof requested === "function",
+                   assertion_type, description,
+                   "${requested} is not null, a number, or a function",
+                   {requested});
+            assert(quota === null ||
+                   typeof quota === "number" ||
+                   typeof quota === "function",
+                   assertion_type, description,
+                   "${quota} is not null or a number",
+                   {quota});
+
+            const required_props = {
+                code: 22,
+                name: "QuotaExceededError"
+            };
+            if (typeof requested !== "function") {
+                required_props.requested = requested;
+            }
+            if (typeof quota !== "function") {
+                required_props.quota = quota;
+            }
+
+            for (const [prop, expected] of Object.entries(required_props)) {
+                assert(prop in e && e[prop] == expected,
+                       assertion_type, description,
+                       "${func} threw ${e} that is not a correct QuotaExceededError: property ${prop} is equal to ${actual}, expected ${expected}",
+                       {func, e, prop, actual:e[prop], expected});
+            }
+
+            if (typeof requested === "function") {
+                assert(requested(e.requested),
+                       assertion_type, description,
+                       "${func} threw ${e} that is not a correct QuotaExceededError: requested value ${requested} did not pass the requested predicate",
+                       {func, e, requested});
+            }
+            if (typeof quota === "function") {
+                assert(quota(e.quota),
+                       assertion_type, description,
+                       "${func} threw ${e} that is not a correct QuotaExceededError: quota value ${quota} did not pass the quota predicate",
+                       {func, e, quota});
+            }
+
+            // Check that the exception is from the right global.  This check is last
+            // so more specific, and more informative, checks on the properties can
+            // happen in case a totally incorrect exception is thrown.
+            assert(e.constructor === constructor,
+                   assertion_type, description,
+                   "${func} threw an exception from the wrong global",
+                   {func});
         }
     }
 
