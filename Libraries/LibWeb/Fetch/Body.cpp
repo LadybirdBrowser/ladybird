@@ -447,8 +447,7 @@ MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS
             auto blob = FileAPI::Blob::create(realm, MUST(ByteBuffer::copy(body.bytes())), header.content_type.release_value());
             FileAPI::FilePropertyBag options {};
             options.type = blob->type();
-            auto file = MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, header.filename.release_value(), move(options)));
-            value = GC::make_root(file);
+            value = MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, header.filename.release_value(), move(options)));
         }
         // 11. Otherwise:
         else {

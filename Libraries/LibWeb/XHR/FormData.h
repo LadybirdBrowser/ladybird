@@ -33,7 +33,7 @@ public:
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
     void delete_(String const& name);
-    Variant<GC::Root<FileAPI::File>, String, Empty> get(String const& name);
+    Variant<GC::Ref<FileAPI::File>, String, Empty> get(String const& name);
     WebIDL::ExceptionOr<Vector<FormDataEntryValue>> get_all(String const& name);
     bool has(String const& name);
     WebIDL::ExceptionOr<void> set(String const& name, String const& value);

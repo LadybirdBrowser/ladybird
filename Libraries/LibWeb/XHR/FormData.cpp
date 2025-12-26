@@ -128,7 +128,7 @@ void FormData::delete_(String const& name)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-get
-Variant<GC::Root<FileAPI::File>, String, Empty> FormData::get(String const& name)
+Variant<GC::Ref<FileAPI::File>, String, Empty> FormData::get(String const& name)
 {
     // 1. If there is no entry whose name is name in this’s entry list, then return null.
     auto entry_iterator = m_entry_list.find_if([&name](FormDataEntry const& entry) {

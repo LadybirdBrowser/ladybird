@@ -28,11 +28,11 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
 
     auto entry_value = TRY(value.visit(
         // 2. If value is a string, then set value to the result of converting value into a scalar value string.
-        [&](String const& string) -> WebIDL::ExceptionOr<Variant<GC::Root<FileAPI::File>, String>> {
+        [&](String const& string) -> WebIDL::ExceptionOr<Variant<GC::Ref<FileAPI::File>, String>> {
             return TRY_OR_THROW_OOM(vm, Infra::convert_to_scalar_value_string(string));
         },
         // 3. Otherwise:
-        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<Variant<GC::Root<FileAPI::File>, String>> {
+        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<Variant<GC::Ref<FileAPI::File>, String>> {
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
             if (!is<FileAPI::File>(*blob)) {
@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
                 blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, *filename, move(options)));
             }
 
-            return GC::make_root(as<FileAPI::File>(*blob));
+            return GC::Ref { as<FileAPI::File>(*blob) };
         }));
 
     // 4. Return an entry whose name is name and whose value is value.

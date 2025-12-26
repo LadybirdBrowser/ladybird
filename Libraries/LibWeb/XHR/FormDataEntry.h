@@ -14,7 +14,7 @@
 namespace Web::XHR {
 
 // https://xhr.spec.whatwg.org/#formdataentryvalue
-using FormDataEntryValue = Variant<GC::Root<FileAPI::File>, String>;
+using FormDataEntryValue = Variant<GC::Ref<FileAPI::File>, String>;
 
 struct FormDataEntry {
     String name;
