@@ -220,10 +220,10 @@ public:
 
     double scroll_x() const;
     double scroll_y() const;
-    GC::Ref<WebIDL::Promise> scroll(ScrollToOptions const&);
-    GC::Ref<WebIDL::Promise> scroll(double x, double y);
-    GC::Ref<WebIDL::Promise> scroll_by(ScrollToOptions);
-    GC::Ref<WebIDL::Promise> scroll_by(double x, double y);
+    void scroll(ScrollToOptions const&);
+    void scroll(double x, double y);
+    void scroll_by(ScrollToOptions);
+    void scroll_by(double x, double y);
 
     i32 screen_x() const;
     i32 screen_y() const;
