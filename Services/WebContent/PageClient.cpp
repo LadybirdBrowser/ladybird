@@ -542,14 +542,14 @@ Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::Stor
     return response->take_value();
 }
 
-WebView::StorageOperationError PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value)
+WebView::StorageSetResult PageClient::page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& value)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetStorageItem>(storage_endpoint, storage_key, bottle_key, value);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetStorageItem. Exiting peacefully.");
         exit(0);
     }
-    return response->error();
+    return response->result();
 }
 
 void PageClient::page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
