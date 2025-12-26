@@ -25,10 +25,10 @@ public:
     virtual ~FormData() override;
 
     static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, Vector<FormDataEntry> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
 
     static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<FormDataEntry> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
@@ -39,7 +39,7 @@ public:
     WebIDL::ExceptionOr<void> set(String const& name, String const& value);
     WebIDL::ExceptionOr<void> set(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
 
-    Vector<FormDataEntry> const& entry_list() const { return m_entry_list; }
+    GC::ConservativeVector<FormDataEntry> entry_list() const;
 
     using ForEachCallback = Function<JS::ThrowCompletionOr<void>(String const&, FormDataEntryValue const&)>;
     JS::ThrowCompletionOr<void> for_each(ForEachCallback);
@@ -47,9 +47,10 @@ public:
 private:
     friend class FormDataIterator;
 
-    explicit FormData(JS::Realm&, Vector<FormDataEntry> entry_list = {});
+    explicit FormData(JS::Realm&, GC::ConservativeVector<FormDataEntry> entry_list);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
     WebIDL::ExceptionOr<void> append_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});
     WebIDL::ExceptionOr<void> set_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename = {});
