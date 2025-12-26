@@ -38,6 +38,7 @@ private:
     BroadcastChannel(JS::Realm&, FlyString const& name);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
 
     bool is_eligible_for_messaging() const;
 

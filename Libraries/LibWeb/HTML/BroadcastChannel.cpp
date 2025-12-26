@@ -20,37 +20,28 @@ namespace Web::HTML {
 
 class BroadcastChannelRepository {
 public:
-    void register_channel(GC::Root<BroadcastChannel>);
+    void register_channel(GC::Ref<BroadcastChannel>);
     void unregister_channel(GC::Ref<BroadcastChannel>);
-    Vector<GC::Root<BroadcastChannel>> const& registered_channels_for_key(StorageAPI::StorageKey) const;
+    auto const& registered_channels_for_key(StorageAPI::StorageKey) const;
 
 private:
-    HashMap<StorageAPI::StorageKey, Vector<GC::Root<BroadcastChannel>>> m_channels;
+    HashMap<StorageAPI::StorageKey, Vector<GC::Weak<BroadcastChannel>>> m_channels;
 };
 
-void BroadcastChannelRepository::register_channel(GC::Root<BroadcastChannel> channel)
+void BroadcastChannelRepository::register_channel(GC::Ref<BroadcastChannel> channel)
 {
-    auto storage_key = Web::StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(*channel));
-
-    auto maybe_channels = m_channels.find(storage_key);
-    if (maybe_channels != m_channels.end()) {
-        maybe_channels->value.append(move(channel));
-        return;
-    }
-
-    Vector<GC::Root<BroadcastChannel>> channels;
-    channels.append(move(channel));
-    m_channels.set(storage_key, move(channels));
+    auto storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(*channel));
+    m_channels.ensure(storage_key).append(channel);
 }
 
 void BroadcastChannelRepository::unregister_channel(GC::Ref<BroadcastChannel> channel)
 {
-    auto storage_key = Web::StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(channel));
+    auto storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(channel));
     auto& relevant_channels = m_channels.get(storage_key).value();
     relevant_channels.remove_first_matching([&](auto c) { return c == channel; });
 }
 
-Vector<GC::Root<BroadcastChannel>> const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey key) const
+auto const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey key) const
 {
     auto maybe_channels = m_channels.get(key);
     VERIFY(maybe_channels.has_value());
@@ -79,6 +70,11 @@ void BroadcastChannel::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BroadcastChannel);
     Base::initialize(realm);
+}
+
+void BroadcastChannel::finalize()
+{
+    s_broadcast_channel_repository.unregister_channel(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#eligible-for-messaging
