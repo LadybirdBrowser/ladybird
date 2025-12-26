@@ -99,7 +99,7 @@ OwnFontFaceKey::operator FontFaceKey() const
         && slope == other.slope;
 }
 
-FontLoader::FontLoader(FontComputer& font_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
+FontLoader::FontLoader(FontComputer& font_computer, GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
     : m_font_computer(font_computer)
     , m_parent_style_sheet(parent_style_sheet)
     , m_family_name(move(family_name))
@@ -117,6 +117,7 @@ void FontLoader::visit_edges(Visitor& visitor)
     visitor.visit(m_font_computer);
     visitor.visit(m_parent_style_sheet);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_on_load);
 }
 
 bool FontLoader::is_loading() const
@@ -182,10 +183,10 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
         m_vector_font = typeface.release_nonnull();
         m_font_computer->did_load_font(m_family_name);
         if (m_on_load)
-            m_on_load(m_vector_font);
+            m_on_load->function()(m_vector_font);
     } else {
         if (m_on_load)
-            m_on_load(nullptr);
+            m_on_load->function()(nullptr);
     }
     m_fetch_controller = nullptr;
 }
@@ -493,11 +494,11 @@ void FontComputer::did_load_font(FlyString const&)
     document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 
-GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, Function<void(RefPtr<Gfx::Typeface const>)> on_load)
+GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
 {
     if (font_face.sources().is_empty()) {
         if (on_load)
-            on_load({});
+            on_load->function()({});
         return {};
     }
 
@@ -517,7 +518,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 
     if (urls.is_empty()) {
         if (on_load)
-            on_load({});
+            on_load->function()({});
         return {};
     }
 
