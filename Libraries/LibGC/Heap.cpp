@@ -193,6 +193,9 @@ public:
                 auto type = it.value.root_origin->type;
                 auto location = it.value.root_origin->location;
                 switch (type) {
+                case HeapRoot::Type::ConservativeVector:
+                    node.set("root"sv, "ConservativeVector"sv);
+                    break;
                 case HeapRoot::Type::Root:
                     node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
                     break;
