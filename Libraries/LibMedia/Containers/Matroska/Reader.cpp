@@ -1060,7 +1060,7 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
         return {};
     auto position = TRY(find_first_top_level_element_with_id("Cues"sv, CUES_ID));
     if (!position.has_value())
-        return DecoderError::corrupted("No Tracks element found"sv);
+        return {};
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
     if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
