@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -196,6 +196,9 @@ public:
                 case HeapRoot::Type::ConservativeVector:
                     node.set("root"sv, "ConservativeVector"sv);
                     break;
+                case HeapRoot::Type::MustSurviveGC:
+                    node.set("root"sv, "MustSurviveGC"sv);
+                    break;
                 case HeapRoot::Type::Root:
                     node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
                     break;
@@ -374,6 +377,15 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
     for (auto& hash_map : m_root_hash_maps)
         hash_map.gather_roots(roots);
 
+    for_each_block([&](auto& block) {
+        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+            if (cell_must_survive_garbage_collection(*cell)) {
+                roots.set(cell, HeapRoot { .type = HeapRoot::Type::MustSurviveGC });
+            }
+        });
+        return IterationDecision::Continue;
+    });
+
     if constexpr (HEAP_DEBUG) {
         dbgln("gather_roots:");
         for (auto* root : roots.keys())
@@ -516,17 +528,6 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
     MarkingVisitor visitor(*this, roots);
-
-    for_each_block([&](auto& block) {
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (cell_must_survive_garbage_collection(*cell)) {
-                cell->set_marked(true);
-                cell->visit_edges(visitor);
-            }
-        });
-        return IterationDecision::Continue;
-    });
-
     visitor.mark_all_live_cells();
 
     for (auto& inverse_root : m_uprooted_cells)
