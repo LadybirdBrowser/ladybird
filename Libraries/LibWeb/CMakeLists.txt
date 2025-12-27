@@ -455,6 +455,7 @@ set(SOURCES
     HTML/Canvas/CanvasImageData.cpp
     HTML/Canvas/CanvasImageSmoothing.cpp
     HTML/Canvas/CanvasPath.cpp
+    HTML/Canvas/CanvasPathDrawingStyles.cpp
     HTML/Canvas/CanvasRect.cpp
     HTML/Canvas/CanvasSettings.cpp
     HTML/Canvas/CanvasShadowStyles.cpp
