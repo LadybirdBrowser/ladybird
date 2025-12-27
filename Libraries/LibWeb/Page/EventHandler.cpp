@@ -1452,7 +1452,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     // Find the scrollable element to target based on the last clicked scrollable container.
     // This implements the behavior where keyboard scrolling targets the scrollable
-    // container that was clicked, similar to Chrome's behavior.
+    // container that was clicked
     Painting::PaintableBox* scroll_target = nullptr;
 
     // Helper lambda to get paintable box from a node if it's still scrollable
@@ -1471,10 +1471,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     };
 
     // Try primary scrollable container first, then fall back to parent
-    scroll_target = get_scrollable_paintable(m_keyboard_scroll_container);
-    if (!scroll_target)
-        scroll_target = get_scrollable_paintable(m_keyboard_scroll_container_parent);
-
+    scroll_target = get_scrollable_paintable(m_keyboard_scroll_container) ?: get_scrollable_paintable(m_keyboard_scroll_container_parent);
+    
     // Helper lambda to scroll either the target element or the window
     auto scroll_by = [&](CSSPixels delta_x, CSSPixels delta_y) {
         if (scroll_target)
