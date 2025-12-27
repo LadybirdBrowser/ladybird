@@ -6,9 +6,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
+#include <AK/Time.h>
 #include <AK/Utf8View.h>
+#include <LibCore/Directory.h>
+#include <LibCore/File.h>
+#include <LibCore/StandardPaths.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -55,6 +60,45 @@
 
 namespace Web {
 
+static void dump_to_file(StringBuilder& builder, StringView filename)
+{
+    // Set dump path to OS temporary directory
+    ByteString dump_path = MUST(String::from_byte_string(Core::StandardPaths::tempfile_directory())).to_byte_string();
+
+    // Expand tilde (~) if present
+    if (dump_path.starts_with("~/"sv)) {
+        auto home_path = Core::StandardPaths::home_directory();
+        dump_path = ByteString::formatted("{}{}", home_path, dump_path.substring_view(1));
+    }
+
+    // Create directory if it doesn't exist
+    auto create_result = Core::Directory::create(dump_path, Core::Directory::CreateDirectories::Yes);
+    if (create_result.is_error()) {
+        dbgln("Failed to create dump directory {}: {}", dump_path, create_result.error());
+        return;
+    }
+
+    auto now = UnixDateTime::now();
+    auto timestamp = now.to_byte_string("%Y%m%d_%H%M%S"sv);
+    auto timestamped_filename = ByteString::formatted("{}-{}", timestamp, filename);
+
+    auto full_path = LexicalPath(dump_path).append(timestamped_filename).string();
+    auto file_result = Core::File::open(full_path, Core::File::OpenMode::Write);
+    if (file_result.is_error()) {
+        dbgln("Failed to open dump file: {}", file_result.error());
+        return;
+    }
+    auto file = file_result.release_value();
+
+    auto byte_string = builder.to_byte_string();
+    auto write_result = file->write_some(byte_string.bytes());
+    dbgln("Dumped to {}", full_path);
+    if (write_result.is_error()) {
+        dbgln("Failed to write to dump file: {}", write_result.error());
+        return;
+    }
+}
+
 static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
 {
     dump_indent(builder, indent_levels);
@@ -74,6 +118,7 @@ void dump_tree(HTML::TraversableNavigable& traversable)
         dump_session_history_entry(builder, *she, 0);
     }
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "session_history.txt"sv);
 }
 
 void dump_tree(DOM::Node const& node)
@@ -81,6 +126,7 @@ void dump_tree(DOM::Node const& node)
     StringBuilder builder;
     dump_tree(builder, node);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "dom_tree.txt"sv);
 }
 
 void dump_tree(StringBuilder& builder, DOM::Node const& node)
@@ -151,6 +197,7 @@ void dump_tree(Layout::Node const& layout_node, bool show_cascaded_properties)
     StringBuilder builder;
     dump_tree(builder, layout_node, show_cascaded_properties, true);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "layout_tree.txt"sv);
 }
 
 void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_cascaded_properties, bool interactive)
@@ -438,6 +485,7 @@ void dump_selector(CSS::Selector const& selector)
     StringBuilder builder;
     dump_selector(builder, selector);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "selector.txt"sv);
 }
 
 static void dump_qualified_name(StringBuilder& builder, CSS::Selector::SimpleSelector::QualifiedName const& qualified_name)
@@ -650,6 +698,7 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                 builder.append(", "sv);
         }
         builder.append("\n"sv);
+        dump_to_file(builder, "selector_complex.txt"sv);
     }
 }
 
@@ -658,6 +707,7 @@ void dump_rule(CSS::CSSRule const& rule)
     StringBuilder builder;
     dump_rule(builder, rule);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "css_rule.txt"sv);
 }
 
 void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_levels)
@@ -701,6 +751,7 @@ void dump_sheet(CSS::StyleSheet const& sheet)
     StringBuilder builder;
     dump_sheet(builder, sheet);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "stylesheet.txt"sv);
 }
 
 void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet, int indent_levels)
@@ -718,6 +769,7 @@ void dump_tree(Painting::Paintable const& paintable)
     StringBuilder builder;
     dump_tree(builder, paintable, true);
     dbgln("{}", builder.string_view());
+    dump_to_file(builder, "paint_tree.txt"sv);
 }
 
 void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, bool colorize, int indent)
