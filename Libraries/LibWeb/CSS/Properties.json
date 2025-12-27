@@ -2070,6 +2070,15 @@
       "column-gap"
     ]
   },
+  "gap-rule-overlap": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "row-over-column",
+    "valid-identifiers": [
+      "row-over-column",
+      "column-over-row"
+    ]
+  },
   "grid": {
     "inherited": false,
     "initial": "auto",
