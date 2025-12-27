@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
@@ -14,7 +15,7 @@ namespace Core {
 class EventLoopImplementation;
 class ThreadEventQueue;
 
-class EventLoopManager {
+class CORE_API EventLoopManager {
 public:
     static EventLoopManager& the();
     static void install(EventLoopManager&);
@@ -39,7 +40,7 @@ protected:
     EventLoopManager();
 };
 
-class EventLoopImplementation {
+class CORE_API EventLoopImplementation {
 public:
     virtual ~EventLoopImplementation();
 

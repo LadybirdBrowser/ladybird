@@ -11,11 +11,12 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Stream.h>
+#include <LibCore/ExportCoreMinimal.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
 
-class File final : public SeekableStream {
+class COREMINIMAL_API File final : public SeekableStream {
     AK_MAKE_NONCOPYABLE(File);
 
 public:
