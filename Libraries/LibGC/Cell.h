@@ -42,6 +42,8 @@ class GC_API Cell {
     AK_MAKE_NONMOVABLE(Cell);
 
 public:
+    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = false;
+
     virtual ~Cell() = default;
 
     bool is_marked() const { return m_mark; }
@@ -180,21 +182,16 @@ public:
 
     // This allows cells to survive GC by choice, even if nothing points to them.
     // It's used to implement special rules in the web platform.
-    // NOTE: Cells must call set_overrides_must_survive_garbage_collection() for this to be honored.
+    // NOTE: Cell types must have OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION set for this to be called.
     virtual bool must_survive_garbage_collection() const { return false; }
-
-    bool overrides_must_survive_garbage_collection(Badge<Heap>) const { return m_overrides_must_survive_garbage_collection; }
 
     ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(this)->heap(); }
 
 protected:
     Cell() = default;
 
-    void set_overrides_must_survive_garbage_collection(bool b) { m_overrides_must_survive_garbage_collection = b; }
-
 private:
     bool m_mark { false };
-    bool m_overrides_must_survive_garbage_collection { false };
     State m_state { State::Live };
 } SWIFT_UNSAFE_REFERENCE;
 

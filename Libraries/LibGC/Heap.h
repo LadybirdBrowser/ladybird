@@ -97,8 +97,6 @@ private:
 
     void dump_allocators();
 
-    static bool cell_must_survive_garbage_collection(Cell const&);
-
     template<typename T>
     Cell* allocate_cell()
     {

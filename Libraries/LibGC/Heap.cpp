@@ -380,9 +380,11 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
     for (auto& hash_map : m_root_hash_maps)
         hash_map.gather_roots(roots);
 
-    for_each_block([&](auto& block) {
+    for_each_block([&](HeapBlock& block) {
+        if (!block.overrides_must_survive_garbage_collection())
+            return IterationDecision::Continue;
         block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (cell_must_survive_garbage_collection(*cell)) {
+            if (cell->must_survive_garbage_collection()) {
                 roots.set(cell, HeapRoot { .type = HeapRoot::Type::MustSurviveGC });
             }
         });
@@ -537,13 +539,6 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
         inverse_root->set_marked(false);
 
     m_uprooted_cells.clear();
-}
-
-bool Heap::cell_must_survive_garbage_collection(Cell const& cell)
-{
-    if (!cell.overrides_must_survive_garbage_collection({}))
-        return false;
-    return cell.must_survive_garbage_collection();
 }
 
 void Heap::finalize_unmarked_cells()

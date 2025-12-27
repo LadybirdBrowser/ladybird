@@ -114,7 +114,6 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
 WebSocket::WebSocket(JS::Realm& realm)
     : EventTarget(realm)
 {
-    set_overrides_must_survive_garbage_collection(true);
 }
 
 WebSocket::~WebSocket() = default;
