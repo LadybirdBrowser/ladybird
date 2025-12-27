@@ -57,8 +57,7 @@ JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::c
 }
 
 WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
-    : PlatformObject(realm)
-    , WebGL2RenderingContextOverloads(realm, move(context))
+    : WebGL2RenderingContextOverloads(realm, move(context))
     , m_canvas_element(canvas_element)
     , m_context_creation_parameters(context_creation_parameters)
     , m_actual_context_parameters(actual_context_parameters)
@@ -165,7 +164,7 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 
     if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc"sv)) {
         if (!m_webgl_compressed_texture_s3tc_extension) {
-            m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), this));
+            m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), *this));
 
             m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
             m_enabled_compressed_texture_formats.append(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT);
@@ -179,7 +178,7 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 
     if (name.equals_ignoring_ascii_case("WEBGL_compressed_texture_s3tc_srgb"sv)) {
         if (!m_webgl_compressed_texture_s3tc_srgb_extension) {
-            m_webgl_compressed_texture_s3tc_srgb_extension = MUST(Extensions::WebGLCompressedTextureS3tcSrgb::create(realm(), this));
+            m_webgl_compressed_texture_s3tc_srgb_extension = MUST(Extensions::WebGLCompressedTextureS3tcSrgb::create(realm(), *this));
 
             m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
             m_enabled_compressed_texture_formats.append(GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT);
@@ -211,7 +210,7 @@ JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 
     if (name.equals_ignoring_ascii_case("EXT_texture_filter_anisotropic"sv)) {
         if (!m_ext_texture_filter_anisotropic) {
-            m_ext_texture_filter_anisotropic = MUST(Extensions::EXTTextureFilterAnisotropic::create(realm(), this));
+            m_ext_texture_filter_anisotropic = MUST(Extensions::EXTTextureFilterAnisotropic::create(realm(), *this));
         }
 
         VERIFY(m_ext_texture_filter_anisotropic);

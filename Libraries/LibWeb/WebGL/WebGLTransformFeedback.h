@@ -16,12 +16,12 @@ class WebGLTransformFeedback : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLTransformFeedback);
 
 public:
-    static GC::Ref<WebGLTransformFeedback> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
+    static GC::Ref<WebGLTransformFeedback> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLTransformFeedback() override;
 
 protected:
-    explicit WebGLTransformFeedback(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
+    explicit WebGLTransformFeedback(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };
