@@ -224,9 +224,9 @@ public:
             [](Empty) -> Utf16FlyString { VERIFY_NOT_REACHED(); });
     }
 
-    size_t line_number() const { return m_line_number; }
-    size_t line_column() const { return m_line_column; }
-    size_t offset() const { return m_offset; }
+    u32 line_number() const { return m_line_number; }
+    u32 line_column() const { return m_line_column; }
+    u32 offset() const { return m_offset; }
     double double_value() const;
     bool bool_value() const;
 
@@ -254,9 +254,9 @@ private:
     Utf16View m_trivia;
     Utf16View m_original_value;
     Variant<Empty, Utf16View, Utf16FlyString> m_value;
-    size_t m_line_number { 0 };
-    size_t m_line_column { 0 };
-    size_t m_offset { 0 };
+    u32 m_line_number { 0 };
+    u32 m_line_column { 0 };
+    u32 m_offset { 0 };
 };
 
 }

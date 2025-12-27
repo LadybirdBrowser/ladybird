@@ -41,15 +41,8 @@
 namespace JS {
 
 ASTNode::ASTNode(SourceRange source_range)
-    : m_start_offset(source_range.start.offset)
-    , m_source_code(source_range.code)
-    , m_end_offset(source_range.end.offset)
+    : m_source_range(move(source_range))
 {
-}
-
-SourceRange ASTNode::source_range() const
-{
-    return m_source_code->range_from_offsets(m_start_offset, m_end_offset);
 }
 
 ByteString ASTNode::class_name() const
