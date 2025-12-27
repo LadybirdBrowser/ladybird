@@ -672,8 +672,8 @@ Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() c
         doc_states.append(entry->document_state());
 
     // 6. For each docState of docStates:
-    while (!doc_states.is_empty()) {
-        auto doc_state = doc_states.take_first();
+    for (size_t i = 0; i < doc_states.size(); ++i) {
+        auto doc_state = doc_states[i];
 
         // 1. For each nestedHistory of docState's nested histories:
         for (auto& nested_history : doc_state->nested_histories()) {
