@@ -10,11 +10,10 @@
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#default-user-agent-value
-ByteString const& default_user_agent_value()
+ByteString default_user_agent_value()
 {
     // A default `User-Agent` value is an implementation-defined header value for the `User-Agent` header.
-    static auto user_agent = ResourceLoader::the().user_agent().to_byte_string();
-    return user_agent;
+    return ResourceLoader::the().user_agent().to_byte_string();
 }
 
 }
