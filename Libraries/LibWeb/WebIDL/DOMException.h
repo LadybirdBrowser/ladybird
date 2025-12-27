@@ -47,6 +47,7 @@ namespace Web::WebIDL {
 
 // https://webidl.spec.whatwg.org/#idl-DOMException-error-names
 // Same order as in the spec document, also matches the legacy codes order above.
+// Omits QuotaExceededError as that has it's own DOMException derived interface.
 #define ENUMERATE_DOM_EXCEPTION_ERROR_NAMES          \
     __ENUMERATE(IndexSizeError) /* Deprecated */     \
     __ENUMERATE(HierarchyRequestError)               \
@@ -66,7 +67,6 @@ namespace Web::WebIDL {
     __ENUMERATE(NetworkError)                        \
     __ENUMERATE(AbortError)                          \
     __ENUMERATE(URLMismatchError)                    \
-    __ENUMERATE(QuotaExceededError)                  \
     __ENUMERATE(TimeoutError)                        \
     __ENUMERATE(InvalidNodeTypeError)                \
     __ENUMERATE(DataCloneError)                      \
@@ -92,7 +92,7 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-class WEB_API DOMException final
+class WEB_API DOMException
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);

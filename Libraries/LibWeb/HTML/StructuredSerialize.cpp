@@ -38,6 +38,7 @@
 #include <LibWeb/Bindings/ImageBitmapPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MessagePortPrototype.h>
+#include <LibWeb/Bindings/QuotaExceededErrorPrototype.h>
 #include <LibWeb/Bindings/ReadableStreamPrototype.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Transferable.h>
@@ -63,6 +64,7 @@
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::HTML {
 
@@ -947,6 +949,8 @@ private:
             return intrinsics.is_interface_exposed<Bindings::ImageDataPrototype>(realm);
         case SerializeType::ImageBitmap:
             return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
+        case SerializeType::QuotaExceededError:
+            return intrinsics.is_interface_exposed<Bindings::QuotaExceededErrorPrototype>(realm);
         case SerializeType::Unknown:
             dbgln("Unknown interface type for serialization: {}", to_underlying(name));
             break;
@@ -987,6 +991,8 @@ private:
             return ImageData::create(realm);
         case SerializeType::ImageBitmap:
             return ImageBitmap::create(realm);
+        case SerializeType::QuotaExceededError:
+            return WebIDL::QuotaExceededError::create(realm);
         case SerializeType::Unknown:
         default:
             VERIFY_NOT_REACHED();

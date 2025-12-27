@@ -347,6 +347,7 @@ ProcessingInstruction
 ProgressEvent
 Promise
 PromiseRejectionEvent
+QuotaExceededError
 RadioNodeList
 Range
 RangeError

@@ -1094,6 +1094,7 @@ set(SOURCES
     WebIDL/ObservableArray.cpp
     WebIDL/OverloadResolution.cpp
     WebIDL/Promise.cpp
+    WebIDL/QuotaExceededError.cpp
     WebIDL/Tracing.cpp
     WebSockets/WebSocket.cpp
     WebVTT/VTTCue.cpp
