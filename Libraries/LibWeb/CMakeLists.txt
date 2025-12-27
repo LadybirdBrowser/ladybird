@@ -462,6 +462,7 @@ set(SOURCES
     HTML/Canvas/CanvasState.cpp
     HTML/Canvas/CanvasText.cpp
     HTML/Canvas/CanvasTextDrawingStyles.cpp
+    HTML/Canvas/CanvasTransform.cpp
     HTML/Canvas/SerializeBitmap.cpp
     HTML/AbstractCanvasRenderingContext2D.cpp
     HTML/CanvasGradient.cpp
