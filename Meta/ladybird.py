@@ -271,7 +271,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
 
     known_presets = {
         "Debug": build_root_dir / "debug",
-        "All_Debug": build_root_dir / "alldebug",
+        "All_Debug": build_root_dir / "alldebugmacros",
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
@@ -364,6 +364,12 @@ def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
 
     if pattern:
         test_args.extend(["-R", pattern])
+
+    if preset == "All_Debug":
+        # don't run LibWeb, there is too much output and it takes too long
+        # benchmarks are also excluded, as they have the same issue as LibWeb
+        test_args.extend(["-E", "LibWeb"])
+        os.environ["TESTS_ONLY"] = "1"
 
     run_command(test_args, exit_on_failure=True)
 
