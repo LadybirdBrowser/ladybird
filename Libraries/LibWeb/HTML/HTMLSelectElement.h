@@ -38,13 +38,15 @@ public:
     WebIDL::UnsignedLong size() const;
     void set_size(WebIDL::UnsignedLong);
 
-    GC::Ptr<HTMLOptionsCollection> const& options();
+    GC::Ptr<HTMLOptionsCollection> const& options() const;
 
     WebIDL::UnsignedLong length();
     WebIDL::ExceptionOr<void> set_length(WebIDL::UnsignedLong);
     HTMLOptionElement* item(WebIDL::UnsignedLong index);
+    virtual Optional<JS::Value> item_value(size_t index) const override;
     HTMLOptionElement* named_item(FlyString const& name);
     WebIDL::ExceptionOr<void> add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before = {});
+    virtual WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;
     void remove();
     void remove(WebIDL::Long);
 
@@ -154,7 +156,7 @@ private:
     mutable Vector<GC::Ref<HTMLOptionElement>> m_cached_list_of_options;
     mutable size_t m_cached_number_of_selected_options { 0 };
 
-    GC::Ptr<HTMLOptionsCollection> m_options;
+    mutable GC::Ptr<HTMLOptionsCollection> m_options;
     GC::Ptr<DOM::HTMLCollection> m_selected_options;
     bool m_is_open { false };
     Vector<SelectItem> m_select_items;
