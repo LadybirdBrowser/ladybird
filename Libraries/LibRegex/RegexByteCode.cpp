@@ -260,6 +260,63 @@ ALWAYS_INLINE ExecutionResult OpCode_GoBack::execute(MatchInput const& input, Ma
     return ExecutionResult::Continue;
 }
 
+ALWAYS_INLINE ExecutionResult OpCode_SetStepBack::execute(MatchInput const&, MatchState& state) const
+{
+    if (step() > state.string_position)
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.step_backs.append(step());
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_IncStepBack::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.step_backs.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.step_backs.last()++;
+
+    if (state.step_backs.last() > state.string_position)
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    reverse_string_position(state, input.view, state.step_backs.last());
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_CheckStepBack::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.step_backs.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (input.saved_positions.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (state.step_backs.last() > input.saved_positions.last())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    state.string_position = input.saved_positions.last();
+    state.string_position_in_code_units = input.saved_code_unit_positions.last();
+    return ExecutionResult::Continue;
+}
+
+ALWAYS_INLINE ExecutionResult OpCode_CheckSavedPosition::execute(MatchInput const& input, MatchState& state) const
+{
+    if (input.saved_positions.is_empty()) {
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    if (state.string_position != input.saved_positions.last()) {
+        if (body_length() == 0) {
+            if (state.string_position + 1 != input.saved_positions.last()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+        } else {
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
+        }
+    }
+    state.step_backs.take_last();
+
+    return ExecutionResult::Continue;
+}
+
 ALWAYS_INLINE ExecutionResult OpCode_FailForks::execute(MatchInput const& input, MatchState& state) const
 {
     input.fail_counter += state.forks_since_last_save;
@@ -419,7 +476,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
 
     auto length = state.string_position - start_position;
 
-    if (start_position < match.column)
+    if (start_position < match.column && state.step_backs.is_empty())
         return ExecutionResult::Continue;
 
     VERIFY(start_position + length <= input.view.length_in_code_units());
