@@ -176,6 +176,7 @@ enum class PolicyControlledFeature : u8 {
     EncryptedMedia,
     FocusWithoutUserActivation,
     Gamepad,
+    WindowManagement,
 };
 
 class WEB_API Document

@@ -95,8 +95,13 @@ GC::Ref<ScreenOrientation> Screen::orientation()
 // https://w3c.github.io/window-management/#dom-screen-isextended
 bool Screen::is_extended() const
 {
-    dbgln("FIXME: Unimplemented Screen::is_extended");
-    return false;
+    // 1. If this's relevant global object's associated Document is not allowed to use
+    //    the policy-controlled feature named "window-management", return false.
+    if (!window().associated_document().is_allowed_to_use_feature(DOM::PolicyControlledFeature::WindowManagement))
+        return false;
+
+    // 2. Return true if the device has more than one screen, and false otherwise.
+    return window().page().client().screen_count() > 1;
 }
 
 // https://w3c.github.io/window-management/#dom-screen-onchange

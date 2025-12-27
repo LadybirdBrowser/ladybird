@@ -85,6 +85,7 @@ public:
     virtual CSS::PreferredColorScheme preferred_color_scheme() const override { return m_host_page->client().preferred_color_scheme(); }
     virtual CSS::PreferredContrast preferred_contrast() const override { return m_host_page->client().preferred_contrast(); }
     virtual CSS::PreferredMotion preferred_motion() const override { return m_host_page->client().preferred_motion(); }
+    virtual size_t screen_count() const override { return 1; }
     virtual void request_file(FileRequest) override { }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] EventResult event_was_handled) override { }
