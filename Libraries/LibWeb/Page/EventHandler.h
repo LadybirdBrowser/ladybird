@@ -88,6 +88,12 @@ private:
 
     GC::Weak<DOM::EventTarget> m_mousedown_target;
 
+    // Tracks the scrollable container that should receive keyboard scroll events.
+    // Set when user clicks inside a scrollable element.
+    GC::Ptr<DOM::Node> m_keyboard_scroll_container;
+    // Parent scrollable container, used as fallback when primary is removed
+    GC::Ptr<DOM::Node> m_keyboard_scroll_container_parent;
+
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
 
     OwnPtr<Unicode::Segmenter> m_word_segmenter;
