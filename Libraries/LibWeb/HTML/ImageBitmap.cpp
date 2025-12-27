@@ -18,7 +18,7 @@ GC_DEFINE_ALLOCATOR(ImageBitmap);
 [[nodiscard]] static auto create_bitmap_from_bitmap_data(Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, u32 const width, u32 const height, u32 const pitch, ByteBuffer data)
 {
     // NB: The data is captured by value in the destruction callback lambda to ensure its lifetime.
-    return Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, data.data(), [data] { });
+    return Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, data.data(), [data = move(data)] { });
 }
 
 static void serialize_bitmap(HTML::TransferDataEncoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
