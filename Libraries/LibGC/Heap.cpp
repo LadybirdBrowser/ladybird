@@ -165,7 +165,7 @@ public:
             if (m_node_being_visited)
                 m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
 
-            if (m_graph.get(reinterpret_cast<FlatPtr>(&cell)).has_value())
+            if (m_graph.get(reinterpret_cast<FlatPtr>(cell)).has_value())
                 return;
             m_work_queue.append(*cell);
         });
