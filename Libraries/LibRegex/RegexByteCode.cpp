@@ -19,7 +19,8 @@ constexpr static u32 const ParagraphSeparator { 0x2029 };
 
 namespace regex {
 
-StringView OpCode::name(OpCodeId opcode_id)
+template<typename ByteCode>
+StringView OpCode<ByteCode>::name(OpCodeId opcode_id)
 {
     switch (opcode_id) {
 #define __ENUMERATE_OPCODE(x) \
@@ -33,7 +34,8 @@ StringView OpCode::name(OpCodeId opcode_id)
     }
 }
 
-StringView OpCode::name() const
+template<typename ByteCode>
+StringView OpCode<ByteCode>::name() const
 {
     return name(opcode_id());
 }
@@ -64,6 +66,19 @@ StringView opcode_id_name(OpCodeId opcode)
 #undef __ENUMERATE_OPCODE
     default:
         VERIFY_NOT_REACHED();
+        return "<Unknown>"sv;
+    }
+}
+
+StringView fork_if_condition_name(ForkIfCondition condition)
+{
+    switch (condition) {
+#define __ENUMERATE_FORK_IF_CONDITION(x) \
+    case ForkIfCondition::x:             \
+        return #x##sv;
+        ENUMERATE_FORK_IF_CONDITIONS
+#undef __ENUMERATE_FORK_IF_CONDITION
+    default:
         return "<Unknown>"sv;
     }
 }
@@ -159,23 +174,15 @@ static bool restore_string_position(MatchInput const& input, MatchState& state)
     return true;
 }
 
-OwnPtr<OpCode> ByteCode::s_opcodes[(size_t)OpCodeId::Last + 1];
+OwnPtr<OpCode<ByteCode>> ByteCode::s_opcodes[(size_t)OpCodeId::Last + 1];
 bool ByteCode::s_opcodes_initialized { false };
+
+OwnPtr<OpCode<FlatByteCode>> FlatByteCode::s_opcodes[(size_t)OpCodeId::Last + 1];
+bool FlatByteCode::s_opcodes_initialized { false };
+
 size_t ByteCode::s_next_checkpoint_serial_id { 0 };
-static u32 s_next_string_table_serial { 0 };
-
-StringTable::StringTable()
-    : m_serial(s_next_string_table_serial++)
-{
-}
-
-StringTable::~StringTable()
-{
-    if (m_serial == s_next_string_table_serial - 1 && m_table.is_empty())
-        --s_next_string_table_serial; // We didn't use this serial, put it back.
-}
-
-static u32 s_next_string_set_table_serial { 0 };
+u32 s_next_string_table_serial { 1 };
+static u32 s_next_string_set_table_serial { 1 };
 
 StringSetTable::StringSetTable()
     : m_serial(s_next_string_set_table_serial++)
@@ -216,9 +223,9 @@ void ByteCode::ensure_opcodes_initialized()
         return;
     for (u32 i = (u32)OpCodeId::First; i <= (u32)OpCodeId::Last; ++i) {
         switch ((OpCodeId)i) {
-#define __ENUMERATE_OPCODE(OpCode)              \
-    case OpCodeId::OpCode:                      \
-        s_opcodes[i] = make<OpCode_##OpCode>(); \
+#define __ENUMERATE_OPCODE(OpCode)                        \
+    case OpCodeId::OpCode:                                \
+        s_opcodes[i] = make<OpCode_##OpCode<ByteCode>>(); \
         break;
 
             ENUMERATE_OPCODES
@@ -229,29 +236,52 @@ void ByteCode::ensure_opcodes_initialized()
     s_opcodes_initialized = true;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Exit::execute(MatchInput const& input, MatchState& state) const
+void FlatByteCode::ensure_opcodes_initialized()
 {
-    if (state.string_position > input.view.length() || state.instruction_position >= m_bytecode->size())
+    if (s_opcodes_initialized)
+        return;
+    for (u32 i = (u32)OpCodeId::First; i <= (u32)OpCodeId::Last; ++i) {
+        switch ((OpCodeId)i) {
+#define __ENUMERATE_OPCODE(OpCode)                            \
+    case OpCodeId::OpCode:                                    \
+        s_opcodes[i] = make<OpCode_##OpCode<FlatByteCode>>(); \
+        break;
+
+            ENUMERATE_OPCODES
+
+#undef __ENUMERATE_OPCODE
+        }
+    }
+    s_opcodes_initialized = true;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Exit<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.string_position > input.view.length() || state.instruction_position >= bytecode().size())
         return ExecutionResult::Succeeded;
 
     return ExecutionResult::Failed;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Save::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Save<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     save_string_position(input, state);
     state.forks_since_last_save = 0;
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Restore::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Restore<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (!restore_string_position(input, state))
         return ExecutionResult::Failed;
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_GoBack::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_GoBack<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (count() > state.string_position)
         return ExecutionResult::Failed_ExecuteLowPrioForks;
@@ -260,13 +290,15 @@ ALWAYS_INLINE ExecutionResult OpCode_GoBack::execute(MatchInput const& input, Ma
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_FailForks::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_FailForks<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     input.fail_counter += state.forks_since_last_save;
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_PopSaved::execute(MatchInput const& input, MatchState&) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_PopSaved<ByteCode>::execute(MatchInput const& input, MatchState&) const
 {
     if (input.saved_positions.is_empty() || input.saved_code_unit_positions.is_empty())
         return ExecutionResult::Failed_ExecuteLowPrioForks;
@@ -275,20 +307,23 @@ ALWAYS_INLINE ExecutionResult OpCode_PopSaved::execute(MatchInput const& input, 
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Jump::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Jump<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     state.instruction_position += offset();
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ForkJump::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkJump<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     state.fork_at_position = state.instruction_position + size() + offset();
     state.forks_since_last_save++;
     return ExecutionResult::Fork_PrioHigh;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceJump::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceJump<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     state.fork_at_position = state.instruction_position + size() + offset();
     input.fork_to_replace = state.instruction_position;
@@ -296,21 +331,74 @@ ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceJump::execute(MatchInput const& 
     return ExecutionResult::Fork_PrioHigh;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ForkStay::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkStay<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     state.fork_at_position = state.instruction_position + size() + offset();
     state.forks_since_last_save++;
     return ExecutionResult::Fork_PrioLow;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceStay::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceStay<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     state.fork_at_position = state.instruction_position + size() + offset();
     input.fork_to_replace = state.instruction_position;
     return ExecutionResult::Fork_PrioLow;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_CheckBegin::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkIf<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    auto next_step = [&](bool do_fork) -> ExecutionResult {
+        switch (form()) {
+        case OpCodeId::ForkJump:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioHigh;
+            }
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkReplaceJump:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                input.fork_to_replace = state.instruction_position;
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioHigh;
+            }
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkStay:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioLow;
+            }
+            state.instruction_position += offset();
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkReplaceStay:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                input.fork_to_replace = state.instruction_position;
+                return ExecutionResult::Fork_PrioLow;
+            }
+            state.instruction_position += offset();
+            return ExecutionResult::Continue;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    switch (condition()) {
+    case ForkIfCondition::AtStartOfLine:
+        return next_step(!input.in_the_middle_of_a_line);
+    case ForkIfCondition::Invalid:
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CheckBegin<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto is_at_line_boundary = [&] {
         if (state.string_position == 0)
@@ -323,6 +411,7 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin::execute(MatchInput const& input
 
         return false;
     }();
+
     if (is_at_line_boundary && (input.regex_options & AllFlags::MatchNotBeginOfLine))
         return ExecutionResult::Failed_ExecuteLowPrioForks;
 
@@ -334,7 +423,8 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBegin::execute(MatchInput const& input
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto isword = [](auto ch) { return is_ascii_alphanumeric(ch) || ch == '_'; };
     auto is_word_boundary = [&] {
@@ -363,7 +453,8 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckBoundary::execute(MatchInput const& in
     VERIFY_NOT_REACHED();
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_CheckEnd::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CheckEnd<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto is_at_line_boundary = [&] {
         if (state.string_position == input.view.length())
@@ -386,7 +477,8 @@ ALWAYS_INLINE ExecutionResult OpCode_CheckEnd::execute(MatchInput const& input, 
     return ExecutionResult::Failed_ExecuteLowPrioForks;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ClearCaptureGroup::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ClearCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (input.match_index < state.capture_group_matches_size()) {
         auto group = state.mutable_capture_group_matches(input.match_index);
@@ -395,7 +487,8 @@ ALWAYS_INLINE ExecutionResult OpCode_ClearCaptureGroup::execute(MatchInput const
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_SaveLeftCaptureGroup::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SaveLeftCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (input.match_index >= state.capture_group_matches_size()) {
         state.flat_capture_group_matches.ensure_capacity((input.match_index + 1) * state.capture_group_count);
@@ -408,7 +501,8 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveLeftCaptureGroup::execute(MatchInput co
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto& match = state.capture_group_matches(input.match_index).at(id() - 1);
     auto start_position = match.left_column;
@@ -443,7 +537,8 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup::execute(MatchInput c
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto& match = state.capture_group_matches(input.match_index).at(id() - 1);
     auto start_position = match.left_column;
@@ -474,7 +569,357 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    auto ch = argument(0);
+    auto last_position = exchange(state.string_position_before_rseek, state.string_position);
+    auto last_position_in_code_units = exchange(state.string_position_in_code_units_before_rseek, state.string_position_in_code_units);
+    auto next = input.view.find_index_of_previous(ch, last_position, last_position_in_code_units);
+    if (!next.has_value())
+        return ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches;
+    state.string_position = next->code_point_index;
+    state.string_position_in_code_units = next->code_unit_index;
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CompareSimple<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    size_t string_position = state.string_position;
+    bool inverse_matched { false };
+    bool had_zero_length_match { false };
+    state.string_position_before_match = state.string_position;
+
+    bool has_string_set = false;
+    bool string_set_matched = false;
+    size_t best_match_position = state.string_position;
+    size_t best_match_position_in_code_units = state.string_position_in_code_units;
+
+    size_t offset { state.instruction_position + 2 };
+    auto const* bytecode_data = bytecode().flat_data().data();
+
+    for (size_t i = 0; i < 1; ++i) {
+        if (state.string_position > string_position)
+            break;
+
+        auto compare_type = (CharacterCompareType)bytecode_data[offset++];
+
+        switch (compare_type) {
+        case CharacterCompareType::Char: {
+            u32 ch = bytecode_data[offset++];
+
+            // We want to compare a string that is longer or equal in length to the available string
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            compare_char(input, state, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::AnyChar: {
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto input_view = input.view.substring_view(state.string_position, 1).code_point_at(0);
+            auto is_equivalent_to_newline = input_view == '\n'
+                || (input.regex_options.has_flag_set(AllFlags::Internal_ECMA262DotSemantics)
+                        ? (input_view == '\r' || input_view == LineSeparator || input_view == ParagraphSeparator)
+                        : false);
+
+            if (!is_equivalent_to_newline || (input.regex_options.has_flag_set(AllFlags::SingleLine) && input.regex_options.has_flag_set(AllFlags::Internal_ConsiderNewline)))
+                advance_string_position(state, input.view, input_view);
+            break;
+        }
+        case CharacterCompareType::String: {
+            auto string_index = bytecode_data[offset++];
+            auto string = bytecode().get_u16_string(string_index);
+
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() < state.string_position + string.length_in_code_units())
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto view = RegexStringView(string);
+            view.set_unicode(input.view.unicode());
+            compare_string(input, state, view, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::CharClass: {
+            if (input.view.length_in_code_units() <= state.string_position_in_code_units)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto character_class = (CharClass)bytecode_data[offset++];
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            compare_character_class(input, state, character_class, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::LookupTable: {
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto count_sensitive = bytecode_data[offset++];
+            auto count_insensitive = bytecode_data[offset++];
+            auto sensitive_range_data = bytecode().flat_data().slice(offset, count_sensitive);
+            offset += count_sensitive;
+            auto insensitive_range_data = bytecode().flat_data().slice(offset, count_insensitive);
+            offset += count_insensitive;
+
+            bool const insensitive = input.regex_options & AllFlags::Insensitive;
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            if (insensitive)
+                ch = to_ascii_lowercase(ch);
+
+            auto const ranges = insensitive && !insensitive_range_data.is_empty() ? insensitive_range_data : sensitive_range_data;
+            auto const* matching_range = binary_search(ranges, ch, nullptr, [](auto needle, CharRange range) {
+                if (needle >= range.from && needle <= range.to)
+                    return 0;
+                if (needle > range.to)
+                    return 1;
+                return -1;
+            });
+
+            if (matching_range)
+                advance_string_position(state, input.view, ch);
+            break;
+        }
+        case CharacterCompareType::CharRange: {
+            if (input.view.length() <= state.string_position)
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            auto value = (CharRange)bytecode_data[offset++];
+
+            auto from = value.from;
+            auto to = value.to;
+            auto ch = input.view.unicode_aware_code_point_at(state.string_position_in_code_units);
+
+            compare_character_range(input, state, from, to, ch, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::Reference: {
+            auto reference_number = ((size_t)bytecode_data[offset++]) - 1;
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto groups = state.capture_group_matches(input.match_index);
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto str = groups.at(reference_number).view;
+
+            // We want to compare a string that is definitely longer than the available string
+            if (input.view.length() < state.string_position + str.length())
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+            compare_string(input, state, str, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::NamedReference: {
+            auto reference_number = ((size_t)bytecode_data[offset++]) - 1;
+
+            if (input.match_index >= state.capture_group_matches_size()) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            auto groups = state.capture_group_matches(input.match_index);
+
+            if (groups.size() <= reference_number) {
+                had_zero_length_match = true;
+                break;
+            }
+
+            RegexStringView str {};
+
+            auto reference_name_index = bytecode().get_group_name_index(reference_number);
+
+            if (reference_name_index.has_value()) {
+                auto target_name_string = bytecode().get_string(reference_name_index.value());
+
+                for (size_t i = 0; i < groups.size(); ++i) {
+                    if (groups[i].view.is_null())
+                        continue;
+
+                    auto group_name_index = bytecode().get_group_name_index(i);
+
+                    if (group_name_index.has_value()) {
+                        auto group_name_string = bytecode().get_string(group_name_index.value());
+
+                        if (group_name_string == target_name_string) {
+                            str = groups[i].view;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (input.view.length() < state.string_position + str.length()) {
+                return ExecutionResult::Failed_ExecuteLowPrioForks;
+            }
+
+            compare_string(input, state, str, had_zero_length_match);
+            break;
+        }
+        case CharacterCompareType::Property: {
+            auto property = static_cast<Unicode::Property>(bytecode_data[offset++]);
+            compare_property(input, state, property, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::GeneralCategory: {
+            auto general_category = static_cast<Unicode::GeneralCategory>(bytecode_data[offset++]);
+            compare_general_category(input, state, general_category, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::Script: {
+            auto script = static_cast<Unicode::Script>(bytecode_data[offset++]);
+            compare_script(input, state, script, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::ScriptExtension: {
+            auto script = static_cast<Unicode::Script>(bytecode_data[offset++]);
+            compare_script_extension(input, state, script, false, inverse_matched);
+            break;
+        }
+        case CharacterCompareType::StringSet: {
+            has_string_set = true;
+            auto string_set_index = bytecode_data[offset++];
+
+            bool matched = false;
+            size_t longest_match_length = 0;
+
+            auto find_longest_match = [&](auto const& view, auto const& trie) {
+                auto const* current = &trie;
+                size_t current_code_unit_offset = state.string_position_in_code_units;
+
+                if (current->has_metadata() && current->metadata_value()) {
+                    matched = true;
+                    longest_match_length = 0;
+                }
+
+                while (true) {
+                    u32 value;
+
+                    if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                        if (current_code_unit_offset >= view.length_in_code_units())
+                            break;
+                        value = view.code_unit_at(current_code_unit_offset);
+                    } else {
+                        if (current_code_unit_offset >= input.view.length_in_code_units())
+                            break;
+                        value = input.view.code_point_at(current_code_unit_offset);
+                    }
+
+                    if (input.regex_options & AllFlags::Insensitive) {
+                        bool found_child = false;
+                        for (auto const& [key, child] : current->children()) {
+                            if (to_ascii_lowercase(key) == to_ascii_lowercase(value)) {
+                                current = static_cast<StringSetTrie const*>(child.ptr());
+                                current_code_unit_offset++;
+                                found_child = true;
+                                break;
+                            }
+                        }
+                        if (!found_child)
+                            break;
+                    } else {
+                        auto it = current->children().find(value);
+                        if (it == current->children().end())
+                            break;
+
+                        current = static_cast<StringSetTrie const*>(it->value.ptr());
+                        current_code_unit_offset++;
+                    }
+
+                    auto is_terminal = current->has_metadata() && current->metadata_value();
+                    if (is_terminal) {
+                        size_t match_length_in_code_points;
+                        if constexpr (IsSame<decltype(view), Utf16View const&>) {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = view.code_point_at(i);
+                                i += code_point >= 0x10000 ? 2 : 1;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        } else {
+                            size_t code_points = 0;
+                            for (size_t i = state.string_position_in_code_units; i < current_code_unit_offset;) {
+                                auto code_point = input.view.code_point_at(i);
+                                if (code_point <= 0x7F)
+                                    i += 1;
+                                else if (code_point <= 0x7FF)
+                                    i += 2;
+                                else if (code_point <= 0xFFFF)
+                                    i += 3;
+                                else
+                                    i += 4;
+                                code_points++;
+                            }
+                            match_length_in_code_points = code_points;
+                        }
+
+                        if (match_length_in_code_points > longest_match_length) {
+                            matched = true;
+                            longest_match_length = match_length_in_code_points;
+                        }
+                    }
+                }
+            };
+
+            if (input.view.u16_view().is_null()) {
+                auto const& trie = bytecode().string_set_table().get_u8_trie(string_set_index);
+                StringView view;
+                find_longest_match(view, trie);
+            } else {
+                auto const& view = input.view.u16_view();
+                auto const& trie = bytecode().string_set_table().get_u16_trie(string_set_index);
+                find_longest_match(view, trie);
+            }
+
+            if (matched) {
+                if (longest_match_length == 0)
+                    had_zero_length_match = true;
+                state.string_position += longest_match_length;
+                if (input.view.unicode()) {
+                    state.string_position_in_code_units = input.view.code_unit_offset_of(state.string_position);
+                } else {
+                    state.string_position_in_code_units = state.string_position;
+                }
+            }
+            break;
+        }
+        default:
+            warnln("Undefined simple comparison: {}", (int)compare_type);
+            VERIFY_NOT_REACHED();
+            break;
+        }
+
+        if (has_string_set && state.string_position > best_match_position) {
+            best_match_position = state.string_position;
+            best_match_position_in_code_units = state.string_position_in_code_units;
+            string_set_matched = true;
+        }
+    }
+
+    if (has_string_set && string_set_matched) {
+        state.string_position = best_match_position;
+        state.string_position_in_code_units = best_match_position_in_code_units;
+    }
+
+    if ((!had_zero_length_match && string_position == state.string_position) || state.string_position > input.view.length())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Compare<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto const argument_count = arguments_count();
     auto has_single_argument = argument_count == 1;
@@ -517,7 +962,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
     size_t offset { state.instruction_position + 3 };
     CharacterCompareType last_compare_type = CharacterCompareType::Undefined;
 
-    auto const* bytecode_data = m_bytecode->flat_data().data();
+    auto const* bytecode_data = bytecode().flat_data().data();
 
     for (size_t i = 0; i < argument_count; ++i) {
         if (state.string_position > string_position)
@@ -585,21 +1030,15 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
         case CharacterCompareType::String: {
             VERIFY(!current_inversion_state());
 
-            auto const& length = bytecode_data[offset++];
+            auto string_index = bytecode_data[offset++];
+            auto string = bytecode().get_u16_string(string_index);
 
             // We want to compare a string that is definitely longer than the available string
-            if (input.view.length() < state.string_position + length)
+            if (input.view.length() < state.string_position + string.length_in_code_units())
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-            Optional<ByteString> str;
-            Utf16String utf16;
-            Vector<u32> data;
-            data.ensure_capacity(length);
-            for (size_t i = offset; i < offset + length; ++i)
-                data.unchecked_append(bytecode_data[i]);
-
-            auto view = input.view.construct_as_same(data, str, utf16);
-            offset += length;
+            auto view = RegexStringView(string);
+            view.set_unicode(input.view.unicode());
             if (compare_string(input, state, view, had_zero_length_match)) {
                 if (current_inversion_state())
                     inverse_matched = true;
@@ -622,9 +1061,9 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
             auto count_sensitive = bytecode_data[offset++];
             auto count_insensitive = bytecode_data[offset++];
-            auto sensitive_range_data = m_bytecode->flat_data().slice(offset, count_sensitive);
+            auto sensitive_range_data = bytecode().flat_data().slice(offset, count_sensitive);
             offset += count_sensitive;
-            auto insensitive_range_data = m_bytecode->flat_data().slice(offset, count_insensitive);
+            auto insensitive_range_data = bytecode().flat_data().slice(offset, count_insensitive);
             offset += count_insensitive;
 
             bool const insensitive = input.regex_options & AllFlags::Insensitive;
@@ -714,19 +1153,19 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
 
             RegexStringView str {};
 
-            auto reference_name_index = m_bytecode->get_group_name_index(reference_number);
+            auto reference_name_index = bytecode().get_group_name_index(reference_number);
 
             if (reference_name_index.has_value()) {
-                auto target_name_string = m_bytecode->get_string(reference_name_index.value());
+                auto target_name_string = bytecode().get_string(reference_name_index.value());
 
                 for (size_t i = 0; i < groups.size(); ++i) {
                     if (groups[i].view.is_null())
                         continue;
 
-                    auto group_name_index = m_bytecode->get_group_name_index(i);
+                    auto group_name_index = bytecode().get_group_name_index(i);
 
                     if (group_name_index.has_value()) {
-                        auto group_name_string = m_bytecode->get_string(group_name_index.value());
+                        auto group_name_string = bytecode().get_string(group_name_index.value());
 
                         if (group_name_string == target_name_string) {
                             str = groups[i].view;
@@ -853,12 +1292,12 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             };
 
             if (input.view.u16_view().is_null()) {
-                auto const& trie = m_bytecode->string_set_table().get_u8_trie(string_set_index);
+                auto const& trie = bytecode().string_set_table().get_u8_trie(string_set_index);
                 StringView view;
                 find_longest_match(view, trie);
             } else {
                 auto const& view = input.view.u16_view();
-                auto const& trie = m_bytecode->string_set_table().get_u16_trie(string_set_index);
+                auto const& trie = bytecode().string_set_table().get_u16_trie(string_set_index);
                 find_longest_match(view, trie);
             }
 
@@ -1000,7 +1439,8 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_char(MatchInput const& input, MatchState& state, u32 ch1, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_char(MatchInput const& input, MatchState& state, u32 ch1, bool inverse, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
@@ -1032,7 +1472,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_char(MatchInput const& input, MatchSt
     }
 }
 
-ALWAYS_INLINE bool OpCode_Compare::compare_string(MatchInput const& input, MatchState& state, RegexStringView str, bool& had_zero_length_match)
+template<typename ByteCode>
+ALWAYS_INLINE bool OpCode_Compare<ByteCode>::compare_string(MatchInput const& input, MatchState& state, RegexStringView str, bool& had_zero_length_match)
 {
     if (state.string_position + str.length() > input.view.length()) {
         if (str.is_empty()) {
@@ -1066,7 +1507,8 @@ ALWAYS_INLINE bool OpCode_Compare::compare_string(MatchInput const& input, Match
     return equals;
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_character_class(MatchInput const& input, MatchState& state, CharClass character_class, u32 ch, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_character_class(MatchInput const& input, MatchState& state, CharClass character_class, u32 ch, bool inverse, bool& inverse_matched)
 {
     if (matches_character_class(character_class, ch, input.regex_options & AllFlags::Insensitive)) {
         if (inverse)
@@ -1076,7 +1518,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_character_class(MatchInput const& inp
     }
 }
 
-bool OpCode_Compare::matches_character_class(CharClass character_class, u32 ch, bool insensitive)
+template<typename ByteCode>
+bool OpCode_Compare<ByteCode>::matches_character_class(CharClass character_class, u32 ch, bool insensitive)
 {
     constexpr auto is_space_or_line_terminator = [](u32 code_point) {
         if ((code_point == 0x0a) || (code_point == 0x0d) || (code_point == 0x2028) || (code_point == 0x2029))
@@ -1118,7 +1561,8 @@ bool OpCode_Compare::matches_character_class(CharClass character_class, u32 ch, 
     VERIFY_NOT_REACHED();
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_character_range(MatchInput const& input, MatchState& state, u32 from, u32 to, u32 ch, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_character_range(MatchInput const& input, MatchState& state, u32 from, u32 to, u32 ch, bool inverse, bool& inverse_matched)
 {
     if (input.regex_options & AllFlags::Insensitive) {
         from = to_ascii_lowercase(from);
@@ -1134,7 +1578,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_character_range(MatchInput const& inp
     }
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_property(MatchInput const& input, MatchState& state, Unicode::Property property, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_property(MatchInput const& input, MatchState& state, Unicode::Property property, bool inverse, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
@@ -1150,7 +1595,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_property(MatchInput const& input, Mat
     }
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_general_category(MatchInput const& input, MatchState& state, Unicode::GeneralCategory general_category, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_general_category(MatchInput const& input, MatchState& state, Unicode::GeneralCategory general_category, bool inverse, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
@@ -1166,7 +1612,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_general_category(MatchInput const& in
     }
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_script(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_script(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
@@ -1182,7 +1629,8 @@ ALWAYS_INLINE void OpCode_Compare::compare_script(MatchInput const& input, Match
     }
 }
 
-ALWAYS_INLINE void OpCode_Compare::compare_script_extension(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched)
+template<typename ByteCode>
+ALWAYS_INLINE void OpCode_Compare<ByteCode>::compare_script_extension(MatchInput const& input, MatchState& state, Unicode::Script script, bool inverse, bool& inverse_matched)
 {
     if (state.string_position == input.view.length())
         return;
@@ -1198,54 +1646,54 @@ ALWAYS_INLINE void OpCode_Compare::compare_script_extension(MatchInput const& in
     }
 }
 
-ByteString OpCode_Compare::arguments_string() const
+template<typename ByteCode>
+ByteString OpCode_Compare<ByteCode>::arguments_string() const
 {
     return ByteString::formatted("argc={}, args={} ", arguments_count(), arguments_size());
 }
 
-Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
+template<typename ByteCode>
+Vector<CompareTypeAndValuePair> OpCode_Compare<ByteCode>::flat_compares() const
 {
     Vector<CompareTypeAndValuePair> result;
 
     size_t offset { state().instruction_position + 3 };
     auto argument_count = arguments_count();
-    auto const* bytecode_data = m_bytecode->flat_data().data();
+    auto& bytecode = this->bytecode();
 
     for (size_t i = 0; i < argument_count; ++i) {
-        auto compare_type = (CharacterCompareType)bytecode_data[offset++];
+        auto compare_type = (CharacterCompareType)bytecode[offset++];
 
         if (compare_type == CharacterCompareType::Char) {
-            auto ch = bytecode_data[offset++];
+            auto ch = bytecode[offset++];
             result.append({ compare_type, ch });
         } else if (compare_type == CharacterCompareType::Reference) {
-            auto ref = bytecode_data[offset++];
+            auto ref = bytecode[offset++];
             result.append({ compare_type, ref });
         } else if (compare_type == CharacterCompareType::NamedReference) {
-            auto ref = bytecode_data[offset++];
+            auto ref = bytecode[offset++];
             result.append({ compare_type, ref });
         } else if (compare_type == CharacterCompareType::String) {
-            auto& length = bytecode_data[offset++];
-            for (size_t k = 0; k < length; ++k)
-                result.append({ CharacterCompareType::Char, bytecode_data[offset + k] });
-            offset += length;
+            auto string_index = bytecode[offset++];
+            result.append({ compare_type, string_index });
         } else if (compare_type == CharacterCompareType::CharClass) {
-            auto character_class = bytecode_data[offset++];
+            auto character_class = bytecode[offset++];
             result.append({ compare_type, character_class });
         } else if (compare_type == CharacterCompareType::CharRange) {
-            auto value = bytecode_data[offset++];
+            auto value = bytecode[offset++];
             result.append({ compare_type, value });
         } else if (compare_type == CharacterCompareType::LookupTable) {
-            auto count_sensitive = bytecode_data[offset++];
-            auto count_insensitive = bytecode_data[offset++];
+            auto count_sensitive = bytecode[offset++];
+            auto count_insensitive = bytecode[offset++];
             for (size_t i = 0; i < count_sensitive; ++i)
-                result.append({ CharacterCompareType::CharRange, bytecode_data[offset++] });
+                result.append({ CharacterCompareType::CharRange, bytecode[offset++] });
             offset += count_insensitive; // Skip insensitive ranges
         } else if (compare_type == CharacterCompareType::GeneralCategory
             || compare_type == CharacterCompareType::Property
             || compare_type == CharacterCompareType::Script
             || compare_type == CharacterCompareType::ScriptExtension
             || compare_type == CharacterCompareType::StringSet) {
-            auto value = bytecode_data[offset++];
+            auto value = bytecode[offset++];
             result.append({ compare_type, value });
         } else {
             result.append({ compare_type, 0 });
@@ -1254,7 +1702,82 @@ Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
     return result;
 }
 
-Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<MatchInput const&> input) const
+template<typename ByteCode>
+ByteString OpCode_CompareSimple<ByteCode>::arguments_string() const
+{
+    StringBuilder builder;
+    auto type = (CharacterCompareType)argument(1);
+    builder.append(character_compare_type_name(type));
+    switch (type) {
+    case CharacterCompareType::Char: {
+        auto ch = argument(2);
+        if (is_ascii_printable(ch))
+            builder.append(ByteString::formatted(" '{:c}'", static_cast<char>(ch)));
+        else
+            builder.append(ByteString::formatted(" 0x{:x}", ch));
+        break;
+    }
+    case CharacterCompareType::String: {
+        auto string_index = argument(2);
+        auto string = this->bytecode().get_u16_string(string_index);
+        builder.appendff(" \"{}\"", string);
+        break;
+    }
+    case CharacterCompareType::CharClass: {
+        auto character_class = (CharClass)argument(2);
+        builder.appendff(" {}", character_class_name(character_class));
+        break;
+    }
+    case CharacterCompareType::Reference: {
+        auto ref = argument(2);
+        builder.appendff(" number={}", ref);
+        break;
+    }
+    case CharacterCompareType::NamedReference: {
+        auto ref = argument(2);
+        builder.appendff(" named_number={}", ref);
+        break;
+    }
+    case CharacterCompareType::GeneralCategory:
+    case CharacterCompareType::Property:
+    case CharacterCompareType::Script:
+    case CharacterCompareType::ScriptExtension:
+    case CharacterCompareType::StringSet: {
+        builder.appendff(" value={}", argument(2));
+        break;
+    }
+    case CharacterCompareType::LookupTable: {
+        auto count_sensitive = argument(2);
+        auto count_insensitive = argument(3);
+        for (size_t j = 0; j < count_sensitive; ++j) {
+            auto range = (CharRange)argument(4 + j);
+            builder.appendff(" {:x}-{:x}", range.from, range.to);
+        }
+        if (count_insensitive > 0) {
+            builder.append(" [insensitive ranges:"sv);
+            for (size_t j = 0; j < count_insensitive; ++j) {
+                auto range = (CharRange)argument(4 + count_sensitive + j);
+                builder.appendff("  {:x}-{:x}", range.from, range.to);
+            }
+            builder.append(" ]"sv);
+        }
+        break;
+    }
+    case CharacterCompareType::CharRange: {
+        auto value = argument(2);
+        auto range = (CharRange)value;
+        builder.appendff(" {:x}-{:x}", range.from, range.to);
+        break;
+    }
+    default:
+        break;
+    }
+
+    return builder.to_byte_string();
+}
+
+template<typename ByteCode>
+Vector<ByteString> OpCode_Compare<ByteCode>::variable_arguments_to_byte_string(Optional<MatchInput const&> input) const
 {
     Vector<ByteString> result;
 
@@ -1262,15 +1785,16 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
     RegexStringView const& view = input.has_value() ? input.value().view : StringView {};
 
     auto argument_count = arguments_count();
+    auto& bytecode = this->bytecode();
 
     for (size_t i = 0; i < argument_count; ++i) {
-        auto compare_type = (CharacterCompareType)m_bytecode->at(offset++);
+        auto compare_type = (CharacterCompareType)bytecode[offset++];
         result.empend(ByteString::formatted("type={} [{}]", (size_t)compare_type, character_compare_type_name(compare_type)));
 
         auto string_start_offset = state().string_position_before_match;
 
         if (compare_type == CharacterCompareType::Char) {
-            auto ch = m_bytecode->at(offset++);
+            auto ch = bytecode[offset++];
             auto is_ascii = is_ascii_printable(ch);
             if (is_ascii)
                 result.empend(ByteString::formatted(" value='{:c}'", static_cast<char>(ch)));
@@ -1291,7 +1815,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::Reference) {
-            auto ref = m_bytecode->at(offset++);
+            auto ref = bytecode[offset++];
             result.empend(ByteString::formatted(" number={}", ref));
             if (input.has_value()) {
                 if (state().capture_group_matches_size() > input->match_index) {
@@ -1309,7 +1833,7 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::NamedReference) {
-            auto ref = m_bytecode->at(offset++);
+            auto ref = bytecode[offset++];
             result.empend(ByteString::formatted(" named_number={}", ref));
             if (input.has_value()) {
                 if (state().capture_group_matches_size() > input->match_index) {
@@ -1327,40 +1851,38 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
                 }
             }
         } else if (compare_type == CharacterCompareType::String) {
-            auto& length = m_bytecode->at(offset++);
-            StringBuilder str_builder;
-            for (size_t i = 0; i < length; ++i)
-                str_builder.append(m_bytecode->at(offset++));
-            result.empend(ByteString::formatted(" value=\"{}\"", str_builder.string_view().substring_view(0, length)));
+            auto id = bytecode[offset++];
+            auto string = this->bytecode().get_u16_string(id);
+            result.empend(ByteString::formatted(" value=\"{}\"", string));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: \"{}\"",
-                    input.value().view.substring_view(string_start_offset, string_start_offset + length > view.length() ? 0 : length).to_byte_string()));
+                    input.value().view.substring_view(string_start_offset, string_start_offset + string.length_in_code_units() > view.length() ? 0 : string.length_in_code_units()).to_byte_string()));
         } else if (compare_type == CharacterCompareType::CharClass) {
-            auto character_class = (CharClass)m_bytecode->at(offset++);
+            auto character_class = (CharClass)bytecode[offset++];
             result.empend(ByteString::formatted(" ch_class={} [{}]", (size_t)character_class, character_class_name(character_class)));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: '{}'",
                     input.value().view.substring_view(string_start_offset, state().string_position > view.length() ? 0 : 1).to_byte_string()));
         } else if (compare_type == CharacterCompareType::CharRange) {
-            auto value = (CharRange)m_bytecode->at(offset++);
+            auto value = (CharRange)bytecode[offset++];
             result.empend(ByteString::formatted(" ch_range={:x}-{:x}", value.from, value.to));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: '{}'",
                     input.value().view.substring_view(string_start_offset, state().string_position > view.length() ? 0 : 1).to_byte_string()));
         } else if (compare_type == CharacterCompareType::LookupTable) {
-            auto count_sensitive = m_bytecode->at(offset++);
-            auto count_insensitive = m_bytecode->at(offset++);
+            auto count_sensitive = bytecode[offset++];
+            auto count_insensitive = bytecode[offset++];
             for (size_t j = 0; j < count_sensitive; ++j) {
-                auto range = (CharRange)m_bytecode->at(offset++);
+                auto range = (CharRange)bytecode[offset++];
                 result.append(ByteString::formatted(" {:x}-{:x}", range.from, range.to));
             }
             if (count_insensitive > 0) {
                 result.append(" [insensitive ranges:");
                 for (size_t j = 0; j < count_insensitive; ++j) {
-                    auto range = (CharRange)m_bytecode->at(offset++);
+                    auto range = (CharRange)bytecode[offset++];
                     result.append(ByteString::formatted("  {:x}-{:x}", range.from, range.to));
                 }
                 result.append(" ]");
@@ -1375,14 +1897,15 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
             || compare_type == CharacterCompareType::Script
             || compare_type == CharacterCompareType::ScriptExtension
             || compare_type == CharacterCompareType::StringSet) {
-            auto value = m_bytecode->at(offset++);
+            auto value = bytecode[offset++];
             result.empend(ByteString::formatted(" value={}", value));
         }
     }
     return result;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Repeat::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Repeat<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     VERIFY(count() > 0);
 
@@ -1400,7 +1923,8 @@ ALWAYS_INLINE ExecutionResult OpCode_Repeat::execute(MatchInput const&, MatchSta
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_ResetRepeat::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ResetRepeat<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     if (id() >= state.repetition_marks.size())
         state.repetition_marks.resize(id() + 1);
@@ -1409,7 +1933,8 @@ ALWAYS_INLINE ExecutionResult OpCode_ResetRepeat::execute(MatchInput const&, Mat
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Checkpoint::execute(MatchInput const&, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_Checkpoint<ByteCode>::execute(MatchInput const&, MatchState& state) const
 {
     auto id = this->id();
     if (id >= state.checkpoints.size())
@@ -1419,7 +1944,8 @@ ALWAYS_INLINE ExecutionResult OpCode_Checkpoint::execute(MatchInput const&, Matc
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty::execute(MatchInput const& input, MatchState& state) const
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     u64 current_position = state.string_position;
     auto checkpoint_position = state.checkpoints.get(checkpoint()).value_or(0);
@@ -1460,5 +1986,10 @@ ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty::execute(MatchInput const& inp
 
     return ExecutionResult::Continue;
 }
+
+template class OpCode_Compare<ByteCode>;
+template class OpCode<ByteCode>;
+template class OpCode_Compare<FlatByteCode>;
+template class OpCode<FlatByteCode>;
 
 }

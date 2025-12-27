@@ -5,7 +5,9 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Enumerate.h>
 #include <AK/Function.h>
+#include <AK/GenericShorthands.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
@@ -25,22 +27,364 @@ namespace regex {
 
 using Detail::Block;
 
+struct BytecodeRewriter {
+    struct Instruction {
+        size_t old_ip;
+        size_t size;
+        OpCodeId id;
+        bool skip;
+    };
+    Vector<Instruction> instructions;
+    HashMap<size_t, size_t> new_ip_mapping;
+
+    BytecodeRewriter(ByteCode const& bytecode)
+    {
+        auto flat = bytecode.flat_data();
+        auto state = MatchState::only_for_enumeration();
+
+        for (size_t old_ip = 0; old_ip < flat.size();) {
+            state.instruction_position = old_ip;
+            auto& op = bytecode.get_opcode(state);
+            auto sz = op.size();
+
+            instructions.append({ old_ip, sz, op.opcode_id(), false });
+            old_ip += sz;
+        }
+    }
+
+    void mark_range_for_skip(size_t start, size_t end)
+    {
+        for (auto& instr : instructions) {
+            if (instr.old_ip >= start && instr.old_ip < end)
+                instr.skip = true;
+        }
+    }
+
+    void build_ip_mapping(ByteCode const& bytecode, Span<ByteCode const> replacements)
+    {
+        new_ip_mapping.ensure_capacity(instructions.size() + 1);
+        size_t current_new_ip = 0;
+        auto replacements_it = replacements.begin();
+
+        for (auto& instr : instructions) {
+            new_ip_mapping.set(instr.old_ip, current_new_ip);
+            auto& replacement = *replacements_it;
+            ++replacements_it;
+
+            if (!instr.skip)
+                current_new_ip += instr.size;
+            else
+                current_new_ip += replacement.size();
+        }
+
+        new_ip_mapping.set(bytecode.size(), current_new_ip);
+    }
+
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    void build_ip_mapping(ByteCode const& bytecode, Span<Range const> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        new_ip_mapping.ensure_capacity(instructions.size() + 1);
+        size_t current_new_ip = 0;
+        auto instruction_it = instructions.begin();
+
+        for (auto i = 0uz; i < replacements.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    new_ip_mapping.set(instr.old_ip, current_new_ip);
+                    break;
+                }
+                new_ip_mapping.set(instr.old_ip, current_new_ip);
+                current_new_ip += instr.size;
+                ++instruction_it;
+            }
+            current_new_ip += replacement.size();
+
+            // Skip instructions in the replacement range
+            while (instruction_it != instructions.end()) {
+                auto& instr = *instruction_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instruction_it;
+            }
+        }
+        // Map any remaining instructions
+        for (; instruction_it != instructions.end(); ++instruction_it) {
+            auto& instr = *instruction_it;
+            new_ip_mapping.set(instr.old_ip, current_new_ip);
+            current_new_ip += instr.size;
+        }
+        new_ip_mapping.set(bytecode.size(), current_new_ip);
+    }
+
+    template<typename Range>
+    requires(requires(Range r) { r.start_ip; r.end_ip; })
+    ByteCode rebuild(ByteCode const& bytecode, Span<Range> replacement_ranges, Span<ByteCode const> replacements)
+    {
+        // Assumes that replacement_ranges and replacements are the same size
+        // As well as in order
+        VERIFY(replacement_ranges.size() == replacements.size());
+        auto flat = bytecode.flat_data();
+        ByteCode result;
+        result.merge_string_tables_from({ &bytecode, 1 });
+
+        size_t total_new_size = bytecode.size();
+        // FIXME: Get a zip(it...) helper
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            mark_range_for_skip(replacement_ranges[i].start_ip, replacement_ranges[i].end_ip);
+            total_new_size -= (replacement_ranges[i].end_ip - replacement_ranges[i].start_ip);
+            total_new_size += replacements[i].size();
+        }
+        build_ip_mapping<Range>(bytecode, replacement_ranges, replacements);
+        result.ensure_capacity(total_new_size);
+
+        // FIXME: Use a zip(...) helper
+        auto instructions_it = instructions.begin();
+        for (auto i = 0uz; i < replacement_ranges.size(); ++i) {
+            auto& range = replacement_ranges[i];
+            auto& replacement = replacements[i];
+
+            // Append and adjust all instructions before the replacement range
+            for (; instructions_it != instructions.end(); ++instructions_it) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.start_ip) {
+                    ASSERT(instr.old_ip < range.end_ip);
+                    ++instructions_it;
+                    break;
+                }
+                VERIFY(instr.skip == false);
+                auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+                adjust_jump_in_slice(bytecode, slice, instr);
+                result.append(move(slice));
+            }
+            // Finally insert the replacement
+            result.extend(replacement);
+
+            // Skip instructions in the replacement range
+            while (instructions_it != instructions.end()) {
+                auto& instr = *instructions_it;
+                if (instr.old_ip >= range.end_ip)
+                    break;
+                ++instructions_it;
+            }
+        }
+        // Append any remaining instructions
+        for (; instructions_it != instructions.end(); ++instructions_it) {
+            auto& instr = *instructions_it;
+            auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+            adjust_jump_in_slice(bytecode, slice, instr);
+            result.append(move(slice));
+            VERIFY(instr.skip == false);
+        }
+
+        result.flatten();
+        return result;
+    }
+
+    ByteCode rebuild(ByteCode const& bytecode, Function<void(Instruction const&, ByteCode&)> insert_replacement = nullptr)
+    {
+        auto flat = bytecode.flat_data();
+        ByteCode result;
+        result.merge_string_tables_from({ &bytecode, 1 });
+
+        Vector<ByteCode> replacements;
+        replacements.resize_with_default_value(instructions.size(), ByteCode {});
+
+        size_t total_new_size = 0;
+        for (auto const& [i, instr] : enumerate(instructions)) {
+            if (!instr.skip) {
+                total_new_size += instr.size;
+            } else if (insert_replacement) {
+                ByteCode temp;
+                insert_replacement(instr, temp);
+                total_new_size += temp.size();
+                replacements[i] = move(temp);
+            }
+        }
+        build_ip_mapping(bytecode, replacements);
+        result.ensure_capacity(total_new_size);
+
+        auto replacements_it = replacements.begin();
+        for (auto& instr : instructions) {
+            auto& replacement = *replacements_it;
+            ++replacements_it;
+
+            if (instr.skip) {
+                result.extend(move(replacement));
+                continue;
+            }
+
+            auto slice = Vector<ByteCodeValueType> { flat.slice(instr.old_ip, instr.size) };
+            adjust_jump_in_slice(bytecode, slice, instr);
+            result.append(move(slice));
+        }
+
+        result.flatten();
+        return result;
+    }
+
+private:
+    void adjust_jump_in_slice(ByteCode const& bytecode, Vector<ByteCodeValueType>& slice, Instruction const& instr)
+    {
+        auto adjust = [&](size_t idx, bool is_repeat) {
+            auto old_offset = slice[idx];
+            auto target_old = is_repeat
+                ? instr.old_ip - old_offset
+                : instr.old_ip + instr.size + old_offset;
+
+            if (!new_ip_mapping.contains(target_old)) {
+                dbgln("Target {} not found in new_ip mapping (in {})", target_old, instr.old_ip);
+                RegexDebug<ByteCode> dbg(stderr);
+                dbg.print_bytecode(bytecode);
+                VERIFY_NOT_REACHED();
+            }
+
+            size_t target_new = *new_ip_mapping.get(target_old);
+            size_t source_new = *new_ip_mapping.get(instr.old_ip);
+            auto new_offset = is_repeat
+                ? source_new - target_new
+                : target_new - source_new - instr.size;
+
+            slice[idx] = static_cast<ByteCodeValueType>(new_offset);
+        };
+
+        switch (instr.id) {
+        case OpCodeId::Jump:
+        case OpCodeId::ForkJump:
+        case OpCodeId::ForkStay:
+        case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkReplaceStay:
+        case OpCodeId::JumpNonEmpty:
+        case OpCodeId::ForkIf:
+            adjust(1, false);
+            break;
+        case OpCodeId::Repeat:
+            adjust(1, true);
+            break;
+        default:
+            break;
+        }
+    }
+};
+
+template<typename Parser>
+static typename Regex<Parser>::BasicBlockList split_basic_blocks_for_atomic_groups(ByteCode const& bytecode)
+{
+    typename Regex<Parser>::BasicBlockList block_boundaries;
+    size_t end_of_last_block = 0;
+
+    auto bytecode_size = bytecode.size();
+
+    auto state = MatchState::only_for_enumeration();
+    state.instruction_position = 0;
+    auto check_jump = [&]<template<typename> class T>(auto const& opcode) {
+        auto& op = static_cast<T<ByteCode> const&>(opcode);
+        ssize_t jump_offset = op.size() + op.offset();
+        if (jump_offset >= 0) {
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+        } else {
+            // This op jumps back, see if that's within this "block".
+            if (jump_offset + state.instruction_position > end_of_last_block) {
+                // Split the block!
+                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
+                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
+                end_of_last_block = state.instruction_position + opcode.size();
+            } else {
+                // Nope, it's just a jump to another block
+                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
+                end_of_last_block = state.instruction_position + opcode.size();
+            }
+        }
+    };
+    for (;;) {
+        auto& opcode = bytecode.get_opcode(state);
+
+        switch (opcode.opcode_id()) {
+        case OpCodeId::Jump:
+            check_jump.template operator()<OpCode_Jump>(opcode);
+            break;
+        case OpCodeId::JumpNonEmpty:
+            check_jump.template operator()<OpCode_JumpNonEmpty>(opcode);
+            break;
+        case OpCodeId::ForkJump:
+            check_jump.template operator()<OpCode_ForkJump>(opcode);
+            break;
+        case OpCodeId::ForkStay:
+            check_jump.template operator()<OpCode_ForkStay>(opcode);
+            break;
+        case OpCodeId::ForkIf:
+            check_jump.template operator()<OpCode_ForkIf>(opcode);
+            break;
+        case OpCodeId::FailForks:
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+            break;
+        case OpCodeId::Repeat: {
+            // Repeat produces two blocks, one containing its repeated expr, and one after that.
+            auto& repeat = static_cast<OpCode_Repeat<ByteCode> const&>(opcode);
+            auto repeat_start = state.instruction_position - repeat.offset();
+            if (repeat_start > end_of_last_block)
+                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
+            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+            break;
+        }
+        default:
+            break;
+        }
+
+        auto next_ip = state.instruction_position + opcode.size();
+        if (next_ip < bytecode_size)
+            state.instruction_position = next_ip;
+        else
+            break;
+    }
+
+    if (end_of_last_block < bytecode_size)
+        block_boundaries.append({ end_of_last_block, bytecode_size, "End"sv });
+
+    quick_sort(block_boundaries, [](auto& a, auto& b) { return a.start < b.start; });
+
+    return block_boundaries;
+}
+
 template<typename Parser>
 void Regex<Parser>::run_optimization_passes()
 {
+    ScopeGuard switch_to_flat = [&] {
+        parser_result.bytecode = FlatByteCode::from(move(parser_result.bytecode.template get<ByteCode>()));
+    };
     rewrite_with_useless_jumps_removed();
 
-    auto blocks = split_basic_blocks(parser_result.bytecode);
-    if (attempt_rewrite_entire_match_as_substring_search(blocks))
+    auto blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    if (attempt_rewrite_entire_match_as_substring_search(blocks)) {
         return;
+    }
 
     // Rewrite fork loops as atomic groups
     // e.g. a*b -> (ATOMIC a*)b
+    blocks = split_basic_blocks_for_atomic_groups<Parser>(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
-    fill_optimization_data(split_basic_blocks(parser_result.bytecode));
+    // Join adjacent compares that only match single characters into a single compare that matches a string.
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    attempt_rewrite_adjacent_compares_as_string_compare(blocks);
 
-    parser_result.bytecode.flatten();
+    // Rewrite /.*x/ as a seek to x
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    attempt_rewrite_dot_star_sequences_as_seek(blocks);
+
+    // Simplify compares where possible
+    blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
+    rewrite_simple_compares(blocks);
+
+    fill_optimization_data(split_basic_blocks(parser_result.bytecode.template get<ByteCode>()));
 }
 
 struct StaticallyInterpretedCompares {
@@ -60,7 +404,7 @@ struct StaticallyInterpretedCompares {
     HashTable<Unicode::Script> negated_unicode_script_extensions;
 };
 
-static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares)
+static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, StaticallyInterpretedCompares& compares, ByteCodeBase const* bytecode = nullptr, bool as_follow = false)
 {
     bool inverse { false };
     bool temporary_inverse { false };
@@ -109,10 +453,18 @@ static bool interpret_compares(Vector<CompareTypeAndValuePair> const& lhs, Stati
             else
                 lhs_negated_ranges.insert(pair.value, pair.value);
             break;
-        case CharacterCompareType::String:
-            // FIXME: We just need to look at the last character of this string, but we only have the first character here.
-            //        Just bail out to avoid false positives.
-            return false;
+        case CharacterCompareType::String: {
+            if (!as_follow)
+                return false;
+            auto string = bytecode->get_u16_string(pair.value);
+            u32 ch = string.code_point_at(0);
+
+            if (!current_lhs_inversion_state())
+                lhs_ranges.insert(ch, ch);
+            else
+                lhs_negated_ranges.insert(ch, ch);
+            break;
+        }
         case CharacterCompareType::StringSet:
             return false;
         case CharacterCompareType::CharClass:
@@ -190,7 +542,7 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
 
     if constexpr (REGEX_DEBUG) {
         dbgln("Pulling out optimization data from bytecode:");
-        RegexDebug dbg;
+        RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
         for (auto const& block : blocks)
             dbgln("block from {} to {} (comment: {})", block.start, block.end, block.comment);
@@ -207,7 +559,7 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
         }
     };
 
-    auto& bytecode = parser_result.bytecode;
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
 
     auto state = MatchState::only_for_enumeration();
     auto block = blocks.first();
@@ -215,7 +567,10 @@ void Regex<Parser>::fill_optimization_data(BasicBlockList const& blocks)
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::Compare: {
-            auto flat_compares = static_cast<OpCode_Compare const&>(opcode).flat_compares();
+            auto& compare = to<OpCode_Compare>(opcode);
+            if (compare.arguments_count() == 0)
+                return; // This matches 'nothing', so there are no starting ranges that can satisfy it.
+            auto flat_compares = compare.flat_compares();
             StaticallyInterpretedCompares compares;
             if (!interpret_compares(flat_compares, compares))
                 return; // No idea, the bytecode is too complex.
@@ -254,32 +609,24 @@ template<typename Parser>
 typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCode const& bytecode)
 {
     BasicBlockList block_boundaries;
-    size_t end_of_last_block = 0;
+    HashTable<size_t> block_starts;
 
     auto bytecode_size = bytecode.size();
 
+    block_starts.set(0);
+
     auto state = MatchState::only_for_enumeration();
     state.instruction_position = 0;
-    auto check_jump = [&]<typename T>(OpCode const& opcode) {
-        auto& op = static_cast<T const&>(opcode);
+
+    auto check_jump = [&]<template<typename> class T>(auto const& opcode) {
+        auto& op = static_cast<T<ByteCode> const&>(opcode);
         ssize_t jump_offset = op.size() + op.offset();
-        if (jump_offset >= 0) {
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
-        } else {
-            // This op jumps back, see if that's within this "block".
-            if (jump_offset + state.instruction_position > end_of_last_block) {
-                // Split the block!
-                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
-                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            } else {
-                // Nope, it's just a jump to another block
-                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            }
-        }
+        ssize_t target = state.instruction_position + jump_offset;
+
+        block_starts.set(target);
+        block_starts.set(state.instruction_position + opcode.size());
     };
+
     for (;;) {
         auto& opcode = bytecode.get_opcode(state);
 
@@ -296,18 +643,17 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
         case OpCodeId::ForkStay:
             check_jump.template operator()<OpCode_ForkStay>(opcode);
             break;
+        case OpCodeId::ForkIf:
+            check_jump.template operator()<OpCode_ForkIf>(opcode);
+            break;
         case OpCodeId::FailForks:
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            block_starts.set(state.instruction_position + opcode.size());
             break;
         case OpCodeId::Repeat: {
-            // Repeat produces two blocks, one containing its repeated expr, and one after that.
-            auto& repeat = static_cast<OpCode_Repeat const&>(opcode);
+            auto& repeat = to<OpCode_Repeat>(opcode);
             auto repeat_start = state.instruction_position - repeat.offset();
-            if (repeat_start > end_of_last_block)
-                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
-            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            block_starts.set(repeat_start);
+            block_starts.set(state.instruction_position + opcode.size());
             break;
         }
         default:
@@ -321,10 +667,42 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             break;
     }
 
-    if (end_of_last_block < bytecode_size)
-        block_boundaries.append({ end_of_last_block, bytecode_size, "End"sv });
+    Vector<size_t> sorted_starts;
+    for (auto start : block_starts)
+        sorted_starts.append(start);
+    quick_sort(sorted_starts);
 
-    quick_sort(block_boundaries, [](auto& a, auto& b) { return a.start < b.start; });
+    for (size_t i = 0; i < sorted_starts.size(); ++i) {
+        size_t start = sorted_starts[i];
+        size_t end;
+
+        if (i + 1 < sorted_starts.size()) {
+            size_t next_block_start = sorted_starts[i + 1];
+
+            state.instruction_position = start;
+            size_t last_ip = start;
+            while (state.instruction_position < next_block_start) {
+                last_ip = state.instruction_position;
+                auto& opcode = bytecode.get_opcode(state);
+                state.instruction_position += opcode.size();
+            }
+            end = last_ip;
+        } else {
+            state.instruction_position = start;
+            size_t last_ip = start;
+            while (state.instruction_position < bytecode_size) {
+                last_ip = state.instruction_position;
+                auto& opcode = bytecode.get_opcode(state);
+                auto next_ip = state.instruction_position + opcode.size();
+                if (next_ip >= bytecode_size)
+                    break;
+                state.instruction_position = next_ip;
+            }
+            end = last_ip;
+        }
+
+        block_boundaries.append({ start, end, "Block"sv });
+    }
 
     return block_boundaries;
 }
@@ -410,7 +788,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             auto start = it.key();
             auto end = *it;
             for (u32 ch = start; ch <= end; ++ch) {
-                if (OpCode_Compare::matches_character_class(value, ch, false))
+                if (OpCode_Compare<ByteCode>::matches_character_class(value, ch, false))
                     return true;
             }
         }
@@ -676,7 +1054,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         switch (opcode.opcode_id()) {
         case OpCodeId::Compare: {
             has_seen_actionable_opcode = true;
-            auto compares = static_cast<OpCode_Compare const&>(opcode).flat_compares();
+            auto compares = to<OpCode_Compare>(opcode).flat_compares();
             if (repeated_values.is_empty() && any_of(compares, [](auto& compare) { return compare.type == CharacterCompareType::AnyChar; }))
                 return AtomicRewritePreconditionResult::NotSatisfied;
             repeated_values.append(move(compares));
@@ -696,6 +1074,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             return AtomicRewritePreconditionResult::NotSatisfied;
         case OpCodeId::ForkJump:
         case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::JumpNonEmpty:
             // We could attempt to recursively resolve the follow set, but pretending that this just goes nowhere is faster.
             if (!has_seen_actionable_opcode)
@@ -703,7 +1082,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             break;
         case OpCodeId::Jump: {
             // Just follow the jump, it's unconditional.
-            auto& jump = static_cast<OpCode_Jump const&>(opcode);
+            auto& jump = to<OpCode_Jump>(opcode);
             auto jump_target = state.instruction_position + jump.offset() + jump.size();
             // Find the block that this jump leads to.
             auto next_block_it = find_if(all_blocks.begin(), all_blocks.end(), [jump_target](auto& block) { return block.start == jump_target; });
@@ -731,7 +1110,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         switch (opcode.opcode_id()) {
         case OpCodeId::Jump: {
             // Just follow the jump, it's unconditional.
-            auto& jump = static_cast<OpCode_Jump const&>(opcode);
+            auto& jump = to<OpCode_Jump>(opcode);
             auto jump_target = state.instruction_position + jump.offset() + jump.size();
             if (jump_target < state.instruction_position) {
                 dbgln_if(REGEX_DEBUG, "Jump to {} is backwards, I'm scared of loops", jump_target);
@@ -747,6 +1126,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             continue;
         }
         case OpCodeId::ForkJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::ForkReplaceJump:
         case OpCodeId::JumpNonEmpty:
             return AtomicRewritePreconditionResult::NotSatisfied;
@@ -768,7 +1148,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         case OpCodeId::Compare: {
             following_block_has_at_least_one_compare = true;
             // We found a compare, let's see what it has.
-            auto compares = static_cast<OpCode_Compare const&>(opcode).flat_compares();
+            auto compares = to<OpCode_Compare>(opcode).flat_compares();
             if (compares.is_empty())
                 break;
 
@@ -789,6 +1169,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             // FIXME: What should we do with these? For now, consider them a failure.
             return AtomicRewritePreconditionResult::NotSatisfied;
         case OpCodeId::ForkJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::ForkReplaceJump:
         case OpCodeId::JumpNonEmpty:
             // See note in the previous switch, same cases.
@@ -809,6 +1190,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
     case OpCodeId::JumpNonEmpty:
     case OpCodeId::ForkJump:
     case OpCodeId::ForkReplaceJump:
+    case OpCodeId::ForkIf:
         break;
     default:
         return AtomicRewritePreconditionResult::NotSatisfied;
@@ -827,30 +1209,26 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
         return false;
 
     if (basic_blocks.is_empty()) {
-        parser_result.optimization_data.pure_substring_search = ""sv;
+        parser_result.optimization_data.pure_substring_search.emplace();
         return true; // Empty regex, sure.
     }
 
-    auto& bytecode = parser_result.bytecode;
-
-    auto is_unicode = parser_result.options.has_flag_set(AllFlags::Unicode) || parser_result.options.has_flag_set(AllFlags::UnicodeSets);
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
 
     // We have a single basic block, let's see if it's a series of character or string compares.
-    StringBuilder final_string;
+    Vector<u16> u16_units;
     auto state = MatchState::only_for_enumeration();
     while (state.instruction_position < bytecode.size()) {
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::Compare: {
-            auto& compare = static_cast<OpCode_Compare const&>(opcode);
+            auto& compare = to<OpCode_Compare>(opcode);
+            if (compare.arguments_count() == 0)
+                return false; // This matches 'nothing', so we can't do a substring search.
             for (auto& flat_compare : compare.flat_compares()) {
                 if (flat_compare.type != CharacterCompareType::Char)
                     return false;
-
-                if (is_unicode || flat_compare.value <= 0x7f)
-                    final_string.append_code_point(flat_compare.value);
-                else
-                    final_string.append(bit_cast<char>(static_cast<u8>(flat_compare.value)));
+                (void)AK::UnicodeUtils::code_point_to_utf16(flat_compare.value, [&](auto code_unit) { u16_units.append(code_unit); });
             }
             break;
         }
@@ -860,133 +1238,52 @@ bool Regex<Parser>::attempt_rewrite_entire_match_as_substring_search(BasicBlockL
         state.instruction_position += opcode.size();
     }
 
-    parser_result.optimization_data.pure_substring_search = final_string.to_byte_string();
+    parser_result.optimization_data.pure_substring_search.emplace(move(u16_units));
     return true;
 }
 
 template<class Parser>
 void Regex<Parser>::rewrite_with_useless_jumps_removed()
 {
-    auto& bytecode = parser_result.bytecode;
-    auto flat = bytecode.flat_data();
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
 
     if constexpr (REGEX_DEBUG) {
-        RegexDebug dbg;
+        RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
     }
 
-    struct Instr {
-        size_t old_ip;
-        size_t size;
-        OpCodeId id;
-        bool is_useless;
-    };
-    Vector<Instr> infos;
-    infos.ensure_capacity(flat.size() / 2);
+    BytecodeRewriter rewriter(bytecode);
 
-    MatchState state = MatchState::only_for_enumeration();
-    for (size_t old_ip = 0; old_ip < flat.size();) {
-        state.instruction_position = old_ip;
+    auto state = MatchState::only_for_enumeration();
+    for (auto& instr : rewriter.instructions) {
+        state.instruction_position = instr.old_ip;
         auto& op = bytecode.get_opcode(state);
-        auto sz = op.size();
 
         bool is_useless = false;
         if (op.opcode_id() == OpCodeId::Jump) {
-            auto const& j = static_cast<OpCode_Jump const&>(op);
-            if (j.offset() == 0)
-                is_useless = true;
+            is_useless = to<OpCode_Jump>(op).offset() == 0;
         } else if (op.opcode_id() == OpCodeId::JumpNonEmpty) {
-            auto const& j = static_cast<OpCode_JumpNonEmpty const&>(op);
-            if (j.offset() == 0)
-                is_useless = true;
+            is_useless = to<OpCode_JumpNonEmpty>(op).offset() == 0;
         } else if (op.opcode_id() == OpCodeId::ForkJump || op.opcode_id() == OpCodeId::ForkReplaceJump) {
-            auto const& j = static_cast<OpCode_ForkJump const&>(op);
-            if (j.offset() == 0)
-                is_useless = true;
+            is_useless = to<OpCode_ForkJump>(op).offset() == 0;
         } else if (op.opcode_id() == OpCodeId::ForkStay || op.opcode_id() == OpCodeId::ForkReplaceStay) {
-            auto const& j = static_cast<OpCode_ForkStay const&>(op);
-            if (j.offset() == 0)
-                is_useless = true;
+            is_useless = to<OpCode_ForkStay>(op).offset() == 0;
+        } else if (op.opcode_id() == OpCodeId::ForkIf) {
+            is_useless = to<OpCode_ForkIf>(op).offset() == 0;
         }
 
-        infos.append({ old_ip, sz, op.opcode_id(), is_useless });
-        old_ip += sz;
+        instr.skip = is_useless;
     }
 
-    HashMap<size_t, size_t> new_ip;
-    new_ip.ensure_capacity(infos.size() + 1);
-    size_t cur = 0;
-    size_t skipped = 0;
-    for (auto& i : infos) {
-        new_ip.set(i.old_ip, cur);
-        if (!i.is_useless)
-            cur += i.size;
-        else
-            skipped++;
-    }
-
-    new_ip.set(bytecode.size(), cur);
-    if constexpr (REGEX_DEBUG) {
-        for (auto& i : infos)
-            dbgln("old_ip: {}, new_ip: {}, size: {}, is_useless: {}", i.old_ip, *new_ip.get(i.old_ip), i.size, i.is_useless);
-        dbgln("Saving {} bytes (of {})", bytecode.size() - cur, bytecode.size());
-        dbgln("...and {} instructions", skipped);
-    }
-
-    ByteCode out;
-    out.ensure_capacity(cur);
-    out.merge_string_tables_from({ &bytecode, 1 });
-
-    for (auto& i : infos) {
-        if (i.is_useless)
-            continue;
-
-        auto slice = Vector<ByteCodeValueType> { flat.slice(i.old_ip, i.size) };
-        auto adjust = [&](size_t idx, bool is_repeat) {
-            // original target in the old stream
-            auto old_off = slice[idx];
-            auto target_old = is_repeat ? i.old_ip - old_off : i.old_ip + i.size + old_off;
-            if (!new_ip.contains(target_old)) {
-                dbgln("Target {} not found in new_ip (in {})", target_old, i.old_ip);
-                dbgln("Pattern: {}", pattern_value);
-                RegexDebug dbg;
-                dbg.print_bytecode(*this);
-            }
-            size_t tgt_new = *new_ip.get(target_old);
-            size_t src_new = *new_ip.get(i.old_ip);
-            auto new_off = is_repeat ? src_new - tgt_new : tgt_new - src_new - i.size;
-            slice[idx] = static_cast<ByteCodeValueType>(new_off);
-        };
-
-        switch (i.id) {
-        case OpCodeId::Jump:
-        case OpCodeId::ForkJump:
-        case OpCodeId::ForkStay:
-        case OpCodeId::ForkReplaceJump:
-        case OpCodeId::ForkReplaceStay:
-        case OpCodeId::JumpNonEmpty:
-            adjust(1, false);
-            break;
-        case OpCodeId::Repeat:
-            adjust(1, true);
-            break;
-        default:
-            break;
-        }
-
-        out.append(move(slice));
-    }
-
-    out.flatten();
-    parser_result.bytecode = move(out);
+    parser_result.bytecode = rewriter.rebuild(bytecode);
 }
 
 template<typename Parser>
 void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const& basic_blocks)
 {
-    auto& bytecode = parser_result.bytecode;
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
     if constexpr (REGEX_DEBUG) {
-        RegexDebug dbg;
+        RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
         for (auto const& block : basic_blocks)
             dbgln("block from {} to {} (comment: {})", block.start, block.end, block.comment);
@@ -1036,11 +1333,11 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
     Vector<CandidateBlock> candidate_blocks;
     auto state = MatchState::only_for_enumeration();
 
-    auto is_an_eligible_jump = [&state](OpCode& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
+    auto is_an_eligible_jump = [&state](auto& opcode, size_t ip, size_t block_start, AlternateForm alternate_form) {
         opcode.set_state(state);
         switch (opcode.opcode_id()) {
         case OpCodeId::JumpNonEmpty: {
-            auto const& op = static_cast<OpCode_JumpNonEmpty const&>(opcode);
+            auto const& op = to<OpCode_JumpNonEmpty>(opcode);
             auto form = op.form();
             if (form != OpCodeId::Jump && alternate_form == AlternateForm::DirectLoopWithHeader)
                 return false;
@@ -1051,17 +1348,17 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
         case OpCodeId::ForkJump:
             if (alternate_form == AlternateForm::DirectLoopWithHeader)
                 return false;
-            return static_cast<OpCode_ForkJump const&>(opcode).offset() + ip + opcode.size() == block_start;
+            return to<OpCode_ForkJump>(opcode).offset() + ip + opcode.size() == block_start;
         case OpCodeId::ForkStay:
             if (alternate_form == AlternateForm::DirectLoopWithHeader)
                 return false;
-            return static_cast<OpCode_ForkStay const&>(opcode).offset() + ip + opcode.size() == block_start;
+            return to<OpCode_ForkStay>(opcode).offset() + ip + opcode.size() == block_start;
         case OpCodeId::Jump:
             // Infinite loop does *not* produce forks.
             if (alternate_form == AlternateForm::DirectLoopWithoutHeader)
                 return false;
             if (alternate_form == AlternateForm::DirectLoopWithHeader)
-                return static_cast<OpCode_Jump const&>(opcode).offset() + ip + opcode.size() == block_start;
+                return to<OpCode_Jump>(opcode).offset() + ip + opcode.size() == block_start;
             VERIFY_NOT_REACHED();
         default:
             return false;
@@ -1205,20 +1502,23 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
 
             switch (opcode.opcode_id()) {
             case OpCodeId::Jump:
-                patch_points.push({ static_cast<OpCode_Jump const&>(opcode).offset(), state.instruction_position + 1 });
+                patch_points.push({ to<OpCode_Jump>(opcode).offset(), state.instruction_position + 1 });
                 break;
             case OpCodeId::JumpNonEmpty:
-                patch_points.push({ static_cast<OpCode_JumpNonEmpty const&>(opcode).offset(), state.instruction_position + 1 });
-                patch_points.push({ static_cast<OpCode_JumpNonEmpty const&>(opcode).checkpoint(), state.instruction_position + 2 });
+                patch_points.push({ to<OpCode_JumpNonEmpty>(opcode).offset(), state.instruction_position + 1 });
+                patch_points.push({ to<OpCode_JumpNonEmpty>(opcode).checkpoint(), state.instruction_position + 2 });
                 break;
             case OpCodeId::ForkJump:
-                patch_points.push({ static_cast<OpCode_ForkJump const&>(opcode).offset(), state.instruction_position + 1 });
+                patch_points.push({ to<OpCode_ForkJump>(opcode).offset(), state.instruction_position + 1 });
                 break;
             case OpCodeId::ForkStay:
-                patch_points.push({ static_cast<OpCode_ForkStay const&>(opcode).offset(), state.instruction_position + 1 });
+                patch_points.push({ to<OpCode_ForkStay>(opcode).offset(), state.instruction_position + 1 });
+                break;
+            case OpCodeId::ForkIf:
+                patch_points.push({ to<OpCode_ForkIf>(opcode).offset(), state.instruction_position + 1 });
                 break;
             case OpCodeId::Repeat:
-                patch_points.push({ -(ssize_t) static_cast<OpCode_Repeat const&>(opcode).offset(), state.instruction_position + 1, true });
+                patch_points.push({ -(ssize_t)to<OpCode_Repeat>(opcode).offset(), state.instruction_position + 1, true });
                 break;
             default:
                 break;
@@ -1252,7 +1552,452 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
 
     if constexpr (REGEX_DEBUG) {
         warnln("Transformed to:");
-        RegexDebug dbg;
+        RegexDebug<ByteCode> dbg;
+        dbg.print_bytecode(*this);
+    }
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlockList const& basic_blocks)
+{
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty())
+        return;
+
+    // Find sequences of single-character compares
+    struct StringSequence {
+        size_t start_ip;
+        size_t end_ip;
+        Vector<u32> characters;
+    };
+    Vector<StringSequence> sequences;
+
+    for (auto const& block : basic_blocks) {
+        auto state = MatchState::only_for_enumeration();
+        Vector<u32> current_chars;
+        size_t sequence_start = 0;
+        bool in_sequence = false;
+
+        for (state.instruction_position = block.start; state.instruction_position <= block.end;) {
+            auto current_ip = state.instruction_position;
+            auto& opcode = bytecode.get_opcode(state);
+
+            bool is_single_char = false;
+            u32 character = 0;
+
+            if (opcode.opcode_id() == OpCodeId::Compare) {
+                auto& compare = to<OpCode_Compare>(opcode);
+                auto flat_compares = compare.flat_compares();
+
+                if (flat_compares.size() == 1
+                    && flat_compares[0].type == CharacterCompareType::Char) {
+                    is_single_char = true;
+                    character = flat_compares[0].value;
+                }
+            }
+
+            if (is_single_char) {
+                if (!in_sequence) {
+                    sequence_start = current_ip;
+                    current_chars.clear();
+                    in_sequence = true;
+                }
+                current_chars.append(character);
+            } else {
+                if (in_sequence && current_chars.size() >= 2) {
+                    sequences.append({ sequence_start, current_ip, move(current_chars) });
+                    current_chars.clear();
+                }
+                in_sequence = false;
+            }
+
+            state.instruction_position += opcode.size();
+        }
+
+        if (in_sequence && current_chars.size() >= 2) {
+            sequences.append({ sequence_start, state.instruction_position, move(current_chars) });
+        }
+    }
+
+    if (sequences.is_empty())
+        return;
+
+    BytecodeRewriter rewriter(bytecode);
+    Vector<ByteCode> replacements;
+    replacements.ensure_capacity(sequences.size());
+    for (auto const& seq : sequences) {
+        StringBuilder string_builder(StringBuilder::Mode::UTF16);
+        for (auto ch : seq.characters)
+            string_builder.append_code_point(ch);
+        ByteCode replacement;
+        replacement.insert_bytecode_compare_string(string_builder.to_utf16_string());
+        replacements.append(move(replacement));
+    }
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, sequences.span(), replacements.span());
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList const& basic_blocks)
+{
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty()) {
+        dbgln_if(REGEX_DEBUG, "No basic blocks, skipping /.*/ rewrite");
+        return;
+    }
+
+    // If a /.*/ sequence is followed by a compare C (with some non-matching ops {O} in between), we can rewrite:
+    //     bbN: {O0}                     (optional non-matching ops before the pattern)
+    //          ForkStay bbM
+    //          Checkpoint p
+    //          Compare AnyChar
+    //          JumpNonEmpty (back to ForkStay) p
+    //     bbM: {O1}                     (optional non-matching ops)
+    //          Compare C
+    // as
+    //     bbN: {O0}
+    //     bbR: RSeekTo C
+    //          ForkStay bbR
+    //     bbM: {O1}
+    //          Compare C
+    //
+    // Note: bbM is determined by the ForkStay's target, not necessarily the next sequential block
+    // Note: The pattern may span across multiple basic blocks
+
+    struct DotStarCandidate {
+        size_t fork_ip;
+        size_t checkpoint_ip;
+        size_t compare_ip;
+        size_t jump_ip;
+        size_t following_block_start;
+        u64 checkpoint_id;
+        u32 seek_code_point;
+    };
+    Vector<DotStarCandidate> candidates;
+
+    auto state = MatchState::only_for_enumeration();
+
+    for (size_t i = 0; i < basic_blocks.size(); ++i) {
+        auto const& block = basic_blocks[i];
+
+        state.instruction_position = block.start;
+
+        if (state.instruction_position > block.end)
+            continue;
+
+        // Skip non-matching ops at the start of the block
+        while (state.instruction_position <= block.end) {
+            auto& op = bytecode.get_opcode(state);
+
+            switch (op.opcode_id()) {
+            case OpCodeId::Checkpoint:
+            case OpCodeId::Save:
+            case OpCodeId::SaveLeftCaptureGroup:
+            case OpCodeId::SaveRightCaptureGroup:
+            case OpCodeId::SaveRightNamedCaptureGroup:
+            case OpCodeId::ClearCaptureGroup:
+                state.instruction_position += op.size();
+                continue;
+
+            default:
+                goto found_potential_fork;
+            }
+        }
+
+        {
+            if (state.instruction_position >= bytecode.size())
+                continue;
+
+            auto& op_at_boundary = bytecode.get_opcode(state);
+            if (op_at_boundary.opcode_id() != OpCodeId::ForkStay)
+                continue;
+        }
+
+    found_potential_fork:
+        // (1) ForkStay bbM
+        dbgln_if(REGEX_DEBUG, "Examining block {} from {} to {}", i, block.start, block.end);
+        auto& first_op = bytecode.get_opcode(state);
+        if (first_op.opcode_id() != OpCodeId::ForkStay) {
+            dbgln_if(REGEX_DEBUG, "  did not find ForkStay at {}", state.instruction_position);
+            continue;
+        }
+
+        auto fork_ip = state.instruction_position;
+        auto& fork_op = to<OpCode_ForkStay>(first_op);
+
+        // Find the actual following block by the fork target
+        auto fork_target = fork_ip + fork_op.size() + fork_op.offset();
+
+        size_t following_block_idx = 0;
+        bool found_following_block = false;
+        for (size_t j = 0; j < basic_blocks.size(); ++j) {
+            if (basic_blocks[j].start == fork_target) {
+                if (basic_blocks[j].start < basic_blocks[j].end) {
+                    following_block_idx = j;
+                    found_following_block = true;
+                    break;
+                }
+                continue;
+            }
+        }
+
+        if (!found_following_block) {
+            dbgln_if(REGEX_DEBUG, "  did not find non-empty following block for fork target {}", fork_target);
+            continue;
+        }
+
+        auto const& following_block = basic_blocks[following_block_idx];
+        dbgln_if(REGEX_DEBUG, "  Fork target {} is in block {} (from {} to {})", fork_target, following_block_idx, following_block.start, following_block.end);
+
+        state.instruction_position += first_op.size();
+
+        // (2) Checkpoint p
+        auto& second_op = bytecode.get_opcode(state);
+        if (second_op.opcode_id() != OpCodeId::Checkpoint) {
+            dbgln_if(REGEX_DEBUG, "  did not find Checkpoint at {} (found opcode {})", state.instruction_position, (int)second_op.opcode_id());
+            continue;
+        }
+
+        auto checkpoint_ip = state.instruction_position;
+        auto checkpoint_id = to<OpCode_Checkpoint>(second_op).id();
+
+        state.instruction_position += second_op.size();
+
+        // (3) Compare AnyChar
+        auto& third_op = bytecode.get_opcode(state);
+        if (third_op.opcode_id() != OpCodeId::Compare) {
+            dbgln_if(REGEX_DEBUG, "  did not find Compare at {} (found opcode {})", state.instruction_position, (int)third_op.opcode_id());
+            continue;
+        }
+
+        auto compare_ip = state.instruction_position;
+        auto& compare_op = to<OpCode_Compare>(third_op);
+        auto flat_compares = compare_op.flat_compares();
+
+        if (flat_compares.size() != 1 || flat_compares[0].type != CharacterCompareType::AnyChar) {
+            dbgln_if(REGEX_DEBUG, "  Compare at {} is not AnyChar", state.instruction_position);
+            continue;
+        }
+
+        state.instruction_position += third_op.size();
+
+        // (4) JumpNonEmpty back to ForkStay
+        auto& fourth_op = bytecode.get_opcode(state);
+        if (fourth_op.opcode_id() != OpCodeId::JumpNonEmpty) {
+            dbgln_if(REGEX_DEBUG, "  did not find JumpNonEmpty at {} (found opcode {})", state.instruction_position, (int)fourth_op.opcode_id());
+            continue;
+        }
+
+        auto jump_ip = state.instruction_position;
+        auto& jump_op = to<OpCode_JumpNonEmpty>(fourth_op);
+
+        if (jump_ip + jump_op.size() + jump_op.offset() != fork_ip) {
+            dbgln_if(REGEX_DEBUG, "  JumpNonEmpty at {} does not jump back to ForkStay at {} (instead jumps to {})",
+                state.instruction_position, fork_ip, jump_ip + jump_op.size() + jump_op.offset());
+            continue;
+        }
+        if ((size_t)jump_op.checkpoint() != checkpoint_id) {
+            dbgln_if(REGEX_DEBUG, "  JumpNonEmpty at {} does not reference Checkpoint id {} (instead references {})",
+                state.instruction_position, checkpoint_id, jump_op.checkpoint());
+            continue;
+        }
+
+        dbgln_if(REGEX_DEBUG, "  Found .* pattern from IP {} to {}", fork_ip, jump_ip + jump_op.size());
+
+        // The following block must contain a Compare C, with only non-matching ops in between
+        state.instruction_position = following_block.start;
+        while (state.instruction_position < following_block.end) {
+            auto& op = bytecode.get_opcode(state);
+
+            switch (op.opcode_id()) {
+            case OpCodeId::Checkpoint:
+            case OpCodeId::Save:
+            case OpCodeId::SaveLeftCaptureGroup:
+            case OpCodeId::SaveRightCaptureGroup:
+            case OpCodeId::SaveRightNamedCaptureGroup:
+            case OpCodeId::ClearCaptureGroup:
+                state.instruction_position += op.size();
+                continue;
+
+            case OpCodeId::Compare: {
+                auto& following_compare_op = to<OpCode_Compare>(op);
+                auto following_compares = following_compare_op.flat_compares();
+
+                StaticallyInterpretedCompares compares;
+                if (!interpret_compares(following_compares, compares, &bytecode, true)) {
+                    dbgln_if(REGEX_DEBUG, "  could not statically interpret compares at {} in following block", state.instruction_position);
+                    goto next_block;
+                }
+
+                // Must be able to pull a single code point from this compare (i.e. a single 1-long range, no negations, no char classes, and no unicode properties)
+                if (compares.ranges.size() != 1 || !compares.negated_ranges.is_empty()
+                    || !compares.char_classes.is_empty() || !compares.negated_char_classes.is_empty()
+                    || compares.has_any_unicode_property
+                    || !compares.unicode_general_categories.is_empty()
+                    || !compares.unicode_properties.is_empty()
+                    || !compares.unicode_scripts.is_empty()
+                    || !compares.unicode_script_extensions.is_empty()
+                    || !compares.negated_unicode_general_categories.is_empty()
+                    || !compares.negated_unicode_properties.is_empty()
+                    || !compares.negated_unicode_scripts.is_empty()
+                    || !compares.negated_unicode_script_extensions.is_empty()) {
+                    dbgln_if(REGEX_DEBUG, "  compares at {} in following block are too complex to rewrite as SeekTo", state.instruction_position);
+                    goto next_block;
+                }
+
+                auto it = compares.ranges.begin();
+                if (it.key() != *it) {
+                    // Not a single code point
+                    dbgln_if(REGEX_DEBUG, "  compares at {} in following block are a range, not a single code point ({}..{})", state.instruction_position, it.key(), *it);
+                    goto next_block;
+                }
+
+                auto seeked_code_point = it.key();
+
+                candidates.append({ fork_ip,
+                    checkpoint_ip,
+                    compare_ip,
+                    jump_ip,
+                    following_block.start,
+                    checkpoint_id,
+                    seeked_code_point });
+
+                dbgln_if(REGEX_DEBUG, "  Found sequence from {} to {} followed by Compare '{}' at {}, can rewrite as SeekTo",
+                    fork_ip, jump_ip + 4, (char)seeked_code_point, state.instruction_position);
+                goto next_block;
+            }
+
+            default:
+                dbgln_if(REGEX_DEBUG, "  Hit non-matching, non-skippable opcode {} at {} in following block", (int)op.opcode_id(), state.instruction_position);
+                goto next_block;
+            }
+        }
+
+    next_block:
+        continue;
+    }
+
+    dbgln_if(REGEX_DEBUG, "Found {} dot-star sequences to rewrite as SeekTo", candidates.size());
+
+    if (candidates.is_empty())
+        return;
+
+    BytecodeRewriter rewriter(bytecode);
+
+    struct Range {
+        size_t start_ip;
+        size_t end_ip;
+    };
+
+    Vector<Range> ranges_to_skip;
+    Vector<ByteCode> replacements;
+    ranges_to_skip.ensure_capacity(candidates.size());
+    replacements.ensure_capacity(candidates.size());
+
+    for (auto& candidate : candidates) {
+        ranges_to_skip.empend(candidate.fork_ip, candidate.jump_ip + 4); // JumpNonEmpty = 4
+        ByteCode replacement;
+        replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::RSeekTo));
+        replacement.empend(candidate.seek_code_point);
+        replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkStay));
+        replacement.empend(static_cast<ByteCodeValueType>(-4)); // Offset back to RSeekTo
+        replacements.append(move(replacement));
+    }
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, ranges_to_skip.span(), replacements.span());
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("After dot-star rewrite as SeekTo:");
+        RegexDebug<ByteCode> dbg;
+        dbg.print_bytecode(*this);
+    }
+}
+
+template<typename Parser>
+void Regex<Parser>::rewrite_simple_compares(BasicBlockList const& basic_blocks)
+{
+    // If a Compare opcode only has a single compare and that's a match opcode
+    // we can rewrite it as a CompareSimple to avoid the overhead of handling multiple compares:
+    //   Compare argc=1 args=S
+    //       Char 'a'
+    // -->
+    //   CompareSimple args=S
+    //       Char 'a'
+
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+
+    if (basic_blocks.is_empty())
+        return;
+
+    struct SimpleCompareCandidate {
+        size_t compare_ip;
+        Vector<ByteCodeValueType> compare_data;
+    };
+    Vector<SimpleCompareCandidate> candidates;
+
+    auto state = MatchState::only_for_enumeration();
+
+    for (auto const& block : basic_blocks) {
+        for (state.instruction_position = block.start; state.instruction_position <= block.end;) {
+            auto current_ip = state.instruction_position;
+            auto& opcode = bytecode.get_opcode(state);
+
+            if (opcode.opcode_id() == OpCodeId::Compare) {
+                auto& compare = to<OpCode_Compare>(opcode);
+                auto flat_compares = compare.flat_compares();
+
+                if (flat_compares.size() == 1 && !first_is_one_of(flat_compares[0].type, CharacterCompareType::And, CharacterCompareType::Or, CharacterCompareType::Inverse, CharacterCompareType::TemporaryInverse, CharacterCompareType::Subtract, CharacterCompareType::Undefined)) {
+                    auto slice = bytecode.spans().slice(current_ip + 2, opcode.size() - 2);
+                    Vector<ByteCodeValueType> data;
+                    data.ensure_capacity(slice.size());
+                    for (auto value : slice)
+                        data.append(value);
+                    candidates.append({ current_ip, move(data) }); // +2 to skip opcode id and argc
+                }
+            }
+
+            state.instruction_position += opcode.size();
+        }
+    }
+
+    if (candidates.is_empty())
+        return;
+
+    dbgln_if(REGEX_DEBUG, "Found {} simple compare candidates to rewrite", candidates.size());
+
+    BytecodeRewriter rewriter(bytecode);
+
+    for (auto& candidate : candidates) {
+        auto& instr = *rewriter.instructions.find_if([&](auto& i) { return i.old_ip == candidate.compare_ip; });
+        instr.skip = true;
+    }
+
+    size_t candidate_index = 0;
+    auto insert_replacement = [&](auto const& instr, ByteCode& result) {
+        while (candidate_index < candidates.size()) {
+            auto& candidate = candidates[candidate_index];
+
+            if (instr.old_ip == candidate.compare_ip) {
+                result.empend(static_cast<ByteCodeValueType>(OpCodeId::CompareSimple));
+                result.extend(move(candidate.compare_data));
+                candidate_index++;
+                return;
+            }
+
+            if (instr.old_ip < candidate.compare_ip)
+                return;
+
+            candidate_index++;
+        }
+    };
+
+    parser_result.bytecode = rewriter.rebuild(bytecode, move(insert_replacement));
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("After simple compare rewrite:");
+        RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
     }
 }
@@ -1346,7 +2091,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 #if REGEX_DEBUG
     ScopeLogger<true> log;
     warnln("Alternations:");
-    RegexDebug dbg;
+    RegexDebug<ByteCode> dbg;
     for (auto& entry : alternatives) {
         warnln("----------");
         dbg.print_bytecode(entry);
@@ -1354,7 +2099,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
     ScopeGuard print_at_end {
         [&] {
             warnln("======================");
-            RegexDebug dbg;
+            RegexDebug<ByteCode> dbg;
             dbg.print_bytecode(target);
         }
     };
@@ -1391,43 +2136,49 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
             switch (opcode.opcode_id()) {
             case OpCodeId::Jump: {
-                auto const& cast_opcode = static_cast<OpCode_Jump const&>(opcode);
+                auto const& cast_opcode = to<OpCode_Jump>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::JumpNonEmpty: {
-                auto const& cast_opcode = static_cast<OpCode_JumpNonEmpty const&>(opcode);
+                auto const& cast_opcode = to<OpCode_JumpNonEmpty>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::ForkJump: {
-                auto const& cast_opcode = static_cast<OpCode_ForkJump const&>(opcode);
+                auto const& cast_opcode = to<OpCode_ForkJump>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::ForkStay: {
-                auto const& cast_opcode = static_cast<OpCode_ForkStay const&>(opcode);
+                auto const& cast_opcode = to<OpCode_ForkStay>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::ForkReplaceJump: {
-                auto const& cast_opcode = static_cast<OpCode_ForkReplaceJump const&>(opcode);
+                auto const& cast_opcode = to<OpCode_ForkReplaceJump>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::ForkReplaceStay: {
-                auto const& cast_opcode = static_cast<OpCode_ForkReplaceStay const&>(opcode);
+                auto const& cast_opcode = to<OpCode_ForkReplaceStay>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
+                break;
+            }
+            case OpCodeId::ForkIf: {
+                auto const& cast_opcode = to<OpCode_ForkIf>(opcode);
                 incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
             case OpCodeId::Repeat: {
-                auto const& cast_opcode = static_cast<OpCode_Repeat const&>(opcode);
+                auto const& cast_opcode = to<OpCode_Repeat>(opcode);
                 incoming_jump_edges.ensure(state.instruction_position - cast_opcode.offset()).append({ opcode_bytes });
                 has_any_backwards_jump = true;
                 break;
@@ -1492,7 +2243,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 if (opcode_id != OpCodeId::Compare)
                     return;
 
-                auto flat_compares = static_cast<OpCode_Compare const&>(*opcode).flat_compares();
+                auto flat_compares = to<OpCode_Compare>(*opcode).flat_compares();
                 interpret_compares(flat_compares, compares);
             };
 
@@ -1580,33 +2331,45 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     if (common_hits == 0 || tree_cost > chain_cost) {
         // It's better to lay these out as a normal sequence of instructions.
-        auto patch_start = target.size();
+        // We can avoid trying alternatives that we know cannot match in certain cases:
+        // - If the alternative starts with an assertion, we can lift the assertion to the fork op itself (currently only ^).
+        Vector<ForkIfCondition> fork_conditions;
+        fork_conditions.resize_with_default_value(alternatives.size(), ForkIfCondition::Invalid);
+
+        for (size_t i = 0; i < alternatives.size(); ++i) {
+            auto& alternative = alternatives[i];
+            auto state = MatchState::only_for_enumeration();
+            state.instruction_position = 0;
+            auto& first_opcode = alternative.get_opcode(state);
+            if (first_opcode.opcode_id() == OpCodeId::CheckBegin)
+                fork_conditions[i] = ForkIfCondition::AtStartOfLine;
+        }
+
+        Vector<size_t> jump_op_positions;
+        Vector<size_t> jump_sizes;
+        jump_op_positions.resize(alternatives.size() - 1);
+        jump_sizes.resize(alternatives.size() - 1);
+
         for (size_t i = 1; i < alternatives.size(); ++i) {
-            target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
-            target.empend(0u); // To be filled later.
-        }
-
-        size_t size_to_jump = 0;
-        bool seen_one_empty = false;
-        for (size_t i = alternatives.size(); i > 0; --i) {
-            auto& entry = alternatives[i - 1];
-            if (entry.is_empty()) {
-                if (seen_one_empty)
-                    continue;
-                seen_one_empty = true;
+            jump_op_positions[i - 1] = target.size();
+            if (fork_conditions[i - 1] != ForkIfCondition::Invalid) {
+                jump_sizes[i - 1] = 4;
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkIf));
+                target.empend(0u); // To be filled later.
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                target.empend(static_cast<ByteCodeValueType>(fork_conditions[i - 1]));
+            } else {
+                jump_sizes[i - 1] = 2;
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                target.empend(0u); // To be filled later.
             }
-
-            auto is_first = i == 1;
-            auto instruction_size = entry.size() + (is_first ? 0 : 2); // Jump; -> +2
-            size_to_jump += instruction_size;
-
-            if (!is_first)
-                target[patch_start + (i - 2) * 2 + 1] = size_to_jump + (alternatives.size() - i) * 2;
-
-            dbgln_if(REGEX_DEBUG, "{} size = {}, cum={}", i - 1, instruction_size, size_to_jump);
         }
 
-        seen_one_empty = false;
+        bool seen_one_empty = false;
+
+        Vector<size_t> jump_to_end_patch_positions;
+        jump_to_end_patch_positions.resize_with_default_value(alternatives.size(), NumericLimits<size_t>::max());
+
         for (size_t i = alternatives.size(); i > 0; --i) {
             auto& chunk = alternatives[i - 1];
             if (chunk.is_empty()) {
@@ -1615,25 +2378,23 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 seen_one_empty = true;
             }
 
-            ByteCode* previous_chunk = nullptr;
-            size_t j = i - 1;
-            auto seen_one_empty_before = chunk.is_empty();
-            while (j >= 1) {
-                --j;
-                auto& candidate_chunk = alternatives[j];
-                if (candidate_chunk.is_empty()) {
-                    if (seen_one_empty_before)
-                        continue;
-                }
-                previous_chunk = &candidate_chunk;
-                break;
+            if (i < alternatives.size()) {
+                auto this_block_start = target.size();
+                auto position = jump_op_positions[i - 1];
+                auto jump_size = jump_sizes[i - 1];
+                target[position + 1] = static_cast<ByteCodeValueType>(this_block_start - position - jump_size);
             }
-
-            size_to_jump -= chunk.size() + (previous_chunk ? 2 : 0);
 
             target.extend(move(chunk));
             target.empend(static_cast<ByteCodeValueType>(OpCodeId::Jump));
-            target.empend(size_to_jump); // Jump to the _END label
+            target.empend(0u); // Jump to the _END label
+            jump_to_end_patch_positions[i - 1] = target.size() - 1;
+        }
+
+        auto end_position = target.size();
+        for (size_t i = 0; i < alternatives.size(); ++i) {
+            if (auto& position = jump_to_end_patch_positions[i]; position != NumericLimits<size_t>::max())
+                target[position] = static_cast<ByteCodeValueType>(end_position - (position + 1));
         }
     } else {
         target.ensure_capacity(total_bytecode_entries_in_tree + common_hits * 6);
@@ -1708,25 +2469,28 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
                 switch (opcode.opcode_id()) {
                 case OpCodeId::Jump:
-                    jump_offset = static_cast<OpCode_Jump const&>(opcode).offset();
+                    jump_offset = to<OpCode_Jump>(opcode).offset();
                     break;
                 case OpCodeId::JumpNonEmpty:
-                    jump_offset = static_cast<OpCode_JumpNonEmpty const&>(opcode).offset();
+                    jump_offset = to<OpCode_JumpNonEmpty>(opcode).offset();
                     break;
                 case OpCodeId::ForkJump:
-                    jump_offset = static_cast<OpCode_ForkJump const&>(opcode).offset();
+                    jump_offset = to<OpCode_ForkJump>(opcode).offset();
                     break;
                 case OpCodeId::ForkStay:
-                    jump_offset = static_cast<OpCode_ForkStay const&>(opcode).offset();
+                    jump_offset = to<OpCode_ForkStay>(opcode).offset();
                     break;
                 case OpCodeId::ForkReplaceJump:
-                    jump_offset = static_cast<OpCode_ForkReplaceJump const&>(opcode).offset();
+                    jump_offset = to<OpCode_ForkReplaceJump>(opcode).offset();
                     break;
                 case OpCodeId::ForkReplaceStay:
-                    jump_offset = static_cast<OpCode_ForkReplaceStay const&>(opcode).offset();
+                    jump_offset = to<OpCode_ForkReplaceStay>(opcode).offset();
+                    break;
+                case OpCodeId::ForkIf:
+                    jump_offset = to<OpCode_ForkIf>(opcode).offset();
                     break;
                 case OpCodeId::Repeat:
-                    jump_offset = static_cast<ssize_t>(0) - static_cast<ssize_t>(static_cast<OpCode_Repeat const&>(opcode).offset()) - static_cast<ssize_t>(opcode.size());
+                    jump_offset = static_cast<ssize_t>(0) - static_cast<ssize_t>(to<OpCode_Repeat>(opcode).offset()) - static_cast<ssize_t>(opcode.size());
                     should_negate = true;
                     break;
                 default:
@@ -1758,7 +2522,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                             auto& ip_mapping = ip_mapping_for_alternative(alternative_index);
                             auto target_ip = ip_mapping.find(intended_jump_ip);
                             if (!target_ip) {
-                                RegexDebug dbg;
+                                RegexDebug<ByteCode> dbg;
                                 size_t x = 0;
                                 for (auto& entry : alternatives) {
                                     warnln("----------- {} ----------", x++);

@@ -53,17 +53,17 @@ struct NamedCaptureGroup {
 class REGEX_API Parser {
 public:
     struct Result {
-        ByteCode bytecode;
-        size_t capture_groups_count;
-        size_t named_capture_groups_count;
-        size_t match_length_minimum;
-        Error error;
-        Token error_token;
-        Vector<FlyString> capture_groups;
-        AllOptions options;
+        Variant<ByteCode, FlatByteCode> bytecode;
+        size_t capture_groups_count { 0 };
+        size_t named_capture_groups_count { 0 };
+        size_t match_length_minimum { 0 };
+        Error error { Error::NoError };
+        Token error_token {};
+        Vector<FlyString> capture_groups {};
+        AllOptions options {};
 
         struct {
-            Optional<ByteString> pure_substring_search;
+            Optional<Vector<u16>> pure_substring_search;
             // If populated, the pattern only accepts strings that start with a character in these ranges.
             Vector<CharRange> starting_ranges;
             Vector<CharRange> starting_ranges_insensitive;

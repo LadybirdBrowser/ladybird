@@ -19,7 +19,7 @@
 namespace regex {
 
 #if REGEX_DEBUG
-static RegexDebug s_regex_dbg(stderr);
+static RegexDebug<FlatByteCode> s_regex_dbg(stderr);
 #endif
 
 template<class Parser>
@@ -52,12 +52,12 @@ static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 template<class Parser>
 static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Parser> const& key)
 {
-    auto bytecode_size = result.bytecode.size() * sizeof(ByteCodeValueType);
+    auto bytecode_size = result.bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
     if (bytecode_size > MaxRegexCachedBytecodeSize)
         return;
 
     while (bytecode_size + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
-        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.size() * sizeof(ByteCodeValueType);
+        s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.visit([](auto& bytecode) { return bytecode.size() * sizeof(ByteCodeValueType); });
 
     s_parser_cache<Parser>.set(key, result);
     s_cached_bytecode_size<Parser> += bytecode_size;
@@ -66,6 +66,7 @@ static void cache_parse_result(regex::Parser::Result const& result, CacheKey<Par
 template<class Parser>
 Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
+    , parser_result(ByteCode {})
 {
     if (auto cache_entry = s_parser_cache<Parser>.get({ pattern_value, regex_options }); cache_entry.has_value()) {
         parser_result = cache_entry.value();
@@ -74,7 +75,7 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
 
         Parser parser(lexer, regex_options);
         parser_result = parser.parse();
-        parser_result.bytecode.flatten();
+        parser_result.bytecode.template get<ByteCode>().flatten();
 
         run_optimization_passes();
 
@@ -91,7 +92,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
-    parser_result.bytecode.flatten();
+    parser_result.bytecode.template get<ByteCode>().flatten();
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
         matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parser_result.options.value()));
@@ -179,6 +180,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     MatchState state { m_pattern->parser_result.capture_groups_count };
     size_t operations = 0;
 
+    input.pattern = m_pattern->pattern_value;
+
     input.regex_options = m_regex_options | regex_options.value_or({}).value();
     input.start_offset = m_pattern->start_offset;
     size_t lines_to_skip = 0;
@@ -240,6 +243,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
     };
 
     for (auto const& view : views) {
+        input.in_the_middle_of_a_line = false;
         if (lines_to_skip != 0) {
             ++input.line;
             --lines_to_skip;
@@ -273,9 +277,9 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            auto success = execute(input, state, temp_operations);
+            auto result = execute(input, state, temp_operations);
             // This success is acceptable only if it doesn't read anything from the input (input length is 0).
-            if (success && (state.string_position <= view_index)) {
+            if (result == ExecuteResult::Matched && (state.string_position <= view_index)) {
                 operations = temp_operations;
                 if (!match_count) {
                     // Nothing was *actually* matched, so append an empty match.
@@ -290,7 +294,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             }
         }
 
-        for (; view_index <= view_length; ++view_index) {
+        for (; view_index <= view_length; ++view_index, input.in_the_middle_of_a_line = true) {
             if (view_index == view_length) {
                 if (input.regex_options.has_flag_set(AllFlags::Multiline))
                     break;
@@ -333,7 +337,7 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
-            if (execute(input, state, operations)) {
+            if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;
 
                 if (input.regex_options.has_flag_set(AllFlags::MatchNotEndOfLine) && state.string_position == input.view.length()) {
@@ -370,6 +374,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
                 }
 
                 append_match(input, state, view_index);
+                break;
+            } else if (result == ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView) {
                 break;
             }
 
@@ -509,15 +515,56 @@ struct SufficientlyUniformValueTraits : DefaultTraits<u64> {
 };
 
 template<class Parser>
-bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
+Matcher<Parser>::ExecuteResult Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t& operations) const
 {
+    if (m_pattern->parser_result.optimization_data.pure_substring_search.has_value() && input.view.is_u16_view()) {
+        // Yay, we can do a simple substring search!
+        auto is_insensitive = input.regex_options.has_flag_set(AllFlags::Insensitive);
+        auto is_unicode = input.view.unicode() || input.regex_options.has_flag_set(AllFlags::Unicode) || input.regex_options.has_flag_set(AllFlags::UnicodeSets);
+        // Utf16View::equals_ignoring_case can't handle unicode case folding, so we can only use it for ASCII case insensitivity.
+        if (!(is_insensitive && is_unicode)) {
+            auto input_view = input.view.u16_view();
+            Span<u16 const> needle = m_pattern->parser_result.optimization_data.pure_substring_search->span();
+            Utf16View needle_view { bit_cast<char16_t const*>(needle.data()), needle.size() };
+
+            if (is_unicode) {
+                if (needle_view.length_in_code_points() + state.string_position > input_view.length_in_code_points())
+                    return ExecuteResult::DidNotMatch;
+            } else {
+                if (needle_view.length_in_code_units() + state.string_position_in_code_units > input_view.length_in_code_units())
+                    return ExecuteResult::DidNotMatch;
+            }
+
+            Utf16View haystack;
+            if (is_unicode)
+                haystack = input_view.unicode_substring_view(state.string_position, needle_view.length_in_code_points());
+            else
+                haystack = input_view.substring_view(state.string_position_in_code_units, needle_view.length_in_code_units());
+
+            if (is_insensitive) {
+                if (!haystack.equals_ignoring_ascii_case(needle_view))
+                    return ExecuteResult::DidNotMatch;
+            } else {
+                if (haystack != needle_view)
+                    return ExecuteResult::DidNotMatch;
+            }
+
+            if (input.view.unicode())
+                state.string_position += haystack.length_in_code_points();
+            else
+                state.string_position += haystack.length_in_code_units();
+            state.string_position_in_code_units += haystack.length_in_code_units();
+            return ExecuteResult::Matched;
+        }
+    }
+
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
     HashTable<u64, SufficientlyUniformValueTraits> seen_state_hashes;
 #if REGEX_DEBUG
     size_t recursion_level = 0;
 #endif
 
-    auto& bytecode = m_pattern->parser_result.bytecode;
+    auto& bytecode = m_pattern->parser_result.bytecode.template get<FlatByteCode>();
 
     for (;;) {
         auto& opcode = bytecode.get_opcode(state);
@@ -562,6 +609,8 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
                 states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
                 states_to_try_next.last().instruction_position = state.fork_at_position;
             }
+            state.string_position_before_rseek = NumericLimits<size_t>::max();
+            state.string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
             continue;
         }
         case ExecutionResult::Fork_PrioHigh: {
@@ -580,6 +629,8 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             if (!found) {
                 states_to_try_next.append(state);
                 states_to_try_next.last().initiating_fork = state.instruction_position - opcode_size;
+                states_to_try_next.last().string_position_before_rseek = NumericLimits<size_t>::max();
+                states_to_try_next.last().string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
             }
             state.instruction_position = state.fork_at_position;
 #if REGEX_DEBUG
@@ -590,7 +641,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
         case ExecutionResult::Continue:
             continue;
         case ExecutionResult::Succeeded:
-            return true;
+            return ExecuteResult::Matched;
         case ExecutionResult::Failed: {
             bool found = false;
             while (!states_to_try_next.is_empty()) {
@@ -604,7 +655,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             }
             if (found)
                 continue;
-            return false;
+            return ExecuteResult::DidNotMatch;
         }
         case ExecutionResult::Failed_ExecuteLowPrioForks: {
             bool found = false;
@@ -618,7 +669,25 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
                 break;
             }
             if (!found)
-                return false;
+                return ExecuteResult::DidNotMatch;
+#if REGEX_DEBUG
+            ++recursion_level;
+#endif
+            continue;
+        }
+        case ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches: {
+            bool found = false;
+            while (!states_to_try_next.is_empty()) {
+                state = states_to_try_next.take_last();
+                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
+                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
+                    continue;
+                }
+                found = true;
+                break;
+            }
+            if (!found)
+                return ExecuteResult::DidNotMatchAndNoFurtherPossibleMatchesInView;
 #if REGEX_DEBUG
             ++recursion_level;
 #endif
