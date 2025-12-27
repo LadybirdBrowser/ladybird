@@ -774,11 +774,13 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset.value());
 }
 
-static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block::Lacing lacing, size_t content_size)
+DecoderErrorOr<Vector<ByteBuffer>> Reader::get_frames(Block block)
 {
+    Streamer streamer { m_stream_cursor };
+    TRY(streamer.seek_to_position(block.data_position()));
     Vector<ByteBuffer> frames;
 
-    if (lacing == Block::Lacing::EBML) {
+    if (block.lacing() == Block::Lacing::EBML) {
         auto octets_read_before_frame_sizes = streamer.octets_read();
         auto frame_count = TRY(streamer.read_octet()) + 1;
         Vector<u64> frame_sizes;
@@ -803,19 +805,19 @@ static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block
             frame_size_sum += frame_size;
             previous_frame_size = frame_size;
         }
-        frame_sizes.append(content_size - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
+        frame_sizes.append(block.data_size() - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
 
         for (int i = 0; i < frame_count; i++) {
             // FIXME: ReadonlyBytes instead of copying the frame data?
             auto current_frame_size = frame_sizes.at(i);
             frames.append(TRY(streamer.read_raw_octets(current_frame_size)));
         }
-    } else if (lacing == Block::Lacing::FixedSize) {
+    } else if (block.lacing() == Block::Lacing::FixedSize) {
         auto frame_count = TRY(streamer.read_octet()) + 1;
-        auto individual_frame_size = content_size / frame_count;
+        auto individual_frame_size = block.data_size() / frame_count;
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY(streamer.read_raw_octets(individual_frame_size)));
-    } else if (lacing == Block::Lacing::XIPH) {
+    } else if (block.lacing() == Block::Lacing::XIPH) {
         auto frames_start_position = streamer.octets_read();
 
         auto frame_count_minus_one = TRY(streamer.read_octet());
@@ -836,9 +838,9 @@ static DecoderErrorOr<Vector<ByteBuffer>> parse_frames(Streamer& streamer, Block
 
         for (auto i = 0; i < frame_count_minus_one; i++)
             frames.append(TRY(streamer.read_raw_octets(frame_sizes[i])));
-        frames.append(TRY(streamer.read_raw_octets(content_size - (streamer.octets_read() - frames_start_position))));
+        frames.append(TRY(streamer.read_raw_octets(block.data_size() - (streamer.octets_read() - frames_start_position))));
     } else {
-        frames.append(TRY(streamer.read_raw_octets(content_size)));
+        frames.append(TRY(streamer.read_raw_octets(block.data_size())));
     }
 
     return frames;
@@ -856,8 +858,8 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     set_block_duration_to_default(block, track);
 
     auto content_size = TRY(streamer.read_variable_size_integer());
+    auto content_end = streamer.position() + content_size;
 
-    auto position_before_track_number = streamer.position();
     block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
     auto timestamp_offset = TRY(streamer.read_i16());
@@ -869,8 +871,10 @@ static DecoderErrorOr<Block> parse_simple_block(Streamer& streamer, AK::Duration
     block.set_lacing(static_cast<Block::Lacing>((flags & 0b110u) >> 1u));
     block.set_discardable((flags & 1u) != 0);
 
-    auto remaining_size = content_size - (streamer.position() - position_before_track_number);
-    block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+    auto data_position = streamer.position();
+    auto data_size = content_end - data_position;
+    block.set_data(data_position, data_size);
+    TRY(streamer.seek_to_position(content_end));
     return block;
 }
 
@@ -887,8 +891,8 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
                 return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Block group contained multiple blocks"sv);
 
             auto content_size = TRY(streamer.read_variable_size_integer());
+            auto content_end = streamer.position() + content_size;
 
-            auto position_before_track_number = streamer.position();
             block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
             auto timestamp_offset = TRY(streamer.read_i16());
@@ -898,8 +902,10 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
             block.set_invisible((flags & (1u << 3)) != 0);
             block.set_lacing(static_cast<Block::Lacing>((flags & 0b110) >> 1u));
 
-            auto remaining_size = content_size - (streamer.position() - position_before_track_number);
-            block.set_frames(TRY(parse_frames(streamer, block.lacing(), remaining_size)));
+            auto data_position = streamer.position();
+            auto data_size = content_end - data_position;
+            block.set_data(data_position, data_size);
+            TRY(streamer.seek_to_position(content_end));
             break;
         }
         case BLOCK_DURATION_ID: {
@@ -1035,11 +1041,9 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
             // FIXME: Verify that these are already in order of timestamp. If they are not, return a corrupted error for now,
             //        but if it turns out that Matroska files with out-of-order cue points are valid, sort them instead.
 
-            for (auto track_position_entry : cue_point.track_positions()) {
-                if (!m_cues.contains(track_position_entry.key))
-                    DECODER_TRY_ALLOC(m_cues.try_set(track_position_entry.key, Vector<CuePoint>()));
-                Vector<CuePoint>& cue_points_for_track = m_cues.get(track_position_entry.key).release_value();
-                cue_points_for_track.append(cue_point);
+            for (auto const& [track_id, track_position] : cue_point.track_positions()) {
+                auto& cue_points_for_track = m_cues.ensure(track_id);
+                cue_points_for_track.append({ cue_point.timestamp(), track_position });
             }
             break;
         }
@@ -1067,42 +1071,40 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
     return {};
 }
 
-DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp)
+DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp, Vector<TrackCuePoint> const& cue_points, CuePointTarget target)
 {
-    auto const& cue_points = MUST(cue_points_for_track(iterator.m_track->track_number())).release_value();
-
     // Take a guess at where in the cues the timestamp will be and correct from there.
     auto duration = TRY(segment_information()).duration();
     size_t index = 0;
     if (duration.has_value())
         index = clamp(((timestamp.to_nanoseconds() * cue_points.size()) / TRY(segment_information()).duration()->to_nanoseconds()), 0, cue_points.size() - 1);
 
-    CuePoint const* prev_cue_point = &cue_points[index];
-    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp().to_milliseconds());
+    auto const* prev_cue_point = &cue_points[index];
+    dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp.to_milliseconds());
 
-    if (prev_cue_point->timestamp() == timestamp) {
-        TRY(iterator.seek_to_cue_point(*prev_cue_point));
+    if (prev_cue_point->timestamp == timestamp) {
+        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
         return {};
     }
 
-    if (prev_cue_point->timestamp() > timestamp) {
-        while (index > 0 && prev_cue_point->timestamp() > timestamp) {
+    if (prev_cue_point->timestamp > timestamp) {
+        while (index > 0 && prev_cue_point->timestamp > timestamp) {
             prev_cue_point = &cue_points[--index];
-            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp().to_milliseconds());
+            dbgln_if(MATROSKA_DEBUG, "Checking previous cue point {}ms", prev_cue_point->timestamp.to_milliseconds());
         }
-        TRY(iterator.seek_to_cue_point(*prev_cue_point));
+        TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
         return {};
     }
 
     while (++index < cue_points.size()) {
         auto const& cue_point = cue_points[index];
-        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", cue_point.timestamp().to_milliseconds());
-        if (cue_point.timestamp() > timestamp)
+        dbgln_if(MATROSKA_DEBUG, "Checking future cue point {}ms", cue_point.timestamp.to_milliseconds());
+        if (cue_point.timestamp > timestamp)
             break;
         prev_cue_point = &cue_point;
     }
 
-    TRY(iterator.seek_to_cue_point(*prev_cue_point));
+    TRY(iterator.seek_to_cue_point(*prev_cue_point, target));
     return {};
 }
 
@@ -1117,15 +1119,15 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
         SampleIterator rewind_iterator = iterator;
         auto block = TRY(iterator.next_block());
 
+        if (block.timestamp() > timestamp)
+            break;
+
         if (block.only_keyframes()) {
             last_keyframe.emplace(rewind_iterator);
 #if MATROSKA_DEBUG
             inter_frames_count = 0;
 #endif
         }
-
-        if (block.timestamp() > timestamp)
-            break;
 
 #if MATROSKA_DEBUG
         inter_frames_count++;
@@ -1152,14 +1154,25 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
 {
     timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
 
-    if (TRY(has_cues_for_track(iterator.m_track->track_number()))) {
-        TRY(seek_to_cue_for_timestamp(iterator, timestamp));
+    auto cue_points = TRY(cue_points_for_track(iterator.m_track->track_number()));
+    auto seek_target = CuePointTarget::Block;
+
+    // If no cues are present for the track, use the first track's cues.
+    if (!cue_points.has_value() && !m_cues.is_empty()) {
+        auto first_track_number = m_tracks.begin()->key;
+        cue_points = m_cues.get(first_track_number);
+        seek_target = CuePointTarget::Cluster;
+    }
+
+    if (cue_points.has_value()) {
+        TRY(seek_to_cue_for_timestamp(iterator, timestamp, cue_points.value(), seek_target));
         VERIFY(iterator.last_timestamp().has_value());
-        return iterator;
     }
 
     if (!iterator.last_timestamp().has_value() || timestamp < iterator.last_timestamp().value()) {
         // If the timestamp is before the iterator's current position, then we need to start from the beginning of the Segment.
+        if (timestamp > AK::Duration::zero())
+            warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track->track_number());
         iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track->track_number()));
         TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
         return iterator;
@@ -1169,7 +1182,7 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
     return iterator;
 }
 
-DecoderErrorOr<Optional<Vector<CuePoint> const&>> Reader::cue_points_for_track(u64 track_number)
+DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> Reader::cue_points_for_track(u64 track_number)
 {
     TRY(ensure_cues_are_parsed());
     return m_cues.get(track_number);
@@ -1219,10 +1232,10 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point)
+DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget target)
 {
     // This is a private function. The position getter can return optional, but the caller should already know that this track has a position.
-    auto const& cue_position = cue_point.position_for_track(m_track->track_number()).release_value();
+    auto const& cue_position = cue_point.position;
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(m_segment_contents_position + cue_position.cluster_position()));
 
@@ -1233,8 +1246,13 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(CuePoint const& cue_point
     m_current_cluster = TRY(parse_cluster(streamer, m_segment_timestamp_scale));
     dbgln_if(MATROSKA_DEBUG, "SampleIterator set to cue point at timestamp {}ms", m_current_cluster->timestamp().to_milliseconds());
 
-    m_position = streamer.position() + cue_position.block_offset();
-    m_last_timestamp = cue_point.timestamp();
+    if (target == CuePointTarget::Cluster) {
+        m_position = streamer.position();
+        m_last_timestamp = m_current_cluster->timestamp();
+    } else {
+        m_position = streamer.position() + cue_position.block_offset();
+        m_last_timestamp = cue_point.timestamp;
+    }
     return {};
 }
 

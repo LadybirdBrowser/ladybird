@@ -146,6 +146,7 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
 
     track_status.iterator = move(seeked_iterator);
     track_status.block = {};
+    track_status.frames = {};
     track_status.frame_index = 0;
     return DemuxerSeekResult::MovedPosition;
 }
@@ -156,8 +157,9 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     //        Matroska should make a RefPtr<ByteBuffer>, probably.
     auto& status = *TRY(get_track_status(track));
 
-    if (!status.block.has_value() || status.frame_index >= status.block->frame_count()) {
+    if (!status.block.has_value() || status.frame_index >= status.frames.size()) {
         status.block = TRY(status.iterator.next_block());
+        status.frames = TRY(m_reader.get_frames(status.block.value()));
         status.frame_index = 0;
     }
 
@@ -175,8 +177,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
         }
         VERIFY_NOT_REACHED();
     }();
-    auto sample_data = DECODER_TRY_ALLOC(ByteBuffer::copy(status.block->frame(status.frame_index++)));
-    return CodedFrame(timestamp, duration, flags, move(sample_data), aux_data);
+    return CodedFrame(timestamp, duration, flags, move(status.frames[status.frame_index++]), aux_data);
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()

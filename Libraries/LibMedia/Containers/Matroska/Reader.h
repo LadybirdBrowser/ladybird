@@ -21,6 +21,16 @@ namespace Media::Matroska {
 class SampleIterator;
 class Streamer;
 
+struct TrackCuePoint {
+    AK::Duration timestamp;
+    CueTrackPosition position;
+};
+
+enum class CuePointTarget : u8 {
+    Cluster,
+    Block,
+};
+
 class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
@@ -40,8 +50,10 @@ public:
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
-    DecoderErrorOr<Optional<Vector<CuePoint> const&>> cue_points_for_track(u64 track_number);
+    DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> cue_points_for_track(u64 track_number);
     DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
+
+    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
 
 private:
     Reader(IncrementallyPopulatedStream::Cursor& stream_cursor)
@@ -60,7 +72,7 @@ private:
 
     DecoderErrorOr<void> parse_cues(Streamer&);
     DecoderErrorOr<void> ensure_cues_are_parsed();
-    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&);
+    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
 
@@ -77,13 +89,14 @@ private:
     OrderedHashMap<u64, NonnullRefPtr<TrackEntry>> m_tracks;
 
     // The vectors must be sorted by timestamp at all times.
-    HashMap<u64, Vector<CuePoint>> m_cues;
+    HashMap<u64, Vector<TrackCuePoint>> m_cues;
     bool m_cues_have_been_parsed { false };
 };
 
 class MEDIA_API SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
+    DecoderErrorOr<AK::Duration> next_block_timestamp();
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
@@ -100,7 +113,7 @@ private:
     {
     }
 
-    DecoderErrorOr<void> seek_to_cue_point(CuePoint const& cue_point);
+    DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
     NonnullRefPtr<TrackEntry> m_track;

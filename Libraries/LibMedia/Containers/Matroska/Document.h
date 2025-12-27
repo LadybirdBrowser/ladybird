@@ -187,11 +187,13 @@ public:
     void set_lacing(Lacing lacing) { m_lacing = lacing; }
     bool discardable() const { return m_discardable; }
     void set_discardable(bool discardable) { m_discardable = discardable; }
-
-    void set_frames(Vector<ByteBuffer>&& frames) { m_frames = move(frames); }
-    ByteBuffer const& frame(size_t index) const { return frames()[index]; }
-    u64 frame_count() const { return m_frames.size(); }
-    Vector<ByteBuffer> const& frames() const { return m_frames; }
+    size_t data_position() const { return m_data_position; }
+    size_t data_size() const { return m_data_size; }
+    void set_data(size_t position, size_t size)
+    {
+        m_data_position = position;
+        m_data_size = size;
+    }
 
 private:
     u64 m_track_number { 0 };
@@ -201,7 +203,8 @@ private:
     bool m_invisible { false };
     Lacing m_lacing { None };
     bool m_discardable { true };
-    Vector<ByteBuffer> m_frames;
+    size_t m_data_position { 0 };
+    size_t m_data_size { 0 };
 };
 
 class Cluster {
