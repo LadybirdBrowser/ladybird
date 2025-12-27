@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -543,7 +544,36 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
                 //        implemented in Navigable::choose_a_navigable:
                 //
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
+                
+                // Handling HTMLImageElements that have the usemap attribute specified.
+                if (is<HTML::HTMLImageElement>(*node)) {
+                    auto& img = static_cast<HTML::HTMLImageElement&>(*node);
+                    auto maybe_usemap = img.attribute(HTML::AttributeNames::usemap);
 
+                    if (maybe_usemap.has_value()) {
+                        auto usemap_bytes_as_string_view = maybe_usemap->bytes_as_string_view();
+
+                        if (usemap_bytes_as_string_view.starts_with('#')) {
+                            auto map_id_view_without_pound = usemap_bytes_as_string_view.substring_view(1);
+                            auto map_id = MUST(String::from_utf8(map_id_view_without_pound));
+                            FlyString map_fly_string { map_id };
+                            auto map_element = node->document().get_element_by_id(map_fly_string);
+
+                            if (map_element && is<HTML::HTMLMapElement>(*map_element)) {
+                                auto& map = static_cast<HTML::HTMLMapElement&>(*map_element);
+                                CSSPixels x { offset.x().to_int() };
+                                CSSPixels y { offset.y().to_int() };
+
+                                x = (x < 0) ? CSSPixels {0}:x;
+                                y = (y < 0) ? CSSPixels {0}:y;
+                                // Map element will handle activating the area that the click falls into.
+                                // This line is extremely long due to the need to pass the event to the HTMLAreaElement when it is activated.
+                                map.activate_area_by_point(x, y, UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+                                return handled_event;
+                            }
+                        }
+                    }
+                }
                 auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
                 if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
                     GC::Ref<DOM::Document> document = *m_navigable->active_document();
