@@ -48,14 +48,29 @@ def run():
         with open(filename, "r") as f:
             f.seek(0, os.SEEK_END)
 
-            f.seek(f.tell() - 1, os.SEEK_SET)
-            if f.read(1) != "\n":
+            file_size = f.tell()
+
+            no_newline_local = False
+            if file_size == 0:
+                no_newline_local = True
+            else:
+                f.seek(file_size - 1, os.SEEK_SET)
+                if f.read(1) != "\n":
+                    no_newline_local = True
+
+            if no_newline_local:
                 did_fail = True
                 no_newline_at_eof_errors.append(filename)
                 continue
 
+            # note: here we have implicitly seeked to the end of the file
+
             while True:
-                f.seek(f.tell() - 2, os.SEEK_SET)
+                current_pos = f.tell()
+                if current_pos < 2:
+                    break
+
+                f.seek(current_pos - 2, os.SEEK_SET)
                 char = f.read(1)
                 if not char.isspace():
                     break
