@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+20 Pass
+9 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Element: member names are unique
+Pass	Element includes Animatable: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	ScrollTimeline interface: existence and properties of interface object
+Pass	ScrollTimeline interface object length
+Pass	ScrollTimeline interface object name
+Pass	ScrollTimeline interface: existence and properties of interface prototype object
+Pass	ScrollTimeline interface: existence and properties of interface prototype object's "constructor" property
+Pass	ScrollTimeline interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ScrollTimeline interface: attribute source
+Pass	ScrollTimeline interface: attribute axis
+Pass	ScrollTimeline must be primary interface of new ScrollTimeline()
+Pass	Stringification of new ScrollTimeline()
+Pass	ScrollTimeline interface: new ScrollTimeline() must inherit property "source" with the proper type
+Pass	ScrollTimeline interface: new ScrollTimeline() must inherit property "axis" with the proper type
+Fail	ViewTimeline interface: existence and properties of interface object
+Fail	ViewTimeline interface object length
+Fail	ViewTimeline interface object name
+Fail	ViewTimeline interface: existence and properties of interface prototype object
+Fail	ViewTimeline interface: existence and properties of interface prototype object's "constructor" property
+Fail	ViewTimeline interface: existence and properties of interface prototype object's @@unscopables property
+Fail	ViewTimeline interface: attribute subject
+Fail	ViewTimeline interface: attribute startOffset
+Fail	ViewTimeline interface: attribute endOffset

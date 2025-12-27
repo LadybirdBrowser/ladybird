@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	Animation current time and effect local time are updated after scroller content size changes.
+Pass	Animation current time and effect local time are updated after scroller size changes.
+Fail	If scroll animation resizes its scroll timeline scroller, layout reruns once per frame.
