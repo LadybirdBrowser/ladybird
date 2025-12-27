@@ -16,9 +16,9 @@ class ICOImageDecoderPlugin;
 
 class BMPImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
-    static bool sniff(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_as_included_in_ico(Badge<ICOImageDecoderPlugin>, ReadonlyBytes);
+    static bool sniff(NonnullRefPtr<ImageDecoderStream> stream);
+    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(NonnullRefPtr<ImageDecoderStream> stream);
+    static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_as_included_in_ico(Badge<ICOImageDecoderPlugin>, NonnullRefPtr<ImageDecoderStream> stream);
 
     enum class IncludedInICO {
         Yes,
@@ -34,10 +34,11 @@ public:
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
 private:
-    BMPImageDecoderPlugin(u8 const*, size_t, IncludedInICO included_in_ico = IncludedInICO::No);
-    static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_impl(ReadonlyBytes, IncludedInICO);
+    BMPImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream, IncludedInICO included_in_ico = IncludedInICO::No);
+    static ErrorOr<NonnullOwnPtr<BMPImageDecoderPlugin>> create_impl(NonnullRefPtr<ImageDecoderStream> stream, IncludedInICO);
 
     OwnPtr<BMPLoadingContext> m_context;
+    Optional<ByteBuffer> m_icc_data;
 };
 
 }
