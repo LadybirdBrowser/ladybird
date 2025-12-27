@@ -29,6 +29,7 @@
   display: none;
 }
 .contains-fixed {
+  transform: scale(1);
   contain: paint;
 }
 </style>
@@ -56,6 +57,10 @@
           <div id="hidden" class="hidden">
             <div id="childOfHidden"></div>
           </div>
+          <!-- No box with `display: contents` -->
+          <div style="display: contents">
+            <div id="childOfDisplayContents"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -81,6 +86,9 @@ test(() => { assert_equals(fixedContainedByRoot.scrollParent, document.scrolling
     "scrollParent of fixed element contained within root is document scrolling element.");
 test(() => { assert_equals(document.body.scrollParent, null); },
     "scrollParent of body is null.");
-
+test(() => { assert_equals(document.documentElement.scrollParent, null); },
+    "scrollParent of root is null.");
+test(() => { assert_equals(childOfDisplayContents.scrollParent, scroller1); },
+    "scrollParent skips ancestors with `display: contents`.");
 </script>
 </html>
