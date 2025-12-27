@@ -12,14 +12,16 @@
 
 namespace Web::IndexedDB {
 
-using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
+using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Weak<Database>>>;
 static IDBDatabaseMapping m_databases;
 
-void Database::for_each_database(AK::Function<void(GC::Root<Database> const&)> const& visitor)
+void Database::for_each_database(AK::Function<void(Database&)> const& visitor)
 {
     for (auto const& [key, mapping] : m_databases) {
-        for (auto const& database_mapping : mapping) {
-            visitor(database_mapping.value);
+        for (auto const& [_, database] : mapping) {
+            if (!database)
+                continue;
+            visitor(*database);
         }
     }
 }
@@ -53,9 +55,9 @@ GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
     return nullptr;
 }
 
-Vector<GC::Root<Database>> Database::for_key(StorageAPI::StorageKey const& key)
+Vector<GC::Weak<Database>> Database::for_key(StorageAPI::StorageKey const& key)
 {
-    Vector<GC::Root<Database>> databases;
+    Vector<GC::Weak<Database>> databases;
     for (auto const& database_mapping : m_databases.get(key).value_or({})) {
         databases.append(database_mapping.value);
     }
@@ -78,18 +80,18 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
     return new_connection->request_list;
 }
 
-Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
+Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
-    return m_databases.ensure(key, [] {
-                          return HashMap<String, GC::Root<Database>>();
-                      })
-        .get(name);
+    auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Weak<Database>>(); });
+    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
+        return *maybe_database.value();
+    return {};
 }
 
 ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey const& key, String const& name)
 {
     auto database_mapping = TRY(m_databases.try_ensure(key, [] {
-        return HashMap<String, GC::Root<Database>>();
+        return HashMap<String, GC::Weak<Database>>();
     }));
 
     auto value = Database::create(realm, name);
@@ -121,22 +123,22 @@ ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& ke
     return {};
 }
 
-Vector<GC::Root<IDBDatabase>> Database::associated_connections()
+GC::Ref<Database::AssociatedConnections> Database::associated_connections()
 {
-    Vector<GC::Root<IDBDatabase>> connections;
-    connections.ensure_capacity(m_associated_connections.size());
+    auto connections = realm().heap().allocate<AssociatedConnections>();
+    connections->elements().ensure_capacity(m_associated_connections.size());
     for (auto& associated_connection : m_associated_connections) {
-        connections.unchecked_append(associated_connection);
+        connections->elements().unchecked_append(associated_connection);
     }
     return connections;
 }
 
-Vector<GC::Root<IDBDatabase>> Database::associated_connections_except(IDBDatabase& connection)
+GC::Ref<Database::AssociatedConnections> Database::associated_connections_except(IDBDatabase& connection)
 {
-    Vector<GC::Root<IDBDatabase>> connections;
+    auto connections = realm().heap().allocate<AssociatedConnections>();
     for (auto& associated_connection : m_associated_connections) {
         if (associated_connection != &connection)
-            connections.append(associated_connection);
+            connections->elements().append(associated_connection);
     }
     return connections;
 }
@@ -170,7 +172,7 @@ void Database::ConnectionCloseState::add_connection_to_observe(GC::Ref<IDBDataba
     database_observers.append(database_observer);
 }
 
-void Database::wait_for_connections_to_close(ReadonlySpan<GC::Root<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all)
+void Database::wait_for_connections_to_close(ReadonlySpan<GC::Ref<IDBDatabase>> connections, GC::Ref<GC::Function<void()>> after_all)
 {
     GC::Ptr<ConnectionCloseState> connection_close_state;
 
@@ -180,7 +182,7 @@ void Database::wait_for_connections_to_close(ReadonlySpan<GC::Root<IDBDatabase>>
                 connection_close_state = heap().allocate<ConnectionCloseState>();
             }
 
-            connection_close_state->add_connection_to_observe(*entry.cell());
+            connection_close_state->add_connection_to_observe(*entry);
         }
     }
 
