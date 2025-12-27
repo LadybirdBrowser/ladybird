@@ -110,25 +110,28 @@ ErrorOr<void> generate_implementation_file(JsonObject& transforms_data, Core::Fi
     generator.append(R"~~~(
 #include <LibWeb/CSS/TransformFunctions.h>
 #include <AK/Assertions.h>
+#include <AK/HashMap.h>
 
 namespace Web::CSS {
 )~~~");
 
     generator.append(R"~~~(
-Optional<TransformFunction> transform_function_from_string(StringView name)
-{
+static HashMap<StringView, TransformFunction, AK::CaseInsensitiveASCIIStringViewTraits> transform_function_table = {
 )~~~");
     transforms_data.for_each_member([&](auto& name, auto&) {
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:titlecase", title_casify_transform_function(name));
         member_generator.append(R"~~~(
-    if (name.equals_ignoring_ascii_case("@name@"sv))
-        return TransformFunction::@name:titlecase@;
+    { "@name@"sv, TransformFunction::@name:titlecase@ },
 )~~~");
     });
     generator.append(R"~~~(
-    return {};
+};
+
+Optional<TransformFunction> transform_function_from_string(StringView name)
+{
+    return transform_function_table.get(name);
 }
 )~~~");
 

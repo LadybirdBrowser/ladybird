@@ -101,12 +101,12 @@ ErrorOr<void> generate_implementation_file(JsonObject& pseudo_classes_data, Core
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/PseudoClass.h>
 
 namespace Web::CSS {
 
-Optional<PseudoClass> pseudo_class_from_string(StringView string)
-{
+static HashMap<StringView, PseudoClass, AK::CaseInsensitiveASCIIStringViewTraits> pseudo_class_table = {
 )~~~");
 
     pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
@@ -120,14 +120,16 @@ Optional<PseudoClass> pseudo_class_from_string(StringView string)
         }
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
-        return PseudoClass::@name:titlecase@;
+    { "@name@"sv, PseudoClass::@name:titlecase@ },
 )~~~");
     });
 
     generator.append(R"~~~(
+};
 
-    return {};
+Optional<PseudoClass> pseudo_class_from_string(StringView string)
+{
+    return pseudo_class_table.get(string);
 }
 
 StringView pseudo_class_name(PseudoClass pseudo_class)

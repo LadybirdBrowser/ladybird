@@ -115,13 +115,13 @@ ErrorOr<void> generate_implementation_file(JsonObject& pseudo_elements_data, Cor
     SourceGenerator generator { builder };
 
     generator.append(R"~~~(
+#include <AK/HashMap.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 
-Optional<PseudoElement> pseudo_element_from_string(StringView string)
-{
+static HashMap<StringView, PseudoElement, AK::CaseInsensitiveASCIIStringViewTraits> pseudo_element_table = {
 )~~~");
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
@@ -133,18 +133,19 @@ Optional<PseudoElement> pseudo_element_from_string(StringView string)
         member_generator.set("name:titlecase", title_casify(name));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
-        return PseudoElement::@name:titlecase@;
+    { "@name@"sv, PseudoElement::@name:titlecase@ },
 )~~~");
     });
 
     generator.append(R"~~~(
+};
 
-    return {};
+Optional<PseudoElement> pseudo_element_from_string(StringView string)
+{
+    return pseudo_element_table.get(string);
 }
 
-Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
-{
+static HashMap<StringView, PseudoElement, AK::CaseInsensitiveASCIIStringViewTraits> aliased_pseudo_element_table = {
 )~~~");
 
     pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
@@ -158,14 +159,16 @@ Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
         member_generator.set("alias:titlecase", title_casify(alias_for.value()));
 
         member_generator.append(R"~~~(
-    if (string.equals_ignoring_ascii_case("@name@"sv))
-        return PseudoElement::@alias:titlecase@;
+    { "@name@"sv, PseudoElement::@alias:titlecase@ },
 )~~~");
     });
 
     generator.append(R"~~~(
+};
 
-    return {};
+Optional<PseudoElement> aliased_pseudo_element_from_string(StringView string)
+{
+    return aliased_pseudo_element_table.get(string);
 }
 
 StringView pseudo_element_name(PseudoElement pseudo_element)
