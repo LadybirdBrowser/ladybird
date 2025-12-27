@@ -102,17 +102,33 @@ Optional<String> Storage::get_item(String const& key) const
 WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
 {
     // 1. Let oldValue be null.
-    Optional<String> old_value;
-
     // 2. Let reorder be true.
-    // 3. If this's map[key] exists:
+    bool reorder = true;
 
+    // 3. If this's map[key] exists:
+    //     1. Set oldValue to this's map[key].
+    //     2. If oldValue is value, then return.
+    //     3. Set reorder to false.
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException.
     // 5. Set this's map[key] to value.
-    auto error = m_storage_bottle->set(key, value);
-    if (error == WebView::StorageOperationError::QuotaExceededError) {
+
+    auto result = m_storage_bottle->set(key, value);
+
+    if (result.has<WebView::StorageOperationError>())
         return WebIDL::QuotaExceededError::create(realm(), Utf16String::formatted("Unable to store more than {} bytes in storage", *m_storage_bottle->quota()));
+
+    auto old_value = result.get<Optional<String>>();
+
+    if (old_value.has_value()) {
+        if (old_value.value() == value)
+            return {};
+
+        reorder = false;
     }
+
+    // 6. If reorder is true, then reorder this.
+    if (reorder)
+        this->reorder();
 
     // 7. Broadcast this with key, oldValue, and value.
     broadcast(key, old_value, value);
@@ -142,6 +158,10 @@ void Storage::remove_item(String const& key)
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
 void Storage::clear()
 {
+    // Spec bug: We should return here if the map is already empty in order to not broadcast duplicate events.
+    if (m_storage_bottle->size() == 0)
+        return;
+
     // 1. Clear this's map.
     m_storage_bottle->clear();
 

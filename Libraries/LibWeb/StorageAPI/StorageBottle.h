@@ -15,7 +15,7 @@
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/StorageAPI/StorageType.h>
-#include <LibWebView/StorageOperationError.h>
+#include <LibWebView/StorageSetResult.h>
 
 namespace Web::StorageAPI {
 
@@ -34,7 +34,7 @@ public:
     virtual size_t size() const = 0;
     virtual Vector<String> keys() const = 0;
     virtual Optional<String> get(String const&) const = 0;
-    virtual WebView::StorageOperationError set(String const& key, String const& value) = 0;
+    virtual WebView::StorageSetResult set(String const& key, String const& value) = 0;
     virtual void clear() = 0;
     virtual void remove(String const&) = 0;
 
@@ -62,7 +62,7 @@ public:
     virtual size_t size() const override;
     virtual Vector<String> keys() const override;
     virtual Optional<String> get(String const&) const override;
-    virtual WebView::StorageOperationError set(String const& key, String const& value) override;
+    virtual WebView::StorageSetResult set(String const& key, String const& value) override;
     virtual void clear() override;
     virtual void remove(String const&) override;
 
@@ -93,7 +93,7 @@ public:
     virtual size_t size() const override;
     virtual Vector<String> keys() const override;
     virtual Optional<String> get(String const&) const override;
-    virtual WebView::StorageOperationError set(String const& key, String const& value) override;
+    virtual WebView::StorageSetResult set(String const& key, String const& value) override;
     virtual void clear() override;
     virtual void remove(String const&) override;
 
