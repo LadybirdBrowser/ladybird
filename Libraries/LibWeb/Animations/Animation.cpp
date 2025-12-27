@@ -1229,7 +1229,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                         dispatch_event(finish_event);
                     }));
                 m_pending_finish_microtask_id = task->id();
-                HTML::main_thread_event_loop().task_queue().add(task);
+                (void)HTML::main_thread_event_loop().task_queue().add(task);
             }
         });
 
@@ -1254,7 +1254,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             }));
 
             m_pending_finish_microtask_id = task->id();
-            HTML::main_thread_event_loop().task_queue().add(move(task));
+            (void)HTML::main_thread_event_loop().task_queue().add(move(task));
         }
     }
 

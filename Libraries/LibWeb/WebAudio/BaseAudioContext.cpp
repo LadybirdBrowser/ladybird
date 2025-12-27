@@ -212,7 +212,7 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
 void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> steps)
 {
     auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_principal_settings_object().responsible_document(), steps);
-    HTML::main_thread_event_loop().task_queue().add(task);
+    (void)HTML::main_thread_event_loop().task_queue().add(task);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
