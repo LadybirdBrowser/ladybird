@@ -25,6 +25,7 @@
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/MLDSA.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/Array.h>
@@ -280,7 +281,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedKey::to_object(JS::Realm&
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
     if (shared_key.has_value())
-        TRY(object->create_data_property("shared_key"_utf16_fly_string, shared_key.value()));
+        TRY(object->create_data_property("sharedKey"_utf16_fly_string, shared_key.value()));
 
     if (ciphertext.has_value())
         TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
@@ -293,7 +294,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> EncapsulatedBits::to_object(JS::Realm
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
     if (shared_key.has_value())
-        TRY(object->create_data_property("shared_key"_utf16_fly_string, JS::ArrayBuffer::create(realm, shared_key.value())));
+        TRY(object->create_data_property("sharedKey"_utf16_fly_string, JS::ArrayBuffer::create(realm, shared_key.value())));
 
     if (ciphertext.has_value())
         TRY(object->create_data_property("ciphertext"_utf16_fly_string, JS::ArrayBuffer::create(realm, ciphertext.value())));
@@ -2440,7 +2441,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const
 
     // 2.
     ByteBuffer data;
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // -> If format is "raw":
         //    1. Let data be the octet string contained in keyData.
         //    2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
@@ -2681,7 +2683,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -2993,7 +2996,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -3338,7 +3342,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&
     ByteBuffer data;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw
+        || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -8028,7 +8033,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
 
     // 4. If format is "raw":
     AK::ByteBuffer data;
-    if (key_format == Bindings::KeyFormat::Raw) {
+    if (key_format == Bindings::KeyFormat::Raw
+        || key_format == Bindings::KeyFormat::RawSecret) {
         // 4.1. Let data be the octet string contained in keyData.
         data = move(key_data.get<ByteBuffer>());
 
@@ -8928,6 +8934,218 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
 
     // 4. Return result.
     return GC::Ref { *result };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // 1. If usages contains any entry which is not one of "encapsulateKey", "encapsulateBits", "decapsulateKey" or
+    //    "decapsulateBits", then throw a SyntaxError.
+    for (auto const usage : usages) {
+        if (usage != Bindings::KeyUsage::Encapsulatekey
+            && usage != Bindings::KeyUsage::Encapsulatebits
+            && usage != Bindings::KeyUsage::Decapsulatekey
+            && usage != Bindings::KeyUsage::Decapsulatebits) {
+            return WebIDL::SyntaxError::create(m_realm, "Invalid key usage"_utf16);
+        }
+    }
+
+    // 2. Generate an ML-KEM key pair, as described in Section 7.1 of [FIPS-203], with the parameter set indicated
+    //    by the name member of normalizedAlgorithm.
+    auto maybe_key_pair = [&] {
+        if (params.name == "ML-KEM-512")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEM512);
+        if (params.name == "ML-KEM-768")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEM768);
+        if (params.name == "ML-KEM-1024")
+            return ::Crypto::PK::MLKEM::generate_key_pair(::Crypto::PK::MLKEM1024);
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 3. If the key generation step fails, then throw an OperationError.
+    if (maybe_key_pair.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Key generation failed: {}", maybe_key_pair.release_error()));
+    auto const key_pair = maybe_key_pair.release_value();
+
+    // 4. Let algorithm be a new KeyAlgorithm object.
+    auto algorithm = KeyAlgorithm::create(m_realm);
+
+    // 5. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+    algorithm->set_name(params.name);
+
+    // 6. Let publicKey be a new CryptoKey representing the encapsulation key of the generated key pair.
+    auto public_key = CryptoKey::create(m_realm, key_pair.public_key);
+
+    // 7. Set the [[type]] internal slot of publicKey to "public".
+    public_key->set_type(Bindings::KeyType::Public);
+
+    // 8. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    public_key->set_algorithm(algorithm);
+
+    // 9. Set the [[extractable]] internal slot of publicKey to true.
+    public_key->set_extractable(true);
+
+    // 10. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "encapsulateKey",
+    //     "encapsulateBits" ].
+    public_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+
+    // 11. Let privateKey be a new CryptoKey representing the decapsulation key of the generated key pair.
+    auto private_key = CryptoKey::create(m_realm, key_pair.private_key);
+
+    // 12. Set the [[type]] internal slot of privateKey to "private".
+    private_key->set_type(Bindings::KeyType::Private);
+
+    // 13. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    private_key->set_algorithm(algorithm);
+
+    // 14. Set the [[extractable]] internal slot of privateKey to extractable.
+    private_key->set_extractable(extractable);
+
+    // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decapsulateKey",
+    //     "decapsulateBits" ].
+    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+
+    // 16. Let result be a new CryptoKeyPair dictionary.
+    // 17. Set the publicKey attribute of result to be publicKey.
+    // 18. Set the privateKey attribute of result to be privateKey.
+    auto result = CryptoKeyPair::create(m_realm, public_key, private_key);
+
+    // 19. Return result.
+    return WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>>(result);
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    GC::Ptr<CryptoKey> key = nullptr;
+
+    // 1. Let keyData be the key data to be imported.
+    // 2. -> If format is "spki":
+    if (key_format == Bindings::KeyFormat::Spki) {
+        // FIXME: Spec starts at 2
+
+        // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw
+        //    a SyntaxError.
+        for (auto const usage : usages) {
+            if (usage != Bindings::KeyUsage::Encapsulatekey && usage != Bindings::KeyUsage::Encapsulatebits)
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        }
+
+        // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto const spki = TRY(parse_a_subject_public_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        Array<int, 9> expected_oid;
+        // 4. If the name member of normalizedAlgorithm is "ML-KEM-512":
+        if (params.name == "ML-KEM-512") {
+            // Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1).
+            expected_oid = ::Crypto::ASN1::ml_kem_512_oid;
+        }
+        // If the name member of normalizedAlgorithm is "ML-KEM-768":
+        else if (params.name == "ML-KEM-768") {
+            // Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2).
+            expected_oid = ::Crypto::ASN1::ml_kem_768_oid;
+        }
+        // If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        else if (params.name == "ML-KEM-1024") {
+            // Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3).
+            expected_oid = ::Crypto::ASN1::ml_kem_1024_oid;
+        }
+        // Otherwise:
+        else {
+            // throw a NotSupportedError.
+            return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+        }
+
+        // 5. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal
+        //    to expectedOid, then throw a DataError.
+        if (spki.algorithm.identifier != expected_oid)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
+
+        // 6. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
+        if (spki.algorithm.ec_parameters.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_utf16);
+
+        // 7. Let publicKey be the ML-KEM public key identified by the subjectPublicKey field of spki.
+        auto const public_key = spki.raw_key;
+
+        // 8. Let key be a new CryptoKey that represents publicKey.
+        key = CryptoKey::create(m_realm, ::Crypto::PK::MLKEMPublicKey(public_key));
+
+        // 9. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 10. Let algorithm be a new KeyAlgorithm.
+        auto const algorithm = KeyAlgorithm::create(m_realm);
+
+        // 11. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 12. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+
+        // 13. Set the [[extractable]] internal slot of key to extractable.
+        key->set_extractable(extractable);
+
+        // 14. Set the [[usages]] internal slot of key to usages.
+        key->set_usages(usages);
+    }
+    // FIXME: -> If format is "pkcs8":
+    // FIXME: -> If format is "raw-public":
+    // FIXME: -> If format is "raw-seed":
+    // FIXME: -> If format is "jwk":
+    //    -> Otherwise:
+    else {
+        // throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+    }
+
+    // 3. Return key
+    return GC::Ref { *key };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate
+WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(AlgorithmParams const& params, GC::Ref<CryptoKey> key)
+{
+    // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(m_realm, "Invalid key type"_utf16);
+
+    // 2. Perform the encapsulation key check described in Section 7.2 of [FIPS-203] with the parameter set indicated
+    //    by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as the ek
+    //    input parameter.
+    // 3. If the encapsulation key check failed, return an OperationError.
+    // NOTE: Presumably done by OpenSSL for us
+
+    // 4. Let sharedKey and ciphertext be the outputs that result from performing the ML-KEM.Encaps function
+    //    described in Section 7.2 of [FIPS-203] with the parameter set indicated by the name member of algorithm,
+    //    using the key represented by the [[handle]] internal slot of key as the ek input parameter.
+    VERIFY(key->handle().has<::Crypto::PK::MLKEMPublicKey>());
+    auto maybe_encapsulation = [&]() {
+        if (params.name == "ML-KEM-512") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEM512, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        if (params.name == "ML-KEM-768") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEM768, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        if (params.name == "ML-KEM-1024") {
+            return ::Crypto::PK::MLKEM::encapsulate(::Crypto::PK::MLKEM1024, key->handle().get<::Crypto::PK::MLKEMPublicKey>());
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 5. If the ML-KEM.Encaps function returned an error, return an OperationError.
+    if (maybe_encapsulation.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Key encapsulation failed: {}", maybe_encapsulation.release_error()));
+    auto const [shared_key, ciphertext] = maybe_encapsulation.release_value();
+
+    // 6. Let result be a new EncapsulatedBits dictionary.
+    // 7. Set the sharedKey attribute of result to the result of creating an ArrayBuffer containing sharedKey.
+    // 8. Set the ciphertext attribute of result to the result of creating an ArrayBuffer containing ciphertext.
+    auto result = EncapsulatedBits { shared_key, ciphertext };
+
+    // 9. Return result.
+    return result;
 }
 
 }
