@@ -17,6 +17,6 @@ enum class RedirectTaint {
     CrossSite,
 };
 
-[[nodiscard]] ByteString const& default_user_agent_value();
+[[nodiscard]] ByteString default_user_agent_value();
 
 }
