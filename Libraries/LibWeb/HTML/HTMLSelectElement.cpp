@@ -732,6 +732,8 @@ void HTMLSelectElement::update_inner_text_element()
 // https://whatpr.org/html/11890/form-elements.html#selectedness-setting-algorithm
 void HTMLSelectElement::update_selectedness()
 {
+    ScopeGuard invalidate_dom_tree = [&] { document().bump_dom_tree_version(); };
+
     // The selectedness setting algorithm, given a select element element, is to run the following steps:
     update_cached_list_of_options();
 
