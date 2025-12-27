@@ -41,6 +41,7 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWeb/WebIDL/Types.h>
 #include <LibWebView/StorageOperationError.h>
 
 namespace Web {
@@ -426,6 +427,12 @@ public:
     virtual bool is_headless() const = 0;
 
     virtual bool is_svg_page_client() const { return false; }
+
+    // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
+    // FIXME: Platform clients should override this to return the actual maximum touch points
+    //        supported by the device. For devices with multiple digitizers, this should be
+    //        the maximum across all digitizers.
+    virtual WebIDL::Long max_touch_points() const { return 0; }
 
 protected:
     virtual ~PageClient() = default;

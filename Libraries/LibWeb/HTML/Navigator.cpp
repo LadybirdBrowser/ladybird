@@ -129,10 +129,22 @@ GC::Ref<CredentialManagement::CredentialsContainer> Navigator::credentials()
 }
 
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
-WebIDL::Long Navigator::max_touch_points()
+WebIDL::Long Navigator::max_touch_points() const
 {
-    dbgln("FIXME: Unimplemented Navigator.maxTouchPoints");
-    return 0;
+    // 1. Let emulated maxTouchPoints be the result of WebDriver BiDi emulated max touch points.
+    // FIXME: WebDriver BiDi is not yet implemented.
+    //        https://www.w3.org/TR/webdriver-bidi/#webdriver-bidi-emulated-max-touch-points
+
+    // 2. If emulated maxTouchPoints is not null, return emulated maxTouchPoints.
+    // FIXME: Pseudo code for when WebDriver BiDi is implemented.
+    // if (auto emulated = get_webdriver_bidi_emulated_max_touch_points(); emulated.has_value())
+    //     return emulated.value();
+
+    // 3. Return the maximum number of simultaneous touch contacts supported by the device.
+    //    In the case of devices with multiple digitizers (e.g. multiple touchscreens), the value
+    //    must be the maximum of the set of maximum supported contacts by each individual digitizer.
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
+    return window.page().client().max_touch_points();
 }
 
 GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // Test that maxTouchPoints exists on navigator
+        println(`maxTouchPoints in navigator: ${'maxTouchPoints' in navigator}`);
+        
+        // Test that it returns a number
+        println(`typeof maxTouchPoints: ${typeof navigator.maxTouchPoints}`);
+        
+        // Test that the value is >= 0 (spec requirement)
+        println(`maxTouchPoints >= 0: ${navigator.maxTouchPoints >= 0}`);
+        
+        // The default implementation returns 0 when no emulation is set
+        println(`maxTouchPoints: ${navigator.maxTouchPoints}`);
+    });
+</script>

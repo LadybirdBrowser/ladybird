@@ -71,7 +71,7 @@ public:
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
 
-    static WebIDL::Long max_touch_points();
+    WebIDL::Long max_touch_points() const;
 
     virtual ~Navigator() override;
 
