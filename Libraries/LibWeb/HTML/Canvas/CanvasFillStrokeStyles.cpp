@@ -8,10 +8,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CanvasFillStrokeStyles.h"
 #include <AK/String.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/HTML/Canvas/CanvasFillStrokeStyles.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -133,19 +133,19 @@ CanvasFillStrokeStyles<IncludingClass>::FillOrStrokeStyleVariant CanvasFillStrok
 template<typename IncludingClass>
 Variant<HTMLCanvasElement*, OffscreenCanvas*> CanvasFillStrokeStyles<IncludingClass>::my_canvas_element()
 {
-    return &reinterpret_cast<IncludingClass&>(*this).canvas_element();
+    return &static_cast<IncludingClass&>(*this).canvas_element();
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
+DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
 {
-    return reinterpret_cast<IncludingClass&>(*this).drawing_state();
+    return static_cast<IncludingClass&>(*this).drawing_state();
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
+DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
 {
-    return reinterpret_cast<IncludingClass const&>(*this).drawing_state();
+    return static_cast<IncludingClass const&>(*this).drawing_state();
 }
 
 template<typename IncludingClass>
