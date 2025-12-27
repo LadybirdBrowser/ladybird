@@ -53,7 +53,11 @@ public:
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport_size(Web::DevicePixelSize const&);
-    void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index) { m_screen_rect = rects[main_screen_index]; }
+    void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index)
+    {
+        m_screen_rect = rects[main_screen_index];
+        m_screen_count = rects.size();
+    }
     void set_device_pixels_per_css_pixel(float device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     void set_maximum_frames_per_second(u64 maximum_frames_per_second);
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
@@ -107,6 +111,7 @@ private:
     virtual void request_new_process_for_navigation(URL::URL const&) override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override { return m_screen_rect; }
+    virtual bool is_screen_extended() const override { return m_screen_count > 1; }
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
@@ -186,6 +191,7 @@ private:
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Web::DevicePixelRect m_screen_rect;
+    size_t m_screen_count { 1 };
     float m_device_pixels_per_css_pixel { 1.0f };
     double m_maximum_frames_per_second { 60.0 };
     u64 m_id { 0 };
