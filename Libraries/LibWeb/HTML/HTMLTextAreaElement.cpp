@@ -437,6 +437,12 @@ void HTMLTextAreaElement::did_edit_text_node()
     update_placeholder_visibility();
 }
 
+EventResult HTMLTextAreaElement::handle_return_key(FlyString const&)
+{
+    handle_insert(Utf16String::from_code_point(0x0A)); // Avoid the platform codepoint
+    return EventResult::Handled;
+}
+
 void HTMLTextAreaElement::queue_firing_input_event()
 {
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
