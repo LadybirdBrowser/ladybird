@@ -147,7 +147,7 @@ def main():
     elif args.command == "test":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
         build_main(build_dir, args.jobs)
-        test_main(build_dir, args.preset, args.pattern)
+        test_main(build_dir, args.preset, args.jobs, args.pattern)
     elif args.command == "run":
         if args.preset == "Sanitizer":
             # FIXME: Find some way to centralize these b/w CMakePresets.json, CI files, Documentation and here.
@@ -352,7 +352,7 @@ def build_main(build_dir: Path, jobs: Optional[str], target: Optional[str] = Non
     run_command(build_args, exit_on_failure=True)
 
 
-def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
+def test_main(build_dir: Path, preset: str, jobs: Optional[str], pattern: Optional[str]):
     test_args = [
         "ctest",
         "--preset",
@@ -361,6 +361,12 @@ def test_main(build_dir: Path, preset: str, pattern: Optional[str]):
         "--test-dir",
         str(build_dir),
     ]
+
+    if not jobs:
+        jobs = os.environ.get("MAKEJOBS", None)
+    if jobs:
+        test_args.extend(["-j", jobs])
+        os.environ["LADYBIRD_TEST_CONCURRENCY"] = jobs
 
     if pattern:
         test_args.extend(["-R", pattern])
