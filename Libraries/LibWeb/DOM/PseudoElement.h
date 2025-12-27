@@ -59,6 +59,13 @@ class PseudoElementTreeNode
     , public TreeNode<PseudoElementTreeNode> {
     GC_CELL(PseudoElementTreeNode, PseudoElement);
     GC_DECLARE_ALLOCATOR(PseudoElementTreeNode);
+
+protected:
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        TreeNode::visit_edges(visitor);
+    }
 };
 
 }
