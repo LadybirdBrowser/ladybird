@@ -13,6 +13,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibUnicode/Forward.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
@@ -43,6 +44,7 @@ public:
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
+    void set_element_resize_in_progress(DOM::Element& element, CSSPixelPoint viewport_position);
 
     EventResult handle_paste(Utf16String const& text);
 
@@ -65,6 +67,7 @@ private:
     struct Target {
         GC::Ptr<Painting::Paintable> paintable;
         Optional<int> index_in_node;
+        Optional<CSS::CursorPredefined> cursor_override;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
 
@@ -85,6 +88,7 @@ private:
     GC::Ptr<Painting::Paintable> m_mouse_event_tracking_paintable;
 
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
+    OwnPtr<ElementResizeAction> m_element_resize_in_progress;
 
     GC::Weak<DOM::EventTarget> m_mousedown_target;
 

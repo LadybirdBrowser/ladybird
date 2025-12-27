@@ -3387,6 +3387,18 @@
       "unitless-length"
     ]
   },
+  "resize": {
+    "animation-type": "none",
+    "inherited": false,
+    "affects-layout": false,
+    "initial": "none",
+    "valid-identifiers": [
+      "none",
+      "both",
+      "horizontal",
+      "vertical"
+    ]
+  },
   "right": {
     "animation-type": "by-computed-value",
     "inherited": false,
