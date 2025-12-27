@@ -513,6 +513,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_tab_size(computed_style.tab_size());
 
     computed_values.set_white_space_collapse(computed_style.white_space_collapse());
+    computed_values.set_overflow_wrap(computed_style.overflow_wrap());
     computed_values.set_word_break(computed_style.word_break());
 
     computed_values.set_word_spacing(computed_style.word_spacing());

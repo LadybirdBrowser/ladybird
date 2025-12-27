@@ -46,6 +46,8 @@ public:
     CSSPixels y_for_float_to_be_inserted_here(Box const&);
 
     void did_introduce_clearance(CSSPixels);
+    Optional<CSSPixels> remaining_inline_space() const;
+    Optional<CSSPixels> remaining_inline_space_if_should_break_word(CSSPixels next_item_width);
 
 private:
     void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true, ForcedBreak = ForcedBreak::No);

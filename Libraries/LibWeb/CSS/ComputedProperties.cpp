@@ -1084,6 +1084,12 @@ Variant<Length, double> ComputedProperties::tab_size() const
     return value.as_number().number();
 }
 
+OverflowWrap ComputedProperties::overflow_wrap() const
+{
+    auto const& value = property(PropertyID::OverflowWrap);
+    return keyword_to_overflow_wrap(value.to_keyword()).release_value();
+}
+
 WordBreak ComputedProperties::word_break() const
 {
     auto const& value = property(PropertyID::WordBreak);

@@ -243,6 +243,18 @@ void InlineFormattingContext::apply_justification_to_fragments(CSS::TextJustify 
     }
 }
 
+struct MaybeBreakTextItemResult {
+    bool should_append { true };
+    Optional<InlineLevelIterator::Item> remainder_item;
+};
+
+static MaybeBreakTextItemResult maybe_break_text_item(
+    TextNode const& text_node,
+    Optional<AvailableSpace> const& available_space,
+    InlineLevelIterator::Item& item,
+    LineBuilder& line_builder,
+    InlineLevelIterator& iterator);
+
 void InlineFormattingContext::generate_line_boxes()
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
@@ -260,9 +272,10 @@ void InlineFormattingContext::generate_line_boxes()
     CSSPixels leading_margin_from_collapsible_whitespace = 0;
 
     Vector<Box const*> absolute_boxes;
+    Optional<InlineLevelIterator::Item> remainder_item;
 
     for (;;) {
-        auto item_opt = iterator.next();
+        auto item_opt = remainder_item.has_value() ? remainder_item.release_value() : iterator.next();
         if (!item_opt.has_value())
             break;
         auto& item = item_opt.value();
@@ -324,93 +337,22 @@ void InlineFormattingContext::generate_line_boxes()
             break;
 
         case InlineLevelIterator::Item::Type::Text: {
-            auto& text_node = as<Layout::TextNode>(*item.node);
-
-            if (text_node.computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
-                bool is_whitespace = false;
-                CSSPixels next_width = 0;
-                // If we're in a whitespace-collapsing context, we can simply check the flag.
-                if (item.is_collapsible_whitespace) {
-                    is_whitespace = true;
-                    next_width = iterator.next_non_whitespace_sequence_width();
-                } else {
-                    // In whitespace-preserving contexts (white-space: pre*), we have to check manually.
-                    auto view = text_node.text_for_rendering().substring_view(item.offset_in_node, item.length_in_node);
-                    is_whitespace = view.is_ascii_whitespace();
-                    if (is_whitespace)
-                        next_width = iterator.next_non_whitespace_sequence_width();
-                }
-
-                // If whitespace caused us to break, we swallow the whitespace instead of putting it on the next line.
-                if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width))
-                    break;
-            } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
-                && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
-                // We may need to do an ellipsis if the text is too long for the container
-                constexpr u32 ellipsis_codepoint = 0x2026;
-
-                // NOTE: We compute whether we need to truncate the text with an ellipsis based on the width of the
-                //       text node EXCLUSIVE of trailing collapsible whitespace, this is because that trailing
-                //       collapsible whitespace is removed later when we trim the line-boxes anyway.
-                //       Note that this relies on the assumption that this text node is the last in this linebox (as
-                //       there is only one text-node per line box when we have text-wrap: nowrap)
-                double width_without_trailing_collapsible_whitespace = item.width.to_double();
-
-                if (first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks)) {
-                    auto last_text = text_node.text_for_rendering();
-
-                    size_t last_fragment_length = last_text.length_in_code_units();
-                    while (last_fragment_length) {
-                        auto last_character = last_text.code_unit_at(--last_fragment_length);
-                        if (!is_ascii_space(last_character))
-                            break;
-
-                        width_without_trailing_collapsible_whitespace -= item.glyph_run->font().glyph_width(last_character);
-                    }
-                }
-
-                if (m_available_space.has_value() && width_without_trailing_collapsible_whitespace > m_available_space.value().width.to_px_or_zero().to_double()) {
-                    // Do the ellipsis
-                    auto& glyph_run = item.glyph_run;
-
-                    auto available_width = m_available_space.value().width.to_px_or_zero().to_double();
-                    auto ellipsis_width = glyph_run->font().glyph_width(ellipsis_codepoint);
-                    auto max_text_width = available_width - ellipsis_width;
-
-                    auto& glyphs = glyph_run->glyphs();
-                    size_t last_glyph_index = 0;
-                    auto last_glyph_position = Gfx::FloatPoint();
-
-                    for (auto const& glyph : glyphs) {
-                        if (glyph.position.x() > max_text_width)
-                            break;
-                        last_glyph_index++;
-                        last_glyph_position = glyph.position;
-                    }
-
-                    if (last_glyph_index > 1) {
-                        auto remove_item_count = glyphs.size() - last_glyph_index;
-                        glyphs.remove(last_glyph_index - 1, remove_item_count);
-                        glyphs.append(Gfx::DrawGlyph {
-                            .position = last_glyph_position,
-                            .length_in_code_units = AK::UnicodeUtils::code_unit_length_for_code_point(ellipsis_codepoint),
-                            .glyph_width = glyph_run->font().glyph_width(ellipsis_codepoint),
-                            .glyph_id = glyph_run->font().glyph_id_for_code_point(ellipsis_codepoint),
-                        });
-                    }
-                }
+            auto const& text_node = as<Layout::TextNode>(*item.node);
+            auto result = maybe_break_text_item(text_node, m_available_space, item, line_builder, iterator);
+            if (result.should_append) {
+                line_builder.append_text_chunk(
+                    text_node,
+                    item.offset_in_node,
+                    item.length_in_node,
+                    item.border_start + item.padding_start,
+                    item.padding_end + item.border_end,
+                    item.margin_start,
+                    item.margin_end,
+                    item.width,
+                    text_node.computed_values().line_height(),
+                    move(item.glyph_run));
             }
-            line_builder.append_text_chunk(
-                text_node,
-                item.offset_in_node,
-                item.length_in_node,
-                item.border_start + item.padding_start,
-                item.padding_end + item.border_end,
-                item.margin_start,
-                item.margin_end,
-                item.width,
-                text_node.computed_values().line_height(),
-                move(item.glyph_run));
+            remainder_item = move(result.remainder_item);
             break;
         }
         }
@@ -529,6 +471,146 @@ StaticPositionRect InlineFormattingContext::calculate_static_position_rect(Box c
     }
 
     return { .rect = { position, { 0, 0 } } };
+}
+
+MaybeBreakTextItemResult maybe_break_text_item(
+    TextNode const& text_node,
+    Optional<AvailableSpace> const& available_space,
+    InlineLevelIterator::Item& item,
+    LineBuilder& line_builder,
+    InlineLevelIterator& iterator)
+{
+    auto const& computed = text_node.computed_values();
+    CSS::WhiteSpaceCollapse whitespace_collapse = computed.white_space_collapse();
+    bool can_collapse = whitespace_collapse == CSS::WhiteSpaceCollapse::Collapse
+        || whitespace_collapse == CSS::WhiteSpaceCollapse::PreserveBreaks
+        || whitespace_collapse == CSS::WhiteSpaceCollapse::BreakSpaces;
+
+    if (computed.text_wrap_mode() == CSS::TextWrapMode::Wrap) {
+        if (item.is_collapsible_whitespace
+            || (can_collapse
+                && text_node.text_for_rendering().substring_view(item.offset_in_node, item.length_in_node).is_ascii_whitespace())) {
+
+            CSSPixels next_width = iterator.next_non_whitespace_sequence_width();
+            if (next_width > 0)
+                // If whitespace caused us to break, we swallow the whitespace instead of putting it on the next line.
+                return { !line_builder.break_if_needed(item.border_box_width() + next_width), {} };
+
+            if (!item.glyph_run || whitespace_collapse != CSS::WhiteSpaceCollapse::BreakSpaces)
+                return {};
+
+            // For textarea and similar editables with wrap, don't let trailing whitespace runs break lines
+            // and don't advance past the inline end.
+            auto inline_space = max(line_builder.remaining_inline_space().value_or(0).to_float(), 0.0f);
+            item.width = min(CSSPixels::nearest_value_for(inline_space), item.width);
+
+            for (auto& glyph : item.glyph_run->glyphs()) {
+                if (glyph.position.x() + glyph.glyph_width > inline_space) {
+                    glyph.position.set_x(inline_space);
+                    glyph.glyph_width = 0;
+                }
+            }
+            return {};
+        }
+
+        if (!item.glyph_run || computed.overflow_wrap() == CSS::OverflowWrap::Normal)
+            return {};
+
+        // Break words when overflow-wrap allows.
+
+        auto remaining_space = line_builder.remaining_inline_space_if_should_break_word(item.border_box_width());
+        if (!remaining_space.has_value())
+            return {};
+
+        auto& item_glyphs = item.glyph_run->glyphs();
+        auto break_at = item.glyph_run->fit_glyphs(remaining_space->to_float());
+
+        if (break_at.glyph_count == 0
+            || break_at.glyph_count == item_glyphs.size()
+            || break_at.utf16_units == 0
+            || break_at.utf16_units > item.length_in_node)
+            return {};
+
+        auto remainder_glyph_run = Gfx::GlyphRun::create_empty_with_metrics_of(*item.glyph_run);
+        auto& remainder_glyphs = remainder_glyph_run->glyphs();
+        remainder_glyphs.ensure_capacity(item_glyphs.size() - break_at.glyph_count);
+
+        for (size_t i = break_at.glyph_count; i < item_glyphs.size(); i++) {
+            auto glyph = item_glyphs[i];
+            glyph.position.set_x(glyph.position.x() - break_at.inline_advance);
+            remainder_glyphs.append(glyph);
+        }
+
+        item_glyphs.remove(break_at.glyph_count, item_glyphs.size() - break_at.glyph_count);
+        item.width = CSSPixels::nearest_value_for(break_at.inline_advance);
+
+        InlineLevelIterator::Item remainder = item;
+        remainder.offset_in_node += break_at.utf16_units;
+        remainder.length_in_node -= break_at.utf16_units;
+        remainder.glyph_run = move(remainder_glyph_run);
+        remainder.width = CSSPixels::nearest_value_for(remainder_glyphs.last().position.x() + remainder_glyphs.last().glyph_width);
+
+        return { true, move(remainder) };
+    }
+
+    if (computed.text_overflow() != CSS::TextOverflow::Ellipsis || computed.overflow_x() == CSS::Overflow::Visible)
+        return {};
+
+    // We may need to do an ellipsis if the text is too long for the container
+    constexpr u32 ellipsis_codepoint = 0x2026;
+
+    // NOTE: We compute whether we need to truncate the text with an ellipsis based on the width of the
+    //       text node EXCLUSIVE of trailing collapsible whitespace, this is because that trailing
+    //       collapsible whitespace is removed later when we trim the line-boxes anyway.
+    //       Note that this relies on the assumption that this text node is the last in this linebox (as
+    //       there is only one text-node per line box when we have text-wrap: nowrap)
+    double width_without_trailing_collapsible_whitespace = item.width.to_double();
+
+    if (can_collapse) {
+        auto const& last_text = text_node.text_for_rendering();
+
+        size_t last_fragment_length = last_text.length_in_code_units();
+        while (last_fragment_length) {
+            auto last_character = last_text.code_unit_at(--last_fragment_length);
+            if (!is_ascii_space(last_character))
+                break;
+
+            width_without_trailing_collapsible_whitespace -= item.glyph_run->font().glyph_width(last_character);
+        }
+    }
+    if (!item.glyph_run
+        || !available_space.has_value()
+        || available_space.value().width.to_px_or_zero().to_double() >= width_without_trailing_collapsible_whitespace)
+        return {};
+
+    if (available_space.value().width.is_definite())
+        warnln("o boys {}", available_space.value().width.to_px_or_zero().to_double());
+    auto available_inline = available_space.value().width.to_px_or_zero().to_double();
+    auto const& font = item.glyph_run->font();
+
+    Utf16String ellipsis_string {
+        font.glyph_id_for_code_point(ellipsis_codepoint) == 0
+            ? Utf16String::from_utf8("..."sv)
+            : Utf16String::from_code_point(ellipsis_codepoint)
+    };
+    auto ellipsis_run = shape_text({ 0, font.pixel_metrics().ascent }, 0, ellipsis_string.utf16_view(), font, item.glyph_run->text_type(), {});
+    if (ellipsis_run->width() > available_inline)
+        return {};
+
+    auto truncate_before_index = item.glyph_run->fit_glyphs(available_inline - ellipsis_run->width()).glyph_count;
+    auto& item_glyphs = item.glyph_run->glyphs();
+
+    if (truncate_before_index == item_glyphs.size())
+        return {};
+
+    auto ellipsis_top_left = item_glyphs[truncate_before_index].position;
+    item_glyphs.shrink(truncate_before_index, true);
+
+    for (Gfx::DrawGlyph glyph : ellipsis_run->glyphs()) {
+        glyph.position.translate_by(ellipsis_top_left);
+        item_glyphs.append(move(glyph));
+    }
+    return {};
 }
 
 }

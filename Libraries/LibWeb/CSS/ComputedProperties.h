@@ -117,6 +117,7 @@ public:
     Variant<Length, double> tab_size() const;
     WhiteSpaceCollapse white_space_collapse() const;
     WhiteSpaceTrimData white_space_trim() const;
+    OverflowWrap overflow_wrap() const;
     WordBreak word_break() const;
     CSSPixels word_spacing() const;
     CSSPixels letter_spacing() const;
