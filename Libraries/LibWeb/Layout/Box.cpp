@@ -29,32 +29,16 @@ Box::~Box()
 {
 }
 
-Optional<CSSPixels> Box::natural_width() const
+CSS::SizeWithAspectRatio Box::intrinsic_content_box_size() const
 {
-    // https://drafts.csswg.org/css-contain-2/#containment-size
+    // https://www.w3.org/TR/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
     if (has_size_containment())
-        return 0;
-    return m_natural_width;
-}
-Optional<CSSPixels> Box::natural_height() const
-{
-    // https://drafts.csswg.org/css-contain-2/#containment-size
-    // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
-    // ratio.
-    if (has_size_containment())
-        return 0;
-    return m_natural_height;
-}
-Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
-{
-    // https://drafts.csswg.org/css-contain-2/#containment-size
-    // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
-    // ratio.
-    if (has_size_containment())
-        return {};
-    return m_natural_aspect_ratio;
+        return { 0, 0, {} };
+
+    // Return the content-box intrinsic size
+    return compute_intrinsic_content_box_size();
 }
 
 void Box::visit_edges(Cell::Visitor& visitor)
@@ -80,18 +64,22 @@ Painting::PaintableBox const* Box::paintable_box() const
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
 {
-    auto computed_aspect_ratio = computed_values().aspect_ratio();
-    if (computed_aspect_ratio.use_natural_aspect_ratio_if_available && natural_aspect_ratio().has_value())
-        return natural_aspect_ratio();
+    auto const& aspect = computed_values().aspect_ratio();
 
-    if (!computed_aspect_ratio.preferred_ratio.has_value())
-        return {};
+    // https://www.w3.org/TR/css-contain-2/#containment-size
 
-    auto ratio = computed_aspect_ratio.preferred_ratio.release_value();
-    if (ratio.is_degenerate())
-        return {};
+    if (!has_size_containment() && aspect.use_natural_aspect_ratio_if_available) {
+        if (auto intrinsic = intrinsic_content_box_size(); intrinsic.has_aspect_ratio())
+            return intrinsic.aspect_ratio;
+    }
 
-    return CSSPixelFraction(ratio.numerator(), ratio.denominator());
+    if (aspect.preferred_ratio.has_value()) {
+        auto ratio = aspect.preferred_ratio.value();
+        if (!ratio.is_degenerate())
+            return CSSPixelFraction(ratio.numerator(), ratio.denominator());
+    }
+
+    return {};
 }
 
 }
