@@ -474,6 +474,45 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup::execute(MatchIn
     return ExecutionResult::Continue;
 }
 
+ALWAYS_INLINE ExecutionResult OpCode_SaveStaticCaptureGroup::execute(MatchInput const& input, MatchState& state) const
+{
+
+    if (input.match_index >= state.capture_group_matches_size()) {
+        state.flat_capture_group_matches.ensure_capacity((input.match_index + 1) * state.capture_group_count);
+        for (size_t i = state.capture_group_matches_size(); i <= input.match_index; ++i)
+            for (size_t j = 0; j < state.capture_group_count; ++j)
+                state.flat_capture_group_matches.append({});
+    }
+
+    // This represents a static string capture and is run after the string has been matched.
+    //   full_string: |...............|
+    //                ^     ^   ^     ^
+    //                      |---+-----| -offset_in_full_string
+    //                      |---|        string_length
+    auto length = this->length();
+    auto start_position = state.string_position - offset();
+    dbgln_if(REGEX_DEBUG, "Saving static capture group id={} at position {} with length {}", id(), start_position, length);
+    dbgln_if(REGEX_DEBUG, " full string: '{}'", input.view);
+    dbgln_if(REGEX_DEBUG, "            :  {:>{}}{:^>{}}", "", start_position, "", length);
+
+    auto captured_text = input.view.substring_view(start_position, length);
+    dbgln_if(REGEX_DEBUG, "            :  {:>{}}{} ", "", start_position, captured_text);
+
+    // FIXME: Does this need more checks here?
+
+    auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id() - 1);
+    if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+        auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+        if (existing_end_position == state.string_position) {
+            return ExecutionResult::Continue;
+        }
+    }
+
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { captured_text, input.line, start_position, input.global_offset + start_position };
+
+    return ExecutionResult::Continue;
+}
+
 ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, MatchState& state) const
 {
     auto const argument_count = arguments_count();
@@ -591,16 +630,9 @@ ALWAYS_INLINE ExecutionResult OpCode_Compare::execute(MatchInput const& input, M
             if (input.view.length() < state.string_position + length)
                 return ExecutionResult::Failed_ExecuteLowPrioForks;
 
-            Optional<ByteString> str;
-            Utf16String utf16;
-            Vector<u32> data;
-            data.ensure_capacity(length);
-            for (size_t i = offset; i < offset + length; ++i)
-                data.unchecked_append(bytecode_data[i]);
-
-            auto view = input.view.construct_as_same(data, str, utf16);
+            auto str = StringView((char const*)&bytecode_data[offset], length);
             offset += length;
-            if (compare_string(input, state, view, had_zero_length_match)) {
+            if (compare_string(input, state, str, had_zero_length_match)) {
                 if (current_inversion_state())
                     inverse_matched = true;
             }
@@ -1225,8 +1257,9 @@ Vector<CompareTypeAndValuePair> OpCode_Compare::flat_compares() const
             result.append({ compare_type, ref });
         } else if (compare_type == CharacterCompareType::String) {
             auto& length = bytecode_data[offset++];
+            auto string = StringView((char const*)&bytecode_data[offset], length);
             for (size_t k = 0; k < length; ++k)
-                result.append({ CharacterCompareType::Char, bytecode_data[offset + k] });
+                result.append({ CharacterCompareType::Char, (ByteCodeValueType)string[k] });
             offset += length;
         } else if (compare_type == CharacterCompareType::CharClass) {
             auto character_class = bytecode_data[offset++];
@@ -1328,10 +1361,9 @@ Vector<ByteString> OpCode_Compare::variable_arguments_to_byte_string(Optional<Ma
             }
         } else if (compare_type == CharacterCompareType::String) {
             auto& length = m_bytecode->at(offset++);
-            StringBuilder str_builder;
-            for (size_t i = 0; i < length; ++i)
-                str_builder.append(m_bytecode->at(offset++));
-            result.empend(ByteString::formatted(" value=\"{}\"", str_builder.string_view().substring_view(0, length)));
+            auto string = StringView((char const*)&m_bytecode->at(offset), length);
+            offset += ceil_div(length, sizeof(ByteCodeValueType));
+            result.empend(ByteString::formatted(" value=\"{}\"", string.substring_view(0, length)));
             if (!view.is_null() && view.length() > state().string_position)
                 result.empend(ByteString::formatted(
                     " compare against: \"{}\"",
