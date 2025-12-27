@@ -1218,6 +1218,9 @@ DecoderErrorOr<Block> SampleIterator::next_block()
             auto candidate_block = TRY(parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
             if (candidate_block.track_number() == m_track->track_number())
                 block = move(candidate_block);
+        } else if (element_id == SEGMENT_ELEMENT_ID) {
+            dbgln("Malformed file, found a segment element within the root segment element. Jumping into it.");
+            [[maybe_unused]] auto segment_size = TRY(streamer.read_variable_size_integer());
         } else {
             dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is skipping unknown element with ID {:#010x}.", element_id);
             TRY(streamer.read_unknown_element());
