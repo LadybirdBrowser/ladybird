@@ -9,11 +9,12 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/Typeface.h>
 
 namespace WOFF {
 
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_resource(Core::Resource const&, unsigned index = 0);
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes, unsigned index = 0);
+GFX_API ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes, unsigned index = 0);
 
 }
