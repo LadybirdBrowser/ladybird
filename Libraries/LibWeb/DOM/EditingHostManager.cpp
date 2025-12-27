@@ -208,4 +208,16 @@ EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type
     return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 
+bool EditingHostManager::is_within_active_contenteditable(DOM::Node const& node) const
+{
+    if (!m_active_contenteditable_element)
+        return false;
+    for (auto const* iter = &node; iter; iter = iter->parent_or_shadow_host()) {
+        if (iter == m_active_contenteditable_element.ptr())
+            return true;
+        ;
+    }
+    return false;
+}
+
 }

@@ -12,6 +12,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -709,16 +710,17 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
                 // a drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
                 auto user_select = paintable->layout_node().user_select_used_value();
                 if (user_select != CSS::UserSelect::None) {
-                    auto target = document->active_input_events_target();
-                    if (target) {
+                    if (InputEventsTarget* input_target = active_input_events_target_for_node(*node); input_target) {
                         m_in_mouse_selection = true;
-                        m_mouse_selection_target = target;
+                        m_mouse_selection_target = input_target;
                         if (modifiers & UIEvents::KeyModifier::Mod_Shift) {
-                            target->set_selection_focus(*dom_node, result->index_in_node);
+                            input_target->set_selection_focus(*dom_node, result->index_in_node);
                         } else {
-                            target->set_selection_anchor(*dom_node, result->index_in_node);
+                            input_target->set_selection_anchor(*dom_node, result->index_in_node);
                         }
                     } else if (!focus_candidate) {
+                        if (document->active_input_events_target())
+                            document->set_focused_area(nullptr);
                         m_in_mouse_selection = true;
                         if (auto selection = document->get_selection()) {
                             auto anchor_node = selection->anchor_node();
@@ -1614,6 +1616,24 @@ Unicode::Segmenter& EventHandler::word_segmenter()
     if (!m_word_segmenter)
         m_word_segmenter = m_navigable->active_document()->word_segmenter().clone();
     return *m_word_segmenter;
+}
+
+InputEventsTarget* EventHandler::active_input_events_target_for_node(DOM::Node const& node) const
+{
+    auto document = m_navigable->active_document();
+    if (!document)
+        return nullptr;
+    auto* input_events_target = document->active_input_events_target();
+    if (!input_events_target)
+        return nullptr;
+    if (document->editing_host_manager()->is_within_active_contenteditable(node))
+        return document->editing_host_manager();
+    auto* active_node = as_if<DOM::Node>(input_events_target);
+    if (active_node == &node)
+        return input_events_target;
+    if (node.find_in_shadow_including_ancestor_chain([&](auto const& iterator) { return &iterator == active_node; }))
+        return input_events_target;
+    return nullptr;
 }
 
 }

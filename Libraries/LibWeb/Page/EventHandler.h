@@ -61,6 +61,7 @@ private:
     CSSPixelPoint compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const;
     CSSPixelPoint compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const;
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint event_client_offset) const;
+    InputEventsTarget* active_input_events_target_for_node(DOM::Node const& node) const;
 
     struct Target {
         GC::Ptr<Painting::Paintable> paintable;
