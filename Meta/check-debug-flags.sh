@@ -42,6 +42,7 @@ done < <(
         find_all_source_files "$@"
     fi \
     | xargs grep -E '(_DEBUG|DEBUG_)' \
+    | grep -v 'VK_' \
     | sed -re 's,^.*[^a-zA-Z0-9_]([a-zA-Z0-9_]*DEBUG[a-zA-Z0-9_]*).*$,\1,' \
     | sort -u
 )
