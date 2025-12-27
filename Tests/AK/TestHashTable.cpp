@@ -165,7 +165,7 @@ TEST_CASE(take_all_matching)
 
 TEST_CASE(case_insensitive)
 {
-    HashTable<ByteString, CaseInsensitiveStringTraits> casetable;
+    HashTable<ByteString, CaseInsensitiveASCIIStringTraits> casetable;
     EXPECT_EQ(ByteString("nickserv").to_lowercase(), ByteString("NickServ").to_lowercase());
     EXPECT_EQ(casetable.set("nickserv"), AK::HashSetResult::InsertedNewEntry);
     EXPECT_EQ(casetable.set("NickServ"), AK::HashSetResult::ReplacedExistingEntry);
