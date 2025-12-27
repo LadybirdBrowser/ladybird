@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const context = new AudioContext();
+        println(`AudioContext state: ${context.state}`);
+        println(`AudioContext.suspend: ${typeof context.suspend}`);
+        println(`AudioContext.resume: ${typeof context.resume}`);
+        println(`AudioContext.close: ${typeof context.close}`);
+        
+        const suspendResult = context.suspend();
+        println(`suspend() returns Promise: ${suspendResult instanceof Promise}`);
+        
+        const offlineContext = new OfflineAudioContext(2, 44100, 44100);
+        println(`OfflineAudioContext channels: ${offlineContext.destination.channelCount}`);
+        println(`OfflineAudioContext.startRendering: ${typeof offlineContext.startRendering}`);
+    });
+</script>
