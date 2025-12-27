@@ -4352,6 +4352,8 @@ GC::Ptr<HTML::HTMLParser> Document::active_parser()
 
 void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_context)
 {
+    if (browsing_context)
+        m_has_been_browsing_context_associated = true;
     m_browsing_context = browsing_context;
 }
 

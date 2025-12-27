@@ -34,6 +34,10 @@ void TaskQueue::add(GC::Ref<Task> task)
     if (task->document() && task->document()->is_temporary_document_for_fragment_parsing())
         return;
 
+    // AD-HOC: Don't enqueue tasks for documents that haven't been browsing context associated.
+    if (task->document() && !task->document()->has_been_browsing_context_associated())
+        return;
+
     m_tasks.append(task);
     m_event_loop->schedule();
 }
