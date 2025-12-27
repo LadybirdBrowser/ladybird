@@ -666,26 +666,31 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
         m_mousedown_target = node.ptr();
 
-        // Find and store the nearest scrollable container for keyboard scroll events
+        // Find and store the nearest scrollable container for keyboard scroll events.
+        // Exclude viewport paintable since viewport scrolling should use Window::scroll_by().
         m_keyboard_scroll_container = nullptr;
         m_keyboard_scroll_container_parent = nullptr;
         if (auto* paintable_box = as_if<Painting::PaintableBox>(layout_node->first_paintable())) {
-            // Check if the element itself is scrollable
+            // Check if the element itself is scrollable (but not the viewport)
             Painting::PaintableBox const* scrollable_container = nullptr;
-            if (paintable_box->could_be_scrolled_by_wheel_event()) {
+            if (!paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event()) {
                 m_keyboard_scroll_container = node.ptr();
                 scrollable_container = paintable_box;
             } else if (auto* scrollable_ancestor = paintable_box->nearest_scrollable_ancestor()) {
-                // Otherwise find the nearest scrollable ancestor
-                if (auto ancestor_node = scrollable_ancestor->dom_node())
-                    m_keyboard_scroll_container = const_cast<DOM::Node*>(ancestor_node.ptr());
-                scrollable_container = scrollable_ancestor;
+                // Find the nearest scrollable ancestor (excluding viewport)
+                if (!scrollable_ancestor->is_viewport_paintable()) {
+                    if (auto ancestor_node = scrollable_ancestor->dom_node())
+                        m_keyboard_scroll_container = const_cast<DOM::Node*>(ancestor_node.ptr());
+                    scrollable_container = scrollable_ancestor;
+                }
             }
-            // Also store the parent scrollable container as fallback
+            // Also store the parent scrollable container as fallback (excluding viewport)
             if (scrollable_container) {
                 if (auto* parent_scrollable = scrollable_container->nearest_scrollable_ancestor()) {
-                    if (auto parent_node = parent_scrollable->dom_node())
-                        m_keyboard_scroll_container_parent = const_cast<DOM::Node*>(parent_node.ptr());
+                    if (!parent_scrollable->is_viewport_paintable()) {
+                        if (auto parent_node = parent_scrollable->dom_node())
+                            m_keyboard_scroll_container_parent = const_cast<DOM::Node*>(parent_node.ptr());
+                    }
                 }
             }
         }
@@ -1452,17 +1457,17 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     // Find the scrollable element to target based on the last clicked scrollable container.
     // This implements the behavior where keyboard scrolling targets the scrollable
-    // container that was clicked
+    // container that was clicked. Viewport scrolling is handled via Window::scroll_by().
     Painting::PaintableBox* scroll_target = nullptr;
 
-    // Helper lambda to get paintable box from a node if it's still scrollable
+    // Helper lambda to get paintable box from a node if it's still scrollable (excluding viewport)
     auto get_scrollable_paintable = [](GC::Ptr<DOM::Node> const& node) -> Painting::PaintableBox* {
         if (!node || !node->is_connected())
             return nullptr;
         if (auto* layout_node = node->layout_node()) {
             if (auto* paintable = layout_node->first_paintable()) {
                 if (auto* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
-                    if (paintable_box->could_be_scrolled_by_wheel_event())
+                    if (!paintable_box->is_viewport_paintable() && paintable_box->could_be_scrolled_by_wheel_event())
                         return paintable_box;
                 }
             }
@@ -1472,13 +1477,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     // Try primary scrollable container first, then fall back to parent
     scroll_target = get_scrollable_paintable(m_keyboard_scroll_container) ?: get_scrollable_paintable(m_keyboard_scroll_container_parent);
-    
+
     // Helper lambda to scroll either the target element or the window
     auto scroll_by = [&](CSSPixels delta_x, CSSPixels delta_y) {
-        if (scroll_target)
+        if (scroll_target) {
             (void)scroll_target->scroll_by(delta_x.to_int(), delta_y.to_int());
-        else
+        } else {
             document->window()->scroll_by(delta_x.to_double(), delta_y.to_double());
+        }
     };
 
     switch (key) {
@@ -1504,6 +1510,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             document->page().traverse_the_history_by_delta(key == UIEvents::KeyCode::Key_Left ? -1 : 1);
         else
             scroll_by(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0);
+        return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Space:
+        // Space scrolls down by a page, Shift+Space scrolls up
+        if (modifiers && modifiers != UIEvents::KeyModifier::Mod_Shift)
+            break;
+        scroll_by(0, modifiers & UIEvents::KeyModifier::Mod_Shift ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
