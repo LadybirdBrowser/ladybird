@@ -98,11 +98,11 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
         GC::Ptr<Database> db;
         auto maybe_db = Database::for_key_and_name(storage_key, name);
         if (maybe_db.has_value()) {
-            db = maybe_db.value();
+            db = &maybe_db.value();
         }
 
         // 5. If version is undefined, let version be 1 if db is null, or db’s version otherwise.
-        auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value()->version() : 1);
+        auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value().version() : 1);
 
         // 6. If db is null, let db be a new database with name name, version 0 (zero), and with no object stores.
         // If this fails for any reason, return an appropriate error (e.g. a "QuotaExceededError" or "UnknownError" DOMException).
@@ -140,7 +140,7 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
             // 2. For each entry of openConnections that does not have its close pending flag set to true,
             //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
             GC::Ptr<TaskCounterState> task_counter_state;
-            for (auto const& entry : open_connections) {
+            for (auto const& entry : open_connections->elements()) {
                 if (!entry->close_pending()) {
                     if (!task_counter_state) {
                         task_counter_state = realm.heap().allocate<TaskCounterState>();
@@ -160,10 +160,10 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                 dbgln("remaining tasks: {}", task_counter_state ? task_counter_state->remaining_tasks : 0);
             }
 
-            auto after_all = GC::create_function(realm.heap(), [&realm, open_connections = move(open_connections), db, version, connection, request, on_complete] {
+            auto after_all = GC::create_function(realm.heap(), [&realm, open_connections, db, version, connection, request, on_complete] {
                 // 4. If any of the connections in openConnections are still not closed,
                 //    queue a database task to fire a version change event named blocked at request with db’s version and version.
-                for (auto const& entry : open_connections) {
+                for (auto const& entry : open_connections->elements()) {
                     if (entry->state() != ConnectionState::Closed) {
                         queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
                             fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
@@ -174,13 +174,13 @@ void open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage
                 // 5. Wait until all connections in openConnections are closed.
                 if constexpr (IDB_DEBUG) {
                     dbgln("open_a_database_connection: waiting for step 10.5");
-                    dbgln("open connections: {}", open_connections.size());
-                    for (auto const& open_connection : open_connections) {
+                    dbgln("open connections: {}", open_connections->elements().size());
+                    for (auto const& open_connection : open_connections->elements()) {
                         dbgln("  - {}", open_connection->uuid());
                     }
                 }
 
-                db->wait_for_connections_to_close(open_connections, GC::create_function(realm.heap(), [&realm, connection, version, request, on_complete] {
+                db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, connection, version, request, on_complete] {
                     dbgln_if(IDB_DEBUG, "open_a_database_connection: finished waiting for step 10.5");
 
                     // 6. Run upgrade a database using connection, version and request.
@@ -505,7 +505,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
             return;
         }
 
-        auto db = maybe_db.value();
+        GC::Ref db = maybe_db.value();
 
         // 5. Let openConnections be the set of all connections associated with db.
         auto open_connections = db->associated_connections();
@@ -513,7 +513,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
         // 6. For each entry of openConnections that does not have its close pending flag set to true,
         //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
         GC::Ptr<TaskCounterState> task_counter_state;
-        for (auto const& entry : open_connections) {
+        for (auto const& entry : open_connections->elements()) {
             if (!entry->close_pending()) {
                 if (!task_counter_state) {
                     task_counter_state = realm.heap().allocate<TaskCounterState>();
@@ -535,7 +535,7 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
 
         auto after_all = GC::create_function(realm.heap(), [&realm, open_connections, db, storage_key = move(storage_key), name = move(name), on_complete] {
             // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a version change event named blocked at request with db’s version and null.
-            for (auto const& entry : open_connections) {
+            for (auto const& entry : open_connections->elements()) {
                 if (entry->state() != ConnectionState::Closed) {
                     queue_a_database_task(GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
                         fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
@@ -546,13 +546,13 @@ void delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, Str
             // 9. Wait until all connections in openConnections are closed.
             if constexpr (IDB_DEBUG) {
                 dbgln("delete_a_database: waiting for step 9");
-                dbgln("open connections: {}", open_connections.size());
-                for (auto const& connection : open_connections) {
+                dbgln("open connections: {}", open_connections->elements().size());
+                for (auto const& connection : open_connections->elements()) {
                     dbgln("  - {}", connection->uuid());
                 }
             }
 
-            db->wait_for_connections_to_close(open_connections, GC::create_function(realm.heap(), [&realm, db, storage_key = move(storage_key), name = move(name), on_complete] {
+            db->wait_for_connections_to_close(open_connections->elements(), GC::create_function(realm.heap(), [&realm, db, storage_key = move(storage_key), name = move(name), on_complete] {
                 // 10. Let version be db’s version.
                 auto version = db->version();
 
@@ -2167,8 +2167,8 @@ bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop> event_loop)
 {
     bool has_matching_event_loop = false;
 
-    Database::for_each_database([&has_matching_event_loop, event_loop](GC::Root<Database> const& database) {
-        for (auto const& connection : database->associated_connections()) {
+    Database::for_each_database([&has_matching_event_loop, event_loop](Database& database) {
+        for (auto const& connection : database.associated_connections()->elements()) {
             for (auto const& transaction : connection->transactions()) {
 
                 // 2. For each transaction transaction with cleanup event loop matching the current event loop:
