@@ -54,13 +54,13 @@ class REGEX_API Parser {
 public:
     struct Result {
         Variant<ByteCode, FlatByteCode> bytecode;
-        size_t capture_groups_count;
-        size_t named_capture_groups_count;
-        size_t match_length_minimum;
-        Error error;
-        Token error_token;
-        Vector<FlyString> capture_groups;
-        AllOptions options;
+        size_t capture_groups_count { 0 };
+        size_t named_capture_groups_count { 0 };
+        size_t match_length_minimum { 0 };
+        Error error { Error::NoError };
+        Token error_token {};
+        Vector<FlyString> capture_groups {};
+        AllOptions options {};
 
         struct {
             Optional<Vector<u16>> pure_substring_search;
