@@ -239,10 +239,8 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::proto_setter)
     auto status = TRY(object.as_object().internal_set_prototype_of(proto.is_object() ? &proto.as_object() : nullptr));
 
     // 5. If status is false, throw a TypeError exception.
-    if (!status) {
-        // FIXME: Improve/contextualize error message
-        return vm.throw_completion<TypeError>(ErrorType::ObjectSetPrototypeOfReturnedFalse);
-    }
+    if (!status)
+        return vm.throw_completion<TypeError>(ErrorType::ObjectSetPrototypeOfReturnedFalse, Value(object));
 
     // 6. Return undefined.
     return js_undefined();

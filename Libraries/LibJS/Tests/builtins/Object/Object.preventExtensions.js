@@ -47,7 +47,7 @@ describe("errors", () => {
 
         expect(() => {
             Object.defineProperty(o, "baz", { value: "baz" });
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'baz' on [object Object]");
 
         expect(o.baz).toBeUndefined();
     });
