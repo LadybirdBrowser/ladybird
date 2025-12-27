@@ -33,6 +33,8 @@ class XMLHttpRequest final : public XMLHttpRequestEventTarget {
     GC_DECLARE_ALLOCATOR(XMLHttpRequest);
 
 public:
+    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
+
     enum class State : u16 {
         Unsent = 0,
         Opened = 1,

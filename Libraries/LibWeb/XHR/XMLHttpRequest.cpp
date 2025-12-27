@@ -76,7 +76,6 @@ XMLHttpRequest::XMLHttpRequest(JS::Realm& realm, XMLHttpRequestUpload& upload_ob
     , m_response_type(Bindings::XMLHttpRequestResponseType::Empty)
     , m_fetch_controller(fetch_controller)
 {
-    set_overrides_must_survive_garbage_collection(true);
 }
 
 XMLHttpRequest::~XMLHttpRequest() = default;
