@@ -159,6 +159,9 @@ public:
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
         for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+            if (cell->state() != Cell::State::Live)
+                return;
+
             if (m_node_being_visited)
                 m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
 
