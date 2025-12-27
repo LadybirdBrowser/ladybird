@@ -6,14 +6,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
-#include <LibWeb/Animations/Animatable.h>
-#include <LibWeb/Animations/Animation.h>
+#include "Animatable.h"
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/CSS/CSSTransition.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/Time.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 
@@ -138,27 +135,18 @@ void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
     impl.associated_animations.remove_first_matching([&](auto element) { return animation == element; });
 }
 
-void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo_element, Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors)
+void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo_element, Vector<CSS::TransitionProperties> const& transitions)
 {
-    VERIFY(properties.size() == delays.size());
-    VERIFY(properties.size() == durations.size());
-    VERIFY(properties.size() == timing_functions.size());
-    VERIFY(properties.size() == transition_behaviors.size());
-
     auto* maybe_transition = ensure_transition(pseudo_element);
     if (!maybe_transition)
         return;
 
     auto& transition = *maybe_transition;
-    for (size_t i = 0; i < properties.size(); i++) {
+    for (size_t i = 0; i < transitions.size(); i++) {
         size_t index_of_this_transition = transition.transition_attributes.size();
-        auto delay = CSS::Time::from_style_value(delays[i], {}).to_milliseconds();
-        auto duration = CSS::Time::from_style_value(durations[i], {}).to_milliseconds();
-        auto timing_function = CSS::EasingFunction::from_style_value(timing_functions[i]);
-        auto transition_behavior = CSS::keyword_to_transition_behavior(transition_behaviors[i]->to_keyword()).value_or(CSS::TransitionBehavior::Normal);
-        transition.transition_attributes.empend(delay, duration, timing_function, transition_behavior);
+        transition.transition_attributes.empend(transitions[i].delay, transitions[i].duration, transitions[i].timing_function, transitions[i].transition_behavior);
 
-        for (auto const& property : properties[i])
+        for (auto const& property : transitions[i].properties)
             transition.transition_attribute_indices.set(property, index_of_this_transition);
     }
 }

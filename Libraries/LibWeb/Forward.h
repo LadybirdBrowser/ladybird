@@ -415,6 +415,7 @@ struct GridRepeatParams;
 struct LogicalAliasMappingContext;
 struct RandomCachingKey;
 struct StyleSheetIdentifier;
+struct TransitionProperties;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
