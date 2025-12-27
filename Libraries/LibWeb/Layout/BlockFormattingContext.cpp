@@ -874,7 +874,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution, independent_formatting_context);
     }
 
-    if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
+    if (independent_formatting_context || !margins_collapse_through(box, m_state) || block_container.is_out_of_flow()) {
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
         }
