@@ -28,3 +28,4 @@ WorkerNavigator includes NavigatorOnLine;
 WorkerNavigator includes NavigatorConcurrentHardware;
 WorkerNavigator includes NavigatorStorage;
 WorkerNavigator includes NavigatorDeviceMemory;
+// FIXME: WorkerNavigator includes NavigatorBadge; https://w3c.github.io/badging/
