@@ -63,7 +63,7 @@ jobs:
 
           - os_name: 'Windows'
             arch: 'x86_64'
-            build_preset: 'Windows_Sanitizer_CI'
+            build_preset: 'Windows_Experimental_Sanitizer'
             toolchain: 'ClangCL'
             clang_plugins: false
             runner_labels: '["blacksmith-8vcpu-windows-2025"]'
