@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/ServiceWorker/Registration.h>
 
 namespace Web::HTML {
@@ -137,6 +138,24 @@ public:
     void set_discarded(bool b) { m_discarded = b; }
 
     virtual void discard_environment() override;
+
+    // FIXME: This method below is from HighResolutionTime spec in section 3. Section for Specification Authors.
+    // The following other methods are currently not supported:
+    // `current relative timestamp`     https://www.w3.org/TR/hr-time-3/#dfn-current-relative-timestamp
+    // `current monotonic time`         https://www.w3.org/TR/hr-time-3/#dfn-current-monotonic-time
+    // `current coarsened wall time`    https://www.w3.org/TR/hr-time-3/#dfn-current-wall-time
+
+    // https://w3c.github.io/hr-time/#dfn-eso-current-wall-time
+    HighResolutionTime::DOMHighResTimeStamp current_wall_time() const
+    {
+        // An environment settings object settingsObject's current wall time is the result of the following steps:
+
+        // 1. Let unsafeWallTime be the wall clock's unsafe current time.
+        auto unsafe_walltime = HighResolutionTime::wall_clock_unsafe_current_time();
+
+        // 2. Return the result of calling coarsen time with unsafeWallTime and settingsObject's cross-origin isolated capability.
+        return HighResolutionTime::coarsen_time(unsafe_walltime, cross_origin_isolated_capability());
+    }
 
 protected:
     explicit EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext>);
