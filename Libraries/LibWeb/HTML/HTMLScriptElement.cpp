@@ -173,11 +173,14 @@ void HTMLScriptElement::execute_script()
     }
     // -> "module"
     else if (m_script_type == ScriptType::Module) {
-        // 1. Assert: document's currentScript attribute is null.
-        VERIFY(document->current_script() == nullptr);
+        // Ensure document.currentScript is null for module execution.
+        auto old_current_script = document->current_script();
+        document->set_current_script({}, nullptr);
 
         // 2. Run the module script given by el's result.
         (void)as<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
+
+        document->set_current_script({}, old_current_script);
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {
