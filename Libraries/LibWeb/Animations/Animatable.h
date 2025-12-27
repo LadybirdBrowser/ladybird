@@ -63,7 +63,7 @@ public:
     void add_css_animation(FlyString name, Optional<CSS::PseudoElement>, GC::Ref<Animation>);
     void remove_css_animation(FlyString name, Optional<CSS::PseudoElement>);
 
-    void add_transitioned_properties(Optional<CSS::PseudoElement>, Vector<Vector<CSS::PropertyID>> properties, CSS::StyleValueVector delays, CSS::StyleValueVector durations, CSS::StyleValueVector timing_functions, CSS::StyleValueVector transition_behaviors);
+    void add_transitioned_properties(Optional<CSS::PseudoElement>, Vector<CSS::TransitionProperties> const& transitions);
     Vector<CSS::PropertyID> property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
     Optional<TransitionAttributes const&> property_transition_attributes(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
     void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);

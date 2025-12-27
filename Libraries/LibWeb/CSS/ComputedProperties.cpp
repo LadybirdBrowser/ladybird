@@ -2453,6 +2453,68 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations()
     return animations;
 }
 
+Vector<TransitionProperties> ComputedProperties::transitions() const
+{
+    auto const& coordinated_properties = assemble_coordinated_value_list(
+        PropertyID::TransitionProperty,
+        { PropertyID::TransitionProperty, PropertyID::TransitionDuration, PropertyID::TransitionTimingFunction, PropertyID::TransitionDelay, PropertyID::TransitionBehavior });
+
+    auto const& property_values = coordinated_properties.get(PropertyID::TransitionProperty).value();
+    auto const& duration_values = coordinated_properties.get(PropertyID::TransitionDuration).value();
+    auto const& timing_function_values = coordinated_properties.get(PropertyID::TransitionTimingFunction).value();
+    auto const& delay_values = coordinated_properties.get(PropertyID::TransitionDelay).value();
+    auto const& behavior_values = coordinated_properties.get(PropertyID::TransitionBehavior).value();
+
+    Vector<TransitionProperties> transitions;
+    transitions.ensure_capacity(property_values.size());
+
+    for (size_t i = 0; i < property_values.size(); i++) {
+        auto properties = [&]() -> Vector<PropertyID> {
+            auto const& property_value = property_values[i];
+
+            if (property_value->is_keyword() && property_value->to_keyword() == Keyword::None)
+                return {};
+
+            auto maybe_property = property_id_from_string(property_value->as_custom_ident().custom_ident());
+            if (!maybe_property.has_value())
+                return {};
+
+            Vector<PropertyID> properties;
+
+            auto const append_property_mapping_logical_aliases = [&](PropertyID property_id) {
+                if (property_is_logical_alias(property_id))
+                    properties.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() }));
+                else if (property_id != PropertyID::Custom)
+                    properties.append(property_id);
+            };
+
+            auto transition_property = maybe_property.release_value();
+            if (property_is_shorthand(transition_property)) {
+                auto expanded_longhands = expanded_longhands_for_shorthand(transition_property);
+
+                properties.ensure_capacity(expanded_longhands.size());
+
+                for (auto const& prop : expanded_longhands_for_shorthand(transition_property))
+                    append_property_mapping_logical_aliases(prop);
+            } else {
+                append_property_mapping_logical_aliases(transition_property);
+            }
+
+            return properties;
+        }();
+
+        transitions.append(TransitionProperties {
+            .properties = properties,
+            .duration = Time::from_style_value(duration_values[i], {}).to_milliseconds(),
+            .timing_function = EasingFunction::from_style_value(timing_function_values[i]),
+            .delay = Time::from_style_value(delay_values[i], {}).to_milliseconds(),
+            .transition_behavior = keyword_to_transition_behavior(behavior_values[i]->to_keyword()).value(),
+        });
+    }
+
+    return transitions;
+}
+
 MaskType ComputedProperties::mask_type() const
 {
     auto const& value = property(PropertyID::MaskType);

@@ -26,6 +26,14 @@
 
 namespace Web::CSS {
 
+struct TransitionProperties {
+    Vector<PropertyID> properties;
+    double duration;
+    EasingFunction timing_function;
+    double delay;
+    TransitionBehavior transition_behavior;
+};
+
 enum class AnimatedPropertyResultOfTransition : u8 {
     No,
     Yes
@@ -205,6 +213,7 @@ public:
         FlyString name;
     };
     Vector<AnimationProperties> animations() const;
+    Vector<TransitionProperties> transitions() const;
 
     Display display_before_box_type_transformation() const;
     void set_display_before_box_type_transformation(Display value);
