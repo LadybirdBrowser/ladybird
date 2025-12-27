@@ -56,8 +56,8 @@ ViewTransition::ViewTransition(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_
 
 void ViewTransition::initialize(JS::Realm& realm)
 {
-    Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ViewTransition);
+    Base::initialize(realm);
 }
 
 void ViewTransition::visit_edges(Cell::Visitor& visitor)
