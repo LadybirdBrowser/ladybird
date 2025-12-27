@@ -305,8 +305,8 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id([[
     Optional<size_t> position;
 
     while (streamer.position() < m_segment_contents_position + m_segment_contents_size) {
-        auto found_element_id = TRY(streamer.read_variable_size_integer(false));
         auto found_element_position = streamer.position();
+        auto found_element_id = TRY(streamer.read_variable_size_integer(false));
         dbgln_if(MATROSKA_TRACE_DEBUG, "Found element ID {:#010x} with position {}.", found_element_id, found_element_position);
 
         if (found_element_id == SEEK_HEAD_ELEMENT_ID) {
@@ -380,6 +380,8 @@ DecoderErrorOr<SegmentInformation> Reader::segment_information()
         return DecoderError::corrupted("No Segment Information element found"sv);
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
+    if (TRY(streamer.read_variable_size_integer(false)) != SEGMENT_INFORMATION_ELEMENT_ID)
+        return DecoderError::corrupted("Unexpected Matroska element when seeking to the Segment element"sv);
     m_segment_information = TRY(parse_information(streamer));
     return m_segment_information.value();
 }
@@ -393,6 +395,8 @@ DecoderErrorOr<void> Reader::ensure_tracks_are_parsed()
         return DecoderError::corrupted("No Tracks element found"sv);
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
+    if (TRY(streamer.read_variable_size_integer(false)) != TRACK_ELEMENT_ID)
+        return DecoderError::corrupted("Unexpected Matroska element when seeking to the Tracks element"sv);
     TRY(parse_tracks(streamer));
     return {};
 }
@@ -719,11 +723,6 @@ DecoderErrorOr<size_t> Reader::track_count()
     return m_tracks.size();
 }
 
-static constexpr size_t get_element_id_size(u32 element_id)
-{
-    return sizeof(element_id) - (count_leading_zeroes(element_id) / 8);
-}
-
 static DecoderErrorOr<Cluster> parse_cluster(Streamer& streamer, u64 timestamp_scale)
 {
     Optional<u64> timestamp;
@@ -933,9 +932,7 @@ DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<Incr
     if (!optional_position.has_value())
         return DecoderError::corrupted("No clusters are present in the segment"sv);
 
-    // We need to have the element ID included so that the iterator knows where it is.
-    auto position = optional_position.value() - get_element_id_size(CLUSTER_ELEMENT_ID);
-
+    auto position = optional_position.release_value();
     dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", position, m_segment_contents_position);
     return SampleIterator(stream_consumer, TRY(track_for_track_number(track_number)), TRY(segment_information()).timestamp_scale(), m_segment_contents_position, position);
 }
@@ -1066,6 +1063,10 @@ DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
         return DecoderError::corrupted("No Tracks element found"sv);
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
+    if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
+        dbgln("Unexpected Matroska element when seeking to the Cues element, skipping parsing.");
+        return {};
+    }
     TRY(parse_cues(streamer));
     m_cues_have_been_parsed = true;
     return {};
