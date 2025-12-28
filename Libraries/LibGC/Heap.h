@@ -112,10 +112,10 @@ private:
     void will_allocate(size_t);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
-    void gather_roots(HashMap<Cell*, HeapRoot>&);
-    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&);
+    void gather_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*>& all_live_heap_blocks);
+    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*> const& all_live_heap_blocks);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address);
-    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
+    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells, HashTable<HeapBlock*> const& all_live_heap_blocks);
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
     void sweep_weak_blocks();
