@@ -2372,6 +2372,12 @@ Optional<FlyString> ComputedProperties::view_transition_name() const
 
 Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations() const
 {
+    auto const& animation_name_values = property(PropertyID::AnimationName).as_value_list().values();
+
+    // OPTIMIZATION: If all animation names are 'none', there are no animations to process
+    if (all_of(animation_name_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
+        return {};
+
     // CSS Animations are defined by binding keyframes to an element using the animation-* properties. These list-valued
     // properties, which are all longhands of the animation shorthand, form a coordinating list property group with
     // animation-name as the coordinating list base property and each item in the coordinated value list defining the
