@@ -635,6 +635,12 @@ ImageRendering ComputedProperties::image_rendering() const
 // https://drafts.csswg.org/css-backgrounds-4/#layering
 Vector<BackgroundLayerData> ComputedProperties::background_layers() const
 {
+    auto const& background_image_values = property(PropertyID::BackgroundImage).as_value_list().values();
+
+    // OPTIMIZATION: If all background-image values are `none`, we can skip computing the layers entirely
+    if (all_of(background_image_values, [](auto const& value) { return value->to_keyword() == Keyword::None; }))
+        return {};
+
     auto coordinated_value_list = assemble_coordinated_value_list(
         PropertyID::BackgroundImage,
         {
@@ -654,26 +660,27 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     layers.ensure_capacity(coordinated_value_list.get(PropertyID::BackgroundImage)->size());
 
     for (size_t i = 0; i < coordinated_value_list.get(PropertyID::BackgroundImage)->size(); i++) {
+        auto const& background_image_value = coordinated_value_list.get(PropertyID::BackgroundImage)->at(i);
+
+        if (background_image_value->to_keyword() == Keyword::None)
+            continue;
+
         auto const& background_attachment_value = coordinated_value_list.get(PropertyID::BackgroundAttachment)->at(i);
         auto const& background_blend_mode_value = coordinated_value_list.get(PropertyID::BackgroundBlendMode)->at(i);
         auto const& background_clip_value = coordinated_value_list.get(PropertyID::BackgroundClip)->at(i);
-        auto const& background_image_value = coordinated_value_list.get(PropertyID::BackgroundImage)->at(i);
         auto const& background_origin_value = coordinated_value_list.get(PropertyID::BackgroundOrigin)->at(i);
         auto const& background_position_x_value = coordinated_value_list.get(PropertyID::BackgroundPositionX)->at(i);
         auto const& background_position_y_value = coordinated_value_list.get(PropertyID::BackgroundPositionY)->at(i);
         auto const& background_repeat_value = coordinated_value_list.get(PropertyID::BackgroundRepeat)->at(i);
         auto const& background_size_value = coordinated_value_list.get(PropertyID::BackgroundSize)->at(i);
 
-        BackgroundLayerData layer;
+        BackgroundLayerData layer {
+            .background_image = background_image_value->as_abstract_image()
+        };
 
         layer.attachment = keyword_to_background_attachment(background_attachment_value->to_keyword()).value();
         layer.blend_mode = keyword_to_mix_blend_mode(background_blend_mode_value->to_keyword()).value();
         layer.clip = keyword_to_background_box(background_clip_value->to_keyword()).value();
-
-        if (background_image_value->is_abstract_image())
-            layer.background_image = background_image_value->as_abstract_image();
-        else
-            VERIFY(background_image_value->to_keyword() == Keyword::None);
 
         layer.origin = keyword_to_background_box(background_origin_value->to_keyword()).value();
 

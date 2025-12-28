@@ -13,7 +13,7 @@
 namespace Web::Painting {
 
 struct ResolvedBackgroundLayerData {
-    RefPtr<CSS::AbstractImageStyleValue const> background_image;
+    NonnullRefPtr<CSS::AbstractImageStyleValue const> background_image;
     CSS::BackgroundAttachment attachment;
     CSS::BackgroundBox clip;
     CSS::PositionEdge position_edge_x;

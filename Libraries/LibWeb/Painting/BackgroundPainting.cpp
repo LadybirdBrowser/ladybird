@@ -345,10 +345,6 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
 
 ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
-    auto layer_is_paintable = [&](auto& layer) {
-        return layer.background_image && layer.background_image->is_paintable();
-    };
-
     BackgroundBox border_box {
         border_rect,
         border_radii
@@ -358,7 +354,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
-        if (!layer_is_paintable(layer))
+        if (!layer.background_image->is_paintable())
             continue;
 
         auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
