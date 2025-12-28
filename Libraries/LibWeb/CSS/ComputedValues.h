@@ -366,7 +366,7 @@ private:
 };
 
 struct BackgroundLayerData {
-    RefPtr<AbstractImageStyleValue const> background_image { nullptr };
+    NonnullRefPtr<AbstractImageStyleValue const> background_image;
     BackgroundAttachment attachment { BackgroundAttachment::Scroll };
     BackgroundBox origin { BackgroundBox::PaddingBox };
     BackgroundBox clip { BackgroundBox::BorderBox };
