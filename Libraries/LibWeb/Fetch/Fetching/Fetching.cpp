@@ -2103,7 +2103,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+    auto on_headers_received = GC::create_function(vm.heap(), [&vm, pending_response, stream, request, fetched_data_receiver](HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2127,6 +2127,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
         for (auto const& [name, value] : response_headers.headers())
             response->header_list()->append({ name, value });
+
+        fetched_data_receiver->set_response(response);
 
         // 14. Set response’s body to a new body whose stream is stream.
         response->set_body(Infrastructure::Body::create(vm, stream));

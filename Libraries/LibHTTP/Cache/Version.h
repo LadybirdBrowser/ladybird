@@ -11,6 +11,6 @@
 namespace HTTP {
 
 // Increment this version when a breaking change is made to the cache index or cache entry formats.
-static constexpr inline u32 CACHE_VERSION = 5u;
+static constexpr inline u32 CACHE_VERSION = 6u;
 
 }

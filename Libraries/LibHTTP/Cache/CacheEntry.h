@@ -59,13 +59,14 @@ public:
     virtual ~CacheEntry() = default;
 
     u64 cache_key() const { return m_cache_key; }
+    u64 vary_key() const { return m_vary_key; }
 
     void remove();
 
     void mark_for_deletion(Badge<DiskCache>) { m_marked_for_deletion = true; }
 
 protected:
-    CacheEntry(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, CacheHeader);
+    CacheEntry(DiskCache&, CacheIndex&, u64 cache_key, u64 vary_key, String url, Optional<LexicalPath>, CacheHeader);
 
     void close_and_destroy_cache_entry();
 
@@ -73,9 +74,10 @@ protected:
     CacheIndex& m_index;
 
     u64 m_cache_key { 0 };
+    u64 m_vary_key { 0 };
 
     String m_url;
-    LexicalPath m_path;
+    Optional<LexicalPath> m_path;
 
     CacheHeader m_cache_header;
     CacheFooter m_cache_footer;
@@ -88,15 +90,15 @@ public:
     static ErrorOr<NonnullOwnPtr<CacheEntryWriter>> create(DiskCache&, CacheIndex&, u64 cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
     virtual ~CacheEntryWriter() override = default;
 
-    ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const&);
+    ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers);
     ErrorOr<void> write_data(ReadonlyBytes);
     ErrorOr<void> flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
     void on_network_error();
 
 private:
-    CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::OutputBufferedFile>, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
+    CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
 
-    NonnullOwnPtr<Core::OutputBufferedFile> m_file;
+    OwnPtr<Core::OutputBufferedFile> m_file;
 
     UnixDateTime m_request_time;
     UnixDateTime m_response_time;
@@ -106,7 +108,7 @@ private:
 
 class CacheEntryReader final : public CacheEntry {
 public:
-    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, NonnullRefPtr<HeaderList>, u64 data_size);
+    static ErrorOr<NonnullOwnPtr<CacheEntryReader>> create(DiskCache&, CacheIndex&, u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>, u64 data_size);
     virtual ~CacheEntryReader() override = default;
 
     enum class RevalidationType {
@@ -128,7 +130,7 @@ public:
     HeaderList const& response_headers() const { return m_response_headers; }
 
 private:
-    CacheEntryReader(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::File>, int fd, CacheHeader, Optional<String> reason_phrase, NonnullRefPtr<HeaderList>, u64 data_offset, u64 data_size);
+    CacheEntryReader(DiskCache&, CacheIndex&, u64 cache_key, u64 vary_key, String url, LexicalPath, NonnullOwnPtr<Core::File>, int fd, CacheHeader, Optional<String> reason_phrase, NonnullRefPtr<HeaderList>, u64 data_offset, u64 data_size);
 
     void send_without_blocking();
     void send_complete();

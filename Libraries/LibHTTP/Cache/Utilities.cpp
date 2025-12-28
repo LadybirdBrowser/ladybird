@@ -1,9 +1,11 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/QuickSort.h>
+#include <AK/StringBuilder.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -49,13 +51,9 @@ String serialize_url_for_cache_storage(URL::URL const& url)
     return sanitized.serialize();
 }
 
-u64 create_cache_key(StringView url, StringView method)
+static u64 serialize_hash(Crypto::Hash::SHA1& hasher)
 {
-    auto hasher = Crypto::Hash::SHA1::create();
-    hasher->update(url);
-    hasher->update(method);
-
-    auto digest = hasher->digest();
+    auto digest = hasher.digest();
     auto bytes = digest.bytes();
 
     u64 result = 0;
@@ -71,9 +69,41 @@ u64 create_cache_key(StringView url, StringView method)
     return result;
 }
 
-LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key)
+u64 create_cache_key(StringView url, StringView method)
 {
-    return cache_directory.append(MUST(String::formatted("{:016x}", cache_key)));
+    auto hasher = Crypto::Hash::SHA1::create();
+    hasher->update(url);
+    hasher->update(method);
+
+    return serialize_hash(*hasher);
+}
+
+u64 create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers)
+{
+    auto hasher = Crypto::Hash::SHA1::create();
+    auto has_vary_header = false;
+
+    response_headers.for_each_vary_header([&](StringView header) {
+        // If we start caching `Vary: *` responses, this needs to be updated.
+        VERIFY(header != "*"sv);
+        has_vary_header = true;
+
+        auto value = normalize_request_vary_header_values(header, request_headers);
+        hasher->update(value);
+
+        return IterationDecision::Continue;
+    });
+
+    return has_vary_header ? serialize_hash(*hasher) : 0;
+}
+
+LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
+{
+    auto file = vary_key == 0
+        ? ByteString::formatted("{:016x}", cache_key)
+        : ByteString::formatted("{:016x}_{:016x}", cache_key, vary_key);
+
+    return cache_directory.append(file);
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
@@ -125,6 +155,24 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
 
     // FIXME: Neither the disk cache nor the memory cache handle partial responses yet. So we don't cache them for now.
     if (status_code == 206)
+        return false;
+
+    // FIXME: If the response contains `Vary: *`, we don't cache it for now, as it "signals that other aspects of the
+    //        request might have played a role in selecting the response representation, possibly including aspects
+    //        outside the message syntax". Rather than guessing which cached response might be a fit for a new request,
+    //        we will issue an unconditional request for now.
+    //        https://httpwg.org/specs/rfc9110.html#field.vary
+    bool contains_vary_wildcard = false;
+
+    headers.for_each_vary_header([&](StringView header) {
+        if (header == "*"sv) {
+            contains_vary_wildcard = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+
+    if (contains_vary_wildcard)
         return false;
 
     auto cache_control = headers.get("Cache-Control"sv);
@@ -445,6 +493,52 @@ void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_
         if (!is_header_exempted_from_update(updated_header.name))
             stored_headers.append({ updated_header.name, updated_header.value });
     }
+}
+
+// https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
+ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers)
+{
+    // The header fields from two requests are defined to match if and only if those in the first request can be
+    // transformed to those in the second request by applying any of the following:
+    // * adding or removing whitespace, where allowed in the header field's syntax
+    // * combining multiple header field lines with the same field name (see Section 5.2 of [HTTP])
+    // * normalizing both header field values in a way that is known to have identical semantics, according to the
+    //   header field's specification (e.g., reordering field values when order is not significant;
+    //   case-normalization, where values are defined to be case-insensitive)
+    StringBuilder builder;
+
+    // FIXME: Find a definitive list of headers that are allowed to be normalized. The Cookie header, for example,
+    //        cannot be normalized as order and case matters. So we err on the side of caution here.
+    if (header.is_one_of_ignoring_ascii_case("Accept"sv, "Accept-Encoding"sv, "Accept-Language"sv)) {
+        Vector<ByteString> values;
+
+        request_headers.for_each_header_value(header, [&](ByteString value) {
+            value = value.to_lowercase();
+
+            if (!value.contains(',')) {
+                values.append(move(value));
+                return IterationDecision::Continue;
+            }
+
+            value.view().for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView field) {
+                values.append(field.trim_whitespace());
+            });
+            return IterationDecision::Continue;
+        });
+
+        if (!values.is_empty()) {
+            quick_sort(values);
+            builder.join('\n', values);
+        }
+    } else {
+        request_headers.for_each_header_value(header, [&](StringView value) {
+            builder.append(value);
+            builder.append('\n');
+            return IterationDecision::Continue;
+        });
+    }
+
+    return builder.to_byte_string();
 }
 
 AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&> disk_cache, HeaderList const& request_headers)

@@ -114,16 +114,16 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     if (check_if_cache_has_open_entry(request, cache_key, url, open_mode == OpenMode::Read ? CheckReaderEntries::No : CheckReaderEntries::Yes))
         return CacheHasOpenEntry {};
 
-    auto index_entry = m_index.find_entry(cache_key);
+    auto index_entry = m_index.find_entry(cache_key, request_headers);
     if (!index_entry.has_value()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[35;1mNo cache entry for\033[0m {}", url);
         return Optional<CacheEntryReader&> {};
     }
 
-    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->response_headers, index_entry->data_size);
+    auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->vary_key, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
-        m_index.remove_entry(cache_key);
+        m_index.remove_entry(cache_key, index_entry->vary_key);
 
         return Optional<CacheEntryReader&> {};
     }
@@ -203,6 +203,10 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
 
 bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_key, URL::URL const& url, CheckReaderEntries check_reader_entries)
 {
+    // FIXME: We purposefully do not use the vary key here, as we do not yet have it when creating a CacheEntryWriter
+    //        (we can only compute it once we receive the response headers). We could come up with a more sophisticated
+    //        cache entry lock that allows concurrent writes to cache entries with different vary keys. But for now, we
+    //        lock based on the cache key alone (i.e. URL and method).
     auto open_entries = m_open_cache_entries.get(cache_key);
     if (!open_entries.has_value())
         return false;
@@ -233,13 +237,13 @@ Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime 
 
 void DiskCache::remove_entries_accessed_since(UnixDateTime since)
 {
-    m_index.remove_entries_accessed_since(since, [&](auto cache_key) {
+    m_index.remove_entries_accessed_since(since, [&](auto cache_key, auto vary_key) {
         if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
             for (auto const& [open_entry, _] : *open_entries)
                 open_entry->mark_for_deletion({});
         }
 
-        auto cache_path = path_for_cache_key(m_cache_directory, cache_key);
+        auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
         (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
     });
 }

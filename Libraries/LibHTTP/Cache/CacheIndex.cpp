@@ -82,6 +82,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     auto create_cache_index_table = TRY(database.prepare_statement(R"#(
         CREATE TABLE IF NOT EXISTS CacheIndex (
             cache_key INTEGER,
+            vary_key INTEGER,
             url TEXT,
             request_headers BLOB,
             response_headers BLOB,
@@ -89,18 +90,18 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
             request_time INTEGER,
             response_time INTEGER,
             last_access_time INTEGER,
-            PRIMARY KEY(cache_key)
+            PRIMARY KEY(cache_key, vary_key)
         );
     )#"sv));
     database.execute_statement(create_cache_index_table, {});
 
     Statements statements {};
-    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?);"sv));
-    statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ?;"sv));
-    statements.remove_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE last_access_time >= ? RETURNING cache_key;"sv));
-    statements.select_entry = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
-    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ?;"sv));
-    statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ?;"sv));
+    statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
+    statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ? AND vary_key = ?;"sv));
+    statements.remove_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE last_access_time >= ? RETURNING cache_key, vary_key;"sv));
+    statements.select_entries = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
+    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ? AND vary_key = ?;"sv));
+    statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(data_size) + SUM(OCTET_LENGTH(response_headers)) FROM CacheIndex WHERE last_access_time >= ?;"sv));
 
     return CacheIndex { database, statements };
@@ -112,7 +113,7 @@ CacheIndex::CacheIndex(Database::Database& database, Statements statements)
 {
 }
 
-void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
+void CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time)
 {
     auto now = UnixDateTime::now();
 
@@ -131,6 +132,7 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderLis
     remove_exempted_headers(response_headers);
 
     Entry entry {
+        .vary_key = vary_key,
         .url = move(url),
         .request_headers = move(request_headers),
         .response_headers = move(response_headers),
@@ -140,42 +142,49 @@ void CacheIndex::create_entry(u64 cache_key, String url, NonnullRefPtr<HeaderLis
         .last_access_time = now,
     };
 
-    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, entry.url, serialize_headers(entry.request_headers), serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
-    m_entries.set(cache_key, move(entry));
+    m_database->execute_statement(m_statements.insert_entry, {}, cache_key, vary_key, entry.url, serialize_headers(entry.request_headers), serialize_headers(entry.response_headers), entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
+    m_entries.ensure(cache_key).append(move(entry));
 }
 
-void CacheIndex::remove_entry(u64 cache_key)
+void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)
 {
-    m_database->execute_statement(m_statements.remove_entry, {}, cache_key);
+    m_database->execute_statement(m_statements.remove_entry, {}, cache_key, vary_key);
     m_entries.remove(cache_key);
 }
 
-void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key)> on_entry_removed)
+void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
 {
     m_database->execute_statement(
         m_statements.remove_entries_accessed_since,
         [&](auto statement_id) {
             auto cache_key = m_database->result_column<u64>(statement_id, 0);
-            m_entries.remove(cache_key);
+            auto vary_key = m_database->result_column<u64>(statement_id, 1);
 
-            on_entry_removed(cache_key);
+            if (auto entries = m_entries.get(cache_key); entries.has_value()) {
+                entries->remove_first_matching([&](auto const& entry) { return entry.vary_key == vary_key; });
+
+                if (entries->is_empty())
+                    m_entries.remove(cache_key);
+
+                on_entry_removed(cache_key, vary_key);
+            }
         },
         since);
 }
 
-void CacheIndex::update_response_headers(u64 cache_key, NonnullRefPtr<HeaderList> response_headers)
+void CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers)
 {
-    auto entry = m_entries.get(cache_key);
+    auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
         return;
 
-    m_database->execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key);
+    m_database->execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key, vary_key);
     entry->response_headers = move(response_headers);
 }
 
-void CacheIndex::update_last_access_time(u64 cache_key)
+void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
 {
-    auto entry = m_entries.get(cache_key);
+    auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
         return;
 
@@ -185,30 +194,44 @@ void CacheIndex::update_last_access_time(u64 cache_key)
     entry->last_access_time = now;
 }
 
-Optional<CacheIndex::Entry&> CacheIndex::find_entry(u64 cache_key)
+Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderList const& request_headers)
 {
-    if (auto entry = m_entries.get(cache_key); entry.has_value())
-        return entry;
+    auto& entries = m_entries.ensure(cache_key, [&]() {
+        Vector<Entry> entries;
 
-    m_database->execute_statement(
-        m_statements.select_entry, [&](auto statement_id) {
-            int column = 0;
+        m_database->execute_statement(
+            m_statements.select_entries,
+            [&](auto statement_id) {
+                int column = 1; // Skip the cache_key column.
 
-            auto cache_key = m_database->result_column<u64>(statement_id, column++);
-            auto url = m_database->result_column<String>(statement_id, column++);
-            auto request_headers = m_database->result_column<ByteString>(statement_id, column++);
-            auto response_headers = m_database->result_column<ByteString>(statement_id, column++);
-            auto data_size = m_database->result_column<u64>(statement_id, column++);
-            auto request_time = m_database->result_column<UnixDateTime>(statement_id, column++);
-            auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
-            auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
+                auto vary_key = m_database->result_column<u64>(statement_id, column++);
+                auto url = m_database->result_column<String>(statement_id, column++);
+                auto request_headers = m_database->result_column<ByteString>(statement_id, column++);
+                auto response_headers = m_database->result_column<ByteString>(statement_id, column++);
+                auto data_size = m_database->result_column<u64>(statement_id, column++);
+                auto request_time = m_database->result_column<UnixDateTime>(statement_id, column++);
+                auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
+                auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
-            Entry entry { move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time };
-            m_entries.set(cache_key, move(entry));
-        },
-        cache_key);
+                entries.empend(vary_key, move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time);
+            },
+            cache_key);
 
-    return m_entries.get(cache_key);
+        return entries;
+    });
+
+    return find_value(entries, [&](auto const& entry) {
+        return create_vary_key(request_headers, entry.response_headers) == entry.vary_key;
+    });
+}
+
+Optional<CacheIndex::Entry&> CacheIndex::get_entry(u64 cache_key, u64 vary_key)
+{
+    auto entries = m_entries.get(cache_key);
+    if (!entries.has_value())
+        return {};
+
+    return find_value(*entries, [&](auto const& entry) { return entry.vary_key == vary_key; });
 }
 
 Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime since)
