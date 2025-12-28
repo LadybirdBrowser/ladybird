@@ -48,6 +48,7 @@ Pass	overflow-wrap
 Pass	paint-order
 Pass	pointer-events
 Pass	quotes
+Pass	scrollbar-color
 Pass	shape-rendering
 Pass	stroke
 Pass	stroke-dasharray
@@ -244,7 +245,6 @@ Pass	ry
 Pass	scale
 Pass	scroll-timeline-axis
 Pass	scroll-timeline-name
-Pass	scrollbar-color
 Pass	scrollbar-gutter
 Pass	scrollbar-width
 Pass	shape-image-threshold

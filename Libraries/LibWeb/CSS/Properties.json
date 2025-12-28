@@ -3502,7 +3502,7 @@
   "scrollbar-color": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
-    "inherited": "yes",
+    "inherited": true,
     "initial": "auto"
   },
   "scrollbar-gutter": {
