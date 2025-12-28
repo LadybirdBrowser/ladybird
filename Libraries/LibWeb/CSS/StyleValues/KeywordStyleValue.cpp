@@ -149,8 +149,12 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
     case Keyword::Accentcolor:
+        if (color_resolution_context.accent_color.has_value())
+            return color_resolution_context.accent_color.value();
         return SystemColor::accent_color(scheme);
     case Keyword::Accentcolortext:
+        if (color_resolution_context.accent_color.has_value())
+            return color_resolution_context.accent_color->suggested_foreground_color();
         return SystemColor::accent_color_text(scheme);
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
