@@ -6,7 +6,6 @@
  */
 
 #include <AK/Debug.h>
-#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/HTMLScriptElementPrototype.h>
@@ -174,12 +173,8 @@ void HTMLScriptElement::execute_script()
     }
     // -> "module"
     else if (m_script_type == ScriptType::Module) {
-        // https://html.spec.whatwg.org/multipage/scripting.html#execute-the-script-block
-        // document.currentScript only applies to classic scripts; module scripts must observe null.
-        auto old_current_script = document->current_script();
-        document->set_current_script({}, nullptr);
-        ScopeGuard restore_current_script { [&] { document->set_current_script({}, old_current_script); } };
-
+        // 1. Assert: document's currentScript attribute is null.
+        VERIFY(document->current_script() == nullptr);
         // 2. Run the module script given by el's result.
         (void)as<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
     }
@@ -463,11 +458,18 @@ void HTMLScriptElement::prepare_script()
 
         // 10. Let onComplete given result be the following steps:
         OnFetchScriptComplete on_complete = create_on_fetch_script_complete(heap(), [this](auto result) {
-            // 1. Mark as ready el given result.
-            if (result)
-                mark_as_ready(Result { *result });
+            auto mark_ready = [this, result = move(result)]() mutable {
+                // 1. Mark as ready el given result.
+                if (result)
+                    mark_as_ready(Result { *result });
+                else
+                    mark_as_ready(ResultState::Null {});
+            };
+
+            if (m_script_type == ScriptType::Module)
+                queue_an_element_task(Task::Source::Networking, move(mark_ready));
             else
-                mark_as_ready(ResultState::Null {});
+                mark_ready();
         });
 
         // 11. Switch on el's type:
