@@ -8,6 +8,7 @@
 #include <AK/Assertions.h>
 #include <AK/Badge.h>
 #include <AK/JsonObject.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
@@ -60,7 +61,12 @@ void EventReceiver::stop_timer()
 
 void EventReceiver::deferred_invoke(Function<void()> invokee)
 {
-    Core::deferred_invoke([invokee = move(invokee), strong_this = NonnullRefPtr(*this)] { invokee(); });
+    Core::deferred_invoke([invokee = move(invokee), weak_this = make_weak_ptr()] {
+        auto strong_this = weak_this.strong_ref();
+        if (!strong_this)
+            return;
+        invokee();
+    });
 }
 
 void EventReceiver::dispatch_event(Core::Event& e)
