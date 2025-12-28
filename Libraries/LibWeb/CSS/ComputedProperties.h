@@ -106,6 +106,7 @@ public:
     CSSPixels text_underline_offset() const;
     TextUnderlinePosition text_underline_position() const;
     Vector<BackgroundLayerData> background_layers() const;
+    BackgroundBox background_color_clip() const;
     Length border_spacing_horizontal(Layout::Node const&) const;
     Length border_spacing_vertical(Layout::Node const&) const;
     CaptionSide caption_side() const;
