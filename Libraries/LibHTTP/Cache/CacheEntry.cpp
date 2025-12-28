@@ -72,10 +72,11 @@ ErrorOr<CacheFooter> CacheFooter::read_from_stream(Stream& stream)
     return footer;
 }
 
-CacheEntry::CacheEntry(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, CacheHeader cache_header)
+CacheEntry::CacheEntry(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, String url, Optional<LexicalPath> path, CacheHeader cache_header)
     : m_disk_cache(disk_cache)
     , m_index(index)
     , m_cache_key(cache_key)
+    , m_vary_key(vary_key)
     , m_url(move(url))
     , m_path(move(path))
     , m_cache_header(cache_header)
@@ -84,8 +85,11 @@ CacheEntry::CacheEntry(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, 
 
 void CacheEntry::remove()
 {
-    (void)FileSystem::remove(m_path.string(), FileSystem::RecursionMode::Disallowed);
-    m_index.remove_entry(m_cache_key);
+    if (!m_path.has_value())
+        return;
+
+    (void)FileSystem::remove(m_path->string(), FileSystem::RecursionMode::Disallowed);
+    m_index.remove_entry(m_cache_key, m_vary_key);
 }
 
 void CacheEntry::close_and_destroy_cache_entry()
@@ -95,28 +99,22 @@ void CacheEntry::close_and_destroy_cache_entry()
 
 ErrorOr<NonnullOwnPtr<CacheEntryWriter>> CacheEntryWriter::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
 {
-    auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
-
-    auto unbuffered_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
-    auto file = TRY(Core::OutputBufferedFile::create(move(unbuffered_file)));
-
     CacheHeader cache_header;
     cache_header.key_hash = u64_hash(cache_key);
     cache_header.url_size = url.byte_count();
     cache_header.url_hash = url.hash();
 
-    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), move(path), move(file), cache_header, request_time, current_time_offset_for_testing });
+    return adopt_own(*new CacheEntryWriter { disk_cache, index, cache_key, move(url), cache_header, request_time, current_time_offset_for_testing });
 }
 
-CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::OutputBufferedFile> file, CacheHeader cache_header, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
-    : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
-    , m_file(move(file))
+CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, CacheHeader cache_header, UnixDateTime request_time, AK::Duration current_time_offset_for_testing)
+    : CacheEntry(disk_cache, index, cache_key, 0, move(url), {}, cache_header)
     , m_request_time(request_time)
     , m_current_time_offset_for_testing(current_time_offset_for_testing)
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& response_headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers)
 {
     if (m_marked_for_deletion) {
         close_and_destroy_cache_entry();
@@ -135,6 +133,9 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
+        m_vary_key = create_vary_key(request_headers, response_headers);
+        m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
+
         auto freshness_lifetime = calculate_freshness_lifetime(status_code, response_headers, m_current_time_offset_for_testing);
         auto current_age = calculate_age(response_headers, m_request_time, m_response_time, m_current_time_offset_for_testing);
 
@@ -142,6 +143,9 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         // response on subsequent requests. For example, `Cache-Control: max-age=0, must-revalidate`.
         if (cache_lifetime_status(response_headers, freshness_lifetime, current_age) == CacheLifetimeStatus::Expired)
             return Error::from_string_literal("Response has already expired");
+
+        auto unbuffered_file = TRY(Core::File::open(m_path->string(), Core::File::OpenMode::Write));
+        m_file = TRY(Core::OutputBufferedFile::create(move(unbuffered_file)));
 
         TRY(m_file->write_value(m_cache_header));
         TRY(m_file->write_until_depleted(m_url));
@@ -199,7 +203,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
+    m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};
@@ -211,9 +215,9 @@ void CacheEntryWriter::on_network_error()
     close_and_destroy_cache_entry();
 }
 
-ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
+ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
 {
-    auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);
+    auto path = path_for_cache_entry(disk_cache.cache_directory(), cache_key, vary_key);
 
     auto file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Read));
     auto fd = file->fd();
@@ -256,11 +260,11 @@ ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& dis
 
     auto data_offset = cache_header_size + cache_header.url_size + cache_header.reason_phrase_size;
 
-    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
+    return adopt_own(*new CacheEntryReader { disk_cache, index, cache_key, vary_key, move(url), move(path), move(file), fd, cache_header, move(reason_phrase), move(response_headers), data_offset, data_size });
 }
 
-CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, NonnullRefPtr<HeaderList> response_headers, u64 data_offset, u64 data_size)
-    : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
+CacheEntryReader::CacheEntryReader(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, u64 vary_key, String url, LexicalPath path, NonnullOwnPtr<Core::File> file, int fd, CacheHeader cache_header, Optional<String> reason_phrase, NonnullRefPtr<HeaderList> response_headers, u64 data_offset, u64 data_size)
+    : CacheEntry(disk_cache, index, cache_key, vary_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_fd(fd)
     , m_reason_phrase(move(reason_phrase))
@@ -275,7 +279,7 @@ void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 
     update_header_fields(m_response_headers, response_headers);
-    m_index.update_response_headers(m_cache_key, m_response_headers);
+    m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers);
 
     if (m_revalidation_type != RevalidationType::MustRevalidate)
         close_and_destroy_cache_entry();
@@ -350,7 +354,7 @@ void CacheEntryReader::send_complete()
         if (m_on_send_error)
             m_on_send_error(m_bytes_sent);
     } else {
-        m_index.update_last_access_time(m_cache_key);
+        m_index.update_last_access_time(m_cache_key, m_vary_key);
 
         if (m_on_send_complete)
             m_on_send_complete(m_bytes_sent);

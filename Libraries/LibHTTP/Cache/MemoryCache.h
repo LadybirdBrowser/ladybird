@@ -20,6 +20,8 @@ namespace HTTP {
 class MemoryCache : public RefCounted<MemoryCache> {
 public:
     struct Entry {
+        u64 vary_key { 0 };
+
         u32 status_code { 0 };
         ByteString reason_phrase;
         NonnullRefPtr<HeaderList> request_headers;
@@ -35,11 +37,11 @@ public:
     Optional<Entry const&> open_entry(URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode);
 
     void create_entry(URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers);
-    void finalize_entry(URL::URL const&, StringView method, ByteBuffer response_body);
+    void finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, ByteBuffer response_body);
 
 private:
-    HashMap<u64, Entry> m_pending_entries;
-    HashMap<u64, Entry> m_complete_entries;
+    HashMap<u64, Vector<Entry>> m_pending_entries;
+    HashMap<u64, Vector<Entry>> m_complete_entries;
 };
 
 }

@@ -52,6 +52,32 @@ public:
 
     [[nodiscard]] Vector<ByteString> unique_names() const;
 
+    template<typename Callback>
+    void for_each_header_value(StringView name, Callback&& callback) const
+    {
+        for (auto const& header : m_headers) {
+            if (!header.name.equals_ignoring_ascii_case(name))
+                continue;
+            if (callback(header.value) == IterationDecision::Break)
+                break;
+        }
+    }
+
+    template<typename Callback>
+    void for_each_vary_header(Callback&& callback) const
+    {
+        for_each_header_value("Vary"sv, [&](StringView value) -> IterationDecision {
+            IterationDecision result;
+
+            value.for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView header) -> IterationDecision {
+                result = callback(header.trim_whitespace());
+                return result;
+            });
+
+            return result;
+        });
+    }
+
 private:
     explicit HeaderList(Vector<Header>);
 

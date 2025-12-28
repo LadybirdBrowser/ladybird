@@ -30,14 +30,20 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
 
-    auto cache_entry = m_complete_entries.get(cache_key);
-    if (!cache_entry.has_value()) {
+    auto cache_entries = m_complete_entries.get(cache_key);
+    if (!cache_entries.has_value()) {
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[35;1mNo cache entry for\033[0m {}", url);
         return {};
     }
 
-    // FIXME: - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
-    (void)request_headers;
+    // - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
+    auto cache_entry = find_value(*cache_entries, [&](auto const& entry) {
+        return create_vary_key(request_headers, entry.response_headers) == entry.vary_key;
+    });
+    if (!cache_entry.has_value()) {
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[35;1mVary mismatch for\033[0m {}", url);
+        return {};
+    }
 
     // - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully
     //   validated (Section 4.3), and
@@ -78,6 +84,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
+    auto vary_key = create_vary_key(request_headers, response_headers);
 
     auto request_headers_copy = HeaderList::create();
     store_header_and_trailer_fields(request_headers_copy, request_headers);
@@ -86,6 +93,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     store_header_and_trailer_fields(response_headers_copy, response_headers);
 
     Entry cache_entry {
+        .vary_key = vary_key,
         .status_code = status_code,
         .reason_phrase = move(reason_phrase),
         .request_headers = move(request_headers_copy),
@@ -96,19 +104,38 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     };
 
     dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mCreated cache entry for\033[0m {}", url);
-    m_pending_entries.set(cache_key, move(cache_entry));
+    m_pending_entries.ensure(cache_key).append(move(cache_entry));
 }
 
-void MemoryCache::finalize_entry(URL::URL const& url, StringView method, ByteBuffer response_body)
+// FIXME: It would be nicer if create_entry just returned the cache and vary keys. But the call sites of create_entry and
+//        finalize_entry are pretty far apart, so passing that information along is rather awkward in Fetch.
+void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, ByteBuffer response_body)
 {
+    if (!is_cacheable(method, request_headers))
+        return;
+    if (!is_cacheable(status_code, response_headers))
+        return;
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
+    auto vary_key = create_vary_key(request_headers, response_headers);
 
-    if (auto cache_entry = m_pending_entries.take(cache_key); cache_entry.has_value()) {
+    if (auto cache_entries = m_pending_entries.get(cache_key); cache_entries.has_value()) {
+        auto index = cache_entries->find_first_index_if([&](auto const& entry) {
+            return vary_key == entry.vary_key;
+        });
+        if (!index.has_value())
+            return;
+
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", url, response_body.size());
 
-        cache_entry->response_body = move(response_body);
-        m_complete_entries.set(cache_key, cache_entry.release_value());
+        auto cache_entry = cache_entries->take(*index);
+        cache_entry.response_body = move(response_body);
+
+        if (cache_entries->is_empty())
+            m_pending_entries.remove(cache_key);
+
+        m_complete_entries.ensure(cache_key).append(move(cache_entry));
     }
 }
 

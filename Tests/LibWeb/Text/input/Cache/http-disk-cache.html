@@ -623,6 +623,169 @@
             });
             expectCacheStatus(url, response, "written-to-cache");
         })();
+
+        // Responses with a wildcard Vary header may not be cached.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/wildcard", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "*",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "not-cached");
+
+            url = await createRequest("/cache-test/vary/wildcard-within-field", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept, *",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "not-cached");
+        })();
+
+        // Responses with a Vary header that matches subsequent request headers may be used.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/match", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/html",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/html",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
+        // Responses with a Vary header that does not match subsequent request headers may not be used.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/mismatch", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/html",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/javascript",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Responses with a Vary header that is not included in subsequent request headers may not be used.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/missing", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/html",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
+        // Responses with a Vary header that matches subsequent request headers after normalization may be used.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/normalization", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept-Language",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Accept-Language": "en, fr, de",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Accept-Language": "dE,    en, FR",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Accept-Language": "ja",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Responses with a multiple Vary headers must match all request headers. Each mismatch is given its own entry.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/multiple", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept, Accept-Language",
+                },
+            });
+
+            const runTest = async (accept, acceptLanuage) => {
+                const headers = {
+                    Accept: accept ? accept : undefined,
+                    "Accept-Language": acceptLanuage ? acceptLanuage : undefined,
+                };
+
+                response = await cacheFetch(url, { headers });
+                expectCacheStatus(url, response, "written-to-cache");
+
+                response = await cacheFetch(url, { headers });
+                expectCacheStatus(url, response, "read-from-cache");
+            };
+
+            // Initial request.
+            await runTest("text/html", "en-US");
+
+            // Accept is a mismatch.
+            await runTest("text/javascript", "en-US");
+
+            // Accept-Language is a mismatch.
+            await runTest("text/html", "de");
+
+            // Accept is missing.
+            await runTest(null, "en-US");
+
+            // Accept-Language is missing.
+            await runTest("text/html", null);
+        })();
     }
 
     asyncTest(async done => {

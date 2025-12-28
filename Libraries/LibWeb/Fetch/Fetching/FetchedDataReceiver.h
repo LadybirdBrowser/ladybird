@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -24,6 +24,8 @@ public:
 
     void set_pending_promise(GC::Ref<WebIDL::Promise>);
 
+    void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
+
     enum class NetworkState {
         Ongoing,
         Complete,
@@ -43,6 +45,8 @@ private:
     ByteBuffer copy_unpulled_bytes();
 
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
+    GC::Ptr<Fetch::Infrastructure::Response const> m_response;
+
     GC::Ref<Streams::ReadableStream> m_stream;
     GC::Ptr<WebIDL::Promise> m_pending_promise;
 
