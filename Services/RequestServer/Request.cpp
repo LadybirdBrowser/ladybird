@@ -607,7 +607,7 @@ void Request::transfer_headers_to_client_if_needed()
         m_status_code = acquire_status_code();
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error()) {
+        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {
             m_cache_status = CacheStatus::NotCached;
             m_cache_entry_writer.clear();
         } else {

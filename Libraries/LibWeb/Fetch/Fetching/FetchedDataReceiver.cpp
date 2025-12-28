@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -33,6 +34,7 @@ void FetchedDataReceiver::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fetch_params);
+    visitor.visit(m_response);
     visitor.visit(m_stream);
     visitor.visit(m_pending_promise);
 }
@@ -158,7 +160,11 @@ void FetchedDataReceiver::close_stream()
     m_stream->close();
 
     if (m_http_cache) {
-        m_http_cache->finalize_entry(m_fetch_params->request()->current_url(), m_fetch_params->request()->method(), move(m_buffer));
+        if (m_response) {
+            auto request = m_fetch_params->request();
+            m_http_cache->finalize_entry(request->current_url(), request->method(), request->header_list(), m_response->status(), m_response->header_list(), move(m_buffer));
+        }
+
         m_http_cache.clear();
     }
 }
