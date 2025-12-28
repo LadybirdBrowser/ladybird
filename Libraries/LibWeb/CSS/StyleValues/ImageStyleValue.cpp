@@ -56,11 +56,15 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
         return;
     m_document = &document;
 
-    if (m_style_sheet) {
-        m_resource_request = fetch_an_external_image_for_a_stylesheet(m_url, { *m_style_sheet });
-    } else {
-        m_resource_request = fetch_an_external_image_for_a_stylesheet(m_url, { document });
-    }
+    RuleOrDeclaration rule_or_declaration {
+        .environment_settings_object = document.relevant_settings_object(),
+        .value = RuleOrDeclaration::Rule {
+            .parent_style_sheet = m_style_sheet,
+        }
+    };
+
+    m_resource_request = fetch_an_external_image_for_a_stylesheet(m_url, rule_or_declaration, m_style_sheet ? *m_style_sheet->owning_document() : document);
+
     if (m_resource_request) {
         m_resource_request->add_callbacks(
             [this, weak_this = make_weak_ptr()] {

@@ -133,23 +133,22 @@ void CSSImportRule::fetch()
         return;
     }
 
-    // 3. Let parsedUrl be the result of the URL parser steps with rule’s URL and parentStylesheet’s location.
-    //    If the algorithm returns an error, return. [CSSOM]
-    auto parsed_url = DOMURL::parse(href(), parent_style_sheet.location());
-    if (!parsed_url.has_value()) {
-        dbgln("Unable to parse @import url `{}` parent location `{}` as a URL.", href(), parent_style_sheet.location());
-        return;
-    }
-
     // FIXME: Figure out the "correct" way to delay the load event.
     m_document_load_event_delayer.emplace(*m_document);
 
     // AD-HOC: Track pending import rules to block rendering until they are done.
     m_document->add_pending_css_import_rule({}, *this);
 
-    // 4. Fetch a style resource from parsedUrl, with stylesheet parentStylesheet, destination "style", CORS mode "no-cors", and processResponse being the following steps given response response and byte stream, null or failure byteStream:
-    (void)fetch_a_style_resource(parsed_url.value(), { parent_style_sheet }, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
-        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, parsed_url = parsed_url.value(), document = m_document](auto response, auto maybe_byte_stream) {
+    // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
+    //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
+    RuleOrDeclaration rule_or_declaration {
+        .environment_settings_object = HTML::relevant_settings_object(parent_style_sheet),
+        .value = RuleOrDeclaration::Rule {
+            .parent_style_sheet = &parent_style_sheet,
+        }
+    };
+    (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
+        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document](auto response, auto maybe_byte_stream) {
             // AD-HOC: Stop delaying the load event.
             ScopeGuard guard = [strong_this, document] {
                 document->remove_pending_css_import_rule({}, strong_this);
@@ -173,6 +172,10 @@ void CSSImportRule::fetch()
 
             // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
             // FIXME: Tidy up our parsing API. For now, do the decoding here.
+            // FIXME: Spec issue: parsedURL is not defined - we instead need to get that from the response.
+            //        https://github.com/w3c/csswg-drafts/issues/12288
+            auto url = response->unsafe_response()->url().value();
+
             Optional<String> mime_type_charset;
             if (auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list()); extracted_mime_type.has_value()) {
                 if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
@@ -183,12 +186,11 @@ void CSSImportRule::fetch()
             Optional<StringView> environment_encoding;
             auto decoded_or_error = css_decode_bytes(environment_encoding, mime_type_charset, *byte_stream);
             if (decoded_or_error.is_error()) {
-                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {}", parsed_url);
+                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {}", url);
                 return;
             }
             auto decoded = decoded_or_error.release_value();
-
-            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, parsed_url, strong_this->m_media);
+            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, url, strong_this->m_media);
 
             // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
             imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());

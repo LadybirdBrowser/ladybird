@@ -203,7 +203,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     }
 
     return ParsedFontFace {
-        descriptors.parent_rule()->parent_style_sheet(),
+        *descriptors.parent_rule(),
         move(font_family),
         move(weight),
         move(slope),
@@ -221,8 +221,8 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ptr<CSSStyleSheet> parent_style_sheet, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
-    : m_parent_style_sheet(parent_style_sheet)
+ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<int> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
+    : m_parent_rule(parent_rule)
     , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
     , m_weight(weight)
