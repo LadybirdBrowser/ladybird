@@ -431,6 +431,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_background_layers(move(background_layers));
 
     computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, color_resolution_context, CSS::InitialValues::background_color()));
+    computed_values.set_background_color_clip(computed_style.background_color_clip());
 
     computed_values.set_box_sizing(computed_style.box_sizing());
 

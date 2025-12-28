@@ -343,7 +343,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     }
 }
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
     auto layer_is_paintable = [&](auto& layer) {
         return layer.background_image && layer.background_image->is_paintable();
@@ -354,9 +354,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         border_radii
     };
 
-    auto color_box = border_box;
-    if (!layers.is_empty())
-        color_box = get_box(layers.last().clip, border_box, paintable_box);
+    auto color_box = get_box(background_color_clip, border_box, paintable_box);
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
@@ -462,7 +460,7 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
     return ResolvedBackground {
         .color_box = color_box,
         .layers = move(resolved_layers),
-        .needs_text_clip = !layers.is_empty() && layers.last().clip == CSS::BackgroundBox::Text,
+        .needs_text_clip = background_color_clip == CSS::BackgroundBox::Text,
         .background_rect = border_rect,
         .color = background_color
     };

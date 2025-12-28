@@ -185,6 +185,7 @@ public:
     static Filter backdrop_filter() { return Filter::make_none(); }
     static Filter filter() { return Filter::make_none(); }
     static Color background_color() { return Color::Transparent; }
+    static BackgroundBox background_color_clip() { return BackgroundBox::BorderBox; }
     static ListStyleType list_style_type() { return CounterStyleNameKeyword::Disc; }
     static ListStylePosition list_style_position() { return ListStylePosition::Outside; }
     static Visibility visibility() { return Visibility::Visible; }
@@ -609,6 +610,7 @@ public:
 
     Color color() const { return m_inherited.color; }
     Color background_color() const { return m_noninherited.background_color; }
+    BackgroundBox background_color_clip() const { return m_noninherited.background_color_clip; }
     Vector<BackgroundLayerData> const& background_layers() const { return m_noninherited.background_layers; }
 
     Color webkit_text_fill_color() const { return m_inherited.webkit_text_fill_color; }
@@ -794,6 +796,7 @@ protected:
         BorderRadiusData border_top_left_radius;
         BorderRadiusData border_top_right_radius;
         Color background_color { InitialValues::background_color() };
+        BackgroundBox background_color_clip { InitialValues::background_color_clip() };
         Vector<BackgroundLayerData> background_layers;
         FlexDirection flex_direction { InitialValues::flex_direction() };
         FlexWrap flex_wrap { InitialValues::flex_wrap() };
@@ -920,6 +923,7 @@ public:
     void set_image_rendering(ImageRendering value) { m_inherited.image_rendering = value; }
     void set_pointer_events(PointerEvents value) { m_inherited.pointer_events = value; }
     void set_background_color(Color color) { m_noninherited.background_color = color; }
+    void set_background_color_clip(BackgroundBox box) { m_noninherited.background_color_clip = box; }
     void set_background_layers(Vector<BackgroundLayerData>&& layers) { m_noninherited.background_layers = move(layers); }
     void set_float(Float value) { m_noninherited.float_ = value; }
     void set_clear(Clear value) { m_noninherited.clear = value; }

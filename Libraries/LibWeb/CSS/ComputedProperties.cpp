@@ -712,6 +712,21 @@ Vector<BackgroundLayerData> ComputedProperties::background_layers() const
     return layers;
 }
 
+BackgroundBox ComputedProperties::background_color_clip() const
+{
+    // The background color is clipped according to the final layer's background-clip value. We propagate this
+    // separately to allow us to avoid computing layer data in the case a layer's `background-image` is `none`
+
+    auto const& background_image_values = property(PropertyID::BackgroundImage).as_value_list().values();
+    auto const& background_clip_values = property(PropertyID::BackgroundClip).as_value_list().values();
+
+    // Background clip values are coordinated against background image values so the value used for the final layer is
+    // not necessarily the last specified one.
+    auto final_layer_index = (background_image_values.size() - 1) % background_clip_values.size();
+
+    return keyword_to_background_box(background_clip_values[final_layer_index]->to_keyword()).value();
+}
+
 Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
 {
     auto resolve_value = [&](auto const& style_value) -> Optional<Length> {
