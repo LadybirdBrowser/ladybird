@@ -8,10 +8,6 @@
 #include <LibCore/FileWatcher.h>
 #include <LibCore/TimeZoneWatcher.h>
 
-#if !defined(AK_OS_LINUX)
-static_assert(false, "This file must only be used for Linux");
-#endif
-
 namespace Core {
 
 static constexpr auto time_zone_files = Array {
