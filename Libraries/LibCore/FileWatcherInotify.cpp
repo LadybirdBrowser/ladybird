@@ -16,10 +16,6 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#if !defined(AK_OS_LINUX)
-static_assert(false, "This file must only be used for Linux");
-#endif
-
 namespace Core {
 
 static constexpr unsigned file_watcher_flags_to_inotify_flags(FileWatcherFlags flags)
