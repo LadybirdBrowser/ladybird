@@ -261,6 +261,7 @@ private:
 
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
+    virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
 
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }

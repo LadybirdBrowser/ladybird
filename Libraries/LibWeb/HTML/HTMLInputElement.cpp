@@ -1983,6 +1983,15 @@ void HTMLInputElement::form_associated_element_was_inserted()
     }
 }
 
+EventResult HTMLInputElement::handle_return_key(FlyString const&)
+{
+    if (auto* form = this->form())
+        form->implicitly_submit_form().release_value_but_fixme_should_propagate_errors();
+    else
+        commit_pending_changes();
+    return EventResult::Handled;
+}
+
 bool HTMLInputElement::is_presentational_hint(FlyString const& name) const
 {
     if (Base::is_presentational_hint(name))
