@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: will-change: position turns an element in an abspos containing block.</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Boris Zbarsky" href="mailto:bzbarsky@mit.edu">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1498873">
+<link rel="help" href="https://drafts.csswg.org/css-will-change/#will-change">
+<link rel="match" href="../../../../expected/wpt-import/css/css-will-change/will-change-abspos-cb-001-ref.html">
+<style>
+  .container {
+    border: 1px solid green;
+    width: 100px;
+    height: 100px;
+    margin-top: 100px;
+    display: flex;
+    will-change: position;
+  }
+  .abspos {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: orange;
+    height: 20px;
+    width: 20px;
+  }
+</style>
+<div class="container">
+  <div class="abspos"></div>
+</div>

@@ -87,9 +87,6 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
 {
     auto const& computed_values = this->computed_values();
 
-    if (computed_values.position() != CSS::Positioning::Static)
-        return true;
-
     // https://drafts.csswg.org/css-will-change/#will-change
     // If any non-initial value of a property would cause the element to generate a containing block for absolutely
     // positioned elements, specifying that property in will-change must cause the element to generate a containing
@@ -97,6 +94,12 @@ bool Node::computed_values_establish_absolute_positioning_containing_block() con
     auto will_change_property = [&](CSS::PropertyID property_id) {
         return computed_values.will_change().has_property(property_id);
     };
+
+    // https://drafts.csswg.org/css-position/#position-property
+    // Values other than 'static' make the box a positioned box, and cause it to establish an absolute positioning
+    // containing block for its descendants.
+    if (computed_values.position() != CSS::Positioning::Static || will_change_property(CSS::PropertyID::Position))
+        return true;
 
     // https://drafts.csswg.org/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context
