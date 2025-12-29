@@ -114,6 +114,20 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
     if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
         return true;
 
+    // https://drafts.csswg.org/filter-effects-1/#FilterProperty
+    // A value other than none for the filter property results in the creation of a containing block for absolute and
+    // fixed positioned descendants, unless the element it applies to is a document root element in the current
+    // browsing context.
+    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !is_root_element())
+        return true;
+
+    // https://drafts.csswg.org/filter-effects-2/#BackdropFilterProperty
+    // A computed value of other than none results in the creation of both a stacking context and a containing block
+    // for absolute and fixed position descendants, unless the element it applies to is a document root element in the
+    // current browsing context.
+    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !is_root_element())
+        return true;
+
     // https://drafts.csswg.org/css-contain-2/#containment-types
     // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
     //    containing block.
@@ -167,6 +181,20 @@ bool Node::establishes_a_fixed_positioning_containing_block() const
     // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
     // a containing block for all descendants, just like the 'transform' property does.
     if (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective))
+        return true;
+
+    // https://drafts.csswg.org/filter-effects-1/#FilterProperty
+    // A value other than none for the filter property results in the creation of a containing block for absolute and
+    // fixed positioned descendants, unless the element it applies to is a document root element in the current
+    // browsing context.
+    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !is_root_element())
+        return true;
+
+    // https://drafts.csswg.org/filter-effects-2/#BackdropFilterProperty
+    // A computed value of other than none results in the creation of both a stacking context and a containing block
+    // for absolute and fixed position descendants, unless the element it applies to is a document root element in the
+    // current browsing context.
+    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !is_root_element())
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
