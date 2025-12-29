@@ -411,10 +411,17 @@ public:
                             maybe_parent_scope_identifier_group.value().used_inside_with_statement = true;
                         if (identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment)
                             maybe_parent_scope_identifier_group.value().might_be_variable_in_lexical_scope_in_named_function_assignment = true;
-                        if (identifier_group.used_inside_scope_with_eval)
+                        // Only propagate used_inside_scope_with_eval if the identifier is captured by a nested function.
+                        // eval() in a function scope cannot affect bindings in sibling function scopes.
+                        if (identifier_group.used_inside_scope_with_eval && (m_type != ScopeType::Function || identifier_group.captured_by_nested_function))
                             maybe_parent_scope_identifier_group.value().used_inside_scope_with_eval = true;
                     } else {
-                        m_parent_scope->m_identifier_groups.set(identifier_group_name, identifier_group);
+                        // Clear used_inside_scope_with_eval before propagating to parent if we're a function scope
+                        // and the identifier is not captured, as eval() in a function scope cannot affect sibling scopes.
+                        auto parent_identifier_group = identifier_group;
+                        if (m_type == ScopeType::Function && !identifier_group.captured_by_nested_function)
+                            parent_identifier_group.used_inside_scope_with_eval = false;
+                        m_parent_scope->m_identifier_groups.set(identifier_group_name, parent_identifier_group);
                     }
                 }
             }
