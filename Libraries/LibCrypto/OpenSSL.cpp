@@ -67,4 +67,15 @@ ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash)
     }
 }
 
+ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(OpenSSL_PKEY& key, char const* key_name)
+{
+    size_t size;
+    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), key_name, nullptr, 0, &size));
+
+    auto buffer = TRY(ByteBuffer::create_uninitialized(size));
+
+    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), key_name, buffer.data(), buffer.size(), &size));
+    return buffer;
+}
+
 }

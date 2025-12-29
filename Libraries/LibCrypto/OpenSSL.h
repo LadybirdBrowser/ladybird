@@ -125,4 +125,6 @@ ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN co
 
 ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash);
 
+ErrorOr<ByteBuffer> get_byte_buffer_param_from_key(OpenSSL_PKEY& key, char const* key_name);
+
 }
