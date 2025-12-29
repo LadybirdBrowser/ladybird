@@ -1078,6 +1078,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_key(AlgorithmIdentifier encap
 
     // 8. Return promise and perform the remaining steps in parallel.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, [&realm, &global, &heap, normalized_encapsulation_algorithm = move(normalized_encapsulation_algorithm), encapsulation_key = encapsulation_key, promise, normalized_shared_key_algorithm = move(normalized_shared_key_algorithm), extractable, usages = move(key_usages)]() mutable -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 9. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
         //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
         auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Value value) {
@@ -1175,6 +1176,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encapsulate_bits(AlgorithmIdentifier enca
 
     // 6. Return promise and perform the remaining steps in parallel.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, [&realm, &global, &heap, normalized_encapsulation_algorithm = move(normalized_encapsulation_algorithm), promise, encapsulation_key = encapsulation_key]() mutable -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
         //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
         auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Value value) {
@@ -1364,6 +1366,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier deca
 
     // 7. Return promise and perform the remaining steps in parallel.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, [&realm, &global, &heap, normalized_decapsulation_algorithm = normalized_decapsulation_algorithm.release_value(), promise, decapsulation_key, cipher_text = move(cipher_text)]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 8. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto task
         //    source, given realm's global object, to reject promise with the returned error; and then terminate the algorithm.
         auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Value value) {
