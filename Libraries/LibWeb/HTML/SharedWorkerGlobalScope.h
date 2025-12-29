@@ -24,6 +24,8 @@ class WEB_API SharedWorkerGlobalScope
     GC_DECLARE_ALLOCATOR(SharedWorkerGlobalScope);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~SharedWorkerGlobalScope() override;
 
     void set_constructor_origin(URL::Origin origin) { m_constructor_origin = move(origin); }

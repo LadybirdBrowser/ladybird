@@ -42,6 +42,8 @@ class WEB_API WorkerGlobalScope
     GC_DECLARE_ALLOCATOR(WorkerGlobalScope);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~WorkerGlobalScope() override;
 
     // ^WindowOrWorkerGlobalScopeMixin

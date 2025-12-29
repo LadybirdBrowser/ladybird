@@ -4904,6 +4904,10 @@ private:
 
     if (interface.extended_attributes.contains("WithFinalizer"sv)) {
         generator.append(R"~~~(
+public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
+private:
     virtual void finalize() override;
 )~~~");
     }

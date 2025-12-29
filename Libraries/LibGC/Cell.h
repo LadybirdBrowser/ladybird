@@ -43,6 +43,7 @@ class GC_API Cell {
 
 public:
     static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = false;
+    static constexpr bool OVERRIDES_FINALIZE = false;
 
     virtual ~Cell() = default;
 

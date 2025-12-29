@@ -148,6 +148,8 @@ class WEB_API Node : public EventTarget
     WEB_PLATFORM_OBJECT(Node, EventTarget);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     ParentNode* parent_or_shadow_host();
     ParentNode const* parent_or_shadow_host() const { return const_cast<Node*>(this)->parent_or_shadow_host(); }
 

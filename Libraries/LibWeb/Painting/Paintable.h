@@ -55,6 +55,8 @@ class WEB_API Paintable
     GC_CELL(Paintable, JS::Cell);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~Paintable();
 
     void detach_from_layout_node();

@@ -23,6 +23,8 @@ class ResizeObserver : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(ResizeObserver);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> construct_impl(JS::Realm&, WebIDL::CallbackType* callback);
 
     virtual ~ResizeObserver() override;

@@ -19,6 +19,8 @@ class VideoBox final
     GC_DECLARE_ALLOCATOR(VideoBox);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual void prepare_for_replaced_layout() override;
 
     HTML::HTMLVideoElement& dom_node();

@@ -30,6 +30,7 @@ class WebSocket final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(WebSocket);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
     static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
 
     static WebIDL::ExceptionOr<GC::Ref<WebSocket>> construct_impl(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);

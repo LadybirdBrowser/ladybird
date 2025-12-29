@@ -181,6 +181,8 @@ class WEB_API Document
     GC_DECLARE_ALLOCATOR(Document);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     enum class Type {
         XML,
         HTML

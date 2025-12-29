@@ -17,6 +17,8 @@ class IDBTransactionObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(IDBTransactionObserver);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~IDBTransactionObserver();
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> transaction_finished_observer() const { return m_transaction_finished_observer; }

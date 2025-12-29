@@ -29,6 +29,8 @@ class EventSource : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(EventSource);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~EventSource() override;
 
     static WebIDL::ExceptionOr<GC::Ref<EventSource>> construct_impl(JS::Realm&, StringView url, EventSourceInit event_source_init_dict = {});

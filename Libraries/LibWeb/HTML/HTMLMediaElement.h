@@ -37,6 +37,8 @@ class HTMLMediaElement : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMediaElement, HTMLElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~HTMLMediaElement() override;
 
     virtual bool is_focusable() const override { return true; }

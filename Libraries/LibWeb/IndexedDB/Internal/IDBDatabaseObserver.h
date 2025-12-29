@@ -18,6 +18,8 @@ class IDBDatabaseObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(IDBDatabaseObserver);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~IDBDatabaseObserver();
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> connection_state_changed_observer() const { return m_connection_state_changed_observer; }

@@ -17,6 +17,8 @@ class WEB_API FetchRecord final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchRecord);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<FetchRecord> create(JS::VM&, GC::Ref<Infrastructure::Request>);
     [[nodiscard]] static GC::Ref<FetchRecord> create(JS::VM&, GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
 

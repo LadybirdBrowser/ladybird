@@ -17,6 +17,8 @@ class IDBRequestObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(IDBRequestObserver);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~IDBRequestObserver();
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> request_processed_changed_observer() const { return m_request_processed_changed_observer; }

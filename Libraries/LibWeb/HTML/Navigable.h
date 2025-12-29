@@ -46,6 +46,8 @@ class WEB_API Navigable : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Navigable);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~Navigable() override;
 
     using NullOrError = Optional<String>;

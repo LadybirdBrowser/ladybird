@@ -19,6 +19,8 @@ class ImagePaintable final
     GC_DECLARE_ALLOCATOR(ImagePaintable);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ref<ImagePaintable> create(Layout::ImageBox const& layout_box);
     static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
