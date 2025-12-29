@@ -92,25 +92,21 @@ endif()
 
 # FIXME: Implement ProcessStatistics for Windows and *BSD
 if (LINUX)
-    list(APPEND SOURCES
-        Platform/ProcessStatisticsLinux.cpp
-        TimeZoneWatcherLinux.cpp
-    )
+    list(APPEND SOURCES Platform/ProcessStatisticsLinux.cpp)
 elseif (APPLE AND NOT IOS)
-    list(APPEND SOURCES
-        Platform/ProcessStatisticsMach.cpp
-        TimeZoneWatcherMacOS.mm
-    )
+    list(APPEND SOURCES Platform/ProcessStatisticsMach.cpp)
+else ()
+    list(APPEND SOURCES Platform/ProcessStatisticsUnimplemented.cpp)
+endif()
+
+if (LINUX OR BSD)
+    list(APPEND SOURCES TimeZoneWatcherUnix.cpp)
+elseif (APPLE AND NOT IOS)
+    list(APPEND SOURCES TimeZoneWatcherMacOS.mm)
 elseif (WIN32)
-    list(APPEND SOURCES
-        Platform/ProcessStatisticsUnimplemented.cpp
-        TimeZoneWatcherWindows.cpp
-    )
+    list(APPEND SOURCES TimeZoneWatcherWindows.cpp)
 else()
-    list(APPEND SOURCES
-        Platform/ProcessStatisticsUnimplemented.cpp
-        TimeZoneWatcherUnimplemented.cpp
-    )
+    list(APPEND SOURCES TimeZoneWatcherUnimplemented.cpp)
 endif()
 
 if (APPLE OR CMAKE_SYSTEM_NAME STREQUAL "GNU")
