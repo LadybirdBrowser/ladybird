@@ -53,7 +53,7 @@ jobs:
           sudo apt-get install -y python3-venv
 
       - name: 'Download JS repl artifact'
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v12
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-js-${{ matrix.package_type }}
@@ -73,7 +73,7 @@ jobs:
           echo "sha=${commit_hash}" >> "${GITHUB_OUTPUT}"
 
       - name: 'Download wasm repl artifact'
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v12
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: ladybird-wasm-${{ matrix.package_type }}
