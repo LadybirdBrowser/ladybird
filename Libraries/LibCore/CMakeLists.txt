@@ -80,28 +80,34 @@ else()
     list(APPEND SOURCES LocalServerWindows.cpp)
 endif()
 
-# FIXME: Implement these for other systems.
+include(CheckIncludeFile)
+
+check_include_file(sys/inotify.h HAVE_INOTIFY)
+
+if (HAVE_INOTIFY)
+    list(APPEND SOURCES FileWatcherInotify.cpp)
+else()
+    list(APPEND SOURCES FileWatcherUnimplemented.cpp)
+endif()
+
+# FIXME: Implement ProcessStatistics for Windows and *BSD
 if (LINUX)
     list(APPEND SOURCES
-        FileWatcherLinux.cpp
         Platform/ProcessStatisticsLinux.cpp
         TimeZoneWatcherLinux.cpp
     )
 elseif (APPLE AND NOT IOS)
     list(APPEND SOURCES
-        FileWatcherUnimplemented.cpp
         Platform/ProcessStatisticsMach.cpp
         TimeZoneWatcherMacOS.mm
     )
 elseif (WIN32)
     list(APPEND SOURCES
-        FileWatcherUnimplemented.cpp
         Platform/ProcessStatisticsUnimplemented.cpp
         TimeZoneWatcherWindows.cpp
     )
 else()
     list(APPEND SOURCES
-        FileWatcherUnimplemented.cpp
         Platform/ProcessStatisticsUnimplemented.cpp
         TimeZoneWatcherUnimplemented.cpp
     )
