@@ -157,18 +157,9 @@ ErrorOr<MLDSA::KeyPairType> MLDSA::generate_key_pair(MLDSASize size, ByteBuffer 
     auto* key_ptr = key.ptr();
     OPENSSL_TRY(EVP_PKEY_generate(ctx.ptr(), &key_ptr));
 
-    // We reserve enough memory for the key size to be able to fit them all
-    auto pub = TRY(ByteBuffer::create_uninitialized(2592));
-    auto priv = TRY(ByteBuffer::create_uninitialized(4896));
-    seed = TRY(ByteBuffer::create_uninitialized(32));
-
-    size_t priv_len, pub_len, seed_len;
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), OSSL_PKEY_PARAM_ML_DSA_SEED, seed.data(), seed.size(), &seed_len));
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), OSSL_PKEY_PARAM_PRIV_KEY, priv.data(), priv.size(), &priv_len));
-    OPENSSL_TRY(EVP_PKEY_get_octet_string_param(key.ptr(), OSSL_PKEY_PARAM_PUB_KEY, pub.data(), pub.size(), &pub_len));
-
-    pub.trim(pub_len, true);
-    priv.trim(priv_len, true);
+    auto pub = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_PUB_KEY));
+    auto priv = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_PRIV_KEY));
+    seed = TRY(get_byte_buffer_param_from_key(key, OSSL_PKEY_PARAM_ML_DSA_SEED));
 
     return KeyPairType {
         { pub },
