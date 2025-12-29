@@ -17,6 +17,8 @@ class NodeIterator final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ref<NodeIterator> create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;

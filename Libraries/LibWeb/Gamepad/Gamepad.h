@@ -20,6 +20,8 @@ class Gamepad final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Gamepad);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ref<Gamepad> create(JS::Realm&, SDL_JoystickID);
 
     SDL_JoystickID sdl_joystick_id() const { return m_sdl_joystick_id; }

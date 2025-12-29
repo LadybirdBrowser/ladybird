@@ -17,13 +17,13 @@
     static GC::TypeIsolatingCellAllocator<ClassName> cell_allocator
 
 #define GC_DEFINE_ALLOCATOR(ClassName) \
-    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv, ClassName::OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION }
+    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv, ClassName::OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION, ClassName::OVERRIDES_FINALIZE }
 
 namespace GC {
 
 class GC_API CellAllocator {
 public:
-    CellAllocator(size_t cell_size, StringView = {}, bool overrides_must_survive_garbage_collection = false);
+    CellAllocator(size_t cell_size, StringView = {}, bool overrides_must_survive_garbage_collection = false, bool overrides_finalize = false);
     ~CellAllocator() = default;
 
     StringView class_name() const { return m_class_name; }
@@ -67,6 +67,7 @@ private:
     FlatPtr m_min_block_address { explode_byte(0xff) };
     FlatPtr m_max_block_address { 0 };
     bool m_overrides_must_survive_garbage_collection { false };
+    bool m_overrides_finalize { false };
 };
 
 template<typename T>
@@ -74,8 +75,8 @@ class GC_API TypeIsolatingCellAllocator {
 public:
     using CellType = T;
 
-    TypeIsolatingCellAllocator(StringView class_name, bool overrides_must_survive_garbage_collection)
-        : allocator(sizeof(T), class_name, overrides_must_survive_garbage_collection)
+    TypeIsolatingCellAllocator(StringView class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
+        : allocator(sizeof(T), class_name, overrides_must_survive_garbage_collection, overrides_finalize)
     {
     }
 

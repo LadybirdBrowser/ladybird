@@ -26,7 +26,7 @@ class GC_API HeapBlock : public HeapBlockBase {
 
 public:
     using HeapBlockBase::BLOCK_SIZE;
-    static NonnullOwnPtr<HeapBlock> create_with_cell_size(Heap&, CellAllocator&, size_t cell_size, StringView class_name, bool overrides_must_survive_garbage_collection);
+    static NonnullOwnPtr<HeapBlock> create_with_cell_size(Heap&, CellAllocator&, size_t cell_size, StringView class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize);
 
     size_t cell_size() const { return m_cell_size; }
     size_t cell_count() const { return (HeapBlock::BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size; }
@@ -93,9 +93,10 @@ public:
     CellAllocator& cell_allocator() { return m_cell_allocator; }
 
     bool overrides_must_survive_garbage_collection() const { return m_overrides_must_survive_garbage_collection; }
+    bool overrides_finalize() const { return m_overrides_finalize; }
 
 private:
-    HeapBlock(Heap&, CellAllocator&, size_t cell_size, bool overrides_must_survive_garbage_collection);
+    HeapBlock(Heap&, CellAllocator&, size_t cell_size, bool overrides_must_survive_garbage_collection, bool overrides_finalize);
 
     bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
 
@@ -115,6 +116,7 @@ private:
     u32 m_next_lazy_freelist_index { 0 };
 
     bool m_overrides_must_survive_garbage_collection { false };
+    bool m_overrides_finalize { false };
 
     Ptr<FreelistEntry> m_freelist;
     alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];

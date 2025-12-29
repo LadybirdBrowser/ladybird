@@ -18,6 +18,8 @@ class AnimationTimeline : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     NullableCSSNumberish current_time_for_bindings() const
     {
         return NullableCSSNumberish::from_optional_css_numberish_time(current_time());

@@ -28,6 +28,8 @@ class WEB_API MessagePort final
     GC_DECLARE_ALLOCATOR(MessagePort);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<MessagePort> create(JS::Realm&);
 
     static void for_each_message_port(Function<void(MessagePort&)>);

@@ -28,6 +28,8 @@ class GC_API ForeignCell : public Cell {
     FOREIGN_CELL(ForeignCell, Cell);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     struct Vtable {
         // Holds a pointer to the foreign vtable information such as
         // a jclass in Java, or a Swift type metadata pointer

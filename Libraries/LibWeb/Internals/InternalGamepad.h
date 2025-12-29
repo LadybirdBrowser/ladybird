@@ -16,6 +16,8 @@ class InternalGamepad : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(InternalGamepad);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ref<InternalGamepad> create(JS::Realm&);
 
     virtual ~InternalGamepad() override;

@@ -35,6 +35,8 @@ class HTMLImageElement final
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~HTMLImageElement() override;
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;

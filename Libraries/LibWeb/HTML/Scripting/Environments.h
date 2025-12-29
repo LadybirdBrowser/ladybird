@@ -78,6 +78,8 @@ struct WEB_API EnvironmentSettingsObject : public Environment {
     GC_CELL(EnvironmentSettingsObject, Environment);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual void finalize() override;
     virtual void initialize(JS::Realm&) override;
 

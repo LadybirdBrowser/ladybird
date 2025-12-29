@@ -74,6 +74,8 @@ class WEB_API Window final
     GC_DECLARE_ALLOCATOR(Window);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<Window> create(JS::Realm&);
 
     ~Window();

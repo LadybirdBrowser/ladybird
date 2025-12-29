@@ -20,6 +20,8 @@ class WEB_API DedicatedWorkerGlobalScope
     GC_DECLARE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~DedicatedWorkerGlobalScope() override;
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);

@@ -44,6 +44,8 @@ class IntersectionObserver final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(IntersectionObserver);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options = {});
 
     virtual ~IntersectionObserver() override;

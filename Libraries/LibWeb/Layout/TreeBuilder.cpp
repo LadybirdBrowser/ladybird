@@ -199,6 +199,8 @@ class GeneratedContentImageProvider final
     GC_DECLARE_ALLOCATOR(GeneratedContentImageProvider);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~GeneratedContentImageProvider() override = default;
 
     virtual void finalize() override

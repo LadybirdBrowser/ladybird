@@ -18,19 +18,20 @@
 
 namespace GC {
 
-NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] StringView class_name, bool overrides_must_survive_garbage_collection)
+NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, [[maybe_unused]] StringView class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
 {
     char const* name = nullptr;
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
-    new (block) HeapBlock(heap, cell_allocator, cell_size, overrides_must_survive_garbage_collection);
+    new (block) HeapBlock(heap, cell_allocator, cell_size, overrides_must_survive_garbage_collection, overrides_finalize);
     return NonnullOwnPtr<HeapBlock>(NonnullOwnPtr<HeapBlock>::Adopt, *block);
 }
 
-HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, bool overrides_must_survive_garbage_collection)
+HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
     : HeapBlockBase(heap)
     , m_cell_allocator(cell_allocator)
     , m_cell_size(cell_size)
     , m_overrides_must_survive_garbage_collection(overrides_must_survive_garbage_collection)
+    , m_overrides_finalize(overrides_finalize)
 {
     VERIFY(cell_size >= sizeof(FreelistEntry));
     ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));

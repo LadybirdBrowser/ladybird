@@ -25,6 +25,8 @@ class HTMLVideoElement final : public HTMLMediaElement {
     GC_DECLARE_ALLOCATOR(HTMLVideoElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~HTMLVideoElement() override;
 
     Layout::VideoBox* layout_node();
