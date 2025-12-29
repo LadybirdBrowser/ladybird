@@ -243,7 +243,6 @@ public:
 
     virtual void handle_insert(Utf16String const&) override;
     virtual void handle_delete(DeleteDirection) override;
-    virtual EventResult handle_return_key(FlyString const& ui_input_type) override;
     virtual void select_all() override;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
