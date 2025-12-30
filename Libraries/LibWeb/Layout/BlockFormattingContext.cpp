@@ -290,7 +290,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                     }
                 } else if (available_space.width.is_min_content()) {
                     width = CSS::Length::make_px(calculate_min_content_width(box));
-                } else if (available_space.width.is_max_content()) {
+                } else if (available_space.width.is_max_content() || available_space.width.is_indefinite()) {
                     width = CSS::Length::make_px(calculate_max_content_width(box));
                 } else {
                     VERIFY_NOT_REACHED();
