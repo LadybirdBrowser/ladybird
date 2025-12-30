@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+  workflow_dispatch: 
+
 env:
   # runner.workspace = /home/runner/work/ladybird
   # github.workspace = /home/runner/work/ladybird/ladybird
