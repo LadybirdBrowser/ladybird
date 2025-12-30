@@ -419,11 +419,18 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
             // background positioning area, then the rounded width X' = W / round(W / X)
             // where round() is a function that returns the nearest natural number
             // (integer greater than zero).
+            auto round_to_natural = [](CSSPixels value) {
+                auto rounded = round(value);
+                if (rounded <= CSSPixels(0))
+                    return CSSPixels(1);
+                return rounded;
+            };
+
             if (layer.repeat_x == CSS::Repetition::Round) {
-                image_rect.set_width(background_positioning_area.width() / round(background_positioning_area.width() / image_rect.width()));
+                image_rect.set_width(background_positioning_area.width() / round_to_natural(background_positioning_area.width() / image_rect.width()));
             }
             if (layer.repeat_y == CSS::Repetition::Round) {
-                image_rect.set_height(background_positioning_area.height() / round(background_positioning_area.height() / image_rect.height()));
+                image_rect.set_height(background_positioning_area.height() / round_to_natural(background_positioning_area.height() / image_rect.height()));
             }
 
             // If background-repeat is round for one dimension only and if background-size is auto
