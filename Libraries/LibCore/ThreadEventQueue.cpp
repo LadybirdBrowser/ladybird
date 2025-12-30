@@ -48,7 +48,7 @@ struct ThreadEventQueue::Private {
 static pthread_key_t s_current_thread_event_queue_key;
 static pthread_once_t s_current_thread_event_queue_key_once = PTHREAD_ONCE_INIT;
 
-ThreadEventQueue& ThreadEventQueue::current()
+ThreadEventQueue* ThreadEventQueue::current_or_null()
 {
     pthread_once(&s_current_thread_event_queue_key_once, [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
@@ -57,7 +57,12 @@ ThreadEventQueue& ThreadEventQueue::current()
         });
     });
 
-    auto* ptr = static_cast<ThreadEventQueue*>(pthread_getspecific(s_current_thread_event_queue_key));
+    return static_cast<ThreadEventQueue*>(pthread_getspecific(s_current_thread_event_queue_key));
+}
+
+ThreadEventQueue& ThreadEventQueue::current()
+{
+    auto* ptr = current_or_null();
     if (!ptr) {
         ptr = new ThreadEventQueue;
         pthread_setspecific(s_current_thread_event_queue_key, ptr);
