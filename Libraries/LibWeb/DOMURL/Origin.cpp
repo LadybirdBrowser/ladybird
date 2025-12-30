@@ -8,6 +8,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/OriginPrototype.h>
 #include <LibWeb/DOMURL/Origin.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 
 namespace Web::DOMURL {
 
@@ -38,6 +40,10 @@ GC::Ref<Origin> Origin::construct_impl(JS::Realm& realm)
 WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::VM& vm, JS::Value value)
 {
     auto& realm = *vm.current_realm();
+
+    // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
+    if (auto* window_proxy = value.as_if<HTML::WindowProxy>())
+        value = window_proxy->window();
 
     // 1. If value is a platform object:
     if (auto* object = value.as_if<Bindings::PlatformObject>()) {
