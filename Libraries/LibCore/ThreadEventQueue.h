@@ -20,6 +20,7 @@ class ThreadEventQueue {
     AK_MAKE_NONMOVABLE(ThreadEventQueue);
 
 public:
+    static ThreadEventQueue* current_or_null();
     static ThreadEventQueue& current();
 
     // Process all queued events. Returns the number of events that were processed.
