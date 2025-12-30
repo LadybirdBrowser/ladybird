@@ -1,11 +1,11 @@
 name: Nightly Android
 
 on:
-  # Automatically run at the end of every day.
+  workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
-
-  workflow_dispatch: 
+  push:
+    branches: [ main ]
 
 env:
   # runner.workspace = /home/runner/work/ladybird
