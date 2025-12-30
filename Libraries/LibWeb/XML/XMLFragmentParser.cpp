@@ -32,15 +32,32 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
     // 2. Feed the parser just created the string corresponding to the start tag of context,
     feed.append('<');
     feed.append(qualified_name);
-    feed.append('>');
-
-    // FIXME:
     //  declaring all the namespace prefixes that are in scope on that element in the DOM,
+    for (auto const& prefix : context.get_in_scope_prefixes()) {
+        // NB: Skipping the empty prefix because it is handled specially
+        // and the "xmlns" prefix because it is illegal to declare.
+        if (prefix.is_empty() || prefix == "xmlns"_fly_string)
+            continue;
 
-    // FIXME:
+        auto namespace_uri = context.lookup_namespace_uri(prefix.to_string()).value();
+        VERIFY(!namespace_uri.is_empty());
+
+        feed.append(" xmlns:"sv);
+        feed.append(prefix);
+        feed.append("=\""sv);
+        feed.append(namespace_uri);
+        feed.append('"');
+    }
     //  as well as declaring the default namespace (if any) that is in scope on that element in the DOM.
+    auto default_namespace = context.locate_a_namespace({});
+    if (default_namespace.has_value() && !default_namespace->is_empty()) {
+        feed.append(" xmlns=\""sv);
+        feed.append(default_namespace.value());
+        feed.append('"');
+    }
     //  A namespace prefix is in scope if the DOM lookupNamespaceURI() method on the element would return a non-null value for that prefix.
     //  The default namespace is the namespace for which the DOM isDefaultNamespace() method on the element would return true.
+    feed.append('>');
 
     // 3. Feed the parser just created the string input.
     feed.append(input);

@@ -472,6 +472,7 @@ public:
     Optional<String> lookup_namespace_uri(Optional<String> prefix) const;
     Optional<String> lookup_prefix(Optional<String> namespace_) const;
     bool is_default_namespace(Optional<String> namespace_) const;
+    Vector<FlyString> get_in_scope_prefixes() const;
 
     bool is_inert() const;
 

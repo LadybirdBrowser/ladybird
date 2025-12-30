@@ -2279,6 +2279,71 @@ bool Node::is_equal_node(Node const* other_node) const
     return true;
 }
 
+Vector<FlyString> Node::get_in_scope_prefixes() const
+{
+    // https://html.spec.whatwg.org/multipage/xhtml.html#parsing-xhtml-fragments
+    // "A namespace prefix is in scope if the DOM lookupNamespaceURI() method on the element would return a non-null value for that prefix."
+
+    Vector<FlyString> prefixes;
+    HashTable<FlyString> seen_prefixes;
+
+    auto add_prefix = [&](FlyString const& prefix) {
+        if (!seen_prefixes.contains(prefix)) {
+            prefixes.append(prefix);
+            seen_prefixes.set(prefix);
+            VERIFY(lookup_namespace_uri(prefix.to_string()).has_value());
+        }
+    };
+
+    add_prefix("xml"_fly_string);
+    add_prefix("xmlns"_fly_string);
+
+    Element const* current = nullptr;
+
+    if (is<Element>(*this)) {
+        current = static_cast<Element const*>(this);
+    } else if (is<Document>(*this)) {
+        current = static_cast<Document const*>(this)->document_element();
+    } else if (is<Attr>(*this)) {
+        current = static_cast<Attr const*>(this)->owner_element();
+    } else {
+        current = parent_element();
+    }
+
+    while (current) {
+        if (current->namespace_uri().has_value()) {
+            auto prefix = current->prefix().value_or(""_fly_string);
+            add_prefix(prefix);
+        }
+
+        if (auto attributes = current->attributes()) {
+            for (size_t i = 0; i < attributes->length(); ++i) {
+                auto const* attr = attributes->item(i);
+                if (attr->namespace_uri() != Web::Namespace::XMLNS)
+                    continue;
+
+                Optional<FlyString> declared_prefix;
+
+                if (!attr->prefix().has_value() && attr->local_name() == "xmlns"_fly_string) {
+                    declared_prefix = ""_fly_string;
+                } else if (attr->prefix() == "xmlns"_fly_string) {
+                    declared_prefix = attr->local_name();
+                } else {
+                    continue;
+                }
+
+                if (!attr->value().is_empty())
+                    add_prefix(*declared_prefix);
+                seen_prefixes.set(*declared_prefix); // Mark as seen even if the value is empty
+            }
+        }
+
+        current = current->parent_element();
+    }
+
+    return prefixes;
+}
+
 // https://dom.spec.whatwg.org/#locate-a-namespace
 Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
 {
