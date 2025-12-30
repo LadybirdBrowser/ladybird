@@ -30,11 +30,18 @@ TEST_CASE(create_and_destroy_playback_stream)
 
     {
         auto stream_result = Audio::PlaybackStream::create(Audio::OutputState::Playing, 100, [](Audio::SampleSpecification) {}, [](Span<float> buffer) -> ReadonlySpan<float> { return buffer.trim(0); });
-        if (stream_result.is_error())
+        if (has_implementation) {
+            auto stream = stream_result.release_value();
+            EXPECT_EQ(stream->total_time_played(), AK::Duration::zero());
+
+            for (int i = 0; i < 5; i++) {
+                stream->resume()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+                stream->drain_buffer_and_suspend()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
+            }
+        } else {
+            EXPECT(stream_result.is_error());
             dbgln("Failed to create playback stream: {}", stream_result.error());
-        EXPECT_EQ(!stream_result.is_error(), has_implementation);
-        if (has_implementation)
-            EXPECT_EQ(stream_result.value()->total_time_played(), AK::Duration::zero());
+        }
     }
 
 #    if defined(HAVE_PULSEAUDIO)
