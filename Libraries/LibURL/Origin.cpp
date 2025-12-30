@@ -82,6 +82,9 @@ unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 
     hash = pair_int_hash(hash, origin.host().serialize().hash());
 
+    if (origin.domain().has_value())
+        hash = pair_int_hash(hash, origin.domain()->hash());
+
     return hash;
 }
 
