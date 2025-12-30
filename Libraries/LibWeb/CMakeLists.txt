@@ -824,6 +824,7 @@ set(SOURCES
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
     Painting/PaintableFragment.cpp
+    Painting/PaintableWithLines.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ScrollFrame.cpp
     Painting/ScrollState.cpp
