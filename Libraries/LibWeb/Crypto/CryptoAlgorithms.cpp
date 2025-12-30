@@ -9140,7 +9140,33 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
         key->set_usages(usages);
     }
     // FIXME: -> If format is "pkcs8":
-    // FIXME: -> If format is "raw-public":
+    //    -> If format is "raw-public":
+    else if (key_format == Bindings::KeyFormat::RawPublic) {
+        // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
+        for (auto const usage : usages) {
+            if (usage != Bindings::KeyUsage::Encapsulatekey && usage != Bindings::KeyUsage::Encapsulatebits)
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+        }
+
+        // 2. Let data be keyData.
+        auto const& data = key_data;
+
+        // 3. Let key be a new CryptoKey that represents the ML-KEM public key data in data.
+        ASSERT(data.has<ByteBuffer>());
+        key = CryptoKey::create(m_realm, ::Crypto::PK::MLKEMPublicKey { data.get<ByteBuffer>() });
+
+        // 4. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 5. Let algorithm be a new KeyAlgorithm object.
+        auto algorithm = KeyAlgorithm::create(m_realm);
+
+        // 6. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 6. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
     // FIXME: -> If format is "raw-seed":
     // FIXME: -> If format is "jwk":
     //    -> Otherwise:
