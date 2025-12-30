@@ -1,9 +1,6 @@
 name: CI
 
-on:
-  workflow_dispatch: 
-  push:
-    branches: [ main ]
+on: [push, pull_request]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
