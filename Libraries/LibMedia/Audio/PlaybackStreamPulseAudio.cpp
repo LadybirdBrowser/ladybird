@@ -80,8 +80,8 @@ PlaybackStreamPulseAudio::~PlaybackStreamPulseAudio()
 
 void PlaybackStreamPulseAudio::set_underrun_callback(Function<void()> callback)
 {
-    m_state->enqueue([this, callback = move(callback)]() mutable {
-        m_state->stream()->set_underrun_callback(move(callback));
+    m_state->enqueue([&state = *m_state, callback = move(callback)]() mutable {
+        state.stream()->set_underrun_callback(move(callback));
     });
 }
 
@@ -89,9 +89,9 @@ NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamPulseAudio::res
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();
     TRY_OR_REJECT(m_state->check_is_running(), promise);
-    m_state->enqueue([this, promise]() {
-        TRY_OR_REJECT(m_state->stream()->resume());
-        promise->resolve(m_state->stream()->total_time_played());
+    m_state->enqueue([&state = *m_state, promise]() {
+        TRY_OR_REJECT(state.stream()->resume());
+        promise->resolve(state.stream()->total_time_played());
     });
     return promise;
 }
@@ -100,8 +100,8 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::drain_buffe
 {
     auto promise = Core::ThreadedPromise<void>::create();
     TRY_OR_REJECT(m_state->check_is_running(), promise);
-    m_state->enqueue([this, promise]() {
-        TRY_OR_REJECT(m_state->stream()->drain_and_suspend());
+    m_state->enqueue([&state = *m_state, promise]() {
+        TRY_OR_REJECT(state.stream()->drain_and_suspend());
         promise->resolve();
     });
     return promise;
@@ -111,8 +111,8 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::discard_buf
 {
     auto promise = Core::ThreadedPromise<void>::create();
     TRY_OR_REJECT(m_state->check_is_running(), promise);
-    m_state->enqueue([this, promise]() {
-        TRY_OR_REJECT(m_state->stream()->flush_and_suspend());
+    m_state->enqueue([&state = *m_state, promise]() {
+        TRY_OR_REJECT(state.stream()->flush_and_suspend());
         promise->resolve();
     });
     return promise;
@@ -129,8 +129,8 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamPulseAudio::set_volume(
 {
     auto promise = Core::ThreadedPromise<void>::create();
     TRY_OR_REJECT(m_state->check_is_running(), promise);
-    m_state->enqueue([this, promise, volume]() {
-        TRY_OR_REJECT(m_state->stream()->set_volume(volume));
+    m_state->enqueue([&state = *m_state, promise, volume]() {
+        TRY_OR_REJECT(state.stream()->set_volume(volume));
         promise->resolve();
     });
     return promise;
