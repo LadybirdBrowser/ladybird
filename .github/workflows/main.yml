@@ -1,6 +1,0 @@
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:    # <-- umożliwia ręczne uruchomienie z UI / gh / API
