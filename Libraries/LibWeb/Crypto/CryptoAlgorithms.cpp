@@ -9153,6 +9153,66 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
     return GC::Ref { *key };
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-export-key
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+{
+    GC::Ptr<JS::Object> result;
+    auto& vm = m_realm->vm();
+
+    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be
+    //    accessed, then throw an OperationError.
+    // Note: In our impl this is always accessible
+    auto const& handle = key->handle();
+
+    // 2. -> If format is "spki":
+    if (format == Bindings::KeyFormat::Spki) {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Public)
+            return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
+
+        // 2. Let data be an instance of the SubjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+        //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+        //      * -> If the name member of normalizedAlgorithm is "ML-KEM-512":
+        //           Set the algorithm object identifier to the id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1) OID.
+        //        -> If the name member of normalizedAlgorithm is "ML-KEM-768":
+        //           Set the algorithm object identifier to the id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2) OID.
+        //        -> If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        //           Set the algorithm object identifier to the id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3) OID.
+        //        -> Otherwise:
+        //           throw a NotSupportedError.
+        //    * Set the subjectPublicKey field to keyData.
+        Array<int, 9> algorithm_oid {};
+        if (key->algorithm_name() == "ML-KEM-512") {
+            algorithm_oid = ::Crypto::ASN1::ml_kem_512_oid;
+        } else if (key->algorithm_name() == "ML-KEM-768") {
+            algorithm_oid = ::Crypto::ASN1::ml_kem_768_oid;
+        } else if (key->algorithm_name() == "ML-KEM-1024") {
+            algorithm_oid = ::Crypto::ASN1::ml_kem_1024_oid;
+        } else {
+            return WebIDL::NotSupportedError::create(m_realm, "Invalid algorithm"_utf16);
+        }
+
+        ::Crypto::ASN1::Encoder encoder;
+        VERIFY(handle.has<::Crypto::PK::MLKEMPublicKey>());
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(handle.get<::Crypto::PK::MLKEMPublicKey>().public_key(), algorithm_oid));
+
+        // 3. Let result be the result of DER-encoding data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
+    // FIXME:  -> If format is "pkcs8":
+    // FIXME:  -> If format is "raw-public":
+    // FIXME:  -> If format is "raw-seed":
+    // FIXME:  -> If format is "jwk":
+    //   -> Otherwise:
+    else {
+        // throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_utf16);
+    }
+
+    // 4. Return result.
+    return GC::Ref { *result };
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate
 WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(AlgorithmParams const& params, GC::Ref<CryptoKey> key)
 {
