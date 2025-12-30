@@ -1594,6 +1594,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     for (auto const& name : { "ML-KEM-512"_string, "ML-KEM-768"_string, "ML-KEM-1024"_string }) {
         define_an_algorithm<MLKEM>("generateKey"_string, name);
         define_an_algorithm<MLKEM>("importKey"_string, name);
+        define_an_algorithm<MLKEM>("exportKey"_string, name);
         define_an_algorithm<MLKEM>("encapsulate"_string, name);
     }
 
