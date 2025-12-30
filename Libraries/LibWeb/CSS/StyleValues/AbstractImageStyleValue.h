@@ -28,7 +28,7 @@ public:
     {
         auto width = natural_width();
         auto height = natural_height();
-        if (width.has_value() && height.has_value())
+        if (width.has_value() && height.has_value() && *height != 0)
             return *width / *height;
         return {};
     }
