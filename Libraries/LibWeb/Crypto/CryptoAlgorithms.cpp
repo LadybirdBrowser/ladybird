@@ -9054,7 +9054,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 
     // 15. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "decapsulateKey",
     //     "decapsulateBits" ].
-    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Encapsulatekey, Bindings::KeyUsage::Encapsulatebits } }));
+    private_key->set_usages(usage_intersection(usages, { { Bindings::KeyUsage::Decapsulatekey, Bindings::KeyUsage::Decapsulatebits } }));
 
     // 16. Let result be a new CryptoKeyPair dictionary.
     // 17. Set the publicKey attribute of result to be publicKey.
