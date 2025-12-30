@@ -140,6 +140,7 @@ ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
         TRY(encoder.encode(origin.scheme()));
         TRY(encoder.encode(origin.host()));
         TRY(encoder.encode(origin.port()));
+        TRY(encoder.encode(origin.domain()));
     }
 
     return {};

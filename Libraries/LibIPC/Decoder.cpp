@@ -119,8 +119,9 @@ ErrorOr<URL::Origin> decode(Decoder& decoder)
     auto scheme = TRY(decoder.decode<Optional<String>>());
     auto host = TRY(decoder.decode<URL::Host>());
     auto port = TRY(decoder.decode<Optional<u16>>());
+    auto domain = TRY(decoder.decode<Optional<String>>());
 
-    return URL::Origin { move(scheme), move(host), port };
+    return URL::Origin { move(scheme), move(host), port, move(domain) };
 }
 
 template<>

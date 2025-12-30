@@ -14,6 +14,7 @@
 
 namespace URL {
 
+// https://html.spec.whatwg.org/multipage/browsers.html#concept-origin
 class Origin {
 public:
     using Nonce = Array<u8, 16>;
@@ -25,11 +26,12 @@ public:
 
     static Origin create_opaque();
 
-    Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port)
+    Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port, Optional<String> domain = {})
         : m_state(Tuple {
               .scheme = scheme,
               .host = host,
               .port = move(port),
+              .domain = move(domain),
           })
     {
     }
@@ -40,6 +42,7 @@ public:
     Optional<String> const& scheme() const { return m_state.get<Tuple>().scheme; }
     Host const& host() const { return m_state.get<Tuple>().host; }
     Optional<u16> port() const { return m_state.get<Tuple>().port; }
+    Optional<String> domain() const { return m_state.get<Tuple>().domain; }
 
     Nonce const& nonce() const { return m_state.get<Nonce>(); }
 
@@ -72,13 +75,15 @@ public:
         // 2. If A and B are both tuple origins, run these substeps:
         if (!is_opaque() && !other.is_opaque()) {
             // 1. If A and B's schemes are identical, and their domains are identical and non-null, then return true.
-            // FIXME: Check domains once supported.
-            if (scheme() == other.scheme())
+            if (domain().has_value()
+                && domain() == other.domain()
+                && scheme() == other.scheme())
                 return true;
 
             // 2. Otherwise, if A and B are same origin and their domains are identical and null, then return true.
-            // FIXME: Check domains once supported.
-            if (is_same_origin(other))
+            if (!domain().has_value()
+                && !other.domain().has_value()
+                && is_same_origin(other))
                 return true;
         }
 
@@ -99,7 +104,10 @@ public:
         if (is_opaque())
             return {};
 
-        // FIXME: 2. If origin's domain is non-null, then return origin's domain.
+        // 2. If origin's domain is non-null, then return origin's domain.
+        auto const& tuple = m_state.get<Tuple>();
+        if (tuple.domain.has_value())
+            return Host { tuple.domain.value() };
 
         // 3. Return origin's host.
         return m_state.get<Tuple>().host;
@@ -112,6 +120,7 @@ private:
         Optional<String> scheme;
         Host host;
         Optional<u16> port;
+        Optional<String> domain;
     };
 
     Variant<Tuple, Nonce> m_state;
