@@ -91,7 +91,12 @@ Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
     if (ratio.is_degenerate())
         return {};
 
-    return CSSPixelFraction(ratio.numerator(), ratio.denominator());
+    auto fraction = CSSPixelFraction(ratio.numerator(), ratio.denominator());
+    // ratio.is_degenerate() operates on doubles while CSSPixelFraction uses CSSPixels, so we need to check again here.
+    if (fraction == 0)
+        return {};
+
+    return fraction;
 }
 
 }
