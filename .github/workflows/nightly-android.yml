@@ -1,11 +1,8 @@
 name: Nightly Android
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'
-  push:
-    branches: [ main ]
 
 env:
   # runner.workspace = /home/runner/work/ladybird
