@@ -452,7 +452,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 return EventResult::Dropped;
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
-            auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
+            auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+            auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
                 m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
             }
@@ -526,7 +527,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             }
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
-            auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
+            auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+            auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
             auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointerup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
             light_dismiss_activities(pointer_event, node);
             node->dispatch_event(pointer_event);
@@ -681,7 +683,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
         m_mousedown_target = node.ptr();
         auto page_offset = compute_mouse_event_page_offset(viewport_position);
-        auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
+        auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+        auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
         auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
         light_dismiss_activities(pointer_event, node);
         if (!node->dispatch_event(pointer_event))
@@ -881,7 +884,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             }
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
-            auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
+            auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+            auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
             auto movement = compute_mouse_event_movement(screen_position);
 
             m_mousemove_previous_screen_position = screen_position;
@@ -1013,7 +1017,8 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
         return EventResult::Dropped;
 
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
-    auto offset = compute_mouse_event_offset(page_offset, *layout_node->first_paintable());
+    auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+    auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
     node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
 
     // NOTE: Dispatching an event may have disturbed the world.
