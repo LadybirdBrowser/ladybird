@@ -193,6 +193,17 @@ private:
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;
 
+    Optional<ComputationContext> m_cached_font_computation_context;
+    Optional<ComputationContext> m_cached_line_height_computation_context;
+    Optional<ComputationContext> m_cached_generic_computation_context;
+    ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
+    void clear_computation_context_caches() const
+    {
+        const_cast<StyleComputer*>(this)->m_cached_font_computation_context = {};
+        const_cast<StyleComputer*>(this)->m_cached_line_height_computation_context = {};
+        const_cast<StyleComputer*>(this)->m_cached_generic_computation_context = {};
+    }
+
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
