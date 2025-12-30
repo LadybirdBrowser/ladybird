@@ -38,7 +38,7 @@ jobs:
             build_preset: 'Distribution'
             toolchain: 'Clang'
             clang_plugins: false
-            runner_labels: '["macos-15"]'
+            runner_labels: '["macos-15", "self-hosted"]'
 
           - os_name: 'Linux'
             arch: 'arm64'
@@ -59,7 +59,7 @@ jobs:
             build_preset: 'Sanitizer'
             toolchain: 'Swift'
             clang_plugins: false
-            runner_labels: '["macos-15"]'
+            runner_labels: '["macos-15", "self-hosted"]'
 
           - os_name: 'Windows'
             arch: 'x86_64'
