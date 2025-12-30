@@ -98,22 +98,22 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
 
     auto root_element = root();
 
-    if (index >= length) {
-        // 3. Let delta be index minus length
-        auto delta = index - length;
+    // 3. Let delta be index minus length
+    auto delta = static_cast<i64>(index) - static_cast<i64>(length);
 
-        // 4. If delta is greater than zero, then append a DocumentFragment consisting of delta new option elements with
-        //    no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
-        if (delta > 0) {
-            for (WebIDL::UnsignedLong i = 0; i < delta; i++) {
-                TRY(root_element->append_child(TRY(DOM::create_element(root_element->document(), HTML::TagNames::option, Namespace::HTML))));
-            }
+    // 4. If delta is greater than zero, then append a DocumentFragment consisting of delta new option elements with
+    //    no attributes and no child nodes to the select element on which the HTMLOptionsCollection is rooted.
+    if (delta > 0) {
+        for (auto i = 0; i < delta; i++) {
+            TRY(root_element->append_child(TRY(DOM::create_element(root_element->document(), HTML::TagNames::option, Namespace::HTML))));
         }
+    }
 
-        // 5. If delta is greater than or equal to zero, append value to the select element.
+    // 5. If delta is greater than or equal to zero, append value to the select element. Otherwise, replace the indexth
+    //    element in the collection by value.
+    if (delta >= 0) {
         TRY(root_element->append_child(option));
     } else {
-        // 5 (cont). Otherwise, replace the indexth element in the collection by value.
         TRY(root_element->replace_child(option, *item(index)));
     }
 
