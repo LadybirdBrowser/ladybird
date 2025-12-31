@@ -452,11 +452,21 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             return PendingResponse::create(vm, request, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
         }
 
+        // FIXME: This is a hack to allow file scheme URLs always being treated as same origin to one another as to not
+        //        break file:// origin HTML pages from loading any other files. We should tighten up these restrictions.
+        //        This will require some investigation into what other browsers allow for different types of requests.
+        //        Relevant spec context: https://github.com/whatwg/fetch/issues/1195
+        bool both_origins_are_file_opaque_origins = origin
+            && origin->is_opaque()
+            && request->current_url().origin().is_opaque()
+            && origin->opaque_data().type == URL::Origin::OpaqueData::Type::File
+            && request->current_url().origin().opaque_data().type == URL::Origin::OpaqueData::Type::File;
+
         // -> request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
         // -> request’s current URL’s scheme is "data"
         // -> request’s mode is "navigate" or "websocket"
         if (
-            (origin && request->current_url().origin().is_same_origin(*origin) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
+            (origin && (request->current_url().origin().is_same_origin(*origin) || both_origins_are_file_opaque_origins) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
             || request->current_url().scheme() == "data"sv
             || (request->mode() == Infrastructure::Request::Mode::Navigate || request->mode() == Infrastructure::Request::Mode::WebSocket)) {
             // 1. Set request’s response tainting to "basic".
