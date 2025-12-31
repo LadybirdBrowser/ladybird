@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Layout {
 

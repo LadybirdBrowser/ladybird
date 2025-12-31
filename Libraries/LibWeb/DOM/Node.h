@@ -150,7 +150,7 @@ class WEB_API Node : public EventTarget
 public:
     ParentNode* parent_or_shadow_host();
     ParentNode const* parent_or_shadow_host() const { return const_cast<Node*>(this)->parent_or_shadow_host(); }
-
+    Node const* parent_or_shadow_host_node() const;
     Element* parent_or_shadow_host_element();
     Element const* parent_or_shadow_host_element() const { return const_cast<Node*>(this)->parent_or_shadow_host_element(); }
 
@@ -464,6 +464,17 @@ public:
 
     template<typename U>
     U* shadow_including_first_ancestor_of_type();
+
+    template<typename Predicate>
+    requires requires(Predicate& predicate, Node const& node) { { predicate(node) } -> ConvertibleTo<bool>; }
+    Node const* find_in_shadow_including_ancestor_chain(Predicate&& predicate) const
+    {
+        for (auto const* it = this; it && it->is_connected(); it = it->parent_or_shadow_host_node()) {
+            if (predicate(*it))
+                return it;
+        }
+        return nullptr;
+    }
 
     ErrorOr<String> accessible_name(Document const&, ShouldComputeRole = ShouldComputeRole::Yes) const;
     ErrorOr<String> accessible_description(Document const&) const;

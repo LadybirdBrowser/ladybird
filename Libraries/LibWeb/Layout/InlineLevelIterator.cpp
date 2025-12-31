@@ -254,9 +254,13 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         if (text_type == Gfx::GlyphRun::TextType::ContextDependent)
             text_type = resolve_text_direction_from_context();
 
-        if (do_respect_linebreak && chunk.has_breaking_newline)
-            return Item { .type = Item::Type::ForcedBreak };
-
+        if (do_respect_linebreak && chunk.has_breaking_newline) {
+            return Item {
+                .type = Item::Type::ForcedBreak,
+                .node = text_node,
+                .offset_in_node = chunk.start,
+            };
+        }
         auto letter_spacing = text_node->computed_values().letter_spacing();
         // FIXME: We should apply word spacing to all word-separator characters not just breaking tabs
         auto word_spacing = text_node->computed_values().word_spacing();

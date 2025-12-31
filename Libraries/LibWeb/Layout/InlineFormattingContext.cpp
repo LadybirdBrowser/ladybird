@@ -283,8 +283,10 @@ void InlineFormattingContext::generate_line_boxes()
 
         switch (item.type) {
         case InlineLevelIterator::Item::Type::ForcedBreak: {
-            line_builder.break_line(LineBuilder::ForcedBreak::Yes);
-            if (item.node) {
+            if (TextNode const* text_node = as_if<Layout::TextNode>(item.node.ptr())) {
+                line_builder.append_newline(*text_node, item.offset_in_node);
+            } else {
+                line_builder.break_line(LineBuilder::ForcedBreak::Yes);
                 auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
                     line_builder.did_introduce_clearance(vertical_float_clearance());

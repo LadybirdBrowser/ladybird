@@ -25,6 +25,7 @@ public:
     void break_line(ForcedBreak, Optional<CSSPixels> next_item_width = {});
     void append_box(Box const&, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin);
     void append_text_chunk(TextNode const&, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, RefPtr<Gfx::GlyphRun>);
+    void append_newline(TextNode const&, size_t offset_in_node);
 
     // Returns whether a line break occurred.
     bool break_if_needed(CSSPixels next_item_width)
@@ -37,7 +38,6 @@ public:
     }
 
     void update_last_line();
-
     void remove_last_line_if_empty();
 
     CSSPixels current_block_offset() const { return m_current_block_offset; }
@@ -49,9 +49,8 @@ public:
 
 private:
     void begin_new_line(bool increment_y, bool is_first_break_in_sequence = true, ForcedBreak = ForcedBreak::No);
-
+    void insert_caret_anchor(TextNode const& text_node, size_t offset_in_node);
     bool should_break(CSSPixels next_item_width);
-
     LineBox& ensure_last_line_box();
 
     InlineFormattingContext& m_context;
