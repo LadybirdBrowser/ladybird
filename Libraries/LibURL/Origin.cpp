@@ -11,9 +11,9 @@
 
 namespace URL {
 
-Origin Origin::create_opaque()
+Origin Origin::create_opaque(OpaqueData::Type type)
 {
-    return Origin { Crypto::get_secure_random<Nonce>() };
+    return Origin { OpaqueData { Crypto::get_secure_random<OpaqueData::Nonce>(), type } };
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#same-site
@@ -67,8 +67,8 @@ namespace AK {
 unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 {
     if (origin.is_opaque()) {
-        auto const& nonce = origin.nonce();
-        // Random data, so the first u32 is as good as hashing the entire thing.
+        auto const& nonce = origin.opaque_data().nonce;
+        // Random data, so the first u32 of the nonce is as good as hashing the entire thing.
         return (static_cast<u32>(nonce[0]) << 24)
             | (static_cast<u32>(nonce[1]) << 16)
             | (static_cast<u32>(nonce[2]) << 8)
