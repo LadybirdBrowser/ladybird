@@ -37,7 +37,7 @@ bool Site::is_same_site(Site const& other) const
     // 1. If A and B are the same opaque origin, then return true.
     // NOTE: Origins in sites are always opaque.
     if (m_value.has<Origin>() && other.m_value.has<Origin>())
-        return m_value.get<Origin>().nonce() == other.m_value.get<Origin>().nonce();
+        return m_value.get<Origin>().opaque_data().nonce == other.m_value.get<Origin>().opaque_data().nonce;
 
     // 2. If A or B is an opaque origin, then return false.
     if (m_value.has<Origin>() || other.m_value.has<Origin>())
