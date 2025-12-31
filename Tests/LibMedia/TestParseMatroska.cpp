@@ -36,7 +36,7 @@ TEST_CASE(seek_in_multi_frame_blocks)
     auto optional_track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
     EXPECT(optional_track.has_value());
     auto track = optional_track.release_value();
-    demuxer->create_context_for_track(track, stream->create_cursor());
+    MUST(demuxer->create_context_for_track(track, stream->create_cursor()));
 
     auto initial_coded_frame = MUST(demuxer->get_next_sample_for_track(track));
     EXPECT(initial_coded_frame.timestamp() <= AK::Duration::zero());

@@ -55,7 +55,7 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
     return demuxer;
 }
 
-void FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
 {
     auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
 
@@ -68,6 +68,8 @@ void FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<I
     VERIFY(track_context->packet != nullptr);
 
     VERIFY(m_track_contexts.set(track, move(track_context)) == HashSetResult::InsertedNewEntry);
+
+    return {};
 }
 
 FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
