@@ -40,6 +40,7 @@ namespace TestWeb {
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
+static Vector<ByteString> s_depends_on_non_opaque_file_origins_tests;
 static HashMap<WebView::ViewImplementation const*, Test*> s_test_by_view;
 
 static constexpr StringView test_result_to_string(TestResult result)
@@ -76,6 +77,9 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
         if (group == "Skipped"sv) {
             for (auto& key : config->keys(group))
                 s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+        } else if (group == "DependsOnTupleFileOrigins"sv) {
+            for (auto& key : config->keys(group))
+                s_depends_on_non_opaque_file_origins_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -656,7 +660,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
 
             Core::deferred_invoke([&]() mutable {
-                if (s_skipped_tests.contains_slow(test.input_path))
+                if (s_skipped_tests.contains_slow(test.input_path)
+                    || (app.file_scheme_urls_have_opaque_origins && s_depends_on_non_opaque_file_origins_tests.contains_slow(test.input_path)))
                     view->on_test_complete({ test, TestResult::Skipped });
                 else
                     run_test(*view, test, app);

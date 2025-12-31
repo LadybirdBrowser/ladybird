@@ -19,6 +19,8 @@
 
 namespace URL {
 
+static bool s_file_scheme_urls_have_tuple_origins = false;
+
 Optional<URL> URL::complete_url(StringView relative_url) const
 {
     return Parser::basic_parse(relative_url, *this);
@@ -332,6 +334,17 @@ ByteString URL::serialize_for_display() const
     return builder.to_byte_string();
 }
 
+void set_file_scheme_urls_have_tuple_origins()
+{
+    VERIFY(!s_file_scheme_urls_have_tuple_origins);
+    s_file_scheme_urls_have_tuple_origins = true;
+}
+
+bool file_scheme_urls_have_tuple_origins()
+{
+    return s_file_scheme_urls_have_tuple_origins;
+}
+
 // https://url.spec.whatwg.org/#concept-url-origin
 Origin URL::origin() const
 {
@@ -371,8 +384,25 @@ Origin URL::origin() const
     // AD-HOC: Our resource:// is basically an alias to file://
     if (scheme() == "file"sv || scheme() == "resource"sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
-        // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
-        return Origin(scheme(), String {}, {});
+
+        // Our implementation-defined behavior is to return an opaque origin for file-scheme URLs,
+        // tagged explicitly as a "file" opaque origin.
+        //
+        // This makes file:// URLs opaque by default, while still allowing us to selectively
+        // distinguish them from other opaque origins. That distinction allows an opt-out path
+        // for compatibility with other browsers behaviour.
+        //
+        // We also support a process-wide flag to allow tuple origins for file:// URLs. This is
+        // intended for test purposes, as our test harness predominantly loads documents from
+        // file:// rather than over HTTP, and many web features (for example, localStorage) are
+        // unavailable to windows with opaque origins.
+        //
+        // We may need future extensions to file:// opaque origins, for example, incorporating
+        // path data for use in the same-origin check.
+        if (file_scheme_urls_have_tuple_origins())
+            return Origin { scheme(), String {}, {} };
+
+        return Origin::create_opaque(Origin::OpaqueData::Type::File);
     }
 
     // -> Otherwise
