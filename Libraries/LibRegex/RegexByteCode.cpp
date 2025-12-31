@@ -55,6 +55,19 @@ StringView opcode_id_name(OpCodeId opcode)
     }
 }
 
+StringView fork_if_condition_name(ForkIfCondition condition)
+{
+    switch (condition) {
+#define __ENUMERATE_FORK_IF_CONDITION(x) \
+    case ForkIfCondition::x:             \
+        return #x##sv;
+        ENUMERATE_FORK_IF_CONDITIONS
+#undef __ENUMERATE_FORK_IF_CONDITION
+    default:
+        return "<Unknown>"sv;
+    }
+}
+
 StringView boundary_check_type_name(BoundaryCheckType ty)
 {
     switch (ty) {
@@ -329,6 +342,56 @@ ALWAYS_INLINE ExecutionResult OpCode_ForkReplaceStay<ByteCode>::execute(MatchInp
     state.fork_at_position = state.instruction_position + size() + offset();
     input.fork_to_replace = state.instruction_position;
     return ExecutionResult::Fork_PrioLow;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_ForkIf<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    auto next_step = [&](bool do_fork) -> ExecutionResult {
+        switch (form()) {
+        case OpCodeId::ForkJump:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioHigh;
+            }
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkReplaceJump:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                input.fork_to_replace = state.instruction_position;
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioHigh;
+            }
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkStay:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                state.forks_since_last_save++;
+                return ExecutionResult::Fork_PrioLow;
+            }
+            state.instruction_position += offset();
+            return ExecutionResult::Continue;
+        case OpCodeId::ForkReplaceStay:
+            if (do_fork) {
+                state.fork_at_position = state.instruction_position + size() + offset();
+                input.fork_to_replace = state.instruction_position;
+                return ExecutionResult::Fork_PrioLow;
+            }
+            state.instruction_position += offset();
+            return ExecutionResult::Continue;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    switch (condition()) {
+    case ForkIfCondition::AtStartOfLine:
+        return next_step(!input.in_the_middle_of_a_line);
+    case ForkIfCondition::Invalid:
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 template<typename ByteCode>

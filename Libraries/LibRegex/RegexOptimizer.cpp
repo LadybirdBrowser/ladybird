@@ -512,6 +512,9 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
         case OpCodeId::ForkStay:
             check_jump.template operator()<OpCode_ForkStay>(opcode);
             break;
+        case OpCodeId::ForkIf:
+            check_jump.template operator()<OpCode_ForkIf>(opcode);
+            break;
         case OpCodeId::FailForks:
             block_starts.set(state.instruction_position + opcode.size());
             break;
@@ -940,6 +943,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             return AtomicRewritePreconditionResult::NotSatisfied;
         case OpCodeId::ForkJump:
         case OpCodeId::ForkReplaceJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::JumpNonEmpty:
             // We could attempt to recursively resolve the follow set, but pretending that this just goes nowhere is faster.
             if (!has_seen_actionable_opcode)
@@ -991,6 +995,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             continue;
         }
         case OpCodeId::ForkJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::ForkReplaceJump:
         case OpCodeId::JumpNonEmpty:
             return AtomicRewritePreconditionResult::NotSatisfied;
@@ -1033,6 +1038,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
             // FIXME: What should we do with these? For now, consider them a failure.
             return AtomicRewritePreconditionResult::NotSatisfied;
         case OpCodeId::ForkJump:
+        case OpCodeId::ForkIf:
         case OpCodeId::ForkReplaceJump:
         case OpCodeId::JumpNonEmpty:
             // See note in the previous switch, same cases.
@@ -1053,6 +1059,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
     case OpCodeId::JumpNonEmpty:
     case OpCodeId::ForkJump:
     case OpCodeId::ForkReplaceJump:
+    case OpCodeId::ForkIf:
         break;
     default:
         return AtomicRewritePreconditionResult::NotSatisfied;
@@ -1134,6 +1141,8 @@ void Regex<Parser>::rewrite_with_useless_jumps_removed()
             is_useless = to<OpCode_ForkJump>(op).offset() == 0;
         } else if (op.opcode_id() == OpCodeId::ForkStay || op.opcode_id() == OpCodeId::ForkReplaceStay) {
             is_useless = to<OpCode_ForkStay>(op).offset() == 0;
+        } else if (op.opcode_id() == OpCodeId::ForkIf) {
+            is_useless = to<OpCode_ForkIf>(op).offset() == 0;
         }
 
         instr.skip = is_useless;
@@ -1378,6 +1387,9 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
             case OpCodeId::ForkStay:
                 patch_points.push({ to<OpCode_ForkStay>(opcode).offset(), state.instruction_position + 1 });
                 break;
+            case OpCodeId::ForkIf:
+                patch_points.push({ to<OpCode_ForkIf>(opcode).offset(), state.instruction_position + 1 });
+                break;
             case OpCodeId::Repeat:
                 patch_points.push({ -(ssize_t)to<OpCode_Repeat>(opcode).offset(), state.instruction_position + 1, true });
                 break;
@@ -1587,6 +1599,12 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 has_any_backwards_jump |= cast_opcode.offset() < 0;
                 break;
             }
+            case OpCodeId::ForkIf: {
+                auto const& cast_opcode = to<OpCode_ForkIf>(opcode);
+                incoming_jump_edges.ensure(cast_opcode.offset() + cast_opcode.size() + state.instruction_position).append({ opcode_bytes });
+                has_any_backwards_jump |= cast_opcode.offset() < 0;
+                break;
+            }
             case OpCodeId::Repeat: {
                 auto const& cast_opcode = to<OpCode_Repeat>(opcode);
                 incoming_jump_edges.ensure(state.instruction_position - cast_opcode.offset()).append({ opcode_bytes });
@@ -1741,33 +1759,45 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
 
     if (common_hits == 0 || tree_cost > chain_cost) {
         // It's better to lay these out as a normal sequence of instructions.
-        auto patch_start = target.size();
+        // We can avoid trying alternatives that we know cannot match in certain cases:
+        // - If the alternative starts with an assertion, we can lift the assertion to the fork op itself (currently only ^).
+        Vector<ForkIfCondition> fork_conditions;
+        fork_conditions.resize_with_default_value(alternatives.size(), ForkIfCondition::Invalid);
+
+        for (size_t i = 0; i < alternatives.size(); ++i) {
+            auto& alternative = alternatives[i];
+            auto state = MatchState::only_for_enumeration();
+            state.instruction_position = 0;
+            auto& first_opcode = alternative.get_opcode(state);
+            if (first_opcode.opcode_id() == OpCodeId::CheckBegin)
+                fork_conditions[i] = ForkIfCondition::AtStartOfLine;
+        }
+
+        Vector<size_t> jump_op_positions;
+        Vector<size_t> jump_sizes;
+        jump_op_positions.resize(alternatives.size() - 1);
+        jump_sizes.resize(alternatives.size() - 1);
+
         for (size_t i = 1; i < alternatives.size(); ++i) {
-            target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
-            target.empend(0u); // To be filled later.
-        }
-
-        size_t size_to_jump = 0;
-        bool seen_one_empty = false;
-        for (size_t i = alternatives.size(); i > 0; --i) {
-            auto& entry = alternatives[i - 1];
-            if (entry.is_empty()) {
-                if (seen_one_empty)
-                    continue;
-                seen_one_empty = true;
+            jump_op_positions[i - 1] = target.size();
+            if (fork_conditions[i - 1] != ForkIfCondition::Invalid) {
+                jump_sizes[i - 1] = 4;
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkIf));
+                target.empend(0u); // To be filled later.
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                target.empend(static_cast<ByteCodeValueType>(fork_conditions[i - 1]));
+            } else {
+                jump_sizes[i - 1] = 2;
+                target.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
+                target.empend(0u); // To be filled later.
             }
-
-            auto is_first = i == 1;
-            auto instruction_size = entry.size() + (is_first ? 0 : 2); // Jump; -> +2
-            size_to_jump += instruction_size;
-
-            if (!is_first)
-                target[patch_start + (i - 2) * 2 + 1] = size_to_jump + (alternatives.size() - i) * 2;
-
-            dbgln_if(REGEX_DEBUG, "{} size = {}, cum={}", i - 1, instruction_size, size_to_jump);
         }
 
-        seen_one_empty = false;
+        bool seen_one_empty = false;
+
+        Vector<size_t> jump_to_end_patch_positions;
+        jump_to_end_patch_positions.resize_with_default_value(alternatives.size(), NumericLimits<size_t>::max());
+
         for (size_t i = alternatives.size(); i > 0; --i) {
             auto& chunk = alternatives[i - 1];
             if (chunk.is_empty()) {
@@ -1776,25 +1806,23 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 seen_one_empty = true;
             }
 
-            ByteCode* previous_chunk = nullptr;
-            size_t j = i - 1;
-            auto seen_one_empty_before = chunk.is_empty();
-            while (j >= 1) {
-                --j;
-                auto& candidate_chunk = alternatives[j];
-                if (candidate_chunk.is_empty()) {
-                    if (seen_one_empty_before)
-                        continue;
-                }
-                previous_chunk = &candidate_chunk;
-                break;
+            if (i < alternatives.size()) {
+                auto this_block_start = target.size();
+                auto position = jump_op_positions[i - 1];
+                auto jump_size = jump_sizes[i - 1];
+                target[position + 1] = static_cast<ByteCodeValueType>(this_block_start - position - jump_size);
             }
-
-            size_to_jump -= chunk.size() + (previous_chunk ? 2 : 0);
 
             target.extend(move(chunk));
             target.empend(static_cast<ByteCodeValueType>(OpCodeId::Jump));
-            target.empend(size_to_jump); // Jump to the _END label
+            target.empend(0u); // Jump to the _END label
+            jump_to_end_patch_positions[i - 1] = target.size() - 1;
+        }
+
+        auto end_position = target.size();
+        for (size_t i = 0; i < alternatives.size(); ++i) {
+            if (auto& position = jump_to_end_patch_positions[i]; position != NumericLimits<size_t>::max())
+                target[position] = static_cast<ByteCodeValueType>(end_position - (position + 1));
         }
     } else {
         target.ensure_capacity(total_bytecode_entries_in_tree + common_hits * 6);
@@ -1885,6 +1913,9 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     break;
                 case OpCodeId::ForkReplaceStay:
                     jump_offset = to<OpCode_ForkReplaceStay>(opcode).offset();
+                    break;
+                case OpCodeId::ForkIf:
+                    jump_offset = to<OpCode_ForkIf>(opcode).offset();
                     break;
                 case OpCodeId::Repeat:
                     jump_offset = static_cast<ssize_t>(0) - static_cast<ssize_t>(to<OpCode_Repeat>(opcode).offset()) - static_cast<ssize_t>(opcode.size());
