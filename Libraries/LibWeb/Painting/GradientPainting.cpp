@@ -122,11 +122,13 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
 
     CSS::CalculationResolutionContext context {
         .percentage_basis = CSS::Length::make_px(gradient_length_px),
+        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
+
     auto resolved_color_stops = resolve_color_stop_positions(
         node, linear_gradient.color_stop_list(), [&](auto const& position) -> float {
             if (position.is_length())
-                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_length_px;
+                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_length_px;
             if (position.is_percentage())
                 return position.as_percentage().percentage().as_fraction();
             return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_length_px;
@@ -151,13 +153,14 @@ RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& nod
 {
     CSS::CalculationResolutionContext context {
         .percentage_basis = CSS::Length::make_px(gradient_size.width()),
+        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(node),
     };
 
     // Start center, goes right to ending point, where the gradient line intersects the ending shape
     auto resolved_color_stops = resolve_color_stop_positions(
         node, radial_gradient.color_stop_list(), [&](auto const& position) -> float {
             if (position.is_length())
-                return position.as_length().length().absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
+                return position.as_length().length().to_px_without_rounding(*context.length_resolution_context) / gradient_size.width().to_float();
             if (position.is_percentage())
                 return position.as_percentage().percentage().as_fraction();
             return position.as_calculated().resolve_length(context)->absolute_length_to_px_without_rounding() / gradient_size.width().to_float();
