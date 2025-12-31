@@ -24,7 +24,7 @@ public:
     {
     }
 
-    virtual void create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
+    virtual DecoderErrorOr<void> create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
 
     DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
     DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;

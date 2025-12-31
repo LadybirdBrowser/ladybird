@@ -23,7 +23,7 @@ public:
 
     virtual ~FFmpegDemuxer() override;
 
-    virtual void create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
+    virtual DecoderErrorOr<void> create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;

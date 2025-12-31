@@ -83,10 +83,11 @@ static Track track_from_track_entry(TrackEntry const& track_entry)
     return track;
 }
 
-void MatroskaDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+DecoderErrorOr<void> MatroskaDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
 {
-    auto iterator = MUST(m_reader.create_sample_iterator(stream_cursor, track.identifier()));
+    auto iterator = TRY(m_reader.create_sample_iterator(stream_cursor, track.identifier()));
     VERIFY(m_track_statuses.set(track, TrackStatus(move(iterator))) == HashSetResult::InsertedNewEntry);
+    return {};
 }
 
 DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType type)

@@ -27,7 +27,7 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     auto stream_cursor = stream->create_cursor();
-    demuxer->create_context_for_track(track, stream_cursor);
+    TRY(demuxer->create_context_for_track(track, stream_cursor));
     auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(decoder), move(converter)));
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread_data));
 

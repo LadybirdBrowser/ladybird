@@ -24,7 +24,7 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
 
     auto stream_cursor = stream->create_cursor();
-    demuxer->create_context_for_track(track, stream_cursor);
+    TRY(demuxer->create_context_for_track(track, stream_cursor));
 
     auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(decoder), time_provider));
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
