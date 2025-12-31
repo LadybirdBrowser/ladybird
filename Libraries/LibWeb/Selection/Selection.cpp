@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Selection {
@@ -505,8 +506,27 @@ bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_contai
         && (end_relative_position == DOM::RelativeBoundaryPointPosition::Equal || end_relative_position == DOM::RelativeBoundaryPointPosition::After);
 }
 
+Optional<Utf16String> Selection::try_form_control_selected_text_for_stringifier() const
+{
+    // FIXME: According to https://bugzilla.mozilla.org/show_bug.cgi?id=85686#c69,
+    // sometimes you want the selection from a previously focused form text, probably
+    // when a button or context menu has temporarily stolen focus but page scripts
+    // still expect window.getSelection() to have the goodies.
+
+    auto const* form_element = as_if<HTML::FormAssociatedTextControlElement>(m_document->active_element());
+    if (!form_element)
+        return {};
+    return form_element->selected_text_for_stringifier();
+}
+
 Utf16String Selection::to_string() const
 {
+    // https://w3c.github.io/selection-api/#dom-selection-stringifier
+    // If the selection is within a textarea or input element, it must return the
+    // selected substring in its value.
+    if (auto form_text = try_form_control_selected_text_for_stringifier(); form_text.has_value())
+        return form_text.release_value();
+
     // FIXME: This needs more work to be compatible with other engines.
     //        See https://www.w3.org/Bugs/Public/show_bug.cgi?id=10583
     if (!m_range)

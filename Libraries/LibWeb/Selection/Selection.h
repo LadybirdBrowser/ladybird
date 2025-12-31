@@ -56,6 +56,7 @@ public:
 
     // Non-standard convenience accessor for the selection's range.
     GC::Ptr<DOM::Range> range() const;
+    Optional<Utf16String> try_form_control_selected_text_for_stringifier() const;
 
     // Non-standard accessor for the selection's document.
     GC::Ref<DOM::Document> document() const;
