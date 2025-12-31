@@ -70,7 +70,6 @@ endif()
 
 # FIXME: Rework these flags to remove the suspicious ones.
 if (WIN32)
-    add_compile_options(-Wno-reinterpret-base-class)
     add_compile_options(-Wno-microsoft-unqualified-friend) # MSVC doesn't support unqualified friends
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS) # _s replacements not desired (or implemented on any other platform other than VxWorks)
     add_compile_definitions(_CRT_NONSTDC_NO_WARNINGS) # POSIX names are just fine, thanks
