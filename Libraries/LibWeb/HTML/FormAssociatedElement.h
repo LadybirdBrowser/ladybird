@@ -197,8 +197,9 @@ class WEB_API FormAssociatedTextControlElement
     , public InputEventsTarget {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    virtual Utf16String relevant_value() = 0;
+    virtual Utf16String relevant_value() const = 0;
     virtual WebIDL::ExceptionOr<void> set_relevant_value(Utf16String const&) = 0;
+    virtual Optional<Utf16String> selected_text_for_stringifier() const;
 
     virtual void set_dirty_value_flag(bool flag) = 0;
 

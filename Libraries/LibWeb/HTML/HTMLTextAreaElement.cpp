@@ -81,6 +81,8 @@ void HTMLTextAreaElement::did_receive_focus()
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
+
+    document().get_selection()->remove_all_ranges();
 }
 
 void HTMLTextAreaElement::did_lose_focus()

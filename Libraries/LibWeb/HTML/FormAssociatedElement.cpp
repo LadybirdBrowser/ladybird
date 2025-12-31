@@ -890,6 +890,18 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     did_edit_text_node();
 }
 
+Optional<Utf16String> FormAssociatedTextControlElement::selected_text_for_stringifier() const
+{
+    // https://w3c.github.io/selection-api/#dom-selection-stringifier
+    // Used for clipboard copy and window.getSelection().toString() when this element is active.
+    size_t start = this->selection_start();
+    size_t end = this->selection_end();
+    if (start >= end)
+        return {};
+
+    return Utf16String::from_utf16(relevant_value().substring_view(start, end - start));
+}
+
 void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t position)
 {
     m_selection_start = position;

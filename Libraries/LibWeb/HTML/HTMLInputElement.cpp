@@ -1447,6 +1447,9 @@ void HTMLInputElement::did_receive_focus()
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
+
+    if (has_selectable_text())
+        document().get_selection()->remove_all_ranges();
 }
 
 void HTMLInputElement::did_lose_focus()
@@ -3298,6 +3301,7 @@ bool HTMLInputElement::has_selectable_text() const
     case TypeAttributeState::Time:
     case TypeAttributeState::LocalDateAndTime:
     case TypeAttributeState::Number:
+    case TypeAttributeState::Email:
         return true;
     default:
         return false;
@@ -3788,6 +3792,33 @@ bool HTMLInputElement::uses_button_layout() const
 
     return first_is_one_of(type_state(), TypeAttributeState::SubmitButton, TypeAttributeState::ResetButton,
         TypeAttributeState::Button, TypeAttributeState::Color, TypeAttributeState::FileUpload);
+}
+
+Optional<Utf16String> HTMLInputElement::selected_text_for_stringifier() const
+{
+    // https://w3c.github.io/selection-api/#dom-selection-stringifier
+    // Used for clipboard copy and window.getSelection().toString() when this element is active.
+    if (!has_selectable_text())
+        return {};
+
+    size_t start = this->selection_start();
+    size_t end = this->selection_end();
+    if (start >= end)
+        return {};
+
+    switch (type_state()) {
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Email:
+        return Utf16String::from_utf16(relevant_value().substring_view(start, end - start));
+
+    case TypeAttributeState::Password:
+        return Utf16String::repeated(0x2022, end - start); // 0x2022 is BULLET character
+    default:
+        return {};
+    }
 }
 
 }

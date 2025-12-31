@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
@@ -2630,7 +2631,16 @@ String Navigable::selected_text() const
     auto document = active_document();
     if (!document)
         return String {};
+
+    auto const* input_element = as_if<HTML::HTMLInputElement>(document->active_element());
+    if (input_element && input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password) {
+        // Apparently nobody wants bullet characters. We leave the clipboard alone here like other browsers.
+        return String {};
+    }
     auto selection = document->get_selection();
+    if (auto form_text = selection->try_form_control_selected_text_for_stringifier(); form_text.has_value())
+        return form_text->to_utf8();
+
     auto range = selection->range();
     if (!range)
         return String {};
