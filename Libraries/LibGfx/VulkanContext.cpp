@@ -10,7 +10,32 @@
 
 namespace Gfx {
 
-static ErrorOr<VkInstance> create_instance(uint32_t api_version)
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+static bool check_layer_support(StringView layer_name)
+{
+    uint32_t layer_count = 0;
+    vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+
+    Vector<VkLayerProperties> layers;
+    layers.resize(layer_count);
+    vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+
+    for (auto const& layer_properties : layers) {
+        if (layer_name == layer_properties.layerName) {
+            return true;
+        }
+    }
+
+    return false;
+}
+#endif
+
+struct InstanceInfo {
+    VkInstance instance;
+    Optional<VkDebugUtilsMessengerEXT> debug_messenger;
+};
+
+static ErrorOr<InstanceInfo> create_instance(uint32_t api_version)
 {
     VkInstance instance;
 
@@ -26,13 +51,58 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+    Array<char const*, 1> layers = { "VK_LAYER_KHRONOS_validation" };
+    Array<char const*, 1> extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+
+    bool validation_layer_available = check_layer_support("VK_LAYER_KHRONOS_validation"sv);
+    if (!validation_layer_available) {
+        dbgln("Requested Vulkan validation layer not available");
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info {};
+    if (validation_layer_available) {
+        debug_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        debug_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        debug_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        debug_messenger_create_info.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT,
+                                                          VkDebugUtilsMessageTypeFlagsEXT,
+                                                          VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
+                                                          void*) {
+            dbgln("Vulkan validation layer: {}", pCallbackData->pMessage);
+            dump_backtrace();
+            return VK_FALSE;
+        };
+
+        create_info.enabledLayerCount = layers.size();
+        create_info.ppEnabledLayerNames = layers.data();
+        create_info.enabledExtensionCount = extensions.size();
+        create_info.ppEnabledExtensionNames = extensions.data();
+        create_info.pNext = &debug_messenger_create_info;
+    }
+#endif
+
     auto result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateInstance returned {}", to_underlying(result));
         return Error::from_string_literal("Application instance creation failed");
     }
 
-    return instance;
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+    if (validation_layer_available) {
+        auto pfn_create_debug_messenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+
+        VkDebugUtilsMessengerEXT debug_messenger;
+        result = pfn_create_debug_messenger(instance, &debug_messenger_create_info, nullptr, &debug_messenger);
+        if (result != VK_SUCCESS) {
+            dbgln("vkCreateDebugUtilsMessengerEXT returned {}", to_underlying(result));
+        }
+
+        return InstanceInfo { instance, debug_messenger };
+    }
+#endif
+
+    return InstanceInfo { instance, {} };
 }
 
 static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
@@ -164,8 +234,8 @@ static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device,
 ErrorOr<VulkanContext> create_vulkan_context()
 {
     uint32_t const api_version = VK_API_VERSION_1_1; // v1.1 needed for vkGetPhysicalDeviceFormatProperties2
-    auto* instance = TRY(create_instance(api_version));
-    auto* physical_device = TRY(pick_physical_device(instance));
+    auto instance_info = TRY(create_instance(api_version));
+    auto* physical_device = TRY(pick_physical_device(instance_info.instance));
 
     uint32_t graphics_queue_family = 0;
     auto* logical_device = TRY(create_logical_device(physical_device, &graphics_queue_family));
@@ -188,7 +258,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
 
     return VulkanContext {
         .api_version = api_version,
-        .instance = instance,
+        .instance = instance_info.instance,
         .physical_device = physical_device,
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
@@ -200,6 +270,9 @@ ErrorOr<VulkanContext> create_vulkan_context()
             .get_memory_fd = pfn_vk_get_memory_fd_khr,
             .get_image_drm_format_modifier_properties = pfn_vk_get_image_drm_format_modifier_properties_khr,
         },
+#endif
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+        .debug_messenger = instance_info.debug_messenger
 #endif
     };
 }

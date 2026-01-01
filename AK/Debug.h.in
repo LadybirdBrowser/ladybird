@@ -294,6 +294,10 @@
 #    cmakedefine01 VPX_DEBUG
 #endif
 
+#ifndef VULKAN_VALIDATION_LAYERS_DEBUG
+#    cmakedefine01 VULKAN_VALIDATION_LAYERS_DEBUG
+#endif
+
 #ifndef WASI_DEBUG
 #    cmakedefine01 WASI_DEBUG
 #endif

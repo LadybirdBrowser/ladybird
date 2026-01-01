@@ -9,6 +9,7 @@
 #ifdef USE_VULKAN
 
 #    include <AK/Assertions.h>
+#    include <AK/Debug.h>
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
 #    include <vulkan/vulkan.h>
@@ -35,6 +36,9 @@ struct VulkanContext {
         PFN_vkGetMemoryFdKHR get_memory_fd { nullptr };
         PFN_vkGetImageDrmFormatModifierPropertiesEXT get_image_drm_format_modifier_properties { nullptr };
     } ext_procs;
+#    endif
+#    if VULKAN_VALIDATION_LAYERS_DEBUG
+    Optional<VkDebugUtilsMessengerEXT> debug_messenger { VK_NULL_HANDLE };
 #    endif
 };
 
