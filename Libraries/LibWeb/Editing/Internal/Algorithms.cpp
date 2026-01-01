@@ -4201,7 +4201,9 @@ void toggle_lists(DOM::Document& document, FlyString const& tag_name)
 
             // 2. While either sublist is empty, or node list is not empty and its first member is the nextSibling of
             //    sublist's last member:
-            while (sublist.is_empty() || (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling())) {
+            // AD-HOC: This condition needs to be a bit different from what the spec describes, because node_list and
+            //         sublist can both be empty at the same time: https://github.com/w3c/editing/issues/521
+            while (!node_list.is_empty() && (sublist.is_empty() || node_list.first().ptr() == sublist.last()->next_sibling())) {
                 // 1. If node list's first member is a p or div, set the tag name of node list's first member to "li",
                 //    and append the result to sublist. Remove the first member from node list.
                 if (is<HTML::HTMLParagraphElement>(*node_list.first()) || is<HTML::HTMLDivElement>(*node_list.first())) {
