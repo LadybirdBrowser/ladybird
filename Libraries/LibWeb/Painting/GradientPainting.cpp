@@ -58,8 +58,8 @@ static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& n
     };
     size_t resolved_index = 0;
     for (auto& stop : color_stop_list) {
-        if (stop.transition_hint.has_value())
-            resolved_color_stops[resolved_index].transition_hint = resolve_stop_position(*stop.transition_hint->value);
+        if (stop.transition_hint)
+            resolved_color_stops[resolved_index].transition_hint = resolve_stop_position(*stop.transition_hint);
         if (stop.color_stop.position)
             resolved_color_stops[resolved_index].position = resolve_stop_position(*stop.color_stop.position);
         if (stop.color_stop.second_position)
