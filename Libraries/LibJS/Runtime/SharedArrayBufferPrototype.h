@@ -23,6 +23,9 @@ private:
     explicit SharedArrayBufferPrototype(Realm&);
 
     JS_DECLARE_NATIVE_FUNCTION(byte_length_getter);
+    JS_DECLARE_NATIVE_FUNCTION(grow);
+    JS_DECLARE_NATIVE_FUNCTION(growable_getter);
+    JS_DECLARE_NATIVE_FUNCTION(max_byte_length);
     JS_DECLARE_NATIVE_FUNCTION(slice);
 };
 

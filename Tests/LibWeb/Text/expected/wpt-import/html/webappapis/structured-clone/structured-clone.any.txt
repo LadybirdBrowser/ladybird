@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-147 Pass
-3 Fail
+148 Pass
+2 Fail
 Pass	primitive undefined
 Pass	primitive null
 Pass	primitive true
@@ -137,7 +137,7 @@ Pass	Serializing a non-serializable platform object fails
 Pass	An object whose interface is deleted from the global must still deserialize
 Pass	A subclass instance will deserialize as its closest serializable superclass
 Pass	Resizable ArrayBuffer
-Fail	Growable SharedArrayBuffer
+Pass	Growable SharedArrayBuffer
 Pass	Length-tracking TypedArray
 Pass	Length-tracking DataView
 Pass	Serializing OOB TypedArray throws

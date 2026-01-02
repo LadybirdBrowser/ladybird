@@ -49,8 +49,11 @@ ThrowCompletionOr<GC::Ref<Object>> SharedArrayBufferConstructor::construct(Funct
 {
     auto& vm = this->vm();
 
+    auto length = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 2. Let byteLength be ? ToIndex(length).
-    auto byte_length_or_error = vm.argument(0).to_index(vm);
+    auto byte_length_or_error = length.to_index(vm);
 
     if (byte_length_or_error.is_error()) {
         auto error = byte_length_or_error.release_error();
@@ -61,8 +64,11 @@ ThrowCompletionOr<GC::Ref<Object>> SharedArrayBufferConstructor::construct(Funct
         return error;
     }
 
-    // 3. Return ? AllocateSharedArrayBuffer(NewTarget, byteLength).
-    return *TRY(allocate_shared_array_buffer(vm, new_target, byte_length_or_error.release_value()));
+    // 3. Let requestedMaxByteLength be ? GetArrayBufferMaxByteLengthOption(options).
+    auto requested_max_byte_length = TRY(get_array_buffer_max_byte_length_option(vm, options));
+
+    // 4. Return ? AllocateSharedArrayBuffer(NewTarget, byteLength, requestedMaxByteLength).
+    return *TRY(allocate_shared_array_buffer(vm, new_target, byte_length_or_error.release_value(), requested_max_byte_length));
 }
 
 // 25.2.4.2 get SharedArrayBuffer [ @@species ], https://tc39.es/ecma262/#sec-sharedarraybuffer-@@species

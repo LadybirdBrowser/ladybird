@@ -250,6 +250,8 @@ namespace JS {
     P(groupCollapsed)                        \
     P(groupEnd)                              \
     P(groups)                                \
+    P(grow)                                  \
+    P(growable)                              \
     P(has)                                   \
     P(hasIndices)                            \
     P(hasOwn)                                \

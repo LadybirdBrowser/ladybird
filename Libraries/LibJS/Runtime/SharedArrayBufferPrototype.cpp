@@ -26,6 +26,9 @@ void SharedArrayBufferPrototype::initialize(Realm& realm)
     Base::initialize(realm);
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_accessor(realm, vm.names.byteLength, byte_length_getter, {}, Attribute::Configurable);
+    define_native_function(realm, vm.names.grow, grow, 1, attr);
+    define_native_accessor(realm, vm.names.growable, growable_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.maxByteLength, max_byte_length, {}, Attribute::Configurable);
     define_native_function(realm, vm.names.slice, slice, 2, attr);
 
     // 25.2.5.7 SharedArrayBuffer.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-sharedarraybuffer.prototype.toString
@@ -46,6 +49,101 @@ JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::byte_length_getter)
     // 4. Let length be O.[[ArrayBufferByteLength]].
     // 5. Return 𝔽(length).
     return Value(array_buffer_object->byte_length());
+}
+
+// 25.2.5.3 SharedArrayBuffer.prototype.grow ( newLength ), https://tc39.es/ecma262/#sec-sharedarraybuffer.prototype.grow
+JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::grow)
+{
+    auto new_length = vm.argument(0);
+
+    // 1. Let O be the this value.
+    auto array_buffer_object = TRY(typed_this_value(vm));
+
+    // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferMaxByteLength]]).
+    if (array_buffer_object->is_fixed_length())
+        return vm.throw_completion<TypeError>(ErrorType::FixedArrayBuffer);
+
+    // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+    if (!array_buffer_object->is_shared_array_buffer())
+        return vm.throw_completion<TypeError>(ErrorType::NotASharedArrayBuffer);
+
+    // 4. Let newByteLength be ? ToIndex(newLength).
+    auto new_byte_length = TRY(new_length.to_index(vm));
+
+    // 5. Let hostHandled be ? HostGrowSharedArrayBuffer(O, newByteLength).
+    auto host_handled = TRY(vm.host_grow_shared_array_buffer(array_buffer_object, new_byte_length));
+
+    // 6. If hostHandled is handled, return undefined.
+    if (host_handled == HandledByHost::Handled)
+        return js_undefined();
+
+    // FIXME: 7. Let AR be the Agent Record of the surrounding agent.
+    // FIXME: 8. Let isLittleEndian be AR.[[LittleEndian]].
+    // FIXME: 9. Let byteLengthBlock be O.[[ArrayBufferByteLengthData]].
+    // FIXME: 10. Let currentByteLengthRawBytes be GetRawBytesFromSharedBlock(byteLengthBlock, 0, biguint64, true, seq-cst).
+    // FIXME: 11. Let newByteLengthRawBytes be NumericToRawBytes(biguint64, ℤ(newByteLength), isLittleEndian).
+    // FIXME: 12. Repeat,
+    // FIXME:         a. NOTE: This is a compare-and-exchange loop to ensure that parallel, racing grows of the same buffer are totally ordered, are not lost, and do not silently do nothing. The loop exits if it was able to attempt to grow uncontended.
+    // FIXME:         b. Let currentByteLength be ℝ(RawBytesToNumeric(biguint64, currentByteLengthRawBytes, isLittleEndian)).
+    auto current_byte_length = array_buffer_object->byte_length();
+
+    //                c. If newByteLength = currentByteLength, return undefined.
+    if (new_byte_length == current_byte_length)
+        return js_undefined();
+
+    //                d. If newByteLength < currentByteLength or newByteLength > O.[[ArrayBufferMaxByteLength]], throw a RangeError exception.
+    if (new_byte_length < current_byte_length)
+        return vm.throw_completion<RangeError>(ErrorType::ByteLengthLessThanPreviousByteLength, new_byte_length, current_byte_length);
+    if (new_byte_length > array_buffer_object->max_byte_length())
+        return vm.throw_completion<RangeError>(ErrorType::ByteLengthExceedsMaxByteLength, new_byte_length, array_buffer_object->max_byte_length());
+
+    // FIXME:         e. Let byteLengthDelta be newByteLength - currentByteLength.
+    // FIXME:         f. If it is impossible to create a new Shared Data Block value consisting of byteLengthDelta bytes, throw a RangeError exception.
+    // FIXME:         g. NOTE: No new Shared Data Block is constructed and used here. The observable behaviour of growable SharedArrayBuffers is specified by allocating a max-sized Shared Data Block at construction time, and this step captures the requirement that implementations that run out of memory must throw a RangeError.
+    // FIXME:         h. Let readByteLengthRawBytes be AtomicCompareExchangeInSharedBlock(byteLengthBlock, 0, 8, currentByteLengthRawBytes, newByteLengthRawBytes).
+    // FIXME:         i. If ByteListEqual(readByteLengthRawBytes, currentByteLengthRawBytes) is true, return undefined.
+    // FIXME:         j. Set currentByteLengthRawBytes to readByteLengthRawBytes.
+
+    if (auto result = array_buffer_object->buffer().try_resize(new_byte_length, ByteBuffer::ZeroFillNewElements::Yes); result.is_error())
+        return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, new_byte_length);
+
+    return js_undefined();
+}
+
+// 25.2.5.4 get SharedArrayBuffer.prototype.growable, https://tc39.es/ecma262/#sec-get-sharedarraybuffer.prototype.growable
+JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::growable_getter)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+    auto array_buffer_object = TRY(typed_this_value(vm));
+
+    // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+    if (!array_buffer_object->is_shared_array_buffer())
+        return vm.throw_completion<TypeError>(ErrorType::NotASharedArrayBuffer);
+
+    // 4. If IsFixedLengthArrayBuffer(O) is false, return true; otherwise return false.
+    return Value { !array_buffer_object->is_fixed_length() };
+}
+
+// 25.2.5.5 get SharedArrayBuffer.prototype.maxByteLength, https://tc39.es/ecma262/#sec-get-sharedarraybuffer.prototype.maxbytelength
+JS_DEFINE_NATIVE_FUNCTION(SharedArrayBufferPrototype::max_byte_length)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).
+    auto array_buffer_object = TRY(typed_this_value(vm));
+
+    // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
+    if (!array_buffer_object->is_shared_array_buffer())
+        return vm.throw_completion<TypeError>(ErrorType::NotASharedArrayBuffer);
+
+    // 4. If IsFixedLengthArrayBuffer(O) is true, then
+    //        a. Let length be O.[[ArrayBufferByteLength]].
+    // 5. Else,
+    //        a. Let length be O.[[ArrayBufferMaxByteLength]].
+    auto length = array_buffer_object->is_fixed_length() ? array_buffer_object->byte_length() : array_buffer_object->max_byte_length();
+
+    // 6. Return 𝔽(length).
+    return Value { length };
 }
 
 // 25.2.5.6 SharedArrayBuffer.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-sharedarraybuffer.prototype.slice
