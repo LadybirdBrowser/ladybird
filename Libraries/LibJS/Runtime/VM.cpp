@@ -192,6 +192,21 @@ VM::VM(ErrorMessages error_messages)
         return HandledByHost::Handled;
     };
 
+    // 25.2.2.4 HostGrowSharedArrayBuffer ( buffer, newByteLength ), https://tc39.es/ecma262/#sec-hostgrowsharedarraybuffer
+    host_grow_shared_array_buffer = [](ArrayBuffer&, size_t) -> ThrowCompletionOr<HandledByHost> {
+        // The host-defined abstract operation HostGrowSharedArrayBuffer takes arguments buffer (a SharedArrayBuffer)
+        // and newByteLength (a non-negative integer) and returns either a normal completion containing either handled
+        // or unhandled, or a throw completion. It gives the host an opportunity to perform implementation-defined
+        // growing of buffer. If the host chooses not to handle growing of buffer, it may return unhandled for the default behaviour.
+
+        // The implementation of HostGrowSharedArrayBuffer must conform to the following requirements:
+        // - If the abstract operation does not complete normally with unhandled, and newByteLength < the current byte length of the buffer or newByteLength > buffer.[[ArrayBufferMaxByteLength]], throw a RangeError exception.
+        // - Let AR be the Agent Record of the surrounding agent. Let isLittleEndian be AR.[[LittleEndian]]. If the abstract operation completes normally with handled, a WriteSharedMemory or ReadModifyWriteSharedMemory event whose [[Order]] is seq-cst, [[Payload]] is NumericToRawBytes(biguint64, newByteLength, isLittleEndian), [[Block]] is buffer.[[ArrayBufferByteLengthData]], [[ByteIndex]] is 0, and [[ElementSize]] is 8 is added to the surrounding agent's candidate execution such that racing calls to SharedArrayBuffer.prototype.grow ( newLength ) are not "lost", i.e. silently do nothing.
+
+        // The default implementation of HostGrowSharedArrayBuffer is to return NormalCompletion(unhandled).
+        return HandledByHost::Unhandled;
+    };
+
     // 3.6.1 HostInitializeShadowRealm ( realm, context, O ), https://tc39.es/proposal-shadowrealm/#sec-hostinitializeshadowrealm
     host_initialize_shadow_realm = [](Realm&, NonnullOwnPtr<ExecutionContext>, ShadowRealm&) -> ThrowCompletionOr<void> {
         // The host-defined abstract operation HostInitializeShadowRealm takes arguments realm (a Realm Record),

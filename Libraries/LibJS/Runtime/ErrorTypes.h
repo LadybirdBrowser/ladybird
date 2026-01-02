@@ -26,6 +26,7 @@
     M(BindingNotInitialized, "Binding {} is not initialized")                                                                       \
     M(BufferOutOfBounds, "{} contains a property which references a value at an index not contained within its buffer's bounds")    \
     M(ByteLengthExceedsMaxByteLength, "ArrayBuffer byte length of {} exceeds the max byte length of {}")                            \
+    M(ByteLengthLessThanPreviousByteLength, "SharedArrayBuffer byte length of {} is less than the previous byte length of {}")      \
     M(CallStackSizeExceeded, "Call stack size limit exceeded")                                                                      \
     M(CannotBeHeldWeakly, "{} cannot be held weakly")                                                                               \
     M(CannotDeclareGlobalFunction, "Cannot declare global function of name '{}'")                                                   \
