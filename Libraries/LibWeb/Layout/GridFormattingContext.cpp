@@ -316,6 +316,8 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
             result.start = 0;
     }
 
+    auto explicit_line_count = dimension == GridDimension::Row ? m_explicit_rows_line_count : m_explicit_columns_line_count;
+
     if (placement_end.has_identifier()) {
         auto area_end_line_name = MUST(String::formatted("{}-end", placement_end.identifier()));
         auto line_number = placement_end_line_number.value_or(1);
@@ -324,7 +326,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_end.identifier(), line_number); line_name_index.has_value()) {
             result.end = line_name_index.value();
         } else {
-            result.end = 1;
+            result.end = explicit_line_count;
         }
         result.start = result.end - 1;
     }
@@ -337,7 +339,7 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         } else if (auto line_name_index = get_nth_line_index_by_line_name(dimension, placement_start.identifier(), line_number); line_name_index.has_value()) {
             result.start = line_name_index.value();
         } else {
-            result.start = 0;
+            result.start = explicit_line_count;
         }
     }
 
@@ -352,8 +354,12 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
     if (placement_start.is_positioned() && placement_end.is_positioned()) {
         if (result.start > result.end)
             swap(result.start, result.end);
-        if (result.start != result.end)
+        if (result.start != result.end) {
             result.span = result.end - result.start;
+        } else {
+            result.span = 1;
+            result.end = result.start + result.span;
+        }
     }
 
     // FIXME: Have yet to find the spec for this.
