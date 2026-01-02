@@ -1062,39 +1062,64 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
 
 void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossing_flexible_tracks(GridDimension dimension)
 {
-    auto& tracks = dimension == GridDimension::Column ? m_grid_columns : m_grid_rows;
+    // https://www.w3.org/TR/css-grid-1/#algo-spanning-flex-items
+    // 11.5.4. Increase sizes to accommodate spanning items crossing flexible tracks
+
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
+
+    auto dominated_by_available_size = [&](GridTrack const& track) {
+        return available_size.is_intrinsic_sizing_constraint() || track.min_track_sizing_function.is_intrinsic(available_size);
+    };
+
+    HashMap<GridTrack*, CSSPixels> track_contributions;
     for (auto& item : m_grid_items) {
         Vector<GridTrack&> spanned_tracks;
         for_each_spanned_track_by_item(item, dimension, [&](GridTrack& track) {
             spanned_tracks.append(track);
         });
 
-        // 1. For intrinsic minimums: First increase the base size of tracks with an intrinsic min track sizing
-        //    function by distributing extra space as needed to accommodate these items’ minimum contributions.
+        double total_flex = 0;
+        CSSPixels non_flexible_space = 0;
+        for (auto const& track : spanned_tracks) {
+            if (track.max_track_sizing_function.is_flexible_length() && dominated_by_available_size(track))
+                total_flex += track.max_track_sizing_function.flex_factor();
+            else
+                non_flexible_space += track.base_size;
+        }
+
+        if (total_flex == 0)
+            continue;
+
+        // If the grid container is being sized under a min- or max-content constraint, use the items' limited
+        // min-content contributions in place of their minimum contributions here.
         auto item_size_contribution = [&] {
-            // If the grid container is being sized under a min- or max-content constraint, use the items’ limited
-            // min-content contributions in place of their minimum contributions here.
             if (available_size.is_intrinsic_sizing_constraint())
                 return calculate_limited_min_content_contribution(item, dimension);
             return calculate_minimum_contribution(item, dimension);
         }();
-        distribute_extra_space_across_spanned_tracks_base_size(dimension,
-            item_size_contribution, SpaceDistributionPhase::AccommodateMinimumContribution, spanned_tracks, [&](GridTrack const& track) {
-                return track.max_track_sizing_function.is_flexible_length();
-            });
+        // NB: Subtract the space already accounted for by non-flexible spanned tracks (sized in 11.5.3), since only
+        //     the remaining contribution needs to be distributed among flexible tracks.
+        item_size_contribution = max(CSSPixels(0), item_size_contribution - non_flexible_space);
 
+        // Distributing space to flexible tracks according to the ratios of their flex factors.
         for (auto& track : spanned_tracks) {
-            track.base_size += track.planned_increase;
-            track.planned_increase = 0;
+            if (!track.max_track_sizing_function.is_flexible_length() || !dominated_by_available_size(track))
+                continue;
+            double flex = track.max_track_sizing_function.flex_factor();
+            CSSPixels contribution = CSSPixels::nearest_value_for(item_size_contribution.to_double() * (flex / total_flex));
+            auto& track_contribution = track_contributions.ensure(&track, [] { return 0; });
+            if (track_contribution < contribution)
+                track_contribution = contribution;
         }
+    }
 
-        // 4. If at this point any track’s growth limit is now less than its base size, increase its growth limit to
-        //    match its base size.
-        for (auto& track : tracks) {
-            if (track.growth_limit.has_value() && track.growth_limit.value() < track.base_size)
-                track.growth_limit = track.base_size;
-        }
+    for (auto& [track, contribution] : track_contributions) {
+        if (contribution > track->base_size)
+            track->base_size = contribution;
+        // If at this point any track's growth limit is now less than its base size, increase its growth limit to match
+        // its base size.
+        if (track->growth_limit.has_value() && track->growth_limit.value() < track->base_size)
+            track->growth_limit = track->base_size;
     }
 }
 
