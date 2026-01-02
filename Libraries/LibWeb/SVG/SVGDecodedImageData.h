@@ -43,8 +43,6 @@ public:
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
-    RefPtr<Gfx::Bitmap> render(Gfx::IntSize) const;
-
     RefPtr<Gfx::PaintingSurface> surface(size_t frame_index, Gfx::IntSize) const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
 
