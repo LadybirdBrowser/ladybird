@@ -40,7 +40,7 @@ Optional<Vector<ColorStopListElement>> Parser::parse_color_stop_list(TokenStream
             tokens.discard_whitespace();
             // <T-percentage>
             if (!tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma)) {
-                element.transition_hint = ColorStopListElement::ColorHint { *position };
+                element.transition_hint = position;
                 return ElementType::ColorHint;
             }
             // <T-percentage> <color>
