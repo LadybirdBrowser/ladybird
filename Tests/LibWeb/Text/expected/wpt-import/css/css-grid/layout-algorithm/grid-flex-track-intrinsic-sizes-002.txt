@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-1 Pass
-4 Fail
+5 Pass
 Pass	'grid' with: grid-template-columns: 1fr auto auto auto; and grid-template-rows: 1fr auto auto auto;
-Fail	'grid' with: grid-template-columns: minmax(0, 1fr) auto auto auto; and grid-template-rows: minmax(0, 1fr) auto auto auto;
-Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr 1fr;
-Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr 4fr; and grid-template-rows: 1fr 1fr 1fr 4fr;
-Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr;
+Pass	'grid' with: grid-template-columns: minmax(0, 1fr) auto auto auto; and grid-template-rows: minmax(0, 1fr) auto auto auto;
+Pass	'grid' with: grid-template-columns: 1fr 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr 1fr;
+Pass	'grid' with: grid-template-columns: 1fr 1fr 1fr 4fr; and grid-template-rows: 1fr 1fr 1fr 4fr;
+Pass	'grid' with: grid-template-columns: 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr;
