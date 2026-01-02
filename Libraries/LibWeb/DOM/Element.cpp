@@ -1011,7 +1011,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     AbstractElement abstract_element { *this };
 
-    document().style_computer().compute_font(*computed_properties, abstract_element);
     document().style_computer().compute_property_values(*computed_properties, abstract_element);
 
     for (auto const& [property_id, old_value] : property_values_affected_by_inherited_style) {
