@@ -298,11 +298,12 @@ cleanup_run_dirs() {
             [ "${#pids_in_use[@]}" = 0 ] && break
                 echo Trying to kill procs: "${pids_in_use[@]}"
                 kill -INT "${pids_in_use[@]}" 2>/dev/null || true
-            done
-            sudo_and_ask "" umount "$mount_path" || true
         done
-        rm -fr "${BUILD_DIR}/wpt"
-    }
+        sudo_and_ask "" umount "$mount_path" || true
+    done
+    rm -fr "${BUILD_DIR}/wpt"
+}
+
 cleanup_merge_dirs_and_infra() {
     # Cleanup is only needed on Linux
     if [[ $OSTYPE == 'linux'* ]]; then
