@@ -2114,7 +2114,8 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
                     if (!implicit)
                         grid_line_names.append(name);
                 }
-                result.append(CSS::GridLineNames { move(grid_line_names) });
+                if (!grid_line_names.is_empty())
+                    result.append(CSS::GridLineNames { move(grid_line_names) });
             }
 
             if (i < tracks.size()) {
