@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	'grid' with: grid-template-columns: 1fr auto auto auto; and grid-template-rows: 1fr auto auto auto;
+Fail	'grid' with: grid-template-columns: minmax(0, 1fr) auto auto auto; and grid-template-rows: minmax(0, 1fr) auto auto auto;
+Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr 1fr;
+Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr 4fr; and grid-template-rows: 1fr 1fr 1fr 4fr;
+Fail	'grid' with: grid-template-columns: 1fr 1fr 1fr; and grid-template-rows: 1fr 1fr 1fr;

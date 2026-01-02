@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Intrinsic contributions of 2 items with flex tracks</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-spanning-items" title="11.5.3 Increase sizes to accommodate spanning items crossing content-sized tracks">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#algo-spanning-flex-items" title="11.5.4 Increase sizes to accommodate spanning items crossing flexible tracks">
+<meta name="assert" content="This test checks that the intrinsic contributions of 2 items are distributed in the right order when flexible tracks are involved.">
+<style>
+#grid {
+  display: grid;
+  grid-template-areas: ". . . ."
+                       ". a . ."
+                       ". . . ."
+                       ". . . b";
+  width: 50px;
+  height: 50px;
+  border: solid;
+}
+#item1 {
+  grid-column: 1 / a;
+  grid-row: 1 / a;
+  width: 60px;
+  height: 60px;
+  background: blue;
+}
+#item2 {
+  grid-column: a / b;
+  grid-row: a / b;
+  width: 150px;
+  height: 150px;
+  background: yellow;
+}
+</style>
+
+<div id="log"></div>
+
+<div id="grid">
+  <div id="item1"></div>
+  <div id="item2"></div>
+</div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../grid-definition/support/testing-utils.js"></script>
+<script>
+function checkTrackSizes(trackList, expected) {
+  TestingUtils.testGridTemplateColumnsRows("grid", trackList, trackList, expected, expected);
+}
+
+// We have a symmetric grid with 2 items and 4 tracks, as follows:
+// ╔═╤═╗─┬─┐
+// ╟─╔═╬═╪═╗
+// ╚═╬═╝─┼─╢
+// ├─╫─┼─┼─╢
+// └─╚═╧═╧═╝
+
+// The 1st item spans a flexible track, therefore its contribution (60px) is distributed last.
+// The 2nd item distributes its contribution (150px) among the 2nd, 3rd and 4th tracks.
+// Then the 1st item only needs to distribute 60px-50px=10px to the 1st track.
+checkTrackSizes("1fr auto auto auto", "10px 50px 50px 50px");
+
+// Now the 1st item still spans a flexible track, but it's not intrinsic.
+// Therefore, no track receives its intrinsic contribution.
+checkTrackSizes("minmax(0, 1fr) auto auto auto", "0px 50px 50px 50px");
+
+// Now both items span a flexible track, so their contributions are handled simultaneously,
+// even if the 1st item still spans less tracks than the 2nd one.
+// Therefore the distribution is as follows:
+//  - 1st track: 60px/2 = 30px
+//  - 2nd track: max(60px/2, 150px/3) = 50px
+//  - 3rd track: 150px/3 = 50px
+//  - 4th track: 150px/3 = 50px
+checkTrackSizes("1fr 1fr 1fr 1fr", "30px 50px 50px 50px");
+
+// Like the previous case, but with different flex ratios:
+//  - 1st track: 60px/2 = 30px
+//  - 2nd track: max(60px/2, 150px/6) = 30px
+//  - 3rd track: 150px/6 = 25px
+//  - 4th track: 150px*4/6 = 100px
+checkTrackSizes("1fr 1fr 1fr 4fr", "30px 30px 25px 100px");
+
+// Change the grid as follows:
+// ╔═╦═╤═╗
+// ╠═╝─┼─╢
+// ╟─┼─┼─╢
+// ╚═╧═╧═╝
+document.getElementById("grid").style.gridTemplateAreas = `
+  "a . ."
+  ". . ."
+  ". . b"`;
+
+// Now the 1st item has a span of 1, so usually we would handle its contribution
+// at the very beginning, before items that span multiple tracks.
+// But not if its track is flexible, then it's still handled at the end,
+// simultaneously with other items that span some flexible track.
+//  - 1nd track: max(60px, 150px/3) = 60px
+//  - 2nd track: 150px/3 = 50px
+//  - 3rd track: 150px/3 = 50px
+checkTrackSizes("1fr 1fr 1fr", "60px 50px 50px");
+</script>
