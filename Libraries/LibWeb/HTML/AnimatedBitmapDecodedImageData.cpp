@@ -16,15 +16,16 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(AnimatedBitmapDecodedImageData);
 
-ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> AnimatedBitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated)
+ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> AnimatedBitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated, Gfx::FloatPoint scale)
 {
-    return realm.create<AnimatedBitmapDecodedImageData>(move(frames), loop_count, animated);
+    return realm.create<AnimatedBitmapDecodedImageData>(move(frames), loop_count, animated, scale);
 }
 
-AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(Vector<Frame>&& frames, size_t loop_count, bool animated)
+AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(Vector<Frame>&& frames, size_t loop_count, bool animated, Gfx::FloatPoint scale)
     : m_frames(move(frames))
     , m_loop_count(loop_count)
     , m_animated(animated)
+    , m_density_corrected_scale(scale)
 {
 }
 
@@ -46,17 +47,19 @@ int AnimatedBitmapDecodedImageData::frame_duration(size_t frame_index) const
 
 Optional<CSSPixels> AnimatedBitmapDecodedImageData::intrinsic_width() const
 {
-    return m_frames.first().bitmap->width();
+    return CSSPixels(m_frames.first().bitmap->width() * m_density_corrected_scale.x());
 }
 
 Optional<CSSPixels> AnimatedBitmapDecodedImageData::intrinsic_height() const
 {
-    return m_frames.first().bitmap->height();
+    return CSSPixels(m_frames.first().bitmap->height() * m_density_corrected_scale.y());
 }
 
 Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_ratio() const
 {
-    return CSSPixels(m_frames.first().bitmap->width()) / CSSPixels(m_frames.first().bitmap->height());
+    auto width = CSSPixels(m_frames.first().bitmap->width()) * m_density_corrected_scale.x();
+    auto height = CSSPixels(m_frames.first().bitmap->height()) * m_density_corrected_scale.y();
+    return width / height;
 }
 
 Optional<Gfx::IntRect> AnimatedBitmapDecodedImageData::frame_rect(size_t frame_index) const

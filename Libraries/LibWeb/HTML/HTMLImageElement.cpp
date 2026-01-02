@@ -236,8 +236,8 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
 
     // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->width();
+    if (auto width = intrinsic_width(); width.has_value())
+        return width->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -267,8 +267,8 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
 
     // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available but not being rendered.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->height();
+    if (auto height = intrinsic_height(); height.has_value())
+        return height->to_int();
 
     // ...or else 0, if the image is not available or does not have intrinsic dimensions.
     return 0;
@@ -286,8 +286,8 @@ unsigned HTMLImageElement::natural_width() const
 {
     // Return the density-corrected intrinsic width of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->width();
+    if (auto width = intrinsic_width(); width.has_value())
+        return width->to_int();
 
     // ...or else 0.
     return 0;
@@ -298,8 +298,8 @@ unsigned HTMLImageElement::natural_height() const
 {
     // Return the density-corrected intrinsic height of the image, in CSS pixels,
     // if the image has intrinsic dimensions and is available.
-    if (auto bitmap = current_image_bitmap())
-        return bitmap->height();
+    if (auto height = intrinsic_height(); height.has_value())
+        return height->to_int();
 
     // ...or else 0.
     return 0;

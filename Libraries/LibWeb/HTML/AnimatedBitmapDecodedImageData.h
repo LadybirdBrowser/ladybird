@@ -21,7 +21,7 @@ public:
         int duration { 0 };
     };
 
-    static ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> create(JS::Realm&, Vector<Frame>&&, size_t loop_count, bool animated);
+    static ErrorOr<GC::Ref<AnimatedBitmapDecodedImageData>> create(JS::Realm&, Vector<Frame>&&, size_t loop_count, bool animated, Gfx::FloatPoint scale = { 1, 1 });
     virtual ~AnimatedBitmapDecodedImageData() override;
 
     virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize = {}) const override;
@@ -39,11 +39,12 @@ public:
     virtual void paint(DisplayListRecordingContext&, size_t frame_index, Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, Gfx::ScalingMode scaling_mode) const override;
 
 private:
-    AnimatedBitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated);
+    AnimatedBitmapDecodedImageData(Vector<Frame>&&, size_t loop_count, bool animated, Gfx::FloatPoint scale);
 
     Vector<Frame> m_frames;
     size_t m_loop_count { 0 };
     bool m_animated { false };
+    Gfx::FloatPoint m_density_corrected_scale { 1, 1 };
 };
 
 }

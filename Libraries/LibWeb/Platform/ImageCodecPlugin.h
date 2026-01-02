@@ -12,6 +12,7 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/Point.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Platform {
@@ -24,6 +25,7 @@ struct Frame {
 struct DecodedImage {
     bool is_animated { false };
     u32 loop_count { 0 };
+    Gfx::FloatPoint scale { 1, 1 };
     Vector<Frame> frames;
     Gfx::ColorSpace color_space;
 };

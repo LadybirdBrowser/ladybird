@@ -51,6 +51,7 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
             Web::Platform::DecodedImage decoded_image;
             decoded_image.is_animated = result.is_animated;
             decoded_image.loop_count = result.loop_count;
+            decoded_image.scale = result.scale;
             for (auto& frame : result.frames) {
                 decoded_image.frames.empend(move(frame.bitmap), frame.duration);
             }

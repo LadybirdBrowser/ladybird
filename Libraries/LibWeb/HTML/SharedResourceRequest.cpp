@@ -165,7 +165,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 .duration = static_cast<int>(frame.duration),
             });
         }
-        strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+        strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated, result.scale).release_value_but_fixme_should_propagate_errors();
         strong_this->handle_successful_resource_load();
         return {};
     };

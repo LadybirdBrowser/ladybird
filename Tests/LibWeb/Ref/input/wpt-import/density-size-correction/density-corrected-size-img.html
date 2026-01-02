@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<head>
+    <title>Density corrected size: rendering</title>
+    <link rel="author" title="Noam Rosenthal" href="noam@webkit.org">
+    <link rel="match" href="../../../expected/wpt-import/density-size-correction/density-corrected-size-img-ref.html" />
+    <meta name="assert" content="Assert that images with EXIF density-corrected-size are rendered correctly">
+</head>
+<body>
+    <img src="resources/exif-resolution-none.jpg" />
+    <img src="resources/exif-resolution-valid-hires.jpg" />
+    <img src="resources/exif-resolution-valid-lores.jpg" />
+    <img src="resources/exif-resolution-valid-non-uniform.jpg"  />
+</body>
+</html>

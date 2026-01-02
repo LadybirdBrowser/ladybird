@@ -16,11 +16,9 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
 {
     return image.visit(
         [](GC::Root<HTMLImageElement> const& source) -> Gfx::IntSize {
-            if (auto immutable_bitmap = source->immutable_bitmap())
-                return immutable_bitmap->size();
-
-            // FIXME: This is very janky and not correct.
-            return { source->width(), source->height() };
+            // Return the density-corrected intrinsic dimensions (naturalWidth/naturalHeight)
+            // as per spec: "the image's intrinsic width/height in image pixels"
+            return { static_cast<int>(source->natural_width()), static_cast<int>(source->natural_height()) };
         },
         [](GC::Root<SVG::SVGImageElement> const& source) -> Gfx::IntSize {
             if (auto immutable_bitmap = source->current_image_bitmap())
