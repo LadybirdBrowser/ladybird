@@ -109,7 +109,7 @@ print_help() {
       list-tests: $NAME list-tests [PATHS..]
                       List the tests in the given PATHS.
       clean:      $NAME clean
-                      Clean up the extra resources and directories (if any leftover) created by this script.
+                      Clean up the extra resources and directories (if any leftover) created by this script (Linux only).
       bisect:     $NAME bisect BAD_COMMIT GOOD_COMMIT [TESTS...]
                       Find the first commit where a given set of tests produce unexpected results.
 
@@ -756,8 +756,12 @@ if [[ "$CMD" =~ ^(update|clean|run|serve|bisect|compare|import|list-tests)$ ]]; 
             run_wpt "${@}"
             ;;
         clean)
-            cleanup_run_infra
-            cleanup_run_dirs true
+            if [[ $OSTYPE == 'linux'* ]]; then
+                cleanup_run_infra
+                cleanup_run_dirs true
+            else
+                echo "Cleanup is only needed on Linux"
+            fi
             ;;
         serve)
             serve_wpt
