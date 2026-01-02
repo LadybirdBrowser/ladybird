@@ -25,7 +25,9 @@ ColorStopListElement ColorStopListElement::absolutized(ComputationContext const&
     };
 
     return {
-        .transition_hint = transition_hint,
+        .transition_hint = transition_hint.map([&context](ColorHint const& color_hint) {
+            return ColorHint { color_hint.value->absolutized(context) };
+        }),
         .color_stop = {
             .color = absolutize_if_nonnull(color_stop.color),
             .position = absolutize_if_nonnull(color_stop.position),
