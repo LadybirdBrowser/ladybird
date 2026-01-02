@@ -4,11 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
 
 namespace Gfx {
+
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+static void setup_vulkan_validation_layers_callback(VkInstanceCreateInfo& create_info, VkDebugUtilsMessengerCreateInfoEXT& debug_messenger_create_info);
+static void enable_vulkan_validation_layers_callback(VkInstance const& instance, VkDebugUtilsMessengerCreateInfoEXT const& debug_messenger_create_info);
+#endif
 
 static ErrorOr<VkInstance> create_instance(uint32_t api_version)
 {
@@ -26,11 +32,20 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info {};
+    setup_vulkan_validation_layers_callback(create_info, debug_messenger_create_info);
+#endif
+
     auto result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS) {
         dbgln("vkCreateInstance returned {}", to_underlying(result));
         return Error::from_string_literal("Application instance creation failed");
     }
+
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+    enable_vulkan_validation_layers_callback(instance, debug_messenger_create_info);
+#endif
 
     return instance;
 }
@@ -418,6 +433,70 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         .modifier = image_format_mod_props.drmFormatModifier,
     };
     return image;
+}
+#endif
+
+#if VULKAN_VALIDATION_LAYERS_DEBUG
+static bool check_layer_support(StringView layer_name)
+{
+    uint32_t layer_count = 0;
+    vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+
+    Vector<VkLayerProperties> layers;
+    layers.resize(layer_count);
+    vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+
+    for (auto const& layer_properties : layers) {
+        if (layer_name == layer_properties.layerName) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static constexpr Array<char const*, 1> vvl_layers = { "VK_LAYER_KHRONOS_validation" };
+static constexpr Array<char const*, 1> vvl_extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+
+static void setup_vulkan_validation_layers_callback(VkInstanceCreateInfo& create_info, VkDebugUtilsMessengerCreateInfoEXT& debug_messenger_create_info)
+{
+    if (!check_layer_support("VK_LAYER_KHRONOS_validation"sv))
+        return;
+
+    debug_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debug_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debug_messenger_create_info.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT,
+                                                      VkDebugUtilsMessageTypeFlagsEXT,
+                                                      VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
+                                                      void*) {
+        dbgln("Vulkan validation layers: {}", pCallbackData->pMessage);
+        dump_backtrace(3);
+        return VK_FALSE;
+    };
+
+    create_info.enabledLayerCount = vvl_layers.size();
+    create_info.ppEnabledLayerNames = vvl_layers.data();
+    create_info.enabledExtensionCount = vvl_extensions.size();
+    create_info.ppEnabledExtensionNames = vvl_extensions.data();
+    create_info.pNext = &debug_messenger_create_info;
+}
+
+static void enable_vulkan_validation_layers_callback(VkInstance const& instance, VkDebugUtilsMessengerCreateInfoEXT const& debug_messenger_create_info)
+{
+    // Vulkan validation layers not available if struct not setup properly
+    if (debug_messenger_create_info.sType != VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT) {
+        dbgln("Vulkan validation layers: not available");
+        return;
+    }
+
+    auto pfn_create_debug_messenger = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+    VkDebugUtilsMessengerEXT debug_messenger { VK_NULL_HANDLE };
+    auto result = pfn_create_debug_messenger(instance, &debug_messenger_create_info, nullptr, &debug_messenger);
+    if (result != VK_SUCCESS)
+        dbgln("vkCreateDebugUtilsMessengerEXT returned {}", to_underlying(result));
+    else
+        dbgln("Vulkan validation layers: active");
 }
 #endif
 
