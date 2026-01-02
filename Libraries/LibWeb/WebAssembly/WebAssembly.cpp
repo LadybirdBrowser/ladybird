@@ -439,6 +439,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     return compiled_module;
 }
 
+// https://webassembly.github.io/spec/js-api/#HostResizeArrayBuffer
 JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS::ArrayBuffer& buffer, size_t new_length)
 {
     // 1. If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
@@ -486,6 +487,72 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
     }
 
     // 2. Otherwise, return unhandled.
+    return JS::HandledByHost::Unhandled;
+}
+
+// https://webassembly.github.io/threads/js-api/#abstract-operation-hostgrowsharedarraybuffer
+JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& vm, JS::ArrayBuffer& buffer, size_t new_length)
+{
+    // AD-HOC: If buffer.[[ArrayBufferDetachKey]] is "WebAssembly.Memory",
+    auto detach_key = buffer.detach_key();
+    if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string)) {
+        // 1. Let map be the surrounding agent's associated Memory object cache.
+        auto const& map = get_cache(*vm.current_realm()).memory_instances();
+
+        auto current_byte_length = buffer.byte_length();
+
+        // 3. For each memaddr → mem in map,
+        bool seen = false;
+        for (auto [address, memory] : map) {
+            auto buffer_object = memory->buffer_object();
+            // 1. If SameValue(mem.[[BufferObject]], buffer) is true,
+            if (buffer_object.ptr() == &buffer) {
+                // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+                VERIFY(!seen);
+                seen = true;
+
+                // 1. Assert: buffer.[[ArrayBufferByteLength]] modulo 65536 is 0.
+                VERIFY(buffer.byte_length() % Wasm::Constants::page_size == 0);
+
+                // 2. Let lengthDelta be newLength - buffer.[[ArrayBufferByteLength]].
+                auto length_delta = new_length - buffer.byte_length();
+
+                // 3. If lengthDelta < 0 or lengthDelta modulo 65536 is not 0,
+                if (new_length < buffer.byte_length() || length_delta % Wasm::Constants::page_size != 0) {
+                    // 1. Throw a RangeError exception.
+                    return vm.throw_completion<JS::RangeError>("WebAssembly.Memory buffers must be resized by a multiple of the page size"sv);
+                }
+
+                // 4. Let delta be lengthDelta ÷ 65536.
+                auto delta = length_delta / Wasm::Constants::page_size;
+
+                // 5. Grow the memory buffer associated with memaddr by delta.
+                // FIXME: "Grow the memory buffer" is a separate algorithm from the Memory#grow() method.
+                TRY(memory->grow(delta));
+            }
+        }
+
+        // 2. Assert: buffer is the [[BufferObject]] of exactly one value in map.
+        VERIFY(seen);
+
+        // 4. If newLength < buffer.[[ArrayBufferByteLength]] or newLength > buffer.[[ArrayBufferMaxByteLength]], throw a RangeError exception.
+        if (new_length < current_byte_length)
+            return vm.throw_completion<JS::RangeError>(JS::ErrorType::ByteLengthLessThanPreviousByteLength, new_length, current_byte_length);
+        if (new_length > buffer.max_byte_length())
+            return vm.throw_completion<JS::RangeError>(JS::ErrorType::ByteLengthExceedsMaxByteLength, new_length, buffer.max_byte_length());
+
+        // FIXME: 5. Let agentRecord be the surrounding agent’s Agent Record.
+        // FIXME: 6. Let isLittleEndian be agentRecord.[[LittleEndian]] .
+        // FIXME: 7. Let event be an implementation defined ReadModifyWriteSharedMemory event, whose [[Order]] is "SeqCst", [[Payload]] is NumericToRawBytes(Bigint, newLength, isLittleEndian), [[Block]] is buffer.[[ArrayBufferByteLengthData]], [[ByteIndex]] is 0, and [[ElementSize]] is 8.
+        // FIXME: 8. Let eventsRecord be the EventsRecord in agentRecord.[[CandidateExecution]].[[EventsRecords]] that corresponds to the surrounding agent’s signifier agentRecord.[[Signifier]].
+        // FIXME: 9. Append event to eventsRecord.[[EventsList]].
+        VERIFY(buffer.byte_length() == new_length);
+
+        // 10. Return handled.
+        return JS::HandledByHost::Handled;
+    }
+
+    // AD-HOC: Otherwise, return unhandled.
     return JS::HandledByHost::Unhandled;
 }
 

@@ -225,9 +225,13 @@ void Memory::refresh_the_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::Memor
         // 1. Let block be a Data Block which is identified with the underlying memory of memaddr.
         auto& bytes = cache.abstract_machine().store().get(address)->data();
 
+        // AD-HOC: Neither the main spec nor the threads proposal specify that the Data Block should be Shared for
+        //         shared Wasm memories, but we do in fact want a Shared Data Block in that case.
+        auto is_shared = buffer->is_shared_array_buffer() ? JS::DataBlock::Shared::Yes : JS::DataBlock::Shared::No;
+
         // 2. Set buffer.[[ArrayBufferData]] to block.
         // 3. Set buffer.[[ArrayBufferByteLength]] to the length of block.
-        buffer->set_data_block({ JS::DataBlock::UnownedFixedLengthByteBuffer(&bytes) });
+        buffer->set_data_block({ JS::DataBlock::UnownedFixedLengthByteBuffer(&bytes), is_shared });
     }
 }
 
@@ -312,7 +316,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
         // 1. Let block be a Shared Data Block which is identified with the underlying memory of memaddr.
         // 2. Let buffer be a new SharedArrayBuffer with the internal slots [[ArrayBufferData]], [[ArrayBufferByteLength]], and [[ArrayBufferMaxByteLength]].
         // 3. Set buffer.[[ArrayBufferData]] to block.
-        auto buffer = JS::ArrayBuffer::create(realm, &memory->data());
+        auto buffer = JS::ArrayBuffer::create(realm, &memory->data(), JS::DataBlock::Shared::Yes);
 
         // AD-HOC: The threads proposal uses the memory type's minimum for both shared and
         //         non-shared memories, but the upstream spec uses the memory instance's current
@@ -325,6 +329,11 @@ JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_resizable_memor
 
         // 6. Perform ! SetIntegrityLevel(buffer, "frozen").
         MUST(buffer->set_integrity_level(IntegrityLevel::Frozen));
+
+        // AD-HOC: Set buffer.[[ArrayBufferDetachKey]] to "WebAssembly.Memory".
+        //         SharedArrayBuffers can't be detached, but this allows us to bail early from HostGrowSharedArrayBuffer
+        //         for SharedArrayBuffers not associated with a WebAssembly memory.
+        buffer->set_detach_key(JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string));
 
         // 7. Return buffer.
         return buffer;
