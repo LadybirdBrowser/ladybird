@@ -328,7 +328,8 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         } else {
             result.end = explicit_line_count;
         }
-        result.start = result.end - 1;
+        if (!placement_start.has_line_number())
+            result.start = result.end - 1;
     }
 
     if (placement_start.has_identifier()) {
