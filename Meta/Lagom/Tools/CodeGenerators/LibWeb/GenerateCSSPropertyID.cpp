@@ -289,6 +289,7 @@ Vector<PropertyID> const& longhands_for_shorthand(PropertyID);
 Vector<PropertyID> const& expanded_longhands_for_shorthand(PropertyID);
 bool property_maps_to_shorthand(PropertyID);
 Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
+Vector<PropertyID> const& property_computation_order();
 bool property_is_positional_value_list_shorthand(PropertyID);
 
 size_t property_maximum_value_count(PropertyID);
@@ -1511,6 +1512,73 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
         return empty_shorthands;
     }
     }
+}
+)~~~");
+
+    Vector<StringView> manually_specified_computation_order = {
+        // math-depth is required to compute font-size
+        "MathDepth"sv,
+
+        // Font properties are required to absolutize font-relative units used in other properties, including line-height.
+        "FontFamily"sv,
+        "FontFeatureSettings"sv,
+        "FontKerning"sv,
+        "FontOpticalSizing"sv,
+        "FontSize"sv,
+        "FontStyle"sv,
+        "FontVariantAlternates"sv,
+        "FontVariantCaps"sv,
+        "FontVariantEastAsian"sv,
+        "FontVariantEmoji"sv,
+        "FontVariantLigatures"sv,
+        "FontVariantNumeric"sv,
+        "FontVariantPosition"sv,
+        "FontVariationSettings"sv,
+        "FontWeight"sv,
+        "FontWidth"sv,
+        "TextRendering"sv,
+
+        // line-height is required to absolutize `lh` units used in other properties.
+        "LineHeight"sv,
+
+        // color-scheme is included in the generic computation context in order to compute light-dark() color functions
+        "ColorScheme"sv,
+
+        // background-image is required to compute the other background-* properties
+        "BackgroundImage"sv,
+    };
+
+    generator.append(R"~~~(
+Vector<PropertyID> const& property_computation_order() {
+    static Vector<PropertyID> order = {
+)~~~");
+
+    for (auto const& property_name : manually_specified_computation_order) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", property_name);
+        property_generator.appendln("        PropertyID::@name:titlecase@,");
+    }
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().has("longhands"sv))
+            return;
+
+        if (manually_specified_computation_order.contains_slow(title_casify(name)))
+            return;
+
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(name));
+        property_generator.appendln("        PropertyID::@name:titlecase@,");
+    });
+
+    generator.append(R"~~~(
+    };
+
+    return order;
 }
 )~~~");
 

@@ -108,11 +108,8 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     auto font_list = font_source.visit(
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
             auto computed_math_depth = CSS::InitialValues::math_depth();
-            auto inherited_math_depth = CSS::InitialValues::math_depth();
 
             // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
-            auto inherited_font_size = CSSPixels { 10 };
-            auto inherited_font_weight = CSS::InitialValues::font_weight();
             // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
             //        a font-size of 10px) for OffscreenCanvas
             auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
@@ -123,12 +120,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
                 if (canvas_element.computed_properties()) {
                     // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
                     computed_math_depth = canvas_element.computed_properties()->math_depth();
-                    inherited_math_depth = canvas_element.computed_properties()->math_depth();
-                    inherited_font_size = canvas_element.computed_properties()->font_size();
-                    inherited_font_weight = canvas_element.computed_properties()->font_weight();
-
                     abstract_element = DOM::AbstractElement { canvas_element };
-
                     length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element.value());
                 }
             }
@@ -140,10 +132,10 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
 
             // FIXME: Should font be recomputed on canvas element style change?
             // FIXME: Respect the <font-variant-css2> portion of <'font'>
-            auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context);
-            auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context);
-            auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context);
-            auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style, computation_context);
+            auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size.absolutized(computation_context), computed_math_depth, abstract_element);
+            auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight.absolutized(computation_context), abstract_element);
+            auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width.absolutized(computation_context));
+            auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style.absolutized(computation_context));
 
             return document->font_computer().compute_font_for_style_values(
                 font_family,
