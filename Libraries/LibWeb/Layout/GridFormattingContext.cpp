@@ -2774,6 +2774,10 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
         auto minimum_size = item.minimum_size(dimension);
         if (minimum_size.is_auto())
             return item.add_margin_box_sizes(automatic_minimum_size(item, dimension), dimension);
+        if (minimum_size.is_min_content())
+            return calculate_min_content_contribution(item, dimension);
+        if (minimum_size.is_max_content())
+            return calculate_max_content_contribution(item, dimension);
         auto containing_block_size = containing_block_size_for_item(item, dimension);
         return item.add_margin_box_sizes(minimum_size.to_px(grid_container(), containing_block_size), dimension);
     }

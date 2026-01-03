@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 102 tests
 
-83 Pass
-19 Fail
+102 Pass
 Pass	auto min item 'grid' with: grid-template-columns: 0fr; and grid-template-rows: 0fr;
 Pass	auto min item 'grid' with: grid-template-columns: 1fr; and grid-template-rows: 1fr;
 Pass	auto min item 'grid' with: grid-template-columns: 2fr; and grid-template-rows: 2fr;
@@ -38,35 +37,35 @@ Pass	auto min item 'grid' with: grid-template-columns: minmax(0, 0fr) auto; and 
 Pass	auto min item 'grid' with: grid-template-columns: minmax(0, 1fr) auto; and grid-template-rows: minmax(0, 1fr) auto;
 Pass	auto min item 'grid' with: grid-template-columns: minmax(25px, 0fr) auto; and grid-template-rows: minmax(25px, 0fr) auto;
 Pass	auto min item 'grid' with: grid-template-columns: minmax(25px, 1fr) auto; and grid-template-rows: minmax(25px, 1fr) auto;
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr; and grid-template-rows: 0fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr; and grid-template-rows: 1fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 2fr; and grid-template-rows: 2fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr; and grid-template-rows: 0fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr; and grid-template-rows: 1fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 2fr; and grid-template-rows: 2fr;
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 0fr); and grid-template-rows: minmax(0, 0fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, .5fr); and grid-template-rows: minmax(0, .5fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 1fr); and grid-template-rows: minmax(0, 1fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 2fr); and grid-template-rows: minmax(0, 2fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(75px, 1fr); and grid-template-rows: minmax(75px, 1fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr 0fr; and grid-template-rows: 0fr 0fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr 1fr; and grid-template-rows: 0fr 1fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr 0fr; and grid-template-rows: 1fr 0fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr 1fr; and grid-template-rows: 1fr 1fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr 3fr; and grid-template-rows: 1fr 3fr;
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr 0fr 1fr; and grid-template-rows: 0fr 0fr 1fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr 0fr; and grid-template-rows: 0fr 0fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr 1fr; and grid-template-rows: 0fr 1fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr 0fr; and grid-template-rows: 1fr 0fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr 1fr; and grid-template-rows: 1fr 1fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr 3fr; and grid-template-rows: 1fr 3fr;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr 0fr 1fr; and grid-template-rows: 0fr 0fr 1fr;
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 0fr) minmax(0, 0fr); and grid-template-rows: minmax(0, 0fr) minmax(0, 0fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 0fr) minmax(0, 1fr); and grid-template-rows: minmax(0, 0fr) minmax(0, 1fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(15px, 0fr) minmax(0, 1fr); and grid-template-rows: minmax(15px, 0fr) minmax(0, 1fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(20px, 1fr) minmax(0, 1fr); and grid-template-rows: minmax(20px, 1fr) minmax(0, 1fr);
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(40px, 1fr) minmax(0, 1fr); and grid-template-rows: minmax(40px, 1fr) minmax(0, 1fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr minmax(0, 0fr); and grid-template-rows: 0fr minmax(0, 0fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr minmax(0, 1fr); and grid-template-rows: 0fr minmax(0, 1fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr minmax(0, 1fr); and grid-template-rows: 1fr minmax(0, 1fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr minmax(25px, 1fr); and grid-template-rows: 1fr minmax(25px, 1fr);
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr min-content; and grid-template-rows: 0fr min-content;
-Fail	min-content min item 'grid' with: grid-template-columns: 0fr auto; and grid-template-rows: 0fr auto;
-Fail	min-content min item 'grid' with: grid-template-columns: 0.5fr auto; and grid-template-rows: 0.5fr auto;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr auto; and grid-template-rows: 1fr auto;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr max-content; and grid-template-rows: 1fr max-content;
-Fail	min-content min item 'grid' with: grid-template-columns: 1fr min-content; and grid-template-rows: 1fr min-content;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr minmax(0, 0fr); and grid-template-rows: 0fr minmax(0, 0fr);
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr minmax(0, 1fr); and grid-template-rows: 0fr minmax(0, 1fr);
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr minmax(0, 1fr); and grid-template-rows: 1fr minmax(0, 1fr);
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr minmax(25px, 1fr); and grid-template-rows: 1fr minmax(25px, 1fr);
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr min-content; and grid-template-rows: 0fr min-content;
+Pass	min-content min item 'grid' with: grid-template-columns: 0fr auto; and grid-template-rows: 0fr auto;
+Pass	min-content min item 'grid' with: grid-template-columns: 0.5fr auto; and grid-template-rows: 0.5fr auto;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr auto; and grid-template-rows: 1fr auto;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr max-content; and grid-template-rows: 1fr max-content;
+Pass	min-content min item 'grid' with: grid-template-columns: 1fr min-content; and grid-template-rows: 1fr min-content;
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 0fr) min-content; and grid-template-rows: minmax(0, 0fr) min-content;
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 0fr) auto; and grid-template-rows: minmax(0, 0fr) auto;
 Pass	min-content min item 'grid' with: grid-template-columns: minmax(0, 1fr) auto; and grid-template-rows: minmax(0, 1fr) auto;
