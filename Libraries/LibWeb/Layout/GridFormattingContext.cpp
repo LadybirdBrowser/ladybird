@@ -348,8 +348,6 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
         if (result.span == 0)
             result.span = 1;
         result.start = result.end - result.span;
-        if (result.start < 0)
-            result.start = 0;
     }
 
     if (placement_start.is_positioned() && placement_end.is_positioned()) {
@@ -362,10 +360,6 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
             result.end = result.start + result.span;
         }
     }
-
-    // FIXME: Have yet to find the spec for this.
-    if (!placement_start.is_positioned() && placement_end.is_positioned() && result.end == 0)
-        result.start = 0;
 
     // If the placement contains two spans, remove the one contributed by the end grid-placement
     // property.
@@ -599,6 +593,8 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
     size_t implicit_column_index = 0;
     // NOTE: If there are implicit tracks created by items with negative indexes they should prepend explicitly defined tracks
     auto negative_index_implied_column_tracks_count = abs(m_occupation_grid.min_column_index());
+    for (int i = 0; i < negative_index_implied_column_tracks_count; i++)
+        m_column_lines.insert(0, {});
     for (int column_index = 0; column_index < negative_index_implied_column_tracks_count; column_index++) {
         if (grid_auto_columns.size() > 0) {
             auto definition = grid_auto_columns[implicit_column_index % grid_auto_columns.size()];
@@ -623,6 +619,8 @@ void GridFormattingContext::initialize_grid_tracks_for_columns_and_rows()
     size_t implicit_row_index = 0;
     // NOTE: If there are implicit tracks created by items with negative indexes they should prepend explicitly defined tracks
     auto negative_index_implied_row_tracks_count = abs(m_occupation_grid.min_row_index());
+    for (int i = 0; i < negative_index_implied_row_tracks_count; i++)
+        m_row_lines.insert(0, {});
     for (int row_index = 0; row_index < negative_index_implied_row_tracks_count; row_index++) {
         if (grid_auto_rows.size() > 0) {
             auto definition = grid_auto_rows[implicit_row_index % grid_auto_rows.size()];
