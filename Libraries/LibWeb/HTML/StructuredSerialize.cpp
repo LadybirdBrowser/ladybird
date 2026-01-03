@@ -404,11 +404,21 @@ public:
                 if (value_message_descriptor.has_value() && value_message_descriptor->is_data_descriptor())
                     message = TRY(value_message_descriptor->value->to_utf16_string(m_vm));
 
+                // FIXME: Spec bug - https://github.com/whatwg/html/issues/11321
+                // MISSING STEP: Let valueCauseDesc be ? value.[[GetOwnProperty]]("cause").
+                auto value_cause_descriptor = TRY(object.internal_get_own_property(m_vm.names.cause));
+
+                // MISSING STEP: Let cause be undefined if IsDataDescriptor(valueCauseDesc) is false, and ? ToString(valueCauseDesc.[[Value]]) otherwise.
+                Optional<Utf16String> cause;
+                if (value_cause_descriptor.has_value() && value_cause_descriptor->is_data_descriptor())
+                    cause = TRY(value_cause_descriptor->value->to_utf16_string(m_vm));
+
                 // 5. Set serialized to { [[Type]]: "Error", [[Name]]: name, [[Message]]: message }.
                 // FIXME: 6. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
                 serialized.encode(ValueTag::ErrorObject);
                 serialized.encode(type);
                 serialized.encode(message);
+                serialized.encode(cause);
             }
 
             // 18. Otherwise, if value is an Array exotic object, then:
@@ -802,6 +812,7 @@ public:
         case ValueTag::ErrorObject: {
             auto type = m_serialized.decode<ErrorType>();
             auto message = m_serialized.decode<Optional<Utf16String>>();
+            auto cause = m_serialized.decode<Optional<Utf16String>>();
 
             GC::Ptr<JS::Error> error;
 
@@ -821,6 +832,9 @@ public:
 
             if (message.has_value())
                 error->set_message(message.release_value());
+
+            if (cause.has_value())
+                error->create_non_enumerable_data_property_or_throw(m_vm.names.cause, JS::PrimitiveString::create(m_vm, cause.release_value()));
 
             value = error;
             break;
