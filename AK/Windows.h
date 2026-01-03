@@ -44,28 +44,37 @@ NTAPI NTSTATUS NtCreateWaitCompletionPacket(
     _Out_ PHANDLE WaitCompletionPacketHandle,
     _In_ ACCESS_MASK DesiredAccess,
     _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes);
+
+// https://learn.microsoft.com/en-us/windows/win32/seccng/processprng
+BOOL WINAPI ProcessPrng(PBYTE pbData, SIZE_T cbData);
 }
 
 using PFN_NtCreateWaitCompletionPacket = decltype(&NtCreateWaitCompletionPacket);
 using PFN_NtCancelWaitCompletionPacket = decltype(&NtCancelWaitCompletionPacket);
 using PFN_NtAssociateWaitCompletionPacket = decltype(&NtAssociateWaitCompletionPacket);
+using PFN_ProcessPrng = decltype(&ProcessPrng);
 
 inline struct SystemApi {
     PFN_NtAssociateWaitCompletionPacket NtAssociateWaitCompletionPacket = NULL;
     PFN_NtCancelWaitCompletionPacket NtCancelWaitCompletionPacket = NULL;
     PFN_NtCreateWaitCompletionPacket NtCreateWaitCompletionPacket = NULL;
+    PFN_ProcessPrng ProcessPrng = NULL;
 
     SystemApi()
     {
+        HMODULE hBcryptprimitives = LoadLibraryW(L"bcryptprimitives.dll");
         HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
+        VERIFY(hBcryptprimitives);
         VERIFY(hNtdll);
         AK_IGNORE_DIAGNOSTIC("-Wcast-function-type-mismatch",
             NtAssociateWaitCompletionPacket = (PFN_NtAssociateWaitCompletionPacket)GetProcAddress(hNtdll, "NtAssociateWaitCompletionPacket");
             NtCancelWaitCompletionPacket = (PFN_NtCancelWaitCompletionPacket)GetProcAddress(hNtdll, "NtCancelWaitCompletionPacket");
-            NtCreateWaitCompletionPacket = (PFN_NtCreateWaitCompletionPacket)GetProcAddress(hNtdll, "NtCreateWaitCompletionPacket");)
+            NtCreateWaitCompletionPacket = (PFN_NtCreateWaitCompletionPacket)GetProcAddress(hNtdll, "NtCreateWaitCompletionPacket");
+            ProcessPrng = (PFN_ProcessPrng)GetProcAddress(hBcryptprimitives, "ProcessPrng");)
         VERIFY(NtAssociateWaitCompletionPacket);
         VERIFY(NtCancelWaitCompletionPacket);
         VERIFY(NtCreateWaitCompletionPacket);
+        VERIFY(ProcessPrng);
     }
 } g_system;
 

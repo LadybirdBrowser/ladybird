@@ -14,12 +14,12 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/InsertionSort.h>
+#include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
-#include <LibCrypto/SecureRandom.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
