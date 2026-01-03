@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 30 tests
 
-25 Pass
-5 Fail
+26 Pass
+4 Fail
 Pass	Property grid-template-columns value 'none'
 Pass	Property grid-template-columns value '20%'
 Pass	Property grid-template-columns value 'calc(-0.5em + 10px)'
@@ -19,7 +19,7 @@ Pass	Property grid-template-columns value 'minmax(min-content, calc(-0.5em + 10p
 Pass	Property grid-template-columns value 'minmax(auto, 0)'
 Pass	Property grid-template-columns value 'fit-content(70px)'
 Pass	Property grid-template-columns value 'fit-content(20%)'
-Fail	Property grid-template-columns value 'fit-content(calc(-0.5em + 10px))'
+Pass	Property grid-template-columns value 'fit-content(calc(-0.5em + 10px))'
 Pass	Property grid-template-columns value 'repeat(1, 10px)'
 Pass	Property grid-template-columns value 'repeat(1, [one two] 20%)'
 Pass	Property grid-template-columns value 'repeat(2, minmax(10px, auto))'
