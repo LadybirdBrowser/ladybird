@@ -20,12 +20,14 @@ public:
     }
     virtual ~EdgeStyleValue() override = default;
 
-    // This is nonnull as it is only called after absolutization
+    // This is nonnull as it is only called after resolving keywords
     NonnullRefPtr<StyleValue const> offset() const { return *m_properties.offset; }
 
     bool is_center(SerializationMode) const;
 
     virtual String to_string(SerializationMode) const override;
+
+    ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
     bool properties_equal(EdgeStyleValue const& other) const { return m_properties == other.m_properties; }
 

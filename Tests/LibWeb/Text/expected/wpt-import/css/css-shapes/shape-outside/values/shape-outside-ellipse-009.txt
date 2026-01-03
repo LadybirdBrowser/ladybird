@@ -2,20 +2,19 @@ Harness status: OK
 
 Found 38 tests
 
-26 Pass
-12 Fail
-Fail	ellipse(at +50px) - inline
-Fail	ellipse(at -50px) - inline
-Fail	ellipse(at +50%) - inline
-Fail	ellipse(at -50%) - inline
-Fail	ellipse(at left +50px) - inline
-Fail	ellipse(at left +50%) - inline
-Fail	ellipse(at right -50px) - inline
-Fail	ellipse(at right -50%) - inline
-Fail	ellipse(at +50px top) - inline
-Fail	ellipse(at +50% top) - inline
-Fail	ellipse(at -50px bottom) - inline
-Fail	ellipse(at -50% bottom) - inline
+38 Pass
+Pass	ellipse(at +50px) - inline
+Pass	ellipse(at -50px) - inline
+Pass	ellipse(at +50%) - inline
+Pass	ellipse(at -50%) - inline
+Pass	ellipse(at left +50px) - inline
+Pass	ellipse(at left +50%) - inline
+Pass	ellipse(at right -50px) - inline
+Pass	ellipse(at right -50%) - inline
+Pass	ellipse(at +50px top) - inline
+Pass	ellipse(at +50% top) - inline
+Pass	ellipse(at -50px bottom) - inline
+Pass	ellipse(at -50% bottom) - inline
 Pass	ellipse(at +50px +50px) - inline
 Pass	ellipse(at +50% +50%) - inline
 Pass	ellipse(at -50px -50px) - inline

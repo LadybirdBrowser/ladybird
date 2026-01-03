@@ -24,6 +24,13 @@ CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRec
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 
+ValueComparingNonnullRefPtr<PositionStyleValue const> PositionStyleValue::with_resolved_keywords() const
+{
+    return PositionStyleValue::create(
+        edge_x()->with_resolved_keywords(),
+        edge_y()->with_resolved_keywords());
+}
+
 ValueComparingNonnullRefPtr<StyleValue const> PositionStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     return PositionStyleValue::create(
