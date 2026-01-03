@@ -3407,7 +3407,8 @@ RefPtr<RadialSizeStyleValue const> Parser::parse_radial_size(TokenStream<Compone
     auto parse_nonnegative_length_percentage_value = [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
         auto length_percentage_transaction = tokens.begin_transaction();
 
-        // FIXME: Clamp calculated values to [0,∞]
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::RadialSizeLengthPercentage);
+
         auto length_percentage_value = parse_length_percentage_value(tokens);
         if (!length_percentage_value)
             return nullptr;
@@ -4509,6 +4510,9 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::RadialSizeLengthPercentage:
+                    // Radial size length-percentages are nonnegative
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::RandomValueSharingFixedValue:
                     // Fixed values have to be less than one and numbers serialize with six digits of precision
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 0.999999 } } } };
