@@ -26,7 +26,6 @@ set(SOURCES
     PK/MLDSA.cpp
     PK/MLKEM.cpp
     PK/RSA.cpp
-    SecureRandom.cpp
 )
 
 ladybird_lib(LibCrypto crypto)
