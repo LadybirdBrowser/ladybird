@@ -463,4 +463,57 @@ BidiClass bidirectional_class(u32 code_point)
     return char_direction_to_bidi_class(direction);
 }
 
+StringView bidi_class_to_string_view(BidiClass bidi_class)
+{
+    switch (bidi_class) {
+    case BidiClass::LeftToRight:
+        return "L"sv;
+    case BidiClass::RightToLeft:
+        return "R"sv;
+    case BidiClass::RightToLeftArabic:
+        return "AL"sv;
+    case BidiClass::EuropeanNumber:
+        return "EN"sv;
+    case BidiClass::EuropeanNumberSeparator:
+        return "ES"sv;
+    case BidiClass::EuropeanNumberTerminator:
+        return "ET"sv;
+    case BidiClass::ArabicNumber:
+        return "AN"sv;
+    case BidiClass::CommonNumberSeparator:
+        return "CS"sv;
+    case BidiClass::DirNonSpacingMark:
+        return "NSM"sv;
+    case BidiClass::BoundaryNeutral:
+        return "BN"sv;
+    case BidiClass::BlockSeparator:
+        return "B"sv;
+    case BidiClass::SegmentSeparator:
+        return "S"sv;
+    case BidiClass::WhiteSpaceNeutral:
+        return "WS"sv;
+    case BidiClass::OtherNeutral:
+        return "ON"sv;
+    case BidiClass::LeftToRightEmbedding:
+        return "LRE"sv;
+    case BidiClass::LeftToRightOverride:
+        return "LRO"sv;
+    case BidiClass::RightToLeftEmbedding:
+        return "RLE"sv;
+    case BidiClass::RightToLeftOverride:
+        return "RLO"sv;
+    case BidiClass::PopDirectionalFormat:
+        return "PDF"sv;
+    case BidiClass::LeftToRightIsolate:
+        return "LRI"sv;
+    case BidiClass::RightToLeftIsolate:
+        return "RLI"sv;
+    case BidiClass::FirstStrongIsolate:
+        return "FSI"sv;
+    case BidiClass::PopDirectionalIsolate:
+        return "PDI"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }

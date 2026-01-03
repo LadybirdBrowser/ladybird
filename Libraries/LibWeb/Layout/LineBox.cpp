@@ -133,4 +133,21 @@ bool LineBox::is_empty_or_ends_in_whitespace() const
     return m_fragments.last().ends_in_whitespace();
 }
 
+void LineBox::reorder_fragments(Vector<size_t> const& visual_order)
+{
+    if (visual_order.size() != m_fragments.size())
+        return;
+
+    Vector<LineBoxFragment> reordered_fragments;
+    reordered_fragments.ensure_capacity(m_fragments.size());
+    CSSPixels inline_position = 0;
+    for (auto fragment_index : visual_order) {
+        auto& fragment = m_fragments[fragment_index];
+        fragment.set_inline_offset(inline_position);
+        inline_position += fragment.inline_length();
+        reordered_fragments.append(move(fragment));
+    }
+    m_fragments = move(reordered_fragments);
+}
+
 }
