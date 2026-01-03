@@ -249,6 +249,7 @@ public:
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
+    int math_depth() const;
     [[nodiscard]] CSSPixels line_height() const;
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
@@ -259,9 +260,6 @@ public:
 
     Positioning position() const;
     Optional<int> z_index() const;
-
-    void set_math_depth(int math_depth);
-    int math_depth() const { return m_math_depth; }
 
     QuotesData quotes() const;
     Vector<CounterData> counter_data(PropertyID) const;
@@ -300,8 +298,6 @@ private:
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_animated_property_values;
 
     Display m_display_before_box_type_transformation { InitialValues::display() };
-
-    int m_math_depth { InitialValues::math_depth() };
 
     RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
     RefPtr<Gfx::Font const> m_cached_first_available_computed_font;

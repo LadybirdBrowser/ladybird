@@ -2792,27 +2792,31 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::
         return element_to_inherit_style_from->computed_properties()->property(CSS::PropertyID::MathStyle);
     };
 
+    auto const set_math_depth = [&](int value) {
+        style.set_property_without_modifying_flags(PropertyID::MathDepth, IntegerStyleValue::create(value));
+    };
+
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
     if (property_value.to_keyword() == Keyword::AutoAdd && inherited_math_style()->to_keyword() == Keyword::Compact) {
-        style.set_math_depth(inherited_math_depth() + 1);
+        set_math_depth(inherited_math_depth() + 1);
         return;
     }
     // - If the specified value of math-depth is of the form add(<integer>) then the computed value of
     //   math-depth of the element is its inherited value plus the specified integer.
     if (property_value.is_add_function()) {
-        style.set_math_depth(inherited_math_depth() + resolve_integer(*property_value.as_add_function().value()));
+        set_math_depth(inherited_math_depth() + resolve_integer(*property_value.as_add_function().value()));
         return;
     }
     // - If the specified value of math-depth is of the form <integer> then the computed value of math-depth
     //   of the element is the specified integer.
     if (property_value.is_integer() || property_value.is_calculated()) {
-        style.set_math_depth(resolve_integer(property_value));
+        set_math_depth(resolve_integer(property_value));
         return;
     }
     // - Otherwise, the computed value of math-depth of the element is the inherited one.
-    style.set_math_depth(inherited_math_depth());
+    set_math_depth(inherited_math_depth());
 }
 
 static void for_each_element_hash(DOM::Element const& element, auto callback)

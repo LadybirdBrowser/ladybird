@@ -2538,13 +2538,6 @@ MaskType ComputedProperties::mask_type() const
     return keyword_to_mask_type(value.to_keyword()).release_value();
 }
 
-void ComputedProperties::set_math_depth(int math_depth)
-{
-    m_math_depth = math_depth;
-    // Make our children inherit our computed value, not our specified value.
-    set_property(PropertyID::MathDepth, IntegerStyleValue::create(math_depth));
-}
-
 QuotesData ComputedProperties::quotes() const
 {
     auto const& value = property(PropertyID::Quotes);
@@ -2739,6 +2732,11 @@ ValueComparingNonnullRefPtr<Gfx::Font const> ComputedProperties::first_available
     }
 
     return *m_cached_first_available_computed_font;
+}
+
+int ComputedProperties::math_depth() const
+{
+    return property(PropertyID::MathDepth).as_integer().integer();
 }
 
 CSSPixels ComputedProperties::font_size() const
