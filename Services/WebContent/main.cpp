@@ -12,6 +12,7 @@
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
 #include <LibCore/SystemServerTakeover.h>
+#include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibIPC/ConnectionFromClient.h>
@@ -37,6 +38,8 @@
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
+
+#include <openssl/thread.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
@@ -181,6 +184,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #    endif
     }
 #endif
+
+    OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
 
     TRY(initialize_image_decoder(image_decoder_socket));
 
