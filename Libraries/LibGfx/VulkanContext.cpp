@@ -358,9 +358,18 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         return Error::from_string_literal("unable to find suitable image memory type");
     }
 
+    // Set up dedicated memory allocation; required for NVIDIA 10 series GPUs.
+    // https://docs.vulkan.org/refpages/latest/refpages/source/VkMemoryAllocateInfo.html#VUID-VkMemoryAllocateInfo-pNext-00639
+    VkMemoryDedicatedAllocateInfo mem_dedicated_alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
+        .pNext = nullptr,
+        .image = image->image,
+        .buffer = VK_NULL_HANDLE,
+    };
+
     VkExportMemoryAllocateInfo export_mem_alloc_info = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO,
-        .pNext = nullptr,
+        .pNext = &mem_dedicated_alloc_info,
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
     };
     VkMemoryAllocateInfo mem_alloc_info = {
