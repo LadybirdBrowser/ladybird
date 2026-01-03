@@ -2,20 +2,19 @@ Harness status: OK
 
 Found 38 tests
 
-26 Pass
-12 Fail
-Fail	circle(at +50px) - inline
-Fail	circle(at -50px) - inline
-Fail	circle(at +50%) - inline
-Fail	circle(at -50%) - inline
-Fail	circle(at left +50px) - inline
-Fail	circle(at left +50%) - inline
-Fail	circle(at right -50px) - inline
-Fail	circle(at right -50%) - inline
-Fail	circle(at +50px top) - inline
-Fail	circle(at +50% top) - inline
-Fail	circle(at -50px bottom) - inline
-Fail	circle(at -50% bottom) - inline
+38 Pass
+Pass	circle(at +50px) - inline
+Pass	circle(at -50px) - inline
+Pass	circle(at +50%) - inline
+Pass	circle(at -50%) - inline
+Pass	circle(at left +50px) - inline
+Pass	circle(at left +50%) - inline
+Pass	circle(at right -50px) - inline
+Pass	circle(at right -50%) - inline
+Pass	circle(at +50px top) - inline
+Pass	circle(at +50% top) - inline
+Pass	circle(at -50px bottom) - inline
+Pass	circle(at -50% bottom) - inline
 Pass	circle(at +50px +50px) - inline
 Pass	circle(at +50% +50%) - inline
 Pass	circle(at -50px -50px) - inline

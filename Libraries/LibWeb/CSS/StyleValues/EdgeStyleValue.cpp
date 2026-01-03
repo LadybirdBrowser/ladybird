@@ -38,7 +38,7 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
     return builder.to_string_without_validation();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(ComputationContext const& computation_context) const
+ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_keywords() const
 {
     if (m_properties.edge == PositionEdge::Center)
         return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(50)));
@@ -51,18 +51,27 @@ ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(Comput
         if (!m_properties.offset)
             return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(100)));
 
-        auto flipped_percentage = SumCalculationNode::create({ NumericCalculationNode::create(Percentage { 100 }, calculation_context),
-            NegateCalculationNode::create(CalculationNode::from_style_value(*m_properties.offset, calculation_context)) });
+        auto negated_offset = NegateCalculationNode::create(CalculationNode::from_style_value(*m_properties.offset, calculation_context));
 
-        auto flipped_percentage_style_value = CalculatedStyleValue::create(flipped_percentage, NumericType(NumericType::BaseType::Length, 1), calculation_context);
+        auto flipped_offset = simplify_a_calculation_tree(
+            SumCalculationNode::create({ NumericCalculationNode::create(Percentage { 100 }, calculation_context), negated_offset }),
+            calculation_context,
+            {});
 
-        return EdgeStyleValue::create({}, flipped_percentage_style_value->absolutized(computation_context));
+        auto flipped_percentage_style_value = CalculatedStyleValue::create(flipped_offset, NumericType(NumericType::BaseType::Length, 1), calculation_context);
+
+        return EdgeStyleValue::create({}, flipped_percentage_style_value);
     }
 
     if (!m_properties.offset)
         return EdgeStyleValue::create({}, PercentageStyleValue::create(Percentage(0)));
 
-    return EdgeStyleValue::create({}, m_properties.offset->absolutized(computation_context));
+    return EdgeStyleValue::create({}, m_properties.offset);
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(ComputationContext const& computation_context) const
+{
+    return EdgeStyleValue::create({}, with_resolved_keywords()->offset()->absolutized(computation_context));
 }
 
 }
