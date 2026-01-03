@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Intrinsic contribution of an item with flex tracks</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="author" title="Tab Atkins-Bittner" href="mailto:jackalmage@gmail.com">
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#algo-spanning-items">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#algo-spanning-flex-items">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#min-size-auto">
+<meta name="assert" content="This test checks that the intrinsic contribution of a single grid item is distributed correctly among the tracks it spans when flexible tracks are involved, and the item's size is determined by its children rather than explicitly.">
+<style>
+#grid {
+  display: grid;
+  width: 60px;
+  height: 60px;
+  border: solid;
+}
+#item {
+  background: blue;
+}
+#item::before {
+  content: "";
+  display: block;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="log"></div>
+
+<div id="grid">
+  <div id="item"></div>
+</div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../grid-definition/support/testing-utils.js"></script>
+<script>
+const item = document.getElementById("item");
+let testset = "unlabeled";
+function checkTrackSizes(span, trackList, expected) {
+  item.style.gridColumn = item.style.gridRow = `span ${span}`;
+  TestingUtils.testGridTemplateColumnsRows("grid", trackList, trackList, expected, expected, testset);
+}
+
+// First check for distributing auto minimum ///////////////////////////////////
+testset = "auto min item";
+
+// Item spanning an auto flexible track
+checkTrackSizes(1, "0fr", "100px");
+checkTrackSizes(1, "1fr", "100px");
+checkTrackSizes(1, "2fr", "100px");
+
+// Item spanning a fixed flexible track
+checkTrackSizes(1, "minmax(0, 0fr)", "0px");
+checkTrackSizes(1, "minmax(0, .5fr)", "30px");
+checkTrackSizes(1, "minmax(0, 1fr)", "60px");
+checkTrackSizes(1, "minmax(0, 2fr)", "60px");
+checkTrackSizes(1, "minmax(75px, 1fr)", "75px");
+
+// Item spanning 2 auto flexible tracks
+checkTrackSizes(2, "0fr 0fr", "0px 0px");
+checkTrackSizes(2, "0fr 1fr", "0px 60px");
+checkTrackSizes(2, "1fr 0fr", "60px 0px");
+checkTrackSizes(2, "1fr 1fr", "30px 30px");
+checkTrackSizes(2, "1fr 3fr", "15px 45px");
+checkTrackSizes(2, "0fr 0fr 1fr", "0px 0px 60px");
+
+// Item spanning 2 fixed flexible tracks
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 0fr)", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 1fr)", "0px 60px");
+checkTrackSizes(2, "minmax(15px, 0fr) minmax(0, 1fr)", "15px 45px");
+checkTrackSizes(2, "minmax(20px, 1fr) minmax(0, 1fr)", "30px 30px");
+checkTrackSizes(2, "minmax(40px, 1fr) minmax(0, 1fr)", "40px 20px");
+
+// Item spanning an auto flexible track and a fixed flexible track
+checkTrackSizes(2, "0fr minmax(0, 0fr)", "0px 0px");
+checkTrackSizes(2, "0fr minmax(0, 1fr)", "0px 60px");
+checkTrackSizes(2, "1fr minmax(0, 1fr)", "30px 30px");
+checkTrackSizes(2, "1fr minmax(25px, 1fr)", "30px 30px");
+
+// Item spanning an auto flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "0fr min-content", "0px 0px");
+checkTrackSizes(2, "0fr auto", "0px 60px");
+checkTrackSizes(2, "0.5fr auto", "30px 30px");
+checkTrackSizes(2, "1fr auto", "60px 0px");
+checkTrackSizes(2, "1fr max-content", "60px 0px");
+checkTrackSizes(2, "1fr min-content", "60px 0px");
+
+// Item spanning a fixed flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "minmax(0, 0fr) min-content", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) auto", "0px 60px");
+checkTrackSizes(2, "minmax(0, 1fr) auto", "60px 0px");
+checkTrackSizes(2, "minmax(25px, 0fr) auto", "25px 35px");
+checkTrackSizes(2, "minmax(25px, 1fr) auto", "60px 0px");
+
+// Now check for distributing min content //////////////////////////////////////
+item.style.minWidth  = "min-content"; // min-content = 100px > grid
+item.style.minHeight = "100px"; // min-content doesn't resolve in block axis (yet?)
+testset = "min-content min item";
+
+// Item spanning an auto flexible track
+checkTrackSizes(1, "0fr", "100px");
+checkTrackSizes(1, "1fr", "100px");
+checkTrackSizes(1, "2fr", "100px");
+
+// Item spanning a fixed flexible track
+checkTrackSizes(1, "minmax(0, 0fr)", "0px");
+checkTrackSizes(1, "minmax(0, .5fr)", "30px");
+checkTrackSizes(1, "minmax(0, 1fr)", "60px");
+checkTrackSizes(1, "minmax(0, 2fr)", "60px");
+checkTrackSizes(1, "minmax(75px, 1fr)", "75px");
+
+// Item spanning 2 auto flexible tracks
+checkTrackSizes(2, "0fr 0fr", "50px 50px");
+checkTrackSizes(2, "0fr 1fr", "0px 100px");
+checkTrackSizes(2, "1fr 0fr", "100px 0px");
+checkTrackSizes(2, "1fr 1fr", "50px 50px");
+checkTrackSizes(2, "1fr 3fr", "25px 75px");
+checkTrackSizes(2, "0fr 0fr 1fr", "50px 50px 0px");
+
+// Item spanning 2 fixed flexible tracks
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 0fr)", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 1fr)", "0px 60px");
+checkTrackSizes(2, "minmax(15px, 0fr) minmax(0, 1fr)", "15px 45px");
+checkTrackSizes(2, "minmax(20px, 1fr) minmax(0, 1fr)", "30px 30px");
+checkTrackSizes(2, "minmax(40px, 1fr) minmax(0, 1fr)", "40px 20px");
+
+// Item spanning an auto flexible track and a fixed flexible track
+checkTrackSizes(2, "0fr minmax(0, 0fr)", "100px 0px");
+checkTrackSizes(2, "0fr minmax(0, 1fr)", "100px 0px");
+checkTrackSizes(2, "1fr minmax(0, 1fr)", "100px 0px");
+checkTrackSizes(2, "1fr minmax(25px, 1fr)", "75px 25px");
+
+// Item spanning an auto flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "0fr min-content", "100px 0px");
+checkTrackSizes(2, "0fr auto", "100px 0px");
+checkTrackSizes(2, "0.5fr auto", "100px 0px");
+checkTrackSizes(2, "1fr auto", "100px 0px");
+checkTrackSizes(2, "1fr max-content", "100px 0px");
+checkTrackSizes(2, "1fr min-content", "100px 0px");
+
+// Item spanning a fixed flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "minmax(0, 0fr) min-content", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) auto", "0px 60px");
+checkTrackSizes(2, "minmax(0, 1fr) auto", "60px 0px");
+checkTrackSizes(2, "minmax(25px, 0fr) auto", "25px 35px");
+checkTrackSizes(2, "minmax(25px, 1fr) auto", "60px 0px");
+
+// Now check for distributing fixed min ////////////////////////////////////////
+item.style.minWidth = "50px"; // minimum < grid < min-content
+item.style.minHeight = "50px"; // minimum < grid < min-content
+testset = "50px min item";
+
+// Item spanning an auto flexible track
+checkTrackSizes(1, "0fr", "50px");
+checkTrackSizes(1, "1fr", "60px");
+checkTrackSizes(1, "2fr", "60px");
+
+// Item spanning a fixed flexible track
+checkTrackSizes(1, "minmax(0, 0fr)", "0px");
+checkTrackSizes(1, "minmax(0, .5fr)", "30px");
+checkTrackSizes(1, "minmax(0, 1fr)", "60px");
+checkTrackSizes(1, "minmax(0, 2fr)", "60px");
+checkTrackSizes(1, "minmax(75px, 1fr)", "75px");
+
+// Item spanning 2 auto flexible tracks
+checkTrackSizes(2, "0fr 0fr", "25px 25px");
+checkTrackSizes(2, "0fr 1fr", "0px 60px");
+checkTrackSizes(2, "1fr 0fr", "60px 0px");
+checkTrackSizes(2, "1fr 1fr", "30px 30px");
+checkTrackSizes(2, "1fr 3fr", "15px 45px");
+checkTrackSizes(2, "0fr 0fr 1fr", "25px 25px 10px");
+
+// Item spanning 2 fixed flexible tracks
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 0fr)", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) minmax(0, 1fr)", "0px 60px");
+checkTrackSizes(2, "minmax(15px, 0fr) minmax(0, 1fr)", "15px 45px");
+checkTrackSizes(2, "minmax(20px, 1fr) minmax(0, 1fr)", "30px 30px");
+checkTrackSizes(2, "minmax(40px, 1fr) minmax(0, 1fr)", "40px 20px");
+
+// Item spanning an auto flexible track and a fixed flexible track
+checkTrackSizes(2, "0fr minmax(0, 0fr)", "50px 0px");
+checkTrackSizes(2, "0fr minmax(0, 1fr)", "50px 10px");
+checkTrackSizes(2, "1fr minmax(0, 1fr)", "50px 10px");
+checkTrackSizes(2, "1fr minmax(25px, 1fr)", "30px 30px");
+
+// Item spanning an auto flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "0fr min-content", "50px 0px");
+checkTrackSizes(2, "0fr auto", "50px 10px");
+checkTrackSizes(2, "0.5fr auto", "50px 10px");
+checkTrackSizes(2, "1fr auto", "60px 0px");
+checkTrackSizes(2, "1fr max-content", "60px 0px");
+checkTrackSizes(2, "1fr min-content", "60px 0px");
+
+// Item spanning a fixed flexible track and an intrinsic non-flexible track
+checkTrackSizes(2, "minmax(0, 0fr) min-content", "0px 0px");
+checkTrackSizes(2, "minmax(0, 0fr) auto", "0px 60px");
+checkTrackSizes(2, "minmax(0, 1fr) auto", "60px 0px");
+checkTrackSizes(2, "minmax(25px, 0fr) auto", "25px 35px");
+checkTrackSizes(2, "minmax(25px, 1fr) auto", "60px 0px");
+</script>
