@@ -486,6 +486,10 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     if (selector == @selector(cancelOperation:)) {
         if ([self.autocomplete close])
             return YES;
+        auto const& url = [[[self tab] web_view] view].url();
+        [self setLocationFieldText:url.serialize()];
+        [self.window makeFirstResponder:nil];
+        return YES;
     }
 
     if (selector == @selector(moveDown:)) {
