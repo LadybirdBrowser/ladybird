@@ -225,6 +225,7 @@ set(SOURCES
     CSS/StyleSheetIdentifier.cpp
     CSS/StyleSheetList.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
+    CSS/StyleValues/AddFunctionStyleValue.cpp
     CSS/StyleValues/AnchorStyleValue.cpp
     CSS/StyleValues/AnchorSizeStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
@@ -265,7 +266,6 @@ set(SOURCES
     CSS/StyleValues/LengthStyleValue.cpp
     CSS/StyleValues/LightDarkStyleValue.cpp
     CSS/StyleValues/LinearGradientStyleValue.cpp
-    CSS/StyleValues/MathDepthStyleValue.cpp
     CSS/StyleValues/NumberStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
     CSS/StyleValues/PositionStyleValue.cpp

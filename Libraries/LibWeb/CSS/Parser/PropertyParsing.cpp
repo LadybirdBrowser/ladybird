@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/AddFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
@@ -44,7 +45,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -3712,10 +3712,9 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     auto transaction = tokens.begin_transaction();
 
     // auto-add
-    if (tokens.next_token().is_ident("auto-add"sv)) {
-        tokens.discard_a_token(); // auto-add
+    if (auto keyword = parse_all_as_single_keyword_value(tokens, Keyword::AutoAdd)) {
         transaction.commit();
-        return MathDepthStyleValue::create_auto_add();
+        return keyword;
     }
 
     // add(<integer>)
@@ -3731,7 +3730,7 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
                 return nullptr;
             tokens.discard_a_token(); // add()
             transaction.commit();
-            return MathDepthStyleValue::create_add(integer_value.release_nonnull());
+            return AddFunctionStyleValue::create(integer_value.release_nonnull());
         }
         return nullptr;
     }
@@ -3739,7 +3738,7 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
     // <integer>
     if (auto integer_value = parse_integer_value(tokens)) {
         transaction.commit();
-        return MathDepthStyleValue::create_integer(integer_value.release_nonnull());
+        return integer_value;
     }
 
     return nullptr;

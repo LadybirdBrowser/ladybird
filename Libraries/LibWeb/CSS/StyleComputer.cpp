@@ -41,6 +41,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleSheet.h>
+#include <LibWeb/CSS/StyleValues/AddFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -56,7 +57,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
@@ -2773,26 +2773,7 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::
         return element_to_inherit_style_from->computed_properties()->math_depth();
     };
 
-    // NB: We always parse as a MathDepthStyleValue, but StylePropertyMap is able to set other StyleValues directly.
-    //     So, extract the properties we care about from it or other StyleValue types we might have.
-    bool is_auto_add = false;
-    bool is_add = false;
-    bool is_integer = false;
-    RefPtr<StyleValue const> integer_value;
-
     auto const& property_value = style.property(PropertyID::MathDepth);
-    if (property_value.to_keyword() == Keyword::AutoAdd) {
-        is_auto_add = true;
-    } else if (property_value.is_integer() || property_value.is_calculated()) {
-        integer_value = property_value;
-    } else {
-        auto const& math_depth = property_value.as_math_depth();
-        is_auto_add = math_depth.is_auto_add();
-        is_add = math_depth.is_add();
-        is_integer = math_depth.is_integer();
-        if (is_integer || is_add)
-            integer_value = math_depth.integer_value();
-    }
 
     auto resolve_integer = [&](StyleValue const& integer_value) {
         if (integer_value.is_integer())
@@ -2814,20 +2795,20 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, Optional<DOM::
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
-    if (is_auto_add && inherited_math_style()->to_keyword() == Keyword::Compact) {
+    if (property_value.to_keyword() == Keyword::AutoAdd && inherited_math_style()->to_keyword() == Keyword::Compact) {
         style.set_math_depth(inherited_math_depth() + 1);
         return;
     }
     // - If the specified value of math-depth is of the form add(<integer>) then the computed value of
     //   math-depth of the element is its inherited value plus the specified integer.
-    if (is_add) {
-        style.set_math_depth(inherited_math_depth() + resolve_integer(*integer_value));
+    if (property_value.is_add_function()) {
+        style.set_math_depth(inherited_math_depth() + resolve_integer(*property_value.as_add_function().value()));
         return;
     }
     // - If the specified value of math-depth is of the form <integer> then the computed value of math-depth
     //   of the element is the specified integer.
-    if (is_integer) {
-        style.set_math_depth(resolve_integer(*integer_value));
+    if (property_value.is_integer() || property_value.is_calculated()) {
+        style.set_math_depth(resolve_integer(property_value));
         return;
     }
     // - Otherwise, the computed value of math-depth of the element is the inherited one.

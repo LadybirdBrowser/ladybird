@@ -28,7 +28,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -2543,7 +2542,7 @@ void ComputedProperties::set_math_depth(int math_depth)
 {
     m_math_depth = math_depth;
     // Make our children inherit our computed value, not our specified value.
-    set_property(PropertyID::MathDepth, MathDepthStyleValue::create_integer(IntegerStyleValue::create(math_depth)));
+    set_property(PropertyID::MathDepth, IntegerStyleValue::create(math_depth));
 }
 
 QuotesData ComputedProperties::quotes() const

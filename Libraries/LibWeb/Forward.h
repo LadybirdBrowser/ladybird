@@ -209,6 +209,7 @@ class SubtleCrypto;
 namespace Web::CSS {
 
 class AbstractImageStyleValue;
+class AddFunctionStyleValue;
 class AnchorStyleValue;
 class AnchorSizeStyleValue;
 class Angle;
@@ -334,7 +335,6 @@ class LengthPercentage;
 class LengthPercentageOrAuto;
 class LengthStyleValue;
 class LinearGradientStyleValue;
-class MathDepthStyleValue;
 class MediaFeatureValue;
 class MediaList;
 class MediaQuery;
