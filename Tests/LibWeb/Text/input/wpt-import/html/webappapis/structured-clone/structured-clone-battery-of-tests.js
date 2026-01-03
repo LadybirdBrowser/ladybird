@@ -260,6 +260,7 @@ function compare_Error(actual, input) {
   assert_equals(actual.name, input.name, "Checking name");
   assert_equals(actual.hasOwnProperty("message"), input.hasOwnProperty("message"), "Checking message existence");
   assert_equals(actual.message, input.message, "Checking message");
+  assert_equals(actual.cause, input.cause, "Checking cause");
   assert_equals(actual.foo, undefined, "Checking for absence of custom property");
 }
 
@@ -269,7 +270,7 @@ const errorConstructors = [Error, EvalError, RangeError, ReferenceError,
                            SyntaxError, TypeError, URIError];
 for (const constructor of errorConstructors) {
   check(`${constructor.name} object`, () => {
-    let error = new constructor("Error message here");
+    let error = new constructor("Error message here", { cause: "my cause" });
     error.foo = "testing";
     return error;
   }, compare_Error);
