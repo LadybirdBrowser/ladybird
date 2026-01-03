@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/SecureRandom.h>
+#include <AK/Random.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
@@ -13,7 +13,7 @@ namespace URL {
 
 Origin Origin::create_opaque()
 {
-    return Origin { Crypto::get_secure_random<Nonce>() };
+    return Origin { AK::get_random<Nonce>() };
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#same-site
