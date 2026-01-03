@@ -1079,15 +1079,18 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         });
 
         double total_flex = 0;
+        size_t intrinsic_flexible_track_count = 0;
         CSSPixels non_flexible_space = 0;
         for (auto const& track : spanned_tracks) {
-            if (track.max_track_sizing_function.is_flexible_length() && dominated_by_available_size(track))
+            if (track.max_track_sizing_function.is_flexible_length() && dominated_by_available_size(track)) {
                 total_flex += track.max_track_sizing_function.flex_factor();
-            else
+                ++intrinsic_flexible_track_count;
+            } else {
                 non_flexible_space += track.base_size;
+            }
         }
 
-        if (total_flex == 0)
+        if (intrinsic_flexible_track_count == 0)
             continue;
 
         // If the grid container is being sized under a min- or max-content constraint, use the items' limited
@@ -1101,12 +1104,20 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
         //     the remaining contribution needs to be distributed among flexible tracks.
         item_size_contribution = max(CSSPixels(0), item_size_contribution - non_flexible_space);
 
-        // Distributing space to flexible tracks according to the ratios of their flex factors.
+        // Distributing space to flexible tracks:
+        // - If the sum of the flexible sizing functions of all flexible tracks spanned by the item is greater
+        //   than or equal to one, distributing space to such tracks according to the ratios of their flexible
+        //   sizing functions rather than distributing space equally.
+        // - If the sum is less than one, distributing that proportion of space according to the ratios of their
+        //   flexible sizing functions and the rest equally.
+        // FIXME: Handle 0 < total_flex < 1 case separately per spec.
         for (auto& track : spanned_tracks) {
             if (!track.max_track_sizing_function.is_flexible_length() || !dominated_by_available_size(track))
                 continue;
             double flex = track.max_track_sizing_function.flex_factor();
-            CSSPixels contribution = CSSPixels::nearest_value_for(item_size_contribution.to_double() * (flex / total_flex));
+            CSSPixels contribution = total_flex > 0
+                ? CSSPixels::nearest_value_for(item_size_contribution.to_double() * (flex / total_flex))
+                : item_size_contribution / intrinsic_flexible_track_count;
             auto& track_contribution = track_contributions.ensure(&track, [] { return 0; });
             if (track_contribution < contribution)
                 track_contribution = contribution;

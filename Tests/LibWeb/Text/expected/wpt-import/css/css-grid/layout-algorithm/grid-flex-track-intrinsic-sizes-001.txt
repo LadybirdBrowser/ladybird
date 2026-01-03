@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 30 tests
 
-24 Pass
-6 Fail
-Fail	'grid' with: grid-template-columns: 0fr; and grid-template-rows: 0fr;
+30 Pass
+Pass	'grid' with: grid-template-columns: 0fr; and grid-template-rows: 0fr;
 Pass	'grid' with: grid-template-columns: 1fr; and grid-template-rows: 1fr;
 Pass	'grid' with: grid-template-columns: 2fr; and grid-template-rows: 2fr;
 Pass	'grid' with: grid-template-columns: minmax(0, 0fr); and grid-template-rows: minmax(0, 0fr);
@@ -12,22 +11,22 @@ Pass	'grid' with: grid-template-columns: minmax(0, .5fr); and grid-template-rows
 Pass	'grid' with: grid-template-columns: minmax(0, 1fr); and grid-template-rows: minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: minmax(0, 2fr); and grid-template-rows: minmax(0, 2fr);
 Pass	'grid' with: grid-template-columns: minmax(75px, 1fr); and grid-template-rows: minmax(75px, 1fr);
-Fail	'grid' with: grid-template-columns: 0fr 0fr; and grid-template-rows: 0fr 0fr;
+Pass	'grid' with: grid-template-columns: 0fr 0fr; and grid-template-rows: 0fr 0fr;
 Pass	'grid' with: grid-template-columns: 0fr 1fr; and grid-template-rows: 0fr 1fr;
 Pass	'grid' with: grid-template-columns: 1fr 0fr; and grid-template-rows: 1fr 0fr;
 Pass	'grid' with: grid-template-columns: 1fr 1fr; and grid-template-rows: 1fr 1fr;
 Pass	'grid' with: grid-template-columns: 1fr 3fr; and grid-template-rows: 1fr 3fr;
-Fail	'grid' with: grid-template-columns: 0fr 0fr 1fr; and grid-template-rows: 0fr 0fr 1fr;
+Pass	'grid' with: grid-template-columns: 0fr 0fr 1fr; and grid-template-rows: 0fr 0fr 1fr;
 Pass	'grid' with: grid-template-columns: minmax(0, 0fr) minmax(0, 0fr); and grid-template-rows: minmax(0, 0fr) minmax(0, 0fr);
 Pass	'grid' with: grid-template-columns: minmax(0, 0fr) minmax(0, 1fr); and grid-template-rows: minmax(0, 0fr) minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: minmax(15px, 0fr) minmax(0, 1fr); and grid-template-rows: minmax(15px, 0fr) minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: minmax(20px, 1fr) minmax(0, 1fr); and grid-template-rows: minmax(20px, 1fr) minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: minmax(30px, 1fr) minmax(0, 1fr); and grid-template-rows: minmax(30px, 1fr) minmax(0, 1fr);
-Fail	'grid' with: grid-template-columns: 0fr minmax(0, 0fr); and grid-template-rows: 0fr minmax(0, 0fr);
-Fail	'grid' with: grid-template-columns: 0fr minmax(0, 1fr); and grid-template-rows: 0fr minmax(0, 1fr);
+Pass	'grid' with: grid-template-columns: 0fr minmax(0, 0fr); and grid-template-rows: 0fr minmax(0, 0fr);
+Pass	'grid' with: grid-template-columns: 0fr minmax(0, 1fr); and grid-template-rows: 0fr minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: 1fr minmax(0, 1fr); and grid-template-rows: 1fr minmax(0, 1fr);
 Pass	'grid' with: grid-template-columns: 1fr minmax(25px, 1fr); and grid-template-rows: 1fr minmax(25px, 1fr);
-Fail	'grid' with: grid-template-columns: 0fr auto; and grid-template-rows: 0fr auto;
+Pass	'grid' with: grid-template-columns: 0fr auto; and grid-template-rows: 0fr auto;
 Pass	'grid' with: grid-template-columns: 1fr auto; and grid-template-rows: 1fr auto;
 Pass	'grid' with: grid-template-columns: 1fr max-content; and grid-template-rows: 1fr max-content;
 Pass	'grid' with: grid-template-columns: minmax(0, 0fr) auto; and grid-template-rows: minmax(0, 0fr) auto;
