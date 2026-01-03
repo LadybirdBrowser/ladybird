@@ -166,7 +166,7 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_d
     // If the track was sized with a minmax() function, this is the first argument to that function.
     // If the track was sized with a <flex> value or fit-content() function, auto. Otherwise, the track’s sizing function.
     auto min_track_sizing_function = definition.grid_size();
-    if (min_track_sizing_function.is_flexible_length()) {
+    if (min_track_sizing_function.is_flexible_length() || min_track_sizing_function.is_fit_content()) {
         min_track_sizing_function = CSS::GridSize::make_auto();
     }
     auto max_track_sizing_function = definition.grid_size();
@@ -1047,7 +1047,7 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
                 if (available_size.is_definite()) {
                     auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
                     if (track.growth_limit.value() > fit_content_limit)
-                        track.growth_limit = fit_content_limit;
+                        track.growth_limit = max(track.base_size, fit_content_limit);
                 }
             } else if (!track.growth_limit.has_value()) {
                 // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.

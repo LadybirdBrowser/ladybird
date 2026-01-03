@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: indefinite percentage in fit-content()</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizes" title="7.2.1. Track Sizes">
+<meta name="assert" content="Checks that an indefinite percentage in fit-content lets the grid container grow enough to contain the max-content contribution of its grid items.">
+<style>
+.container {
+  width: 200px;
+  margin-top: 10px;
+}
+.grid {
+  display: inline-grid;
+  background: blue;
+}
+.item {
+  background: orange;
+}
+.item::before, .item::after {
+  content: '';
+  float: left;
+  width: 50px;
+  height: 50px;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script>
+"use strict";
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+const minContent = 50;
+const maxContent = 100;
+for (const use_min_width of [false, true]) {
+  for (const use_calc of [false, true]) {
+    for (const percentage of [0, 50, 75, 100, 150]) {
+      const value = use_calc ? `fit-content(calc(0px + ${percentage}%))`
+                            : `fit-content(${percentage}%)`;
+      const container = document.createElement("div");
+      container.className = "container";
+      document.body.appendChild(container);
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      grid.style.gridTemplateColumns = value;
+      container.appendChild(grid);
+      const item = document.createElement("div");
+      item.className = "item";
+      item.style.minWidth = use_min_width ? "auto" : "0px";
+      grid.appendChild(item);
+      test(function() {
+        const minWidth = use_min_width ? minContent : 0;
+        const colSize = clamp(percentage * maxContent / 100, minWidth, maxContent);
+        const height = colSize < maxContent ? maxContent : minContent;
+        assert_equals(item.offsetWidth, colSize, "Grid item width");
+        assert_equals(item.offsetHeight, height, "Grid item height");
+        assert_equals(grid.offsetWidth, maxContent, "Grid container width");
+        assert_equals(grid.offsetHeight, height, "Grid container height");
+        assert_equals(getComputedStyle(grid).gridTemplateColumns, colSize + "px",
+                      "Grid column size");
+      }, value + "; min-width: " + item.style.minWidth);
+    }
+  }
+}
+</script>
