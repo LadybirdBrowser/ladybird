@@ -32,6 +32,7 @@
 namespace Web::CSS {
 
 #define ENUMERATE_CSS_STYLE_VALUE_TYPES                                                                               \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(AddFunction, add_function, AddFunctionStyleValue)                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Anchor, anchor, AnchorStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(AnchorSize, anchor_size, AnchorSizeStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Angle, angle, AngleStyleValue)                                                   \
@@ -68,7 +69,6 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Keyword, keyword, KeywordStyleValue)                                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(LinearGradient, linear_gradient, LinearGradientStyleValue)                       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(MathDepth, math_depth, MathDepthStyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Number, number, NumberStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpenTypeTagged, open_type_tagged, OpenTypeTaggedStyleValue)                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(PendingSubstitution, pending_substitution, PendingSubstitutionStyleValue)        \
