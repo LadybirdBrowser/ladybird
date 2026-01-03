@@ -8,6 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibCrypto/OpenSSLForward.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -21,6 +22,8 @@
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
+
+#include <openssl/thread.h>
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
@@ -66,6 +69,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop event_loop;
 
     WebView::platform_init();
+
+    OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
 
     TRY(initialize_image_decoder(image_decoder_socket));
 

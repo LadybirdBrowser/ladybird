@@ -19,7 +19,7 @@ target_link_libraries(webworkerservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 add_executable(WebWorker main.cpp)
 
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
-target_link_libraries(WebWorker PRIVATE webworkerservice)
+target_link_libraries(WebWorker PRIVATE webworkerservice OpenSSL::Crypto OpenSSL::SSL)
 
 if(WIN32)
     find_package(pthread REQUIRED)
