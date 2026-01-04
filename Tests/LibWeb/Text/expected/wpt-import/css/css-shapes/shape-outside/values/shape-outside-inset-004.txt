@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	inset(+10px -20px +30px -40px) - inline
+Pass	inset(-10px +20px -30px +40px) - inline
+Pass	inset(10.1200px 20.34px 30.56px 40.780px) - inline
+Pass	inset(10.123px 20.00px 30.10px 40.5678px) - inline
+Pass	inset(+10.1200px -20.340px +30.56px -40.780px) - inline
+Pass	inset(-10.123px +20.00px -30.10px +40.5678px) - inline
+Pass	inset(+10px -20px +30px -40px) - computed
+Pass	inset(-10px +20px -30px +40px) - computed
+Pass	inset(10.1200px 20.34px 30.56px 40.780px) - computed
+Pass	inset(10.123px 20.00px 30.10px 40.5678px) - computed
+Pass	inset(+10.1200px -20.340px +30.56px -40.780px) - computed
+Pass	inset(-10.123px +20.00px -30.10px +40.5678px) - computed

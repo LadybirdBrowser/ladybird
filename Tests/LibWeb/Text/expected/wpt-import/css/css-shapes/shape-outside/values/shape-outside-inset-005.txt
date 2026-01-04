@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	inset(10 20px 30px 40px) - invalid
+Pass	inset(10px 20 30px 40px) - invalid
+Pass	inset(10px, 20px 30 40px) - invalid
+Pass	inset(10px  20px 30px 40) - invalid
+Pass	inset(10 20 30 40) - invalid
+Pass	inset(10px, 20px, 30px, 40px) - invalid
+Pass	inset(10px, 20px, 30px 40px) - invalid
+Pass	inset(10px, 20px 30px 40px) - invalid
+Pass	inset(10px  20px, 30px, 40px) - invalid
+Pass	inset(10px  20px 30px, 40px) - invalid
+Pass	inset(foo bar blah woo) - invalid
+Pass	inset(10px roo 30px coo) - invalid
+Pass	inset(may 20px blah 40px) - invalid
