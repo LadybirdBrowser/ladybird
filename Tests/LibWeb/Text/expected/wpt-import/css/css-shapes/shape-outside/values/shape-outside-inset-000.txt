@@ -2,19 +2,19 @@ Harness status: OK
 
 Found 16 tests
 
-2 Pass
-14 Fail
-Fail	1 inset - inline
-Fail	2 insets - inline
-Fail	3 insets - inline
+8 Pass
+8 Fail
+Pass	1 inset - inline
+Pass	2 insets - inline
+Pass	3 insets - inline
 Pass	4 insets - inline
 Fail	1 inset and round - inline
 Fail	2 insets and round - inline
 Fail	3 insets and round - inline
 Fail	4 insets and round - inline
-Fail	1 inset - computed
-Fail	2 insets - computed
-Fail	3 insets - computed
+Pass	1 inset - computed
+Pass	2 insets - computed
+Pass	3 insets - computed
 Pass	4 insets - computed
 Fail	1 inset and round - computed
 Fail	2 insets and round - computed

@@ -59,7 +59,7 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
 
 String Inset::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("inset({} {} {} {})", top->to_string(mode), right->to_string(mode), bottom->to_string(mode), left->to_string(mode)));
+    return MUST(String::formatted("inset({})", serialize_a_positional_value_list({ top, right, bottom, left }, mode)));
 }
 
 String Xywh::to_string(SerializationMode mode) const
