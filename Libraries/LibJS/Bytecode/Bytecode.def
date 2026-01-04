@@ -711,6 +711,7 @@ op NewFunction < Instruction
     m_function_node: FunctionNode const&
     m_lhs_name: Optional<IdentifierTableIndex>
     m_home_object: Optional<Operand>
+    m_definition_kind: FunctionDefinitionKind
 endop
 
 op NewObject < Instruction

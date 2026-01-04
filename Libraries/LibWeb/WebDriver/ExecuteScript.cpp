@@ -89,7 +89,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
         realm,
         &global_scope,
         nullptr,
-        true,
+        JS::MakeConstructor::Invoke,
         nullptr);
 
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.

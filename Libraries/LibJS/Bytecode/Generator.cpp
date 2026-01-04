@@ -9,6 +9,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
@@ -207,11 +208,11 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(S
         auto const& identifier = *declaration.name_identifier();
         if (identifier.is_local()) {
             auto local_index = identifier.local_index();
-            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {}, false);
+            emit<Op::NewFunction>(local(local_index), declaration, OptionalNone {}, OptionalNone {}, FunctionDefinitionKind::FunctionExpression);
             set_local_initialized(local_index);
         } else {
             auto function = allocate_register();
-            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {}, false);
+            emit<Op::NewFunction>(function, declaration, OptionalNone {}, OptionalNone {}, FunctionDefinitionKind::FunctionExpression);
             emit<Op::SetVariableBinding>(intern_identifier(declaration.name()), function);
         }
     }
@@ -646,7 +647,7 @@ bool Generator::emit_block_declaration_instantiation(ScopeNode const& scope_node
 
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
             auto fo = allocate_register();
-            emit<Bytecode::Op::NewFunction>(fo, function_declaration, OptionalNone {}, OptionalNone {});
+            emit<Bytecode::Op::NewFunction>(fo, function_declaration, OptionalNone {}, OptionalNone {}, FunctionDefinitionKind::FunctionExpression);
 
             // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
             if (function_declaration.name_identifier()->is_local()) {
@@ -1167,20 +1168,21 @@ void Generator::pop_home_object()
     m_home_objects.take_last();
 }
 
-void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
-void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, bool is_method)
+void Generator::emit_new_function(ScopedOperand dst, FunctionExpression const& function_node, Optional<IdentifierTableIndex> lhs_name, FunctionDefinitionKind definition_kind)
 {
     if (m_home_objects.is_empty()) {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {}, is_method);
+        emit<Op::NewFunction>(dst, function_node, lhs_name, OptionalNone {}, definition_kind);
     } else {
-        emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last(), is_method);
+        emit<Op::NewFunction>(dst, function_node, lhs_name, m_home_objects.last(), definition_kind);
     }
 }
 
-CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, bool is_method)
+CodeGenerationErrorOr<ScopedOperand> Generator::emit_named_evaluation_if_anonymous_function(Expression const& expression, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst, FunctionDefinitionKind definition_kind)
 {
     if (is<FunctionExpression>(expression)) {
         auto const& function_expression = static_cast<FunctionExpression const&>(expression);
+        auto is_method = (definition_kind == FunctionDefinitionKind::MethodDefinition);
+
         if (!function_expression.has_name()) {
             return TRY(function_expression.generate_bytecode_with_lhs_name(*this, move(lhs_name), preferred_dst, is_method)).value();
         }

@@ -16,6 +16,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/AST.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -120,7 +121,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
         *vm.current_realm(),
         vm.lexical_environment(),
         vm.running_execution_context().private_environment,
-        false,
+        MakeConstructor::Skip,
         nullptr);
 
     auto method_value = Value(&method_function);
@@ -326,7 +327,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
         realm,
         vm.lexical_environment(),
         vm.running_execution_context().private_environment,
-        true,
+        MakeConstructor::Invoke,
         prototype);
 
     class_constructor->set_name(class_name);
@@ -1830,7 +1831,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
             realm,
             &global_environment,
             private_environment,
-            true,
+            MakeConstructor::Invoke,
             nullptr);
 
         // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).

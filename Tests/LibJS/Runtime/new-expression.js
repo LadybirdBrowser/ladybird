@@ -52,6 +52,7 @@ test("new-expressions with function calls", () => {
     expect(foo.x).toBe(6);
 });
 
+// prettier-ignore
 test("new on class instance method throws TypeError", () => {
     class FAIL {
         m() {}
@@ -63,12 +64,14 @@ test("new on class instance method throws TypeError", () => {
     }).toThrowWithMessage(TypeError, "");
 });
 
+// prettier-ignore
 test("new on object literal method throws TypeError", () => {
     expect(() => {
         new ({ m() {} }).m;
     }).toThrowWithMessage(TypeError, "");
 });
 
+// prettier-ignore
 test("new on extracted class method throws TypeError", () => {
     const m = class { m() {} }.prototype.m;
 

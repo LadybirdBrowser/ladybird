@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/OpCodes.h>
 #include <LibJS/Forward.h>
 #include <LibJS/SourceRange.h>
