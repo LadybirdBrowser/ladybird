@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
@@ -314,6 +315,40 @@ String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValu
     }
 
     return builder.to_string_without_validation();
+}
+
+String serialize_a_positional_value_list(StyleValueVector const& values, SerializationMode mode)
+{
+    switch (values.size()) {
+    case 2: {
+        auto first_property_serialized = values[0]->to_string(mode);
+        auto second_property_serialized = values[1]->to_string(mode);
+
+        if (first_property_serialized == second_property_serialized)
+            return first_property_serialized;
+
+        return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
+    }
+    case 4: {
+        auto first_property_serialized = values[0]->to_string(mode);
+        auto second_property_serialized = values[1]->to_string(mode);
+        auto third_property_serialized = values[2]->to_string(mode);
+        auto fourth_property_serialized = values[3]->to_string(mode);
+
+        if (first_is_equal_to_all_of(first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized))
+            return first_property_serialized;
+
+        if (first_property_serialized == third_property_serialized && second_property_serialized == fourth_property_serialized)
+            return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
+
+        if (second_property_serialized == fourth_property_serialized)
+            return MUST(String::formatted("{} {} {}", first_property_serialized, second_property_serialized, third_property_serialized));
+
+        return MUST(String::formatted("{} {} {} {}", first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized));
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 }

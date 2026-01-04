@@ -149,8 +149,6 @@ private:
     using RefPtr<T>::operator==;
 };
 
-using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
-
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
     Optional<Color> current_color;

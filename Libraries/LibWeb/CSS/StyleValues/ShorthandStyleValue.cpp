@@ -148,39 +148,6 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return builder.to_string_without_validation();
     };
 
-    auto positional_value_list_shorthand_to_string = [&](Vector<ValueComparingNonnullRefPtr<StyleValue const>> values) -> String {
-        switch (values.size()) {
-        case 2: {
-            auto first_property_serialized = values[0]->to_string(mode);
-            auto second_property_serialized = values[1]->to_string(mode);
-
-            if (first_property_serialized == second_property_serialized)
-                return first_property_serialized;
-
-            return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
-        }
-        case 4: {
-            auto first_property_serialized = values[0]->to_string(mode);
-            auto second_property_serialized = values[1]->to_string(mode);
-            auto third_property_serialized = values[2]->to_string(mode);
-            auto fourth_property_serialized = values[3]->to_string(mode);
-
-            if (first_is_equal_to_all_of(first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized))
-                return first_property_serialized;
-
-            if (first_property_serialized == third_property_serialized && second_property_serialized == fourth_property_serialized)
-                return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
-
-            if (second_property_serialized == fourth_property_serialized)
-                return MUST(String::formatted("{} {} {}", first_property_serialized, second_property_serialized, third_property_serialized));
-
-            return MUST(String::formatted("{} {} {} {}", first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized));
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    };
-
     auto default_to_string = [&]() {
         auto all_properties_same_value = true;
         auto first_property_value = m_properties.values.first();
@@ -824,7 +791,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     case PropertyID::PlaceContent:
     case PropertyID::PlaceItems:
     case PropertyID::PlaceSelf:
-        return positional_value_list_shorthand_to_string(m_properties.values);
+        return serialize_a_positional_value_list(m_properties.values, mode);
     case PropertyID::ScrollTimeline:
         // NB: We don't need to specify a value to use when the entry is empty as all values are initial since
         //     scroll-timeline-name is always included
@@ -884,7 +851,7 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
     }
     default:
         if (property_is_positional_value_list_shorthand(m_properties.shorthand_property))
-            return positional_value_list_shorthand_to_string(m_properties.values);
+            return serialize_a_positional_value_list(m_properties.values, mode);
 
         return default_to_string();
     }
