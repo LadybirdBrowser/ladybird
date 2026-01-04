@@ -1303,6 +1303,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
         //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
         auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(
             *normalized_decapsulation_algorithm.parameter,
+            decapsulation_key,
             cipher_text);
         if (maybe_decapsulated_bits.is_error()) {
             throw_in_this_context(Bindings::exception_to_throw_completion(realm.vm(), maybe_decapsulated_bits.release_error()).release_value());
@@ -1401,6 +1402,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(AlgorithmIdentifier deca
         //     internal slot of decapsulationKey using decapsulationKey and ciphertext.
         auto maybe_decapsulated_bits = normalized_decapsulation_algorithm.methods->decapsulate(
             *normalized_decapsulation_algorithm.parameter,
+            decapsulation_key,
             cipher_text);
         if (maybe_decapsulated_bits.is_error()) {
             throw_in_this_context(Bindings::exception_to_throw_completion(realm.vm(), maybe_decapsulated_bits.release_error()).release_value());

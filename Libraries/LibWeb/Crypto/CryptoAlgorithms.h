@@ -382,7 +382,7 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "encapsulate is not supported"_utf16);
     }
 
-    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> decapsulate(AlgorithmParams const&, ByteBuffer const&)
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> decapsulate(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&)
     {
         return WebIDL::NotSupportedError::create(m_realm, "decalpsulate is not supported"_utf16);
     }
