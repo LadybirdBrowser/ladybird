@@ -9286,7 +9286,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLKEM::export_key(Bindings::KeyFormat f
         // 3. Let result be data.
         result = JS::ArrayBuffer::create(m_realm, data);
     }
-    // FIXME:  -> If format is "raw-seed":
+    //   -> If format is "raw-seed":
+    else if (format == Bindings::KeyFormat::RawSeed) {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Private)
+            return WebIDL::InvalidAccessError::create(m_realm, "Key is not a private key"_utf16);
+
+        // 2. Let data be a byte sequence containing the concatenation of the d and z seed variables of the
+        //    key represented by the [[handle]] internal slot of key.
+        VERIFY(key->handle().has<::Crypto::PK::MLKEMPrivateKey>());
+        auto const data = key->handle().get<::Crypto::PK::MLKEMPrivateKey>().seed();
+
+        // 3. Let result be data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
     // FIXME:  -> If format is "jwk":
     //   -> Otherwise:
     else {
