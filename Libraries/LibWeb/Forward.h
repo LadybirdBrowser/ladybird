@@ -416,10 +416,13 @@ struct LogicalAliasMappingContext;
 struct RandomCachingKey;
 struct StyleSheetIdentifier;
 struct TransitionProperties;
+template<typename T>
+struct ValueComparingNonnullRefPtr;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
 using CSSNumberish = Variant<double, GC::Root<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
+using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
 
 }
 
