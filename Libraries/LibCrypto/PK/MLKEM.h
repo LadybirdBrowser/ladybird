@@ -44,6 +44,9 @@ public:
     MLKEMPrivateKey() = default;
 
     ByteBuffer const& seed() const { return m_seed; }
+    ByteBuffer const& private_key() const { return m_private_key; }
+
+    ErrorOr<ByteBuffer> export_as_der() const;
 
 private:
     ByteBuffer m_seed;
@@ -68,6 +71,8 @@ class MLKEM {
 
 public:
     using KeyPairType = MLKEMKeyPair<PublicKeyType, PrivateKeyType>;
+
+    static ErrorOr<KeyPairType> parse_mlkem_key(MLKEMSize, ReadonlyBytes der, Vector<StringView> current_scope);
 
     static ErrorOr<MLKEMEncapsulation> encapsulate(MLKEMSize size, MLKEMPublicKey const& key);
     static ErrorOr<KeyPairType> generate_key_pair(MLKEMSize size, ByteBuffer seed = {});

@@ -9,6 +9,7 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/MLDSA.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
 
 namespace Crypto::Certificate {
@@ -46,6 +47,7 @@ public:
     PK::RSAPrivateKey rsa;
     PK::ECPrivateKey ec;
     PK::MLDSAPrivateKey mldsa;
+    PK::MLKEMPrivateKey mlkem;
 
     AlgorithmIdentifier algorithm;
     ByteBuffer raw_key;
