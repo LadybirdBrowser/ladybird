@@ -9475,6 +9475,46 @@ WebIDL::ExceptionOr<EncapsulatedBits> MLKEM::encapsulate(AlgorithmParams const& 
     return result;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-decapsulate
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> MLKEM::decapsulate(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Private)
+        return WebIDL::InvalidAccessError::create(m_realm, "Invalid key type"_utf16);
+
+    // 2. Perform the decapsulation input check described in Section 7.3 of [FIPS-203] with the parameter set
+    //    indicated by the name member of algorithm, using the key represented by the [[handle]] internal slot of key as
+    //    the dk input parameter, and ciphertext as the c input parameter.
+    // 3. If the decapsulation key check failed, return an OperationError.
+    // NOTE: Presumably done by OpenSSL for us
+
+    // 4. Let sharedKey be the output that results from performing the ML-KEM.Decaps function described in Section
+    //    7.3 of [FIPS-203] with the parameter set indicated by the name member of algorithm, using the key
+    //    represented by the [[handle]] internal slot of key as the dk input parameter, and ciphertext as the c input
+    //    parameter.
+    VERIFY(key->handle().has<::Crypto::PK::MLKEMPrivateKey>());
+    auto maybe_shared_key = [&]() {
+        if (params.name == "ML-KEM-512") {
+            return ::Crypto::PK::MLKEM::decapsulate(::Crypto::PK::MLKEMSize::MLKEM512, key->handle().get<::Crypto::PK::MLKEMPrivateKey>(), ciphertext);
+        }
+        if (params.name == "ML-KEM-768") {
+            return ::Crypto::PK::MLKEM::decapsulate(::Crypto::PK::MLKEMSize::MLKEM768, key->handle().get<::Crypto::PK::MLKEMPrivateKey>(), ciphertext);
+        }
+        if (params.name == "ML-KEM-1024") {
+            return ::Crypto::PK::MLKEM::decapsulate(::Crypto::PK::MLKEMSize::MLKEM1024, key->handle().get<::Crypto::PK::MLKEMPrivateKey>(), ciphertext);
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    if (maybe_shared_key.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Key decapsulation failed: {}", maybe_shared_key.release_error()));
+
+    auto const shared_key = maybe_shared_key.release_value();
+
+    // 5. Return sharedKey.
+    return JS::ArrayBuffer::create(m_realm, shared_key);
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
