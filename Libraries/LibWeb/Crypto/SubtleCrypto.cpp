@@ -1314,7 +1314,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
         //     normalizedSharedKeyAlgorithm using "raw-secret" as format, the decapsulatedBits as keyData,
         //     sharedKeyAlgorithm as algorithm and using extractable and usages.
         auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(
-            *normalized_decapsulation_algorithm.parameter,
+            *normalized_shared_key_algorithm.parameter,
             Bindings::KeyFormat::RawSecret,
             decapsulated_bits->buffer(),
             extractable,
