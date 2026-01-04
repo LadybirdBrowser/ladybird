@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/Export.h>
@@ -95,6 +96,7 @@ public:
     DOM::Document const& document() const { return m_document; }
 
     void reset_ancestor_filter();
+    void reset_has_result_cache();
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
@@ -194,6 +196,7 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+    OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;
 };
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const

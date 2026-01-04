@@ -350,6 +350,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             .style_sheet_for_rule = *rule_to_run.sheet,
             .subject = abstract_element.element(),
             .collect_per_element_selector_involvement_metadata = true,
+            .has_result_cache = m_has_result_cache.ptr(),
         };
         ScopeGuard guard = [&] {
             attempted_pseudo_class_matches |= context.attempted_pseudo_class_matches;
@@ -2887,6 +2888,14 @@ static void for_each_element_hash(DOM::Element const& element, auto callback)
 void StyleComputer::reset_ancestor_filter()
 {
     m_ancestor_filter->clear();
+}
+
+void StyleComputer::reset_has_result_cache()
+{
+    if (!m_has_result_cache)
+        m_has_result_cache = make<SelectorEngine::HasResultCache>();
+    else
+        m_has_result_cache->clear();
 }
 
 void StyleComputer::push_ancestor(DOM::Element const& element)

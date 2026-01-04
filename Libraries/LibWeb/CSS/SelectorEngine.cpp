@@ -152,16 +152,24 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         VERIFY_NOT_REACHED();
     case CSS::Selector::Combinator::Descendant: {
         bool has = false;
+        DOM::Element const* matching_descendant = nullptr;
         element.for_each_in_subtree([&](auto const& descendant) {
             if (!descendant.is_element())
                 return TraversalDecision::Continue;
             auto const& descendant_element = static_cast<DOM::Element const&>(descendant);
             if (matches(selector, descendant_element, shadow_host, context, {}, {}, SelectorKind::Relative, anchor)) {
                 has = true;
+                matching_descendant = &descendant_element;
                 return TraversalDecision::Break;
             }
             return TraversalDecision::Continue;
         });
+        // Cache ancestors as also matching (they have the matching descendant too)
+        if (has && matching_descendant && context.has_result_cache) {
+            for (auto ancestor = matching_descendant->parent_element(); ancestor && ancestor.ptr() != &element; ancestor = ancestor->parent_element()) {
+                context.has_result_cache->set({ &selector, ancestor.ptr() }, HasMatchResult::Matched);
+            }
+        }
         return has;
     }
     case CSS::Selector::Combinator::ImmediateChild: {
@@ -212,7 +220,17 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
 // https://drafts.csswg.org/selectors-4/#relational
 static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::Element const& anchor, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
 {
-    return matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor);
+    if (context.has_result_cache) {
+        if (auto cached = context.has_result_cache->get({ &selector, &anchor }); cached.has_value())
+            return cached.value() == HasMatchResult::Matched;
+    }
+
+    bool result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor);
+
+    if (context.has_result_cache)
+        context.has_result_cache->set({ &selector, &anchor }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
+
+    return result;
 }
 
 static bool matches_hover_pseudo_class(DOM::Element const& element)
