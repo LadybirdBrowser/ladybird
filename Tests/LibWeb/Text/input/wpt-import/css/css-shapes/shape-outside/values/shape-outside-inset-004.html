@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset - positive/negative, decimal/non-decimal args</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="These tests verify that shape-outside inset() arguments can be numbers that are signed in
+                                     positive and negative and/or decimal/non-decimal form.">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+             var valid_inset_args_tests = [
+                    {
+                      "actual": "inset(+10px -20px +30px -40px)",
+                      "expected_inline": "inset(10px -20px 30px -40px)",
+                      "expected_computed": "inset(10px -20px 30px -40px)"
+                    },
+                    {
+                      "actual": "inset(-10px +20px -30px +40px)",
+                      "expected_inline": "inset(-10px 20px -30px 40px)",
+                      "expected_computed": "inset(-10px 20px -30px 40px)"
+                    },
+                    {
+                      "actual": "inset(10.1200px 20.34px 30.56px 40.780px)",
+                      "expected_inline": "inset(10.12px 20.34px 30.56px 40.78px)",
+                      "expected_computed": "inset(10.12px 20.34px 30.56px 40.78px)"
+                    },
+                    {
+                      "actual": "inset(10.123px 20.00px 30.10px 40.5678px)",
+                      "expected_inline": "inset(10.123px 20px 30.1px 40.5678px)",
+                      "expected_computed": "inset(10.123px 20px 30.1px 40.5678px)"
+                    },
+                    {
+                      "actual": "inset(+10.1200px -20.340px +30.56px -40.780px)",
+                      "expected_inline": "inset(10.12px -20.34px 30.56px -40.78px)",
+                      "expected_computed": "inset(10.12px -20.34px 30.56px -40.78px)"
+                    },
+                    {
+                      "actual": "inset(-10.123px +20.00px -30.10px +40.5678px)",
+                      "expected_inline": "inset(-10.123px 20px -30.1px 40.5678px)",
+                      "expected_computed": "inset(-10.123px 20px -30.1px 40.5678px)"
+                    }
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_inset_args_tests, "inline") );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_inset_args_tests, "computed") );
+        </script>
+    </body>
+</html>

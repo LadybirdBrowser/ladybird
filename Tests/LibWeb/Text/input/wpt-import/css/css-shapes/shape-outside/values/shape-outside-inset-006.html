@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Shape Outside Inset Radial Args - positive/negative, decimal/non-decimal</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Rebecca Hauck" href="mailto:rhauck@adobe.com">
+        <link rel="reviewer" title="Alan Stearns" href="mailto:stearns@adobe.com"> <!-- 2014-03-04 -->
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#funcdef-inset">
+        <link rel="help" href="http://www.w3.org/TR/css-shapes-1/#shape-outside-property">
+        <meta name="assert" content="These tests verify that shape-outside inset() radial component can be numbers that are in
+                                     signed positive and/or decimal/non-decimal form. Negative values are not allowed">
+        <meta name="flags" content="ahem dom">
+        <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <script src="support/parsing-utils.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+            var valid_inset_radial_args_tests = [
+                {
+                  "actual": "inset(10px round +10px +20px +30px +40px)",
+                  "expected_inline": "inset(10px round 10px 20px 30px 40px)",
+                  "expected_computed": "inset(10px round 10px 20px 30px 40px)"
+                },
+                {
+                  "actual": "inset(10px round 10.1200px 20.34px 30.56px 40.780px)",
+                  "expected_inline": "inset(10px round 10.12px 20.34px 30.56px 40.78px)",
+                  "expected_computed": "inset(10px round 10.12px 20.34px 30.56px 40.78px)"
+                },
+                {
+                  "actual": "inset(10px round 10.123px 20.00px 30.10px 40.5678px)",
+                  "expected_inline": "inset(10px round 10.123px 20px 30.1px 40.5678px)",
+                  "expected_computed": "inset(10px round 10.123px 20px 30.1px 40.5678px)"
+                },
+                {
+                  "actual": "inset(10px round +10.1200px +20.340px +30.56px +40.780px)",
+                  "expected_inline": "inset(10px round 10.12px 20.34px 30.56px 40.78px)",
+                  "expected_computed": "inset(10px round 10.12px 20.34px 30.56px 40.78px)"
+                },
+                {
+                  "actual": "inset(10px round +10px +20px +30px +40px / +10px +20px +30px +40px )",
+                  "expected_inline": "inset(10px round 10px 20px 30px 40px)",
+                  "expected_computed": "inset(10px round 10px 20px 30px 40px)"
+                },
+                {
+                  "actual": "inset(10px round 10.1200px 20.34px 30.56px 40.780px / 10.1200px 20.34px 30.56px 40.780px)",
+                  "expected_inline": "inset(10px round 10.12px 20.34px 30.56px 40.78px)",
+                  "expected_computed": "inset(10px round 10.12px 20.34px 30.56px 40.78px)"
+                },
+                {
+                  "actual": "inset(10px round 10.123px 20.00px 30.10px 40.5678px / 10.123px 20.00px 30.10px 40.5678px)",
+                  "expected_inline": "inset(10px round 10.123px 20px 30.1px 40.5678px)",
+                  "expected_computed": "inset(10px round 10.123px 20px 30.1px 40.5678px)"
+                },
+                {
+                  "actual": "inset(10px round +10.1200px +20.340px +30.56px +40.780px / +10.1200px +20.340px +30.56px +40.780px)",
+                  "expected_inline": "inset(10px round 10.12px 20.34px 30.56px 40.78px)",
+                  "expected_computed": "inset(10px round 10.12px 20.34px 30.56px 40.78px)"
+                },
+                {
+                  "actual": "inset(10px round +10.123px +20.00px +30.10px +40.5678px / 10.123px +20.00px +30.10px +40.5678px)",
+                  "expected_inline": "inset(10px round 10.123px 20px 30.1px 40.5678px)",
+                  "expected_computed": "inset(10px round 10.123px 20px 30.1px 40.5678px)"
+                }
+            ];
+             invalid_radial_args_tests = [
+                {"name": "inset(10px round -10px -20px -30px -40px)"},
+                {"name": "inset(10px round -10.1200px -20.340px -30.56px -40.780px)"},
+                {"name": "inset(10px round -10px -20px -30px -40px / -10px -20px -30px -40px)"},
+                {"name": "inset(10px round -10.123px -20.00px -30.10px -40.5678px / 10.123px -20.00px -30.10px -40.5678px)"}
+            ];
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(valid_inset_radial_args_tests, 'inline') );
+            generate_tests( ParsingUtils.testComputedStyle,
+                            ParsingUtils.buildTestCases(valid_inset_radial_args_tests, 'computed') );
+            generate_tests( ParsingUtils.testInlineStyle,
+                            ParsingUtils.buildTestCases(invalid_radial_args_tests) );
+        </script>
+    </body>
+</html>
