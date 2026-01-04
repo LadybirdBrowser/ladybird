@@ -355,6 +355,36 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         EXIT_SCOPE();
         return private_key;
     }
+    if (private_key.algorithm.identifier.span() == ASN1::ml_kem_512_oid.span()) {
+        auto maybe_key = Crypto::PK::MLKEM::parse_mlkem_key(PK::MLKEMSize::MLKEM512, value.bytes(), current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
+        }
+
+        private_key.mlkem = move(maybe_key.release_value().private_key);
+        EXIT_SCOPE();
+        return private_key;
+    }
+    if (private_key.algorithm.identifier.span() == ASN1::ml_kem_768_oid.span()) {
+        auto maybe_key = Crypto::PK::MLKEM::parse_mlkem_key(PK::MLKEMSize::MLKEM768, value.bytes(), current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
+        }
+
+        private_key.mlkem = move(maybe_key.release_value().private_key);
+        EXIT_SCOPE();
+        return private_key;
+    }
+    if (private_key.algorithm.identifier.span() == ASN1::ml_kem_1024_oid.span()) {
+        auto maybe_key = Crypto::PK::MLKEM::parse_mlkem_key(PK::MLKEMSize::MLKEM1024, value.bytes(), current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
+        }
+
+        private_key.mlkem = move(maybe_key.release_value().private_key);
+        EXIT_SCOPE();
+        return private_key;
+    }
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
