@@ -9066,13 +9066,13 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> MLKEM::
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
 {
     GC::Ptr<CryptoKey> key = nullptr;
 
     // 1. Let keyData be the key data to be imported.
     // 2. -> If format is "spki":
-    if (key_format == Bindings::KeyFormat::Spki) {
+    if (format == Bindings::KeyFormat::Spki) {
         // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw
         //    a SyntaxError.
         for (auto const usage : usages) {
@@ -9140,7 +9140,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
         key->set_usages(usages);
     }
     //    -> If format is "pkcs8":
-    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+    else if (format == Bindings::KeyFormat::Pkcs8) {
         // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != Bindings::KeyUsage::Decapsulatekey && usage != Bindings::KeyUsage::Decapsulatebits) {
@@ -9209,7 +9209,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
         key->set_algorithm(algorithm);
     }
     //    -> If format is "raw-public":
-    else if (key_format == Bindings::KeyFormat::RawPublic) {
+    else if (format == Bindings::KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
         for (auto const usage : usages) {
             if (usage != Bindings::KeyUsage::Encapsulatekey && usage != Bindings::KeyUsage::Encapsulatebits)
@@ -9236,7 +9236,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
         key->set_algorithm(algorithm);
     }
     //    -> If format is "raw-seed":
-    else if (key_format == Bindings::KeyFormat::RawSeed) {
+    else if (format == Bindings::KeyFormat::RawSeed) {
         // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != Bindings::KeyUsage::Decapsulatekey && usage != Bindings::KeyUsage::Decapsulatebits) {
