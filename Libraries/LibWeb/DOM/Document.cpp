@@ -1611,6 +1611,7 @@ void Document::update_style()
 
     evaluate_media_rules();
 
+    style_computer().reset_has_result_cache();
     style_computer().reset_ancestor_filter();
 
     auto invalidation = update_style_recursively(*this, style_computer(), false, false);
