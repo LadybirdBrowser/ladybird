@@ -9139,7 +9139,75 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLKEM::import_key(AlgorithmParams const&
         // 14. Set the [[usages]] internal slot of key to usages.
         key->set_usages(usages);
     }
-    // FIXME: -> If format is "pkcs8":
+    //    -> If format is "pkcs8":
+    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+        // 1. If usages contains an entry which is not "decapsulateKey" or "decapsulateBits" then throw a SyntaxError.
+        for (auto const& usage : usages) {
+            if (usage != Bindings::KeyUsage::Decapsulatekey && usage != Bindings::KeyUsage::Decapsulatebits) {
+                return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+            }
+        }
+
+        // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        VERIFY(key_data.has<ByteBuffer>());
+        auto private_key_info = TRY(parse_a_private_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        // 4. => If the name member of normalizedAlgorithm is "ML-KEM-512":
+        //       Let expectedOid be id-alg-ml-kem-512 (2.16.840.1.101.3.4.4.1).
+        //       Let asn1Structure be the ASN.1 ML-KEM-512-PrivateKey structure.
+        //    => If the name member of normalizedAlgorithm is "ML-KEM-768":
+        //       Let expectedOid be id-alg-ml-kem-768 (2.16.840.1.101.3.4.4.2).
+        //       Let asn1Structure be the ASN.1 ML-KEM-768-PrivateKey structure.
+        //    => If the name member of normalizedAlgorithm is "ML-KEM-1024":
+        //       Let expectedOid be id-alg-ml-kem-1024 (2.16.840.1.101.3.4.4.3).
+        //       Let asn1Structure be the ASN.1 ML-KEM-1024-PrivateKey structure.
+        //    => Otherwise:
+        //       throw a NotSupportedError.
+        Array<int, 9> expected_oid {};
+        if (params.name == "ML-KEM-512") {
+            expected_oid = ::Crypto::ASN1::ml_kem_512_oid;
+        } else if (params.name == "ML-KEM-768") {
+            expected_oid = ::Crypto::ASN1::ml_kem_768_oid;
+        } else if (params.name == "ML-KEM-1024") {
+            expected_oid = ::Crypto::ASN1::ml_kem_1024_oid;
+        } else {
+            return WebIDL::NotSupportedError::create(m_realm, "Invalid algorithm"_utf16);
+        }
+
+        // 5. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of
+        //    privateKeyInfo is not equal to expectedOid, then throw a DataError.
+        if (private_key_info.algorithm.identifier != expected_oid)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
+
+        // 6. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of
+        //    privateKeyInfo is present, then throw a DataError.
+        if (private_key_info.algorithm.ec_parameters.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_utf16);
+
+        // 7. Let mlKemPrivateKey be the result of performing the parse an ASN.1 structure algorithm, with
+        //    data as the privateKey field of privateKeyInfo, structure as asn1Structure, and exactData set to
+        //    true.
+        // NOTE: We already did this in parse_a_private_key_info
+        // 8. If an error occurred while parsing, then throw a DataError.
+        auto& ml_kem_private_key = private_key_info.mlkem;
+
+        // 9. Let key be a new CryptoKey that represents the ML-KEM private key identified by
+        //    mlKemPrivateKey.
+        key = CryptoKey::create(m_realm, ml_kem_private_key);
+
+        // 10. Set the [[type]] internal slot of key to "private"
+        key->set_type(Bindings::KeyType::Private);
+
+        // 11. Let algorithm be a new KeyAlgorithm.
+        auto algorithm = KeyAlgorithm::create(m_realm);
+
+        // 12. Set the name attribute of algorithm to the name attribute of normalizedAlgorithm.
+        algorithm->set_name(params.name);
+
+        // 13. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
     //    -> If format is "raw-public":
     else if (key_format == Bindings::KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "encapsulateKey" or "encapsulateBits" then throw a SyntaxError.
