@@ -154,6 +154,46 @@ ErrorOr<MLKEMEncapsulation> MLKEM::encapsulate(MLKEMSize size, MLKEMPublicKey co
     return MLKEMEncapsulation { shared_key, ciphertext };
 }
 
+static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(MLKEMSize size, MLKEMPrivateKey const& private_key)
+{
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mlkem_size_to_openssl_name(size), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
+
+    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_ML_KEM_SEED, private_key.seed().data(), private_key.seed().size()));
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, private_key.public_key().data(), private_key.public_key().size()));
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_PRIV_KEY, private_key.private_key().data(), private_key.private_key().size()));
+
+    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
+    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+    auto key = TRY(OpenSSL_PKEY::create());
+    auto* key_ptr = key.ptr();
+    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key_ptr, EVP_PKEY_KEYPAIR, params));
+
+    return key;
+}
+
+ErrorOr<ByteBuffer> MLKEM::decapsulate(MLKEMSize size, MLKEMPrivateKey const& key, ByteBuffer ciphertext)
+{
+    auto private_key = TRY(private_key_to_openssl_pkey(size, key));
+
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, private_key.ptr(), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_decapsulate_init(ctx.ptr(), nullptr));
+
+    size_t shared_key_size;
+    OPENSSL_TRY(EVP_PKEY_decapsulate(ctx.ptr(), nullptr, &shared_key_size, ciphertext.data(), ciphertext.size()));
+
+    auto shared_key = TRY(ByteBuffer::create_uninitialized(shared_key_size));
+    OPENSSL_TRY(EVP_PKEY_decapsulate(ctx.ptr(), shared_key.data(), &shared_key_size, ciphertext.data(), ciphertext.size()));
+
+    return shared_key;
+}
+
 ErrorOr<MLKEM::KeyPairType> MLKEM::generate_key_pair(MLKEMSize size, ByteBuffer seed)
 {
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, mlkem_size_to_openssl_name(size), nullptr)));
