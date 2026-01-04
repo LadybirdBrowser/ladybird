@@ -43,6 +43,8 @@ public:
 
     MLKEMPrivateKey() = default;
 
+    ByteBuffer const& seed() const { return m_seed; }
+
 private:
     ByteBuffer m_seed;
     ByteBuffer m_public_key;
