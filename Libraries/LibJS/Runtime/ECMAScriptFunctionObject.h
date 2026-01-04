@@ -24,6 +24,11 @@ void async_block_start(VM&, T const& async_body, PromiseCapability const&, Execu
 template<typename T>
 void async_function_start(VM&, PromiseCapability const&, T const& async_function_body);
 
+enum class MakeConstructor {
+    Invoke,
+    Skip,
+};
+
 // 10.2 ECMAScript Function Objects, https://tc39.es/ecma262/#sec-ecmascript-function-objects
 class JS_API ECMAScriptFunctionObject final : public FunctionObject {
     JS_OBJECT(ECMAScriptFunctionObject, FunctionObject);
@@ -47,7 +52,7 @@ public:
         GC::Ref<Realm>,
         GC::Ptr<Environment> parent_environment,
         GC::Ptr<PrivateEnvironment>,
-        bool should_be_constructible = true,
+        MakeConstructor make_constructor = MakeConstructor::Invoke,
         GC::Ptr<Object> constructor_prototype = nullptr);
 
     virtual void initialize(Realm&) override;

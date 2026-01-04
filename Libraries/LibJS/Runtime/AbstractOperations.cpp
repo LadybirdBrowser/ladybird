@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Utf16View.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Parser.h>
@@ -1054,7 +1055,7 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, Program const& pr
             realm,
             lexical_environment,
             private_environment,
-            true,
+            MakeConstructor::Invoke,
             nullptr);
 
         // c. If varEnv is a global Environment Record, then

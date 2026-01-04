@@ -13,6 +13,7 @@
 #include <LibJS/Bytecode/BuiltinAbstractOperationsEnabled.h>
 #include <LibJS/Bytecode/CodeGenerationError.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
@@ -169,9 +170,9 @@ public:
 
     void push_home_object(ScopedOperand);
     void pop_home_object();
-    void emit_new_function(ScopedOperand dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> lhs_name, bool is_method);
+    void emit_new_function(ScopedOperand dst, JS::FunctionExpression const&, Optional<IdentifierTableIndex> lhs_name, FunctionDefinitionKind definition_kind);
 
-    CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, bool is_method = false);
+    CodeGenerationErrorOr<ScopedOperand> emit_named_evaluation_if_anonymous_function(Expression const&, Optional<IdentifierTableIndex> lhs_name, Optional<ScopedOperand> preferred_dst = {}, FunctionDefinitionKind definition_kind = FunctionDefinitionKind::FunctionExpression);
 
     void begin_continuable_scope(Label continue_target, Vector<FlyString> const& language_label_set);
     void end_continuable_scope();

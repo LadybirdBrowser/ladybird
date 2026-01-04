@@ -146,7 +146,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
     GC::Ref<Realm> realm,
     GC::Ptr<Environment> parent_environment,
     GC::Ptr<PrivateEnvironment> private_environment,
-    bool should_be_constructible,
+    MakeConstructor make_constructor,
     GC::Ptr<Object> constructor_prototype)
 {
     GC::Ptr<Object> function_prototype = nullptr;
@@ -190,7 +190,7 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
         *function_prototype);
 
     // Only call make_constructor if the caller said so, and it's a normal function. Generators/Asyncs are never constructors anyway.
-    if (function_node.kind() == FunctionKind::Normal && should_be_constructible && !function_node.is_arrow_function()) {
+    if (function_node.kind() == FunctionKind::Normal && make_constructor == MakeConstructor::Invoke && !function_node.is_arrow_function()) {
         function->make_constructor(true, constructor_prototype);
     }
     return function;
@@ -445,7 +445,9 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 // 10.2.5 MakeConstructor ( F [ , writablePrototype [ , prototype ] ] ), https://tc39.es/ecma262/#sec-makeconstructor
 void ECMAScriptFunctionObject::make_constructor(bool writable_prototype, GC::Ptr<Object> prototype)
 {
-
+    // lazy prototype instantiation is invalidated because we create the constructor right now
+    if (m_may_need_lazy_prototype_instantiation)
+        m_may_need_lazy_prototype_instantiation = false;
     auto& vm = this->vm();
 
     // 1. If F is an ECMAScript function object, then
