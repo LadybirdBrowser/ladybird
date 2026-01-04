@@ -1598,6 +1598,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<MLKEM>("importKey"_string, name);
         define_an_algorithm<MLKEM>("exportKey"_string, name);
         define_an_algorithm<MLKEM>("encapsulate"_string, name);
+        define_an_algorithm<MLKEM>("decapsulate"_string, name);
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration
