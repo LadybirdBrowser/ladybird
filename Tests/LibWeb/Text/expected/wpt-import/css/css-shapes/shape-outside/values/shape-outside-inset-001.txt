@@ -2,22 +2,21 @@ Harness status: OK
 
 Found 684 tests
 
-392 Pass
-292 Fail
-Fail	One arg - cm - inline
-Fail	One arg - % - inline
-Fail	Two args - cm cm - inline
-Fail	Two args - cm % - inline
-Fail	Two args - % cm - inline
-Fail	Two args - % % - inline
-Fail	Three args - cm cm cm - inline
-Fail	Three args - cm cm % - inline
-Fail	Three args - cm % cm - inline
-Fail	Three args - cm % %  - inline
-Fail	Three args - % cm cm - inline
-Fail	Three args - % cm %  - inline
-Fail	Three args - % % cm  - inline
-Fail	Three args - % % %  - inline
+684 Pass
+Pass	One arg - cm - inline
+Pass	One arg - % - inline
+Pass	Two args - cm cm - inline
+Pass	Two args - cm % - inline
+Pass	Two args - % cm - inline
+Pass	Two args - % % - inline
+Pass	Three args - cm cm cm - inline
+Pass	Three args - cm cm % - inline
+Pass	Three args - cm % cm - inline
+Pass	Three args - cm % %  - inline
+Pass	Three args - % cm cm - inline
+Pass	Three args - % cm %  - inline
+Pass	Three args - % % cm  - inline
+Pass	Three args - % % %  - inline
 Pass	Four args - cm cm cm cm - inline
 Pass	Four args - cm cm cm % - inline
 Pass	Four args - cm cm % cm - inline
@@ -34,17 +33,17 @@ Pass	Four args - % % cm cm - inline
 Pass	Four args - % % cm % - inline
 Pass	Four args - % % % cm - inline
 Pass	Four args - % % % % - inline
-Fail	One arg - mm - inline
-Fail	Two args - mm mm - inline
-Fail	Two args - mm % - inline
-Fail	Two args - % mm - inline
-Fail	Three args - mm mm mm - inline
-Fail	Three args - mm mm % - inline
-Fail	Three args - mm % mm - inline
-Fail	Three args - mm % %  - inline
-Fail	Three args - % mm mm - inline
-Fail	Three args - % mm %  - inline
-Fail	Three args - % % mm  - inline
+Pass	One arg - mm - inline
+Pass	Two args - mm mm - inline
+Pass	Two args - mm % - inline
+Pass	Two args - % mm - inline
+Pass	Three args - mm mm mm - inline
+Pass	Three args - mm mm % - inline
+Pass	Three args - mm % mm - inline
+Pass	Three args - mm % %  - inline
+Pass	Three args - % mm mm - inline
+Pass	Three args - % mm %  - inline
+Pass	Three args - % % mm  - inline
 Pass	Four args - mm mm mm mm - inline
 Pass	Four args - mm mm mm % - inline
 Pass	Four args - mm mm % mm - inline
@@ -60,17 +59,17 @@ Pass	Four args - % mm % % - inline
 Pass	Four args - % % mm mm - inline
 Pass	Four args - % % mm % - inline
 Pass	Four args - % % % mm - inline
-Fail	One arg - in - inline
-Fail	Two args - in in - inline
-Fail	Two args - in % - inline
-Fail	Two args - % in - inline
-Fail	Three args - in in in - inline
-Fail	Three args - in in % - inline
-Fail	Three args - in % in - inline
-Fail	Three args - in % %  - inline
-Fail	Three args - % in in - inline
-Fail	Three args - % in %  - inline
-Fail	Three args - % % in  - inline
+Pass	One arg - in - inline
+Pass	Two args - in in - inline
+Pass	Two args - in % - inline
+Pass	Two args - % in - inline
+Pass	Three args - in in in - inline
+Pass	Three args - in in % - inline
+Pass	Three args - in % in - inline
+Pass	Three args - in % %  - inline
+Pass	Three args - % in in - inline
+Pass	Three args - % in %  - inline
+Pass	Three args - % % in  - inline
 Pass	Four args - in in in in - inline
 Pass	Four args - in in in % - inline
 Pass	Four args - in in % in - inline
@@ -86,17 +85,17 @@ Pass	Four args - % in % % - inline
 Pass	Four args - % % in in - inline
 Pass	Four args - % % in % - inline
 Pass	Four args - % % % in - inline
-Fail	One arg - pt - inline
-Fail	Two args - pt pt - inline
-Fail	Two args - pt % - inline
-Fail	Two args - % pt - inline
-Fail	Three args - pt pt pt - inline
-Fail	Three args - pt pt % - inline
-Fail	Three args - pt % pt - inline
-Fail	Three args - pt % %  - inline
-Fail	Three args - % pt pt - inline
-Fail	Three args - % pt %  - inline
-Fail	Three args - % % pt  - inline
+Pass	One arg - pt - inline
+Pass	Two args - pt pt - inline
+Pass	Two args - pt % - inline
+Pass	Two args - % pt - inline
+Pass	Three args - pt pt pt - inline
+Pass	Three args - pt pt % - inline
+Pass	Three args - pt % pt - inline
+Pass	Three args - pt % %  - inline
+Pass	Three args - % pt pt - inline
+Pass	Three args - % pt %  - inline
+Pass	Three args - % % pt  - inline
 Pass	Four args - pt pt pt pt - inline
 Pass	Four args - pt pt pt % - inline
 Pass	Four args - pt pt % pt - inline
@@ -112,17 +111,17 @@ Pass	Four args - % pt % % - inline
 Pass	Four args - % % pt pt - inline
 Pass	Four args - % % pt % - inline
 Pass	Four args - % % % pt - inline
-Fail	One arg - pc - inline
-Fail	Two args - pc pc - inline
-Fail	Two args - pc % - inline
-Fail	Two args - % pc - inline
-Fail	Three args - pc pc pc - inline
-Fail	Three args - pc pc % - inline
-Fail	Three args - pc % pc - inline
-Fail	Three args - pc % %  - inline
-Fail	Three args - % pc pc - inline
-Fail	Three args - % pc %  - inline
-Fail	Three args - % % pc  - inline
+Pass	One arg - pc - inline
+Pass	Two args - pc pc - inline
+Pass	Two args - pc % - inline
+Pass	Two args - % pc - inline
+Pass	Three args - pc pc pc - inline
+Pass	Three args - pc pc % - inline
+Pass	Three args - pc % pc - inline
+Pass	Three args - pc % %  - inline
+Pass	Three args - % pc pc - inline
+Pass	Three args - % pc %  - inline
+Pass	Three args - % % pc  - inline
 Pass	Four args - pc pc pc pc - inline
 Pass	Four args - pc pc pc % - inline
 Pass	Four args - pc pc % pc - inline
@@ -138,17 +137,17 @@ Pass	Four args - % pc % % - inline
 Pass	Four args - % % pc pc - inline
 Pass	Four args - % % pc % - inline
 Pass	Four args - % % % pc - inline
-Fail	One arg - em - inline
-Fail	Two args - em em - inline
-Fail	Two args - em % - inline
-Fail	Two args - % em - inline
-Fail	Three args - em em em - inline
-Fail	Three args - em em % - inline
-Fail	Three args - em % em - inline
-Fail	Three args - em % %  - inline
-Fail	Three args - % em em - inline
-Fail	Three args - % em %  - inline
-Fail	Three args - % % em  - inline
+Pass	One arg - em - inline
+Pass	Two args - em em - inline
+Pass	Two args - em % - inline
+Pass	Two args - % em - inline
+Pass	Three args - em em em - inline
+Pass	Three args - em em % - inline
+Pass	Three args - em % em - inline
+Pass	Three args - em % %  - inline
+Pass	Three args - % em em - inline
+Pass	Three args - % em %  - inline
+Pass	Three args - % % em  - inline
 Pass	Four args - em em em em - inline
 Pass	Four args - em em em % - inline
 Pass	Four args - em em % em - inline
@@ -164,17 +163,17 @@ Pass	Four args - % em % % - inline
 Pass	Four args - % % em em - inline
 Pass	Four args - % % em % - inline
 Pass	Four args - % % % em - inline
-Fail	One arg - ex - inline
-Fail	Two args - ex ex - inline
-Fail	Two args - ex % - inline
-Fail	Two args - % ex - inline
-Fail	Three args - ex ex ex - inline
-Fail	Three args - ex ex % - inline
-Fail	Three args - ex % ex - inline
-Fail	Three args - ex % %  - inline
-Fail	Three args - % ex ex - inline
-Fail	Three args - % ex %  - inline
-Fail	Three args - % % ex  - inline
+Pass	One arg - ex - inline
+Pass	Two args - ex ex - inline
+Pass	Two args - ex % - inline
+Pass	Two args - % ex - inline
+Pass	Three args - ex ex ex - inline
+Pass	Three args - ex ex % - inline
+Pass	Three args - ex % ex - inline
+Pass	Three args - ex % %  - inline
+Pass	Three args - % ex ex - inline
+Pass	Three args - % ex %  - inline
+Pass	Three args - % % ex  - inline
 Pass	Four args - ex ex ex ex - inline
 Pass	Four args - ex ex ex % - inline
 Pass	Four args - ex ex % ex - inline
@@ -190,17 +189,17 @@ Pass	Four args - % ex % % - inline
 Pass	Four args - % % ex ex - inline
 Pass	Four args - % % ex % - inline
 Pass	Four args - % % % ex - inline
-Fail	One arg - ch - inline
-Fail	Two args - ch ch - inline
-Fail	Two args - ch % - inline
-Fail	Two args - % ch - inline
-Fail	Three args - ch ch ch - inline
-Fail	Three args - ch ch % - inline
-Fail	Three args - ch % ch - inline
-Fail	Three args - ch % %  - inline
-Fail	Three args - % ch ch - inline
-Fail	Three args - % ch %  - inline
-Fail	Three args - % % ch  - inline
+Pass	One arg - ch - inline
+Pass	Two args - ch ch - inline
+Pass	Two args - ch % - inline
+Pass	Two args - % ch - inline
+Pass	Three args - ch ch ch - inline
+Pass	Three args - ch ch % - inline
+Pass	Three args - ch % ch - inline
+Pass	Three args - ch % %  - inline
+Pass	Three args - % ch ch - inline
+Pass	Three args - % ch %  - inline
+Pass	Three args - % % ch  - inline
 Pass	Four args - ch ch ch ch - inline
 Pass	Four args - ch ch ch % - inline
 Pass	Four args - ch ch % ch - inline
@@ -216,17 +215,17 @@ Pass	Four args - % ch % % - inline
 Pass	Four args - % % ch ch - inline
 Pass	Four args - % % ch % - inline
 Pass	Four args - % % % ch - inline
-Fail	One arg - rem - inline
-Fail	Two args - rem rem - inline
-Fail	Two args - rem % - inline
-Fail	Two args - % rem - inline
-Fail	Three args - rem rem rem - inline
-Fail	Three args - rem rem % - inline
-Fail	Three args - rem % rem - inline
-Fail	Three args - rem % %  - inline
-Fail	Three args - % rem rem - inline
-Fail	Three args - % rem %  - inline
-Fail	Three args - % % rem  - inline
+Pass	One arg - rem - inline
+Pass	Two args - rem rem - inline
+Pass	Two args - rem % - inline
+Pass	Two args - % rem - inline
+Pass	Three args - rem rem rem - inline
+Pass	Three args - rem rem % - inline
+Pass	Three args - rem % rem - inline
+Pass	Three args - rem % %  - inline
+Pass	Three args - % rem rem - inline
+Pass	Three args - % rem %  - inline
+Pass	Three args - % % rem  - inline
 Pass	Four args - rem rem rem rem - inline
 Pass	Four args - rem rem rem % - inline
 Pass	Four args - rem rem % rem - inline
@@ -242,17 +241,17 @@ Pass	Four args - % rem % % - inline
 Pass	Four args - % % rem rem - inline
 Pass	Four args - % % rem % - inline
 Pass	Four args - % % % rem - inline
-Fail	One arg - vw - inline
-Fail	Two args - vw vw - inline
-Fail	Two args - vw % - inline
-Fail	Two args - % vw - inline
-Fail	Three args - vw vw vw - inline
-Fail	Three args - vw vw % - inline
-Fail	Three args - vw % vw - inline
-Fail	Three args - vw % %  - inline
-Fail	Three args - % vw vw - inline
-Fail	Three args - % vw %  - inline
-Fail	Three args - % % vw  - inline
+Pass	One arg - vw - inline
+Pass	Two args - vw vw - inline
+Pass	Two args - vw % - inline
+Pass	Two args - % vw - inline
+Pass	Three args - vw vw vw - inline
+Pass	Three args - vw vw % - inline
+Pass	Three args - vw % vw - inline
+Pass	Three args - vw % %  - inline
+Pass	Three args - % vw vw - inline
+Pass	Three args - % vw %  - inline
+Pass	Three args - % % vw  - inline
 Pass	Four args - vw vw vw vw - inline
 Pass	Four args - vw vw vw % - inline
 Pass	Four args - vw vw % vw - inline
@@ -268,17 +267,17 @@ Pass	Four args - % vw % % - inline
 Pass	Four args - % % vw vw - inline
 Pass	Four args - % % vw % - inline
 Pass	Four args - % % % vw - inline
-Fail	One arg - vh - inline
-Fail	Two args - vh vh - inline
-Fail	Two args - vh % - inline
-Fail	Two args - % vh - inline
-Fail	Three args - vh vh vh - inline
-Fail	Three args - vh vh % - inline
-Fail	Three args - vh % vh - inline
-Fail	Three args - vh % %  - inline
-Fail	Three args - % vh vh - inline
-Fail	Three args - % vh %  - inline
-Fail	Three args - % % vh  - inline
+Pass	One arg - vh - inline
+Pass	Two args - vh vh - inline
+Pass	Two args - vh % - inline
+Pass	Two args - % vh - inline
+Pass	Three args - vh vh vh - inline
+Pass	Three args - vh vh % - inline
+Pass	Three args - vh % vh - inline
+Pass	Three args - vh % %  - inline
+Pass	Three args - % vh vh - inline
+Pass	Three args - % vh %  - inline
+Pass	Three args - % % vh  - inline
 Pass	Four args - vh vh vh vh - inline
 Pass	Four args - vh vh vh % - inline
 Pass	Four args - vh vh % vh - inline
@@ -294,17 +293,17 @@ Pass	Four args - % vh % % - inline
 Pass	Four args - % % vh vh - inline
 Pass	Four args - % % vh % - inline
 Pass	Four args - % % % vh - inline
-Fail	One arg - vmin - inline
-Fail	Two args - vmin vmin - inline
-Fail	Two args - vmin % - inline
-Fail	Two args - % vmin - inline
-Fail	Three args - vmin vmin vmin - inline
-Fail	Three args - vmin vmin % - inline
-Fail	Three args - vmin % vmin - inline
-Fail	Three args - vmin % %  - inline
-Fail	Three args - % vmin vmin - inline
-Fail	Three args - % vmin %  - inline
-Fail	Three args - % % vmin  - inline
+Pass	One arg - vmin - inline
+Pass	Two args - vmin vmin - inline
+Pass	Two args - vmin % - inline
+Pass	Two args - % vmin - inline
+Pass	Three args - vmin vmin vmin - inline
+Pass	Three args - vmin vmin % - inline
+Pass	Three args - vmin % vmin - inline
+Pass	Three args - vmin % %  - inline
+Pass	Three args - % vmin vmin - inline
+Pass	Three args - % vmin %  - inline
+Pass	Three args - % % vmin  - inline
 Pass	Four args - vmin vmin vmin vmin - inline
 Pass	Four args - vmin vmin vmin % - inline
 Pass	Four args - vmin vmin % vmin - inline
@@ -320,17 +319,17 @@ Pass	Four args - % vmin % % - inline
 Pass	Four args - % % vmin vmin - inline
 Pass	Four args - % % vmin % - inline
 Pass	Four args - % % % vmin - inline
-Fail	One arg - vmax - inline
-Fail	Two args - vmax vmax - inline
-Fail	Two args - vmax % - inline
-Fail	Two args - % vmax - inline
-Fail	Three args - vmax vmax vmax - inline
-Fail	Three args - vmax vmax % - inline
-Fail	Three args - vmax % vmax - inline
-Fail	Three args - vmax % %  - inline
-Fail	Three args - % vmax vmax - inline
-Fail	Three args - % vmax %  - inline
-Fail	Three args - % % vmax  - inline
+Pass	One arg - vmax - inline
+Pass	Two args - vmax vmax - inline
+Pass	Two args - vmax % - inline
+Pass	Two args - % vmax - inline
+Pass	Three args - vmax vmax vmax - inline
+Pass	Three args - vmax vmax % - inline
+Pass	Three args - vmax % vmax - inline
+Pass	Three args - vmax % %  - inline
+Pass	Three args - % vmax vmax - inline
+Pass	Three args - % vmax %  - inline
+Pass	Three args - % % vmax  - inline
 Pass	Four args - vmax vmax vmax vmax - inline
 Pass	Four args - vmax vmax vmax % - inline
 Pass	Four args - vmax vmax % vmax - inline
@@ -346,20 +345,20 @@ Pass	Four args - % vmax % % - inline
 Pass	Four args - % % vmax vmax - inline
 Pass	Four args - % % vmax % - inline
 Pass	Four args - % % % vmax - inline
-Fail	One arg - cm - computed
-Fail	One arg - % - computed
-Fail	Two args - cm cm - computed
-Fail	Two args - cm % - computed
-Fail	Two args - % cm - computed
-Fail	Two args - % % - computed
-Fail	Three args - cm cm cm - computed
-Fail	Three args - cm cm % - computed
-Fail	Three args - cm % cm - computed
-Fail	Three args - cm % %  - computed
-Fail	Three args - % cm cm - computed
-Fail	Three args - % cm %  - computed
-Fail	Three args - % % cm  - computed
-Fail	Three args - % % %  - computed
+Pass	One arg - cm - computed
+Pass	One arg - % - computed
+Pass	Two args - cm cm - computed
+Pass	Two args - cm % - computed
+Pass	Two args - % cm - computed
+Pass	Two args - % % - computed
+Pass	Three args - cm cm cm - computed
+Pass	Three args - cm cm % - computed
+Pass	Three args - cm % cm - computed
+Pass	Three args - cm % %  - computed
+Pass	Three args - % cm cm - computed
+Pass	Three args - % cm %  - computed
+Pass	Three args - % % cm  - computed
+Pass	Three args - % % %  - computed
 Pass	Four args - cm cm cm cm - computed
 Pass	Four args - cm cm cm % - computed
 Pass	Four args - cm cm % cm - computed
@@ -376,17 +375,17 @@ Pass	Four args - % % cm cm - computed
 Pass	Four args - % % cm % - computed
 Pass	Four args - % % % cm - computed
 Pass	Four args - % % % % - computed
-Fail	One arg - mm - computed
-Fail	Two args - mm mm - computed
-Fail	Two args - mm % - computed
-Fail	Two args - % mm - computed
-Fail	Three args - mm mm mm - computed
-Fail	Three args - mm mm % - computed
-Fail	Three args - mm % mm - computed
-Fail	Three args - mm % %  - computed
-Fail	Three args - % mm mm - computed
-Fail	Three args - % mm %  - computed
-Fail	Three args - % % mm  - computed
+Pass	One arg - mm - computed
+Pass	Two args - mm mm - computed
+Pass	Two args - mm % - computed
+Pass	Two args - % mm - computed
+Pass	Three args - mm mm mm - computed
+Pass	Three args - mm mm % - computed
+Pass	Three args - mm % mm - computed
+Pass	Three args - mm % %  - computed
+Pass	Three args - % mm mm - computed
+Pass	Three args - % mm %  - computed
+Pass	Three args - % % mm  - computed
 Pass	Four args - mm mm mm mm - computed
 Pass	Four args - mm mm mm % - computed
 Pass	Four args - mm mm % mm - computed
@@ -402,17 +401,17 @@ Pass	Four args - % mm % % - computed
 Pass	Four args - % % mm mm - computed
 Pass	Four args - % % mm % - computed
 Pass	Four args - % % % mm - computed
-Fail	One arg - in - computed
-Fail	Two args - in in - computed
-Fail	Two args - in % - computed
-Fail	Two args - % in - computed
-Fail	Three args - in in in - computed
-Fail	Three args - in in % - computed
-Fail	Three args - in % in - computed
-Fail	Three args - in % %  - computed
-Fail	Three args - % in in - computed
-Fail	Three args - % in %  - computed
-Fail	Three args - % % in  - computed
+Pass	One arg - in - computed
+Pass	Two args - in in - computed
+Pass	Two args - in % - computed
+Pass	Two args - % in - computed
+Pass	Three args - in in in - computed
+Pass	Three args - in in % - computed
+Pass	Three args - in % in - computed
+Pass	Three args - in % %  - computed
+Pass	Three args - % in in - computed
+Pass	Three args - % in %  - computed
+Pass	Three args - % % in  - computed
 Pass	Four args - in in in in - computed
 Pass	Four args - in in in % - computed
 Pass	Four args - in in % in - computed
@@ -428,17 +427,17 @@ Pass	Four args - % in % % - computed
 Pass	Four args - % % in in - computed
 Pass	Four args - % % in % - computed
 Pass	Four args - % % % in - computed
-Fail	One arg - pt - computed
-Fail	Two args - pt pt - computed
-Fail	Two args - pt % - computed
-Fail	Two args - % pt - computed
-Fail	Three args - pt pt pt - computed
-Fail	Three args - pt pt % - computed
-Fail	Three args - pt % pt - computed
-Fail	Three args - pt % %  - computed
-Fail	Three args - % pt pt - computed
-Fail	Three args - % pt %  - computed
-Fail	Three args - % % pt  - computed
+Pass	One arg - pt - computed
+Pass	Two args - pt pt - computed
+Pass	Two args - pt % - computed
+Pass	Two args - % pt - computed
+Pass	Three args - pt pt pt - computed
+Pass	Three args - pt pt % - computed
+Pass	Three args - pt % pt - computed
+Pass	Three args - pt % %  - computed
+Pass	Three args - % pt pt - computed
+Pass	Three args - % pt %  - computed
+Pass	Three args - % % pt  - computed
 Pass	Four args - pt pt pt pt - computed
 Pass	Four args - pt pt pt % - computed
 Pass	Four args - pt pt % pt - computed
@@ -454,17 +453,17 @@ Pass	Four args - % pt % % - computed
 Pass	Four args - % % pt pt - computed
 Pass	Four args - % % pt % - computed
 Pass	Four args - % % % pt - computed
-Fail	One arg - pc - computed
-Fail	Two args - pc pc - computed
-Fail	Two args - pc % - computed
-Fail	Two args - % pc - computed
-Fail	Three args - pc pc pc - computed
-Fail	Three args - pc pc % - computed
-Fail	Three args - pc % pc - computed
-Fail	Three args - pc % %  - computed
-Fail	Three args - % pc pc - computed
-Fail	Three args - % pc %  - computed
-Fail	Three args - % % pc  - computed
+Pass	One arg - pc - computed
+Pass	Two args - pc pc - computed
+Pass	Two args - pc % - computed
+Pass	Two args - % pc - computed
+Pass	Three args - pc pc pc - computed
+Pass	Three args - pc pc % - computed
+Pass	Three args - pc % pc - computed
+Pass	Three args - pc % %  - computed
+Pass	Three args - % pc pc - computed
+Pass	Three args - % pc %  - computed
+Pass	Three args - % % pc  - computed
 Pass	Four args - pc pc pc pc - computed
 Pass	Four args - pc pc pc % - computed
 Pass	Four args - pc pc % pc - computed
@@ -480,17 +479,17 @@ Pass	Four args - % pc % % - computed
 Pass	Four args - % % pc pc - computed
 Pass	Four args - % % pc % - computed
 Pass	Four args - % % % pc - computed
-Fail	One arg - em - computed
-Fail	Two args - em em - computed
-Fail	Two args - em % - computed
-Fail	Two args - % em - computed
-Fail	Three args - em em em - computed
-Fail	Three args - em em % - computed
-Fail	Three args - em % em - computed
-Fail	Three args - em % %  - computed
-Fail	Three args - % em em - computed
-Fail	Three args - % em %  - computed
-Fail	Three args - % % em  - computed
+Pass	One arg - em - computed
+Pass	Two args - em em - computed
+Pass	Two args - em % - computed
+Pass	Two args - % em - computed
+Pass	Three args - em em em - computed
+Pass	Three args - em em % - computed
+Pass	Three args - em % em - computed
+Pass	Three args - em % %  - computed
+Pass	Three args - % em em - computed
+Pass	Three args - % em %  - computed
+Pass	Three args - % % em  - computed
 Pass	Four args - em em em em - computed
 Pass	Four args - em em em % - computed
 Pass	Four args - em em % em - computed
@@ -506,17 +505,17 @@ Pass	Four args - % em % % - computed
 Pass	Four args - % % em em - computed
 Pass	Four args - % % em % - computed
 Pass	Four args - % % % em - computed
-Fail	One arg - ex - computed
-Fail	Two args - ex ex - computed
-Fail	Two args - ex % - computed
-Fail	Two args - % ex - computed
-Fail	Three args - ex ex ex - computed
-Fail	Three args - ex ex % - computed
-Fail	Three args - ex % ex - computed
-Fail	Three args - ex % %  - computed
-Fail	Three args - % ex ex - computed
-Fail	Three args - % ex %  - computed
-Fail	Three args - % % ex  - computed
+Pass	One arg - ex - computed
+Pass	Two args - ex ex - computed
+Pass	Two args - ex % - computed
+Pass	Two args - % ex - computed
+Pass	Three args - ex ex ex - computed
+Pass	Three args - ex ex % - computed
+Pass	Three args - ex % ex - computed
+Pass	Three args - ex % %  - computed
+Pass	Three args - % ex ex - computed
+Pass	Three args - % ex %  - computed
+Pass	Three args - % % ex  - computed
 Pass	Four args - ex ex ex ex - computed
 Pass	Four args - ex ex ex % - computed
 Pass	Four args - ex ex % ex - computed
@@ -532,17 +531,17 @@ Pass	Four args - % ex % % - computed
 Pass	Four args - % % ex ex - computed
 Pass	Four args - % % ex % - computed
 Pass	Four args - % % % ex - computed
-Fail	One arg - ch - computed
-Fail	Two args - ch ch - computed
-Fail	Two args - ch % - computed
-Fail	Two args - % ch - computed
-Fail	Three args - ch ch ch - computed
-Fail	Three args - ch ch % - computed
-Fail	Three args - ch % ch - computed
-Fail	Three args - ch % %  - computed
-Fail	Three args - % ch ch - computed
-Fail	Three args - % ch %  - computed
-Fail	Three args - % % ch  - computed
+Pass	One arg - ch - computed
+Pass	Two args - ch ch - computed
+Pass	Two args - ch % - computed
+Pass	Two args - % ch - computed
+Pass	Three args - ch ch ch - computed
+Pass	Three args - ch ch % - computed
+Pass	Three args - ch % ch - computed
+Pass	Three args - ch % %  - computed
+Pass	Three args - % ch ch - computed
+Pass	Three args - % ch %  - computed
+Pass	Three args - % % ch  - computed
 Pass	Four args - ch ch ch ch - computed
 Pass	Four args - ch ch ch % - computed
 Pass	Four args - ch ch % ch - computed
@@ -558,17 +557,17 @@ Pass	Four args - % ch % % - computed
 Pass	Four args - % % ch ch - computed
 Pass	Four args - % % ch % - computed
 Pass	Four args - % % % ch - computed
-Fail	One arg - rem - computed
-Fail	Two args - rem rem - computed
-Fail	Two args - rem % - computed
-Fail	Two args - % rem - computed
-Fail	Three args - rem rem rem - computed
-Fail	Three args - rem rem % - computed
-Fail	Three args - rem % rem - computed
-Fail	Three args - rem % %  - computed
-Fail	Three args - % rem rem - computed
-Fail	Three args - % rem %  - computed
-Fail	Three args - % % rem  - computed
+Pass	One arg - rem - computed
+Pass	Two args - rem rem - computed
+Pass	Two args - rem % - computed
+Pass	Two args - % rem - computed
+Pass	Three args - rem rem rem - computed
+Pass	Three args - rem rem % - computed
+Pass	Three args - rem % rem - computed
+Pass	Three args - rem % %  - computed
+Pass	Three args - % rem rem - computed
+Pass	Three args - % rem %  - computed
+Pass	Three args - % % rem  - computed
 Pass	Four args - rem rem rem rem - computed
 Pass	Four args - rem rem rem % - computed
 Pass	Four args - rem rem % rem - computed
@@ -584,17 +583,17 @@ Pass	Four args - % rem % % - computed
 Pass	Four args - % % rem rem - computed
 Pass	Four args - % % rem % - computed
 Pass	Four args - % % % rem - computed
-Fail	One arg - vw - computed
-Fail	Two args - vw vw - computed
-Fail	Two args - vw % - computed
-Fail	Two args - % vw - computed
-Fail	Three args - vw vw vw - computed
-Fail	Three args - vw vw % - computed
-Fail	Three args - vw % vw - computed
-Fail	Three args - vw % %  - computed
-Fail	Three args - % vw vw - computed
-Fail	Three args - % vw %  - computed
-Fail	Three args - % % vw  - computed
+Pass	One arg - vw - computed
+Pass	Two args - vw vw - computed
+Pass	Two args - vw % - computed
+Pass	Two args - % vw - computed
+Pass	Three args - vw vw vw - computed
+Pass	Three args - vw vw % - computed
+Pass	Three args - vw % vw - computed
+Pass	Three args - vw % %  - computed
+Pass	Three args - % vw vw - computed
+Pass	Three args - % vw %  - computed
+Pass	Three args - % % vw  - computed
 Pass	Four args - vw vw vw vw - computed
 Pass	Four args - vw vw vw % - computed
 Pass	Four args - vw vw % vw - computed
@@ -610,17 +609,17 @@ Pass	Four args - % vw % % - computed
 Pass	Four args - % % vw vw - computed
 Pass	Four args - % % vw % - computed
 Pass	Four args - % % % vw - computed
-Fail	One arg - vh - computed
-Fail	Two args - vh vh - computed
-Fail	Two args - vh % - computed
-Fail	Two args - % vh - computed
-Fail	Three args - vh vh vh - computed
-Fail	Three args - vh vh % - computed
-Fail	Three args - vh % vh - computed
-Fail	Three args - vh % %  - computed
-Fail	Three args - % vh vh - computed
-Fail	Three args - % vh %  - computed
-Fail	Three args - % % vh  - computed
+Pass	One arg - vh - computed
+Pass	Two args - vh vh - computed
+Pass	Two args - vh % - computed
+Pass	Two args - % vh - computed
+Pass	Three args - vh vh vh - computed
+Pass	Three args - vh vh % - computed
+Pass	Three args - vh % vh - computed
+Pass	Three args - vh % %  - computed
+Pass	Three args - % vh vh - computed
+Pass	Three args - % vh %  - computed
+Pass	Three args - % % vh  - computed
 Pass	Four args - vh vh vh vh - computed
 Pass	Four args - vh vh vh % - computed
 Pass	Four args - vh vh % vh - computed
@@ -636,17 +635,17 @@ Pass	Four args - % vh % % - computed
 Pass	Four args - % % vh vh - computed
 Pass	Four args - % % vh % - computed
 Pass	Four args - % % % vh - computed
-Fail	One arg - vmin - computed
-Fail	Two args - vmin vmin - computed
-Fail	Two args - vmin % - computed
-Fail	Two args - % vmin - computed
-Fail	Three args - vmin vmin vmin - computed
-Fail	Three args - vmin vmin % - computed
-Fail	Three args - vmin % vmin - computed
-Fail	Three args - vmin % %  - computed
-Fail	Three args - % vmin vmin - computed
-Fail	Three args - % vmin %  - computed
-Fail	Three args - % % vmin  - computed
+Pass	One arg - vmin - computed
+Pass	Two args - vmin vmin - computed
+Pass	Two args - vmin % - computed
+Pass	Two args - % vmin - computed
+Pass	Three args - vmin vmin vmin - computed
+Pass	Three args - vmin vmin % - computed
+Pass	Three args - vmin % vmin - computed
+Pass	Three args - vmin % %  - computed
+Pass	Three args - % vmin vmin - computed
+Pass	Three args - % vmin %  - computed
+Pass	Three args - % % vmin  - computed
 Pass	Four args - vmin vmin vmin vmin - computed
 Pass	Four args - vmin vmin vmin % - computed
 Pass	Four args - vmin vmin % vmin - computed
@@ -662,17 +661,17 @@ Pass	Four args - % vmin % % - computed
 Pass	Four args - % % vmin vmin - computed
 Pass	Four args - % % vmin % - computed
 Pass	Four args - % % % vmin - computed
-Fail	One arg - vmax - computed
-Fail	Two args - vmax vmax - computed
-Fail	Two args - vmax % - computed
-Fail	Two args - % vmax - computed
-Fail	Three args - vmax vmax vmax - computed
-Fail	Three args - vmax vmax % - computed
-Fail	Three args - vmax % vmax - computed
-Fail	Three args - vmax % %  - computed
-Fail	Three args - % vmax vmax - computed
-Fail	Three args - % vmax %  - computed
-Fail	Three args - % % vmax  - computed
+Pass	One arg - vmax - computed
+Pass	Two args - vmax vmax - computed
+Pass	Two args - vmax % - computed
+Pass	Two args - % vmax - computed
+Pass	Three args - vmax vmax vmax - computed
+Pass	Three args - vmax vmax % - computed
+Pass	Three args - vmax % vmax - computed
+Pass	Three args - vmax % %  - computed
+Pass	Three args - % vmax vmax - computed
+Pass	Three args - % vmax %  - computed
+Pass	Three args - % % vmax  - computed
 Pass	Four args - vmax vmax vmax vmax - computed
 Pass	Four args - vmax vmax vmax % - computed
 Pass	Four args - vmax vmax % vmax - computed
