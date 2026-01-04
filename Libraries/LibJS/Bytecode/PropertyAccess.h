@@ -299,6 +299,10 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     if (!cached_shape) [[unlikely]]
                         break;
 
+                    // Cannot add properties to non-extensible objects (frozen, sealed, or preventExtensions).
+                    if (!TRY(object->internal_is_extensible())) [[unlikely]]
+                        break;
+
                     if (cached_shape->is_dictionary()) {
                         if (object->shape().dictionary_generation() != cache.shape_dictionary_generation)
                             break;
