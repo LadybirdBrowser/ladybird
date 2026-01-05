@@ -541,7 +541,7 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
     for (auto const& rule : sheet.rules()) {
         if (!is<CSSFontFaceRule>(*rule))
             continue;
-        auto const& font_face_rule = static_cast<CSSFontFaceRule const&>(*rule);
+        auto& font_face_rule = static_cast<CSSFontFaceRule&>(*rule);
         if (!font_face_rule.is_valid())
             continue;
         if (auto font_loader = load_font_face(font_face_rule.font_face())) {
