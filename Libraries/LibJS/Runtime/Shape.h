@@ -34,6 +34,11 @@ struct TransitionKey {
     {
         return property_key == other.property_key && attributes == other.attributes;
     }
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        property_key.visit_edges(visitor);
+    }
 };
 
 class PrototypeChainValidity final : public Cell {
@@ -99,11 +104,6 @@ public:
     Optional<PropertyMetadata> lookup(PropertyKey const&) const;
     OrderedHashMap<PropertyKey, PropertyMetadata> const& property_table() const;
     u32 property_count() const { return m_property_count; }
-
-    struct Property {
-        PropertyKey key;
-        PropertyMetadata value;
-    };
 
     void set_prototype_without_transition(Object* new_prototype);
 

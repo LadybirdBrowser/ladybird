@@ -29,6 +29,7 @@ void SetIterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_set);
+    m_iterator.visit_edges(visitor);
 }
 
 BuiltinIterator* SetIterator::as_builtin_iterator_if_next_is_not_redefined(Value next_method)

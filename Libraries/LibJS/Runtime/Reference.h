@@ -123,6 +123,20 @@ public:
 
     Optional<EnvironmentCoordinate> environment_coordinate() const { return m_environment_coordinate; }
 
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        if (m_base_type == BaseType::Value) {
+            visitor.visit(m_base_value);
+        } else if (m_base_type == BaseType::Environment) {
+            visitor.visit(m_base_environment);
+        }
+        m_name.visit(
+            [&](PropertyKey const& key) { key.visit_edges(visitor); },
+            [&](PrivateName const&) { /* no GC pointers */ });
+        if (m_this_value.has_value())
+            visitor.visit(*m_this_value);
+    }
+
 private:
     Completion throw_reference_error(VM&) const;
 

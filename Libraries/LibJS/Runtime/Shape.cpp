@@ -210,6 +210,11 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     }
 
     visitor.visit(m_prototype_chain_validity);
+
+    if (m_property_table) {
+        for (auto& it : *m_property_table)
+            it.key.visit_edges(visitor);
+    }
 }
 
 Optional<PropertyMetadata> Shape::lookup(PropertyKey const& property_key) const

@@ -442,6 +442,15 @@ struct ContentData {
 
     Vector<Variant<String, NonnullRefPtr<ImageStyleValue>>> data;
     Optional<String> alt_text {};
+
+    void visit_edges(GC::Cell::Visitor& visitor) const
+    {
+        for (auto const& item : data) {
+            if (auto* ptr = item.get_pointer<NonnullRefPtr<ImageStyleValue>>()) {
+                (*ptr)->visit_edges(visitor);
+            }
+        }
+    }
 };
 
 struct CounterData {
@@ -492,6 +501,11 @@ public:
     ComputedValues() = default;
     ~ComputedValues() = default;
 
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        m_noninherited.visit_edges(visitor);
+    }
+
     AspectRatio aspect_ratio() const { return m_noninherited.aspect_ratio; }
     Float float_() const { return m_noninherited.float_; }
     Length border_spacing_horizontal() const { return m_inherited.border_spacing_horizontal; }
@@ -504,7 +518,7 @@ public:
     PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
     ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     Vector<CursorData> const& cursor() const { return m_inherited.cursor; }
-    ContentData content() const { return m_noninherited.content; }
+    ContentData const& content() const { return m_noninherited.content; }
     PointerEvents pointer_events() const { return m_inherited.pointer_events; }
     Display display() const { return m_noninherited.display; }
     Display display_before_box_type_transformation() const { return m_noninherited.display_before_box_type_transformation; }
@@ -692,7 +706,7 @@ public:
     }
 
 protected:
-    struct {
+    struct InheritedValues {
         Color caret_color { InitialValues::caret_color() };
         CSSPixels font_size { InitialValues::font_size() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
@@ -753,9 +767,11 @@ protected:
         int math_depth { InitialValues::math_depth() };
         ScrollbarColorData scrollbar_color { InitialValues::scrollbar_color() };
         float stroke_opacity { InitialValues::stroke_opacity() };
-    } m_inherited;
+    };
 
-    struct {
+    InheritedValues m_inherited;
+
+    struct NonInheritedValues {
         AspectRatio aspect_ratio { InitialValues::aspect_ratio() };
         Float float_ { InitialValues::float_() };
         Clear clear { InitialValues::clear() };
@@ -877,7 +893,26 @@ protected:
         Vector<CounterData, 0> counter_reset;
         Vector<CounterData, 0> counter_set;
         WillChange will_change { InitialValues::will_change() };
-    } m_noninherited;
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            for (auto& layer : background_layers)
+                layer.background_image->visit_edges(visitor);
+            if (mask_image)
+                mask_image->visit_edges(visitor);
+            for (auto const& transform : transformations)
+                transform->visit_edges(visitor);
+            if (rotate)
+                rotate->visit_edges(visitor);
+            if (translate)
+                translate->visit_edges(visitor);
+            if (scale)
+                scale->visit_edges(visitor);
+            content.visit_edges(visitor);
+        }
+    };
+
+    NonInheritedValues m_noninherited;
 };
 
 class ImmutableComputedValues final : public ComputedValues {

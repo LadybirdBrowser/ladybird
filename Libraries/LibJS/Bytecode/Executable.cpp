@@ -95,6 +95,7 @@ void Executable::visit_edges(Visitor& visitor)
     visitor.visit(constants);
     for (auto& cache : template_object_caches)
         visitor.visit(cache.cached_template_object);
+    property_key_table->visit_edges(visitor);
 }
 
 Optional<Executable::ExceptionHandlers const&> Executable::exception_handlers_for_offset(size_t offset) const

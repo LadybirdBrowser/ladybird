@@ -142,6 +142,11 @@ private:
     struct PastNameEntry {
         GC::Ptr<DOM::Node const> node;
         MonotonicTime insertion_time;
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            visitor.visit(node);
+        }
     };
     HashMap<FlyString, PastNameEntry> mutable m_past_names_map;
 

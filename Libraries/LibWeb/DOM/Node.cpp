@@ -3065,7 +3065,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             //    following the “iii. For each child node of the current node” code.
             if (auto before = element->get_pseudo_element_node(CSS::PseudoElement::Before)) {
                 if (before->computed_values().content().alt_text.has_value()) {
-                    total_accumulated_text.append(before->computed_values().content().alt_text.release_value());
+                    total_accumulated_text.append(before->computed_values().content().alt_text.value());
                 } else {
                     for (auto& item : before->computed_values().content().data) {
                         if (auto const* string = item.get_pointer<String>())
@@ -3125,7 +3125,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // NOTE: See step ii.b above.
             if (auto after = element->get_pseudo_element_node(CSS::PseudoElement::After)) {
                 if (after->computed_values().content().alt_text.has_value()) {
-                    total_accumulated_text.append(after->computed_values().content().alt_text.release_value());
+                    total_accumulated_text.append(after->computed_values().content().alt_text.value());
                 } else {
                     for (auto& item : after->computed_values().content().data) {
                         if (auto const* string = item.get_pointer<String>())

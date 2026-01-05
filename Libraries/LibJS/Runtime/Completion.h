@@ -108,6 +108,11 @@ public:
         return { m_type, release_value() };
     }
 
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        visitor.visit(m_value);
+    }
+
 private:
     class EmptyTag {
     };
@@ -223,6 +228,11 @@ namespace JS {
 
 struct ErrorValue {
     Value error;
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        visitor.visit(error);
+    }
 };
 
 template<typename ValueType>
@@ -295,6 +305,21 @@ public:
         return Completion { Completion::Type::Throw, error.error };
     }
 
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        m_value_or_error.visit(
+            [&](ValueType& value) {
+                if constexpr (IsSame<ValueType, Value>) {
+                    visitor.visit(value);
+                } else if constexpr (requires { value.visit_edges(visitor); }) {
+                    value.visit_edges(visitor);
+                }
+            },
+            [&](ErrorValue& error) {
+                error.visit_edges(visitor);
+            });
+    }
+
 private:
     Variant<ValueType, ErrorValue> m_value_or_error;
 };
@@ -332,6 +357,11 @@ public:
     Empty release_value() { return {}; }
     Completion error() const { return Completion { Completion::Type::Throw, m_value }; }
     Completion release_error() { return error(); }
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        visitor.visit(m_value);
+    }
 
 private:
     Value m_value;

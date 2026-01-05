@@ -1532,13 +1532,11 @@ void Object::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_shape);
     visitor.visit(m_storage);
 
-    m_indexed_properties.for_each_value([&visitor](auto& value) {
-        visitor.visit(value);
-    });
+    m_indexed_properties.visit_edges(visitor);
 
     if (m_private_elements) {
         for (auto& private_element : *m_private_elements)
-            visitor.visit(private_element.value);
+            private_element.visit_edges(visitor);
     }
 }
 

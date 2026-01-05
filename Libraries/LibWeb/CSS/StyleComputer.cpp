@@ -133,6 +133,8 @@ void StyleComputer::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    if (m_has_result_cache)
+        visitor.visit(*m_has_result_cache);
 }
 
 Optional<String> StyleComputer::user_agent_style_sheet_source(StringView name)

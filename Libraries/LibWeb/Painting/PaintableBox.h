@@ -39,7 +39,7 @@ public:
 
     StackingContext* stacking_context() { return m_stacking_context; }
     StackingContext const* stacking_context() const { return m_stacking_context; }
-    void set_stacking_context(NonnullOwnPtr<StackingContext>);
+    void set_stacking_context(GC::Ref<StackingContext>);
     void invalidate_stacking_context();
 
     virtual Optional<CSSPixelRect> get_masking_area() const;
@@ -269,6 +269,8 @@ protected:
     explicit PaintableBox(Layout::Box const&);
     explicit PaintableBox(Layout::InlineNode const&);
 
+    virtual void visit_edges(Visitor&) override;
+
     virtual void paint_border(DisplayListRecordingContext&) const;
     virtual void paint_backdrop_filter(DisplayListRecordingContext&) const;
     virtual void paint_background(DisplayListRecordingContext&) const;
@@ -309,7 +311,7 @@ private:
     bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
     void scroll_to_mouse_position(CSSPixelPoint);
 
-    OwnPtr<StackingContext> m_stacking_context;
+    GC::Ptr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;
 

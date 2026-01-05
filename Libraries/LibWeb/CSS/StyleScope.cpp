@@ -22,9 +22,60 @@
 
 namespace Web::CSS {
 
+void RuleCaches::visit_edges(GC::Cell::Visitor& visitor)
+{
+    main.visit_edges(visitor);
+    for (auto& it : by_layer) {
+        it.value->visit_edges(visitor);
+    }
+}
+
 void StyleScope::visit_edges(GC::Cell::Visitor& visitor)
 {
+    visitor.visit(m_node);
     visitor.visit(m_user_style_sheet);
+    for (auto& cache : m_pseudo_class_rule_cache) {
+        if (cache)
+            cache->visit_edges(visitor);
+    }
+    if (m_author_rule_cache)
+        m_author_rule_cache->visit_edges(visitor);
+    if (m_user_rule_cache)
+        m_user_rule_cache->visit_edges(visitor);
+    if (m_user_agent_rule_cache)
+        m_user_agent_rule_cache->visit_edges(visitor);
+}
+
+void MatchingRule::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(shadow_root);
+    visitor.visit(rule);
+    visitor.visit(sheet);
+}
+
+void RuleCache::visit_edges(GC::Cell::Visitor& visitor)
+{
+    auto visit_vector = [&](auto& vector) {
+        for (auto& rule : vector)
+            rule.visit_edges(visitor);
+    };
+    auto visit_map = [&](auto& map) {
+        for (auto& [_, rules] : map) {
+            visit_vector(rules);
+        }
+    };
+
+    visit_map(rules_by_id);
+    visit_map(rules_by_class);
+    visit_map(rules_by_tag_name);
+    visit_map(rules_by_attribute_name);
+    for (auto& rules : rules_by_pseudo_element) {
+        visit_vector(rules);
+    }
+    visit_vector(root_rules);
+    visit_vector(slotted_rules);
+    visit_vector(part_rules);
+    visit_vector(other_rules);
 }
 
 StyleScope::StyleScope(GC::Ref<DOM::Node> node)

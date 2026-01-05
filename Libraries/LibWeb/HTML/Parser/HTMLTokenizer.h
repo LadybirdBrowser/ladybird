@@ -11,6 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -146,6 +147,8 @@ public:
     void abort() { m_aborted = true; }
 
     void parser_did_run(Badge<HTMLParser>);
+
+    void visit_edges(GC::Cell::Visitor&);
 
 private:
     void skip(size_t count);

@@ -32,6 +32,8 @@ void XPathResult::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_node_set);
+    if (!m_node_set_iter.is_end())
+        visitor.visit(*m_node_set_iter);
 }
 
 XPathResult::~XPathResult() = default;

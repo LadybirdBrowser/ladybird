@@ -38,6 +38,8 @@ struct MatchingRule {
     CSSStyleProperties const& declaration() const;
     SelectorList const& absolutized_selectors() const;
     FlyString const& qualified_layer_name() const;
+
+    void visit_edges(GC::Cell::Visitor&);
 };
 
 struct RuleCache {
@@ -55,11 +57,15 @@ struct RuleCache {
 
     void add_rule(MatchingRule const&, Optional<PseudoElement>, bool contains_root_pseudo_class);
     void for_each_matching_rules(DOM::AbstractElement, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
+
+    void visit_edges(GC::Cell::Visitor&);
 };
 
 struct RuleCaches {
     RuleCache main;
     HashMap<FlyString, NonnullOwnPtr<RuleCache>> by_layer;
+
+    void visit_edges(GC::Cell::Visitor&);
 };
 
 struct SelectorInsights {

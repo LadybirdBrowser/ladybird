@@ -87,6 +87,8 @@ private:
         mutable Array<OwnPtr<Transition>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount) + 1> transitions;
 
         ~Impl();
+
+        void visit_edges(JS::Cell::Visitor&);
     };
     Impl& ensure_impl() const;
     Transition* ensure_transition(Optional<CSS::PseudoElement>) const;
