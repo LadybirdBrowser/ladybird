@@ -49,6 +49,8 @@ struct Rect {
     ValueComparingNonnullRefPtr<StyleValue const> right;
     ValueComparingNonnullRefPtr<StyleValue const> bottom;
     ValueComparingNonnullRefPtr<StyleValue const> left;
+
+    ValueComparingNonnullRefPtr<StyleValue const> border_radius;
 };
 
 struct Circle {

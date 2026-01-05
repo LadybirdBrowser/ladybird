@@ -3697,7 +3697,6 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
 
     if (function_name.equals_ignoring_ascii_case("rect"sv)) {
         // rect() = rect( [ <length-percentage> | auto ]{4} [ round <'border-radius'> ]? )
-        // FIXME: Parse the border-radius.
         auto arguments_tokens = TokenStream { component_value.function().value };
 
         auto parse_length_percentage_or_auto = [this](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
@@ -3718,11 +3717,26 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
             return nullptr;
 
         arguments_tokens.discard_whitespace();
+
+        NonnullRefPtr<StyleValue const> border_radius = BorderRadiusRectStyleValue::create_zero();
+        if (arguments_tokens.next_token().is_ident("round"sv)) {
+            arguments_tokens.discard_a_token(); // 'round'
+
+            auto parsed_border_radius = parse_border_radius_rect_value(arguments_tokens);
+
+            if (!parsed_border_radius)
+                return nullptr;
+
+            border_radius = parsed_border_radius.release_nonnull();
+
+            arguments_tokens.discard_whitespace();
+        }
+
         if (arguments_tokens.has_next_token())
             return nullptr;
 
         transaction.commit();
-        return BasicShapeStyleValue::create(Rect { top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull() });
+        return BasicShapeStyleValue::create(Rect { top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull(), border_radius });
     }
 
     if (function_name.equals_ignoring_ascii_case("circle"sv)) {
