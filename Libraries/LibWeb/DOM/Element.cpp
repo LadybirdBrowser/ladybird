@@ -2489,9 +2489,9 @@ static ErrorOr<void> scroll_an_element_into_view(Element& target, Bindings::Scro
 
                 // AD-HOC:
                 // NOTE: Since calculated position is relative to the viewport, we need to add the viewport's position to it
-                //       before passing to perform_scroll_of_viewport() that expects a position relative to the page.
+                //       before passing to perform_a_scroll_of_the_viewport() that expects a position relative to the page.
                 position.set_y(position.y() + document.viewport_rect().y());
-                document.navigable()->perform_scroll_of_viewport(position);
+                document.navigable()->perform_a_scroll_of_the_viewport(position);
             }
         }
 

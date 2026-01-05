@@ -2522,8 +2522,11 @@ void Navigable::set_viewport_size(CSSPixelSize size)
     }
 }
 
-void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
+void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
 {
+    // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,
+    //     where the box is the viewport.
+    //     https://drafts.csswg.org/cssom-view/#perform-a-scroll
     if (m_viewport_scroll_offset != new_position) {
         m_viewport_scroll_offset = new_position;
         scroll_offset_did_change();
@@ -2799,8 +2802,13 @@ RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
     return m_skia_backend_context;
 }
 
-// https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
 void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
+{
+    return perform_a_scroll_of_the_viewport(m_viewport_scroll_offset + delta);
+}
+
+// https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
+void Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position)
 {
     // 1. Let doc be the viewport’s associated Document.
     auto doc = active_document();
@@ -2817,12 +2825,10 @@ void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
     auto max_y = viewport_rect.height().to_double() - vv->height();
 
     // 5. Let dx be the horizontal component of position - the value vv’s pageLeft attribute
-    // NOTE: Function accepts delta so we use that directly.
-    auto dx = delta.x().to_double();
+    auto dx = position.x().to_double() - vv->page_left();
 
     // 6. Let dy be the vertical component of position - the value of vv’s pageTop attribute
-    // NOTE: Function accepts delta so we use that directly.
-    auto dy = delta.y().to_double();
+    auto dy = position.y().to_double() - vv->page_top();
 
     // 7. Let visual x be the value of vv’s offsetLeft attribute.
     auto visual_x = vv->offset_left();
@@ -2852,7 +2858,7 @@ void Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
     // NOTE: Clamp to the scrolling area.
     new_viewport_scroll_offset.set_x(max(0.0, min(new_viewport_scroll_offset.x(), scrolling_area.width() - viewport_size().width().to_double())));
     new_viewport_scroll_offset.set_y(max(0.0, min(new_viewport_scroll_offset.y(), scrolling_area.height() - viewport_size().height().to_double())));
-    perform_scroll_of_viewport(new_viewport_scroll_offset.to_type<CSSPixels>());
+    perform_scroll_of_viewport_scrolling_box(new_viewport_scroll_offset.to_type<CSSPixels>());
 
     // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element as the associated element, and behavior as the scroll behavior.
     vv->scroll_by({ visual_dx, visual_dy });
