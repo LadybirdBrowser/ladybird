@@ -176,6 +176,15 @@ void CSSFontFaceRule::handle_src_descriptor_change()
     document->fonts()->add_css_connected_font(new_font_face);
 }
 
+void CSSFontFaceRule::disconnect_font_face()
+{
+    if (!m_css_connected_font_face)
+        return;
+
+    m_css_connected_font_face->disconnect_from_css_rule();
+    m_css_connected_font_face = nullptr;
+}
+
 void CSSFontFaceRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);
