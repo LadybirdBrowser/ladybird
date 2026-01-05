@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+7 Pass
+2 Fail
+Pass	MessageEvent constructor called as normal function
+Pass	Default event values
+Pass	MessageEventInit dictionary
+Pass	Passing null for ports member
+Fail	ports attribute should be a FrozenArray
+Pass	initMessageEvent operation
+Pass	Passing null for ports parameter to initMessageEvent
+Pass	initMessageEvent operation default parameter values
+Fail	Passing ServiceWorker for source member
