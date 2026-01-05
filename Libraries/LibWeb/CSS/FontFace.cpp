@@ -319,6 +319,7 @@ void FontFace::reject_status_promise(JS::Value reason)
 {
     if (m_status != Bindings::FontFaceLoadStatus::Error) {
         WebIDL::reject_promise(realm(), m_font_status_promise, reason);
+        WebIDL::mark_promise_as_handled(m_font_status_promise);
         m_status = Bindings::FontFaceLoadStatus::Error;
     }
 }
