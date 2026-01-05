@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-6 Pass
-5 Fail
+11 Pass
 Pass	e.style['clip-path'] = "rect(0 0 0 0)" should set the property value
 Pass	e.style['clip-path'] = "rect(10px auto 20px 30px)" should set the property value
 Pass	e.style['clip-path'] = "rect(auto auto auto auto)" should set the property value
 Pass	e.style['clip-path'] = "rect(10% 20% 15% 12%)" should set the property value
 Pass	e.style['clip-path'] = "rect(10% 95% 97% 12%)" should set the property value
 Pass	e.style['clip-path'] = "rect(-10% -20% -15% -12%)" should set the property value
-Fail	e.style['clip-path'] = "rect(10px 12% 20px 30px round 100%)" should set the property value
-Fail	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0 1px)" should set the property value
-Fail	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0px 1px 2%)" should set the property value
-Fail	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0px 1px 2% 3em)" should set the property value
-Fail	e.style['clip-path'] = "rect(10px 12% 20px 30px round 20% / 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "rect(10px 12% 20px 30px round 100%)" should set the property value
+Pass	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0 1px)" should set the property value
+Pass	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0px 1px 2%)" should set the property value
+Pass	e.style['clip-path'] = "rect(10px 12% 20px 30px round 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "rect(10px 12% 20px 30px round 20% / 0px 1px 2% 3em)" should set the property value
