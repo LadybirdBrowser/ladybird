@@ -478,6 +478,19 @@ void HTMLScriptElement::prepare_script()
             if (!has_attribute(HTML::AttributeNames::integrity))
                 options.integrity_metadata = resolve_a_module_integrity_metadata(*url, settings_object);
 
+            // AD-HOC: Queue an element task on the networking task source to run the onComplete steps
+            // This resolves an edge case where mark_as_ready() can execute before we set
+            // m_steps_to_run_when_the_result_is_ready
+            // See https://github.com/whatwg/html/issues/12073
+            auto on_complete = create_on_fetch_script_complete(heap(), [this](auto result) {
+                queue_an_element_task(Task::Source::Networking, [this, result = move(result)] {
+                    if (!result)
+                        mark_as_ready(ResultState::Null {});
+                    else
+                        mark_as_ready(Result(*result));
+                });
+            });
+
             // Fetch an external module script graph given url, settings object, options, and onComplete.
             fetch_external_module_script_graph(realm(), *url, settings_object, options, on_complete);
         }

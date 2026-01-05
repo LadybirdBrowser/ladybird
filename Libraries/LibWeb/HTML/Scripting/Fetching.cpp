@@ -654,7 +654,7 @@ void fetch_single_module_script(JS::Realm& realm,
 
     // 6. If moduleMap[(url, moduleType)] exists, run onComplete given moduleMap[(url, moduleType)], and return.
     auto entry = module_map.get(url, module_type.to_byte_string());
-    if (entry.has_value() && entry->type == ModuleMap::EntryType::ModuleScript) {
+    if (entry.has_value()) {
         on_complete->function()(entry->module_script);
         return;
     }
