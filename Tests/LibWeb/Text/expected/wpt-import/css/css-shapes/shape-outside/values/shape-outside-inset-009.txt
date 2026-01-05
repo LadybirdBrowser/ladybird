@@ -2,32 +2,32 @@ Harness status: OK
 
 Found 28 tests
 
-28 Fail
-Fail	inset(10px 10px 10px 10px round calc(10in)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(10in + 20px)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(30%)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(100%/4)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(25%*3)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(25%*3 - 10in)) - inline style
-Fail	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(10in) calc(10in)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(10in + 20px) calc(10in + 20px)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(30%) calc(30%)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(100%/4) calc(100%/4)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(25%*3) calc(25%*3)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(25%*3 - 10in) calc(25%*3 - 10in)) - inline style
-Fail	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4)) - inline style
-Fail	inset(10px 10px 10px 10px round calc(10in)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(10in + 20px)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(30%)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(100%/4)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(25%*3)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(25%*3 - 10in)) - computed style
-Fail	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(10in) calc(10in)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(10in + 20px) calc(10in + 20px)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(30%) calc(30%)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(100%/4) calc(100%/4)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(25%*3) calc(25%*3)) - computed style
-Fail	inset(10px 10px 10px 10px round calc(25%*3 - 10in) calc(25%*3 - 10in)) - computed style
-Fail	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4)) - computed style
+28 Pass
+Pass	inset(10px 10px 10px 10px round calc(10in)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(10in + 20px)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(30%)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(100%/4)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(25%*3)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(25%*3 - 10in)) - inline style
+Pass	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(10in) calc(10in)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(10in + 20px) calc(10in + 20px)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(30%) calc(30%)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(100%/4) calc(100%/4)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(25%*3) calc(25%*3)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(25%*3 - 10in) calc(25%*3 - 10in)) - inline style
+Pass	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4)) - inline style
+Pass	inset(10px 10px 10px 10px round calc(10in)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(10in + 20px)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(30%)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(100%/4)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(25%*3)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(25%*3 - 10in)) - computed style
+Pass	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(10in) calc(10in)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(10in + 20px) calc(10in + 20px)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(30%) calc(30%)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(100%/4) calc(100%/4)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(25%*3) calc(25%*3)) - computed style
+Pass	inset(10px 10px 10px 10px round calc(25%*3 - 10in) calc(25%*3 - 10in)) - computed style
+Pass	inset(10px 10px 10px 10px round calc((12.5%*6 + 10in) / 4) calc((12.5%*6 + 10in) / 4)) - computed style

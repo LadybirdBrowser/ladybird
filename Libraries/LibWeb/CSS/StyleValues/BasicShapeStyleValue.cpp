@@ -8,6 +8,7 @@
 #include "BasicShapeStyleValue.h"
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -32,6 +33,8 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
     auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
     auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
     auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
+
+    // FIXME: Respect border radius
 
     // A pair of insets in either dimension that add up to more than the used dimension
     // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
@@ -59,7 +62,16 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
 
 String Inset::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("inset({})", serialize_a_positional_value_list({ top, right, bottom, left }, mode)));
+    StringBuilder builder;
+
+    builder.append(serialize_a_positional_value_list({ top, right, bottom, left }, mode));
+
+    auto serialized_border_radius = border_radius->to_string(mode);
+
+    if (serialized_border_radius != "0px"sv)
+        builder.appendff(" round {}", serialized_border_radius);
+
+    return MUST(String::formatted("inset({})", builder.to_string_without_validation()));
 }
 
 String Xywh::to_string(SerializationMode mode) const
@@ -274,10 +286,12 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
             auto absolutized_bottom = shape.bottom->absolutized(computation_context);
             auto absolutized_left = shape.left->absolutized(computation_context);
 
-            if (absolutized_top == shape.top && absolutized_right == shape.right && absolutized_bottom == shape.bottom && absolutized_left == shape.left)
+            auto absolutized_border_radius = shape.border_radius->absolutized(computation_context);
+
+            if (absolutized_top == shape.top && absolutized_right == shape.right && absolutized_bottom == shape.bottom && absolutized_left == shape.left && absolutized_border_radius == shape.border_radius)
                 return shape;
 
-            return Inset { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left };
+            return Inset { absolutized_top, absolutized_right, absolutized_bottom, absolutized_left, absolutized_border_radius };
         },
         [&](Xywh const& shape) -> BasicShape {
             // Note: Given xywh(x y w h), the equivalent function is inset(y calc(100% - x - w) calc(100% - y - h) x).
@@ -286,7 +300,8 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
             auto absolutized_bottom = one_hundred_percent_minus({ shape.y, shape.height }, calculation_context)->absolutized(computation_context);
             auto absolutized_left = shape.x->absolutized(computation_context);
 
-            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left };
+            // FIXME: Pass actual border radius once we parse it
+            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left, BorderRadiusRectStyleValue::create_zero() };
         },
         [&](Rect const& shape) -> BasicShape {
             // Note: Given rect(t r b l), the equivalent function is inset(t calc(100% - r) calc(100% - b) l).
@@ -308,7 +323,8 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
             auto absolutized_bottom = one_hundred_percent_minus({ resolve_auto(shape.bottom, Percentage { 100 }) }, calculation_context)->absolutized(computation_context);
             auto absolutized_left = resolve_auto(shape.left, Percentage { 0 })->absolutized(computation_context);
 
-            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left };
+            // FIXME: Pass actual border radius once we parse it
+            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left, BorderRadiusRectStyleValue::create_zero() };
         },
         [&](Circle const& shape) -> BasicShape {
             auto absolutized_radius = shape.radius->absolutized(computation_context);
