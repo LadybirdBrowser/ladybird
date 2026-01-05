@@ -1554,3 +1554,38 @@ TEST_CASE(backreference_to_undefined_capture_groups)
         EXPECT(result2.capture_group_matches.first()[1].view.is_null());
     }
 }
+
+TEST_CASE(optional_groups_with_empty_matches)
+{
+    Regex<ECMA262> re1("^(.*)(.*)?$"sv);
+    auto result1 = re1.match("a"sv);
+    EXPECT_EQ(result1.success, true);
+    EXPECT_EQ(result1.capture_group_matches.first()[0].view.to_byte_string(), "a"sv);
+    EXPECT(result1.capture_group_matches.first()[1].view.is_null());
+
+    Regex<ECMA262> re2("()?"sv);
+    auto result3 = re2.match(""sv);
+    EXPECT_EQ(result3.success, true);
+    EXPECT(result3.capture_group_matches.first()[0].view.is_null());
+
+    Regex<ECMA262> re3("(z)((a+)?(b+)?(c))*"sv);
+    auto result4 = re3.match("zaacbbbcac"sv);
+    EXPECT_EQ(result4.success, true);
+    EXPECT_EQ(result4.capture_group_matches.first()[0].view.to_byte_string(), "z"sv);
+    EXPECT_EQ(result4.capture_group_matches.first()[1].view.to_byte_string(), "ac"sv);
+    EXPECT_EQ(result4.capture_group_matches.first()[2].view.to_byte_string(), "a"sv);
+    EXPECT(result4.capture_group_matches.first()[3].view.is_null());
+    EXPECT_EQ(result4.capture_group_matches.first()[4].view.to_byte_string(), "c"sv);
+
+    Regex<ECMA262> re4("(?:(?=(abc)))?a"sv);
+    auto result5 = re4.match("abc"sv, ECMAScriptFlags::Global);
+    EXPECT_EQ(result5.success, true);
+    EXPECT_EQ(result5.matches.first().view.to_byte_string(), "a"sv);
+    EXPECT(result5.capture_group_matches.first()[0].view.is_null());
+
+    Regex<ECMA262> re5("^(?:(?=(abc))){0,1}a"sv);
+    auto result6 = re5.match("abc"sv, ECMAScriptFlags::Global);
+    EXPECT_EQ(result6.success, true);
+    EXPECT_EQ(result6.matches.first().view.to_byte_string(), "a"sv);
+    EXPECT(result6.capture_group_matches.first()[0].view.is_null());
+}

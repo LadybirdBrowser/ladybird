@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 354 tests
 
-353 Pass
-1 Fail
+354 Pass
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -332,7 +331,7 @@ Pass	Pattern: [{"pathname":":foo\\bar"}] Inputs: [{"pathname":"foobar"}]
 Pass	Pattern: [{"pathname":":foo{}(.*)"}] Inputs: [{"pathname":"foobar"}]
 Pass	Pattern: [{"pathname":":foo{}bar"}] Inputs: [{"pathname":"foobar"}]
 Pass	Pattern: [{"pathname":":foo{}?bar"}] Inputs: [{"pathname":"foobar"}]
-Fail	Pattern: [{"pathname":"*{}**?"}] Inputs: [{"pathname":"foobar"}]
+Pass	Pattern: [{"pathname":"*{}**?"}] Inputs: [{"pathname":"foobar"}]
 Pass	Pattern: [{"pathname":":foo(baz)(.*)"}] Inputs: [{"pathname":"bazbar"}]
 Pass	Pattern: [{"pathname":":foo(baz)bar"}] Inputs: [{"pathname":"bazbar"}]
 Pass	Pattern: [{"pathname":"*/*"}] Inputs: [{"pathname":"foo/bar"}]
