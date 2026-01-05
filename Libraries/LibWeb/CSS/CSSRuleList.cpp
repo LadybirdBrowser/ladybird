@@ -7,6 +7,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/CSSRuleListPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -173,6 +174,11 @@ WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
                 return WebIDL::InvalidStateError::create(realm(), "Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
         }
     }
+
+    // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+    // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
+    if (auto* font_face_rule = as_if<CSSFontFaceRule>(old_rule))
+        font_face_rule->disconnect_font_face();
 
     // 5. Remove rule old rule from list at the zero-indexed position index.
     m_rules.remove(index);

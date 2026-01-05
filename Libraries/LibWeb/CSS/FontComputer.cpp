@@ -562,6 +562,13 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
             return sheet.has_associated_font_loader(*font_loader);
         });
     }
+
+    // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+    // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
+    for (auto const& rule : sheet.rules()) {
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule))
+            font_face_rule->disconnect_font_face();
+    }
 }
 
 size_t FontComputer::number_of_css_font_faces_with_loading_in_progress() const

@@ -33,6 +33,7 @@ public:
     GC::Ptr<FontFace> css_connected_font_face() const { return m_css_connected_font_face; }
     void set_css_connected_font_face(GC::Ptr<FontFace> font_face) { m_css_connected_font_face = font_face; }
     void handle_src_descriptor_change();
+    void disconnect_font_face();
 
 private:
     CSSFontFaceRule(JS::Realm&, GC::Ref<CSSFontFaceDescriptors>);
