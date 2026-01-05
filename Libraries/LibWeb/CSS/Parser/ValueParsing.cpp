@@ -3605,7 +3605,6 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
     // FIXME: Implement path(). See: https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
     if (function_name.equals_ignoring_ascii_case("inset"sv)) {
         // inset() = inset( <length-percentage>{1,4} [ round <'border-radius'> ]? )
-        // FIXME: Parse the border-radius.
         auto arguments_tokens = TokenStream { component_value.function().value };
 
         // If less than four <length-percentage> values are provided,
@@ -3635,11 +3634,25 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
             left = right;
 
         arguments_tokens.discard_whitespace();
+
+        NonnullRefPtr<StyleValue const> border_radius = BorderRadiusRectStyleValue::create_zero();
+        if (arguments_tokens.next_token().is_ident("round"sv)) {
+            arguments_tokens.discard_a_token(); // 'round'
+            auto parsed_border_radius = parse_border_radius_rect_value(arguments_tokens);
+
+            if (!parsed_border_radius)
+                return nullptr;
+
+            border_radius = parsed_border_radius.release_nonnull();
+
+            arguments_tokens.discard_whitespace();
+        }
+
         if (arguments_tokens.has_next_token())
             return nullptr;
 
         transaction.commit();
-        return BasicShapeStyleValue::create(Inset { top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull() });
+        return BasicShapeStyleValue::create(Inset { top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull(), border_radius });
     }
 
     if (function_name.equals_ignoring_ascii_case("xywh"sv)) {
