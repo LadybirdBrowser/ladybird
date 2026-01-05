@@ -229,6 +229,7 @@ set(SOURCES
     CSS/StyleValues/BasicShapeStyleValue.cpp
     CSS/StyleValues/BorderImageSliceStyleValue.cpp
     CSS/StyleValues/BorderRadiusStyleValue.cpp
+    CSS/StyleValues/BorderRadiusRectStyleValue.cpp
     CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
     CSS/StyleValues/ColorMixStyleValue.cpp

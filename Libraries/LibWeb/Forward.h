@@ -217,6 +217,7 @@ class AngleStyleValue;
 class BackgroundSizeStyleValue;
 class BasicShapeStyleValue;
 class BorderImageSliceStyleValue;
+class BorderRadiusRectStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
 class CalculationNode;

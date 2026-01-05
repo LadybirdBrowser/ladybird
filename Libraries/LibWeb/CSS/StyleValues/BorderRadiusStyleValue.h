@@ -17,6 +17,11 @@ namespace Web::CSS {
 
 class BorderRadiusStyleValue final : public StyleValueWithDefaultOperators<BorderRadiusStyleValue> {
 public:
+    static ValueComparingNonnullRefPtr<BorderRadiusStyleValue const> create_zero()
+    {
+        return create(LengthStyleValue::create(Length::make_px(0)), LengthStyleValue::create(Length::make_px(0)));
+    }
+
     static ValueComparingNonnullRefPtr<BorderRadiusStyleValue const> create(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
     {
         return adopt_ref(*new (nothrow) BorderRadiusStyleValue(horizontal_radius, vertical_radius));
