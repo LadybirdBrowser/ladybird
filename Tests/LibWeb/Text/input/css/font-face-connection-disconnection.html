@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style id="font-style">
+    @font-face {
+        font-family: TestFont;
+        src: url("does-not-exist-1.woff");
+        font-weight: 400;
+    }
+</style>
+
+<p id="text" style="font-family: TestFont">
+    CSS-connected FontFace test
+</p>
+
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`Initial document.fonts.size: ${document.fonts.size}`);
+
+        // Parsed @font-face rules should be added to document.fonts
+        const cssFace = [...document.fonts].find(f => f.family === 'TestFont');
+        println(`CSS FontFace exists ${!!cssFace}`);
+
+        println(`Initial FontFace.weight: ${cssFace.weight}`);
+        cssFace.weight = "700";
+        println(`After FontFace.weight = 700, cssFace.weight: ${cssFace.weight}`);
+
+        // Force style recomputation
+        getComputedStyle(document.getElementById("text")).fontWeight;
+
+        // FontFace changes should be propagated to @font-face rule
+        const sheetStyle = document.getElementById("font-style");
+        const sheet = sheetStyle.sheet;
+        const rule = sheet.cssRules[0];
+        println(`@font-face weight after FontFace.weight = 700: ${rule.style.fontWeight}`);
+    });
+</script>

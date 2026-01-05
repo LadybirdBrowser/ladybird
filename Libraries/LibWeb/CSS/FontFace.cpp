@@ -182,6 +182,34 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     return font_face;
 }
 
+// https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRule& rule)
+{
+    HTML::TemporaryExecutionContext execution_context { realm };
+
+    auto font_face = realm.create<FontFace>(realm, WebIDL::create_promise(realm));
+    auto const& descriptors = *rule.descriptors();
+
+    font_face->m_family = descriptors.font_family();
+    font_face->m_style = descriptors.font_style();
+    font_face->m_weight = descriptors.font_weight();
+    font_face->m_stretch = descriptors.font_width();
+    font_face->m_unicode_range = descriptors.unicode_range();
+    font_face->m_feature_settings = descriptors.font_feature_settings();
+    font_face->m_variation_settings = descriptors.font_variation_settings();
+    font_face->m_display = descriptors.font_display();
+    font_face->m_ascent_override = descriptors.ascent_override();
+    font_face->m_descent_override = descriptors.descent_override();
+    font_face->m_line_gap_override = descriptors.line_gap_override();
+
+    if (auto src_value = descriptors.descriptor(DescriptorID::Src))
+        font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
+
+    font_face->m_css_font_face_rule = &rule;
+
+    return font_face;
+}
+
 FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
     : Bindings::PlatformObject(realm)
     , m_font_status_promise(font_status_promise)

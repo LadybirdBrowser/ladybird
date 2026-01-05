@@ -31,6 +31,8 @@ public:
     bool delete_(GC::Root<FontFace>);
     void clear();
 
+    void add_css_connected_font(GC::Ref<FontFace>);
+
     void set_onloading(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloading();
     void set_onloadingdone(WebIDL::CallbackType*);

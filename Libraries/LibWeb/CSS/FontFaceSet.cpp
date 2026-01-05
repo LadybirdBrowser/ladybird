@@ -32,6 +32,7 @@ GC_DEFINE_ALLOCATOR(FontFaceSet);
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-fontfaceset
 GC::Ref<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<GC::Root<FontFace>> const& initial_faces)
 {
+    HTML::TemporaryExecutionContext temporary_execution_context { realm };
     auto ready_promise = WebIDL::create_promise(realm);
     auto set_entries = JS::Set::create(realm);
 
@@ -72,8 +73,7 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-WebIDL::ExceptionOr<GC::Ref<FontFaceSet>>
-FontFaceSet::add(GC::Root<FontFace> face)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Root<FontFace> face)
 {
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
     if (m_set_entries->set_has(face))
@@ -84,6 +84,16 @@ FontFaceSet::add(GC::Root<FontFace> face)
         return WebIDL::InvalidModificationError::create(realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_utf16);
     }
 
+    // NB: This method implements steps 3 and 4.
+    add_css_connected_font(*face);
+
+    // 5. Return the FontFaceSet.
+    return GC::Ref<FontFaceSet>(*this);
+}
+
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
+void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
+{
     // 3. Add the font argument to the FontFaceSet’s set entries.
     m_set_entries->set_add(face);
 
@@ -98,9 +108,6 @@ FontFaceSet::add(GC::Root<FontFace> face)
         // 2. Append font to the FontFaceSet’s [[LoadingFonts]] list.
         m_loading_fonts.append(*face);
     }
-
-    // 5. Return the FontFaceSet.
-    return GC::Ref<FontFaceSet>(*this);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete

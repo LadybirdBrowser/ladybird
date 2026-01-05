@@ -1,0 +1,5 @@
+Initial document.fonts.size: 1
+CSS FontFace exists true
+Initial FontFace.weight: 400
+After FontFace.weight = 700, cssFace.weight: 700
+@font-face weight after FontFace.weight = 700: 700
