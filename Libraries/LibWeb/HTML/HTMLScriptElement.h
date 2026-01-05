@@ -161,6 +161,8 @@ private:
 
     // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
     Utf16String m_script_text;
+
+    void set_steps_to_run_when_the_result_is_ready(Function<void()>);
 };
 
 }

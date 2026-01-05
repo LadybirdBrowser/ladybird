@@ -541,7 +541,7 @@ void HTMLScriptElement::prepare_script()
             m_preparation_time_document->scripts_to_execute_as_soon_as_possible().append(*this);
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            set_steps_to_run_when_the_result_is_ready([this] {
                 // 1. Execute the script element el.
                 execute_script();
 
@@ -549,7 +549,7 @@ void HTMLScriptElement::prepare_script()
                 m_preparation_time_document->scripts_to_execute_as_soon_as_possible().remove_first_matching([this](auto& entry) {
                     return entry.ptr() == this;
                 });
-            };
+            });
         }
 
         // 3. Otherwise, if el is not parser-inserted:
@@ -559,7 +559,7 @@ void HTMLScriptElement::prepare_script()
             m_preparation_time_document->scripts_to_execute_in_order_as_soon_as_possible().append(*this);
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            set_steps_to_run_when_the_result_is_ready([this] {
                 auto& scripts = m_preparation_time_document->scripts_to_execute_in_order_as_soon_as_possible();
                 // 1. If scripts[0] is not el, then abort these steps.
                 if (scripts[0] != this)
@@ -573,7 +573,7 @@ void HTMLScriptElement::prepare_script()
                     // 2. Remove scripts[0].
                     scripts.take_first();
                 }
-            };
+            });
         }
 
         // 4. Otherwise, if el has a defer attribute or el's type is "module":
@@ -582,10 +582,10 @@ void HTMLScriptElement::prepare_script()
             m_parser_document->add_script_to_execute_when_parsing_has_finished({}, *this);
 
             // 2. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            set_steps_to_run_when_the_result_is_ready([this] {
                 // set el's ready to be parser-executed to true. (The parser will handle executing the script.)
                 m_ready_to_be_parser_executed = true;
-            };
+            });
         }
 
         // 5. Otherwise:
@@ -596,10 +596,10 @@ void HTMLScriptElement::prepare_script()
             // FIXME: 2. Block rendering on el.
 
             // 3. Set el's steps to run when the result is ready to the following:
-            m_steps_to_run_when_the_result_is_ready = [this] {
+            set_steps_to_run_when_the_result_is_ready([this] {
                 // set el's ready to be parser-executed to true. (The parser will handle executing the script.)
                 m_ready_to_be_parser_executed = true;
-            };
+            });
         }
     }
 
@@ -846,6 +846,17 @@ bool HTMLScriptElement::is_implicitly_potentially_render_blocking() const
 {
     // A script element el is implicitly potentially render-blocking if el's type is "classic", el is parser-inserted, and el does not have an async or defer attribute.
     return m_script_type == ScriptType::Classic && is_parser_inserted() && !has_attribute(AttributeNames::async) && !has_attribute(AttributeNames::defer);
+}
+
+void HTMLScriptElement::set_steps_to_run_when_the_result_is_ready(Function<void()> steps)
+{
+    VERIFY(!m_steps_to_run_when_the_result_is_ready);
+
+    if (m_result.has<ResultState::Uninitialized>()) {
+        m_steps_to_run_when_the_result_is_ready = move(steps);
+    } else {
+        steps();
+    }
 }
 
 }
