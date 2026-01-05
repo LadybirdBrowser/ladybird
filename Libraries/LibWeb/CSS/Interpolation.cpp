@@ -147,7 +147,9 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
         [&](FilterOperation::Blur const& from_value) -> Optional<FilterValue> {
             auto const& to_value = to.get<FilterOperation::Blur>();
 
-            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_value.radius.as_style_value(), to_value.radius.as_style_value(), delta, allow_discrete)) {
+            CalculationContext blur_calculation_context = calculation_context;
+            blur_calculation_context.accepted_type_ranges.set(ValueType::Length, { 0, NumericLimits<float>::max() });
+            if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius.as_style_value(), to_value.radius.as_style_value(), delta, allow_discrete)) {
                 LengthOrCalculated interpolated_radius = interpolated_style_value->is_length() ? LengthOrCalculated { interpolated_style_value->as_length().length() } : LengthOrCalculated { interpolated_style_value->as_calculated() };
                 return FilterOperation::Blur {
                     .radius = interpolated_radius
@@ -180,13 +182,31 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
             auto const& to_value = to.get<FilterOperation::Color>();
             auto from_style_value = resolve_number_percentage(from_value.amount);
             auto to_style_value = resolve_number_percentage(to_value.amount);
-            if (auto interpolated_style_value = interpolate_value(element, calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
+            auto operation = delta >= 0.5f ? to_value.operation : from_value.operation;
+
+            CalculationContext filter_function_calculation_context = calculation_context;
+            switch (operation) {
+            case Gfx::ColorFilterType::Grayscale:
+            case Gfx::ColorFilterType::Invert:
+            case Gfx::ColorFilterType::Opacity:
+            case Gfx::ColorFilterType::Sepia:
+                filter_function_calculation_context.accepted_type_ranges.set(ValueType::Number, { 0, 1 });
+                break;
+            case Gfx::ColorFilterType::Brightness:
+            case Gfx::ColorFilterType::Contrast:
+            case Gfx::ColorFilterType::Saturate:
+                filter_function_calculation_context.accepted_type_ranges.set(ValueType::Number, { 0, NumericLimits<float>::max() });
+                break;
+            }
+
+            if (auto interpolated_style_value = interpolate_value(element, filter_function_calculation_context, from_style_value, to_style_value, delta, allow_discrete)) {
                 auto to_number_percentage = [&](StyleValue const& style_value) -> NumberPercentage {
-                    if (style_value.is_number())
+                    if (style_value.is_number()) {
                         return Number {
                             Number::Type::Number,
                             style_value.as_number().number(),
                         };
+                    }
                     if (style_value.is_percentage())
                         return Percentage { style_value.as_percentage().percentage() };
                     if (style_value.is_calculated())
@@ -194,7 +214,7 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
                     VERIFY_NOT_REACHED();
                 };
                 return FilterOperation::Color {
-                    .operation = delta >= 0.5f ? to_value.operation : from_value.operation,
+                    .operation = operation,
                     .amount = to_number_percentage(*interpolated_style_value)
                 };
             }
