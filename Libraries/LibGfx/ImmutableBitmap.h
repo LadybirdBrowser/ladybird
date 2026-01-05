@@ -65,7 +65,7 @@ public:
 
     Color get_pixel(int x, int y) const;
 
-    RefPtr<Bitmap const> bitmap() const;
+    NonnullRefPtr<Bitmap const> bitmap() const;
 
 private:
     NonnullOwnPtr<ImmutableBitmapImpl> m_impl;

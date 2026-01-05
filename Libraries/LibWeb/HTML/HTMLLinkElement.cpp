@@ -893,11 +893,11 @@ static NonnullRefPtr<Core::Promise<bool>> decode_favicon(ReadonlyBytes favicon_d
         // FIXME: Calculate size based on device pixel ratio
         Gfx::IntSize size { 32, 32 };
         auto immutable_bitmap = result.release_value()->bitmap(0, size);
-        auto bitmap = immutable_bitmap->bitmap();
-        if (!bitmap) {
+        if (!immutable_bitmap) {
             promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
             return promise;
         }
+        auto bitmap = immutable_bitmap->bitmap();
         auto navigable = document->navigable();
         if (navigable && navigable->is_traversable())
             navigable->traversable_navigable()->page().client().page_did_change_favicon(*bitmap);
