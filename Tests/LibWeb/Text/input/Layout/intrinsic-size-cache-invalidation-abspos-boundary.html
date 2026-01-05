@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.test-container {
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
+.fit-content {
+    width: fit-content;
+    background: lightblue;
+    padding: 5px;
+}
+.abspos {
+    position: absolute;
+    background: rgba(255, 0, 0, 0.3);
+}
+.fixed {
+    position: fixed;
+    background: rgba(255, 0, 0, 0.3);
+}
+.in-flow {
+    background: lightgreen;
+}
+.wide { width: 200px; }
+.narrow { width: 100px; }
+</style>
+<script src="../include.js"></script>
+</head>
+<body>
+
+<!-- Test 1: Content change inside abspos doesn't affect fit-content ancestor -->
+<div class="test-container" id="test1">
+    <div class="fit-content" id="test1-container">
+        <div class="in-flow wide">200px in-flow</div>
+        <div class="abspos" id="test1-abspos">
+            <span id="test1-text">short</span>
+        </div>
+    </div>
+</div>
+
+<!-- Test 2: Content change in in-flow element DOES affect fit-content ancestor -->
+<div class="test-container" id="test2">
+    <div class="fit-content" id="test2-container">
+        <div class="in-flow" id="test2-inflow">
+            <span id="test2-text">short text</span>
+        </div>
+    </div>
+</div>
+
+<!-- Test 3: Position toggle static to absolute -->
+<div class="test-container" id="test3">
+    <div class="fit-content" id="test3-container">
+        <div class="in-flow narrow">100px</div>
+        <div class="in-flow wide" id="test3-toggle">200px (will become abspos)</div>
+    </div>
+</div>
+
+<!-- Test 4: Position toggle absolute to static -->
+<div class="test-container" id="test4">
+    <div class="fit-content" id="test4-container">
+        <div class="in-flow narrow">100px</div>
+        <div class="abspos wide" id="test4-toggle">200px abspos (will become static)</div>
+    </div>
+</div>
+
+<!-- Test 5: Nested abspos - content change in inner abspos -->
+<div class="test-container" id="test5">
+    <div class="fit-content" id="test5-outer">
+        <div class="in-flow narrow">100px</div>
+        <div class="abspos" id="test5-abspos-outer">
+            <div class="abspos" id="test5-abspos-inner">
+                <span id="test5-text">nested</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test 6: Fixed position (also absolutely positioned) -->
+<div class="test-container" id="test6">
+    <div class="fit-content" id="test6-container">
+        <div class="in-flow wide">200px in-flow</div>
+        <div class="fixed" id="test6-fixed" style="top: -9999px; left: -9999px;">
+            <span id="test6-text">fixed</span>
+        </div>
+    </div>
+</div>
+
+<!-- Test 7: Sibling of abspos - in-flow sibling change should affect ancestor -->
+<div class="test-container" id="test7">
+    <div class="fit-content" id="test7-container">
+        <div class="abspos">abspos sibling</div>
+        <div class="in-flow" id="test7-sibling">
+            <span id="test7-text">in-flow sibling</span>
+        </div>
+    </div>
+</div>
+
+<!-- Test 8: Abspos with shrink-to-fit - abspos own size should update -->
+<div class="test-container" id="test8">
+    <div class="fit-content" id="test8-container">
+        <div class="in-flow wide">200px</div>
+        <div class="abspos" id="test8-abspos" style="width: fit-content;">
+            <span id="test8-text">abspos fit-content</span>
+        </div>
+    </div>
+</div>
+
+<!-- Test 9: Transform containing block (doesn't affect intrinsic sizing) -->
+<div class="test-container" id="test9">
+    <div class="fit-content" id="test9-outer">
+        <div class="in-flow" id="test9-transform" style="transform: translateX(0);">
+            <div class="in-flow narrow">100px</div>
+            <div class="abspos" id="test9-abspos">
+                <span id="test9-text">inside transform</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test 10: Flex container with abspos child -->
+<div class="test-container" id="test10">
+    <div class="fit-content" id="test10-outer">
+        <div style="display: flex;" id="test10-flex">
+            <div class="in-flow narrow">flex item 100px</div>
+            <div class="abspos" id="test10-abspos">
+                <span id="test10-text">abspos flex child</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+test(() => {
+    // Helper to force layout and get width
+    function getWidth(id) {
+        document.body.offsetWidth; // Force layout
+        return document.getElementById(id).offsetWidth;
+    }
+
+    // Helper to change text content via CharacterData (triggers set_needs_layout_update)
+    function changeText(id, newText) {
+        const el = document.getElementById(id);
+        if (el.firstChild && el.firstChild.nodeType === Node.TEXT_NODE) {
+            el.firstChild.data = newText;
+        } else {
+            el.textContent = newText;
+        }
+    }
+
+    println("=== Test 1: Content change inside abspos doesn't affect fit-content ancestor ===");
+    {
+        const initialWidth = getWidth('test1-container');
+        changeText('test1-text', 'this is a much much longer text inside abspos');
+        const afterWidth = getWidth('test1-container');
+        println("Initial width: " + initialWidth);
+        println("After abspos content change: " + afterWidth);
+        println("PASS: " + (initialWidth === afterWidth));
+    }
+
+    println("");
+    println("=== Test 2: Content change in in-flow element DOES affect ancestor ===");
+    {
+        const initialWidth = getWidth('test2-container');
+        changeText('test2-text', 'this is a much much longer text in flow and should make container wider');
+        const afterWidth = getWidth('test2-container');
+        println("Initial width: " + initialWidth);
+        println("After in-flow content change: " + afterWidth);
+        println("PASS: " + (afterWidth > initialWidth));
+    }
+
+    println("");
+    println("=== Test 3: Position toggle static to absolute shrinks container ===");
+    {
+        const initialWidth = getWidth('test3-container');
+        document.getElementById('test3-toggle').style.position = 'absolute';
+        const afterWidth = getWidth('test3-container');
+        println("Initial width: " + initialWidth);
+        println("After static->absolute: " + afterWidth);
+        println("PASS: " + (afterWidth < initialWidth));
+    }
+
+    println("");
+    println("=== Test 4: Position toggle absolute to static grows container ===");
+    {
+        const initialWidth = getWidth('test4-container');
+        document.getElementById('test4-toggle').style.position = 'static';
+        const afterWidth = getWidth('test4-container');
+        println("Initial width: " + initialWidth);
+        println("After absolute->static: " + afterWidth);
+        println("PASS: " + (afterWidth > initialWidth));
+    }
+
+    println("");
+    println("=== Test 5: Nested abspos - outer container unaffected ===");
+    {
+        const initialWidth = getWidth('test5-outer');
+        changeText('test5-text', 'very long text inside nested abspos elements');
+        const afterWidth = getWidth('test5-outer');
+        println("Initial width: " + initialWidth);
+        println("After nested abspos content change: " + afterWidth);
+        println("PASS: " + (initialWidth === afterWidth));
+    }
+
+    println("");
+    println("=== Test 6: Fixed position element (also abspos) doesn't affect ancestor ===");
+    {
+        const initialWidth = getWidth('test6-container');
+        changeText('test6-text', 'very long text inside fixed position element');
+        const afterWidth = getWidth('test6-container');
+        println("Initial width: " + initialWidth);
+        println("After fixed content change: " + afterWidth);
+        println("PASS: " + (initialWidth === afterWidth));
+    }
+
+    println("");
+    println("=== Test 7: In-flow sibling of abspos DOES affect ancestor ===");
+    {
+        const initialWidth = getWidth('test7-container');
+        changeText('test7-text', 'this in-flow sibling text is now much longer and should affect container');
+        const afterWidth = getWidth('test7-container');
+        println("Initial width: " + initialWidth);
+        println("After sibling content change: " + afterWidth);
+        println("PASS: " + (afterWidth > initialWidth));
+    }
+
+    println("");
+    println("=== Test 8: Abspos with fit-content updates its own size ===");
+    {
+        const initialAbsposWidth = getWidth('test8-abspos');
+        changeText('test8-text', 'abspos fit-content text is now much much longer');
+        const afterAbsposWidth = getWidth('test8-abspos');
+        const containerWidth = getWidth('test8-container');
+        println("Initial abspos width: " + initialAbsposWidth);
+        println("After content change abspos width: " + afterAbsposWidth);
+        println("Container width (should be ~210): " + containerWidth);
+        println("PASS abspos grew: " + (afterAbsposWidth > initialAbsposWidth));
+        println("PASS container unchanged: " + (containerWidth >= 200 && containerWidth <= 220));
+    }
+
+    println("");
+    println("=== Test 9: Transform containing block - abspos inside doesn't affect outer ===");
+    {
+        const initialWidth = getWidth('test9-outer');
+        changeText('test9-text', 'very long text inside abspos within transform element');
+        const afterWidth = getWidth('test9-outer');
+        println("Initial width: " + initialWidth);
+        println("After content change: " + afterWidth);
+        println("PASS: " + (initialWidth === afterWidth));
+    }
+
+    println("");
+    println("=== Test 10: Flex container - abspos child doesn't affect flex sizing ===");
+    {
+        const initialWidth = getWidth('test10-outer');
+        changeText('test10-text', 'very long text inside abspos child of flex container');
+        const afterWidth = getWidth('test10-outer');
+        println("Initial width: " + initialWidth);
+        println("After content change: " + afterWidth);
+        println("PASS: " + (initialWidth === afterWidth));
+    }
+});
+</script>
+</body>
+</html>
