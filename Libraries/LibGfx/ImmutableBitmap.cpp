@@ -31,7 +31,7 @@ StringView export_format_name(ExportFormat format)
 struct ImmutableBitmapImpl {
     sk_sp<SkImage> sk_image;
     SkBitmap sk_bitmap;
-    Variant<NonnullRefPtr<Gfx::Bitmap>, NonnullRefPtr<Gfx::PaintingSurface>, Empty> source;
+    NonnullRefPtr<Gfx::Bitmap> bitmap;
     ColorSpace color_space;
 };
 
@@ -174,16 +174,14 @@ ErrorOr<BitmapExportResult> ImmutableBitmap::export_to_byte_buffer(ExportFormat 
     };
 }
 
-RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
+NonnullRefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
-    // FIXME: Implement for PaintingSurface
-    return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>();
+    return m_impl->bitmap;
 }
 
 Color ImmutableBitmap::get_pixel(int x, int y) const
 {
-    // FIXME: Implement for PaintingSurface
-    return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>()->get_pixel(x, y);
+    return m_impl->bitmap->get_pixel(x, y);
 }
 
 static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
@@ -200,14 +198,19 @@ static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space)
 {
-    ImmutableBitmapImpl impl;
+    SkBitmap sk_bitmap;
     auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->alpha_type()), color_space.color_space<sk_sp<SkColorSpace>>());
-    impl.sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap->scanline(0))), bitmap->pitch());
-    impl.sk_bitmap.setImmutable();
-    impl.sk_image = impl.sk_bitmap.asImage();
-    impl.source = bitmap;
-    impl.color_space = move(color_space);
-    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(impl)));
+    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap->scanline(0))), bitmap->pitch());
+    sk_bitmap.setImmutable();
+    auto sk_image = sk_bitmap.asImage();
+
+    ImmutableBitmapImpl impl {
+        .sk_image = move(sk_image),
+        .sk_bitmap = move(sk_bitmap),
+        .bitmap = move(bitmap),
+        .color_space = move(color_space),
+    };
+    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));
 }
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bitmap, AlphaType alpha_type, ColorSpace color_space)
@@ -225,10 +228,22 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bit
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> painting_surface)
 {
-    ImmutableBitmapImpl impl;
-    impl.sk_image = painting_surface->sk_image_snapshot<sk_sp<SkImage>>();
-    impl.source = painting_surface;
-    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(impl)));
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, painting_surface->size()));
+    painting_surface->read_into_bitmap(bitmap);
+
+    SkBitmap sk_bitmap;
+    auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->alpha_type()), SkColorSpace::MakeSRGB());
+    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap->scanline(0))), bitmap->pitch());
+    sk_bitmap.setImmutable();
+    auto sk_image = sk_bitmap.asImage();
+
+    ImmutableBitmapImpl impl {
+        .sk_image = move(sk_image),
+        .sk_bitmap = move(sk_bitmap),
+        .bitmap = move(bitmap),
+        .color_space = {},
+    };
+    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));
 }
 
 ImmutableBitmap::ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl> impl)
