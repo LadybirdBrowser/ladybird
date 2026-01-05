@@ -53,7 +53,7 @@ struct CacheFooter {
 // received the response headers for a request. The body is streamed into the entry as it is received. The cache format
 // on disk is:
 //
-//     [CacheHeader][URL][ReasonPhrase][HttpHeaders][Data][CacheFooter]
+//     [CacheHeader][URL][ReasonPhrase][Data][CacheFooter]
 class CacheEntry {
 public:
     virtual ~CacheEntry() = default;
