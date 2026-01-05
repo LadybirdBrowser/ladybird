@@ -12,6 +12,9 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendPluginRegistry.h>
 #include <clang/Lex/MacroArgs.h>
+#include <map>
+#include <set>
+#include <unordered_map>
 #include <unordered_set>
 
 template<typename T>
@@ -49,6 +52,168 @@ static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
         return true;
     });
     return inherits_from_cell;
+}
+
+// Check if a type has a visit_edges method that takes GC::Cell::Visitor&
+static bool type_has_visit_edges_method(clang::CXXRecordDecl const* record)
+{
+    if (!record || !record->isCompleteDefinition())
+        return false;
+
+    for (auto const* method : record->methods()) {
+        if (method->getNameAsString() != "visit_edges")
+            continue;
+        if (method->getNumParams() != 1)
+            continue;
+        // Check that the parameter is a reference to Visitor (GC::Cell::Visitor)
+        auto param_type = method->getParamDecl(0)->getType();
+        if (!param_type->isReferenceType())
+            continue;
+        return true;
+    }
+    return false;
+}
+
+enum class ContainsGCPtrResult {
+    No,
+    Yes,
+    YesRequiresVisitEdges, // Contains GC pointers and the type needs its own visit_edges
+};
+
+static std::map<clang::CXXRecordDecl const*, ContainsGCPtrResult> s_contains_gc_ptr_cache;
+
+// Forward declaration
+static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std::set<clang::CXXRecordDecl const*>& visited);
+
+static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* record, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    if (!record || !record->isCompleteDefinition())
+        return ContainsGCPtrResult::No;
+
+    // Avoid infinite recursion
+    if (visited.contains(record))
+        return ContainsGCPtrResult::No;
+    visited.insert(record);
+
+    // Check cache
+    auto cache_it = s_contains_gc_ptr_cache.find(record);
+    if (cache_it != s_contains_gc_ptr_cache.end())
+        return cache_it->second;
+
+    // Cell types are visited directly via GC::Ptr/GC::Ref, not through substruct visiting
+    if (record_inherits_from_cell(*record)) {
+        s_contains_gc_ptr_cache[record] = ContainsGCPtrResult::No;
+        return ContainsGCPtrResult::No;
+    }
+
+    // Skip GC infrastructure types that handle their own visiting
+    auto qualified_name = record->getQualifiedNameAsString();
+    static std::set<std::string> gc_infrastructure_types {
+        "GC::Root",
+        "GC::RootImpl",
+        "GC::HeapBlock",
+        "GC::CellAllocator",
+        "GC::TypeIsolatingCellAllocator",
+        "GC::RootVector",
+        "GC::Heap",
+        "GC::MarkedVector",
+        "GC::ConservativeVector",
+    };
+    if (gc_infrastructure_types.contains(qualified_name)) {
+        s_contains_gc_ptr_cache[record] = ContainsGCPtrResult::No;
+        return ContainsGCPtrResult::No;
+    }
+
+    // Skip AK types - they're library types that don't need visit_edges
+    if (qualified_name.starts_with("AK::") || qualified_name.starts_with("Optional<")) {
+        s_contains_gc_ptr_cache[record] = ContainsGCPtrResult::No;
+        return ContainsGCPtrResult::No;
+    }
+
+    ContainsGCPtrResult result = ContainsGCPtrResult::No;
+
+    for (auto const* field : record->fields()) {
+        auto field_result = type_contains_gc_ptr(field->getType(), visited);
+        if (field_result == ContainsGCPtrResult::YesRequiresVisitEdges) {
+            result = ContainsGCPtrResult::YesRequiresVisitEdges;
+            break;
+        }
+        if (field_result == ContainsGCPtrResult::Yes) {
+            result = ContainsGCPtrResult::YesRequiresVisitEdges;
+        }
+    }
+
+    s_contains_gc_ptr_cache[record] = result;
+    return result;
+}
+
+static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    // Handle elaborated types
+    clang::QualType actual_type = type;
+    if (auto const* elaborated = llvm::dyn_cast<clang::ElaboratedType>(type.getTypePtr()))
+        actual_type = elaborated->desugar();
+
+    // Check for JS::Value directly
+    if (auto const* record = actual_type->getAsCXXRecordDecl()) {
+        if (record->getQualifiedNameAsString() == "JS::Value")
+            return ContainsGCPtrResult::Yes;
+    }
+
+    // Check for raw pointers to Cell types (these should use GC::Ptr instead)
+    if (auto const* pointer_type = actual_type->getAs<clang::PointerType>()) {
+        if (auto const* pointee = pointer_type->getPointeeCXXRecordDecl()) {
+            if (pointee->hasDefinition() && record_inherits_from_cell(*pointee))
+                return ContainsGCPtrResult::Yes;
+        }
+    }
+
+    // Check for raw references to Cell types (these should use GC::Ref instead)
+    if (auto const* reference_type = actual_type->getAs<clang::ReferenceType>()) {
+        if (auto const* pointee = reference_type->getPointeeCXXRecordDecl()) {
+            if (pointee->hasDefinition() && record_inherits_from_cell(*pointee))
+                return ContainsGCPtrResult::Yes;
+        }
+    }
+
+    // Check for template specializations (GC::Ptr, GC::Ref, Vector, HashMap, etc.)
+    if (auto const* specialization = actual_type->getAs<clang::TemplateSpecializationType>()) {
+        auto template_name = specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
+
+        // Direct GC pointer types
+        if (template_name == "GC::Ptr" || template_name == "GC::Ref")
+            return ContainsGCPtrResult::Yes;
+
+        // Raw pointers don't need visiting
+        if (template_name == "GC::RawPtr" || template_name == "GC::RawRef")
+            return ContainsGCPtrResult::No;
+
+        // Root types handle their own visiting
+        if (template_name == "GC::Root" || template_name == "GC::RootVector")
+            return ContainsGCPtrResult::No;
+
+        // Check template arguments recursively for containers
+        for (auto const& arg : specialization->template_arguments()) {
+            if (arg.getKind() == clang::TemplateArgument::Type) {
+                auto arg_result = type_contains_gc_ptr(arg.getAsType(), visited);
+                if (arg_result != ContainsGCPtrResult::No)
+                    return arg_result;
+            }
+        }
+    }
+
+    // Check for record types (structs/classes) that might contain GC pointers
+    if (auto const* record = actual_type->getAsCXXRecordDecl()) {
+        return record_contains_gc_ptr(record, visited);
+    }
+
+    return ContainsGCPtrResult::No;
+}
+
+static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type)
+{
+    std::set<clang::CXXRecordDecl const*> visited;
+    return type_contains_gc_ptr(type, visited);
 }
 
 static std::vector<clang::QualType> get_all_qualified_types(clang::QualType const& type)
@@ -188,49 +353,109 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
+    std::vector<clang::FieldDecl const*> substruct_fields_that_need_visiting;
     auto record_is_cell = record_inherits_from_cell(*record);
 
     for (clang::FieldDecl const* field : record->fields()) {
-        auto validation_results = validate_field_qualified_type(field);
-        if (!validation_results)
-            continue;
-
         if (decl_has_annotation(field, "serenity::ignore_gc"))
             continue;
 
-        auto [outer_type, base_type_inherits_from_cell] = *validation_results;
+        // Skip anonymous structs/unions - their members are accessed indirectly
+        // and may be handled specially (e.g., tagged unions with type checks)
+        if (field->isAnonymousStructOrUnion())
+            continue;
 
-        if (outer_type == OuterType::Ptr || outer_type == OuterType::Ref) {
-            if (base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to GC::Cell type should be wrapped in %1");
-                auto builder = diag_engine.Report(field->getLocation(), diag_id);
-                if (outer_type == OuterType::Ref) {
-                    builder << "reference"
-                            << "GC::Ref";
-                } else {
-                    builder << "pointer"
-                            << "GC::Ptr";
+        auto validation_results = validate_field_qualified_type(field);
+
+        if (validation_results) {
+            auto [outer_type, base_type_inherits_from_cell] = *validation_results;
+
+            if (outer_type == OuterType::Ptr || outer_type == OuterType::Ref) {
+                if (base_type_inherits_from_cell) {
+                    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to GC::Cell type should be wrapped in %1");
+                    auto builder = diag_engine.Report(field->getLocation(), diag_id);
+                    if (outer_type == OuterType::Ref) {
+                        builder << "reference"
+                                << "GC::Ref";
+                    } else {
+                        builder << "pointer"
+                                << "GC::Ptr";
+                    }
+                }
+            } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawPtr || outer_type == OuterType::Value) {
+                if (!base_type_inherits_from_cell) {
+                    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from GC::Cell");
+                    diag_engine.Report(field->getLocation(), diag_id);
+                } else if (outer_type != OuterType::RawPtr) {
+                    fields_that_need_visiting.push_back(field);
+                }
+            } else if (outer_type == OuterType::Root) {
+                if (record_is_cell && m_detect_invalid_function_members) {
+                    // FIXME: Change this to an Error when all of the use cases get addressed and remove the plugin argument
+                    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from GC::Cell should not have %0 fields");
+                    auto builder = diag_engine.Report(field->getLocation(), diag_id);
+                    builder << "GC::Root";
                 }
             }
-        } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawPtr || outer_type == OuterType::Value) {
-            if (!base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from GC::Cell");
-                diag_engine.Report(field->getLocation(), diag_id);
-            } else if (outer_type != OuterType::RawPtr) {
-                fields_that_need_visiting.push_back(field);
-            }
-        } else if (outer_type == OuterType::Root) {
-            if (record_is_cell && m_detect_invalid_function_members) {
-                // FIXME: Change this to an Error when all of the use cases get addressed and remove the plugin argument
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from GC::Cell should not have %0 fields");
-                auto builder = diag_engine.Report(field->getLocation(), diag_id);
-                builder << "GC::Root";
-            }
+            // Field is a direct GC type, don't also check for substruct
+            continue;
+        }
+
+        // Check if this field is a substruct (non-Cell type) containing GC pointers
+        auto contains_result = type_contains_gc_ptr(field->getType());
+        if (contains_result == ContainsGCPtrResult::YesRequiresVisitEdges) {
+            substruct_fields_that_need_visiting.push_back(field);
         }
     }
 
-    if (!record_is_cell)
+    // Non-Cell types don't need visit_edges just for existing - they only need it
+    // when used as a member of a Cell (checked below for Cell types).
+    // However, if they DO have visit_edges, verify it visits all GC members.
+    if (!record_is_cell) {
+        // Check if this non-Cell type has a visit_edges method
+        clang::DeclarationName name = &m_context.Idents.get("visit_edges");
+        auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
+        if (visit_edges_method && visit_edges_method->getBody()) {
+            // Verify that all GC pointer fields are visited
+            if (!fields_that_need_visiting.empty() || !substruct_fields_that_need_visiting.empty()) {
+                MatchFinder field_access_finder;
+                SimpleCollectMatchesCallback<clang::MemberExpr> field_access_callback("member-expr");
+
+                auto field_access_matcher = memberExpr(
+                    hasAncestor(cxxMethodDecl(hasName("visit_edges"))),
+                    hasObjectExpression(hasType(pointsTo(cxxRecordDecl(hasName(record->getName()))))))
+                                                .bind("member-expr");
+
+                field_access_finder.addMatcher(field_access_matcher, &field_access_callback);
+                field_access_finder.matchAST(visit_edges_method->getASTContext());
+
+                std::unordered_set<std::string> fields_that_are_visited;
+                for (auto const* member_expr : field_access_callback.matches())
+                    fields_that_are_visited.insert(member_expr->getMemberNameInfo().getAsString());
+
+                auto gc_member_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+                    "GC-allocated member is not visited in %0::visit_edges");
+
+                for (auto const* field : fields_that_need_visiting) {
+                    if (!fields_that_are_visited.contains(field->getNameAsString())) {
+                        auto builder = diag_engine.Report(field->getBeginLoc(), gc_member_diag_id);
+                        builder << record->getName();
+                    }
+                }
+
+                auto substruct_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+                    "Member %0 contains GC pointers but is not visited in %1::visit_edges");
+
+                for (auto const* field : substruct_fields_that_need_visiting) {
+                    if (!fields_that_are_visited.contains(field->getNameAsString())) {
+                        auto builder = diag_engine.Report(field->getBeginLoc(), substruct_diag_id);
+                        builder << field->getName() << record->getName();
+                    }
+                }
+            }
+        }
         return true;
+    }
 
     validate_record_macros(*record);
 
@@ -241,6 +466,12 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         auto builder = diag_engine.Report(record->getLocation(), diag_id);
         builder << record->getName()
                 << fields_that_need_visiting[0];
+    }
+    if (!visit_edges_method && !substruct_fields_that_need_visiting.empty()) {
+        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell-inheriting class %0 contains a member %1 that has GC pointers but has no visit_edges method");
+        auto builder = diag_engine.Report(record->getLocation(), diag_id);
+        builder << record->getName()
+                << substruct_fields_that_need_visiting[0];
     }
     if (!visit_edges_method || !visit_edges_method->getBody())
         return true;
@@ -280,7 +511,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     // with a call to visitor.visit(...), as that is too complex. Instead, we just assume that if the
     // field is accessed at all, then it is visited.
 
-    if (fields_that_need_visiting.empty())
+    if (fields_that_need_visiting.empty() && substruct_fields_that_need_visiting.empty())
         return true;
 
     MatchFinder field_access_finder;
@@ -298,12 +529,54 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     for (auto const* member_expr : field_access_callback.matches())
         fields_that_are_visited.insert(member_expr->getMemberNameInfo().getAsString());
 
-    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC-allocated member is not visited in %0::visit_edges");
+    auto gc_member_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC-allocated member is not visited in %0::visit_edges");
 
     for (auto const* field : fields_that_need_visiting) {
         if (!fields_that_are_visited.contains(field->getNameAsString())) {
-            auto builder = diag_engine.Report(field->getBeginLoc(), diag_id);
+            auto builder = diag_engine.Report(field->getBeginLoc(), gc_member_diag_id);
             builder << record->getName();
+        }
+    }
+
+    auto substruct_not_visited_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+        "Member %0 contains GC pointers but is not visited in %1::visit_edges");
+    auto substruct_needs_visit_edges_diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+        "Member %0 contains GC pointers but its type has no visit_edges method");
+
+    for (auto const* field : substruct_fields_that_need_visiting) {
+        if (!fields_that_are_visited.contains(field->getNameAsString())) {
+            // Check if the substruct type has a visit_edges method
+            auto field_type = field->getType();
+            if (auto const* elaborated = llvm::dyn_cast<clang::ElaboratedType>(field_type.getTypePtr()))
+                field_type = elaborated->desugar();
+
+            // For smart pointer types (OwnPtr, RefPtr, etc.), check the pointed-to type
+            clang::CXXRecordDecl const* type_to_check = nullptr;
+            if (auto const* specialization = field_type->getAs<clang::TemplateSpecializationType>()) {
+                auto template_name = specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
+                static std::set<std::string> smart_pointer_types {
+                    "OwnPtr", "NonnullOwnPtr", "RefPtr", "NonnullRefPtr",
+                    "ValueComparingRefPtr", "ValueComparingNonnullRefPtr",
+                    "AK::OwnPtr", "AK::NonnullOwnPtr", "AK::RefPtr", "AK::NonnullRefPtr",
+                    "Web::CSS::ValueComparingRefPtr", "Web::CSS::ValueComparingNonnullRefPtr"
+                };
+                if (smart_pointer_types.contains(template_name)) {
+                    auto const& args = specialization->template_arguments();
+                    if (args.size() >= 1 && args[0].getKind() == clang::TemplateArgument::Type) {
+                        type_to_check = args[0].getAsType()->getAsCXXRecordDecl();
+                    }
+                }
+            }
+            if (!type_to_check)
+                type_to_check = field_type->getAsCXXRecordDecl();
+
+            if (type_to_check && !type_has_visit_edges_method(type_to_check)) {
+                auto builder = diag_engine.Report(field->getBeginLoc(), substruct_needs_visit_edges_diag_id);
+                builder << field->getName();
+            } else {
+                auto builder = diag_engine.Report(field->getBeginLoc(), substruct_not_visited_diag_id);
+                builder << field->getName() << record->getName();
+            }
         }
     }
 
