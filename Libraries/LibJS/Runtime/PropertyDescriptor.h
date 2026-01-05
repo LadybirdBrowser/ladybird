@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibGC/Cell.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
@@ -34,6 +35,8 @@ public:
     {
         return !value.has_value() && !get.has_value() && !set.has_value() && !writable.has_value() && !enumerable.has_value() && !configurable.has_value() && !unimplemented.has_value();
     }
+
+    void visit_edges(GC::Cell::Visitor&);
 
     Optional<Value> value {};
     Optional<GC::Ptr<FunctionObject>> get {};

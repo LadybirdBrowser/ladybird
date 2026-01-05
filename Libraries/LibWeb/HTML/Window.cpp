@@ -138,6 +138,8 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_scrollbars);
     visitor.visit(m_statusbar);
     visitor.visit(m_toolbar);
+    for (auto& descriptor : m_cross_origin_property_descriptor_map)
+        descriptor.value.visit_edges(visitor);
 }
 
 void Window::finalize()

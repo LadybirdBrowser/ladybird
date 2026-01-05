@@ -38,6 +38,8 @@ void Location::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_default_properties);
+    for (auto& descriptor : m_cross_origin_property_descriptor_map)
+        descriptor.value.visit_edges(visitor);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
