@@ -18,6 +18,11 @@ struct ValueAndAttributes {
     PropertyAttributes attributes { default_attributes };
 
     Optional<u32> property_offset {};
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        visitor.visit(value);
+    }
 };
 
 class IndexedProperties;
@@ -44,6 +49,8 @@ public:
     virtual size_t size() const = 0;
     size_t array_like_size() const { return m_array_size; }
     virtual bool set_array_like_size(size_t new_size) = 0;
+
+    virtual void visit_edges(Cell::Visitor&) = 0;
 
     bool is_simple_storage() const { return m_is_simple_storage; }
 
@@ -78,6 +85,12 @@ public:
 
     virtual size_t size() const override { return m_packed_elements.size(); }
     virtual bool set_array_like_size(size_t new_size) override;
+
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        for (auto& value : m_packed_elements)
+            visitor.visit(value);
+    }
 
     Vector<Value> const& elements() const { return m_packed_elements; }
 
@@ -122,6 +135,12 @@ public:
 
     virtual size_t size() const override { return m_sparse_elements.size(); }
     virtual bool set_array_like_size(size_t new_size) override;
+
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        for (auto& element : m_sparse_elements)
+            element.value.visit_edges(visitor);
+    }
 
     HashMap<u32, ValueAndAttributes> const& sparse_elements() const { return m_sparse_elements; }
 
@@ -194,6 +213,12 @@ public:
             for (auto& element : static_cast<GenericIndexedPropertyStorage const&>(*m_storage).sparse_elements())
                 callback(element.value.value);
         }
+    }
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        if (m_storage)
+            m_storage->visit_edges(visitor);
     }
 
 private:

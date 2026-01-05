@@ -32,6 +32,12 @@ public:
 
     ReadonlySpan<PropertyKey const> property_keys() const { return m_property_keys; }
 
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        for (auto& key : m_property_keys)
+            key.visit_edges(visitor);
+    }
+
 private:
     Vector<PropertyKey> m_property_keys;
 };

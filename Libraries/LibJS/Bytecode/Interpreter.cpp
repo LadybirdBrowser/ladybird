@@ -1396,6 +1396,10 @@ private:
     {
         Base::visit_edges(visitor);
         visitor.visit(m_object);
+        for (auto& key : m_properties)
+            key.visit_edges(visitor);
+        if (!m_iterator.is_end())
+            m_iterator->visit_edges(visitor);
     }
 
     GC::Ref<Object> m_object;

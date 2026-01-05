@@ -1607,6 +1607,8 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 
     if (m_mouse_selection_target)
         visitor.visit(m_mouse_selection_target->as_cell());
+
+    visitor.visit(m_navigable);
 }
 
 Unicode::Segmenter& EventHandler::word_segmenter()

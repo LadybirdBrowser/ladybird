@@ -81,6 +81,12 @@ PaintableBox::~PaintableBox()
 {
 }
 
+void PaintableBox::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_stacking_context);
+}
+
 PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
     : PaintableBox(layout_box)
 {
@@ -567,7 +573,7 @@ void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext&
     context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
 }
 
-void PaintableBox::set_stacking_context(NonnullOwnPtr<StackingContext> stacking_context)
+void PaintableBox::set_stacking_context(GC::Ref<StackingContext> stacking_context)
 {
     m_stacking_context = move(stacking_context);
 }

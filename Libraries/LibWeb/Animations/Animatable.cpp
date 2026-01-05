@@ -226,17 +226,21 @@ void Animatable::clear_registered_transitions(Optional<CSS::PseudoElement> pseud
 
 void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 {
-    auto& impl = ensure_impl();
-    visitor.visit(impl.associated_animations);
-    for (auto const& css_animation : impl.css_defined_animations) {
+    if (m_impl)
+        m_impl->visit_edges(visitor);
+}
+
+void Animatable::Impl::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(associated_animations);
+    for (auto const& css_animation : css_defined_animations) {
         if (css_animation)
             visitor.visit(*css_animation);
     }
 
-    for (auto const& transition : impl.transitions) {
-        if (transition) {
+    for (auto const& transition : transitions) {
+        if (transition)
             visitor.visit(transition->associated_transitions);
-        }
     }
 }
 

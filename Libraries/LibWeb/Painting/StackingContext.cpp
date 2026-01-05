@@ -24,6 +24,8 @@
 
 namespace Web::Painting {
 
+GC_DEFINE_ALLOCATOR(StackingContext);
+
 static void paint_node(Paintable const& paintable, DisplayListRecordingContext& context, PaintPhase phase)
 {
     TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
@@ -42,7 +44,7 @@ StackingContext::StackingContext(PaintableBox& paintable, StackingContext* paren
 {
     VERIFY(m_parent != this);
     if (m_parent)
-        m_parent->m_children.append(this);
+        m_parent->m_children.append(*this);
 }
 
 void StackingContext::sort()
@@ -55,8 +57,18 @@ void StackingContext::sort()
         return a_z_index < b_z_index;
     });
 
-    for (auto* child : m_children)
+    for (auto child : m_children)
         child->sort();
+}
+
+void StackingContext::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_paintable);
+    visitor.visit(m_non_positioned_floating_descendants);
+    visitor.visit(m_positioned_descendants_and_stacking_contexts_with_stack_level_0);
+    visitor.visit(m_parent);
+    visitor.visit(m_children);
 }
 
 void StackingContext::set_last_paint_generation_id(u64 generation_id)
@@ -238,7 +250,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
     // account for new properties like `transform` and `opacity` that can create stacking contexts.
     // https://github.com/w3c/csswg-drafts/issues/2717
-    for (auto* child : m_children) {
+    for (auto child : m_children) {
         if (child->paintable_box().computed_values().z_index().has_value() && child->paintable_box().computed_values().z_index().value() < 0)
             paint_child(context, *child);
     }
@@ -271,7 +283,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
     // account for new properties like `transform` and `opacity` that can create stacking contexts.
     // https://github.com/w3c/csswg-drafts/issues/2717
-    for (auto* child : m_children) {
+    for (auto child : m_children) {
         if (child->paintable_box().computed_values().z_index().has_value() && child->paintable_box().computed_values().z_index().value() >= 1)
             paint_child(context, *child);
     }
@@ -414,7 +426,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     // 7. the child stacking contexts with positive stack levels (least positive first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
-    for (auto const* child : m_children.in_reverse()) {
+    for (auto const child : m_children.in_reverse()) {
         if (child->paintable_box().computed_values().z_index().value_or(0) <= 0)
             break;
         if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
@@ -464,7 +476,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     // 2. the child stacking contexts with negative stack levels (most negative first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
-    for (auto const* child : m_children.in_reverse()) {
+    for (auto const child : m_children.in_reverse()) {
         if (child->paintable_box().computed_values().z_index().value_or(0) >= 0)
             break;
         if (child->hit_test(transformed_position, type, callback) == TraversalDecision::Break)

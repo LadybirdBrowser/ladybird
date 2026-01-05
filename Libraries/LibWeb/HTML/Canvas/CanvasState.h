@@ -111,6 +111,12 @@ public:
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
         Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };
         Bindings::CanvasDirection direction { Bindings::CanvasDirection::Inherit };
+
+        void visit_edges(GC::Cell::Visitor& visitor)
+        {
+            fill_style.visit_edges(visitor);
+            stroke_style.visit_edges(visitor);
+        }
     };
     DrawingState& drawing_state() { return m_drawing_state; }
     DrawingState const& drawing_state() const { return m_drawing_state; }
@@ -122,9 +128,9 @@ public:
 
     void visit_edges(GC::Cell::Visitor& visitor)
     {
+        m_drawing_state.visit_edges(visitor);
         for (auto& state : m_drawing_state_stack) {
-            state.fill_style.visit_edges(visitor);
-            state.stroke_style.visit_edges(visitor);
+            state.visit_edges(visitor);
         }
     }
 

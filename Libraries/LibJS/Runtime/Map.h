@@ -66,6 +66,11 @@ public:
         bool operator==(IteratorImpl const& other) const { return m_index == other.m_index && &m_map == &other.m_map; }
         bool operator==(EndIterator const&) const { return is_end(); }
 
+        void visit_edges(Cell::Visitor& visitor)
+        {
+            visitor.visit(m_map);
+        }
+
     private:
         friend class Map;
         IteratorImpl(Map const& map)

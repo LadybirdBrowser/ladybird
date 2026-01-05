@@ -250,6 +250,7 @@ private:
     {
         Base::visit_edges(visitor);
         visitor.visit(m_layout_node);
+        m_image->visit_edges(visitor);
     }
 
     virtual void image_provider_visit_edges(Visitor& visitor) const override

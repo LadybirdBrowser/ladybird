@@ -26,6 +26,11 @@ struct HasResultCacheKey {
     CSS::Selector const* selector;
     GC::Ptr<DOM::Element const> element;
 
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        visitor.visit(element);
+    }
+
     bool operator==(HasResultCacheKey const&) const = default;
 };
 

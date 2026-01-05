@@ -3005,4 +3005,9 @@ String HTMLTokenizer::consume_current_builder()
     return string;
 }
 
+void HTMLTokenizer::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(m_parser);
+}
+
 }

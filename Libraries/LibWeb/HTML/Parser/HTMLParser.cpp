@@ -199,6 +199,7 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
 
     m_stack_of_open_elements.visit_edges(visitor);
     m_list_of_active_formatting_elements.visit_edges(visitor);
+    m_tokenizer.visit_edges(visitor);
 }
 
 void HTMLParser::initialize(JS::Realm& realm)

@@ -7,12 +7,15 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibGC/CellAllocator.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
-class WEB_API StackingContext {
+class WEB_API StackingContext final : public GC::Cell {
+    GC_CELL(StackingContext, GC::Cell);
+    GC_DECLARE_ALLOCATOR(StackingContext);
     friend class ViewportPaintable;
 
 public:
@@ -46,10 +49,12 @@ public:
 
     void set_last_paint_generation_id(u64 generation_id);
 
+    virtual void visit_edges(Visitor&) override;
+
 private:
     GC::Ref<PaintableBox> m_paintable;
-    StackingContext* const m_parent { nullptr };
-    Vector<StackingContext*> m_children;
+    GC::Ptr<StackingContext> m_parent;
+    Vector<GC::Ref<StackingContext>> m_children;
     size_t m_index_in_tree_order { 0 };
     Optional<u64> m_last_paint_generation_id;
 

@@ -37,6 +37,11 @@ struct PrivateElement {
     PrivateName key;
     Kind kind { Kind::Field };
     Value value;
+
+    void visit_edges(Cell::Visitor& visitor)
+    {
+        visitor.visit(value);
+    }
 };
 
 // Non-standard: This is information optionally returned by object property access functions.

@@ -19,6 +19,8 @@ using ClassElementName = Variant<PropertyKey, PrivateName>;
 struct ClassFieldDefinition {
     ClassElementName name;                                                // [[Name]]
     Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty> initializer; // [[Initializer]]
+
+    void visit_edges(Cell::Visitor& visitor);
 };
 
 }
