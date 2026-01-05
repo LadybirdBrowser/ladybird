@@ -163,6 +163,7 @@ Float64Array
 FocusEvent
 FontFace
 FontFaceSet
+FontFaceSetLoadEvent
 FormData
 FormDataEvent
 Function

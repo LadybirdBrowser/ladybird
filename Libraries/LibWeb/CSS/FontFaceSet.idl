@@ -1,17 +1,6 @@
 #import <CSS/FontFace.idl>
 #import <DOM/EventTarget.idl>
 
-dictionary FontFaceSetLoadEventInit : EventInit {
-    sequence<FontFace> fontfaces = [];
-};
-
-// FIXME
-// [Exposed=(Window,Worker)]
-//interface FontFaceSetLoadEvent : Event {
-//    constructor(CSSOMString type, optional FontFaceSetLoadEventInit eventInitDict = {});
-//    [SameObject] readonly attribute FrozenArray<FontFace> fontfaces;
-//};
-
 enum FontFaceSetLoadStatus { "loading", "loaded" };
 
 // https://drafts.csswg.org/css-font-loading/#fontfaceset
