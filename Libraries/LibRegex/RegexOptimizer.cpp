@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Enumerate.h>
 #include <AK/Function.h>
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
@@ -165,6 +166,88 @@ private:
 };
 
 template<typename Parser>
+static typename Regex<Parser>::BasicBlockList split_basic_blocks_for_atomic_groups(ByteCode const& bytecode)
+{
+    typename Regex<Parser>::BasicBlockList block_boundaries;
+    size_t end_of_last_block = 0;
+
+    auto bytecode_size = bytecode.size();
+
+    auto state = MatchState::only_for_enumeration();
+    state.instruction_position = 0;
+    auto check_jump = [&]<template<typename> class T>(auto const& opcode) {
+        auto& op = static_cast<T<ByteCode> const&>(opcode);
+        ssize_t jump_offset = op.size() + op.offset();
+        if (jump_offset >= 0) {
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+        } else {
+            // This op jumps back, see if that's within this "block".
+            if (jump_offset + state.instruction_position > end_of_last_block) {
+                // Split the block!
+                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
+                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
+                end_of_last_block = state.instruction_position + opcode.size();
+            } else {
+                // Nope, it's just a jump to another block
+                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
+                end_of_last_block = state.instruction_position + opcode.size();
+            }
+        }
+    };
+    for (;;) {
+        auto& opcode = bytecode.get_opcode(state);
+
+        switch (opcode.opcode_id()) {
+        case OpCodeId::Jump:
+            check_jump.template operator()<OpCode_Jump>(opcode);
+            break;
+        case OpCodeId::JumpNonEmpty:
+            check_jump.template operator()<OpCode_JumpNonEmpty>(opcode);
+            break;
+        case OpCodeId::ForkJump:
+            check_jump.template operator()<OpCode_ForkJump>(opcode);
+            break;
+        case OpCodeId::ForkStay:
+            check_jump.template operator()<OpCode_ForkStay>(opcode);
+            break;
+        case OpCodeId::ForkIf:
+            check_jump.template operator()<OpCode_ForkIf>(opcode);
+            break;
+        case OpCodeId::FailForks:
+            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+            break;
+        case OpCodeId::Repeat: {
+            // Repeat produces two blocks, one containing its repeated expr, and one after that.
+            auto& repeat = static_cast<OpCode_Repeat<ByteCode> const&>(opcode);
+            auto repeat_start = state.instruction_position - repeat.offset();
+            if (repeat_start > end_of_last_block)
+                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
+            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
+            end_of_last_block = state.instruction_position + opcode.size();
+            break;
+        }
+        default:
+            break;
+        }
+
+        auto next_ip = state.instruction_position + opcode.size();
+        if (next_ip < bytecode_size)
+            state.instruction_position = next_ip;
+        else
+            break;
+    }
+
+    if (end_of_last_block < bytecode_size)
+        block_boundaries.append({ end_of_last_block, bytecode_size, "End"sv });
+
+    quick_sort(block_boundaries, [](auto& a, auto& b) { return a.start < b.start; });
+
+    return block_boundaries;
+}
+
+template<typename Parser>
 void Regex<Parser>::run_optimization_passes()
 {
     ScopeGuard switch_to_flat = [&] {
@@ -178,6 +261,7 @@ void Regex<Parser>::run_optimization_passes()
 
     // Rewrite fork loops as atomic groups
     // e.g. a*b -> (ATOMIC a*)b
+    blocks = split_basic_blocks_for_atomic_groups<Parser>(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
     fill_optimization_data(split_basic_blocks(parser_result.bytecode.template get<ByteCode>()));
@@ -394,9 +478,11 @@ template<typename Parser>
 typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCode const& bytecode)
 {
     BasicBlockList block_boundaries;
-    size_t end_of_last_block = 0;
+    HashTable<size_t> block_starts;
 
     auto bytecode_size = bytecode.size();
+
+    block_starts.set(0);
 
     auto state = MatchState::only_for_enumeration();
     state.instruction_position = 0;
@@ -404,23 +490,12 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
     auto check_jump = [&]<template<typename> class T>(auto const& opcode) {
         auto& op = static_cast<T<ByteCode> const&>(opcode);
         ssize_t jump_offset = op.size() + op.offset();
-        if (jump_offset >= 0) {
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump ahead"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
-        } else {
-            // This op jumps back, see if that's within this "block".
-            if (jump_offset + state.instruction_position > end_of_last_block) {
-                // Split the block!
-                block_boundaries.append({ end_of_last_block, jump_offset + state.instruction_position, "Jump back 1"sv });
-                block_boundaries.append({ jump_offset + state.instruction_position, state.instruction_position, "Jump back 2"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            } else {
-                // Nope, it's just a jump to another block
-                block_boundaries.append({ end_of_last_block, state.instruction_position, "Jump"sv });
-                end_of_last_block = state.instruction_position + opcode.size();
-            }
-        }
+        ssize_t target = state.instruction_position + jump_offset;
+
+        block_starts.set(target);
+        block_starts.set(state.instruction_position + opcode.size());
     };
+
     for (;;) {
         auto& opcode = bytecode.get_opcode(state);
 
@@ -438,17 +513,13 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             check_jump.template operator()<OpCode_ForkStay>(opcode);
             break;
         case OpCodeId::FailForks:
-            block_boundaries.append({ end_of_last_block, state.instruction_position, "FailForks"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            block_starts.set(state.instruction_position + opcode.size());
             break;
         case OpCodeId::Repeat: {
-            // Repeat produces two blocks, one containing its repeated expr, and one after that.
             auto& repeat = to<OpCode_Repeat>(opcode);
             auto repeat_start = state.instruction_position - repeat.offset();
-            if (repeat_start > end_of_last_block)
-                block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
-            block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
-            end_of_last_block = state.instruction_position + opcode.size();
+            block_starts.set(repeat_start);
+            block_starts.set(state.instruction_position + opcode.size());
             break;
         }
         default:
@@ -462,10 +533,42 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             break;
     }
 
-    if (end_of_last_block < bytecode_size)
-        block_boundaries.append({ end_of_last_block, bytecode_size, "End"sv });
+    Vector<size_t> sorted_starts;
+    for (auto start : block_starts)
+        sorted_starts.append(start);
+    quick_sort(sorted_starts);
 
-    quick_sort(block_boundaries, [](auto& a, auto& b) { return a.start < b.start; });
+    for (size_t i = 0; i < sorted_starts.size(); ++i) {
+        size_t start = sorted_starts[i];
+        size_t end;
+
+        if (i + 1 < sorted_starts.size()) {
+            size_t next_block_start = sorted_starts[i + 1];
+
+            state.instruction_position = start;
+            size_t last_ip = start;
+            while (state.instruction_position < next_block_start) {
+                last_ip = state.instruction_position;
+                auto& opcode = bytecode.get_opcode(state);
+                state.instruction_position += opcode.size();
+            }
+            end = last_ip;
+        } else {
+            state.instruction_position = start;
+            size_t last_ip = start;
+            while (state.instruction_position < bytecode_size) {
+                last_ip = state.instruction_position;
+                auto& opcode = bytecode.get_opcode(state);
+                auto next_ip = state.instruction_position + opcode.size();
+                if (next_ip >= bytecode_size)
+                    break;
+                state.instruction_position = next_ip;
+            }
+            end = last_ip;
+        }
+
+        block_boundaries.append({ start, end, "Block"sv });
+    }
 
     return block_boundaries;
 }
