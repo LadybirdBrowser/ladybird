@@ -846,7 +846,22 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     if (independent_formatting_context) {
         // This box establishes a new formatting context. Pass control to it.
-        independent_formatting_context->run(box_state.available_inner_space_or_constraints_from(available_space));
+        auto inner_available_space = box_state.available_inner_space_or_constraints_from(available_space);
+
+        // For boxes with auto height but non-auto min-height, we need to determine if the content height is less than
+        // min-height. If so, we run layout with min-height as the available height.
+        if (should_treat_height_as_auto(box, available_space) && !box.computed_values().min_height().is_auto()) {
+            LayoutState throwaway_state;
+            auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
+            measuring_context->run(inner_available_space);
+            auto content_height = measuring_context->automatic_content_height();
+            auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height());
+            if (content_height < min_height) {
+                inner_available_space.height = AvailableSize::make_definite(min_height);
+            }
+        }
+
+        independent_formatting_context->run(inner_available_space);
     } else {
         // This box participates in the current block container's flow.
         auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);

@@ -2037,8 +2037,6 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     build_grid_areas();
 
-    auto const& grid_computed_values = grid_container().computed_values();
-
     // NOTE: We store explicit grid sizes to later use in determining the position of items with negative index.
     m_explicit_columns_line_count = m_column_lines.size();
     m_explicit_rows_line_count = m_row_lines.size();
@@ -2099,26 +2097,6 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     resolve_track_spacing(GridDimension::Column);
 
     resolve_track_spacing(GridDimension::Row);
-
-    CSSPixels min_height = 0;
-    if (!grid_computed_values.min_height().is_auto())
-        min_height = calculate_inner_height(grid_container(), available_space, grid_computed_values.min_height());
-
-    // If automatic grid container height is less than min-height, we need to re-run the track sizing algorithm
-    if (m_automatic_content_height < min_height) {
-        resolve_items_box_metrics(GridDimension::Row);
-
-        AvailableSize width(available_space.width);
-        AvailableSize height(AvailableSize::make_definite(min_height));
-        m_available_space = AvailableSpace(width, height);
-        run_track_sizing(GridDimension::Row);
-
-        resolve_items_box_metrics(GridDimension::Row);
-
-        resolve_grid_item_sizes(GridDimension::Row);
-
-        determine_grid_container_height();
-    }
 
     if (m_layout_mode == LayoutMode::IntrinsicSizing) {
         determine_intrinsic_size_of_grid_container(available_space);
