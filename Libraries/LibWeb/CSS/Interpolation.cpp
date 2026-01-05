@@ -225,7 +225,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
                     .offset_x = Length::make_px(0),
                     .offset_y = Length::make_px(0),
                     .radius = Length::make_px(0),
-                    .color = Color::Transparent
+                    .color = ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy)
                 };
             },
             [&](FilterOperation::HueRotate const&) -> FilterValue {

@@ -1240,7 +1240,10 @@ void CanvasRenderingContext2D::set_filter(String filter)
                         radius = static_cast<float>(drop_shadow.radius->resolved(calculation_context).value_or(zero_px).to_px(resolution_context));
                     };
 
-                    auto color = drop_shadow.color.value_or(Gfx::Color { 0, 0, 0, 255 });
+                    auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(*layout_node);
+                    auto color = drop_shadow.color
+                        ? drop_shadow.color->to_color(color_context).value_or(Gfx::Color::Black)
+                        : Gfx::Color::Black;
 
                     auto new_filter = Gfx::Filter::drop_shadow(offset_x, offset_y, radius, color);
 

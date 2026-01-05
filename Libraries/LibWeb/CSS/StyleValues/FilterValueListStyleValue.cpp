@@ -56,9 +56,8 @@ String FilterValueListStyleValue::to_string(SerializationMode mode) const
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.append("drop-shadow("sv);
-                if (drop_shadow.color.has_value()) {
-                    drop_shadow.color->serialize_a_srgb_value(builder);
-                    builder.append(' ');
+                if (drop_shadow.color) {
+                    builder.appendff("{} ", drop_shadow.color->to_string(mode));
                 }
                 builder.appendff("{} {}", drop_shadow.offset_x, drop_shadow.offset_y);
                 if (drop_shadow.radius.has_value())
