@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Backdrop Filters Animation: Drop Shadow Reference</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<style>
+    .square {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        top: 100px;
+        left: 100px;
+        background: blue;
+    }
+    .filt {
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        top: 50px;
+        left: 50px;
+        backdrop-filter: drop-shadow(15px 15px 0px rgba(0, 0, 0, 0.5));
+    }
+    .greenbox {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        top: 75px;
+        left: 75px;
+        background: green;
+    }
+</style>
+<p>You should see a blue rectangle in top of a gray one, with a green box on top.</p>
+<div class="square"></div>
+<div class="filt">
+    <div class="greenbox"></div>
+</div>

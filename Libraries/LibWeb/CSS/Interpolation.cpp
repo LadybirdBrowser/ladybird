@@ -3,7 +3,7 @@
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
- * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Ledbetter <tim.ledbetter@ladybird.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
@@ -199,8 +200,51 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
             }
             return {};
         },
-        [](auto const&) -> Optional<FilterValue> {
-            // FIXME: Handle interpolating shadow list values
+        [&](FilterOperation::DropShadow const& from_value) -> Optional<FilterValue> {
+            auto const& to_value = to.get<FilterOperation::DropShadow>();
+
+            auto drop_shadow_to_shadow_style_value = [](FilterOperation::DropShadow const& drop_shadow) {
+                return ShadowStyleValue::create(
+                    ShadowStyleValue::ShadowType::Normal,
+                    drop_shadow.color,
+                    drop_shadow.offset_x.as_style_value(),
+                    drop_shadow.offset_y.as_style_value(),
+                    drop_shadow.radius.has_value() ? drop_shadow.radius->as_style_value() : LengthStyleValue::create(Length::make_px(0)),
+                    LengthStyleValue::create(Length::make_px(0)),
+                    ShadowPlacement::Outer);
+            };
+
+            StyleValueVector from_shadows { drop_shadow_to_shadow_style_value(from_value) };
+            StyleValueVector to_shadows { drop_shadow_to_shadow_style_value(to_value) };
+            auto from_list = StyleValueList::create(move(from_shadows), StyleValueList::Separator::Comma);
+            auto to_list = StyleValueList::create(move(to_shadows), StyleValueList::Separator::Comma);
+
+            auto result = interpolate_box_shadow(element, calculation_context, *from_list, *to_list, delta, allow_discrete);
+            if (!result)
+                return {};
+
+            auto const& result_shadow = result->as_value_list().value_at(0, false)->as_shadow();
+
+            auto to_length_or_calculated = [](StyleValue const& style_value) -> LengthOrCalculated {
+                if (style_value.is_length())
+                    return LengthOrCalculated { style_value.as_length().length() };
+                return LengthOrCalculated { style_value.as_calculated() };
+            };
+
+            Optional<LengthOrCalculated> result_radius;
+            auto radius_has_value = delta >= 0.5f ? to_value.radius.has_value() : from_value.radius.has_value();
+            if (radius_has_value)
+                result_radius = to_length_or_calculated(result_shadow.blur_radius());
+
+            return FilterOperation::DropShadow {
+                .offset_x = to_length_or_calculated(result_shadow.offset_x()),
+                .offset_y = to_length_or_calculated(result_shadow.offset_y()),
+                .radius = result_radius,
+                .color = result_shadow.color()
+            };
+        },
+        [](URL const&) -> Optional<FilterValue> {
+            // URL filters cannot be interpolated
             return {};
         });
 
