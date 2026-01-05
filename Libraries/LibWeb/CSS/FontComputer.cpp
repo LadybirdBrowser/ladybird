@@ -16,6 +16,8 @@
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Fetch.h>
+#include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -539,14 +541,17 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
     for (auto const& rule : sheet.rules()) {
-        if (!is<CSSFontFaceRule>(*rule))
+        auto* font_face_rule = as_if<CSSFontFaceRule>(*rule);
+        if (!font_face_rule)
             continue;
-        auto& font_face_rule = static_cast<CSSFontFaceRule&>(*rule);
-        if (!font_face_rule.is_valid())
+        if (!font_face_rule->is_valid())
             continue;
-        if (auto font_loader = load_font_face(font_face_rule.font_face())) {
+        if (auto font_loader = load_font_face(font_face_rule->font_face())) {
             sheet.add_associated_font_loader(*font_loader);
         }
+
+        auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
+        document().fonts()->add_css_connected_font(font_face);
     }
 }
 
