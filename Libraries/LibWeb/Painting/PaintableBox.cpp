@@ -1725,9 +1725,13 @@ Optional<Gfx::Filter> PaintableBox::resolve_filter(DisplayListRecordingContext& 
                 };
                 // The default value for omitted values is missing length values set to 0
                 // and the missing used color is taken from the color property.
+                auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node_with_style_and_box_metrics());
+                auto resolved_color = drop_shadow.color
+                    ? drop_shadow.color->to_color(color_context).value_or(this->computed_values().color())
+                    : this->computed_values().color();
                 auto new_filter = Gfx::Filter::drop_shadow(to_px(drop_shadow.offset_x),
                     to_px(drop_shadow.offset_y),
-                    drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color());
+                    drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, resolved_color);
 
                 resolved_filter = resolved_filter.has_value()
                     ? Gfx::Filter::compose(new_filter, *resolved_filter)
