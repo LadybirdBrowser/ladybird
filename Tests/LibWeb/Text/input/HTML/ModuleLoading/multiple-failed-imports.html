@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!--
+    Adapted from https://github.com/LadybirdBrowser/ladybird/issues/6294 
+    Regression test for a crash when target JS modules fail to load
+-->
+<script src="../../include.js"></script>
+
+<script defer="defer" async type="module" src="file///doesnotexist1.file"></script>
+<script defer="defer" async type="module" src="file///doesnotexist1.file"></script>
+
+<script src="file///doesnotexist1.file"></script>
+
+<script defer="defer" async type="module" src="file///doesnotexist1.file"></script>
+
+<script defer="defer">
+    test(() => println("PASS! (Didn't crash)"));
+</script>
