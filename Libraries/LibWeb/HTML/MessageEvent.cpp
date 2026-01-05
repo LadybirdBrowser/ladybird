@@ -94,6 +94,8 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
     m_origin = origin;
     m_last_event_id = last_event_id;
     m_source = source;
+
+    m_ports_array = nullptr;
     m_ports.clear();
     m_ports.ensure_capacity(ports.size());
     for (auto const& port : ports) {
