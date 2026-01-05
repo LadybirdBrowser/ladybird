@@ -25,6 +25,7 @@ public:
     bool is_valid() const;
     ParsedFontFace font_face() const;
     GC::Ref<CSSStyleDeclaration> style() { return m_style; }
+    GC::Ref<CSSFontFaceDescriptors> descriptors() { return m_style; }
     GC::Ref<CSSFontFaceDescriptors const> descriptors() const { return m_style; }
 
 private:
