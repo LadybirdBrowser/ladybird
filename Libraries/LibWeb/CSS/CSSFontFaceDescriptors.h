@@ -22,6 +22,7 @@ public:
     virtual ~CSSFontFaceDescriptors() override;
 
     virtual void initialize(JS::Realm&) override;
+    virtual WebIDL::ExceptionOr<void> set_property(FlyString const& property, StringView value, StringView priority) override;
 
     WebIDL::ExceptionOr<void> set_ascent_override(StringView value);
     String ascent_override() const;
