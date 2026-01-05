@@ -2969,7 +2969,7 @@ void Document::scroll_to_the_beginning_of_the_document()
 {
     // FIXME: Actually implement this algorithm
     if (auto navigable = this->navigable())
-        navigable->perform_scroll_of_viewport({ 0, 0 });
+        navigable->perform_scroll_of_viewport_scrolling_box({ 0, 0 });
 }
 
 StringView Document::ready_state() const

@@ -1165,7 +1165,7 @@ void PaintableBox::scroll_to_mouse_position(CSSPixelPoint position)
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
 
     if (is_viewport_paintable())
-        document().navigable()->perform_scroll_of_viewport(new_scroll_offset);
+        document().navigable()->perform_scroll_of_viewport_scrolling_box(new_scroll_offset);
     else
         (void)set_scroll_offset(new_scroll_offset);
 }

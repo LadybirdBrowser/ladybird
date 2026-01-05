@@ -1541,7 +1541,7 @@ void Window::scroll(ScrollToOptions const& options)
 
     // 12. Perform a scroll of the viewport to position, document’s root element as the associated element, if there is
     //     one, or null otherwise, and the scroll behavior being the value of the behavior dictionary member of options.
-    navigable->perform_scroll_of_viewport({ x, y });
+    navigable->perform_a_scroll_of_the_viewport({ x, y });
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-window-scroll
