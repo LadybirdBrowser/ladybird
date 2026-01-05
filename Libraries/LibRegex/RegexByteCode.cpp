@@ -473,6 +473,19 @@ ALWAYS_INLINE ExecutionResult OpCode_ClearCaptureGroup<ByteCode>::execute(MatchI
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_FailIfEmpty<ByteCode>::execute(MatchInput const&, MatchState& state) const
+{
+    u64 current_position = state.string_position + 1;
+    auto checkpoint_position = state.checkpoints.get(checkpoint()).value_or(current_position);
+
+    if (checkpoint_position == current_position) {
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    }
+
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_SaveLeftCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     if (input.match_index >= state.capture_group_matches_size()) {
