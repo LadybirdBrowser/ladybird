@@ -8,7 +8,6 @@
 #include "BasicShapeStyleValue.h"
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -76,7 +75,14 @@ String Inset::to_string(SerializationMode mode) const
 
 String Xywh::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("xywh({} {} {} {})", x->to_string(mode), y->to_string(mode), width->to_string(mode), height->to_string(mode)));
+    StringBuilder builder;
+
+    builder.appendff("{} {} {} {}", x->to_string(mode), y->to_string(mode), width->to_string(mode), height->to_string(mode));
+
+    if (border_radius->to_string(mode) != "0px"sv)
+        builder.appendff(" round {}", border_radius->to_string(mode));
+
+    return MUST(String::formatted("xywh({})", builder.to_string_without_validation()));
 }
 
 String Rect::to_string(SerializationMode mode) const
@@ -307,9 +313,9 @@ ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(
             auto absolutized_right = one_hundred_percent_minus({ shape.x, shape.width }, calculation_context)->absolutized(computation_context);
             auto absolutized_bottom = one_hundred_percent_minus({ shape.y, shape.height }, calculation_context)->absolutized(computation_context);
             auto absolutized_left = shape.x->absolutized(computation_context);
+            auto absolutized_border_radius = shape.border_radius->absolutized(computation_context);
 
-            // FIXME: Pass actual border radius once we parse it
-            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left, BorderRadiusRectStyleValue::create_zero() };
+            return Inset { *absolutized_top, *absolutized_right, *absolutized_bottom, *absolutized_left, absolutized_border_radius };
         },
         [&](Rect const& shape) -> BasicShape {
             // Note: Given rect(t r b l), the equivalent function is inset(t calc(100% - r) calc(100% - b) l).

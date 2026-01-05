@@ -38,6 +38,8 @@ struct Xywh {
     ValueComparingNonnullRefPtr<StyleValue const> y;
     ValueComparingNonnullRefPtr<StyleValue const> width;
     ValueComparingNonnullRefPtr<StyleValue const> height;
+
+    ValueComparingNonnullRefPtr<StyleValue const> border_radius;
 };
 
 struct Rect {
