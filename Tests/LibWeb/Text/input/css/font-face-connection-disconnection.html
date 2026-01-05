@@ -32,5 +32,16 @@
         const sheet = sheetStyle.sheet;
         const rule = sheet.cssRules[0];
         println(`@font-face weight after FontFace.weight = 700: ${rule.style.fontWeight}`);
+
+        const oldFace = cssFace;
+        rule.style.src = 'url("does-not-exist-2.woff")';
+
+        const newFace = [...document.fonts].find(f => f.family === "TestFont" && f !== oldFace);
+
+        println(`New FontFace created after updating source via src attribute: ${!!newFace}`);
+
+        rule.style.setProperty("src", 'url("does-not-exist-3.woff")');
+        const newFace2 = [...document.fonts].find(f => f.family === "TestFont" && f !== oldFace && f !== newFace && f !== oldFace);
+        println(`New FontFace created after updating source via setProperty: ${!!newFace2}`);
     });
 </script>

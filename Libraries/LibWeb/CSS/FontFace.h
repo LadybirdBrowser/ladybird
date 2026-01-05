@@ -72,6 +72,7 @@ public:
     WebIDL::ExceptionOr<void> set_line_gap_override(String const&);
 
     bool is_css_connected() const { return m_css_font_face_rule != nullptr; }
+    void disconnect_from_css_rule();
 
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 

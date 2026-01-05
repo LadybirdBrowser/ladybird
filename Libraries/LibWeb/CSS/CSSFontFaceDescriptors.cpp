@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/CSSFontFaceDescriptorsPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -29,6 +30,17 @@ void CSSFontFaceDescriptors::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFaceDescriptors);
     Base::initialize(realm);
+}
+
+WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(FlyString const& property, StringView value, StringView priority)
+{
+    TRY(Base::set_property(property, value, priority));
+
+    if (property.equals_ignoring_ascii_case("src"sv))
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+            font_face_rule->handle_src_descriptor_change();
+
+    return {};
 }
 
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_ascent_override(StringView value)
@@ -153,7 +165,12 @@ String CSSFontFaceDescriptors::line_gap_override() const
 
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_src(StringView value)
 {
-    return set_property("src"_fly_string, value, ""sv);
+    TRY(set_property("src"_fly_string, value, ""sv));
+
+    if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+        font_face_rule->handle_src_descriptor_change();
+
+    return {};
 }
 
 String CSSFontFaceDescriptors::src() const

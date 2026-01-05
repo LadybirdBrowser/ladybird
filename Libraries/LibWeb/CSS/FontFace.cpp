@@ -206,6 +206,7 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
 
     font_face->m_css_font_face_rule = &rule;
+    rule.set_css_connected_font_face(font_face);
 
     return font_face;
 }
@@ -320,6 +321,11 @@ void FontFace::reject_status_promise(JS::Value reason)
         WebIDL::reject_promise(realm(), m_font_status_promise, reason);
         m_status = Bindings::FontFaceLoadStatus::Error;
     }
+}
+
+void FontFace::disconnect_from_css_rule()
+{
+    m_css_font_face_rule = nullptr;
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family

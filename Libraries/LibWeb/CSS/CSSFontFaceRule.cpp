@@ -10,7 +10,11 @@
 #include <LibWeb/Bindings/CSSFontFaceRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -145,6 +149,31 @@ void CSSFontFaceRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);
+    visitor.visit(m_css_connected_font_face);
+}
+
+// https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+void CSSFontFaceRule::handle_src_descriptor_change()
+{
+    // If a @font-face rule has its src descriptor changed to a new value, the original connected FontFace object must
+    // stop being CSS-connected. A new FontFace reflecting its new src must be created and CSS-connected to the
+    // @font-face.
+
+    if (!m_css_connected_font_face)
+        return;
+
+    m_css_connected_font_face->disconnect_from_css_rule();
+
+    auto* style_sheet = parent_style_sheet();
+    if (!style_sheet)
+        return;
+
+    auto document = style_sheet->owning_document();
+    if (!document)
+        return;
+
+    auto new_font_face = FontFace::create_css_connected(realm(), *this);
+    document->fonts()->add_css_connected_font(new_font_face);
 }
 
 void CSSFontFaceRule::dump(StringBuilder& builder, int indent_levels) const
