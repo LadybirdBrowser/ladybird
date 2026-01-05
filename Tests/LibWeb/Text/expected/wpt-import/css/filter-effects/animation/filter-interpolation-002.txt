@@ -2,27 +2,27 @@ Harness status: OK
 
 Found 162 tests
 
-150 Pass
-12 Fail
-Fail	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
+154 Pass
+8 Fail
+Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
 Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0) should be [opacity(1) hue-rotate(0deg)]
 Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.25) should be [opacity(0.875) hue-rotate(45deg)]
 Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.5) should be [opacity(0.75) hue-rotate(90deg)]
 Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1) should be [opacity(0.5) hue-rotate(180deg)]
 Pass	CSS Transitions: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1.5) should be [opacity(0.25) hue-rotate(270deg)]
-Fail	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
+Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
 Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0) should be [opacity(1) hue-rotate(0deg)]
 Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.25) should be [opacity(0.875) hue-rotate(45deg)]
 Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.5) should be [opacity(0.75) hue-rotate(90deg)]
 Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1) should be [opacity(0.5) hue-rotate(180deg)]
 Pass	CSS Transitions with transition: all: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1.5) should be [opacity(0.25) hue-rotate(270deg)]
-Fail	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
+Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
 Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0) should be [opacity(1) hue-rotate(0deg)]
 Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.25) should be [opacity(0.875) hue-rotate(45deg)]
 Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.5) should be [opacity(0.75) hue-rotate(90deg)]
 Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1) should be [opacity(0.5) hue-rotate(180deg)]
 Pass	CSS Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (1.5) should be [opacity(0.25) hue-rotate(270deg)]
-Fail	Web Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
+Pass	Web Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (-0.5) should be [opacity(1) hue-rotate(-90deg)]
 Pass	Web Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0) should be [opacity(1) hue-rotate(0deg)]
 Pass	Web Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.25) should be [opacity(0.875) hue-rotate(45deg)]
 Pass	Web Animations: property <filter> from [none] to [opacity(0.5) hue-rotate(180deg)] at (0.5) should be [opacity(0.75) hue-rotate(90deg)]
