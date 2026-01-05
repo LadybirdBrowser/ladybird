@@ -36,7 +36,7 @@ WorkerHost::WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name
 WorkerHost::~WorkerHost() = default;
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::Bindings::RequestCredentials credentials, bool is_shared, Optional<URL::URL> document_url_if_started_by_window_fixme)
 {
     // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
     auto unsafe_worker_creation_time = Web::HighResolutionTime::unsafe_shared_current_time();
@@ -84,6 +84,14 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
     auto outside_settings = inside_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm(), inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
+
+    // HACK: The environment settings object used for the worker script fetch should have a Window as its global scope,
+    //       but the EnvironmentSettingsSnapshot used here has a WorkerGlobalScope (we don't have access to a Window).
+    //       This causes the Referrer-Policy spec's "determine request's referrer" algorithm to read the ESO's creation
+    //       URL, whereas it would normally read the document's URL. To hack around this, we overwrite the creation URL
+    //       (which is only used in the initial worker script fetch).
+    if (document_url_if_started_by_window_fixme.has_value())
+        outside_settings->creation_url = document_url_if_started_by_window_fixme.release_value();
 
     // 10. If is shared is true, then:
     if (is_shared) {
