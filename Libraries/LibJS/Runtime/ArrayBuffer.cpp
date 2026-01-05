@@ -341,9 +341,9 @@ ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM& vm, Fun
     auto alloc_length = allocating_growable_buffer ? *max_byte_length : byte_length;
 
     // 7. Let block be ? CreateSharedByteDataBlock(allocLength).
-    // AD-HOC: Instead, allocate the block with a length of byte_length, and ensure the capacity is alloc_length.
-    auto block = TRY(create_shared_byte_data_block(vm, byte_length));
-    block.buffer().ensure_capacity(alloc_length);
+    // AD-HOC: We track [[ArrayBufferByteLength(Data)]] via the length of the Data Block, so shrink it down to byteLength.
+    auto block = TRY(create_shared_byte_data_block(vm, alloc_length));
+    block.buffer().set_size(byte_length);
 
     // 8. Set obj.[[ArrayBufferData]] to block.
     obj->set_data_block(move(block));
