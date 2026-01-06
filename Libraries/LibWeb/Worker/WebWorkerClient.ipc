@@ -1,7 +1,9 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Bindings/AgentType.h>
 
 endpoint WebWorkerClient {
     did_close_worker() =|
     did_request_cookie(URL::URL url, Web::Cookie::Source source) => (String cookie)
+    request_worker_agent(Web::Bindings::AgentType worker_type) => (IPC::File socket)
 }
