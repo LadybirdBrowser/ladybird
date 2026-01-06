@@ -15,17 +15,17 @@
 namespace Ladybird {
 
 template<typename T>
-static T scale_for_device(T size, float device_pixel_ratio)
+static T scale_for_device(T size, double device_pixel_ratio)
 {
-    return size.template to_type<float>().scaled(device_pixel_ratio).template to_type<int>();
+    return size.template to_type<double>().scaled(device_pixel_ratio).template to_type<int>();
 }
 
-ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second)
+ErrorOr<NonnullOwnPtr<WebViewBridge>> WebViewBridge::create(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second)
 {
     return adopt_nonnull_own_or_enomem(new (nothrow) WebViewBridge(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
 }
 
-WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float device_pixel_ratio, u64 maximum_frames_per_second)
+WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second)
     : m_screen_rects(move(screen_rects))
 {
     m_device_pixel_ratio = device_pixel_ratio;
@@ -34,15 +34,21 @@ WebViewBridge::WebViewBridge(Vector<Web::DevicePixelRect> screen_rects, float de
 
 WebViewBridge::~WebViewBridge() = default;
 
-void WebViewBridge::set_device_pixel_ratio(float device_pixel_ratio)
+void WebViewBridge::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
-    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
+    client().async_set_device_pixel_ratio(m_client_state.page_index, m_device_pixel_ratio);
+}
+
+void WebViewBridge::set_zoom_level(double zoom_level)
+{
+    m_zoom_level = zoom_level;
+    update_zoom();
 }
 
 void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect)
 {
-    viewport_rect.set_size(scale_for_device(viewport_rect.size(), m_device_pixel_ratio));
+    viewport_rect.set_size(scale_for_device(viewport_rect.size(), device_pixel_ratio()));
     m_viewport_size = viewport_rect.size();
 
     handle_resize();
@@ -117,7 +123,7 @@ Web::DevicePixelSize WebViewBridge::viewport_size() const
 
 Gfx::IntPoint WebViewBridge::to_content_position(Gfx::IntPoint widget_position) const
 {
-    return scale_for_device(widget_position, m_device_pixel_ratio);
+    return scale_for_device(widget_position, device_pixel_ratio());
 }
 
 Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) const

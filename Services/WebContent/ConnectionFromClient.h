@@ -114,7 +114,8 @@ private:
     virtual void set_enable_global_privacy_control(u64 page_id, bool) override;
     virtual void set_has_focus(u64 page_id, bool) override;
     virtual void set_is_scripting_enabled(u64 page_id, bool) override;
-    virtual void set_device_pixels_per_css_pixel(u64 page_id, float) override;
+    virtual void set_zoom_level(u64 page_id, double zoom_level) override;
+    virtual void set_device_pixel_ratio(u64 page_id, double device_pixel_ratio) override;
     virtual void set_maximum_frames_per_second(u64 page_id, double) override;
     virtual void set_window_position(u64 page_id, Web::DevicePixelPoint) override;
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;

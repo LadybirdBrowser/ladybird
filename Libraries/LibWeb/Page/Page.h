@@ -330,6 +330,8 @@ public:
     virtual void request_new_process_for_navigation(URL::URL const&) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
+    virtual double zoom_level() const = 0;
+    virtual double device_pixel_ratio() const = 0;
     virtual double device_pixels_per_css_pixel() const = 0;
     virtual CSS::PreferredColorScheme preferred_color_scheme() const = 0;
     virtual CSS::PreferredContrast preferred_contrast() const = 0;

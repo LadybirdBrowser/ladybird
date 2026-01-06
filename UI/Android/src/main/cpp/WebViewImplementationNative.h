@@ -28,7 +28,8 @@ public:
     void paint_into_bitmap(void* android_bitmap_raw, AndroidBitmapInfo const& info);
 
     void set_viewport_geometry(int w, int h);
-    void set_device_pixel_ratio(float f);
+    void set_zoom_level(double zoom_level);
+    void set_device_pixel_ratio(double f);
 
     void mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y);
 
