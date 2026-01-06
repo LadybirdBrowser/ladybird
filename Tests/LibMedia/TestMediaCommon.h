@@ -13,7 +13,6 @@
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
@@ -72,13 +71,12 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
 
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-    auto inner_demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
+    auto demuxer = MUST([&] -> Media::DecoderErrorOr<NonnullRefPtr<Media::Demuxer>> {
         auto matroska_result = Media::Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
         if (!matroska_result.is_error())
             return matroska_result.release_value();
         return Media::FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor());
     }());
-    auto demuxer = make_ref_counted<Media::MutexedDemuxer>(inner_demuxer);
     auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
     VERIFY(track.has_value());
     auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, stream, track.release_value()));

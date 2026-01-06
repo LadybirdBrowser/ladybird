@@ -37,7 +37,7 @@ public:
     using BlockEndTimeHandler = Function<void(AK::Duration)>;
     using SeekCompletionHandler = Function<void()>;
 
-    static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const&, Track const& track);
+    static DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const&, Track const& track);
     AudioDataProvider(NonnullRefPtr<ThreadData> const&);
     ~AudioDataProvider();
 
@@ -54,7 +54,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&, NonnullOwnPtr<Audio::AudioConverter>&&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&, Track const&, NonnullOwnPtr<AudioDecoder>&&, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -101,7 +101,7 @@ private:
         mutable Threading::ConditionVariable m_wait_condition { m_mutex };
         RequestedState m_requested_state { RequestedState::None };
 
-        NonnullRefPtr<MutexedDemuxer> m_demuxer;
+        NonnullRefPtr<Demuxer> m_demuxer;
         NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
         Track m_track;
         NonnullOwnPtr<AudioDecoder> m_decoder;

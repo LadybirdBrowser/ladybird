@@ -7,9 +7,9 @@
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/SampleSpecification.h>
+#include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -18,7 +18,7 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track)
+DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track)
 {
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
     auto const& sample_specification = track.audio_data().sample_specification;
@@ -80,7 +80,7 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
-AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_stream_cursor(stream_cursor)

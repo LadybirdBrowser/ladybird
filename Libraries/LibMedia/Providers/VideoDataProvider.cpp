@@ -5,8 +5,8 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoDecoder.h>
@@ -17,7 +17,7 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
+DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
 {
     auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
     auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
@@ -88,7 +88,7 @@ void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCom
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
-VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<MutexedDemuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
+VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_stream_cursor(stream_cursor)
