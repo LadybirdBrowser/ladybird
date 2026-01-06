@@ -234,6 +234,15 @@
 #    define LIFETIME_BOUND
 #endif
 
+#if defined(MUST_UPCALL)
+#    undef MUST_UPCALL
+#endif
+#if defined(AK_COMPILER_CLANG)
+#    define MUST_UPCALL [[clang::annotate("must_upcall")]]
+#else
+#    define MUST_UPCALL
+#endif
+
 // GCC doesn't have __has_feature but clang does
 #ifndef __has_feature
 #    define __has_feature(...) 0

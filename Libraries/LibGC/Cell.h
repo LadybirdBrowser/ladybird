@@ -11,6 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
+#include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Swift.h>
 #include <AK/Weakable.h>
