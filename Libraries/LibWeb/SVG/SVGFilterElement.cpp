@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2025, Lucien Fiorini <lucienfiorini@gmail.com>
+ * Copyright (c) 2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +19,7 @@
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
+#include <LibWeb/SVG/SVGFEDropShadowElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEFuncAElement.h>
 #include <LibWeb/SVG/SVGFEFuncBElement.h>
@@ -311,6 +313,52 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             root_filter = Gfx::Filter::offset(dx, dy, input);
             update_result_map(*offset_primitive);
+        } else if (auto* drop_shadow = as_if<SVGFEDropShadowElement>(node)) {
+            // https://drafts.csswg.org/filter-effects-1/#elementdef-fedropshadow
+            auto input = resolve_input_filter(drop_shadow->in1()->base_val());
+            // 1. Take the alpha channel of the input to the feDropShadow filter primitive and the stdDeviation on the
+            //    feDropShadow and do processing as if the following feGaussianBlur was applied:
+            //
+            // <feGaussianBlur in="alpha-channel-of-feDropShadow-in" stdDeviation="stdDeviation-of-feDropShadow"/>
+            float alpha_matrix[20] = {
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 1, 0
+            };
+            auto alpha_input = Gfx::Filter::color_matrix(alpha_matrix, input);
+            auto std_x = drop_shadow->std_deviation_x()->base_val();
+            auto std_y = drop_shadow->std_deviation_y()->base_val();
+            auto blurred = Gfx::Filter::blur(std_x, std_y, alpha_input);
+
+            // 2. Offset the result of step 1 by dx and dy as specified on the feDropShadow element, equivalent to
+            //    applying an feOffset with these parameters:
+            //
+            // <feOffset dx="dx-of-feDropShadow" dy="dy-of-feDropShadow" result="offsetblur"/>
+            auto dx = drop_shadow->dx()->base_val();
+            auto dy = drop_shadow->dy()->base_val();
+            auto offset_blur = Gfx::Filter::offset(dx, dy, blurred);
+
+            // 3. Do processing as if an feFlood element with flood-color and flood-opacity as specified on the
+            //    feDropShadow was applied:
+            //
+            // <feFlood flood-color="flood-color-of-feDropShadow" flood-opacity="flood-opacity-of-feDropShadow"/>
+            auto shadow_color = Gfx::Filter::flood(drop_shadow->flood_color(), drop_shadow->flood_opacity());
+
+            // 4. Composite the result of the feFlood in step 3 with the result of the feOffset in step 2 as if an
+            //    feComposite filter primitive with operator="in" was applied:
+            //
+            // <feComposite in2="offsetblur" operator="in"/>
+            auto colored_shadow = Gfx::Filter::blend(offset_blur, shadow_color, Gfx::CompositingAndBlendingOperator::SourceIn);
+
+            // 5. Finally merge the result of the previous step, doing processing as if the following feMerge was performed:
+            //
+            // <feMerge>
+            //   <feMergeNode/>
+            //   <feMergeNode in="in-of-feDropShadow"/>
+            // </feMerge>
+            root_filter = Gfx::Filter::merge({ colored_shadow, input });
+            update_result_map(*drop_shadow);
         } else {
             dbgln("SVGFilterElement::gfx_filter(): Unknown or unsupported filter element '{}'", node.debug_description());
         }
