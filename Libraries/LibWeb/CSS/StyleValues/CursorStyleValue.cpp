@@ -100,7 +100,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // Paint the cursor into a bitmap.
         auto display_list = Painting::DisplayList::create(document.page().client().device_pixels_per_css_pixel());
         Painting::DisplayListRecorder display_list_recorder(display_list);
-        DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel() };
+        DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
         image.paint(paint_context, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);

@@ -31,7 +31,7 @@ struct HitTestResult {
     size_t index_in_node { 0 };
     Optional<CSSPixels> vertical_distance {};
     Optional<CSSPixels> horizontal_distance {};
-
+    Optional<CSS::CursorPredefined> cursor_override {};
     enum InternalPosition {
         None,
         Before,
