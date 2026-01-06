@@ -18,8 +18,6 @@ class InternalGamepad : public Bindings::PlatformObject {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<InternalGamepad> create(JS::Realm&);
-
     virtual ~InternalGamepad() override;
 
     Array<i32, 15> const& buttons();
