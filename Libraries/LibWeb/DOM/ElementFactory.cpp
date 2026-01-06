@@ -98,6 +98,7 @@
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
 #include <LibWeb/SVG/SVGFEComponentTransferElement.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
+#include <LibWeb/SVG/SVGFEDropShadowElement.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 #include <LibWeb/SVG/SVGFEFuncAElement.h>
 #include <LibWeb/SVG/SVGFEFuncBElement.h>
@@ -492,6 +493,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGFEComponentTransferElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feComposite)
         return realm.create<SVG::SVGFECompositeElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::feDropShadow)
+        return realm.create<SVG::SVGFEDropShadowElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feFlood)
         return realm.create<SVG::SVGFEFloodElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::feFuncA)

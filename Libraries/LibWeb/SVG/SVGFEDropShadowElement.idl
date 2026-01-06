@@ -1,0 +1,18 @@
+#import <SVG/SVGAnimatedNumber.idl>
+#import <SVG/SVGAnimatedString.idl>
+#import <SVG/SVGElement.idl>
+#import <SVG/SVGFilterPrimitiveStandardAttributes.idl>
+
+// https://drafts.csswg.org/filter-effects-1/#svgfedropshadowelement
+[Exposed=Window]
+interface SVGFEDropShadowElement : SVGElement {
+    readonly attribute SVGAnimatedString in1;
+    readonly attribute SVGAnimatedNumber dx;
+    readonly attribute SVGAnimatedNumber dy;
+    readonly attribute SVGAnimatedNumber stdDeviationX;
+    readonly attribute SVGAnimatedNumber stdDeviationY;
+
+    undefined setStdDeviation(float stdDeviationX, float stdDeviationY);
+};
+
+SVGFEDropShadowElement includes SVGFilterPrimitiveStandardAttributes;

@@ -933,6 +933,7 @@ set(SOURCES
     SVG/SVGFEColorMatrixElement.cpp
     SVG/SVGFEComponentTransferElement.cpp
     SVG/SVGFECompositeElement.cpp
+    SVG/SVGFEDropShadowElement.cpp
     SVG/SVGFEFloodElement.cpp
     SVG/SVGFEFuncAElement.cpp
     SVG/SVGFEFuncBElement.cpp

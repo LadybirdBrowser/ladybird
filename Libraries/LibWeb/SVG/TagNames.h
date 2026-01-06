@@ -21,6 +21,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(feColorMatrix)       \
     __ENUMERATE_SVG_TAG(feComponentTransfer) \
     __ENUMERATE_SVG_TAG(feComposite)         \
+    __ENUMERATE_SVG_TAG(feDropShadow)        \
     __ENUMERATE_SVG_TAG(feFlood)             \
     __ENUMERATE_SVG_TAG(feFuncA)             \
     __ENUMERATE_SVG_TAG(feFuncB)             \

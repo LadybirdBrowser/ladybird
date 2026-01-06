@@ -387,6 +387,7 @@ SVGFEBlendElement
 SVGFEColorMatrixElement
 SVGFEComponentTransferElement
 SVGFECompositeElement
+SVGFEDropShadowElement
 SVGFEFloodElement
 SVGFEFuncAElement
 SVGFEFuncBElement
