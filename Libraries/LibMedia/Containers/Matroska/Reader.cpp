@@ -236,6 +236,17 @@ DecoderErrorOr<void> Reader::parse_initial_data()
     m_segment_contents_size = TRY(streamer.read_variable_size_integer());
     m_segment_contents_position = streamer.position();
     dbgln_if(MATROSKA_TRACE_DEBUG, "Segment is at {} with size {}, available size is {}", m_segment_contents_position, m_segment_contents_size, m_stream_cursor->size() - m_segment_contents_position);
+
+    TRY(parse_segment_information());
+    TRY(parse_tracks());
+
+    auto first_cluster_position = TRY(find_first_top_level_element_with_id("Cluster"sv, CLUSTER_ELEMENT_ID));
+    if (!first_cluster_position.has_value())
+        return DecoderError::corrupted("No clusters are present in the segment"sv);
+    m_first_cluster_position = first_cluster_position.release_value();
+
+    TRY(parse_cues());
+
     return {};
 }
 
@@ -370,11 +381,8 @@ static DecoderErrorOr<SegmentInformation> parse_information(Streamer& streamer)
     return segment_information;
 }
 
-DecoderErrorOr<SegmentInformation> Reader::segment_information()
+DecoderErrorOr<void> Reader::parse_segment_information()
 {
-    if (m_segment_information.has_value())
-        return m_segment_information.value();
-
     auto position = TRY(find_first_top_level_element_with_id("Segment Information"sv, SEGMENT_INFORMATION_ELEMENT_ID));
     if (!position.has_value())
         return DecoderError::corrupted("No Segment Information element found"sv);
@@ -383,21 +391,6 @@ DecoderErrorOr<SegmentInformation> Reader::segment_information()
     if (TRY(streamer.read_variable_size_integer(false)) != SEGMENT_INFORMATION_ELEMENT_ID)
         return DecoderError::corrupted("Unexpected Matroska element when seeking to the Segment element"sv);
     m_segment_information = TRY(parse_information(streamer));
-    return m_segment_information.value();
-}
-
-DecoderErrorOr<void> Reader::ensure_tracks_are_parsed()
-{
-    if (!m_tracks.is_empty())
-        return {};
-    auto position = TRY(find_first_top_level_element_with_id("Tracks"sv, TRACK_ELEMENT_ID));
-    if (!position.has_value())
-        return DecoderError::corrupted("No Tracks element found"sv);
-    Streamer streamer { m_stream_cursor };
-    TRY(streamer.seek_to_position(position.release_value()));
-    if (TRY(streamer.read_variable_size_integer(false)) != TRACK_ELEMENT_ID)
-        return DecoderError::corrupted("Unexpected Matroska element when seeking to the Tracks element"sv);
-    TRY(parse_tracks(streamer));
     return {};
 }
 
@@ -585,8 +578,17 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
     return track_entry;
 }
 
-DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
+DecoderErrorOr<void> Reader::parse_tracks()
 {
+    auto position = TRY(find_first_top_level_element_with_id("Tracks"sv, TRACK_ELEMENT_ID));
+    if (!position.has_value())
+        return DecoderError::corrupted("No Tracks element found"sv);
+    Streamer streamer { m_stream_cursor };
+    TRY(streamer.seek_to_position(position.release_value()));
+
+    if (TRY(streamer.read_variable_size_integer(false)) != TRACK_ELEMENT_ID)
+        return DecoderError::corrupted("Unexpected Matroska element when seeking to the Tracks element"sv);
+
     TRY(parse_master_element(streamer, "Tracks"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         if (element_id == TRACK_ENTRY_ID) {
             auto track_entry = TRY(parse_track_entry(streamer));
@@ -599,7 +601,6 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
         return ElementIterationDecision::Continue;
     }));
 
-    TRY(segment_information());
     fix_track_quirks();
 
     return {};
@@ -612,8 +613,6 @@ void Reader::fix_track_quirks()
 
 void Reader::fix_ffmpeg_webm_quirk()
 {
-    VERIFY(m_segment_information.has_value());
-
     // In libavformat versions <= 59.30.100, blocks were not allowed to have negative timestamps. This means that
     // all blocks were shifted forward until any negative timestamps became zero.
     //
@@ -622,8 +621,7 @@ void Reader::fix_ffmpeg_webm_quirk()
     //
     // In order to get the correct timestamps, we must shift all tracks' timestamps back by the maximum of all the
     // tracks' codec-inherent delays, corrected based on the sample rate in the case of Opus.
-    auto& segment_information = m_segment_information.value();
-    auto muxing_app = segment_information.muxing_app();
+    auto muxing_app = m_segment_information.muxing_app();
     auto libavformatPrefix = "Lavf"sv;
 
     if (muxing_app.starts_with(libavformatPrefix)) {
@@ -670,7 +668,7 @@ void Reader::fix_ffmpeg_webm_quirk()
             max_codec_delay = max(max_codec_delay, delay);
         }
 
-        auto timestamp_scale = segment_information.timestamp_scale();
+        auto timestamp_scale = m_segment_information.timestamp_scale();
         max_codec_delay = ((max_codec_delay + (timestamp_scale / 2)) / timestamp_scale) * timestamp_scale;
 
         for (auto& [id, track] : m_tracks) {
@@ -679,18 +677,17 @@ void Reader::fix_ffmpeg_webm_quirk()
             track->set_codec_delay(max_codec_delay);
         }
 
-        auto duration = segment_information.duration_unscaled();
+        auto duration = m_segment_information.duration_unscaled();
 
         if (duration.has_value()) {
-            auto max_codec_delay_in_duration_units = static_cast<double>(max_codec_delay) / static_cast<double>(segment_information.timestamp_scale());
-            segment_information.set_duration_unscaled(duration.value() - max_codec_delay_in_duration_units);
+            auto max_codec_delay_in_duration_units = static_cast<double>(max_codec_delay) / static_cast<double>(m_segment_information.timestamp_scale());
+            m_segment_information.set_duration_unscaled(duration.value() - max_codec_delay_in_duration_units);
         }
     }
 }
 
 DecoderErrorOr<void> Reader::for_each_track(TrackEntryCallback callback)
 {
-    TRY(ensure_tracks_are_parsed());
     for (auto const& track_entry : m_tracks) {
         auto decision = TRY(callback(track_entry.value));
         if (decision == IterationDecision::Break)
@@ -710,7 +707,6 @@ DecoderErrorOr<void> Reader::for_each_track_of_type(TrackEntry::TrackType type, 
 
 DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::track_for_track_number(u64 track_number)
 {
-    TRY(ensure_tracks_are_parsed());
     auto optional_track_entry = m_tracks.get(track_number);
     if (!optional_track_entry.has_value())
         return DecoderError::format(DecoderErrorCategory::Invalid, "No track found with number {}", track_number);
@@ -719,7 +715,6 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::track_for_track_number(u64 tra
 
 DecoderErrorOr<size_t> Reader::track_count()
 {
-    TRY(ensure_tracks_are_parsed());
     return m_tracks.size();
 }
 
@@ -928,13 +923,8 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
 
 DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number)
 {
-    auto optional_position = TRY(find_first_top_level_element_with_id("Cluster"sv, CLUSTER_ELEMENT_ID));
-    if (!optional_position.has_value())
-        return DecoderError::corrupted("No clusters are present in the segment"sv);
-
-    auto position = optional_position.release_value();
-    dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", position, m_segment_contents_position);
-    return SampleIterator(stream_consumer, TRY(track_for_track_number(track_number)), TRY(segment_information()).timestamp_scale(), m_segment_contents_position, position);
+    dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", m_first_cluster_position, m_segment_contents_position);
+    return SampleIterator(stream_consumer, TRY(track_for_track_number(track_number)), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
 }
 
 static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& streamer)
@@ -1026,14 +1016,24 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
     return cue_point;
 }
 
-DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
+DecoderErrorOr<void> Reader::parse_cues()
 {
-    m_cues.clear();
+    VERIFY(m_cues.is_empty());
+
+    auto position = TRY(find_first_top_level_element_with_id("Cues"sv, CUES_ID));
+    if (!position.has_value())
+        return {};
+    Streamer streamer { m_stream_cursor };
+    TRY(streamer.seek_to_position(position.release_value()));
+    if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
+        dbgln("Unexpected Matroska element when seeking to the Cues element, skipping parsing.");
+        return {};
+    }
 
     TRY(parse_master_element(streamer, "Cues"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         switch (element_id) {
         case CUE_POINT_ID: {
-            auto cue_point = TRY(parse_cue_point(streamer, TRY(segment_information()).timestamp_scale()));
+            auto cue_point = TRY(parse_cue_point(streamer, m_segment_information.timestamp_scale()));
 
             // FIXME: Verify that these are already in order of timestamp. If they are not, return a corrupted error for now,
             //        but if it turns out that Matroska files with out-of-order cue points are valid, sort them instead.
@@ -1054,31 +1054,13 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
     return {};
 }
 
-DecoderErrorOr<void> Reader::ensure_cues_are_parsed()
-{
-    if (m_cues_have_been_parsed)
-        return {};
-    auto position = TRY(find_first_top_level_element_with_id("Cues"sv, CUES_ID));
-    if (!position.has_value())
-        return {};
-    Streamer streamer { m_stream_cursor };
-    TRY(streamer.seek_to_position(position.release_value()));
-    if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
-        dbgln("Unexpected Matroska element when seeking to the Cues element, skipping parsing.");
-        return {};
-    }
-    TRY(parse_cues(streamer));
-    m_cues_have_been_parsed = true;
-    return {};
-}
-
 DecoderErrorOr<void> Reader::seek_to_cue_for_timestamp(SampleIterator& iterator, AK::Duration const& timestamp, Vector<TrackCuePoint> const& cue_points, CuePointTarget target)
 {
     // Take a guess at where in the cues the timestamp will be and correct from there.
-    auto duration = TRY(segment_information()).duration();
+    auto duration = m_segment_information.duration();
     size_t index = 0;
     if (duration.has_value())
-        index = clamp(((timestamp.to_nanoseconds() * cue_points.size()) / TRY(segment_information()).duration()->to_nanoseconds()), 0, cue_points.size() - 1);
+        index = clamp(((timestamp.to_nanoseconds() * cue_points.size()) / duration->to_nanoseconds()), 0, cue_points.size() - 1);
 
     auto const* prev_cue_point = &cue_points[index];
     dbgln_if(MATROSKA_DEBUG, "Finding Matroska cue points for timestamp {}ms starting from cue at {}ms", timestamp.to_milliseconds(), prev_cue_point->timestamp.to_milliseconds());
@@ -1145,9 +1127,8 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
     return {};
 }
 
-DecoderErrorOr<bool> Reader::has_cues_for_track(u64 track_number)
+bool Reader::has_cues_for_track(u64 track_number)
 {
-    TRY(ensure_cues_are_parsed());
     return m_cues.contains(track_number);
 }
 
@@ -1155,7 +1136,7 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
 {
     timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
 
-    auto cue_points = TRY(cue_points_for_track(iterator.m_track->track_number()));
+    auto cue_points = cue_points_for_track(iterator.m_track->track_number());
     auto seek_target = CuePointTarget::Block;
 
     // If no cues are present for the track, use the first track's cues.
@@ -1183,9 +1164,8 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
     return iterator;
 }
 
-DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> Reader::cue_points_for_track(u64 track_number)
+Optional<Vector<TrackCuePoint> const&> Reader::cue_points_for_track(u64 track_number)
 {
-    TRY(ensure_cues_are_parsed());
     return m_cues.get(track_number);
 }
 

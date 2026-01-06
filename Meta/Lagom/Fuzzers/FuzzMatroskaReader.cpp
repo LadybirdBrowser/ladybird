@@ -14,7 +14,7 @@ extern "C" int LLVMFuzzerTestOneInput(u8 const* data, size_t size)
     auto matroska_reader_result = Media::Matroska::Reader::from_stream(stream->create_cursor());
     if (matroska_reader_result.is_error())
         return 0;
-    (void)matroska_reader_result.value().segment_information();
+    (void)matroska_reader_result.value().duration();
     (void)matroska_reader_result.value().track_count();
     return 0;
 }
