@@ -199,18 +199,22 @@ String Polygon::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append("polygon("sv);
+    bool first = true;
     switch (fill_rule) {
     case Gfx::WindingRule::Nonzero:
-        builder.append("nonzero"sv);
         break;
     case Gfx::WindingRule::EvenOdd:
+        first = false;
         builder.append("evenodd"sv);
     }
     for (auto const& point : points) {
-        builder.appendff(", {} {}", point.x->to_string(mode), point.y->to_string(mode));
+        if (!first)
+            builder.append(", "sv);
+        first = false;
+        builder.appendff("{} {}", point.x->to_string(mode), point.y->to_string(mode));
     }
     builder.append(')');
-    return MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 Gfx::Path Path::to_path(CSSPixelRect, Layout::Node const&) const
