@@ -35,7 +35,7 @@ public:
 private:
     TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line);
 
-    NonnullRefPtr<StyleValue const> m_length_percentage;
+    ValueComparingNonnullRefPtr<StyleValue const> m_length_percentage;
     bool m_hanging;
     bool m_each_line;
 };
