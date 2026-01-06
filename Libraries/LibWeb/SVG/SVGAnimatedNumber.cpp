@@ -42,7 +42,7 @@ float SVGAnimatedNumber::base_val() const
     return get_base_or_anim_value();
 }
 
-// // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedNumber__baseVal
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedNumber__baseVal
 void SVGAnimatedNumber::set_base_val(float new_value)
 {
     // 1. Let value be the value being assigned to baseVal.
