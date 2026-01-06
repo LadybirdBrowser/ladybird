@@ -46,7 +46,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
         }
 
         auto block = block_result.release_value();
-        auto frames = MUST(matroska_reader.get_frames(block));
+        auto frames = MUST(iterator.get_frames(block));
         for (auto const& frame : frames) {
             MUST(decoder->receive_coded_data(block.timestamp(), block.duration().value_or(AK::Duration::zero()), frame));
             while (true) {

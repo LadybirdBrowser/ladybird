@@ -49,8 +49,6 @@ public:
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
 
-    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
-
 private:
     Reader(IncrementallyPopulatedStream::Cursor& stream_cursor)
         : m_stream_cursor(stream_cursor)
@@ -96,6 +94,7 @@ private:
 class MEDIA_API SampleIterator {
 public:
     DecoderErrorOr<Block> next_block();
+    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
