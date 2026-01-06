@@ -39,9 +39,7 @@ public:
 
     static bool is_matroska_or_webm(IncrementallyPopulatedStream::Cursor&);
 
-    EBMLHeader const& header() const { return m_header.value(); }
-
-    DecoderErrorOr<SegmentInformation> segment_information();
+    Optional<AK::Duration> duration() { return m_segment_information.duration(); }
 
     DecoderErrorOr<void> for_each_track(TrackEntryCallback);
     DecoderErrorOr<void> for_each_track_of_type(TrackEntry::TrackType, TrackEntryCallback);
@@ -50,8 +48,6 @@ public:
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
-    DecoderErrorOr<Optional<Vector<TrackCuePoint> const&>> cue_points_for_track(u64 track_number);
-    DecoderErrorOr<bool> has_cues_for_track(u64 track_number);
 
     DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
 
@@ -65,13 +61,16 @@ private:
 
     DecoderErrorOr<Optional<size_t>> find_first_top_level_element_with_id([[maybe_unused]] StringView element_name, u32 element_id);
 
-    DecoderErrorOr<void> ensure_tracks_are_parsed();
-    DecoderErrorOr<void> parse_tracks(Streamer&);
+    DecoderErrorOr<void> parse_segment_information();
+
+    DecoderErrorOr<void> parse_tracks();
     void fix_track_quirks();
     void fix_ffmpeg_webm_quirk();
 
-    DecoderErrorOr<void> parse_cues(Streamer&);
-    DecoderErrorOr<void> ensure_cues_are_parsed();
+    DecoderErrorOr<void> parse_cues();
+
+    Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
+    bool has_cues_for_track(u64 track_number);
     DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
 
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
@@ -84,13 +83,14 @@ private:
     HashMap<u32, size_t> m_seek_entries;
     size_t m_last_top_level_element_position { 0 };
 
-    Optional<SegmentInformation> m_segment_information;
+    SegmentInformation m_segment_information;
 
     OrderedHashMap<u64, NonnullRefPtr<TrackEntry>> m_tracks;
 
+    size_t m_first_cluster_position { 0 };
+
     // The vectors must be sorted by timestamp at all times.
     HashMap<u64, Vector<TrackCuePoint>> m_cues;
-    bool m_cues_have_been_parsed { false };
 };
 
 class MEDIA_API SampleIterator {

@@ -183,7 +183,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
 {
-    auto duration = TRY(m_reader.segment_information()).duration();
+    auto duration = m_reader.duration();
     return duration.value_or(AK::Duration::zero());
 }
 
