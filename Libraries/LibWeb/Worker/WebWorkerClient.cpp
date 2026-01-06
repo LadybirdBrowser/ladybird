@@ -27,6 +27,13 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
     return String {};
 }
 
+Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_worker_agent(Web::Bindings::AgentType worker_type)
+{
+    if (on_request_worker_agent)
+        return on_request_worker_agent(worker_type);
+    return IPC::File {};
+}
+
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
 {

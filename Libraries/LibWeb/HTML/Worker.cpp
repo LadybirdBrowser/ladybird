@@ -104,10 +104,7 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
     Bindings::AgentType agent_type = worker.has<GC::Ref<SharedWorker>>() ? Bindings::AgentType::SharedWorker : Bindings::AgentType::DedicatedWorker;
 
-    // 2. Let owner be the relevant owner to add given outside settings.
-    // FIXME: Support WorkerGlobalScope options
-    if (!is<HTML::WindowEnvironmentSettingsObject>(outside_settings))
-        TODO();
+    // FIXME: 2. Let owner be the relevant owner to add given outside settings.
 
     // 3. Let unsafeWorkerCreationTime be the unsafe shared current time.
 

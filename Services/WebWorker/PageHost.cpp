@@ -97,6 +97,11 @@ void PageHost::request_file(Web::FileRequest request)
     m_client.request_file(move(request));
 }
 
+IPC::File PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
+{
+    return m_client.request_worker_agent(worker_type);
+}
+
 PageHost::PageHost(ConnectionFromClient& client)
     : m_client(client)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
