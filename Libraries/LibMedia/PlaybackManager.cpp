@@ -7,7 +7,6 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/MutexedDemuxer.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
@@ -24,12 +23,11 @@ namespace Media {
 
 DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
 {
-    auto inner_demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
+    auto demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
         if (Matroska::Reader::is_matroska_or_webm(stream->create_cursor()))
             return Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
         return FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor());
     }());
-    auto demuxer = DECODER_TRY_ALLOC(try_make_ref_counted<MutexedDemuxer>(inner_demuxer));
 
     // Create the video tracks and their data providers.
     auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));

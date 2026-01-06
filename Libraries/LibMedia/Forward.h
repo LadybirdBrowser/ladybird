@@ -20,7 +20,6 @@ class DisplayingVideoSink;
 class FrameQueueItem;
 class IncrementallyPopulatedStream;
 class MediaTimeProvider;
-class MutexedDemuxer;
 class PlaybackManager;
 class Track;
 class VideoDataProvider;
