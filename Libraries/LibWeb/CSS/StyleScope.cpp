@@ -249,6 +249,16 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                 auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
+                    if (it.property_id == PropertyID::AnimationComposition) {
+                        auto composition_str = it.value->to_string(SerializationMode::Normal);
+                        AnimationComposition composition = AnimationComposition::Replace;
+                        if (composition_str == "add"sv)
+                            composition = AnimationComposition::Add;
+                        else if (composition_str == "accumulate"sv)
+                            composition = AnimationComposition::Accumulate;
+                        resolved_keyframe.composite = Animations::css_animation_composition_to_bindings_composite_operation_or_auto(composition);
+                        continue;
+                    }
                     if (!is_animatable_property(it.property_id))
                         continue;
 
