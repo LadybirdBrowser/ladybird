@@ -45,8 +45,8 @@ private:
 
     struct Properties {
         ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image;
-        RefPtr<StyleValue const> x;
-        RefPtr<StyleValue const> y;
+        ValueComparingRefPtr<StyleValue const> x;
+        ValueComparingRefPtr<StyleValue const> y;
         bool operator==(Properties const&) const = default;
     } m_properties;
 
