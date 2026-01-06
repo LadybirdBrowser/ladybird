@@ -140,6 +140,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_toolbar);
     for (auto& descriptor : m_cross_origin_property_descriptor_map)
         descriptor.value.visit_edges(visitor);
+    visitor.visit(m_internals);
 }
 
 void Window::finalize()
@@ -763,8 +764,10 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     Bindings::WindowGlobalMixin::define_unforgeable_attributes(realm, *this);
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
-    if (s_internals_object_exposed)
-        define_direct_property("internals"_utf16_fly_string, realm.create<Internals::Internals>(realm), JS::default_attributes);
+    if (s_internals_object_exposed) {
+        m_internals = realm.create<Internals::Internals>(realm);
+        define_direct_property("internals"_utf16_fly_string, m_internals, JS::default_attributes);
+    }
 
     return {};
 }
