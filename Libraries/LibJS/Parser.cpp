@@ -2254,7 +2254,7 @@ NonnullRefPtr<TemplateLiteral const> Parser::parse_template_literal(bool is_tagg
     consume(TokenType::TemplateLiteralStart);
 
     Vector<NonnullRefPtr<Expression const>> expressions;
-    Vector<NonnullRefPtr<Expression const>> raw_strings;
+    Vector<NonnullRefPtr<StringLiteral const>> raw_strings;
 
     auto append_empty_string = [this, &rule_start, &expressions, &raw_strings, is_tagged]() {
         auto string_literal = create_ast_node<StringLiteral>({ m_source_code, rule_start.position(), position() }, Utf16String {});
