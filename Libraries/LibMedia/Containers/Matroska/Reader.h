@@ -50,28 +50,23 @@ public:
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
 
 private:
-    Reader(IncrementallyPopulatedStream::Cursor& stream_cursor)
-        : m_stream_cursor(stream_cursor)
-    {
-    }
+    Reader() = default;
 
-    DecoderErrorOr<void> parse_initial_data();
+    DecoderErrorOr<void> parse_initial_data(Streamer&);
 
-    DecoderErrorOr<Optional<size_t>> find_first_top_level_element_with_id([[maybe_unused]] StringView element_name, u32 element_id);
+    DecoderErrorOr<Optional<size_t>> find_first_top_level_element_with_id(Streamer&, StringView element_name, u32 element_id);
 
-    DecoderErrorOr<void> parse_segment_information();
+    DecoderErrorOr<void> parse_segment_information(Streamer&);
 
-    DecoderErrorOr<void> parse_tracks();
+    DecoderErrorOr<void> parse_tracks(Streamer&);
     void fix_track_quirks();
     void fix_ffmpeg_webm_quirk();
 
-    DecoderErrorOr<void> parse_cues();
+    DecoderErrorOr<void> parse_cues(Streamer&);
 
     Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
     bool has_cues_for_track(u64 track_number);
     DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
-
-    NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
 
     Optional<EBMLHeader> m_header;
 
