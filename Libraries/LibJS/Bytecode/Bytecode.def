@@ -377,6 +377,15 @@ op GetPrivateById < Instruction
     m_property: IdentifierTableIndex
 endop
 
+op GetTemplateObject < Instruction
+    @nothrow
+    m_length: u32
+    m_dst: Operand
+    m_strings_count: u32
+    m_cache_index: u32
+    m_strings: Operand[]
+endop
+
 op GetBinding < Instruction
     m_dst: Operand
     m_identifier: IdentifierTableIndex

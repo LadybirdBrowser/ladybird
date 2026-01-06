@@ -152,7 +152,7 @@ describe("tagged template literal functionality", () => {
         expect(stringsValue.raw[1]).toBe("invalid\\u");
     });
 
-    test.xfail("string value gets cached per AST node", () => {
+    test("string value gets cached per AST node", () => {
         function call(func, val) {
             return func`template${val}second`;
         }
@@ -160,6 +160,43 @@ describe("tagged template literal functionality", () => {
         let firstResult = call(value => value, 1);
         let secondResult = call(value => value, 2);
         expect(firstResult).toBe(secondResult);
+    });
+
+    test("template object property attributes", () => {
+        let templateObj = null;
+        function capture(strings) {
+            templateObj = strings;
+        }
+        capture`a${1}b`;
+
+        expect(Object.isFrozen(templateObj)).toBeTrue();
+
+        const desc0 = Object.getOwnPropertyDescriptor(templateObj, 0);
+        expect(desc0.writable).toBeFalse();
+        expect(desc0.enumerable).toBeTrue();
+        expect(desc0.configurable).toBeFalse();
+
+        const desc1 = Object.getOwnPropertyDescriptor(templateObj, 1);
+        expect(desc1.writable).toBeFalse();
+        expect(desc1.enumerable).toBeTrue();
+        expect(desc1.configurable).toBeFalse();
+
+        const rawDesc = Object.getOwnPropertyDescriptor(templateObj, "raw");
+        expect(rawDesc.writable).toBeFalse();
+        expect(rawDesc.enumerable).toBeFalse();
+        expect(rawDesc.configurable).toBeFalse();
+
+        expect(Object.isFrozen(templateObj.raw)).toBeTrue();
+
+        const rawDesc0 = Object.getOwnPropertyDescriptor(templateObj.raw, 0);
+        expect(rawDesc0.writable).toBeFalse();
+        expect(rawDesc0.enumerable).toBeTrue();
+        expect(rawDesc0.configurable).toBeFalse();
+
+        const rawDesc1 = Object.getOwnPropertyDescriptor(templateObj.raw, 1);
+        expect(rawDesc1.writable).toBeFalse();
+        expect(rawDesc1.enumerable).toBeTrue();
+        expect(rawDesc1.configurable).toBeFalse();
     });
 
     test("this value of call comes from reference for non-computed, non-super property", () => {

@@ -70,6 +70,12 @@ struct GlobalVariableCache : public PropertyLookupCache {
     bool in_module_environment { false };
 };
 
+// https://tc39.es/ecma262/#sec-gettemplateobject
+// Template objects are cached at the call site.
+struct TemplateObjectCache {
+    GC::Ptr<Array> cached_template_object;
+};
+
 struct SourceRecord {
     u32 source_start_offset {};
     u32 source_end_offset {};
@@ -90,6 +96,7 @@ public:
         NonnullRefPtr<SourceCode const>,
         size_t number_of_property_lookup_caches,
         size_t number_of_global_variable_caches,
+        size_t number_of_template_object_caches,
         size_t number_of_registers,
         Strict);
 
@@ -99,6 +106,7 @@ public:
     Vector<u8> bytecode;
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
+    Vector<TemplateObjectCache> template_object_caches;
     NonnullOwnPtr<StringTable> string_table;
     NonnullOwnPtr<IdentifierTable> identifier_table;
     NonnullOwnPtr<PropertyKeyTable> property_key_table;

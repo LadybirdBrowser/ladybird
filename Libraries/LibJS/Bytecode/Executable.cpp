@@ -8,6 +8,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/RegexTable.h>
+#include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceCode.h>
 
@@ -25,6 +26,7 @@ Executable::Executable(
     NonnullRefPtr<SourceCode const> source_code,
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
+    size_t number_of_template_object_caches,
     size_t number_of_registers,
     Strict strict)
     : bytecode(move(bytecode))
@@ -39,6 +41,7 @@ Executable::Executable(
 {
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);
+    template_object_caches.resize(number_of_template_object_caches);
 }
 
 Executable::~Executable() = default;
@@ -90,6 +93,8 @@ void Executable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(constants);
+    for (auto& cache : template_object_caches)
+        visitor.visit(cache.cached_template_object);
 }
 
 Optional<Executable::ExceptionHandlers const&> Executable::exception_handlers_for_offset(size_t offset) const
