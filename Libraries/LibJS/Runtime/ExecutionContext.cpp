@@ -136,8 +136,7 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
     visitor.visit(m_rare_data);
-    if (this_value.has_value())
-        visitor.visit(*this_value);
+    visitor.visit(this_value);
     visitor.visit(executable);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
     script_or_module.visit(

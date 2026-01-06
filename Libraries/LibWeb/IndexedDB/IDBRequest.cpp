@@ -51,8 +51,7 @@ void IDBRequest::visit_edges(Visitor& visitor)
         [&](Empty) {},
         [&](auto const& object) { visitor.visit(object); });
 
-    if (m_error.has_value())
-        visitor.visit(*m_error);
+    visitor.visit(m_error);
 
     visitor.visit(m_request_observers_being_notified);
 }

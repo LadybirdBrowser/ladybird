@@ -150,6 +150,13 @@ public:
             }
         }
 
+        template<typename T>
+        void visit(Optional<T> const& optional)
+        {
+            if (optional.has_value())
+                visit(optional.value());
+        }
+
         void visit(NanBoxedValue const& value) SWIFT_NAME(visitValue(_:));
 
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
