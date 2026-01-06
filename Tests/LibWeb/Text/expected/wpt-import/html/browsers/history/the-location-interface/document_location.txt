@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	document not in a browsing context
 Pass	document.location equals window.location
-Fail	Attribute getter deduplication
-Fail	Attribute setter deduplication
+Pass	Attribute getter deduplication
+Pass	Attribute setter deduplication

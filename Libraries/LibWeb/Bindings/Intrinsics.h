@@ -27,6 +27,18 @@
 
 namespace Web::Bindings {
 
+struct UnforgeableKey {
+    enum class Type {
+        Setter,
+        Getter,
+    };
+    Utf16FlyString interface_name;
+    Utf16FlyString attribute_name;
+    Type type {};
+
+    bool operator==(UnforgeableKey const&) const = default;
+};
+
 class Intrinsics final : public JS::Cell {
     GC_CELL(Intrinsics, JS::Cell);
     GC_DECLARE_ALLOCATOR(Intrinsics);
@@ -67,6 +79,12 @@ public:
         return *m_constructors.find(class_name)->value;
     }
 
+    GC::Ref<JS::NativeFunction> ensure_web_unforgeable_function(
+        Utf16FlyString const& interface_name,
+        Utf16FlyString const& attribute_name,
+        Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
+        UnforgeableKey::Type);
+
     template<typename PrototypeType>
     bool is_interface_exposed(JS::Realm&) const;
 
@@ -82,6 +100,7 @@ private:
     HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
     HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
     HashMap<FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
+    HashMap<UnforgeableKey, GC::Ref<JS::NativeFunction>> m_unforgeable_functions;
     GC::Ref<JS::Realm> m_realm;
 };
 
@@ -106,3 +125,12 @@ template<typename T>
 }
 
 }
+
+namespace AK {
+
+template<>
+struct Traits<Web::Bindings::UnforgeableKey> : public DefaultTraits<Web::Bindings::UnforgeableKey> {
+    static unsigned hash(Web::Bindings::UnforgeableKey const&);
+};
+
+} // namespace AK
