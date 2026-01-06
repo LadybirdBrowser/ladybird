@@ -552,36 +552,9 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     if (!visit_edges_method || !visit_edges_method->getBody())
         return true;
 
-    // Search for a call to Base::visit_edges. Note that this also has the nice side effect of
-    // ensuring the classes use GC_CELL/GC_OBJECT, as Base will not be defined if they do not.
-
-    MatchFinder base_visit_edges_finder;
-    SimpleCollectMatchesCallback<clang::MemberExpr> base_visit_edges_callback("member-call");
-
-    auto base_visit_edges_matcher = cxxMethodDecl(
-        ofClass(hasName(qualified_name)),
-        functionDecl(hasName("visit_edges")),
-        isOverride(),
-        hasDescendant(memberExpr(member(hasName("visit_edges"))).bind("member-call")));
-
-    base_visit_edges_finder.addMatcher(base_visit_edges_matcher, &base_visit_edges_callback);
-    base_visit_edges_finder.matchAST(m_context);
-
-    bool call_to_base_visit_edges_found = false;
-
-    for (auto const* call_expr : base_visit_edges_callback.matches()) {
-        // FIXME: Can we constrain the matcher above to avoid looking directly at the source code?
-        auto const* source_chars = m_context.getSourceManager().getCharacterData(call_expr->getBeginLoc());
-        if (strncmp(source_chars, "Base::", 6) == 0) {
-            call_to_base_visit_edges_found = true;
-            break;
-        }
-    }
-
-    if (!call_to_base_visit_edges_found) {
-        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Missing call to Base::visit_edges");
-        diag_engine.Report(visit_edges_method->getBeginLoc(), diag_id);
-    }
+    // NOTE: The check for calling Base::visit_edges() is now handled by the general
+    // must_upcall attribute check in VisitCXXMethodDecl, since Cell::visit_edges()
+    // is annotated with MUST_UPCALL.
 
     // Search for uses of all fields that need visiting. We don't ensure they are _actually_ visited
     // with a call to visitor.visit(...), as that is too complex. Instead, we just assume that if the
@@ -654,6 +627,117 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
                 builder << field->getName() << record->getName();
             }
         }
+    }
+
+    return true;
+}
+
+// Check if a method (or any method it overrides) has the must_upcall annotation
+static bool method_requires_upcall(clang::CXXMethodDecl const* method)
+{
+    if (!method)
+        return false;
+
+    if (decl_has_annotation(method, "must_upcall"))
+        return true;
+
+    // Check overridden methods recursively
+    for (auto const* overridden : method->overridden_methods()) {
+        if (method_requires_upcall(overridden))
+            return true;
+    }
+
+    return false;
+}
+
+// Get the immediate parent class's method that this method overrides
+static clang::CXXMethodDecl const* get_immediate_base_method(clang::CXXMethodDecl const* method)
+{
+    if (!method->isVirtual() || method->overridden_methods().empty())
+        return nullptr;
+
+    // The overridden_methods() returns the immediate parent(s) that this method overrides
+    // For single inheritance, there's just one
+    for (auto const* overridden : method->overridden_methods())
+        return overridden;
+
+    return nullptr;
+}
+
+bool LibJSGCVisitor::VisitCXXMethodDecl(clang::CXXMethodDecl* method)
+{
+    if (!method || !method->isVirtual() || !method->doesThisDeclarationHaveABody())
+        return true;
+
+    // Skip if this method is not an override
+    if (!method->size_overridden_methods())
+        return true;
+
+    // Check if any method in the override chain has must_upcall annotation
+    if (!method_requires_upcall(method))
+        return true;
+
+    auto const* base_method = get_immediate_base_method(method);
+    if (!base_method)
+        return true;
+
+    auto const* parent_class = base_method->getParent();
+    if (!parent_class)
+        return true;
+
+    auto method_name = method->getNameAsString();
+
+    // Search for a call to Base::method_name or ParentClass::method_name
+    using namespace clang::ast_matchers;
+
+    MatchFinder upcall_finder;
+    SimpleCollectMatchesCallback<clang::MemberExpr> upcall_callback("member-call");
+
+    auto upcall_matcher = cxxMethodDecl(
+        equalsNode(method),
+        hasDescendant(memberExpr(member(hasName(method_name))).bind("member-call")));
+
+    upcall_finder.addMatcher(upcall_matcher, &upcall_callback);
+    upcall_finder.matchAST(m_context);
+
+    bool upcall_found = false;
+
+    for (auto const* member_expr : upcall_callback.matches()) {
+        // Check if this is a qualified call (e.g., Base::method or ParentClass::method)
+        if (!member_expr->hasQualifier())
+            continue;
+
+        // Get the record decl that the qualifier refers to
+        auto const* qualifier = member_expr->getQualifier();
+        if (!qualifier)
+            continue;
+
+        auto const* qualifier_type = qualifier->getAsType();
+        if (!qualifier_type)
+            continue;
+
+        auto const* qualifier_record = qualifier_type->getAsCXXRecordDecl();
+        if (!qualifier_record)
+            continue;
+
+        // Check if the qualifier refers to a base class of the current class
+        auto const* current_class = method->getParent();
+        if (!current_class)
+            continue;
+
+        // The qualifier should be the same as or a base of the parent class
+        if (qualifier_record == parent_class || current_class->isDerivedFrom(qualifier_record)) {
+            upcall_found = true;
+            break;
+        }
+    }
+
+    if (!upcall_found) {
+        auto& diag_engine = m_context.getDiagnostics();
+        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+            "Missing call to Base::%0 (required by must_upcall attribute)");
+        auto builder = diag_engine.Report(method->getBeginLoc(), diag_id);
+        builder << method_name;
     }
 
     return true;
