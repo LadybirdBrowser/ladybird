@@ -1699,7 +1699,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
         u64 checkpoint_id;
         u32 seek_code_point;
     };
-    Vector<DotStarCandidate> candidates;
+    HashMap<size_t, DotStarCandidate> candidates;
 
     auto state = MatchState::only_for_enumeration();
 
@@ -1880,13 +1880,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
 
                 auto seeked_code_point = it.key();
 
-                candidates.append({ fork_ip,
-                    checkpoint_ip,
-                    compare_ip,
-                    jump_ip,
-                    following_block.start,
-                    checkpoint_id,
-                    seeked_code_point });
+                candidates.set(fork_ip, { fork_ip, checkpoint_ip, compare_ip, jump_ip, following_block.start, checkpoint_id, seeked_code_point });
 
                 dbgln_if(REGEX_DEBUG, "  Found sequence from {} to {} followed by Compare '{}' at {}, can rewrite as SeekTo",
                     fork_ip, jump_ip + 4, (char)seeked_code_point, state.instruction_position);
@@ -1920,7 +1914,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
     ranges_to_skip.ensure_capacity(candidates.size());
     replacements.ensure_capacity(candidates.size());
 
-    for (auto& candidate : candidates) {
+    for (auto& [_, candidate] : candidates) {
         ranges_to_skip.empend(candidate.fork_ip, candidate.jump_ip + 4); // JumpNonEmpty = 4
         ByteCode replacement;
         replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::RSeekTo));
