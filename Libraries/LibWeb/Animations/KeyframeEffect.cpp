@@ -966,9 +966,21 @@ Bindings::CompositeOperation css_animation_composition_to_bindings_composite_ope
         return Bindings::CompositeOperation::Add;
     case CSS::AnimationComposition::Replace:
         return Bindings::CompositeOperation::Replace;
-    default:
-        VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
+}
+
+Bindings::CompositeOperationOrAuto css_animation_composition_to_bindings_composite_operation_or_auto(CSS::AnimationComposition composition)
+{
+    switch (composition) {
+    case CSS::AnimationComposition::Accumulate:
+        return Bindings::CompositeOperationOrAuto::Accumulate;
+    case CSS::AnimationComposition::Add:
+        return Bindings::CompositeOperationOrAuto::Add;
+    case CSS::AnimationComposition::Replace:
+        return Bindings::CompositeOperationOrAuto::Replace;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 }
