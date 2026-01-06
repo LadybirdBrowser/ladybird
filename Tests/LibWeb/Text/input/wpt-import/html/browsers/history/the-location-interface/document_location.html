@@ -1,0 +1,39 @@
+<!doctype html>
+<title>document.location</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  var doc = document.implementation.createHTMLDocument("");
+  assert_equals(doc.location, null);
+}, "document not in a browsing context");
+
+test(function() {
+  assert_equals(document.location, location);
+}, "document.location equals window.location");
+
+test(function() {
+  var desc1 = Object.getOwnPropertyDescriptor(new Document(), "location");
+  assert_not_equals(desc1, undefined);
+  assert_equals(typeof desc1.get, "function");
+
+  var desc2 = Object.getOwnPropertyDescriptor(new Document(), "location");
+  assert_not_equals(desc2, undefined);
+  assert_equals(typeof desc2.get, "function");
+
+  assert_equals(desc1.get, desc2.get);
+}, "Attribute getter deduplication");
+
+test(function() {
+  var desc1 = Object.getOwnPropertyDescriptor(new Document(), "location");
+  assert_not_equals(desc1, undefined);
+  assert_equals(typeof desc1.set, "function");
+
+  var desc2 = Object.getOwnPropertyDescriptor(new Document(), "location");
+  assert_not_equals(desc2, undefined);
+  assert_equals(typeof desc2.set, "function");
+
+  assert_equals(desc1.set, desc2.set);
+}, "Attribute setter deduplication");
+</script>
