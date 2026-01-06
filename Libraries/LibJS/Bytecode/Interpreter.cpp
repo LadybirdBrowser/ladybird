@@ -516,6 +516,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetNewTarget);
             HANDLE_INSTRUCTION(GetObjectPropertyIterator);
             HANDLE_INSTRUCTION(GetPrivateById);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(GetTemplateObject);
             HANDLE_INSTRUCTION(GetBinding);
             HANDLE_INSTRUCTION(GetInitializedBinding);
             HANDLE_INSTRUCTION(GreaterThan);
@@ -1790,6 +1791,75 @@ void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
     for (size_t i = 0; i < m_element_count; i++)
         array->indexed_properties().put(i, m_elements[i], default_attributes);
     interpreter.set(dst(), array);
+}
+
+// 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
+void GetTemplateObject::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto& cache = interpreter.current_executable().template_object_caches[m_cache_index];
+
+    // 1. Let realm be the current Realm Record.
+    auto& realm = *vm.current_realm();
+
+    // 2. Let templateRegistry be realm.[[TemplateMap]].
+    // 3. For each element e of templateRegistry, do
+    //    a. If e.[[Site]] is the same Parse Node as templateLiteral, then
+    //       i. Return e.[[Array]].
+    if (cache.cached_template_object) {
+        interpreter.set(dst(), cache.cached_template_object);
+        return;
+    }
+
+    // 4. Let rawStrings be the TemplateStrings of templateLiteral with argument true.
+    // 5. Assert: rawStrings is a List of Strings.
+    // 6. Let cookedStrings be the TemplateStrings of templateLiteral with argument false.
+    // NOTE: This has already been done.
+
+    // 7. Let count be the number of elements in the List cookedStrings.
+    // NOTE: m_strings contains [cooked_0, ..., cooked_n, raw_0, ..., raw_n]
+    // 8. Assert: count ≤ 2**32 - 1.
+    // NOTE: Done by having count be a u32.
+    u32 count = m_strings_count / 2;
+
+    // 9. Let template be ! ArrayCreate(count).
+    auto template_object = MUST(Array::create(realm, count));
+
+    // 10. Let rawObj be ! ArrayCreate(count).
+    auto raw_object = MUST(Array::create(realm, count));
+
+    // 12. Repeat, while index < count,
+    for (size_t index = 0; index < count; index++) {
+        // a. Let prop be ! ToString(𝔽(index)).
+        // b. Let cookedValue be cookedStrings[index].
+        auto cooked_value = interpreter.get(m_strings[index]);
+
+        // c. Perform ! DefinePropertyOrThrow(template, prop, PropertyDescriptor { [[Value]]: cookedValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
+        template_object->indexed_properties().put(index, cooked_value, Attribute::Enumerable);
+
+        // d. Let rawValue be the String value rawStrings[index].
+        auto raw_value = interpreter.get(m_strings[count + index]);
+
+        // e. Perform ! DefinePropertyOrThrow(rawObj, prop, PropertyDescriptor { [[Value]]: rawValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
+        raw_object->indexed_properties().put(index, raw_value, Attribute::Enumerable);
+
+        // f. Set index to index + 1.
+    }
+
+    // 13. Perform ! SetIntegrityLevel(rawObj, FROZEN).
+    MUST(raw_object->set_integrity_level(Object::IntegrityLevel::Frozen));
+
+    // 14. Perform ! DefinePropertyOrThrow(template, "raw", PropertyDescriptor { [[Value]]: rawObj, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    template_object->define_direct_property(vm.names.raw, raw_object, PropertyAttributes {});
+
+    // 15. Perform ! SetIntegrityLevel(template, FROZEN).
+    MUST(template_object->set_integrity_level(Object::IntegrityLevel::Frozen));
+
+    // 16. Append the Record { [[Site]]: templateLiteral, [[Array]]: template } to realm.[[TemplateMap]].
+    cache.cached_template_object = template_object;
+
+    // 17. Return template.
+    interpreter.set(dst(), template_object);
 }
 
 ThrowCompletionOr<void> NewArrayWithLength::execute_impl(Bytecode::Interpreter& interpreter) const

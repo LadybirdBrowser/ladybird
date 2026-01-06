@@ -455,6 +455,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         node.source_code(),
         generator.m_next_property_lookup_cache,
         generator.m_next_global_variable_cache,
+        generator.m_next_template_object_cache,
         generator.m_next_register,
         generator.m_strict);
 

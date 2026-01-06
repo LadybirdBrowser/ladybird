@@ -2487,72 +2487,45 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
     }());
 
-    // FIXME: Follow
-    //        13.2.8.3 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
-    //        more closely, namely:
-    //        * cache this somehow
-    //        * add a raw object accessor
-    //        * freeze array and raw member
+    // 13.2.8.4 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
     Vector<ScopedOperand> string_regs;
     auto& expressions = m_template_literal->expressions();
 
-    for (size_t i = 0; i < expressions.size(); ++i) {
-        if (i % 2 != 0)
-            continue;
+    for (size_t i = 0; i < expressions.size(); i += 2) {
         // NOTE: If the string contains invalid escapes we get a null expression here,
         //       which we then convert to the expected `undefined` TV. See
         //       12.9.6.1 Static Semantics: TV, https://tc39.es/ecma262/#sec-static-semantics-tv
-        auto string_reg = generator.allocate_register();
         if (is<NullLiteral>(expressions[i])) {
-            generator.emit_mov(string_reg, generator.add_constant(js_undefined()));
+            string_regs.append(generator.add_constant(js_undefined()));
         } else {
             auto value = TRY(expressions[i]->generate_bytecode(generator)).value();
-            generator.emit_mov(string_reg, value);
+            string_regs.append(move(value));
         }
-        string_regs.append(move(string_reg));
+    }
+
+    auto& raw_strings = m_template_literal->raw_strings();
+    for (auto const& raw_string : raw_strings) {
+        auto value = TRY(raw_string->generate_bytecode(generator)).value();
+        string_regs.append(move(value));
     }
 
     auto strings_array = generator.allocate_register();
-    if (string_regs.is_empty()) {
-        generator.emit<Bytecode::Op::NewArray>(strings_array, ReadonlySpan<ScopedOperand> {});
-    } else {
-        generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(string_regs.size(), strings_array, string_regs);
-    }
+    generator.emit_with_extra_operand_slots<Bytecode::Op::GetTemplateObject>(
+        string_regs.size(),
+        strings_array,
+        generator.next_template_object_cache(),
+        string_regs);
 
     Vector<ScopedOperand> argument_regs;
     argument_regs.append(strings_array);
 
     for (size_t i = 1; i < expressions.size(); i += 2) {
-        auto string_reg = generator.allocate_register();
-        auto string = TRY(expressions[i]->generate_bytecode(generator)).value();
-        generator.emit_mov(string_reg, string);
-        argument_regs.append(move(string_reg));
+        auto argument = TRY(expressions[i]->generate_bytecode(generator)).value();
+        argument_regs.append(move(argument));
     }
-
-    Vector<ScopedOperand> raw_string_regs;
-    raw_string_regs.ensure_capacity(m_template_literal->raw_strings().size());
-    for (auto& raw_string : m_template_literal->raw_strings()) {
-        auto value = TRY(raw_string->generate_bytecode(generator)).value();
-        raw_string_regs.append(generator.copy_if_needed_to_preserve_evaluation_order(value));
-    }
-
-    auto raw_strings_array = generator.allocate_register();
-    if (raw_string_regs.is_empty()) {
-        generator.emit<Bytecode::Op::NewArray>(raw_strings_array, ReadonlySpan<ScopedOperand> {});
-    } else {
-        generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(raw_string_regs.size(), raw_strings_array, raw_string_regs);
-    }
-
-    generator.emit_put_by_id(strings_array, generator.intern_property_key("raw"_utf16_fly_string), raw_strings_array, Bytecode::PutKind::Normal, generator.next_property_lookup_cache());
-
-    auto arguments = generator.allocate_register();
-    if (!argument_regs.is_empty())
-        generator.emit_with_extra_operand_slots<Bytecode::Op::NewArray>(argument_regs.size(), arguments, argument_regs);
-    else
-        generator.emit<Bytecode::Op::NewArray>(arguments, ReadonlySpan<ScopedOperand> {});
 
     auto dst = choose_dst(generator, preferred_dst);
-    generator.emit<Bytecode::Op::CallWithArgumentArray>(dst, tag, this_value, arguments, OptionalNone {});
+    generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(argument_regs.size(), dst, tag, this_value, OptionalNone {}, argument_regs);
     return dst;
 }
 
