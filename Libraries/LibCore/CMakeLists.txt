@@ -116,7 +116,7 @@ if (APPLE)
 endif()
 
 ladybird_lib(LibCore core)
-target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads)
+target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads LibSync)
 target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")

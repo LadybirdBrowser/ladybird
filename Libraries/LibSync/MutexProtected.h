@@ -8,11 +8,11 @@
 
 #include <AK/Concepts.h>
 #include <AK/Noncopyable.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
-namespace Threading {
+namespace Sync {
 
-template<typename T>
+template<typename T, typename MutexType = Mutex>
 class MutexProtected {
     AK_MAKE_NONCOPYABLE(MutexProtected);
     AK_MAKE_NONMOVABLE(MutexProtected);
@@ -48,10 +48,10 @@ public:
     }
 
 private:
-    [[nodiscard]] ALWAYS_INLINE MutexLocker lock() { return MutexLocker(m_lock); }
+    [[nodiscard]] ALWAYS_INLINE MutexLocker<MutexType> lock() { return MutexLocker(m_lock); }
 
     T m_value;
-    Mutex m_lock {};
+    MutexType m_lock {};
 };
 
 }
