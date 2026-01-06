@@ -609,11 +609,19 @@ void PaintableBox::paint_backdrop_filter(DisplayListRecordingContext& context) c
 
 void PaintableBox::paint_background(DisplayListRecordingContext& context) const
 {
-    // If the body's background properties were propagated to the root element, do no re-paint the body's background.
+    // If the body's background properties were propagated to the root element, do not re-paint the body's background.
     if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
+    // If the body's background was propagated to the root element, use the body's image-rendering value.
+    auto image_rendering = computed_values().image_rendering();
+    if (layout_node().is_root_element()
+        && document().html_element()
+        && document().html_element()->should_use_body_background_properties()) {
+        image_rendering = document().background_image_rendering();
+    }
+
+    Painting::paint_background(context, *this, image_rendering, m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(DisplayListRecordingContext& context) const

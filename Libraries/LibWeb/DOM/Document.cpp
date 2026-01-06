@@ -1159,6 +1159,19 @@ Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
     return &body_layout_node->background_layers();
 }
 
+CSS::ImageRendering Document::background_image_rendering() const
+{
+    auto* body_element = body();
+    if (!body_element)
+        return CSS::ImageRendering::Auto;
+
+    auto body_layout_node = body_element->layout_node();
+    if (!body_layout_node)
+        return CSS::ImageRendering::Auto;
+
+    return body_layout_node->computed_values().image_rendering();
+}
+
 void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
 {
     GC::Ptr<HTML::HTMLBaseElement> base_element_with_href = nullptr;

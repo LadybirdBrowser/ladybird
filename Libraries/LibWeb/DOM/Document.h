@@ -347,6 +347,7 @@ public:
 
     Color background_color() const;
     Vector<CSS::BackgroundLayerData> const* background_layers() const;
+    CSS::ImageRendering background_image_rendering() const;
 
     Optional<Color> normal_link_color() const;
     void set_normal_link_color(Color);
