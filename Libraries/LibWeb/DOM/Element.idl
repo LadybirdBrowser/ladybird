@@ -97,13 +97,13 @@ interface Element : Node {
 
     boolean checkVisibility(optional CheckVisibilityOptions options = {});
 
-    undefined scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
-    undefined scroll(optional ScrollToOptions options = {});
-    undefined scroll(unrestricted double x, unrestricted double y);
-    [ImplementedAs=scroll] undefined scrollTo(optional ScrollToOptions options = {});
-    [ImplementedAs=scroll] undefined scrollTo(unrestricted double x, unrestricted double y);
-    undefined scrollBy(optional ScrollToOptions options = {});
-    undefined scrollBy(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollIntoView(optional (boolean or ScrollIntoViewOptions) arg = {});
+    Promise<undefined> scroll(optional ScrollToOptions options = {});
+    Promise<undefined> scroll(unrestricted double x, unrestricted double y);
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(optional ScrollToOptions options = {});
+    [ImplementedAs=scroll] Promise<undefined> scrollTo(unrestricted double x, unrestricted double y);
+    Promise<undefined> scrollBy(optional ScrollToOptions options = {});
+    Promise<undefined> scrollBy(unrestricted double x, unrestricted double y);
     attribute unrestricted double scrollTop;
     attribute unrestricted double scrollLeft;
     readonly attribute long scrollWidth;
