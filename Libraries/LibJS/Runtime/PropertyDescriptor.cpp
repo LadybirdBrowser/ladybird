@@ -226,12 +226,9 @@ PropertyAttributes PropertyDescriptor::attributes() const
 
 void PropertyDescriptor::visit_edges(GC::Cell::Visitor& visitor)
 {
-    if (value.has_value())
-        visitor.visit(value.value());
-    if (get.has_value())
-        visitor.visit(get.value());
-    if (set.has_value())
-        visitor.visit(set.value());
+    visitor.visit(value);
+    visitor.visit(get);
+    visitor.visit(set);
 }
 
 }

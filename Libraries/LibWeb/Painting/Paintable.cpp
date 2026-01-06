@@ -43,8 +43,7 @@ void Paintable::visit_edges(Cell::Visitor& visitor)
     TreeNode::visit_edges(visitor);
     visitor.visit(m_dom_node);
     visitor.visit(m_layout_node);
-    if (m_containing_block.has_value())
-        visitor.visit(m_containing_block.value());
+    visitor.visit(m_containing_block);
 }
 
 String Paintable::debug_description() const
