@@ -12,6 +12,7 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QApplication>
+#include <QKeyEvent>
 #include <QPalette>
 #include <QTextLayout>
 #include <QTimer>
@@ -75,6 +76,20 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
         setCursorPosition(0);
         highlight_location();
     }
+}
+
+void LocationEdit::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape) {
+        if (m_autocomplete->popup()->isVisible()) {
+            QLineEdit::keyPressEvent(event);
+            return;
+        }
+        setText(qstring_from_ak_string(m_url.serialize()));
+        clearFocus();
+        return;
+    }
+    QLineEdit::keyPressEvent(event);
 }
 
 void LocationEdit::search_engine_changed()
