@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -1633,7 +1634,6 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
                 auto interpolated_bottom = interpolate_value(element, basic_shape_calculation_context, from_inset.bottom, to_inset.bottom, delta, allow_discrete);
                 auto interpolated_left = interpolate_value(element, basic_shape_calculation_context, from_inset.left, to_inset.left, delta, allow_discrete);
 
-                // FIXME: Support interpolation of BorderRadiusRectStyleValue
                 auto interpolated_border_radius = interpolate_value(element, basic_shape_calculation_context, from_inset.border_radius, to_inset.border_radius, delta, allow_discrete);
 
                 if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left || !interpolated_border_radius)
@@ -1702,6 +1702,34 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (!interpolated_horizontal_radius || !interpolated_vertical_radius)
             return {};
         return BorderRadiusStyleValue::create(interpolated_horizontal_radius.release_nonnull(), interpolated_vertical_radius.release_nonnull());
+    }
+    case StyleValue::Type::BorderRadiusRect: {
+        CalculationContext border_radius_rect_computation_context = {
+            .percentages_resolve_as = ValueType::Length,
+            .accepted_type_ranges = { { ValueType::Length, { 0, AK::NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, AK::NumericLimits<float>::max() } } },
+        };
+
+        auto const& from_top_left = from.as_border_radius_rect().top_left();
+        auto const& to_top_left = to.as_border_radius_rect().top_left();
+
+        auto const& from_top_right = from.as_border_radius_rect().top_right();
+        auto const& to_top_right = to.as_border_radius_rect().top_right();
+
+        auto const& from_bottom_right = from.as_border_radius_rect().bottom_right();
+        auto const& to_bottom_right = to.as_border_radius_rect().bottom_right();
+
+        auto const& from_bottom_left = from.as_border_radius_rect().bottom_left();
+        auto const& to_bottom_left = to.as_border_radius_rect().bottom_left();
+
+        auto interpolated_top_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_left, to_top_left, delta, allow_discrete);
+        auto interpolated_top_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_top_right, to_top_right, delta, allow_discrete);
+        auto interpolated_bottom_right = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_right, to_bottom_right, delta, allow_discrete);
+        auto interpolated_bottom_left = interpolate_value_impl(element, border_radius_rect_computation_context, from_bottom_left, to_bottom_left, delta, allow_discrete);
+
+        if (!interpolated_top_left || !interpolated_top_right || !interpolated_bottom_right || !interpolated_bottom_left)
+            return {};
+
+        return BorderRadiusRectStyleValue::create(interpolated_top_left.release_nonnull(), interpolated_top_right.release_nonnull(), interpolated_bottom_right.release_nonnull(), interpolated_bottom_left.release_nonnull());
     }
     case StyleValue::Type::Color: {
         ColorResolutionContext color_resolution_context {};
