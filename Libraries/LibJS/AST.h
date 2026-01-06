@@ -1941,7 +1941,7 @@ public:
     {
     }
 
-    TemplateLiteral(SourceRange source_range, Vector<NonnullRefPtr<Expression const>> expressions, Vector<NonnullRefPtr<Expression const>> raw_strings)
+    TemplateLiteral(SourceRange source_range, Vector<NonnullRefPtr<Expression const>> expressions, Vector<NonnullRefPtr<StringLiteral const>> raw_strings)
         : Expression(move(source_range))
         , m_expressions(move(expressions))
         , m_raw_strings(move(raw_strings))
@@ -1952,11 +1952,11 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     Vector<NonnullRefPtr<Expression const>> const& expressions() const { return m_expressions; }
-    Vector<NonnullRefPtr<Expression const>> const& raw_strings() const { return m_raw_strings; }
+    Vector<NonnullRefPtr<StringLiteral const>> const& raw_strings() const { return m_raw_strings; }
 
 private:
     Vector<NonnullRefPtr<Expression const>> const m_expressions;
-    Vector<NonnullRefPtr<Expression const>> const m_raw_strings;
+    Vector<NonnullRefPtr<StringLiteral const>> const m_raw_strings;
 };
 
 class TaggedTemplateLiteral final : public Expression {
