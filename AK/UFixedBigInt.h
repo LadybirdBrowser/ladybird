@@ -64,8 +64,8 @@ constexpr void mul_internal(Operand1 const& operand1, Operand2 const& operand2, 
 
 template<size_t dividend_size, size_t divisor_size, bool restore_remainder>
 constexpr void div_mod_internal( // Include AK/UFixedBigIntDivision.h to use UFixedBigInt division
-    StaticStorage<false, dividend_size> const& dividend,
-    StaticStorage<false, divisor_size> const& divisor,
+    StaticStorage<false, dividend_size> const& operand1,
+    StaticStorage<false, divisor_size> const& operand2,
     StaticStorage<false, dividend_size>& quotient,
     StaticStorage<false, divisor_size>& remainder);
 
@@ -118,7 +118,7 @@ public:
                 // Aligned initialization (i. e. u256 from two u128)
                 decltype(auto) storage = get_storage_of(value[i]);
                 for (size_t i = 0; i < storage.size(); ++i)
-                    m_data[i + offset / native_word_size] = storage[i];
+                    m_data[i + (offset / native_word_size)] = storage[i];
             } else if (offset % native_word_size == 32 && IsSame<T, u32>) {
                 // u32 vector initialization on 64-bit platforms
                 m_data[offset / native_word_size] |= static_cast<NativeDoubleWord>(value[i]) << 32;
@@ -217,9 +217,8 @@ public:
             if (m_data[i]) {
                 result += count_trailing_zeroes(m_data[i]);
                 break;
-            } else {
-                result += native_word_size;
             }
+            result += native_word_size;
         }
         return result;
     }
@@ -231,11 +230,10 @@ public:
             if (m_data[i]) {
                 result += count_leading_zeroes(m_data[i]);
                 break;
-            } else {
-                result += native_word_size;
             }
+            result += native_word_size;
         }
-        return result + bit_size - native_word_size * static_size;
+        return result + bit_size - (native_word_size * static_size);
     }
 
     // Comparisons

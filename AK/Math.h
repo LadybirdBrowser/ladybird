@@ -516,30 +516,30 @@ constexpr T cbrt(T x)
     T r = x;
     T ex = 0;
 
-    while (r < 0.125l) {
+    while (r < 0.125L) {
         r *= 8;
         ex--;
     }
-    while (r > 1.0l) {
-        r *= 0.125l;
+    while (r > 1.0L) {
+        r *= 0.125L;
         ex++;
     }
 
-    r = (-0.46946116l * r + 1.072302l) * r + 0.3812513l;
+    r = (-0.46946116L * r + 1.072302L) * r + 0.3812513L;
 
     while (ex < 0) {
-        r *= 0.5l;
+        r *= 0.5L;
         ex++;
     }
     while (ex > 0) {
-        r *= 2.0l;
+        r *= 2.0L;
         ex--;
     }
 
-    r = (2.0l / 3.0l) * r + (1.0l / 3.0l) * x / (r * r);
-    r = (2.0l / 3.0l) * r + (1.0l / 3.0l) * x / (r * r);
-    r = (2.0l / 3.0l) * r + (1.0l / 3.0l) * x / (r * r);
-    r = (2.0l / 3.0l) * r + (1.0l / 3.0l) * x / (r * r);
+    r = (2.0L / 3.0L) * r + (1.0L / 3.0L) * x / (r * r);
+    r = (2.0L / 3.0L) * r + (1.0L / 3.0L) * x / (r * r);
+    r = (2.0L / 3.0L) * r + (1.0L / 3.0L) * x / (r * r);
+    r = (2.0L / 3.0L) * r + (1.0L / 3.0L) * x / (r * r);
 
     return r;
 }
@@ -623,7 +623,8 @@ constexpr T tan(T angle)
     CONSTEXPR_STATE(tan, angle);
 
 #if ARCH(X86_64)
-    T ret, one;
+    T ret;
+    T one;
     asm(
         "fptan"
         : "=t"(one), "=u"(ret)
@@ -980,7 +981,7 @@ constexpr T acosh(T x)
 template<FloatingPoint T>
 constexpr T atanh(T x)
 {
-    return log<T>((1 + x) / (1 - x)) / (T)2.0l;
+    return log<T>((1 + x) / (1 - x)) / (T)2.0L;
 }
 
 }
@@ -1011,7 +1012,7 @@ constexpr T pow(T x, T y)
         for (int i = 0; i < fabs<T>(y) - 1; ++i)
             result *= x;
         if (y < 0)
-            result = 1.0l / result;
+            result = 1.0L / result;
         return result;
     }
 

@@ -52,11 +52,11 @@ public:
 
 namespace {
 
-static constexpr size_t use_next_index = NumericLimits<size_t>::max();
+constexpr size_t use_next_index = NumericLimits<size_t>::max();
 
 // The worst case is that we have the largest 64-bit value formatted as binary number, this would take
 // 65 bytes (85 bytes with separators). Choosing a larger power of two won't hurt and is a bit of mitigation against out-of-bounds accesses.
-static constexpr size_t convert_unsigned_to_string(u64 value, Array<u8, 128>& buffer, u8 base, bool upper_case, bool use_separator)
+constexpr size_t convert_unsigned_to_string(u64 value, Array<u8, 128>& buffer, u8 base, bool upper_case, bool use_separator)
 {
     VERIFY(base >= 2 && base <= 16);
 
@@ -103,7 +103,7 @@ ErrorOr<void> vformat_impl(TypeErasedFormatParams& params, FormatBuilder& builde
     if (specifier.index == use_next_index)
         specifier.index = params.take_next_index();
 
-    auto& parameter = params.parameters().at(specifier.index);
+    auto const& parameter = params.parameters().at(specifier.index);
 
     FormatParser argparser { specifier.flags };
     TRY(parameter.visit([&]<typename T>(T const& value) {
@@ -596,7 +596,7 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
         size_t length = 0;
         for (; x; x /= 10)
             digits[length++] = x % 10 | '0';
-        for (size_t i = 0; 2 * i + 1 < length; ++i)
+        for (size_t i = 0; (2 * i) + 1 < length; ++i)
             swap(digits[i], digits[length - i - 1]);
         return length;
     };
@@ -724,7 +724,7 @@ ErrorOr<void> FormatBuilder::put_f80(
     FormatBuilder format_builder { string_builder };
 
     if (isnan(value) || isinf(value)) [[unlikely]] {
-        if (value < 0.0l)
+        if (value < 0.0L)
             TRY(string_builder.try_append('-'));
         else if (sign_mode == SignMode::Always)
             TRY(string_builder.try_append('+'));
@@ -739,7 +739,7 @@ ErrorOr<void> FormatBuilder::put_f80(
         return {};
     }
 
-    bool is_negative = value < 0.0l;
+    bool is_negative = value < 0.0L;
     if (is_negative)
         value = -value;
 
@@ -750,18 +750,18 @@ ErrorOr<void> FormatBuilder::put_f80(
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
         // place to start would be the following video from CppCon 2019:
         // https://youtu.be/4P_kbF0EbZM (Stephan T. Lavavej “Floating-Point <charconv>: Making Your Code 10x Faster With C++17's Final Boss”)
-        long double epsilon = 0.5l;
+        long double epsilon = 0.5L;
         if (display_mode != RealNumberDisplayMode::FixedPoint) {
             for (size_t i = 0; i < precision; ++i)
-                epsilon /= 10.0l;
+                epsilon /= 10.0L;
         }
 
         for (size_t digit = 0; digit < precision; ++digit) {
             if (display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
                 break;
 
-            value *= 10.0l;
-            epsilon *= 10.0l;
+            value *= 10.0L;
+            epsilon *= 10.0L;
 
             if (value > NumericLimits<u32>::max())
                 value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
@@ -774,7 +774,7 @@ ErrorOr<void> FormatBuilder::put_f80(
     }
 
     // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0l) % 10 >= 5)
+    if (static_cast<u64>(value * 10.0L) % 10 >= 5)
         TRY(round_up_digits(string_builder));
 
     TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
@@ -999,10 +999,9 @@ ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
         // Trick: signed char != char. (Sometimes weird features are actually helpful.)
         Formatter<signed char> formatter { *this };
         return formatter.format(builder, static_cast<signed char>(value));
-    } else {
-        Formatter<StringView> formatter { *this };
-        return formatter.format(builder, { &value, 1 });
     }
+    Formatter<StringView> formatter { *this };
+    return formatter.format(builder, { &value, 1 });
 }
 
 ErrorOr<void> Formatter<char16_t>::format(FormatBuilder& builder, char16_t value)
@@ -1010,13 +1009,12 @@ ErrorOr<void> Formatter<char16_t>::format(FormatBuilder& builder, char16_t value
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
         Formatter<u16> formatter { *this };
         return formatter.format(builder, value);
-    } else {
-        StringBuilder codepoint;
-        codepoint.append_code_point(value);
-
-        Formatter<StringView> formatter { *this };
-        return formatter.format(builder, codepoint.string_view());
     }
+    StringBuilder codepoint;
+    codepoint.append_code_point(value);
+
+    Formatter<StringView> formatter { *this };
+    return formatter.format(builder, codepoint.string_view());
 }
 
 ErrorOr<void> Formatter<char32_t>::format(FormatBuilder& builder, char32_t value)
@@ -1024,13 +1022,12 @@ ErrorOr<void> Formatter<char32_t>::format(FormatBuilder& builder, char32_t value
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
         Formatter<u32> formatter { *this };
         return formatter.format(builder, value);
-    } else {
-        StringBuilder codepoint;
-        codepoint.append_code_point(value);
-
-        Formatter<StringView> formatter { *this };
-        return formatter.format(builder, codepoint.string_view());
     }
+    StringBuilder codepoint;
+    codepoint.append_code_point(value);
+
+    Formatter<StringView> formatter { *this };
+    return formatter.format(builder, codepoint.string_view());
 }
 
 ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
@@ -1038,7 +1035,8 @@ ErrorOr<void> Formatter<bool>::format(FormatBuilder& builder, bool value)
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
         Formatter<u8> formatter { *this };
         return formatter.format(builder, static_cast<u8>(value));
-    } else if (m_mode == Mode::HexDump) {
+    }
+    if (m_mode == Mode::HexDump) {
         return builder.put_hexdump({ &value, sizeof(value) }, m_width.value_or(32), m_fill);
     } else {
         Formatter<StringView> formatter { *this };

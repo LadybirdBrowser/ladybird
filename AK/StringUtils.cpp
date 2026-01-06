@@ -44,7 +44,7 @@ bool matches(StringView str, StringView mask, CaseSensitivity case_sensitivity, 
     char const* mask_end = mask_ptr + mask.length();
 
     while (string_ptr < string_end && mask_ptr < mask_end) {
-        auto string_start_ptr = string_ptr;
+        auto const* string_start_ptr = string_ptr;
         switch (*mask_ptr) {
         case '*':
             if (mask_ptr == mask_end - 1) {
@@ -110,8 +110,8 @@ bool ends_with(StringView str, StringView end, CaseSensitivity case_sensitivity)
     if (case_sensitivity == CaseSensitivity::CaseSensitive)
         return !memcmp(str.characters_without_null_termination() + (str.length() - end.length()), end.characters_without_null_termination(), end.length());
 
-    auto str_chars = str.characters_without_null_termination();
-    auto end_chars = end.characters_without_null_termination();
+    auto const* str_chars = str.characters_without_null_termination();
+    auto const* end_chars = end.characters_without_null_termination();
 
     size_t si = str.length() - end.length();
     for (size_t ei = 0; ei < end.length(); ++si, ++ei) {
@@ -135,8 +135,8 @@ bool starts_with(StringView str, StringView start, CaseSensitivity case_sensitiv
     if (case_sensitivity == CaseSensitivity::CaseSensitive)
         return !memcmp(str.characters_without_null_termination(), start.characters_without_null_termination(), start.length());
 
-    auto str_chars = str.characters_without_null_termination();
-    auto start_chars = start.characters_without_null_termination();
+    auto const* str_chars = str.characters_without_null_termination();
+    auto const* start_chars = start.characters_without_null_termination();
 
     size_t si = 0;
     for (size_t starti = 0; starti < start.length(); ++si, ++starti) {
@@ -152,8 +152,8 @@ bool contains(StringView str, StringView needle, CaseSensitivity case_sensitivit
         return false;
     if (needle.is_empty())
         return true;
-    auto str_chars = str.characters_without_null_termination();
-    auto needle_chars = needle.characters_without_null_termination();
+    auto const* str_chars = str.characters_without_null_termination();
+    auto const* needle_chars = needle.characters_without_null_termination();
     if (case_sensitivity == CaseSensitivity::CaseSensitive)
         return memmem(str_chars, str.length(), needle_chars, needle.length()) != nullptr;
 
@@ -317,9 +317,7 @@ ByteString to_snakecase(StringView str)
         if (i >= str.length() - 1)
             return false;
         auto next_ch = str[i + 1];
-        if (is_ascii_upper_alpha(current_char) && is_ascii_lower_alpha(next_ch))
-            return true;
-        return false;
+        return static_cast<bool>(is_ascii_upper_alpha(current_char) && is_ascii_lower_alpha(next_ch));
     };
 
     StringBuilder builder;

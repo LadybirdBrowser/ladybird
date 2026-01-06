@@ -72,7 +72,8 @@ Utf8View Utf8View::unicode_substring_view(size_t code_point_offset, size_t code_
     if (code_point_length == 0)
         return {};
 
-    size_t code_point_index = 0, offset_in_bytes = 0;
+    size_t code_point_index = 0;
+    size_t offset_in_bytes = 0;
     for (auto iterator = begin(); !iterator.done(); ++iterator) {
         if (code_point_index == code_point_offset)
             offset_in_bytes = byte_offset_of(iterator);

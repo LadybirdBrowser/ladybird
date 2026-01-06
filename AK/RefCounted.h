@@ -54,6 +54,8 @@ protected:
 
 template<typename T>
 class RefCounted : public RefCountedBase {
+    RefCounted() = default;
+
 public:
     bool unref() const
     {
@@ -70,6 +72,7 @@ public:
         }
         return false;
     }
+    friend T;
 };
 
 }

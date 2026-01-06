@@ -222,12 +222,12 @@ public:
     }
 
     VisibleType const& unsafe_last() const
-    requires(want_fast_last_access)
+    requires want_fast_last_access
     {
         return *m_metadata.last_slot;
     }
     VisibleType& unsafe_last()
-    requires(want_fast_last_access)
+    requires want_fast_last_access
     {
         return *m_metadata.last_slot;
     }
@@ -594,7 +594,7 @@ public:
     }
 
     ALWAYS_INLINE T take_last()
-    requires(want_fast_last_access)
+    requires want_fast_last_access
     {
         VERIFY(m_metadata.last_slot);
         auto value = move(*m_metadata.last_slot);
@@ -624,7 +624,7 @@ public:
     }
 
     ALWAYS_INLINE T unsafe_take_last()
-    requires(want_fast_last_access)
+    requires want_fast_last_access
     {
         auto value = move(*m_metadata.last_slot);
         if constexpr (!contains_reference)
@@ -1041,7 +1041,7 @@ private:
 
     static size_t padded_capacity(size_t capacity)
     {
-        return 4 + capacity + capacity / 4;
+        return 4 + capacity + (capacity / 4);
     }
 
     StorageType* slot(size_t i) { return &data()[i]; }

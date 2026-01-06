@@ -680,7 +680,7 @@ private:
 
 template<>
 struct Formatter<Utf16View> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, Utf16View const& value)
+    static ErrorOr<void> format(FormatBuilder& builder, Utf16View const& value)
     {
         return builder.builder().try_append(value);
     }

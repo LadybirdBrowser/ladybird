@@ -95,7 +95,7 @@ public:
         if (previous_data != nullptr) {
             __builtin_memcpy(m_data, previous_data, previous_size_bytes);
             if ((previous_size % 8) != 0)
-                set_range(previous_size, 8 - previous_size % 8, default_value);
+                set_range(previous_size, 8 - (previous_size % 8), default_value);
             kfree_sized(previous_data, previous_size_bytes);
         }
     }

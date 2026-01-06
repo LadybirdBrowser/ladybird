@@ -248,9 +248,8 @@ Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanos
     if (Checked<i64>::addition_would_overflow<i64, i64>(seconds, extra_seconds)) {
         if (seconds < 0) {
             return Duration::min();
-        } else {
-            return Duration::max();
         }
+        return Duration::max();
     }
 
     return Duration { seconds + extra_seconds, nanoseconds };
@@ -340,7 +339,7 @@ ErrorOr<void> Formatter<Duration>::format(FormatBuilder& builder, Duration value
     if (align == FormatBuilder::Align::Right)
         integer_align_width = Checked<size_t>::saturating_sub(align_width, non_integer_width);
     else if (align == FormatBuilder::Align::Center)
-        integer_align_width = integer_width + Checked<size_t>::saturating_sub(align_width, total_width) / 2;
+        integer_align_width = integer_width + (Checked<size_t>::saturating_sub(align_width, total_width) / 2);
     TRY(builder.put_u64(seconds, base, false, upper_case, m_zero_pad, m_use_separator, FormatBuilder::Align::Right, integer_align_width, m_fill, m_sign_mode, is_negative));
 
     if (nanoseconds_to_precision != 0) {
@@ -592,7 +591,7 @@ ErrorOr<void> UnixDateTime::to_string_impl(StringBuilder& builder, StringView fo
                     } else {
                         int const days_of_last_year = days_in_year(tm.tm_year + 1900 - 1);
                         int const wday_of_last_year_beginning = (wday_of_year_beginning + 6 * days_of_last_year) % 7;
-                        week_number = (days_of_last_year + wday_of_last_year_beginning) / 7 + 1;
+                        week_number = ((days_of_last_year + wday_of_last_year_beginning) / 7) + 1;
                         if (wday_of_last_year_beginning > 3)
                             --week_number;
                     }
@@ -756,7 +755,7 @@ Optional<UnixDateTime> UnixDateTime::parse(StringView format, StringView string,
         }
         case 'C': {
             int num = parse_number();
-            tm.tm_year = (num - 19) * 100 + (tm.tm_year % 100);
+            tm.tm_year = ((num - 19) * 100) + (tm.tm_year % 100);
             break;
         }
         case 'd':

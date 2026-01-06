@@ -38,7 +38,7 @@ public:
     double get();
 
 private:
-    u64 splitmix64(u64& state);
+    static u64 splitmix64(u64& state);
     u64 advance();
     u64 m_low { 0 };
     u64 m_high { 0 };

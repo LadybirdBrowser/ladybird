@@ -14,7 +14,7 @@ TEST_CASE(normal_behavior)
     Trie<char, ByteString> dictionary('/', "");
     constexpr StringView data[] { "test"sv, "example"sv, "foo"sv, "foobar"sv };
     constexpr size_t total_chars = 18; // root (1), 'test' (4), 'example' (7), 'foo' (3), 'foobar' (3, "foo" already stored).
-    for (auto& view : data) {
+    for (auto const& view : data) {
         auto it = view.begin();
         MUST(dictionary.insert(it, view.end(), view, [](auto& parent, auto& it) -> Optional<ByteString> { return ByteString::formatted("{}{}", parent.metadata_value(), *it); }));
     }
@@ -25,7 +25,7 @@ TEST_CASE(normal_behavior)
     }));
     EXPECT_EQ(i, total_chars);
 
-    for (auto& view : data) {
+    for (auto const& view : data) {
         auto it = view.begin();
         auto& node = dictionary.traverse_until_last_accessible_node(it, view.end());
         EXPECT(it.is_end());
@@ -34,7 +34,7 @@ TEST_CASE(normal_behavior)
     }
 
     constexpr StringView test_data_with_prefix_in_dict[] { "testx"sv, "exampley"sv, "fooa"sv, "foobarb"sv, "fox"sv, "text"sv };
-    for (auto& view : test_data_with_prefix_in_dict) {
+    for (auto const& view : test_data_with_prefix_in_dict) {
         auto it = view.begin();
         auto& node = dictionary.traverse_until_last_accessible_node(it, view.end());
         EXPECT(!it.is_end());

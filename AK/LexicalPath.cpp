@@ -144,7 +144,7 @@ ByteString LexicalPath::canonicalized_path(ByteString path)
     return builder.to_byte_string();
 }
 
-ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
+ByteString LexicalPath::absolute_path(ByteString const& dir_path, ByteString const& target)
 {
     if (LexicalPath(target).is_absolute()) {
         return LexicalPath::canonicalized_path(target);

@@ -28,8 +28,8 @@ inline void secure_zero(void* ptr, size_t size)
 // See OpenBSD's timingsafe_memcmp for more advanced implementations.
 inline bool timing_safe_compare(void const* b1, void const* b2, size_t len)
 {
-    auto* c1 = static_cast<char const*>(b1);
-    auto* c2 = static_cast<char const*>(b2);
+    auto const* c1 = static_cast<char const*>(b1);
+    auto const* c2 = static_cast<char const*>(b2);
 
     u8 res = 0;
     for (size_t i = 0; i < len; i++) {

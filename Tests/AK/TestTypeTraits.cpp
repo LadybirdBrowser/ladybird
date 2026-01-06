@@ -138,7 +138,7 @@ TEST_CASE(IsConvertible)
     };
     struct C {
         A a;
-        operator A() { return a; }
+        operator A() const { return a; }
     };
     struct D {
     };

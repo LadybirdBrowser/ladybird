@@ -33,12 +33,14 @@ class Trie {
 public:
     using MetadataType = MetadataT;
 
+private:
     Trie(ValueType value, Optional<MetadataType> metadata)
         : m_value(move(value))
         , m_metadata(move(metadata))
     {
     }
 
+public:
     template<typename It>
     BaseType& traverse_until_last_accessible_node(It& it, It const& end)
     {
@@ -272,6 +274,7 @@ private:
     ValueType m_value;
     Optional<MetadataType> m_metadata;
     MapType<ValueType, NonnullOwnPtr<Trie>, ValueTraits> m_children;
+    friend DefaultBaseType;
 };
 
 template<typename BaseType, typename DefaultBaseType, typename ValueType, typename ValueTraits, template<typename, typename, typename> typename MapType>

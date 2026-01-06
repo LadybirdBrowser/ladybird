@@ -9,7 +9,7 @@
 #include <AK/BitCast.h>
 
 template<typename A, typename B>
-void check_cast_both_ways(A const& a, B const& b)
+static void check_cast_both_ways(A const& a, B const& b)
 {
     EXPECT_EQ((bit_cast<A, B>(b)), a);
     EXPECT_EQ((bit_cast<B, A>(a)), b);

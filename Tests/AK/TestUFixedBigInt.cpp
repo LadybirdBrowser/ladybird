@@ -99,17 +99,17 @@ TEST_CASE(div_anti_knuth)
             1,
             2,
             3,
-            max_native_word / 4 - 1,
+            (max_native_word / 4) - 1,
             max_native_word / 4,
-            max_native_word / 2 - 1,
+            (max_native_word / 2) - 1,
             max_native_word / 2,
-            max_native_word / 2 + 1,
-            max_native_word / 2 + 2,
+            (max_native_word / 2) + 1,
+            (max_native_word / 2) + 2,
             max_native_word - 3,
             max_native_word - 2,
             max_native_word - 1,
         };
-        for (size_t i = 0; i < storage.size(); ++i) {
+        for (size_t i = 0; i < AK::Detail::StaticStorage<false, 512>::size(); ++i) {
             u32 type = get_random_uniform(interesting_words_count + 1);
             NativeWord& next_word = storage[i];
             if (type == interesting_words_count)
@@ -122,7 +122,8 @@ TEST_CASE(div_anti_knuth)
     };
 
     for (int i = 0; i < 16384; ++i) {
-        u512 a = generate_u512(), b = generate_u512();
+        u512 a = generate_u512();
+        u512 b = generate_u512();
         if (b == 0)
             continue;
 

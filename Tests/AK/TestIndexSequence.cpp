@@ -11,14 +11,14 @@
 #include <AK/Vector.h>
 
 template<typename F, typename... Args>
-F for_each_argument(F f, Args&&... args)
+static F for_each_argument(F f, Args&&... args)
 {
     (f(forward<Args>(args)), ...);
     return f;
 }
 
 template<typename T, T... ints>
-void verify_sequence(IntegerSequence<T, ints...> seq, std::initializer_list<T> expected)
+static void verify_sequence(IntegerSequence<T, ints...> seq, std::initializer_list<T> expected)
 {
     EXPECT_EQ(seq.size(), expected.size());
     for_each_argument([idx = expected.begin()](T t) mutable { EXPECT_EQ(t, *(idx++)); }, ints...);
@@ -30,8 +30,8 @@ TEST_CASE(TestIndexSequence)
     constexpr auto integer_seq2 = MakeIntegerSequence<int, 5> {};
     static_assert(IsSame<decltype(integer_seq1), decltype(integer_seq2)>, "");
 
-    static_assert(integer_seq1.size() == 5, "");
-    static_assert(integer_seq2.size() == 5, "");
+    static_assert(AK::Detail::IntegerSequence<int, 0, 1, 2, 3, 4>::size() == 5, "");
+    static_assert(MakeIntegerSequence<int, 5>::size() == 5, "");
 
     constexpr auto index_seq1 = IndexSequence<0, 1, 2> {};
     constexpr auto index_seq2 = MakeIndexSequence<3> {};

@@ -48,7 +48,7 @@ public:
     // NOTE: This returns {} if the peek is at or past EOF.
     Optional<u32> peek(size_t offset = 0) const;
 
-    constexpr int code_point_length_in_bytes() const { return sizeof(u32); }
+    static constexpr int code_point_length_in_bytes() { return sizeof(u32); }
     bool done() const { return !m_length; }
 
 private:
@@ -145,7 +145,7 @@ private:
 
 template<>
 struct Formatter<Utf32View> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder&, Utf32View const&);
+    static ErrorOr<void> format(FormatBuilder&, Utf32View const&);
 };
 
 }

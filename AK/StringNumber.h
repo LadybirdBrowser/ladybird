@@ -12,7 +12,7 @@ template<class StringType, Integral T>
 StringType create_string_from_number(T value)
 {
     // Maximum number of base-10 digits for T + sign
-    constexpr size_t max_digits = sizeof(T) * 3 + 2;
+    constexpr size_t max_digits = (sizeof(T) * 3) + 2;
     char buffer[max_digits];
     char* ptr = buffer + max_digits;
     bool is_negative = false;

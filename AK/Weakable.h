@@ -68,8 +68,10 @@ public:
     ErrorOr<WeakPtr<U>> try_make_weak_ptr() const;
 
 protected:
+private:
     Weakable() = default;
 
+protected:
     ~Weakable()
     {
         revoke_weak_ptrs();
@@ -83,6 +85,7 @@ protected:
 
 private:
     mutable RefPtr<WeakLink> m_link;
+    friend T;
 };
 
 }

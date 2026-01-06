@@ -83,8 +83,8 @@ TEST_CASE(container_form)
 
             int value;
         };
-        ArbitraryIterator begin() const { return 0; }
-        ArbitraryIterator end() const { return 20; }
+        static ArbitraryIterator begin() { return 0; }
+        static ArbitraryIterator end() { return 20; }
     };
 
     ArbitraryIterable c;

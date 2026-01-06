@@ -407,7 +407,7 @@ public:
     {
         return this->visit([&]<typename T>(T const& self) {
             if (auto const* p = other.get_pointer<T>())
-                return static_cast<T const&>(self) == static_cast<T const&>(*p);
+                return self == static_cast<T const&>(*p);
             return false;
         });
     }

@@ -100,8 +100,8 @@ public:
 
         auto buffer = TRY(create_uninitialized(first.size()));
         auto buffer_data = buffer.data();
-        auto first_data = first.data();
-        auto second_data = second.data();
+        auto const* first_data = first.data();
+        auto const* second_data = second.data();
         for (size_t i = 0; i < first.size(); ++i)
             buffer_data[i] = first_data[i] ^ second_data[i];
 

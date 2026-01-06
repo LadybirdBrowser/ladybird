@@ -49,7 +49,7 @@ public:
             auto byte = TRY(stream.read_value<u8>());
             ValueType masked = byte & 0x7F;
             result |= masked << (num_bytes * 7);
-            if (num_bytes * 7 >= sizeof(ValueType) * 8 - 7 && (byte >> (sizeof(ValueType) * 8 - (num_bytes * 7))) != 0) {
+            if (num_bytes * 7 >= (sizeof(ValueType) * 8) - 7 && (byte >> (sizeof(ValueType) * 8 - (num_bytes * 7))) != 0) {
                 if ((byte & 0x80) != 0)
                     return Error::from_string_literal("Read value contains more bits than fit the chosen ValueType");
                 return Error::from_string_literal("Read byte is too large to fit the chosen ValueType");

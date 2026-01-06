@@ -42,7 +42,7 @@ private:
     Optional<ArgumentRequirement> lookup_short_option_requirement(char option) const;
     int handle_short_option();
 
-    Optional<Option const&> lookup_long_option(StringView raw) const;
+    Optional<Option const&> lookup_long_option(StringView arg) const;
     int handle_long_option();
 
     void shift_argv();
@@ -63,12 +63,12 @@ private:
     }
 
     // NOTE: These are ephemeral, and effectively only last for one call of `getopt()'.
-    Span<StringView> m_args {};
+    Span<StringView> m_args;
     StringView m_short_options {};
-    Span<Option const> m_long_options {};
-    mutable Optional<int&> m_out_long_option_index {};
-    mutable Optional<int> m_optopt_value {};
-    mutable Optional<StringView> m_optarg_value {};
+    Span<Option const> m_long_options;
+    mutable Optional<int&> m_out_long_option_index;
+    mutable Optional<int> m_optopt_value;
+    mutable Optional<StringView> m_optarg_value;
 
     size_t m_arg_index { 0 };
     size_t m_skipped_arguments { 0 };

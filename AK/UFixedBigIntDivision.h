@@ -20,7 +20,8 @@ constexpr void div_mod_internal(
 {
     using Ops = StorageOperations<>;
 
-    size_t dividend_len = operand1.size(), divisor_len = operand2.size();
+    size_t dividend_len = operand1.size();
+    size_t divisor_len = operand2.size();
     while (divisor_len > 0 && !operand2[divisor_len - 1])
         --divisor_len;
     while (dividend_len > 0 && !operand1[dividend_len - 1])

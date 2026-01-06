@@ -17,7 +17,7 @@ struct Object2 : Object {
 };
 
 struct SelfAwareObject : public RefCounted<SelfAwareObject> {
-    void will_be_destroyed() { ++num_destroyed; }
+    static void will_be_destroyed() { ++num_destroyed; }
 
     static size_t num_destroyed;
 };

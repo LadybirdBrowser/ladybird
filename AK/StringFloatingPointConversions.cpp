@@ -40,10 +40,10 @@ struct LookupInformation {
 };
 
 template<FloatingPoint>
-int lookup_table;
+static int lookup_table;
 
 template<typename FloatingPoint, typename MultiplyAndShiftFunction>
-FloatingPointExponentialForm inner_convert_floating_point_to_decimal_exponential_form(FloatingPoint value, MultiplyAndShiftFunction const& multiply_and_shift)
+static FloatingPointExponentialForm inner_convert_floating_point_to_decimal_exponential_form(FloatingPoint value, MultiplyAndShiftFunction const& multiply_and_shift)
 {
     using Extractor = FloatExtractor<FloatingPoint>;
 
@@ -69,9 +69,9 @@ FloatingPointExponentialForm inner_convert_floating_point_to_decimal_exponential
     // Step 2. Determine the interval of information-preserving outputs.
     // u, v, w are, respectively, lower bound for answer, exact value and upper bound for answer.
     i32 synthetic_exponent = real_exponent - 2;
-    u64 u = 4 * real_mantissa - (mantissa == 0 && exponent > 1 ? 1 : 2);
+    u64 u = (4 * real_mantissa) - (mantissa == 0 && exponent > 1 ? 1 : 2);
     u64 v = 4 * real_mantissa;
-    u64 w = 4 * real_mantissa + 2;
+    u64 w = (4 * real_mantissa) + 2;
     // u * 2 ^ synthetic_exponent < abs(answer) < w * 2 ^ synthetic_exponent        (1)
     // abs(value) = v * 2 ^ synthetic_exponent (yet another representation)
 
@@ -79,10 +79,12 @@ FloatingPointExponentialForm inner_convert_floating_point_to_decimal_exponential
     // We want to skip `skipped_iters' iterations of the main conversion loop and find out if
     // last `skipped_iters' digits of u, v and w would have been zeroes.
     i32 skipped_iters;
-    bool all_u_zero, all_v_zero, all_w_zero;
+    bool all_u_zero;
+    bool all_v_zero;
+    bool all_w_zero;
 
     if (synthetic_exponent < 0) {
-        skipped_iters = max(0, -synthetic_exponent * log10_5_num / log10_5_denum - 1);
+        skipped_iters = max(0, (-synthetic_exponent * log10_5_num / log10_5_denum) - 1);
 
         all_u_zero = count_trailing_zeroes(u) >= skipped_iters;
         all_v_zero = count_trailing_zeroes(v) >= skipped_iters;
@@ -95,7 +97,7 @@ FloatingPointExponentialForm inner_convert_floating_point_to_decimal_exponential
         v = multiply_and_shift(v, multiplier, skipped_iters - k);
         w = multiply_and_shift(w, multiplier, skipped_iters - k);
     } else {
-        skipped_iters = max(0, synthetic_exponent * log10_2_num / log10_2_denum - 1);
+        skipped_iters = max(0, (synthetic_exponent * log10_2_num / log10_2_denum) - 1);
 
         // Checks if value is divisible by 5 ^ power.
         auto is_divisible_by_pow_5 = [](u64 value, i32 power) {
@@ -181,8 +183,7 @@ FloatingPointExponentialForm convert_floating_point_to_decimal_exponential_form<
         auto result = multiply(operand, multiplier);
         if (shift < 0)
             return static_cast<u64>(result << static_cast<u32>(-shift));
-        else
-            return static_cast<u64>(result >> static_cast<u32>(shift));
+        return static_cast<u64>(result >> static_cast<u32>(shift));
     };
 
     return inner_convert_floating_point_to_decimal_exponential_form(value, multiply_and_shift);
@@ -198,7 +199,8 @@ FloatingPointExponentialForm convert_floating_point_to_decimal_exponential_form<
 
         if (0 <= shift && shift < 64) {
             return (c >> shift) | (b << static_cast<u32>(64 - shift)).low();
-        } else if (shift < 0) {
+        }
+        if (shift < 0) {
             return c << static_cast<u32>(-shift);
         } else {
             VERIFY(64 <= shift && shift <= 128);
