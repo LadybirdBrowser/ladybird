@@ -38,7 +38,7 @@ requires(requires(TIterator it) { it.index(); })
 }
 
 template<IterableContainer Container, typename TUnaryPredicate>
-[[nodiscard]] constexpr auto find_value(Container const& container, TUnaryPredicate&& pred)
+[[nodiscard]] constexpr auto find_value(Container&& container, TUnaryPredicate&& pred)
     -> Optional<decltype(*container.begin())>
 {
     auto it = find_if(container.begin(), container.end(), forward<TUnaryPredicate>(pred));
