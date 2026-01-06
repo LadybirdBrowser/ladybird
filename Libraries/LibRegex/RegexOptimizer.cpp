@@ -375,6 +375,8 @@ void Regex<Parser>::run_optimization_passes()
     blocks = split_basic_blocks_for_atomic_groups<Parser>(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_loops_as_atomic_groups(blocks);
 
+    attempt_rewrite_static_length_captures();
+
     // Join adjacent compares that only match single characters into a single compare that matches a string.
     blocks = split_basic_blocks(parser_result.bytecode.get<ByteCode>());
     attempt_rewrite_adjacent_compares_as_string_compare(blocks);
@@ -2017,6 +2019,297 @@ void Regex<Parser>::rewrite_simple_compares(BasicBlockList const& basic_blocks)
         dbgln("After simple compare rewrite:");
         RegexDebug<ByteCode> dbg;
         dbg.print_bytecode(*this);
+    }
+}
+
+template<typename Parser>
+void Regex<Parser>::attempt_rewrite_static_length_captures()
+{
+    // FIXME: Figure out how this interacts with unicode
+    if (parser_result.options.has_flag_set(AllFlags::Unicode))
+        return;
+
+    auto& bytecode = parser_result.bytecode.get<ByteCode>();
+    if constexpr (REGEX_DEBUG) {
+        RegexDebug<ByteCode> dbg;
+        dbg.print_bytecode(*this);
+    }
+    // Patterns such as:
+    // 1.
+    // /(abc)/
+    // can be rewritten to:
+    // /abcdefghi/ and then statically setting the capture groups after a successful match.
+    // Which translates to
+    //     SaveLeftCaptureGroup 1
+    //     Compare str 'abc'
+    //     SaveRightCaptureGroup 1
+    //     Exit
+    // becoming
+    //     Compare str 'abc'
+    //     SaveStaticCaptureGroup 1 off:-3 len:3
+    //     Exit
+    // 2.
+    // /(abc(def)ghi)/
+    //     SaveLeftCaptureGroup 1
+    //     CompareSimple str 'abc'
+    //     SaveLeftCaptureGroup 2
+    //     CompareSimple str 'def'
+    //     SaveRightCaptureGroup 2
+    //     CompareSimple str 'ghi'
+    //     SaveRightCaptureGroup 1
+    //     Exit
+    // becoming
+    //     CompareSimple str 'abc'
+    //     CompareSimple str 'def'
+    //     CompareSimple str 'ghi'
+    //     SaveStaticCaptureGroup 1 off:-9 len:9
+    //     SaveStaticCaptureGroup 2 off:-6 len:3
+    //     Exit
+    // 3.
+    // /(ab[cd])/
+    //     SaveLeftCaptureGroup 1
+    //     Compare str 'ab'
+    //     Compare chr class [cd]
+    //     SaveRightCaptureGroup 1
+    //     Exit
+    // becoming
+    //     Compare str 'ab'
+    //     Compare Lookup [cd]
+    //     SaveStaticCaptureGroup 1 off:-2 len:2
+    //     Exit
+    // 5.
+    //        /(ab{3})/
+    //            SaveLeftCaptureGroup 1
+    //            Compare chr 'a'
+    //        .L1:
+    //            Compare chr 'b'
+    //            Repeat L1 count:3
+    //            Compare chr 'b'
+    //            SaveRightCaptureGroup 1
+    //            Exit
+    //        becoming
+    //            Compare str 'a'
+    //        .L1:
+    //            Compare str 'b'
+    //            Repeat L1 count:3
+    //            Compare str 'b'
+    //            SaveStaticCaptureGroup 1 off:-4 len:4
+    //            Exit
+    // FIXME: 6.
+    //       /(ab|cd)/
+    //           SaveLeftCaptureGroup 1
+    //           ForkJump L1
+    //           Compare str 'cd'
+    //           Jump L2
+    //       .L1:
+    //           Compare str 'ab'
+    //       .L2:
+    //           SaveRightCaptureGroup 1
+    //           Exit
+    //       becoming
+    //           ForkJump L1
+    //           Compare str 'cd'
+    //           Jump L2
+    //       .L1:
+    //           Compare str 'ab'
+    //       .L2:
+    //           SaveStaticCaptureGroup 1 off:-2 len:2
+    struct StaticCaptureGroupInfo {
+        size_t start_ip;
+        size_t end_ip;
+        size_t id;
+    };
+    Vector<StaticCaptureGroupInfo> static_capture_groups;
+    Vector<StaticCaptureGroupInfo, 0, FastLastAccess::Yes> nested_static_capture_groups;
+    auto state = MatchState::only_for_enumeration();
+    for (; state.instruction_position < bytecode.size();) {
+        auto& opcode = bytecode.get_opcode(state);
+
+        switch (opcode.opcode_id()) {
+        case OpCodeId::SaveLeftCaptureGroup: {
+            auto& save_left = to<OpCode_SaveLeftCaptureGroup>(opcode);
+            nested_static_capture_groups.empend(state.instruction_position, 0uz, save_left.id());
+        } break;
+        case OpCodeId::SaveRightCaptureGroup: {
+            auto& save_right = to<OpCode_SaveRightCaptureGroup>(opcode);
+            if (nested_static_capture_groups.is_empty() || nested_static_capture_groups.last().id != save_right.id()) {
+                // This capture group was already rejected
+                break;
+            }
+            auto capture_info = nested_static_capture_groups.take_last();
+            capture_info.end_ip = state.instruction_position;
+            static_capture_groups.append(capture_info);
+        } break;
+            break;
+        // Allowed Ops:
+        case OpCodeId::SaveStaticCaptureGroup:
+        case OpCodeId::Compare:
+        case OpCodeId::CompareSimple:
+        case OpCodeId::Repeat:
+            break;
+        default:
+            // Anything else breaks the static length property
+            nested_static_capture_groups.clear();
+            break;
+        }
+        state.instruction_position += opcode.size();
+    }
+
+    // Try to compute lengths
+    HashMap<size_t, size_t> capture_group_lengths;
+    auto length_for_compare = [&](CompareTypeAndValuePair compare) -> Optional<size_t> {
+        auto [type, value] = compare;
+        switch (type) {
+        case CharacterCompareType::Char:
+        case CharacterCompareType::AnyChar:
+        case CharacterCompareType::LookupTable:
+        case CharacterCompareType::CharClass:
+        case CharacterCompareType::CharRange:
+        case CharacterCompareType::GeneralCategory:
+            return 1;
+        case CharacterCompareType::String: {
+            auto str = bytecode.get_u16_string(value);
+            return str.length_in_code_points();
+        }
+        case CharacterCompareType::Inverse:
+        case CharacterCompareType::TemporaryInverse:
+        case CharacterCompareType::And:
+        case CharacterCompareType::Or:
+        case CharacterCompareType::EndAndOr:
+        case CharacterCompareType::Subtract:
+            // Simple modifiers, so length is same as underlying,
+            // They are also only ever applied to single-char compares
+            return 1;
+        case CharacterCompareType::Undefined:
+        case CharacterCompareType::StringSet:
+        case CharacterCompareType::Script:
+        case CharacterCompareType::NamedReference:
+        case CharacterCompareType::RangeExpressionDummy:
+        case CharacterCompareType::ScriptExtension:
+        case CharacterCompareType::Property:
+            // FIXME: Support more these
+            return {};
+        case CharacterCompareType::Reference:
+            return capture_group_lengths.get(value);
+        }
+    };
+
+    auto length_for_range = [&](this auto& self, size_t start_ip, size_t end_ip) -> Optional<size_t> {
+        size_t length = 0;
+        auto state = MatchState::only_for_enumeration();
+        for (state.instruction_position = start_ip; state.instruction_position < end_ip;) {
+            auto& opcode = bytecode.get_opcode(state);
+            switch (opcode.opcode_id()) {
+            case OpCodeId::Compare: {
+                // Note: There currently is no way to have a String as a non Simple compare
+                // References are only supported, when the referenced capture group has a static length
+                auto& compare = to<OpCode_Compare>(opcode);
+                if (compare.arguments_count() != 1) {
+                    // This is a composite compare
+                    // These are currently only used for single chars, so we know it can only be of length 1
+                    ASSERT(
+                        [] {
+                            for (auto cmp : compare.flat_compares()) {
+                                if (first_is_one_of(cmp.type, CharacterCompareType::String, CharacterCompareType::Reference)) {
+                                    dbgln("ERROR: Unexpected composite compare with non-single-char compare");
+                                    return false;
+                                }
+                            }
+                            return true;
+                        }());
+
+                    length += 1;
+                    break;
+                }
+                auto offset = state.instruction_position + 3; // +3 to skip opcode id and argc
+                auto type = (CharacterCompareType)bytecode[offset++];
+                auto value = bytecode[offset];
+                auto flat_compare = CompareTypeAndValuePair { type, value };
+                auto compare_length = length_for_compare(flat_compare);
+                if (!compare_length.has_value())
+                    return {};
+                length += *compare_length;
+            } break;
+            case OpCodeId::CompareSimple: {
+                auto& compare = to<OpCode_CompareSimple>(opcode);
+                auto type = (CharacterCompareType)compare.argument(0);
+
+                auto flat_compare = CompareTypeAndValuePair { type, compare.argument(1) };
+                auto compare_length = length_for_compare(flat_compare);
+                if (!compare_length.has_value())
+                    return {};
+                length += *compare_length;
+            } break;
+            case OpCodeId::Repeat: {
+                auto& repeat = to<OpCode_Repeat>(opcode);
+                auto start_ip = state.instruction_position - repeat.offset();
+                auto repeated_length = self(start_ip, state.instruction_position);
+                // When we got here, we all previous ops in the range were already tested once,
+                // so they should stay valid
+                VERIFY(repeated_length.has_value());
+                length += repeated_length.value() * repeat.count();
+            } break;
+            case OpCodeId::SaveStaticCaptureGroup:
+            case OpCodeId::SaveLeftCaptureGroup:
+            case OpCodeId::SaveRightCaptureGroup:
+                // No length contribution
+                break;
+            default:
+                // Unknown opcode, cannot determine length,
+                // This should have been filtered out earlier
+                VERIFY_NOT_REACHED();
+            }
+            state.instruction_position += opcode.size();
+        }
+        return length;
+    };
+
+    for (auto const& capture_info : static_capture_groups) {
+        auto length = length_for_range(capture_info.start_ip + 2, capture_info.end_ip - 1); // +2 to skip SaveLeftCaptureGroup $id , -1 to end before SaveRightCaptureGroup
+        if (length.has_value()) {
+            capture_group_lengths.set(capture_info.id, *length);
+        }
+    }
+    if (capture_group_lengths.is_empty())
+        return;
+
+    if constexpr (REGEX_DEBUG) {
+        dbgln("Found {} static length capture groups to rewrite", capture_group_lengths.size());
+        for (auto const& group : static_capture_groups) {
+            auto length = capture_group_lengths.get(group.id);
+            if (!length.has_value())
+                continue;
+            dbgln(" Capture Group {}, from [&{}] to [&{}] has static length {}", group.id, group.start_ip, group.end_ip, *length);
+        }
+    }
+    // FIXME: We need a flat list here, as we want to slice out the entire capture group ops at once
+    //        so we need to flatten here, but there might be a nicer way to do this
+    bytecode.flatten();
+    struct Range {
+        size_t start_ip;
+        size_t end_ip;
+    };
+    for (auto const& capture_info : static_capture_groups) {
+        // FIXME: Handle overlapping capture groups properly, currently we just perform rewrites in sequence
+        // Note: This currently works out as the overall size of the bytecode stays the same, as the new op is the same size as the two old ops
+        BytecodeRewriter rewriter(bytecode);
+        auto length = capture_group_lengths.get(capture_info.id);
+        if (!length.has_value())
+            continue;
+        Range range_to_skip = { capture_info.start_ip, capture_info.end_ip + 1 }; // +1 to include the id from SaveRightCaptureGroup $id
+        ByteCode replacement;
+        // FIXME: Is there a neater way to achieve this slice?
+        auto start_of_compare = capture_info.start_ip + 2; // +2 to skip SaveLeftCaptureGroup $id
+        auto compare_length = (capture_info.end_ip) - start_of_compare;
+        replacement.append(Span<u64 const> { &bytecode.at(start_of_compare), compare_length });
+
+        replacement.empend(static_cast<ByteCodeValueType>(OpCodeId::SaveStaticCaptureGroup));
+        replacement.empend(static_cast<ByteCodeValueType>(capture_info.id));
+        replacement.empend(static_cast<ByteCodeValueType>(*length)); // offset back to the start of the capture group, as we are inserting directly after it: length
+        replacement.empend(static_cast<ByteCodeValueType>(*length));
+
+        parser_result.bytecode = rewriter.rebuild(bytecode, Span<Range> { &range_to_skip, 1 }, Span<ByteCode const> { &replacement, 1 });
+        bytecode = parser_result.bytecode.get<ByteCode>();
     }
 }
 

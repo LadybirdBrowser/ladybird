@@ -618,6 +618,46 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightNamedCaptureGroup<ByteCode>::execu
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SaveStaticCaptureGroup<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+
+    if (input.match_index >= state.capture_group_matches_size()) {
+        state.flat_capture_group_matches.ensure_capacity((input.match_index + 1) * state.capture_group_count);
+        for (size_t i = state.capture_group_matches_size(); i <= input.match_index; ++i)
+            for (size_t j = 0; j < state.capture_group_count; ++j)
+                state.flat_capture_group_matches.append({});
+    }
+
+    // This represents a static string capture and is run after the string has been matched.
+    //   full_string: |...............|
+    //                ^     ^   ^     ^
+    //                      |---+-----| -offset_in_full_string
+    //                      |---|        string_length
+    auto length = this->length();
+    auto start_position = state.string_position - offset();
+    dbgln_if(REGEX_DEBUG, "Saving static capture group id={} at position {} with length {}", id(), start_position, length);
+    dbgln_if(REGEX_DEBUG, " full string: '{}'", input.view);
+    dbgln_if(REGEX_DEBUG, "            :  {:>{}}{:^>{}}", "", start_position, "", length);
+
+    auto captured_text = input.view.substring_view(start_position, length);
+    dbgln_if(REGEX_DEBUG, "            :  {:>{}}{} ", "", start_position, captured_text);
+
+    // FIXME: Does this need more checks here?
+
+    auto& existing_capture = state.mutable_capture_group_matches(input.match_index).at(id() - 1);
+    if (length == 0 && !existing_capture.view.is_null() && existing_capture.view.length() > 0) {
+        auto existing_end_position = existing_capture.global_offset - input.global_offset + existing_capture.view.length();
+        if (existing_end_position == state.string_position) {
+            return ExecutionResult::Continue;
+        }
+    }
+
+    state.mutable_capture_group_matches(input.match_index).at(id() - 1) = { captured_text, input.line, start_position, input.global_offset + start_position };
+
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto ch = argument(0);
