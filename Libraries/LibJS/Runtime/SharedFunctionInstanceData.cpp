@@ -164,7 +164,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
     HashMap<Utf16FlyString, ParameterIsLocal> parameter_bindings;
 
-    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.first_matching([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; }).has_value();
+    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.contains([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
 
     // 22. If argumentsObjectNeeded is true, then
     if (m_arguments_object_needed) {

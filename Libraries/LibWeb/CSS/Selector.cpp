@@ -17,19 +17,11 @@ static bool component_value_contains_nesting_selector(Parser::ComponentValue con
     if (component_value.is_delim('&'))
         return true;
 
-    if (component_value.is_block()) {
-        for (auto const& child_value : component_value.block().value) {
-            if (component_value_contains_nesting_selector(child_value))
-                return true;
-        }
-    }
+    if (component_value.is_block())
+        return component_value.block().value.contains(component_value_contains_nesting_selector);
 
-    if (component_value.is_function()) {
-        for (auto const& child_value : component_value.function().value) {
-            if (component_value_contains_nesting_selector(child_value))
-                return true;
-        }
-    }
+    if (component_value.is_function())
+        return component_value.function().value.contains(component_value_contains_nesting_selector);
 
     return false;
 }
@@ -694,11 +686,9 @@ bool Selector::contains_unknown_webkit_pseudo_element() const
     for (auto const& compound_selector : m_compound_selectors) {
         for (auto const& simple_selector : compound_selector.simple_selectors) {
             if (simple_selector.type == SimpleSelector::Type::PseudoClass) {
-                for (auto const& child_selector : simple_selector.pseudo_class().argument_selector_list) {
-                    if (child_selector->contains_unknown_webkit_pseudo_element()) {
-                        return true;
-                    }
-                }
+                auto const& selector_list = simple_selector.pseudo_class().argument_selector_list;
+                if (selector_list.contains([](auto const& s) { return s->contains_unknown_webkit_pseudo_element(); }))
+                    return true;
             }
             if (simple_selector.type == SimpleSelector::Type::PseudoElement && simple_selector.pseudo_element().type() == PseudoElement::UnknownWebKit)
                 return true;

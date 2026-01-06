@@ -5129,7 +5129,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
             //    - serializableShadowRoots is true and shadow's serializable is true; or
             //    - shadowRoots contains shadow,
             if ((serializable_shadow_roots == SerializableShadowRoots::Yes && shadow->serializable())
-                || shadow_roots.find_first_index_if([&](auto& entry) { return entry == shadow; }).has_value()) {
+                || shadow_roots.contains([&](auto& entry) { return entry == shadow; })) {
                 // then:
                 // 1. Append "<template shadowrootmode="".
                 builder.append("<template shadowrootmode=\""sv);

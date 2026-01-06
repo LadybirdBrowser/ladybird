@@ -1001,9 +1001,7 @@ bool ECMA262Parser::has_duplicate_in_current_alternative(FlyString const& name)
     if (it == m_parser_state.named_capture_groups.end())
         return false;
 
-    return any_of(it->value.begin(), it->value.end(), [&](auto& group) {
-        return group.alternative_id == m_current_alternative_id;
-    });
+    return it->value.contains([&](auto& group) { return group.alternative_id == m_current_alternative_id; });
 }
 
 bool ECMA262Parser::parse_disjunction(ByteCode& stack, size_t& match_length_minimum, ParseFlags flags)

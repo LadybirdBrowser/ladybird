@@ -1565,7 +1565,7 @@ void ImportStatement::dump(int indent) const
 
 bool ExportStatement::has_export(Utf16FlyString const& export_name) const
 {
-    return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
+    return m_entries.contains([&](auto& entry) {
         // Make sure that empty exported names does not overlap with anything
         if (entry.kind != ExportEntry::Kind::NamedExport)
             return false;
@@ -1575,9 +1575,7 @@ bool ExportStatement::has_export(Utf16FlyString const& export_name) const
 
 bool ImportStatement::has_bound_name(Utf16FlyString const& name) const
 {
-    return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
-        return entry.local_name == name;
-    });
+    return m_entries.contains([&](auto& entry) { return entry.local_name == name; });
 }
 
 // 16.1.7 GlobalDeclarationInstantiation ( script, env ), https://tc39.es/ecma262/#sec-globaldeclarationinstantiation
