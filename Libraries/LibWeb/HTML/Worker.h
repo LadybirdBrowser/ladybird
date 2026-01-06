@@ -26,11 +26,10 @@ class Worker
     GC_DECLARE_ALLOCATOR(Worker);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options, DOM::Document& document);
+    static WebIDL::ExceptionOr<GC::Ref<Worker>> create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options);
     static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
     {
-        auto& window = as<HTML::Window>(realm.global_object());
-        return Worker::create(script_url, options, window.associated_document());
+        return Worker::create(realm, script_url, options);
     }
 
     WebIDL::ExceptionOr<void> terminate();
@@ -52,7 +51,7 @@ public:
 #undef __ENUMERATE
 
 protected:
-    Worker(String const&, WorkerOptions const&, DOM::Document&);
+    Worker(JS::Realm&, String const&, WorkerOptions const&);
 
     // ^AbstractWorker
     virtual DOM::EventTarget& this_event_target() override { return *this; }
