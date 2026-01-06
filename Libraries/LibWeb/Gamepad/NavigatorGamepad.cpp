@@ -97,8 +97,6 @@ void NavigatorGamepadPartial::handle_gamepad_connected(SDL_JoystickID sdl_joysti
     if (m_available_gamepads.contains_slow(sdl_joystick_id))
         return;
 
-    m_available_gamepads.append(sdl_joystick_id);
-
     // 1. Let document be the current global object's associated Document; otherwise null.
     // FIXME: We can't use the current global object here, since it's not executing in a scripting context.
     // NOTE: NavigatorGamepad is only available on Window.
@@ -111,6 +109,13 @@ void NavigatorGamepadPartial::handle_gamepad_connected(SDL_JoystickID sdl_joysti
     // 2. If document is not null and is not allowed to use the "gamepad" permission, then abort these steps.
     if (!document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::Gamepad))
         return;
+
+    // AD-HOC: In test mode, ignore any non-virtual gamepads.
+    //         All fake gamepads added by Internals are always virtual, and no other ones are.
+    if (HTML::Window::in_test_mode() && !SDL_IsJoystickVirtual(sdl_joystick_id))
+        return;
+
+    m_available_gamepads.append(sdl_joystick_id);
 
     // 3. Queue a global task on the gamepad task source with the current global object to perform the following steps:
     HTML::queue_global_task(HTML::Task::Source::Gamepad, window, GC::create_function(realm.heap(), [&realm, &document, sdl_joystick_id] mutable {
