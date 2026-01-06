@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include "SVGAnimatedNumber.h"
-
 #include <LibWeb/SVG/SVGAnimatedLength.h>
+#include <LibWeb/SVG/SVGAnimatedNumber.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGFilterPrimitiveStandardAttributes.h>
 
