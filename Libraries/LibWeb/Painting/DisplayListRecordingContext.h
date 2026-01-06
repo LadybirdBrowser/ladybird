@@ -12,6 +12,7 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -19,7 +20,7 @@ namespace Web {
 
 class WEB_API DisplayListRecordingContext {
 public:
-    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel);
+    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics);
 
     Painting::DisplayListRecorder& display_list_recorder() const { return m_display_list_recorder; }
     Palette const& palette() const { return m_palette; }
@@ -70,7 +71,7 @@ public:
 
     DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter) const
     {
-        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel());
+        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel(), m_chrome_metrics);
         clone.m_device_viewport_rect = m_device_viewport_rect;
         clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
         clone.m_should_paint_overlay = m_should_paint_overlay;
@@ -79,13 +80,14 @@ public:
 
     Painting::DevicePixelConverter const& device_pixel_converter() const { return m_device_pixel_converter; }
     double device_pixels_per_css_pixel() const { return m_device_pixel_converter.device_pixels_per_css_pixel(); }
-
+    ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
     u64 paint_generation_id() const { return m_paint_generation_id; }
 
 private:
     Painting::DisplayListRecorder& m_display_list_recorder;
     Palette m_palette;
     Painting::DevicePixelConverter m_device_pixel_converter;
+    ChromeMetrics m_chrome_metrics;
     DevicePixelRect m_device_viewport_rect;
     bool m_should_show_line_box_borders { false };
     bool m_should_paint_overlay { true };
