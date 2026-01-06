@@ -61,12 +61,8 @@ bool Type::includes_undefined() const
     // FIXME: - the type is an annotated type and its inner type includes undefined, or
 
     // - the type is a union type and one of its member types includes undefined.
-    if (is_union()) {
-        for (auto& type : as_union().member_types()) {
-            if (type->includes_undefined())
-                return true;
-        }
-    }
+    if (is_union())
+        return as_union().member_types().contains([](auto& type) { return type->includes_undefined(); });
 
     return false;
 }

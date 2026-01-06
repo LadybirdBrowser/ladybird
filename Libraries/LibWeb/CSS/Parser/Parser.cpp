@@ -1747,7 +1747,7 @@ bool Parser::context_allows_tree_counting_functions() const
 bool Parser::context_allows_random_functions() const
 {
     // For now we only allow random functions within property contexts, see https://drafts.csswg.org/css-values-5/#issue-cd071f29
-    return m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value();
+    return m_value_context.contains([](ValueParsingContext context) { return context.has<PropertyID>(); });
 }
 
 FlyString Parser::random_value_sharing_auto_name() const

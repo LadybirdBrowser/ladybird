@@ -3302,7 +3302,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
             auto& modifier_token = url_tokens.consume_a_token();
             if (modifier_token.is_function("cross-origin"sv)) {
                 // Reject duplicates
-                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::CrossOrigin; }).has_value())
+                if (request_url_modifiers.contains([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::CrossOrigin; }))
                     return {};
                 // <cross-origin-modifier> = cross-origin(anonymous | use-credentials)
                 TokenStream modifier_tokens { modifier_token.function().value };
@@ -3320,7 +3320,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
                 }
             } else if (modifier_token.is_function("integrity"sv)) {
                 // Reject duplicates
-                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::Integrity; }).has_value())
+                if (request_url_modifiers.contains([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::Integrity; }))
                     return {};
                 // <integrity-modifier> = integrity(<string>)
                 TokenStream modifier_tokens { modifier_token.function().value };
@@ -3332,7 +3332,7 @@ Optional<URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
                 request_url_modifiers.append(RequestURLModifier::create_integrity(maybe_string.token().string()));
             } else if (modifier_token.is_function("referrer-policy"sv)) {
                 // Reject duplicates
-                if (request_url_modifiers.first_matching([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::ReferrerPolicy; }).has_value())
+                if (request_url_modifiers.contains([](auto& modifier) { return modifier.type() == RequestURLModifier::Type::ReferrerPolicy; }))
                     return {};
 
                 // <referrer-policy-modifier> = (no-referrer | no-referrer-when-downgrade | same-origin | origin | strict-origin | origin-when-cross-origin | strict-origin-when-cross-origin | unsafe-url)

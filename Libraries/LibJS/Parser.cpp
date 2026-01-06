@@ -239,7 +239,7 @@ public:
 
     [[nodiscard]] bool has_declaration(Utf16FlyString const& name) const
     {
-        return m_lexical_names.contains(name) || m_var_names.contains(name) || !m_functions_to_hoist.find_if([&name](auto& function) { return function->name() == name; }).is_end();
+        return m_lexical_names.contains(name) || m_var_names.contains(name) || m_functions_to_hoist.contains([&name](auto& function) { return function->name() == name; });
     }
 
     bool contains_direct_call_to_eval() const { return m_contains_direct_call_to_eval; }
@@ -315,11 +315,9 @@ public:
                 local_variable_declaration_kind = LocalVariable::DeclarationKind::CatchClauseParameter;
             }
 
-            bool hoistable_function_declaration = false;
-            for (auto const& function_declaration : m_functions_to_hoist) {
-                if (function_declaration->name() == identifier_group_name)
-                    hoistable_function_declaration = true;
-            }
+            bool hoistable_function_declaration = m_functions_to_hoist.contains([&](auto const& function_declaration) {
+                return function_declaration->name() == identifier_group_name;
+            });
 
             if (m_type == ScopeType::ClassDeclaration && m_bound_names.contains(identifier_group_name)) {
                 // NOTE: Currently, the parser cannot recognize that assigning a named function expression creates a scope with a binding for the function name.
@@ -865,12 +863,8 @@ void Parser::parse_module(Program& program)
                 if (identifier.string() == exported_name)
                     found = true;
             }));
-            for (auto& import : program.imports()) {
-                if (import->has_bound_name(exported_name.value())) {
-                    found = true;
-                    break;
-                }
-            }
+            if (program.imports().contains([&](auto& import) { return import->has_bound_name(exported_name.value()); }))
+                found = true;
 
             if (!found)
                 syntax_error(MUST(String::formatted("'{}' in export is not declared", exported_name)), export_statement->source_range().start);

@@ -328,18 +328,11 @@ static bool matches_single_attribute(CSS::Selector::SimpleSelector::Attribute co
             // This selector is always false is match value is empty.
             return false;
         }
-        auto const& attribute_value = attribute.value();
-        auto const view = attribute_value.bytes_as_string_view().split_view(' ');
-        auto const size = view.size();
-        for (size_t i = 0; i < size; ++i) {
-            auto const value = view.at(i);
-            if (case_insensitive_match
-                    ? value.equals_ignoring_ascii_case(attribute_selector.value)
-                    : value == attribute_selector.value) {
-                return true;
-            }
-        }
-        return false;
+        auto const view = attribute.value().bytes_as_string_view().split_view(' ');
+        return view.contains([&](auto const& value) {
+            return case_insensitive_match ? value.equals_ignoring_ascii_case(attribute_selector.value)
+                                          : value == attribute_selector.value;
+        });
     }
     case CSS::Selector::SimpleSelector::Attribute::MatchType::ContainsString:
         return !attribute_selector.value.is_empty()
@@ -689,12 +682,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         auto matches_selector_list = [&context, shadow_host](CSS::SelectorList const& list, DOM::Element const& element) {
             if (list.is_empty())
                 return true;
-            for (auto const& child_selector : list) {
-                if (matches(child_selector, element, shadow_host, context)) {
-                    return true;
-                }
-            }
-            return false;
+            return list.contains([&](auto const& selector) { return matches(selector, element, shadow_host, context); });
         };
 
         int index = 1;

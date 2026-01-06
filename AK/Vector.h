@@ -286,6 +286,13 @@ public:
         return false;
     }
 
+    template<typename TUnaryPredicate>
+    bool contains(TUnaryPredicate&& predicate) const
+    requires(IsCallableWithArguments<TUnaryPredicate, bool, VisibleType const&>)
+    {
+        return !find_if(forward<TUnaryPredicate>(predicate)).is_end();
+    }
+
     bool contains_in_range(VisibleType const& value, size_t const start, size_t const end) const
     {
         VERIFY(start <= end);

@@ -8717,10 +8717,8 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const&
 
         // 2. If the priv field is present and usages contains a value which is not "sign", or, if the priv field is
         //    not present and usages contains a value which is not "verify" then throw a SyntaxError.
-        if ((jwk->priv.has_value()
-                && usages.first_matching([](auto usage) { return usage != Bindings::KeyUsage::Sign; }).has_value())
-            || (!jwk->priv.has_value()
-                && usages.first_matching([](auto usage) { return usage != Bindings::KeyUsage::Verify; }).has_value())) {
+        if ((jwk->priv.has_value() && usages.contains([](auto usage) { return usage != Bindings::KeyUsage::Sign; }))
+            || (!jwk->priv.has_value() && usages.contains([](auto usage) { return usage != Bindings::KeyUsage::Verify; }))) {
             return WebIDL::SyntaxError::create(m_realm, "Invalid usage"_utf16);
         }
 
