@@ -63,6 +63,7 @@ public:
 
     void set_viewport_rect(Gfx::IntRect);
     void set_device_pixel_ratio(double);
+    void set_zoom_level(double);
     void set_maximum_frames_per_second(double);
 
     enum class PaletteMode {
