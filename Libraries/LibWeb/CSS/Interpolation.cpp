@@ -2134,6 +2134,197 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element& element, Calc
     return StyleValueList::create(move(interpolated_values), from_list->as_value_list().separator());
 }
 
+// https://drafts.csswg.org/filter-effects/#accumulation
+Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& underlying_list, FilterValueListStyleValue const& animated_list)
+{
+    // Accumulation of <filter-value-list>s follows the same matching and extending rules as interpolation, falling
+    // back to replace behavior if the lists do not match. However instead of interpolating the matching
+    // <filter-function> pairs, their arguments are arithmetically added together - except in the case of
+    // <filter-function>s whose initial value for interpolation is 1, which combine using one-based addition:
+    // Vresult = Va + Vb - 1
+
+    auto initial_value_for = [](FilterValue const& value) {
+        return value.visit(
+            [&](FilterOperation::Blur const&) -> FilterValue { return FilterOperation::Blur {}; },
+            [&](FilterOperation::DropShadow const&) -> FilterValue {
+                return FilterOperation::DropShadow {
+                    .offset_x = Length::make_px(0),
+                    .offset_y = Length::make_px(0),
+                    .radius = Length::make_px(0),
+                    .color = nullptr
+                };
+            },
+            [&](FilterOperation::HueRotate const&) -> FilterValue {
+                return FilterOperation::HueRotate {};
+            },
+            [&](FilterOperation::Color const& color) -> FilterValue {
+                auto default_value_for_accumulation = [&]() {
+                    switch (color.operation) {
+                    case Gfx::ColorFilterType::Grayscale:
+                    case Gfx::ColorFilterType::Invert:
+                    case Gfx::ColorFilterType::Sepia:
+                        return 0.0;
+                    case Gfx::ColorFilterType::Brightness:
+                    case Gfx::ColorFilterType::Contrast:
+                    case Gfx::ColorFilterType::Opacity:
+                    case Gfx::ColorFilterType::Saturate:
+                        return 1.0;
+                    }
+                    VERIFY_NOT_REACHED();
+                }();
+                return FilterOperation::Color { .operation = color.operation, .amount = NumberPercentage { Number { Number::Type::Integer, default_value_for_accumulation } } };
+            },
+            [&](auto&) -> FilterValue {
+                VERIFY_NOT_REACHED();
+            });
+    };
+
+    auto accumulate_filter = [](FilterValue const& underlying, FilterValue const& animated) -> Optional<FilterValue> {
+        return underlying.visit(
+            [&](FilterOperation::Blur const& underlying_blur) -> Optional<FilterValue> {
+                if (!animated.has<FilterOperation::Blur>())
+                    return {};
+                auto const& animated_blur = animated.get<FilterOperation::Blur>();
+                if (underlying_blur.radius.is_calculated() || animated_blur.radius.is_calculated())
+                    return {};
+                auto underlying_px = underlying_blur.radius.value().raw_value();
+                auto animated_px = animated_blur.radius.value().raw_value();
+                return FilterOperation::Blur { .radius = Length::make_px(underlying_px + animated_px) };
+            },
+            [&](FilterOperation::HueRotate const& underlying_rotate) -> Optional<FilterValue> {
+                if (!animated.has<FilterOperation::HueRotate>())
+                    return {};
+                auto const& animated_rotate = animated.get<FilterOperation::HueRotate>();
+
+                auto get_angle = [](FilterOperation::HueRotate::AngleOrZero const& angle_or_zero) -> Optional<double> {
+                    return angle_or_zero.visit(
+                        [](AngleOrCalculated const& angle) -> Optional<double> {
+                            if (angle.is_calculated())
+                                return {};
+                            return angle.value().raw_value();
+                        },
+                        [](FilterOperation::HueRotate::Zero) -> Optional<double> { return 0.0; });
+                };
+
+                auto underlying_angle = get_angle(underlying_rotate.angle);
+                auto animated_angle = get_angle(animated_rotate.angle);
+                if (!underlying_angle.has_value() || !animated_angle.has_value())
+                    return {};
+
+                return FilterOperation::HueRotate { .angle = AngleOrCalculated { Angle::make_degrees(*underlying_angle + *animated_angle) } };
+            },
+            [&](FilterOperation::Color const& underlying_color) -> Optional<FilterValue> {
+                if (!animated.has<FilterOperation::Color>())
+                    return {};
+                auto const& animated_color = animated.get<FilterOperation::Color>();
+                if (underlying_color.operation != animated_color.operation)
+                    return {};
+
+                auto underlying_amount = underlying_color.resolved_amount();
+                auto animated_amount = animated_color.resolved_amount();
+
+                double accumulated;
+                switch (underlying_color.operation) {
+                case Gfx::ColorFilterType::Brightness:
+                case Gfx::ColorFilterType::Contrast:
+                case Gfx::ColorFilterType::Opacity:
+                case Gfx::ColorFilterType::Saturate:
+                    accumulated = underlying_amount + animated_amount - 1.0;
+                    break;
+                case Gfx::ColorFilterType::Grayscale:
+                case Gfx::ColorFilterType::Invert:
+                case Gfx::ColorFilterType::Sepia:
+                    accumulated = underlying_amount + animated_amount;
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+
+                return FilterOperation::Color { .operation = underlying_color.operation, .amount = NumberPercentage { Number { Number::Type::Number, accumulated } } };
+            },
+            [&](FilterOperation::DropShadow const& underlying_shadow) -> Optional<FilterValue> {
+                if (!animated.has<FilterOperation::DropShadow>())
+                    return {};
+                auto const& animated_shadow = animated.get<FilterOperation::DropShadow>();
+
+                auto add_lengths = [](LengthOrCalculated const& a, LengthOrCalculated const& b) -> Optional<LengthOrCalculated> {
+                    if (a.is_calculated() || b.is_calculated())
+                        return {};
+                    return LengthOrCalculated { Length::make_px(a.value().raw_value() + b.value().raw_value()) };
+                };
+
+                auto offset_x = add_lengths(underlying_shadow.offset_x, animated_shadow.offset_x);
+                auto offset_y = add_lengths(underlying_shadow.offset_y, animated_shadow.offset_y);
+                if (!offset_x.has_value() || !offset_y.has_value())
+                    return {};
+
+                Optional<LengthOrCalculated> accumulated_radius;
+                if (underlying_shadow.radius.has_value() || animated_shadow.radius.has_value()) {
+                    auto underlying_radius = underlying_shadow.radius.value_or(LengthOrCalculated { Length::make_px(0) });
+                    auto animated_radius = animated_shadow.radius.value_or(LengthOrCalculated { Length::make_px(0) });
+                    auto sum = add_lengths(underlying_radius, animated_radius);
+                    if (!sum.has_value())
+                        return {};
+                    accumulated_radius = sum.release_value();
+                }
+
+                RefPtr<StyleValue const> accumulated_color = animated_shadow.color;
+                if (underlying_shadow.color && animated_shadow.color) {
+                    ColorResolutionContext color_resolution_context {};
+                    auto underlying_color = underlying_shadow.color->to_color(color_resolution_context);
+                    auto animated_color = animated_shadow.color->to_color(color_resolution_context);
+                    if (underlying_color.has_value() && animated_color.has_value()) {
+                        auto accumulated = Color(
+                            min(255, underlying_color->red() + animated_color->red()),
+                            min(255, underlying_color->green() + animated_color->green()),
+                            min(255, underlying_color->blue() + animated_color->blue()),
+                            min(255, underlying_color->alpha() + animated_color->alpha()));
+                        accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
+                    }
+                }
+
+                return FilterOperation::DropShadow {
+                    .offset_x = offset_x.release_value(),
+                    .offset_y = offset_y.release_value(),
+                    .radius = accumulated_radius,
+                    .color = accumulated_color
+                };
+            },
+            [&](URL const&) -> Optional<FilterValue> {
+                return {};
+            });
+    };
+
+    // Extend shorter list with initial values
+    size_t max_size = max(underlying_list.size(), animated_list.size());
+    Vector<FilterValue> extended_underlying;
+    Vector<FilterValue> extended_animated;
+
+    for (size_t i = 0; i < max_size; ++i) {
+        if (i < underlying_list.size()) {
+            extended_underlying.append(underlying_list.filter_value_list()[i]);
+        } else {
+            extended_underlying.append(initial_value_for(animated_list.filter_value_list()[i]));
+        }
+
+        if (i < animated_list.size()) {
+            extended_animated.append(animated_list.filter_value_list()[i]);
+        } else {
+            extended_animated.append(initial_value_for(underlying_list.filter_value_list()[i]));
+        }
+    }
+
+    Vector<FilterValue> result;
+    result.ensure_capacity(max_size);
+    for (size_t i = 0; i < max_size; ++i) {
+        auto accumulated = accumulate_filter(extended_underlying[i], extended_animated[i]);
+        if (!accumulated.has_value())
+            return {};
+        result.unchecked_append(accumulated.release_value());
+    }
+    return result;
+}
+
 RefPtr<StyleValue const> interpolate_value(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     if (auto result = interpolate_value_impl(element, calculation_context, from, to, delta, allow_discrete))
@@ -2248,6 +2439,26 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             values.unchecked_append(*composited_value);
         }
         return StyleValueList::create(move(values), underlying_list.separator());
+    }
+    case StyleValue::Type::FilterValueList: {
+        auto& underlying_list = underlying_value.as_filter_value_list();
+        auto& animated_list = animated_value.as_filter_value_list();
+
+        // https://drafts.csswg.org/filter-effects/#addition
+        // Given two filter values representing an base value (base filter list) and a value to add (added filter list),
+        // returns the concatenation of the the two lists: ‘base filter list added filter list’.
+        if (composite_operation == Bindings::CompositeOperation::Add) {
+            Vector<FilterValue> result = underlying_list.filter_value_list();
+            result.extend(animated_list.filter_value_list());
+            return FilterValueListStyleValue::create(move(result));
+        }
+
+        VERIFY(composite_operation == Bindings::CompositeOperation::Accumulate);
+        auto result = accumulate_filter_function(underlying_list, animated_list);
+        if (result.is_empty())
+            return {};
+
+        return FilterValueListStyleValue::create(move(result));
     }
     default:
         // FIXME: Implement compositing for missing types

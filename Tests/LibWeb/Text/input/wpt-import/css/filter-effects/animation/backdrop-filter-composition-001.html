@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>backdrop-filter composition</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<body>
+<script>
+// Basic additive composition; the lists should be concatenated.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  addFrom: 'blur(40px)',
+  addTo: 'blur(90px)',
+}, [
+  {at: -0.5, expect: 'blur(10px) blur(15px)'},
+  {at: 0, expect: 'blur(10px) blur(40px)'},
+  {at: 0.25, expect: 'blur(10px) blur(52.5px)'},
+  {at: 0.5, expect: 'blur(10px) blur(65px)'},
+  {at: 0.75, expect: 'blur(10px) blur(77.5px)'},
+  {at: 1, expect: 'blur(10px) blur(90px)'},
+  {at: 1.5, expect: 'blur(10px) blur(115px)'},
+]);
+
+// Here we have add-from and replace-to, so the list will be have mismatched
+// lengths and the replace-to list will have to be extended to interpolate as
+// per https://drafts.fxtf.org/filter-effects-1/#interpolation-of-filters
+//
+// That is, this becomes an interpolation of the form:
+//   sepia(0.5) sepia(0.5) --> sepia(1) sepia(0)
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'sepia(0.5)',
+  addFrom: 'sepia(0.5)',
+  replaceTo: 'sepia(1)',
+}, [
+  {at: -0.5, expect: 'sepia(0.25) sepia(0.75)'},
+  {at: 0, expect: 'sepia(0.5) sepia(0.5)'},
+  {at: 0.25, expect: 'sepia(0.625) sepia(0.375)'},
+  {at: 0.5, expect: 'sepia(0.75) sepia(0.25)'},
+  {at: 0.75, expect: 'sepia(0.875) sepia(0.125)'},
+  {at: 1, expect: 'sepia(1) sepia(0)'},
+  {at: 1.5, expect: 'sepia(1) sepia(0)'},
+]);
+
+// In this case we have replace-from and add-to, so similar extending behavior
+// takes place. Note that brightness has an initial value of 1.
+//
+// That is, this becomes an interpolation of the form:
+//   brightness(0.5) brightness(1) --> brightness(0) brightness(1.5)
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'brightness(0)',
+  replaceFrom: 'brightness(0.5)',
+  addTo: 'brightness(1.5)',
+}, [
+  {at: -0.5, expect: 'brightness(0.75) brightness(0.75)'},
+  {at: 0, expect: 'brightness(0.5) brightness(1)'},
+  {at: 0.25, expect: 'brightness(0.375) brightness(1.125)'},
+  {at: 0.5, expect: 'brightness(0.25) brightness(1.25)'},
+  {at: 0.75, expect: 'brightness(0.125) brightness(1.375)'},
+  {at: 1, expect: 'brightness(0) brightness(1.5)'},
+  {at: 1.5, expect: 'brightness(0) brightness(1.75)'},
+]);
+
+// Test mixing properties.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'invert(0.5)',
+  addFrom: 'saturate(2)',
+  addTo: 'saturate(3)',
+}, [
+  {at: -0.5, expect: 'invert(0.5) saturate(1.5)'},
+  {at: 0, expect: 'invert(0.5) saturate(2)'},
+  {at: 0.25, expect: 'invert(0.5) saturate(2.25)'},
+  {at: 0.5, expect: 'invert(0.5) saturate(2.5)'},
+  {at: 0.75, expect: 'invert(0.5) saturate(2.75)'},
+  {at: 1, expect: 'invert(0.5) saturate(3)'},
+  {at: 1.5, expect: 'invert(0.5) saturate(3.5)'},
+]);
+
+// Test the 'none' behavior; composition happens before interpolation, so this
+// is actually an interpolation of:
+//   invert(0.5) saturate(1) --> invert(1) saturate(3)
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'invert(0.5)',
+  addFrom: 'none',
+  replaceTo: 'invert(1) saturate(3)',
+}, [
+  {at: -0.5, expect: 'invert(0.25) saturate(0)'},
+  {at: 0, expect: 'invert(0.5) saturate(1)'},
+  {at: 0.25, expect: 'invert(0.625) saturate(1.5)'},
+  {at: 0.5, expect: 'invert(0.75) saturate(2)'},
+  {at: 0.75, expect: 'invert(0.875) saturate(2.5)'},
+  {at: 1, expect: 'invert(1) saturate(3)'},
+  {at: 1.5, expect: 'invert(1.25) saturate(4)'},
+]);
+
+// Test having multiple underlying values
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'grayscale(25%) blur(10px)',
+  addFrom: 'brightness(0)',
+  addTo: 'brightness(1)',
+}, [
+  {at: -0.5, expect: 'grayscale(25%) blur(10px) brightness(0)'},
+  {at: 0, expect: 'grayscale(25%) blur(10px) brightness(0)'},
+  {at: 0.25, expect: 'grayscale(25%) blur(10px) brightness(0.25)'},
+  {at: 0.5, expect: 'grayscale(25%) blur(10px) brightness(0.5)'},
+  {at: 0.75, expect: 'grayscale(25%) blur(10px) brightness(0.75)'},
+  {at: 1, expect: 'grayscale(25%) blur(10px) brightness(1)'},
+  {at: 1.5, expect: 'grayscale(25%) blur(10px) brightness(1.5)'},
+]);
+
+// Make sure that a matching underlying value is still prefixed.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  addFrom: 'grayscale(50%) blur(10px)',
+  addTo: 'grayscale(25%) blur(10px)',
+}, [
+  {at: -0.5, expect: 'blur(10px) grayscale(0.625) blur(10px)'},
+  {at: 0, expect: 'blur(10px) grayscale(0.5) blur(10px)'},
+  {at: 0.25, expect: 'blur(10px) grayscale(0.4375) blur(10px)'},
+  {at: 0.5, expect: 'blur(10px) grayscale(0.375) blur(10px)'},
+  {at: 0.75, expect: 'blur(10px) grayscale(0.3125) blur(10px)'},
+  {at: 1, expect: 'blur(10px) grayscale(0.25) blur(10px)'},
+  {at: 1.5, expect: 'blur(10px) grayscale(0.125) blur(10px)'},
+]);
+
+// Check the case where composition causes a url() to be included; the animation
+// should change to discrete.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'url(#a)',
+  addFrom: 'grayscale(50%) blur(30px)',
+  addTo: 'grayscale(25%) blur(40px)',
+}, [
+  {at: -0.5, expect: 'url("#a") grayscale(0.5) blur(30px)'},
+  {at: 0, expect: 'url("#a") grayscale(0.5) blur(30px)'},
+  {at: 0.25, expect: 'url("#a") grayscale(0.5) blur(30px)'},
+  {at: 0.5, expect: 'url("#a") grayscale(0.25) blur(40px)'},
+  {at: 0.75, expect: 'url("#a") grayscale(0.25) blur(40px)'},
+  {at: 1, expect: 'url("#a") grayscale(0.25) blur(40px)'},
+  {at: 1.5, expect: 'url("#a") grayscale(0.25) blur(40px)'},
+]);
+
+// And check the inverse; nothing fancy here but it should be a discrete
+// animation with blur prepended.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  addFrom: 'url(#a) brightness(1)',
+  addTo: 'url(#b) brightness(0)',
+}, [
+  {at: -0.5, expect: 'blur(10px) url(#a) brightness(1)'},
+  {at: 0, expect: 'blur(10px) url(#a) brightness(1)'},
+  {at: 0.25, expect: 'blur(10px) url(#a) brightness(1)'},
+  {at: 0.5, expect: 'blur(10px) url(#b) brightness(0)'},
+  {at: 0.75, expect: 'blur(10px) url(#b) brightness(0)'},
+  {at: 1, expect: 'blur(10px) url(#b) brightness(0)'},
+  {at: 1.5, expect: 'blur(10px) url(#b) brightness(0)'},
+]);
+
+// --------------- Accumulation tests. ---------------------
+
+// blur; simple addition.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  accumulateFrom: 'blur(40px)',
+  accumulateTo: 'blur(90px)',
+}, [
+  {at: -0.5, expect: 'blur(25px)'},
+  {at: 0, expect: 'blur(50px)'},
+  {at: 0.25, expect: 'blur(62.5px)'},
+  {at: 0.5, expect: 'blur(75px)'},
+  {at: 0.75, expect: 'blur(87.5px)'},
+  {at: 1, expect: 'blur(100px)'},
+  {at: 1.5, expect: 'blur(125px)'},
+]);
+
+// brightness; 1-based addition.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'brightness(0.25)',
+  accumulateFrom: 'brightness(0.5)',
+  accumulateTo: 'brightness(1.5)',
+}, [
+  {at: -0.5, expect: 'brightness(0)'},
+  {at: 0, expect: 'brightness(0)'},
+  {at: 0.25, expect: 'brightness(0)'},
+  {at: 0.5, expect: 'brightness(0.25)'},
+  {at: 0.75, expect: 'brightness(0.5)'},
+  {at: 1, expect: 'brightness(0.75)'},
+  {at: 1.5, expect: 'brightness(1.25)'},
+]);
+
+// contrast; 1-based addition.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'contrast(0.25)',
+  accumulateFrom: 'contrast(0.5)',
+  accumulateTo: 'contrast(1.5)',
+}, [
+  {at: -0.5, expect: 'contrast(0)'},
+  {at: 0, expect: 'contrast(0)'},
+  {at: 0.25, expect: 'contrast(0)'},
+  {at: 0.5, expect: 'contrast(0.25)'},
+  {at: 0.75, expect: 'contrast(0.5)'},
+  {at: 1, expect: 'contrast(0.75)'},
+  {at: 1.5, expect: 'contrast(1.25)'},
+]);
+
+// drop-shadow; addition of lengths plus color addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'drop-shadow(10px 5px 0px rgb(255, 0, 0))',
+  accumulateFrom: 'drop-shadow(0px 10px 10px rgb(0, 255, 0))',
+  accumulateTo: 'drop-shadow(50px 30px 10px rgb(0, 0, 255))',
+}, [
+  {at: -0.5, expect: 'drop-shadow(-15px 5px 10px rgb(255, 255, 0))'},
+  {at: 0, expect: 'drop-shadow(10px 15px 10px rgb(255, 255, 0))'},
+  {at: 0.25, expect: 'drop-shadow(22.5px 20px 10px rgb(255, 191, 64))'},
+  {at: 0.5, expect: 'drop-shadow(35px 25px 10px rgb(255, 128, 128))'},
+  {at: 0.75, expect: 'drop-shadow(47.5px 30px 10px rgb(255, 64, 191))'},
+  {at: 1, expect: 'drop-shadow(60px 35px 10px rgb(255, 0, 255))'},
+  {at: 1.5, expect: 'drop-shadow(85px 45px 10px rgb(255, 0, 255))'},
+]);
+
+// grayscale; simple addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'grayscale(0.25)',
+  accumulateFrom: 'grayscale(0.5)',
+  accumulateTo: 'grayscale(1.5)',  // clamped to 1
+}, [
+  {at: -0.5, expect: 'grayscale(0.5)'},
+  {at: 0, expect: 'grayscale(0.75)'},
+  {at: 0.25, expect: 'grayscale(0.875)'},
+  {at: 0.5, expect: 'grayscale(1)'},
+  {at: 0.75, expect: 'grayscale(1)'},
+  {at: 1, expect: 'grayscale(1)'},
+  {at: 1.5, expect: 'grayscale(1)'},
+]);
+
+// hue-rotate; simple addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'hue-rotate(45deg)',
+  accumulateFrom: 'hue-rotate(140deg)',
+  accumulateTo: 'hue-rotate(400deg)',
+}, [
+  {at: -0.5, expect: 'hue-rotate(55deg)'},
+  {at: 0, expect: 'hue-rotate(185deg)'},
+  {at: 0.25, expect: 'hue-rotate(250deg)'},
+  {at: 0.5, expect: 'hue-rotate(315deg)'},
+  {at: 0.75, expect: 'hue-rotate(380deg)'},
+  {at: 1, expect: 'hue-rotate(445deg)'},
+  {at: 1.5, expect: 'hue-rotate(575deg)'},
+]);
+
+// invert; simple addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'invert(0.25)',
+  accumulateFrom: 'invert(0.5)',
+  accumulateTo: 'invert(1.5)',  // clamped to 1
+}, [
+  {at: -0.5, expect: 'invert(0.5)'},
+  {at: 0, expect: 'invert(0.75)'},
+  {at: 0.25, expect: 'invert(0.875)'},
+  {at: 0.5, expect: 'invert(1)'},
+  {at: 0.75, expect: 'invert(1)'},
+  {at: 1, expect: 'invert(1)'},
+  {at: 1.5, expect: 'invert(1)'},
+]);
+
+// opacity; 1-based addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'opacity(0.25)',
+  accumulateFrom: 'opacity(0.5)',
+  accumulateTo: 'opacity(1.5)',  // clamped to 1
+}, [
+  {at: -0.5, expect: 'opacity(0)'},
+  {at: 0, expect: 'opacity(0)'},
+  {at: 0.25, expect: 'opacity(0)'},
+  {at: 0.5, expect: 'opacity(0)'},
+  {at: 0.75, expect: 'opacity(0.125)'},
+  {at: 1, expect: 'opacity(0.25)'},
+  {at: 1.5, expect: 'opacity(0.5)'},
+]);
+
+// saturate; 1-based addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'saturate(0.25)',
+  accumulateFrom: 'saturate(0.5)',
+  accumulateTo: 'saturate(1.5)',
+}, [
+  {at: -0.5, expect: 'saturate(0)'},
+  {at: 0, expect: 'saturate(0)'},
+  {at: 0.25, expect: 'saturate(0)'},
+  {at: 0.5, expect: 'saturate(0.25)'},
+  {at: 0.75, expect: 'saturate(0.5)'},
+  {at: 1, expect: 'saturate(0.75)'},
+  {at: 1.5, expect: 'saturate(1.25)'},
+]);
+
+// sepia; simple addition
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'sepia(0.25)',
+  accumulateFrom: 'sepia(0.5)',
+  accumulateTo: 'sepia(1.5)',  // clamped to 1
+}, [
+  {at: -0.5, expect: 'sepia(0.5)'},
+  {at: 0, expect: 'sepia(0.75)'},
+  {at: 0.25, expect: 'sepia(0.875)'},
+  {at: 0.5, expect: 'sepia(1)'},
+  {at: 0.75, expect: 'sepia(1)'},
+  {at: 1, expect: 'sepia(1)'},
+  {at: 1.5, expect: 'sepia(1)'},
+]);
+
+// url; cannot be accumulated
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'url(#a)',
+  accumulateFrom: 'url(#b)',
+  accumulateTo: 'url(#c)',
+}, [
+  {at: -0.5, expect: 'url(#b)'},
+  {at: 0, expect: 'url(#b)'},
+  {at: 0.25, expect: 'url(#b)'},
+  {at: 0.5, expect: 'url(#c)'},
+  {at: 0.75, expect: 'url(#c)'},
+  {at: 1, expect: 'url(#c)'},
+  {at: 1.5, expect: 'url(#c)'},
+]);
+
+// Test auto-extension of the underlying list.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  accumulateFrom: 'blur(40px) saturate(1)',
+  accumulateTo: 'blur(90px) saturate(0)',
+}, [
+  {at: -0.5, expect: 'blur(25px) saturate(1.5)'},
+  {at: 0, expect: 'blur(50px) saturate(1)'},
+  {at: 0.25, expect: 'blur(62.5px) saturate(0.75)'},
+  {at: 0.5, expect: 'blur(75px) saturate(0.5)'},
+  {at: 0.75, expect: 'blur(87.5px) saturate(0.25)'},
+  {at: 1, expect: 'blur(100px) saturate(0)'},
+  {at: 1.5, expect: 'blur(125px) saturate(0)'},
+]);
+
+// Test auto-extension of the composited-onto list.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px) saturate(0.75)',
+  accumulateFrom: 'blur(40px)',
+  accumulateTo: 'blur(90px)',
+}, [
+  {at: -0.5, expect: 'blur(25px) saturate(0.75)'},
+  {at: 0, expect: 'blur(50px) saturate(0.75)'},
+  {at: 0.25, expect: 'blur(62.5px) saturate(0.75)'},
+  {at: 0.5, expect: 'blur(75px) saturate(0.75)'},
+  {at: 0.75, expect: 'blur(87.5px) saturate(0.75)'},
+  {at: 1, expect: 'blur(100px) saturate(0.75)'},
+  {at: 1.5, expect: 'blur(125px) saturate(0.75)'},
+]);
+
+// Mismatching type for underlying; it just gets replaced.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'contrast(0.75)',
+  accumulateFrom: 'blur(40px)',
+  accumulateTo: 'blur(80px)',
+}, [
+  {at: -0.5, expect: 'blur(20px)'},
+  {at: 0, expect: 'blur(40px)'},
+  {at: 0.25, expect: 'blur(50px)'},
+  {at: 0.5, expect: 'blur(60px)'},
+  {at: 0.75, expect: 'blur(70px)'},
+  {at: 1, expect: 'blur(80px)'},
+  {at: 1.5, expect: 'blur(100px)'},
+]);
+
+// Underlying only type-matches one side of the interpolation; it should be
+// accumulated onto that side, but the entire animation will be discrete due to
+// the mis-matching types.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  accumulateFrom: 'blur(40px)',
+  accumulateTo: 'saturate(1)',
+}, [
+  {at: -0.5, expect: 'blur(50px)'},
+  {at: 0, expect: 'blur(50px)'},
+  {at: 0.25, expect: 'blur(50px)'},
+  {at: 0.5, expect: 'saturate(1)'},
+  {at: 0.75, expect: 'saturate(1)'},
+  {at: 1, expect: 'saturate(1)'},
+  {at: 1.5, expect: 'saturate(1)'},
+]);
+
+// Test a case where only one side is accumulative and the other is replace.
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  accumulateFrom: 'blur(30px)',
+  replaceTo: 'blur(100px)',
+}, [
+  {at: -0.5, expect: 'blur(10px)'},
+  {at: 0, expect: 'blur(40px)'},
+  {at: 0.25, expect: 'blur(55px)'},
+  {at: 0.5, expect: 'blur(70px)'},
+  {at: 0.75, expect: 'blur(85px)'},
+  {at: 1, expect: 'blur(100px)'},
+  {at: 1.5, expect: 'blur(130px)'},
+]);
+
+// Test a case where only one side is accumulative and the other is add.
+// This basically looks like:
+//   accumulateSide = blur(Apx) neutral-blur
+//   addSide        = blur(10px) blur(Bpx)
+test_composition({
+  property: 'backdrop-filter',
+  underlying: 'blur(10px)',
+  accumulateFrom: 'blur(40px)',
+  addTo: 'blur(100px)',
+}, [
+  {at: -0.5, expect: 'blur(70px) blur(0px)'},
+  {at: 0, expect: 'blur(50px) blur(0px)'},
+  {at: 0.25, expect: 'blur(40px) blur(25px)'},
+  {at: 0.5, expect: 'blur(30px) blur(50px)'},
+  {at: 0.75, expect: 'blur(20px) blur(75px)'},
+  {at: 1, expect: 'blur(10px) blur(100px)'},
+  {at: 1.5, expect: 'blur(0px) blur(150px)'},
+]);
+</script>
+</body>
