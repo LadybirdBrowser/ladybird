@@ -31,8 +31,8 @@ private:
     {
     }
 
-    NonnullRefPtr<StyleValue const> m_thumb_color;
-    NonnullRefPtr<StyleValue const> m_track_color;
+    ValueComparingNonnullRefPtr<StyleValue const> m_thumb_color;
+    ValueComparingNonnullRefPtr<StyleValue const> m_track_color;
 };
 
 }
