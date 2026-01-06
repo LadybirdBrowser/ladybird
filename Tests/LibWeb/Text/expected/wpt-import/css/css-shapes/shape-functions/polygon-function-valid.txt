@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	e.style['shape-outside'] = "polygon(1% 2%)" should set the property value
-Fail	e.style['shape-outside'] = "polygon(calc(100% - 20px) calc(30% + 10px))" should set the property value
-Fail	e.style['shape-outside'] = "polygon(nonzero, 1px 2px, 3em 4em)" should set the property value
+4 Pass
+Pass	e.style['shape-outside'] = "polygon(1% 2%)" should set the property value
+Pass	e.style['shape-outside'] = "polygon(calc(100% - 20px) calc(30% + 10px))" should set the property value
+Pass	e.style['shape-outside'] = "polygon(nonzero, 1px 2px, 3em 4em)" should set the property value
 Pass	e.style['shape-outside'] = "polygon(evenodd, 1px 2px, 3em 4em, 5pt 6%)" should set the property value
