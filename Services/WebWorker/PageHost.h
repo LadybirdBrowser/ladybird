@@ -28,6 +28,8 @@ public:
     virtual bool is_connection_open() const override;
     virtual Gfx::Palette palette() const override;
     virtual Web::DevicePixelRect screen_rect() const override;
+    virtual double zoom_level() const override;
+    virtual double device_pixel_ratio() const override;
     virtual double device_pixels_per_css_pixel() const override;
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override;
     virtual Web::CSS::PreferredContrast preferred_contrast() const override;

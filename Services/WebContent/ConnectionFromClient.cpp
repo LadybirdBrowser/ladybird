@@ -1172,10 +1172,16 @@ void ConnectionFromClient::set_is_scripting_enabled(u64 page_id, bool is_scripti
         page->set_is_scripting_enabled(is_scripting_enabled);
 }
 
-void ConnectionFromClient::set_device_pixels_per_css_pixel(u64 page_id, float device_pixels_per_css_pixel)
+void ConnectionFromClient::set_device_pixel_ratio(u64 page_id, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->set_device_pixels_per_css_pixel(device_pixels_per_css_pixel);
+        page->set_device_pixel_ratio(device_pixel_ratio);
+}
+
+void ConnectionFromClient::set_zoom_level(u64 page_id, double zoom_level)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_zoom_level(zoom_level);
 }
 
 void ConnectionFromClient::set_maximum_frames_per_second(u64 page_id, double maximum_frames_per_second)

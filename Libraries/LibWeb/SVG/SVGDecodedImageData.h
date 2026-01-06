@@ -79,6 +79,8 @@ public:
     virtual bool is_connection_open() const override { return false; }
     virtual Gfx::Palette palette() const override { return m_host_page->client().palette(); }
     virtual DevicePixelRect screen_rect() const override { return {}; }
+    virtual double zoom_level() const override { return 1.0; }
+    virtual double device_pixel_ratio() const override { return 1.0; }
     virtual double device_pixels_per_css_pixel() const override { return 1.0; }
     virtual CSS::PreferredColorScheme preferred_color_scheme() const override { return m_host_page->client().preferred_color_scheme(); }
     virtual CSS::PreferredContrast preferred_contrast() const override { return m_host_page->client().preferred_contrast(); }
