@@ -95,10 +95,11 @@ constexpr u32 CUE_RELATIVE_POSITION_ID = 0xF0;
 constexpr u32 CUE_CODEC_STATE_ID = 0xEA;
 constexpr u32 CUE_REFERENCE_ID = 0xDB;
 
-DecoderErrorOr<Reader> Reader::from_stream(IncrementallyPopulatedStream::Cursor& stream_consumer)
+DecoderErrorOr<Reader> Reader::from_stream(IncrementallyPopulatedStream::Cursor& stream_cursor)
 {
-    Reader reader(stream_consumer);
-    TRY(reader.parse_initial_data());
+    Reader reader;
+    Streamer streamer { stream_cursor };
+    TRY(reader.parse_initial_data(streamer));
     return reader;
 }
 
@@ -218,9 +219,8 @@ bool Reader::is_matroska_or_webm(IncrementallyPopulatedStream::Cursor& stream_cu
     return false;
 }
 
-DecoderErrorOr<void> Reader::parse_initial_data()
+DecoderErrorOr<void> Reader::parse_initial_data(Streamer& streamer)
 {
-    Streamer streamer { m_stream_cursor };
     auto first_element_id = TRY(streamer.read_variable_size_integer(false));
     dbgln_if(MATROSKA_TRACE_DEBUG, "First element ID is {:#010x}\n", first_element_id);
     if (first_element_id != EBML_MASTER_ELEMENT_ID)
@@ -235,17 +235,17 @@ DecoderErrorOr<void> Reader::parse_initial_data()
 
     m_segment_contents_size = TRY(streamer.read_variable_size_integer());
     m_segment_contents_position = streamer.position();
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Segment is at {} with size {}, available size is {}", m_segment_contents_position, m_segment_contents_size, m_stream_cursor->size() - m_segment_contents_position);
+    dbgln_if(MATROSKA_TRACE_DEBUG, "Segment is at {} with size {}", m_segment_contents_position, m_segment_contents_size);
 
-    TRY(parse_segment_information());
-    TRY(parse_tracks());
+    TRY(parse_segment_information(streamer));
+    TRY(parse_tracks(streamer));
 
-    auto first_cluster_position = TRY(find_first_top_level_element_with_id("Cluster"sv, CLUSTER_ELEMENT_ID));
+    auto first_cluster_position = TRY(find_first_top_level_element_with_id(streamer, "Cluster"sv, CLUSTER_ELEMENT_ID));
     if (!first_cluster_position.has_value())
         return DecoderError::corrupted("No clusters are present in the segment"sv);
     m_first_cluster_position = first_cluster_position.release_value();
 
-    TRY(parse_cues());
+    TRY(parse_cues(streamer));
 
     return {};
 }
@@ -298,7 +298,7 @@ static DecoderErrorOr<void> parse_seek_head(Streamer& streamer, size_t base_posi
     return {};
 }
 
-DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id([[maybe_unused]] StringView element_name, u32 element_id)
+DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(Streamer& streamer, StringView element_name, u32 element_id)
 {
     dbgln_if(MATROSKA_DEBUG, "====== Finding element {} with ID {:#010x} ======", element_name, element_id);
 
@@ -307,7 +307,6 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id([[
         return m_seek_entries.get(element_id).release_value();
     }
 
-    Streamer streamer { m_stream_cursor };
     if (m_last_top_level_element_position != 0)
         TRY(streamer.seek_to_position(m_last_top_level_element_position));
     else
@@ -381,12 +380,11 @@ static DecoderErrorOr<SegmentInformation> parse_information(Streamer& streamer)
     return segment_information;
 }
 
-DecoderErrorOr<void> Reader::parse_segment_information()
+DecoderErrorOr<void> Reader::parse_segment_information(Streamer& streamer)
 {
-    auto position = TRY(find_first_top_level_element_with_id("Segment Information"sv, SEGMENT_INFORMATION_ELEMENT_ID));
+    auto position = TRY(find_first_top_level_element_with_id(streamer, "Segment Information"sv, SEGMENT_INFORMATION_ELEMENT_ID));
     if (!position.has_value())
         return DecoderError::corrupted("No Segment Information element found"sv);
-    Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
     if (TRY(streamer.read_variable_size_integer(false)) != SEGMENT_INFORMATION_ELEMENT_ID)
         return DecoderError::corrupted("Unexpected Matroska element when seeking to the Segment element"sv);
@@ -578,12 +576,11 @@ static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer& str
     return track_entry;
 }
 
-DecoderErrorOr<void> Reader::parse_tracks()
+DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
 {
-    auto position = TRY(find_first_top_level_element_with_id("Tracks"sv, TRACK_ELEMENT_ID));
+    auto position = TRY(find_first_top_level_element_with_id(streamer, "Tracks"sv, TRACK_ELEMENT_ID));
     if (!position.has_value())
         return DecoderError::corrupted("No Tracks element found"sv);
-    Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
 
     if (TRY(streamer.read_variable_size_integer(false)) != TRACK_ELEMENT_ID)
@@ -1016,14 +1013,13 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
     return cue_point;
 }
 
-DecoderErrorOr<void> Reader::parse_cues()
+DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
 {
     VERIFY(m_cues.is_empty());
 
-    auto position = TRY(find_first_top_level_element_with_id("Cues"sv, CUES_ID));
+    auto position = TRY(find_first_top_level_element_with_id(streamer, "Cues"sv, CUES_ID));
     if (!position.has_value())
         return {};
-    Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(position.release_value()));
     if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
         dbgln("Unexpected Matroska element when seeking to the Cues element, skipping parsing.");
