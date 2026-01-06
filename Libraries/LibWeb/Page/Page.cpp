@@ -229,6 +229,11 @@ DevicePixelRect Page::rounded_device_rect(CSSPixelRect rect) const
     };
 }
 
+ChromeMetrics Page::chrome_metrics() const
+{
+    return ChromeMetrics { m_client->zoom_level() };
+}
+
 EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers)
 {
     return top_level_traversable()->event_handler().handle_mouseup(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers);

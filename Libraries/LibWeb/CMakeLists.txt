@@ -797,6 +797,7 @@ set(SOURCES
     NavigationTiming/PerformanceTiming.cpp
     NotificationsAPI/Notification.cpp
     Page/DragAndDropEventHandler.cpp
+    Page/ElementResizeAction.cpp
     Page/EventHandler.cpp
     Page/InputEvent.cpp
     Page/Page.cpp

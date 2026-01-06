@@ -20,6 +20,7 @@ namespace Web {
 class CSSPixels;
 class DisplayListRecordingContext;
 class DragAndDropEventHandler;
+class ElementResizeAction;
 class EventHandler;
 class InputEventsTarget;
 class LoadRequest;
