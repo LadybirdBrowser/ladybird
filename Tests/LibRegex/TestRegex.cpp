@@ -752,6 +752,8 @@ TEST_CASE(ECMA262_match)
         { "(.*a)?(x)"sv, "x"sv, true },
         // Optimizer bug: invalid forkif jump target calculation in tree-layout alternatives
         { "ab|a(?:^|x)"sv, "ab"sv, true },
+        // Optimizer bug: process rseekto candidates in the correct order.
+        { "(.*)/client-(.*)\\.js$"sv, "/client-abc.js"sv, true },
     };
 
     for (auto& test : tests) {

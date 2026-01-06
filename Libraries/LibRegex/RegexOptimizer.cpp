@@ -1699,7 +1699,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
         u64 checkpoint_id;
         u32 seek_code_point;
     };
-    HashMap<size_t, DotStarCandidate> candidates;
+    OrderedHashMap<size_t, DotStarCandidate> candidates;
 
     auto state = MatchState::only_for_enumeration();
 
