@@ -160,7 +160,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
 
     if (!status.block.has_value() || status.frame_index >= status.frames.size()) {
         status.block = TRY(status.iterator.next_block());
-        status.frames = TRY(m_reader.get_frames(status.block.value()));
+        status.frames = TRY(status.iterator.get_frames(status.block.value()));
         status.frame_index = 0;
     }
 

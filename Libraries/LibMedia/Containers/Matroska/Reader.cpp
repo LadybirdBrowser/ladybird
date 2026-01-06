@@ -768,7 +768,7 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset.value());
 }
 
-DecoderErrorOr<Vector<ByteBuffer>> Reader::get_frames(Block block)
+DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
 {
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(block.data_position()));
