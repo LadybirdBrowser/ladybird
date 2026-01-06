@@ -35,6 +35,9 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
+    // NB: WorkerHost sets (ad-hoc) the global scope's url to be the worker URL before redirects, as the spec does not
+    //     do so at that point. See https://github.com/whatwg/html/issues/11340.
+    settings_object->creation_url = worker.url();
 
     // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to
     //    outside settings's top-level origin.

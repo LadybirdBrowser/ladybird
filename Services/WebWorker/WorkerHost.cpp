@@ -143,33 +143,36 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             // 1. Set worker global scope's url to response's url.
             worker_global_scope->set_url(response->url().value_or({}));
 
-            // 2. Initialize worker global scope's policy container given worker global scope, response, and inside
+            // 2. Set inside settings's creation URL to response's url.
+            inside_settings->creation_url = worker_global_scope->url();
+
+            // 3. Initialize worker global scope's policy container given worker global scope, response, and inside
             //    settings.
             worker_global_scope->initialize_policy_container(response, inside_settings);
 
-            // 3. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon
+            // 4. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon
             //    worker global scope, set response to a network error. [CSP]
             if (worker_global_scope->run_csp_initialization() == Web::ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
                 response = Web::Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"_string);
             }
 
             // FIXME: Use worker global scope's policy container's embedder policy
-            // FIXME: 4. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
+            // FIXME: 5. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
             //    then set agent's agent cluster's cross-origin isolation mode to "logical" or "concrete".
             //    The one chosen is implementation-defined.
-            // FIXME: 5. If the result of checking a global object's embedder policy with worker global scope, outside settings,
+            // FIXME: 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
             //    and response is false, then set response to a network error.
-            // FIXME: 6. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's cross-origin
+            // FIXME: 7. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's cross-origin
             //    isolation mode is "concrete".
 
             if (!is_shared) {
-                // FIXME: 7. If is shared is false and owner's cross-origin isolated capability is false, then set worker
+                // FIXME: 8. If is shared is false and owner's cross-origin isolated capability is false, then set worker
                 //     global scope's cross-origin isolated capability to false.
-                // FIXME: 8. If is shared is false and response's url's scheme is "data", then set worker global scope's
+                // FIXME: 9. If is shared is false and response's url's scheme is "data", then set worker global scope's
                 //     cross-origin isolated capability to false.
             }
 
-            // 9. Run processCustomFetchResponse with response and bodyBytes.
+            // 10. Run processCustomFetchResponse with response and bodyBytes.
             process_custom_fetch_response_function->function()(response, body_bytes);
         };
         Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
