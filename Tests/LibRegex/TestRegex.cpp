@@ -748,6 +748,8 @@ TEST_CASE(ECMA262_match)
         // Optimizer bug: nested 'or' compare ops caused a crash, ladybird#6647.
         { "([[[]]])*0"sv, ""sv, false, ECMAScriptFlags::UnicodeSets },
         { "(([[[]]]{2,})\\s)*"sv, ""sv, true, (ECMAScriptFlags::UnicodeSets | ECMAScriptFlags::Global).value() },
+        // Optimizer bug: invalid forkif jump target calculation in tree-layout alternatives
+        { "ab|a(?:^|x)"sv, "ab"sv, true },
     };
 
     for (auto& test : tests) {

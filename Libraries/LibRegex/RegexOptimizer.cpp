@@ -36,8 +36,10 @@ struct BytecodeRewriter {
     };
     Vector<Instruction> instructions;
     HashMap<size_t, size_t> new_ip_mapping;
+    StringView target_pattern;
 
-    BytecodeRewriter(ByteCode const& bytecode)
+    BytecodeRewriter(ByteCode const& bytecode, StringView pattern = {})
+        : target_pattern(pattern)
     {
         auto flat = bytecode.flat_data();
         auto state = MatchState::only_for_enumeration();
@@ -238,6 +240,7 @@ private:
                 : instr.old_ip + instr.size + old_offset;
 
             if (!new_ip_mapping.contains(target_old)) {
+                dbgln("In pattern /{}/", target_pattern);
                 dbgln("Target {} not found in new_ip mapping (in {})", target_old, instr.old_ip);
                 RegexDebug<ByteCode> dbg(stderr);
                 dbg.print_bytecode(bytecode);
@@ -1273,7 +1276,7 @@ void Regex<Parser>::rewrite_with_useless_jumps_removed()
         dbg.print_bytecode(*this);
     }
 
-    BytecodeRewriter rewriter(bytecode);
+    BytecodeRewriter rewriter(bytecode, pattern_value);
 
     auto state = MatchState::only_for_enumeration();
     for (auto& instr : rewriter.instructions) {
@@ -1644,7 +1647,7 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
     if (sequences.is_empty())
         return;
 
-    BytecodeRewriter rewriter(bytecode);
+    BytecodeRewriter rewriter(bytecode, pattern_value);
     Vector<ByteCode> replacements;
     replacements.ensure_capacity(sequences.size());
     for (auto const& seq : sequences) {
@@ -1905,7 +1908,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
     if (candidates.is_empty())
         return;
 
-    BytecodeRewriter rewriter(bytecode);
+    BytecodeRewriter rewriter(bytecode, pattern_value);
 
     struct Range {
         size_t start_ip;
@@ -1988,7 +1991,7 @@ void Regex<Parser>::rewrite_simple_compares(BasicBlockList const& basic_blocks)
 
     dbgln_if(REGEX_DEBUG, "Found {} simple compare candidates to rewrite", candidates.size());
 
-    BytecodeRewriter rewriter(bytecode);
+    BytecodeRewriter rewriter(bytecode, pattern_value);
 
     for (auto& candidate : candidates) {
         auto& instr = *rewriter.instructions.find_if([&](auto& i) { return i.old_ip == candidate.compare_ip; });
@@ -2351,6 +2354,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
     }
 
     if (common_hits == 0 || tree_cost > chain_cost) {
+        dbgln_if(REGEX_DEBUG, "Choosing sequential alternation layout over trie-based layout");
         // It's better to lay these out as a normal sequence of instructions.
         // We can avoid trying alternatives that we know cannot match in certain cases:
         // - If the alternative starts with an assertion, we can lift the assertion to the fork op itself (currently only ^).
@@ -2418,6 +2422,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 target[position] = static_cast<ByteCodeValueType>(end_position - (position + 1));
         }
     } else {
+        dbgln_if(REGEX_DEBUG, "Choosing trie-based alternation layout");
         target.ensure_capacity(total_bytecode_entries_in_tree + common_hits * 6);
 
         auto node_is = [](Tree const* node, QualifiedIP ip) {
@@ -2427,6 +2432,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
         struct Patch {
             QualifiedIP source_ip;
             size_t target_ip;
+            size_t size_delta { 0 };
             bool done { false };
         };
         Vector<Patch> patch_locations;
@@ -2461,7 +2467,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             auto const* node = nodes_to_visit.take_last();
             for (auto& patch : patch_locations) {
                 if (!patch.done && node_is(node, patch.source_ip)) {
-                    auto value = static_cast<ByteCodeValueType>(target.size() - patch.target_ip - 1);
+                    auto value = static_cast<ByteCodeValueType>(target.size() - patch.target_ip - 1 - patch.size_delta);
                     if (value == 0)
                         target[patch.target_ip - 1] = static_cast<ByteCodeValueType>(OpCodeId::Jump);
                     target[patch.target_ip] = value;
@@ -2487,6 +2493,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 auto is_jump = true;
                 auto patch_location = state.instruction_position + 1;
                 bool should_negate = false;
+                size_t size_delta = opcode.size() - 2;
 
                 switch (opcode.opcode_id()) {
                 case OpCodeId::Jump:
@@ -2561,7 +2568,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                                 target_value = -target_value - opcode.size();
                             target[patch_location] = static_cast<ByteCodeValueType>(target_value);
                         } else {
-                            patch_locations.append({ QualifiedIP { alternative_index, intended_jump_ip }, patch_location });
+                            patch_locations.append({ QualifiedIP { alternative_index, intended_jump_ip }, patch_location, size_delta });
                         }
                     }
                 }
