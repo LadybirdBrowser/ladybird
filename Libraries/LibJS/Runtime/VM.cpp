@@ -260,6 +260,14 @@ struct ExecutionContextRootsCollector : public Cell::Visitor {
         roots.set(&cell);
     }
 
+    virtual void visit_impl(ReadonlySpan<GC::NanBoxedValue> values) override
+    {
+        for (auto const& value : values) {
+            if (value.is_cell())
+                roots.set(value.as_cell());
+        }
+    }
+
     virtual void visit_possible_values(ReadonlyBytes) override
     {
         VERIFY_NOT_REACHED();
