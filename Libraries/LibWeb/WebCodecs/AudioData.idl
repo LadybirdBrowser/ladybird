@@ -1,0 +1,47 @@
+// https://w3c.github.io/webcodecs/#audiodata-interface
+[Exposed=(Window,DedicatedWorker), Serializable, Transferable]
+interface AudioData {
+    constructor(AudioDataInit init);
+
+    readonly attribute AudioSampleFormat? format;
+    readonly attribute float sampleRate;
+    readonly attribute unsigned long numberOfFrames;
+    readonly attribute unsigned long numberOfChannels;
+    readonly attribute unsigned long long duration;  // microseconds
+    readonly attribute long long timestamp;          // microseconds
+
+    unsigned long allocationSize(AudioDataCopyToOptions options);
+    // FIXME: BufferSource is really a AllowSharedBufferSource
+    undefined copyTo(BufferSource destination, AudioDataCopyToOptions options);
+    AudioData clone();
+    undefined close();
+};
+
+dictionary AudioDataInit {
+    required AudioSampleFormat format;
+    required float sampleRate;
+    [EnforceRange] required unsigned long numberOfFrames;
+    [EnforceRange] required unsigned long numberOfChannels;
+    [EnforceRange] required long long timestamp;  // microseconds
+    required BufferSource data;
+    // TODO: sequence<ArrayBuffer> transfer = [];
+};
+
+// https://w3c.github.io/webcodecs/#enumdef-audiosampleformat
+enum AudioSampleFormat {
+    "u8",
+    "s16",
+    "s32",
+    "f32",
+    "u8-planar",
+    "s16-planar",
+    "s32-planar",
+    "f32-planar",
+};
+
+dictionary AudioDataCopyToOptions {
+    [EnforceRange] required unsigned long planeIndex;
+    [EnforceRange] unsigned long frameOffset = 0;
+    [EnforceRange] unsigned long frameCount;
+    AudioSampleFormat format;
+};

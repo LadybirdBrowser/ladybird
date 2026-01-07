@@ -5006,6 +5006,7 @@ using namespace Web::URLPattern;
 using namespace Web::UserTiming;
 using namespace Web::WebAssembly;
 using namespace Web::WebAudio;
+using namespace Web::WebCodecs;
 using namespace Web::WebGL;
 using namespace Web::WebGL::Extensions;
 using namespace Web::WebIDL;
