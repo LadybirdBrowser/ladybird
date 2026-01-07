@@ -459,6 +459,43 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
     validate_record_macros(*record);
 
+    // Check that overrides of must_survive_garbage_collection() and finalize() have the
+    // corresponding static constexpr bool flags set
+    auto check_override_requires_flag = [&](char const* method_name, char const* flag_name) {
+        clang::DeclarationName decl_name = &m_context.Idents.get(method_name);
+        auto const* method = record->lookup(decl_name).find_first<clang::CXXMethodDecl>();
+        if (!method || !method->isVirtual() || !method->size_overridden_methods())
+            return;
+
+        // Check if the method is defined in this class (not just inherited)
+        if (method->getParent() != record)
+            return;
+
+        // Look for the static constexpr bool flag
+        clang::DeclarationName flag_decl_name = &m_context.Idents.get(flag_name);
+        auto const* flag_var = record->lookup(flag_decl_name).find_first<clang::VarDecl>();
+
+        bool flag_found = false;
+        if (flag_var && flag_var->isStaticDataMember() && flag_var->isConstexpr()) {
+            // Check if it's set to true
+            if (auto const* init = flag_var->getInit()) {
+                if (auto const* bool_literal = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(init->IgnoreParenImpCasts())) {
+                    flag_found = bool_literal->getValue();
+                }
+            }
+        }
+
+        if (!flag_found) {
+            auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+                "Class %0 overrides %1 but does not set static constexpr bool %2 = true");
+            auto builder = diag_engine.Report(method->getBeginLoc(), diag_id);
+            builder << record->getName() << method_name << flag_name;
+        }
+    };
+
+    check_override_requires_flag("must_survive_garbage_collection", "OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION");
+    check_override_requires_flag("finalize", "OVERRIDES_FINALIZE");
+
     clang::DeclarationName name = &m_context.Idents.get("visit_edges");
     auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
     if (!visit_edges_method && !fields_that_need_visiting.empty()) {
