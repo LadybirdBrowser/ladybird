@@ -23,6 +23,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
+#include <LibXML/Parser/Parser.h>
 
 namespace Web {
 

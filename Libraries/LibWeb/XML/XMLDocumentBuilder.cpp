@@ -25,7 +25,6 @@ namespace Web {
 
 ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resource(XML::SystemID const&, Optional<XML::PublicID> const& public_id)
 {
-    static Optional<Vector<XML::MarkupDeclaration>> s_parsed_xhtml_unified_dtd;
     if (!public_id.has_value())
         return Error::from_string_literal("Refusing to load disallowed external entity");
 
@@ -44,15 +43,8 @@ ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resourc
             "-//WAPFORUM//DTD XHTML Mobile 1.2//EN"))
         return Error::from_string_literal("Refusing to load disallowed external entity");
 
-    if (!s_parsed_xhtml_unified_dtd.has_value()) {
-        auto parser = XML::Parser(s_xhtml_unified_dtd, XML::Parser::Options {});
-        auto result = parser.parse_external_subset();
-        if (result.is_error()) // We can't really recover from this, so just return the source and let libxml handle it.
-            return ByteString { s_xhtml_unified_dtd };
-        s_parsed_xhtml_unified_dtd = result.release_value();
-    }
-
-    return s_parsed_xhtml_unified_dtd.value();
+    // libxml2 handles DTD parsing internally.
+    return ByteString { s_xhtml_unified_dtd };
 }
 
 XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
