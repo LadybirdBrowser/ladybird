@@ -384,9 +384,42 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
         }
         break;
     }
-    case PutKind::Own:
+    case PutKind::Own: {
+        if (caches) [[likely]] {
+            for (size_t i = 0; i < caches->entries.size(); ++i) {
+                if (caches->types[i] == PropertyLookupCache::Entry::Type::AddOwnProperty) {
+                    auto& cache = caches->entries[i];
+                    if (cache.from_shape != &object->shape()) [[unlikely]]
+                        continue;
+                    auto cached_shape = cache.shape.ptr();
+                    if (!cached_shape) [[unlikely]]
+                        continue;
+                    if (cached_shape->is_dictionary()) {
+                        if (object->shape().dictionary_generation() != cache.shape_dictionary_generation)
+                            continue;
+                    }
+                    object->unsafe_set_shape(*cached_shape);
+                    object->put_direct(cache.property_offset, value);
+                    return {};
+                }
+            }
+        }
+
+        auto& from_shape = object->shape();
         object->define_direct_property(name, value, Attribute::Enumerable | Attribute::Writable | Attribute::Configurable);
+
+        if (caches && &from_shape != &object->shape()) {
+            caches->update(PropertyLookupCache::Entry::Type::AddOwnProperty, [&](auto& cache) {
+                cache.from_shape = from_shape;
+                cache.shape = &object->shape();
+                cache.property_offset = object->shape().lookup(name)->offset;
+                if (object->shape().is_dictionary()) {
+                    cache.shape_dictionary_generation = object->shape().dictionary_generation();
+                }
+            });
+        }
         break;
+    }
     case PutKind::Prototype:
         if (value.is_object() || value.is_null()) [[likely]]
             MUST(object->internal_set_prototype_of(value.is_object() ? &value.as_object() : nullptr));
