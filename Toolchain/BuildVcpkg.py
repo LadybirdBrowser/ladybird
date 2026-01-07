@@ -1,27 +1,32 @@
 #!/usr/bin/env python3
 
 # Copyright (c) 2024, pheonixfirewingz <luke.a.shore@proton.me>
-# Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+# Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
 import json
-import os
 import pathlib
-import platform
 import subprocess
+import sys
+
+LADYBIRD_SOURCE_DIR = pathlib.Path(__file__).resolve().parent.parent
+sys.path.append(str(LADYBIRD_SOURCE_DIR))
+
+from Meta.host_platform import HostSystem  # noqa: E402
+from Meta.host_platform import Platform  # noqa: E402
 
 
 def build_vcpkg():
-    script_dir = pathlib.Path(__file__).parent.resolve()
+    platform = Platform()
 
-    with open(script_dir.parent / "vcpkg.json", "r") as vcpkg_json_file:
+    with open(LADYBIRD_SOURCE_DIR / "vcpkg.json", "r") as vcpkg_json_file:
         vcpkg_json = json.load(vcpkg_json_file)
 
     git_repo = "https://github.com/microsoft/vcpkg.git"
     git_rev = vcpkg_json["builtin-baseline"]
 
-    build_dir = script_dir.parent / "Build"
+    build_dir = LADYBIRD_SOURCE_DIR / "Build"
     build_dir.mkdir(parents=True, exist_ok=True)
     vcpkg_checkout = build_dir / "vcpkg"
 
@@ -40,10 +45,10 @@ def build_vcpkg():
     subprocess.check_call(args=["git", "fetch", "origin"], cwd=vcpkg_checkout)
     subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
 
-    bootstrap_script = "bootstrap-vcpkg.bat" if os.name == "nt" else "bootstrap-vcpkg.sh"
+    bootstrap_script = "bootstrap-vcpkg.bat" if platform.host_system == HostSystem.Windows else "bootstrap-vcpkg.sh"
     arguments = [vcpkg_checkout / bootstrap_script, "-disableMetrics"]
-    libc, _ = platform.libc_ver()
-    if libc == "musl":
+
+    if platform.libc_name() == "musl":
         arguments.append("-musl")
 
     subprocess.check_call(args=arguments, cwd=vcpkg_checkout)
