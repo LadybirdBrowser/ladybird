@@ -403,7 +403,9 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
                     return false;
             }
 
-            storage->put(property_key.as_number(), property_descriptor.value.value());
+            // NB: We don't call put() directly on the underlying storage here, since we may want to switch
+            //     the storage type if the index is too large.
+            indexed_properties().put(property_key.as_number(), property_descriptor.value.value());
         } else {
             succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
         }
