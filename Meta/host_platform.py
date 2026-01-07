@@ -1,5 +1,5 @@
 # Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
-# Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+# Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -69,3 +69,10 @@ class Platform:
         if self.host_system == HostSystem.macOS:
             return "atos"
         return "addr2line"
+
+    def libc_name(self) -> str:
+        if self.host_system == HostSystem.Windows:
+            return ""
+
+        libc, _ = platform.libc_ver()
+        return libc
