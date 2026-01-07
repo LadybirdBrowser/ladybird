@@ -262,7 +262,9 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             // -> "image"
             case Infrastructure::Request::Destination::Image:
                 // `image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5`
-                value = "image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
+                // Spec issue: Websites depend on there being modern image formats in the Accept header for re-encoding software, especially WebP to preserve transparency.
+                //             https://github.com/whatwg/fetch/issues/1905
+                value = "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
                 break;
             // -> "json"
             case Infrastructure::Request::Destination::JSON:
