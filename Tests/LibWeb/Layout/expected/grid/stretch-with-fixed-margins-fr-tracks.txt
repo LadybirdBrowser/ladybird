@@ -1,0 +1,53 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 220 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 202 0+1+8] children: not-inline
+      Box <div.grid> at [11,11] [0+1+0 200 0+1+578] [0+1+0 200 0+1+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item> at [12,12] [0+1+0 98 0+1+0] [0+1+0 98 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [12,12 80.078125x18] baseline: 13.796875
+              "no margin"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item.with-margin> at [122,22] [10+1+0 78 0+1+10] [10+1+0 78 0+1+10] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [122,22 35.0625x18] baseline: 13.796875
+              "10px"
+          frag 1 from TextNode start: 5, length: 6, rect: [122,40 52.109375x18] baseline: 13.796875
+              "margin"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item.with-horizontal-margin> at [17,112] [5+1+0 78 0+1+15] [0+1+0 98 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [17,112 9.296875x18] baseline: 13.796875
+              "h"
+          frag 1 from TextNode start: 2, length: 7, rect: [17,130 61.453125x18] baseline: 13.796875
+              "margins"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item.with-vertical-margin> at [112,120] [0+1+0 98 0+1+0] [8+1+0 78 0+1+12] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [112,120 77.65625x18] baseline: 13.796875
+              "v margins"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [10,212] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x222]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x204]
+      PaintableBox (Box<DIV>.grid) [10,10 202x202]
+        PaintableWithLines (BlockContainer<DIV>.item) [11,11 100x100]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.item.with-margin) [121,21 80x80]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.item.with-horizontal-margin) [16,111 80x100]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.item.with-vertical-margin) [111,119 100x80]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [10,212 780x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x220] [children: 0] (z-index: auto)
