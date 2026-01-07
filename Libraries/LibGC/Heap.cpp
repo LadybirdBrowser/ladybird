@@ -150,6 +150,12 @@ public:
         m_work_queue.append(cell);
     }
 
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    {
+        for (auto const& value : values)
+            visit(value);
+    }
+
     virtual void visit_possible_values(ReadonlyBytes bytes) override
     {
         HashMap<FlatPtr, HeapRoot> possible_pointers;
@@ -488,6 +494,23 @@ public:
 
         cell.set_marked(true);
         m_work_queue.append(cell);
+    }
+
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    {
+        m_work_queue.ensure_capacity(m_work_queue.size() + values.size());
+
+        for (auto value : values) {
+            if (!value.is_cell())
+                continue;
+            auto& cell = value.as_cell();
+            if (cell.is_marked())
+                continue;
+            dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
+
+            cell.set_marked(true);
+            m_work_queue.unchecked_append(cell);
+        }
     }
 
     virtual void visit_possible_values(ReadonlyBytes bytes) override

@@ -16,6 +16,7 @@
 #include <AK/Weakable.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
+#include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 
 namespace GC {
@@ -104,10 +105,24 @@ public:
         }
 
         template<typename T>
+        void visit(ReadonlySpan<T> span)
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
+        }
+
+        template<typename T>
         void visit(Span<T> span)
         {
             for (auto& value : span)
                 visit(value);
+        }
+
+        template<typename T>
+        void visit(Span<T> span)
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            visit_impl(ReadonlySpan<NanBoxedValue>(span.data(), span.size()));
         }
 
         template<typename T, size_t inline_capacity>
@@ -115,6 +130,13 @@ public:
         {
             for (auto& value : vector)
                 visit(value);
+        }
+
+        template<typename T, size_t inline_capacity>
+        void visit(Vector<T, inline_capacity> const& vector)
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
         }
 
         template<typename T>
@@ -173,6 +195,7 @@ public:
 
     protected:
         virtual void visit_impl(Cell&) = 0;
+        virtual void visit_impl(ReadonlySpan<NanBoxedValue>) = 0;
         virtual ~Visitor() = default;
     } SWIFT_UNSAFE_REFERENCE;
 
