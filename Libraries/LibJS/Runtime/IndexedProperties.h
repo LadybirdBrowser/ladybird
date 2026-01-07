@@ -88,8 +88,7 @@ public:
 
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
-        for (auto& value : m_packed_elements)
-            visitor.visit(value);
+        visitor.visit(m_packed_elements);
     }
 
     Vector<Value> const& elements() const { return m_packed_elements; }
