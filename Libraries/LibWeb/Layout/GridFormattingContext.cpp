@@ -1761,7 +1761,21 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             auto width = tentative_size_for_replaced_element(preferred_size);
             used_alignment = try_compute_size(width, item.preferred_size(dimension));
         } else {
-            if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
+            // OPTIMIZATION: For auto-sized items with stretch/normal alignment and no auto margins, the item stretches
+            //               to fill the containing block. We can compute this directly without the expensive
+            //               calculate_fit_content_width/height calls that trigger intrinsic sizing.
+            bool can_stretch_directly = preferred_size.is_auto()
+                && (alignment == Alignment::Stretch || alignment == Alignment::Normal)
+                && !item.margin_start(dimension).is_auto()
+                && !item.margin_end(dimension).is_auto();
+            if (can_stretch_directly) {
+                auto stretched_size = containing_block_size - item.used_margin_box_start(dimension) - item.used_margin_box_end(dimension);
+                used_alignment = {
+                    .margin_start = item.used_margin_start(dimension),
+                    .margin_end = item.used_margin_end(dimension),
+                    .size = stretched_size
+                };
+            } else if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
                 auto fit_content_size = dimension == GridDimension::Column ? calculate_fit_content_width(item.box, available_space) : calculate_fit_content_height(item.box, available_space);
                 used_alignment = try_compute_size(fit_content_size, preferred_size);
             } else {

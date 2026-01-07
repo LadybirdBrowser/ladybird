@@ -1,0 +1,63 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 220 0+1+0] [BFC] children: not-inline
+    BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 202 0+1+8] children: not-inline
+      Box <div.outer-grid> at [11,11] [0+1+0 400 0+1+378] [0+1+0 200 0+1+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        Box <div.inner-grid> at [12,12] [0+1+0 198 0+1+0] [0+1+0 198 0+1+0] [GFC] children: not-inline
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.item> at [13,13] [0+1+0 97 0+1+0] [0+1+0 97 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [13,13 14.265625x18] baseline: 13.796875
+                "A"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.item> at [112,13] [0+1+0 97 0+1+0] [0+1+0 97 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [112,13 9.34375x18] baseline: 13.796875
+                "B"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.item> at [13,112] [0+1+0 97 0+1+0] [0+1+0 97 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [13,112 10.3125x18] baseline: 13.796875
+                "C"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.item> at [112,112] [0+1+0 97 0+1+0] [0+1+0 97 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [112,112 11.140625x18] baseline: 13.796875
+                "D"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.item> at [212,12] [0+1+0 198 0+1+0] [0+1+0 198 0+1+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [212,12 11.859375x18] baseline: 13.796875
+              "E"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [10,212] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x222]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x204]
+      PaintableBox (Box<DIV>.outer-grid) [10,10 402x202]
+        PaintableBox (Box<DIV>.inner-grid) [11,11 200x200]
+          PaintableWithLines (BlockContainer<DIV>.item) [12,12 99x99]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.item) [111,12 99x99]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.item) [12,111 99x99]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.item) [111,111 99x99]
+            TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.item) [211,11 200x200]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [10,212 780x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [1,1 798x220] [children: 0] (z-index: auto)
