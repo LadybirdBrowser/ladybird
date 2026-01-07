@@ -25,6 +25,8 @@ struct ParserContext {
     Version version { Version::Version11 };
 
     Vector<ParseError> parse_errors;
+
+    Parser::Options const* options { nullptr };
 };
 
 static ByteString xml_char_to_byte_string(xmlChar const* str)
@@ -267,6 +269,50 @@ static void processing_instruction_handler(void* ctx, xmlChar const* target, xml
     }
 }
 
+static void external_subset_handler(void* ctx, xmlChar const*, xmlChar const* external_id, xmlChar const* system_id)
+{
+    // This callback is called when libxml2 wants to load the external DTD subset
+    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
+    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
+    if (!context || !context->options || !context->options->resolve_external_resource)
+        return;
+
+    Optional<PublicID> pub_id;
+    if (external_id)
+        pub_id = PublicID { xml_char_to_byte_string(external_id) };
+
+    SystemID sys_id { system_id ? xml_char_to_byte_string(system_id) : ByteString {} };
+
+    auto result = context->options->resolve_external_resource(sys_id, pub_id);
+    if (result.is_error())
+        return;
+
+    auto resolved = result.release_value();
+    auto const* dtd_content = resolved.get_pointer<ByteString>();
+    if (!dtd_content)
+        return;
+
+    auto* input_buffer = xmlParserInputBufferCreateStatic(
+        dtd_content->characters(),
+        static_cast<int>(dtd_content->length()),
+        XML_CHAR_ENCODING_UTF8);
+    if (!input_buffer)
+        return;
+
+    if (auto* dtd = xmlIOParseDTD(nullptr, input_buffer, XML_CHAR_ENCODING_UTF8)) {
+        if (!parser_ctx->myDoc)
+            parser_ctx->myDoc = xmlNewDoc(reinterpret_cast<xmlChar const*>("1.0"));
+
+        if (parser_ctx->myDoc && !parser_ctx->myDoc->extSubset) {
+            parser_ctx->myDoc->extSubset = dtd;
+            dtd = nullptr;
+        }
+
+        if (dtd)
+            xmlFreeDtd(dtd);
+    }
+}
+
 static void internal_subset_handler(void* ctx, xmlChar const* name, xmlChar const* external_id, xmlChar const* system_id)
 {
     auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
@@ -320,7 +366,7 @@ static void structured_error_handler(void* ctx, xmlError const* error)
         context->error = move(parse_error);
 }
 
-static xmlSAXHandler create_sax_handler(bool preserve_comments)
+static xmlSAXHandler create_sax_handler(bool preserve_comments, bool has_external_resolver)
 {
     xmlSAXHandler handler = {};
     handler.initialized = XML_SAX2_MAGIC;
@@ -335,6 +381,8 @@ static xmlSAXHandler create_sax_handler(bool preserve_comments)
     handler.serror = structured_error_handler;
     if (preserve_comments)
         handler.comment = comment_handler;
+    if (has_external_resolver)
+        handler.externalSubset = external_subset_handler;
     return handler;
 }
 
@@ -346,8 +394,10 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 
     ParserContext context;
     context.listener = &listener;
+    context.options = &m_options;
 
-    auto sax_handler = create_sax_handler(m_options.preserve_comments);
+    bool has_external_resolver = static_cast<bool>(m_options.resolve_external_resource);
+    auto sax_handler = create_sax_handler(m_options.preserve_comments, has_external_resolver);
 
     int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
     if (!m_options.preserve_cdata)
@@ -385,8 +435,10 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 ErrorOr<Document, ParseError> Parser::parse()
 {
     ParserContext context;
+    context.options = &m_options;
 
-    auto sax_handler = create_sax_handler(m_options.preserve_comments);
+    bool has_resolver = static_cast<bool>(m_options.resolve_external_resource);
+    auto sax_handler = create_sax_handler(m_options.preserve_comments, has_resolver);
 
     int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
     if (!m_options.preserve_cdata)
