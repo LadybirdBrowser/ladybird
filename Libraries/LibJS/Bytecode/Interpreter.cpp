@@ -1782,7 +1782,7 @@ JS_ENUMERATE_COMMON_UNARY_OPS(JS_DEFINE_COMMON_UNARY_OP)
 
 void NewArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto array = MUST(Array::create(interpreter.realm(), 0));
+    auto array = MUST(Array::create(interpreter.realm(), m_element_count));
     for (size_t i = 0; i < m_element_count; i++) {
         array->indexed_properties().put(i, interpreter.get(m_elements[i]), default_attributes);
     }
@@ -1791,7 +1791,7 @@ void NewArray::execute_impl(Bytecode::Interpreter& interpreter) const
 
 void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto array = MUST(Array::create(interpreter.realm(), 0));
+    auto array = MUST(Array::create(interpreter.realm(), m_element_count));
     for (size_t i = 0; i < m_element_count; i++)
         array->indexed_properties().put(i, m_elements[i], default_attributes);
     interpreter.set(dst(), array);
