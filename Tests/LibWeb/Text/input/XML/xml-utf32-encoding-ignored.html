@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const parser = new DOMParser();
+
+    const doc1 = parser.parseFromString("<root/>", "application/xml");
+    println(`Normal XML: characterSet=${doc1.characterSet}, element=${doc1.documentElement.localName}`);
+
+    const doc2 = parser.parseFromString('<?xml version="1.0" encoding="UTF-32"?><root/>', "application/xml");
+    println(`UTF-32 declared: characterSet=${doc2.characterSet}, element=${doc2.documentElement.localName}`);
+
+    const doc3 = parser.parseFromString('<?xml version="1.0" encoding="UTF-32BE"?><root/>', "application/xml");
+    println(`UTF-32BE declared: characterSet=${doc3.characterSet}, element=${doc3.documentElement.localName}`);
+
+    const doc4 = parser.parseFromString('<?xml version="1.0" encoding="UTF-32LE"?><root/>', "application/xml");
+    println(`UTF-32LE declared: characterSet=${doc4.characterSet}, element=${doc4.documentElement.localName}`);
+});
+</script>

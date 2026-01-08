@@ -7,6 +7,7 @@
 #include <AK/StringBuilder.h>
 #include <LibXML/Parser/Parser.h>
 
+#include <libxml/encoding.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
 #include <libxml/xmlerror.h>
@@ -360,6 +361,8 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
     parser_ctx->_private = &context;
     xmlCtxtUseOptions(parser_ctx, options);
 
+    xmlSwitchEncoding(parser_ctx, XML_CHAR_ENCODING_UTF8);
+
     auto result = xmlParseChunk(parser_ctx, m_source.characters_without_null_termination(), static_cast<int>(m_source.length()), 1);
 
     bool well_formed = parser_ctx->wellFormed;
@@ -398,6 +401,8 @@ ErrorOr<Document, ParseError> Parser::parse()
 
     parser_ctx->_private = &context;
     xmlCtxtUseOptions(parser_ctx, options);
+
+    xmlSwitchEncoding(parser_ctx, XML_CHAR_ENCODING_UTF8);
 
     auto result = xmlParseChunk(parser_ctx, m_source.characters_without_null_termination(), static_cast<int>(m_source.length()), 1);
 
