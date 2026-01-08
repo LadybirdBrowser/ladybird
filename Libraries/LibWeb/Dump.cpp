@@ -49,7 +49,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
