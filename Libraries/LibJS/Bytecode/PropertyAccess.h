@@ -88,10 +88,6 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
     auto& shape = base_obj->shape();
 
-    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
-    if (shape.prototype())
-        prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
-
     for (auto& cache_entry : cache.entries) {
         auto cached_prototype = cache_entry.prototype.ptr();
         if (cached_prototype) {
@@ -137,6 +133,9 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             }
         }
     }
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
+    if (shape.prototype())
+        prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
     CacheableGetPropertyMetadata cacheable_metadata;
     auto value = TRY(base_obj->internal_get(get_property_name(), this_value, &cacheable_metadata));
