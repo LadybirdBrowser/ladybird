@@ -433,8 +433,11 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
             log_success(request);
             on_complete->function()(true, timing_info, {});
         } else {
-            log_failure(request, "Request finished with error"sv);
-            on_complete->function()(false, timing_info, "Request finished with error"sv);
+            auto error_description = MUST(String::formatted(
+                "Request finished with error: {}",
+                network_error_to_string(*network_error)));
+            log_failure(request, error_description);
+            on_complete->function()(false, timing_info, error_description);
         }
     };
 
