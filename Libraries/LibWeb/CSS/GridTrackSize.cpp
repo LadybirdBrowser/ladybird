@@ -115,7 +115,7 @@ GridSize GridSize::absolutized(ComputationContext const& context) const
 {
     auto absolutize_length_percentage = [&context](LengthPercentage const& length_percentage) -> Optional<LengthPercentage> {
         if (length_percentage.is_length()) {
-            auto length = length_percentage.length().absolutize(context.length_resolution_context.viewport_rect, context.length_resolution_context.font_metrics, context.length_resolution_context.root_font_metrics);
+            auto length = length_percentage.length().absolutize(context.length_resolution_context);
             if (length.has_value())
                 return length.release_value();
             return {};

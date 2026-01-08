@@ -241,12 +241,12 @@ String Length::to_string(SerializationMode serialization_mode) const
     return builder.to_string_without_validation();
 }
 
-Optional<Length> Length::absolutize(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
+Optional<Length> Length::absolutize(ResolutionContext const& context) const
 {
     if (is_px())
         return {};
     if (is_absolute() || is_relative()) {
-        auto px = to_px(viewport_rect, font_metrics, root_font_metrics);
+        auto px = to_px(context.viewport_rect, context.font_metrics, context.root_font_metrics);
         return CSS::Length::make_px(px);
     }
     return {};
