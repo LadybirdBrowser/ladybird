@@ -70,11 +70,13 @@ String CSSPropertyRule::serialized() const
     builder.appendff("inherits: {}; ", inherits());
 
     // 8. If the rule’s initial-value is present, follow these substeps:
-    if (initial_value().has_value()) {
+    if (m_initial_value) {
         // 1. The string "initial-value:".
         // 2. The result of performing serialize a CSS value in the rule’s initial-value followed by a single SEMICOLON
         //    (U+003B), followed by a SPACE (U+0020).
-        builder.appendff("initial-value: {}; ", initial_value());
+        builder.append("initial-value: "sv);
+        m_initial_value->serialize(builder, SerializationMode::Normal);
+        builder.append("; "sv);
     }
     // 9. A single RIGHT CURLY BRACKET (U+007D).
     builder.append("}"sv);
