@@ -313,19 +313,11 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         if (auto formatting_context_type = Layout::FormattingContext::formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
             switch (formatting_context_type.value()) {
             case Layout::FormattingContext::Type::Block:
-                builder.appendff(" [{}BFC{}]", formatting_context_color_on, color_off);
-                break;
             case Layout::FormattingContext::Type::Flex:
-                builder.appendff(" [{}FFC{}]", formatting_context_color_on, color_off);
-                break;
             case Layout::FormattingContext::Type::Grid:
-                builder.appendff(" [{}GFC{}]", formatting_context_color_on, color_off);
-                break;
             case Layout::FormattingContext::Type::Table:
-                builder.appendff(" [{}TFC{}]", formatting_context_color_on, color_off);
-                break;
             case Layout::FormattingContext::Type::SVG:
-                builder.appendff(" [{}SVG{}]", formatting_context_color_on, color_off);
+                builder.appendff(" [{}{}{}]", formatting_context_color_on, Layout::FormattingContext::type_name(formatting_context_type.value()), color_off);
                 break;
             default:
                 break;

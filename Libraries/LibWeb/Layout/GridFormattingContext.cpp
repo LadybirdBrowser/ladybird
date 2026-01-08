@@ -2044,6 +2044,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
         return;
     }
 
+    FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
 
     init_grid_lines(GridDimension::Column);

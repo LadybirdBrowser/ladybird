@@ -22,6 +22,10 @@ template<typename T>
 }
 
 class FormattingContext {
+#if FORMATTING_CONTEXT_TRACE_DEBUG
+    friend class FormattingContextTracer;
+#endif
+
 public:
     virtual ~FormattingContext();
 
@@ -35,6 +39,29 @@ public:
         InternalReplaced, // Internal hack formatting context for replaced elements. FIXME: Get rid of this.
         InternalDummy,    // Internal hack formatting context for unimplemented things. FIXME: Get rid of this.
     };
+
+    static constexpr StringView type_name(Type type)
+    {
+        switch (type) {
+        case Type::Block:
+            return "BFC"sv;
+        case Type::Inline:
+            return "IFC"sv;
+        case Type::Flex:
+            return "FFC"sv;
+        case Type::Grid:
+            return "GFC"sv;
+        case Type::Table:
+            return "TFC"sv;
+        case Type::SVG:
+            return "SVG"sv;
+        case Type::InternalReplaced:
+            return "Replaced"sv;
+        case Type::InternalDummy:
+            return "Dummy"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }
 
     virtual void run(AvailableSpace const&) = 0;
 
@@ -165,5 +192,32 @@ protected:
 
     LayoutState& m_state;
 };
+
+#if FORMATTING_CONTEXT_TRACE_DEBUG
+class FormattingContextTracer {
+public:
+    FormattingContextTracer(FormattingContext const& fc, AvailableSpace const& available_space)
+    {
+        StringBuilder indent_builder;
+        for (int i = 0; i < s_depth; ++i)
+            indent_builder.append("| "sv);
+        auto intrinsic_marker = fc.m_layout_mode == LayoutMode::IntrinsicSizing ? " [intrinsic]"sv : ""sv;
+        dbgln("{}|- {} <{}> run({}){}", indent_builder.string_view(), FormattingContext::type_name(fc.m_type), fc.m_context_box->debug_description(), available_space, intrinsic_marker);
+        ++s_depth;
+    }
+
+    ~FormattingContextTracer()
+    {
+        --s_depth;
+    }
+
+private:
+    inline static int s_depth = 0;
+};
+
+#    define FORMATTING_CONTEXT_TRACE() FormattingContextTracer _formatting_context_tracer(*this, available_space)
+#else
+#    define FORMATTING_CONTEXT_TRACE()
+#endif
 
 }

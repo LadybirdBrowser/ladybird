@@ -175,6 +175,7 @@ static bool is_container_element(Node const& node)
 
 void SVGFormattingContext::run(AvailableSpace const& available_space)
 {
+    FORMATTING_CONTEXT_TRACE();
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
     //       obvious way to drive SVG layout in our engine at the moment.
 
