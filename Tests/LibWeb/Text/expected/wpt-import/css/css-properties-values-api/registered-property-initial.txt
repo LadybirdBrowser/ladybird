@@ -2,20 +2,21 @@ Harness status: OK
 
 Found 29 tests
 
-29 Fail
-Fail	Initial value for <length> correctly computed [calc(10px + 15px)]
-Fail	Initial value for <length> correctly computed [1in]
-Fail	Initial value for <length> correctly computed [2.54cm]
-Fail	Initial value for <length> correctly computed [25.4mm]
-Fail	Initial value for <length> correctly computed [6pc]
-Fail	Initial value for <length> correctly computed [72pt]
-Fail	Initial value for <percentage> correctly computed [calc(10% + 20%)]
+12 Pass
+17 Fail
+Pass	Initial value for <length> correctly computed [calc(10px + 15px)]
+Pass	Initial value for <length> correctly computed [1in]
+Pass	Initial value for <length> correctly computed [2.54cm]
+Pass	Initial value for <length> correctly computed [25.4mm]
+Pass	Initial value for <length> correctly computed [6pc]
+Pass	Initial value for <length> correctly computed [72pt]
+Pass	Initial value for <percentage> correctly computed [calc(10% + 20%)]
 Fail	Initial value for <length-percentage> correctly computed [calc(1in + 10% + 4px)]
-Fail	Initial value for <color> correctly computed [pink, inherits]
-Fail	Initial value for <color> correctly computed [purple]
-Fail	Initial value for <transform-function> correctly computed [rotate(42deg)]
-Fail	Initial value for <transform-list> correctly computed [scale(calc(2 + 2))]
-Fail	Initial value for <transform-list> correctly computed [scale(calc(2 + 1)) translateX(calc(3px + 1px))]
+Pass	Initial value for <color> correctly computed [pink, inherits]
+Pass	Initial value for <color> correctly computed [purple]
+Pass	Initial value for <transform-function> correctly computed [rotate(42deg)]
+Pass	Initial value for <transform-list> correctly computed [scale(calc(2 + 2))]
+Pass	Initial value for <transform-list> correctly computed [scale(calc(2 + 1)) translateX(calc(3px + 1px))]
 Fail	Initial value for <url> correctly computed [url(a)]
 Fail	Initial value for <url>+ correctly computed [url(a) url(a)]
 Fail	Initial inherited value can be substituted [purple, color]
