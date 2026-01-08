@@ -52,7 +52,7 @@ Time Time::percentage_of(Percentage const& percentage) const
     return Time { percentage.as_fraction() * m_value, m_unit };
 }
 
-String Time::to_string(SerializationMode serialization_mode) const
+void Time::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
     // -> <time>
@@ -60,14 +60,18 @@ String Time::to_string(SerializationMode serialization_mode) const
     // AD-HOC: WPT expects us to serialize using the actual unit, like for other dimensions.
     //         https://github.com/w3c/csswg-drafts/issues/12616
     if (serialization_mode == SerializationMode::ResolvedValue) {
-        StringBuilder builder;
         serialize_a_number(builder, to_seconds());
         builder.append("s"sv);
-        return builder.to_string_without_validation();
+        return;
     }
-    StringBuilder builder;
     serialize_a_number(builder, raw_value());
     builder.append(unit_name());
+}
+
+String Time::to_string(SerializationMode serialization_mode) const
+{
+    StringBuilder builder;
+    serialize(builder, serialization_mode);
     return builder.to_string_without_validation();
 }
 

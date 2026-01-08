@@ -29,7 +29,9 @@ public:
             builder.append("fit-content"sv);
             return;
         }
-        builder.appendff("fit-content({})", m_length_percentage->to_string(mode));
+        builder.append("fit-content("sv);
+        m_length_percentage->serialize(builder, mode);
+        builder.append(')');
     }
 
     bool equals(StyleValue const& other) const override

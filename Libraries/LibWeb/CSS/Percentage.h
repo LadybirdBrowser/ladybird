@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/Serialize.h>
 
@@ -22,14 +23,19 @@ public:
     double value() const { return m_value; }
     double as_fraction() const { return m_value * 0.01; }
 
-    String to_string(SerializationMode = SerializationMode::Normal) const
+    void serialize(StringBuilder& builder, SerializationMode = SerializationMode::Normal) const
     {
         // https://drafts.csswg.org/cssom/#serialize-a-css-value
         // -> <percentage>
         // The <number> component serialized as per <number> followed by the literal string "%" (U+0025).
-        StringBuilder builder;
         serialize_a_number(builder, m_value);
-        builder.append("%"sv);
+        builder.append('%');
+    }
+
+    String to_string(SerializationMode mode = SerializationMode::Normal) const
+    {
+        StringBuilder builder;
+        serialize(builder, mode);
         return builder.to_string_without_validation();
     }
 

@@ -51,7 +51,8 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
             builder.append(' ');
         filter_function.visit(
             [&](FilterOperation::Blur const& blur) {
-                builder.appendff("blur({}", blur.radius.to_string(mode));
+                builder.append("blur("sv);
+                blur.radius.serialize(builder, mode);
             },
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.append("drop-shadow("sv);
@@ -60,14 +61,16 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
                     builder.append(' ');
                 }
                 builder.appendff("{} {}", drop_shadow.offset_x, drop_shadow.offset_y);
-                if (drop_shadow.radius.has_value())
-                    builder.appendff(" {}", drop_shadow.radius->to_string(mode));
+                if (drop_shadow.radius.has_value()) {
+                    builder.append(' ');
+                    drop_shadow.radius->serialize(builder, mode);
+                }
             },
             [&](FilterOperation::HueRotate const& hue_rotate) {
                 builder.append("hue-rotate("sv);
                 hue_rotate.angle.visit(
                     [&](AngleOrCalculated const& angle) {
-                        builder.append(angle.to_string(mode));
+                        angle.serialize(builder, mode);
                     },
                     [&](FilterOperation::HueRotate::Zero const&) {
                         builder.append("0deg"sv);
@@ -96,7 +99,7 @@ void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationM
                         }
                     }());
 
-                builder.append(color.amount.to_string(mode));
+                color.amount.serialize(builder, mode);
             },
             [&](CSS::URL const& url) {
                 builder.append(url.to_string());

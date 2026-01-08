@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/CSS/SerializationMode.h>
@@ -112,6 +113,7 @@ public:
         return ratio_between_units(m_unit, LengthUnit::Px) * m_value;
     }
 
+    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
     String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Length const& other) const
@@ -151,11 +153,19 @@ public:
 
     Length const& length() const { return m_length.value(); }
 
-    String to_string(SerializationMode mode = SerializationMode::Normal) const
+    void serialize(StringBuilder& builder, SerializationMode mode = SerializationMode::Normal) const
     {
         if (is_auto())
-            return "auto"_string;
-        return m_length->to_string(mode);
+            builder.append("auto"sv);
+        else
+            m_length->serialize(builder, mode);
+    }
+
+    String to_string(SerializationMode mode = SerializationMode::Normal) const
+    {
+        StringBuilder builder;
+        serialize(builder, mode);
+        return builder.to_string_without_validation();
     }
 
     CSSPixels to_px_or_zero(Layout::Node const& node) const

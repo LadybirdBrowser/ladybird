@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/Units.h>
 #include <LibWeb/Forward.h>
@@ -20,6 +21,7 @@ public:
     static Flex make_fr(double);
     Flex percentage_of(Percentage const&) const;
 
+    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
     String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_fr() const;
 
