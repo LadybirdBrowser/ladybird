@@ -30,7 +30,13 @@ public:
 
         bool operator==(Linear const&) const = default;
 
-        String to_string(SerializationMode) const;
+        void serialize(StringBuilder&, SerializationMode) const;
+        String to_string(SerializationMode mode) const
+        {
+            StringBuilder builder;
+            serialize(builder, mode);
+            return builder.to_string_without_validation();
+        }
     };
 
     struct CubicBezier {
@@ -52,7 +58,13 @@ public:
             return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
         }
 
-        String to_string(SerializationMode) const;
+        void serialize(StringBuilder&, SerializationMode) const;
+        String to_string(SerializationMode mode) const
+        {
+            StringBuilder builder;
+            serialize(builder, mode);
+            return builder.to_string_without_validation();
+        }
     };
 
     struct Steps {
@@ -61,13 +73,19 @@ public:
 
         bool operator==(Steps const&) const = default;
 
-        String to_string(SerializationMode) const;
+        void serialize(StringBuilder&, SerializationMode) const;
+        String to_string(SerializationMode mode) const
+        {
+            StringBuilder builder;
+            serialize(builder, mode);
+            return builder.to_string_without_validation();
+        }
     };
 
     struct WEB_API Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
-        String to_string(SerializationMode) const;
+        void serialize(StringBuilder&, SerializationMode) const;
     };
 
     static ValueComparingNonnullRefPtr<EasingStyleValue const> create(Function const& function)
@@ -78,7 +96,7 @@ public:
 
     Function const& function() const { return m_function; }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { builder.append(m_function.to_string(mode)); }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_function.serialize(builder, mode); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
