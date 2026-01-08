@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+    .container {
+        display: flex;
+        width: 500px;
+        border: 1px solid salmon;
+    }
+    .item {
+        border: 1px solid black;
+    }
+</style>
+<div class="container">
+    <div class="item" style="width: 50px;">LongWordThatExceedsWidth</div>
+    <div class="item" style="width: 100px;">Short</div>
+</div>
+<div class="container" style="margin-top: 10px;">
+    <div class="item" style="flex-basis: content;">
+        <div style="width: 150px; height: 30px; background: lightblue;"></div>
+    </div>
+    <div class="item" style="width: 100px; height: 50px;">B</div>
+</div>
+<div class="container" style="margin-top: 10px;">
+    <div class="item" style="flex: 1 1 0; width: 100px;">Flex 1</div>
+    <div class="item" style="flex: 2 1 0; width: 100px;">Flex 2</div>
+</div>

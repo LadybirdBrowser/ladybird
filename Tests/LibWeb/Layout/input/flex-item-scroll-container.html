@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+    .container {
+        display: flex;
+        width: 500px;
+        border: 1px solid salmon;
+    }
+    .item {
+        border: 1px solid black;
+        width: 100px;
+        height: 80px;
+    }
+</style>
+<div class="container">
+    <div class="item" style="overflow: auto;"><div style="width: 200px; height: 200px;">Scrollable content</div></div>
+    <div class="item" style="overflow: scroll;"><div style="width: 200px; height: 200px;">Scrollable content</div></div>
+    <div class="item" style="overflow: hidden;"><div style="width: 200px; height: 200px;">Hidden overflow</div></div>
+</div>
+<div class="container" style="margin-top: 10px;">
+    <div class="item">Regular item</div>
+    <div class="item" style="overflow: auto;"><div style="width: 200px;">Scrollable</div></div>
+    <div class="item">Regular item</div>
+</div>
