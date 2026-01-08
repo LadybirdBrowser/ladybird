@@ -106,9 +106,16 @@ GridSize GridSize::make_auto()
     return GridSize(Size::make_auto());
 }
 
+void GridSize::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    m_value.visit([&builder, mode](auto const& it) { it.serialize(builder, mode); });
+}
+
 String GridSize::to_string(SerializationMode mode) const
 {
-    return m_value.visit([mode](auto const& it) { return it.to_string(mode); });
+    StringBuilder builder;
+    serialize(builder, mode);
+    return MUST(builder.to_string());
 }
 
 GridSize GridSize::absolutized(ComputationContext const& context) const
@@ -152,14 +159,19 @@ GridMinMax::GridMinMax(GridSize min_grid_size, GridSize max_grid_size)
 {
 }
 
+void GridMinMax::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    builder.append("minmax("sv);
+    m_min_grid_size.serialize(builder, mode);
+    builder.append(", "sv);
+    m_max_grid_size.serialize(builder, mode);
+    builder.append(")"sv);
+}
+
 String GridMinMax::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.append("minmax("sv);
-    builder.appendff("{}", m_min_grid_size.to_string(mode));
-    builder.append(", "sv);
-    builder.appendff("{}", m_max_grid_size.to_string(mode));
-    builder.append(")"sv);
+    serialize(builder, mode);
     return MUST(builder.to_string());
 }
 
@@ -183,9 +195,8 @@ GridRepeat::GridRepeat(GridTrackSizeList&& grid_track_size_list, GridRepeatParam
 {
 }
 
-String GridRepeat::to_string(SerializationMode mode) const
+void GridRepeat::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     builder.append("repeat("sv);
     switch (m_type) {
     case GridRepeatType::AutoFit:
@@ -201,8 +212,14 @@ String GridRepeat::to_string(SerializationMode mode) const
         VERIFY_NOT_REACHED();
     }
     builder.append(", "sv);
-    builder.appendff("{}", m_grid_track_size_list.to_string(mode));
+    m_grid_track_size_list.serialize(builder, mode);
     builder.append(")"sv);
+}
+
+String GridRepeat::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    serialize(builder, mode);
     return MUST(builder.to_string());
 }
 
@@ -220,11 +237,18 @@ ExplicitGridTrack::ExplicitGridTrack(Variant<GridRepeat, GridMinMax, GridSize>&&
 {
 }
 
+void ExplicitGridTrack::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    m_value.visit([&builder, mode](auto const& track) {
+        track.serialize(builder, mode);
+    });
+}
+
 String ExplicitGridTrack::to_string(SerializationMode mode) const
 {
-    return m_value.visit([&mode](auto const& track) {
-        return track.to_string(mode);
-    });
+    StringBuilder builder;
+    serialize(builder, mode);
+    return MUST(builder.to_string());
 }
 
 ExplicitGridTrack ExplicitGridTrack::absolutized(ComputationContext const& context) const
@@ -234,9 +258,8 @@ ExplicitGridTrack ExplicitGridTrack::absolutized(ComputationContext const& conte
     });
 }
 
-String GridLineNames::to_string() const
+void GridLineNames::serialize(StringBuilder& builder) const
 {
-    StringBuilder builder;
     builder.append("["sv);
     for (size_t i = 0; i < m_names.size(); ++i) {
         if (i > 0)
@@ -244,6 +267,12 @@ String GridLineNames::to_string() const
         builder.append(m_names[i].name);
     }
     builder.append("]"sv);
+}
+
+String GridLineNames::to_string() const
+{
+    StringBuilder builder;
+    serialize(builder);
     return MUST(builder.to_string());
 }
 
@@ -252,22 +281,30 @@ GridTrackSizeList GridTrackSizeList::make_none()
     return GridTrackSizeList();
 }
 
-String GridTrackSizeList::to_string(SerializationMode mode) const
+void GridTrackSizeList::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_list.is_empty())
-        return "none"_string;
+    if (m_list.is_empty()) {
+        builder.append("none"sv);
+        return;
+    }
 
-    StringBuilder builder;
+    bool first = true;
     for (auto const& line_definition_or_name : m_list) {
-        if (!builder.is_empty())
+        if (!first)
             builder.append(" "sv);
+        first = false;
         if (line_definition_or_name.has<ExplicitGridTrack>()) {
-            builder.append(line_definition_or_name.get<ExplicitGridTrack>().to_string(mode));
+            line_definition_or_name.get<ExplicitGridTrack>().serialize(builder, mode);
         } else if (line_definition_or_name.has<GridLineNames>()) {
-            auto const& line_names = line_definition_or_name.get<GridLineNames>();
-            builder.append(line_names.to_string());
+            line_definition_or_name.get<GridLineNames>().serialize(builder);
         }
     }
+}
+
+String GridTrackSizeList::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    serialize(builder, mode);
     return MUST(builder.to_string());
 }
 

@@ -54,6 +54,7 @@ public:
     IntegerOrCalculated line_number() const { return *m_value.get<AreaOrLine>().line_number; }
     IntegerOrCalculated span() const { return m_value.get<Span>().value; }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode mode) const;
 
     GridTrackPlacement absolutized(ComputationContext const&) const;

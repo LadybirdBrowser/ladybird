@@ -18,7 +18,7 @@ ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> GridTrackPlaceme
 
 void GridTrackPlacementStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    builder.append(m_grid_track_placement.to_string(mode));
+    m_grid_track_placement.serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> GridTrackPlacementStyleValue::absolutized(ComputationContext const& context) const
