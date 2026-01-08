@@ -45,7 +45,6 @@ struct WASM_API Printer {
     void print(Wasm::ImportSection const&);
     void print(Wasm::ImportSection::Import const&);
     void print(Wasm::TagSection const&);
-    void print(Wasm::TagSection::Tag const&);
     void print(Wasm::Instruction const&);
     void print(Wasm::Limits const&);
     void print(Wasm::Locals const&);

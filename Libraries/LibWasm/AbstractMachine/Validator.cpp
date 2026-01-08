@@ -131,6 +131,7 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     TRY(validate(module.memory_section()));
     TRY(validate(module.table_section()));
     TRY(validate(module.code_section()));
+    TRY(validate(module.tag_section()));
 
     module.set_validation_status(Module::ValidationStatus::Valid, {});
     return {};
@@ -273,6 +274,13 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
             return Errors::invalid("function result"sv, function_type.results(), results.result_types);
     }
 
+    return {};
+}
+
+ErrorOr<void, ValidationError> Validator::validate(TagSection const& section)
+{
+    for (auto& entry : section.tags())
+        TRY(validate(entry));
     return {};
 }
 
