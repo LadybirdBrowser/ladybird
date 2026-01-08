@@ -25,7 +25,7 @@ class Echo:
     method: str
     path: str
     status: int
-    headers: Optional[Dict[str, str]]
+    headers: Dict[str, str]
     body: Optional[str]
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
@@ -60,7 +60,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo.status = data.get("status", None)
             echo.body = data.get("body", None)
             echo.delay_ms = data.get("delay_ms", None)
-            echo.headers = data.get("headers", None)
+            echo.headers = data.get("headers", {})
             echo.reason_phrase = data.get("reason_phrase", None)
             echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
 
@@ -137,7 +137,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if key in echo_store:
             echo = echo_store[key]
-            response_headers = echo.headers
+            response_headers = echo.headers.copy()
 
             if echo.delay_ms is not None:
                 time.sleep(echo.delay_ms / 1000)
@@ -148,14 +148,11 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response_only(echo.status, echo.reason_phrase)
 
                 if is_revalidation_request:
-                    if response_headers is None:
-                        response_headers = {}
-
                     # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
                     response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
 
             # Set only the headers defined in the echo definition
-            if response_headers is not None:
+            if response_headers:
                 for header, value in response_headers.items():
                     self.send_header(header, value)
                 self.end_headers()
