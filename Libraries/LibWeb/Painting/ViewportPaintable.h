@@ -8,7 +8,7 @@
 #pragma once
 
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
