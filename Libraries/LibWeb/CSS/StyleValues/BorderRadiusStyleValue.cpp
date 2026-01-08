@@ -11,11 +11,15 @@
 
 namespace Web::CSS {
 
-String BorderRadiusStyleValue::to_string(SerializationMode mode) const
+void BorderRadiusStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_properties.horizontal_radius == m_properties.vertical_radius)
-        return m_properties.horizontal_radius->to_string(mode);
-    return MUST(String::formatted("{} {}", m_properties.horizontal_radius->to_string(mode), m_properties.vertical_radius->to_string(mode)));
+    if (m_properties.horizontal_radius == m_properties.vertical_radius) {
+        m_properties.horizontal_radius->serialize(builder, mode);
+        return;
+    }
+    m_properties.horizontal_radius->serialize(builder, mode);
+    builder.append(' ');
+    m_properties.vertical_radius->serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const

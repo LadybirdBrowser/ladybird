@@ -2802,9 +2802,9 @@ void CalculatedStyleValue::CalculationResult::invert()
         m_type = m_type->inverted();
 }
 
-String CalculatedStyleValue::to_string(SerializationMode serialization_mode) const
+void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    return serialize_a_math_function(m_calculation, m_context, serialization_mode);
+    builder.append(serialize_a_math_function(m_calculation, m_context, mode));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const

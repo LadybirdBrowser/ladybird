@@ -20,15 +20,18 @@ public:
 
     ScrollbarGutter value() const { return m_value; }
 
-    virtual String to_string(SerializationMode) const override
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override
     {
         switch (m_value) {
         case ScrollbarGutter::Auto:
-            return "auto"_string;
+            builder.append("auto"sv);
+            break;
         case ScrollbarGutter::Stable:
-            return "stable"_string;
+            builder.append("stable"sv);
+            break;
         case ScrollbarGutter::BothEdges:
-            return "stable both-edges"_string;
+            builder.append("stable both-edges"sv);
+            break;
         default:
             VERIFY_NOT_REACHED();
         }

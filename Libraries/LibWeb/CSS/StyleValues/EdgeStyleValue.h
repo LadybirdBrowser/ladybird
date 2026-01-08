@@ -25,7 +25,7 @@ public:
 
     bool is_center(SerializationMode) const;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;

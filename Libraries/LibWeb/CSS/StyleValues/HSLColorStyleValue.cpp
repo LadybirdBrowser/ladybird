@@ -37,12 +37,12 @@ bool HSLColorStyleValue::equals(StyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String HSLColorStyleValue::to_string(SerializationMode mode) const
+void HSLColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (auto color = to_color({}); color.has_value())
-        return color->serialize_a_srgb_value();
-
-    StringBuilder builder;
+    if (auto color = to_color({}); color.has_value()) {
+        builder.append(color->serialize_a_srgb_value());
+        return;
+    }
 
     builder.append("hsl("sv);
     serialize_hue_component(builder, mode, m_properties.h);
@@ -56,8 +56,6 @@ String HSLColorStyleValue::to_string(SerializationMode mode) const
     }
 
     builder.append(")"sv);
-
-    return builder.to_string_without_validation();
 }
 
 }

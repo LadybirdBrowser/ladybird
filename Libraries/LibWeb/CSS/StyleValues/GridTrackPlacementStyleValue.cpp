@@ -16,9 +16,9 @@ ValueComparingNonnullRefPtr<GridTrackPlacementStyleValue const> GridTrackPlaceme
     return adopt_ref(*new (nothrow) GridTrackPlacementStyleValue(move(grid_track_placement)));
 }
 
-String GridTrackPlacementStyleValue::to_string(SerializationMode mode) const
+void GridTrackPlacementStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    return m_grid_track_placement.to_string(mode);
+    builder.append(m_grid_track_placement.to_string(mode));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> GridTrackPlacementStyleValue::absolutized(ComputationContext const& context) const

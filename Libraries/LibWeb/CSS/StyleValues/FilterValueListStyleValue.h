@@ -71,7 +71,7 @@ public:
 
     bool contains_url() const;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     virtual ~FilterValueListStyleValue() override = default;
 

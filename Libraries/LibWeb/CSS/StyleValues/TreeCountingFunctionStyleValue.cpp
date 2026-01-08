@@ -12,16 +12,16 @@
 
 namespace Web::CSS {
 
-String TreeCountingFunctionStyleValue::to_string(SerializationMode) const
+void TreeCountingFunctionStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
     switch (m_function) {
     case TreeCountingFunction::SiblingCount:
-        return "sibling-count()"_string;
+        builder.append("sibling-count()"sv);
+        break;
     case TreeCountingFunction::SiblingIndex:
-        return "sibling-index()"_string;
+        builder.append("sibling-index()"sv);
+        break;
     }
-
-    VERIFY_NOT_REACHED();
 }
 
 size_t TreeCountingFunctionStyleValue::resolve(DOM::AbstractElement const& abstract_element) const

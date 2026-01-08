@@ -43,9 +43,8 @@ float FilterOperation::Color::resolved_amount() const
     VERIFY_NOT_REACHED();
 }
 
-String FilterValueListStyleValue::to_string(SerializationMode mode) const
+void FilterValueListStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder {};
     bool first = true;
     for (auto& filter_function : filter_value_list()) {
         if (!first)
@@ -57,7 +56,8 @@ String FilterValueListStyleValue::to_string(SerializationMode mode) const
             [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.append("drop-shadow("sv);
                 if (drop_shadow.color) {
-                    builder.appendff("{} ", drop_shadow.color->to_string(mode));
+                    drop_shadow.color->serialize(builder, mode);
+                    builder.append(' ');
                 }
                 builder.appendff("{} {}", drop_shadow.offset_x, drop_shadow.offset_y);
                 if (drop_shadow.radius.has_value())
@@ -104,7 +104,6 @@ String FilterValueListStyleValue::to_string(SerializationMode mode) const
         builder.append(')');
         first = false;
     }
-    return MUST(builder.to_string());
 }
 
 bool FilterValueListStyleValue::contains_url() const

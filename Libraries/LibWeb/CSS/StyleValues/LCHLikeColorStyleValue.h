@@ -57,7 +57,7 @@ public:
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 };
 
 class OKLCHColorStyleValue final : public LCHLikeColorStyleValue {
@@ -70,7 +70,7 @@ public:
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 };
 
 }

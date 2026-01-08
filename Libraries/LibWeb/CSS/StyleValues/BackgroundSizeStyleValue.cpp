@@ -19,11 +19,15 @@ BackgroundSizeStyleValue::BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<S
 
 BackgroundSizeStyleValue::~BackgroundSizeStyleValue() = default;
 
-String BackgroundSizeStyleValue::to_string(SerializationMode mode) const
+void BackgroundSizeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (m_properties.size_x->has_auto() && m_properties.size_y->has_auto())
-        return "auto"_string;
-    return MUST(String::formatted("{} {}", m_properties.size_x->to_string(mode), m_properties.size_y->to_string(mode)));
+    if (m_properties.size_x->has_auto() && m_properties.size_y->has_auto()) {
+        builder.append("auto"sv);
+        return;
+    }
+    m_properties.size_x->serialize(builder, mode);
+    builder.append(' ');
+    m_properties.size_y->serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(ComputationContext const& computation_context) const

@@ -25,7 +25,7 @@ public:
     Repetition repeat_x() const { return m_properties.repeat_x; }
     Repetition repeat_y() const { return m_properties.repeat_y; }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(RepeatStyleStyleValue const& other) const { return m_properties == other.m_properties; }
 

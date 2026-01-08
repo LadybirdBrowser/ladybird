@@ -19,25 +19,22 @@ FontSourceStyleValue::FontSourceStyleValue(Source source, Optional<FlyString> fo
 
 FontSourceStyleValue::~FontSourceStyleValue() = default;
 
-String FontSourceStyleValue::to_string(SerializationMode) const
+void FontSourceStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
     // <font-src> = <url> [ format(<font-format>)]? [ tech( <font-tech>#)]? | local(<family-name>)
-    return m_source.visit(
-        [](Local const& local) {
+    m_source.visit(
+        [&builder](Local const& local) {
             // local(<family-name>)
 
             // https://www.w3.org/TR/cssom-1/#serialize-a-local
             // To serialize a LOCAL means to create a string represented by "local(",
             // followed by the serialization of the LOCAL as a string, followed by ")".
-            StringBuilder builder;
             builder.append("local("sv);
-            builder.append(local.name->to_string(SerializationMode::Normal));
+            local.name->serialize(builder, SerializationMode::Normal);
             builder.append(')');
-            return builder.to_string_without_validation();
         },
-        [this](URL const& url) {
+        [this, &builder](URL const& url) {
             // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
-            StringBuilder builder;
             builder.append(url.to_string());
 
             if (m_format.has_value()) {
@@ -48,13 +45,11 @@ String FontSourceStyleValue::to_string(SerializationMode) const
 
             if (!m_tech.is_empty()) {
                 builder.append(" tech("sv);
-                serialize_a_comma_separated_list(builder, m_tech, [](auto& builder, FontTech const tech) {
-                    return builder.append(CSS::to_string(tech));
+                serialize_a_comma_separated_list(builder, m_tech, [](auto& b, FontTech const tech) {
+                    return b.append(CSS::to_string(tech));
                 });
                 builder.append(")"sv);
             }
-
-            return builder.to_string_without_validation();
         });
 }
 

@@ -33,7 +33,7 @@ public:
         return m_properties.values[i];
     }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const override;

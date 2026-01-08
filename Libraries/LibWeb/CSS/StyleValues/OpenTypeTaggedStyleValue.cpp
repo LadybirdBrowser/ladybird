@@ -19,24 +19,24 @@ ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absoluti
     return OpenTypeTaggedStyleValue::create(m_mode, m_tag, absolutized_value);
 }
 
-String OpenTypeTaggedStyleValue::to_string(SerializationMode mode) const
+void OpenTypeTaggedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     serialize_a_string(builder, m_tag);
     switch (m_mode) {
     case Mode::FontFeatureSettings: {
         // For font-feature-settings, a 1 value is implicit, so we shouldn't output it.
         auto value_string = m_value->to_string(mode);
-        if (value_string != "1"sv)
-            builder.appendff(" {}", value_string);
+        if (value_string != "1"sv) {
+            builder.append(' ');
+            m_value->serialize(builder, mode);
+        }
         break;
     }
     case Mode::FontVariationSettings:
-        builder.appendff(" {}", m_value->to_string(mode));
+        builder.append(' ');
+        m_value->serialize(builder, mode);
         break;
     }
-
-    return builder.to_string_without_validation();
 }
 
 bool OpenTypeTaggedStyleValue::properties_equal(OpenTypeTaggedStyleValue const& other) const

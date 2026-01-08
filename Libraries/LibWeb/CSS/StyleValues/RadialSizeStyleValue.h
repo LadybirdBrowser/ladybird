@@ -24,7 +24,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    virtual String to_string(SerializationMode serialization_mode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     Vector<Component> components() const { return m_components; }
 

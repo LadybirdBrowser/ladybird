@@ -24,9 +24,8 @@ AnchorStyleValue::AnchorStyleValue(Optional<FlyString> const& anchor_name,
 {
 }
 
-String AnchorStyleValue::to_string(SerializationMode serialization_mode) const
+void AnchorStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
-    StringBuilder builder;
     builder.append("anchor("sv);
 
     if (anchor_name().has_value())
@@ -34,15 +33,14 @@ String AnchorStyleValue::to_string(SerializationMode serialization_mode) const
 
     if (anchor_name().has_value())
         builder.append(' ');
-    builder.append(anchor_side()->to_string(serialization_mode));
+    anchor_side()->serialize(builder, serialization_mode);
 
     if (fallback_value()) {
         builder.append(", "sv);
-        builder.append(fallback_value()->to_string(serialization_mode));
+        fallback_value()->serialize(builder, serialization_mode);
     }
 
     builder.append(')');
-    return MUST(builder.to_string());
 }
 
 }

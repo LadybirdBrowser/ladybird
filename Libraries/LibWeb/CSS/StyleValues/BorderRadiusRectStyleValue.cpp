@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-String BorderRadiusRectStyleValue::to_string(SerializationMode mode) const
+void BorderRadiusRectStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     auto horizontal_radii_serialized = serialize_a_positional_value_list(
         { m_top_left->as_border_radius().horizontal_radius(), m_top_right->as_border_radius().horizontal_radius(), m_bottom_right->as_border_radius().horizontal_radius(), m_bottom_left->as_border_radius().horizontal_radius() },
@@ -20,10 +20,12 @@ String BorderRadiusRectStyleValue::to_string(SerializationMode mode) const
         { m_top_left->as_border_radius().vertical_radius(), m_top_right->as_border_radius().vertical_radius(), m_bottom_right->as_border_radius().vertical_radius(), m_bottom_left->as_border_radius().vertical_radius() },
         mode);
 
-    if (horizontal_radii_serialized == vertical_radii_serialized)
-        return horizontal_radii_serialized;
+    if (horizontal_radii_serialized == vertical_radii_serialized) {
+        builder.append(horizontal_radii_serialized);
+        return;
+    }
 
-    return MUST(String::formatted("{} / {}", horizontal_radii_serialized, vertical_radii_serialized));
+    builder.appendff("{} / {}", horizontal_radii_serialized, vertical_radii_serialized);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusRectStyleValue::absolutized(ComputationContext const& computation_context) const

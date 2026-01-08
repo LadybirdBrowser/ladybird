@@ -28,10 +28,14 @@ bool LightDarkStyleValue::equals(StyleValue const& other) const
     return m_properties == other_light_dark.m_properties;
 }
 
-String LightDarkStyleValue::to_string(SerializationMode mode) const
+void LightDarkStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     // FIXME: We don't have enough information to determine the computed value here.
-    return MUST(String::formatted("light-dark({}, {})", m_properties.light->to_string(mode), m_properties.dark->to_string(mode)));
+    builder.append("light-dark("sv);
+    m_properties.light->serialize(builder, mode);
+    builder.append(", "sv);
+    m_properties.dark->serialize(builder, mode);
+    builder.append(')');
 }
 
 }

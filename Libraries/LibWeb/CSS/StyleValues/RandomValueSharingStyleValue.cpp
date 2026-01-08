@@ -64,23 +64,25 @@ double RandomValueSharingStyleValue::random_base_value() const
     VERIFY_NOT_REACHED();
 }
 
-String RandomValueSharingStyleValue::to_string(SerializationMode serialization_mode) const
+void RandomValueSharingStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
-    if (m_fixed_value)
-        return MUST(String::formatted("fixed {}", m_fixed_value->to_string(serialization_mode)));
+    if (m_fixed_value) {
+        builder.append("fixed "sv);
+        m_fixed_value->serialize(builder, serialization_mode);
+        return;
+    }
 
-    StringBuilder builder;
-
-    if (!m_is_auto)
+    bool first = true;
+    if (!m_is_auto) {
         builder.appendff("{}", m_name.value());
+        first = false;
+    }
 
     if (m_element_shared) {
-        if (!builder.is_empty())
+        if (!first)
             builder.append(' ');
         builder.append("element-shared"sv);
     }
-
-    return builder.to_string_without_validation();
 }
 
 }

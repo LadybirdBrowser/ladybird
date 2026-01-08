@@ -78,7 +78,7 @@ public:
 
     Function const& function() const { return m_function; }
 
-    virtual String to_string(SerializationMode mode) const override { return m_function.to_string(mode); }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { builder.append(m_function.to_string(mode)); }
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

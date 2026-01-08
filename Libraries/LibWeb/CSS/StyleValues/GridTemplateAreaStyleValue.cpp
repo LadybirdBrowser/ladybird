@@ -17,12 +17,13 @@ ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> GridTemplateAreaSt
     return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(grid_template_area));
 }
 
-String GridTemplateAreaStyleValue::to_string(SerializationMode) const
+void GridTemplateAreaStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_grid_template_area.is_empty())
-        return "none"_string;
+    if (m_grid_template_area.is_empty()) {
+        builder.append("none"sv);
+        return;
+    }
 
-    StringBuilder builder;
     for (size_t y = 0; y < m_grid_template_area.size(); ++y) {
         if (y != 0)
             builder.append(' ');
@@ -34,7 +35,6 @@ String GridTemplateAreaStyleValue::to_string(SerializationMode) const
         }
         serialize_a_string(builder, row_builder.string_view());
     }
-    return MUST(builder.to_string());
 }
 
 }

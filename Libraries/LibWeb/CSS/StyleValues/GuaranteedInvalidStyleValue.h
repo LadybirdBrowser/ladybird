@@ -19,7 +19,7 @@ public:
         return instance;
     }
     virtual ~GuaranteedInvalidStyleValue() override = default;
-    virtual String to_string(SerializationMode) const override { return {}; }
+    virtual void serialize(StringBuilder&, SerializationMode) const override { }
     virtual Vector<Parser::ComponentValue> tokenize() const override
     {
         return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };

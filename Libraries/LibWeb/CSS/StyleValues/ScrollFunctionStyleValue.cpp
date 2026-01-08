@@ -8,9 +8,8 @@
 
 namespace Web::CSS {
 
-String ScrollFunctionStyleValue::to_string(SerializationMode) const
+void ScrollFunctionStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    StringBuilder builder;
     builder.append("scroll("sv);
 
     if (m_scroller != Scroller::Nearest)
@@ -23,7 +22,6 @@ String ScrollFunctionStyleValue::to_string(SerializationMode) const
     }
 
     builder.append(')');
-    return builder.to_string_without_validation();
 }
 
 }

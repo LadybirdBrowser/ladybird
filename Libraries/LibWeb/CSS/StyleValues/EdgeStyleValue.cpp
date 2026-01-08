@@ -22,10 +22,8 @@ bool EdgeStyleValue::is_center(SerializationMode mode) const
     return false;
 }
 
-String EdgeStyleValue::to_string(SerializationMode mode) const
+void EdgeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
-
     if (m_properties.edge.has_value())
         builder.append(CSS::to_string(m_properties.edge.value()));
 
@@ -33,9 +31,7 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
         builder.append(' ');
 
     if (m_properties.offset)
-        builder.append(m_properties.offset->to_string(mode));
-
-    return builder.to_string_without_validation();
+        m_properties.offset->serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_keywords() const

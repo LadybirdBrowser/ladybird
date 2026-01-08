@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-String IntegerStyleValue::to_string(SerializationMode) const
+void IntegerStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    return String::number(m_value);
+    builder.appendff("{}", m_value);
 }
 
 Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const

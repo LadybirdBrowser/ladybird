@@ -26,7 +26,7 @@ public:
 
     bool fill() const { return m_properties.fill; }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return m_properties == other.m_properties; }
 

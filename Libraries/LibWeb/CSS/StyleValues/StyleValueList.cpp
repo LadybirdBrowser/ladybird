@@ -43,10 +43,10 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(Comput
     return StyleValueList::create(move(absolutized_style_values), m_properties.separator);
 }
 
-String StyleValueList::to_string(SerializationMode mode) const
+void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     if (m_properties.values.is_empty())
-        return {};
+        return;
 
     auto separator = ""sv;
     switch (m_properties.separator) {
@@ -61,16 +61,16 @@ String StyleValueList::to_string(SerializationMode mode) const
     }
 
     auto first_value = m_properties.values.first();
-    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma)
-        return first_value->to_string(mode);
+    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma) {
+        first_value->serialize(builder, mode);
+        return;
+    }
 
-    StringBuilder builder;
     for (size_t i = 0; i < m_properties.values.size(); ++i) {
-        builder.append(m_properties.values[i]->to_string(mode));
+        m_properties.values[i]->serialize(builder, mode);
         if (i != m_properties.values.size() - 1)
             builder.append(separator);
     }
-    return MUST(builder.to_string());
 }
 
 void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
