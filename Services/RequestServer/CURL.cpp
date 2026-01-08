@@ -48,6 +48,8 @@ Requests::NetworkError curl_code_to_network_error(int code)
         return Requests::NetworkError::SSLVerificationFailed;
     case CURLE_URL_MALFORMAT:
         return Requests::NetworkError::MalformedUrl;
+    case CURLE_PARTIAL_FILE:
+        return Requests::NetworkError::IncompleteContent;
     case CURLE_BAD_CONTENT_ENCODING:
         return Requests::NetworkError::InvalidContentEncoding;
     default:
