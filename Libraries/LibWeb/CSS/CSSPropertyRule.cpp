@@ -42,6 +42,16 @@ void CSSPropertyRule::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+CustomPropertyRegistration CSSPropertyRule::to_registration() const
+{
+    return CustomPropertyRegistration {
+        .property_name = m_name,
+        .syntax = m_syntax.to_string(),
+        .inherit = m_inherits,
+        .initial_value = m_initial_value,
+    };
+}
+
 // https://www.w3.org/TR/cssom-1/#serialize-a-css-rule
 String CSSPropertyRule::serialized() const
 {

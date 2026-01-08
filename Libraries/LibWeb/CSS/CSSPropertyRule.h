@@ -7,10 +7,11 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -30,6 +31,8 @@ public:
     bool inherits() const { return m_inherits; }
     Optional<String> initial_value() const;
     RefPtr<StyleValue const> initial_style_value() const { return m_initial_value; }
+
+    CustomPropertyRegistration to_registration() const;
 
 private:
     CSSPropertyRule(JS::Realm&, FlyString name, FlyString syntax, bool inherits, RefPtr<StyleValue const> initial_value);
