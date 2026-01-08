@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Comparison of `Origin.from(Worker)` for opaque data URL origin.
+Pass	Comparison of `Origin.from(Worker)` tuple origins.
