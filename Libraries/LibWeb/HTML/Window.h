@@ -261,6 +261,8 @@ public:
 
     void consume_history_action_user_activation();
 
+    static bool in_test_mode();
+    static void set_enable_test_mode(bool);
     static void set_internals_object_exposed(bool);
 
     [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
