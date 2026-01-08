@@ -28,7 +28,7 @@ ValueComparingNonnullRefPtr<LengthStyleValue const> LengthStyleValue::create(Len
 
 ValueComparingNonnullRefPtr<StyleValue const> LengthStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    if (auto length = m_length.absolutize(computation_context.length_resolution_context.viewport_rect, computation_context.length_resolution_context.font_metrics, computation_context.length_resolution_context.root_font_metrics); length.has_value())
+    if (auto length = m_length.absolutize(computation_context.length_resolution_context); length.has_value())
         return LengthStyleValue::create(length.release_value());
     return *this;
 }
