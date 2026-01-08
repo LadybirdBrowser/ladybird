@@ -63,7 +63,7 @@ void LinearGradientStyleValue::serialize(StringBuilder& builder, SerializationMo
     }
 
     if (has_color_space)
-        builder.append(m_properties.interpolation_method.value().to_string());
+        m_properties.interpolation_method.value().serialize(builder);
 
     if (has_direction || has_color_space)
         builder.append(", "sv);

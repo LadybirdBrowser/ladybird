@@ -37,7 +37,7 @@ void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMod
     if (has_color_space) {
         if (has_from_angle || has_at_position)
             builder.append(' ');
-        builder.append(m_properties.interpolation_method.value().to_string());
+        m_properties.interpolation_method.value().serialize(builder);
     }
     if (has_from_angle || has_at_position || has_color_space)
         builder.append(", "sv);
