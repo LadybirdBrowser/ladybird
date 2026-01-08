@@ -660,7 +660,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 if (auto* line_names = track_size_or_line_names.get_pointer<GridLineNames>()) {
                     if (i != 0)
                         inner_builder.append(' ');
-                    inner_builder.append(line_names->to_string());
+                    line_names->serialize(inner_builder);
                 }
                 if (areas.grid_template_area().size() > i) {
                     if (!inner_builder.is_empty())
@@ -686,7 +686,9 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         };
 
         if (areas.grid_template_area().is_empty()) {
-            builder.appendff("{} / {}", rows.grid_track_size_list().to_string(mode), columns.grid_track_size_list().to_string(mode));
+            rows.grid_track_size_list().serialize(builder, mode);
+            builder.append(" / "sv);
+            columns.grid_track_size_list().serialize(builder, mode);
             return;
         }
 
@@ -698,7 +700,9 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             builder.append(rows_serialization);
             return;
         }
-        builder.appendff("{} / {}", construct_rows_string(), columns.grid_track_size_list().to_string(mode));
+        builder.append(construct_rows_string());
+        builder.append(" / "sv);
+        columns.grid_track_size_list().serialize(builder, mode);
         return;
     }
     case PropertyID::GridColumn: {

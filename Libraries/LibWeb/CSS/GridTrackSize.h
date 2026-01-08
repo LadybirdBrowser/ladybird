@@ -40,6 +40,7 @@ public:
 
     bool is_definite() const;
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     GridSize absolutized(ComputationContext const&) const;
     bool operator==(GridSize const& other) const = default;
@@ -55,6 +56,7 @@ public:
     GridSize const& min_grid_size() const& { return m_min_grid_size; }
     GridSize const& max_grid_size() const& { return m_max_grid_size; }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     GridMinMax absolutized(ComputationContext const&) const;
     bool operator==(GridMinMax const& other) const = default;
@@ -77,6 +79,7 @@ public:
     bool is_empty() const { return m_names.is_empty(); }
     auto const& names() const& { return m_names; }
 
+    void serialize(StringBuilder&) const;
     String to_string() const;
 
     bool operator==(GridLineNames const& other) const = default;
@@ -92,6 +95,7 @@ public:
     Vector<CSS::ExplicitGridTrack> track_list() const;
     auto const& list() const { return m_list; }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     bool operator==(GridTrackSizeList const& other) const;
 
@@ -133,6 +137,7 @@ public:
     GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
     GridRepeatType type() const& { return m_type; }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     GridRepeat absolutized(ComputationContext const&) const;
     bool operator==(GridRepeat const& other) const = default;
@@ -156,6 +161,7 @@ public:
     bool is_default() const { return m_value.has<GridSize>(); }
     GridSize const& grid_size() const { return m_value.get<GridSize>(); }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     ExplicitGridTrack absolutized(ComputationContext const&) const;
     bool operator==(ExplicitGridTrack const& other) const = default;
