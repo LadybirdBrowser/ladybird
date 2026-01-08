@@ -65,6 +65,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
     auto& realm = *vm.current_realm();
     auto& window = static_cast<Web::HTML::Window&>(realm.global_object());
     auto& document = window.associated_document();
+    auto& property_set = document.registered_property_set();
 
     // 2. If name is not a custom property name string, throw a SyntaxError and exit this algorithm.
     if (!is_a_custom_property_name_string(definition.name))
@@ -72,7 +73,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
 
     // If property set already contains an entry with name as its property name (compared codepoint-wise),
     // throw an InvalidModificationError and exit this algorithm.
-    if (document.registered_custom_properties().contains(definition.name))
+    if (property_set.contains(definition.name))
         return WebIDL::InvalidModificationError::create(realm, "Property already registered"_utf16);
 
     auto parsing_params = CSS::Parser::ParsingParams { document };
@@ -130,11 +131,14 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
 
     // 6. Let registered property be a struct with a property name of name, a syntax of syntax definition,
     //    an initial value of parsed initial value, and an inherit flag of inherit flag.
-    auto registered_property = CSSPropertyRule::create(realm, definition.name, definition.syntax, definition.inherits, initial_value_maybe);
+    CustomPropertyRegistration registered_property {
+        .property_name = definition.name,
+        .syntax = definition.syntax,
+        .inherit = definition.inherits,
+        .initial_value = initial_value_maybe,
+    };
     // Append registered property to property set.
-    document.registered_custom_properties().set(
-        registered_property->name(),
-        registered_property);
+    property_set.set(registered_property.property_name, registered_property);
 
     return {};
 }

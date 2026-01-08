@@ -152,7 +152,7 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
         case CSSRule::Type::Property: {
             auto& property_rule = as<CSSPropertyRule>(*rule);
             if (m_document) {
-                const_cast<DOM::Document*>(m_document.ptr())->registered_custom_properties().set(property_rule.name(), property_rule);
+                const_cast<DOM::Document*>(m_document.ptr())->registered_property_set().set(property_rule.name(), property_rule.to_registration());
             }
             [[fallthrough]];
         }
