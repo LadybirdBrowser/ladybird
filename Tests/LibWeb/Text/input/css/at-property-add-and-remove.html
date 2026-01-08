@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<style id="styleElement"></style>
+<script>
+    test(() => {
+        let style = getComputedStyle(target);
+        
+        // Adding or removing a @property rule
+        println(`Before registering --foo, its value is: ${style.getPropertyValue('--foo')}`);
+        styleElement.sheet.insertRule("@property --foo { syntax: '*'; inherits: true; initial-value: '42'; }");
+        println(`After registering --foo, its value is: ${style.getPropertyValue('--foo')}`);
+        styleElement.sheet.deleteRule(0);
+        println(`After removing --foo, its value is: ${style.getPropertyValue('--foo')}`);
+        
+        // The @property shouldn't apply until it's added to the document
+        let newSheet = new CSSStyleSheet();
+        newSheet.replaceSync("@property --bar { syntax: '*'; inherits: true; initial-value: '1337'; }");
+        println(`Before adding the new sheet, --bar's value is: ${style.getPropertyValue('--bar')}`);
+        document.adoptedStyleSheets.push(newSheet);
+        println(`After adding the new sheet, --bar's value is: ${style.getPropertyValue('--bar')}`);
+        // ...and then should stop applying when it's removed
+        document.adoptedStyleSheets.pop();
+        println(`After removing the new sheet, --bar's value is: ${style.getPropertyValue('--bar')}`);
+    });
+</script>

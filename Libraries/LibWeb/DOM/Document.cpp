@@ -1610,6 +1610,8 @@ void Document::update_style()
     style_computer().reset_has_result_cache();
     style_computer().reset_ancestor_filter();
 
+    build_registered_properties_cache();
+
     auto invalidation = update_style_recursively(*this, style_computer(), false, false);
     if (!invalidation.is_none())
         invalidate_display_list();
@@ -6919,8 +6921,10 @@ Optional<CSS::CustomPropertyRegistration const&> Document::get_registered_custom
     if (auto registered_property = m_registered_property_set.get(name); registered_property.has_value())
         return registered_property;
 
-    // FIXME: Otherwise, if the Document’s active stylesheets contain at least one valid @property rule representing a
-    //        registration with the custom property’s name, the last such one in document order is the registration.
+    // Otherwise, if the Document’s active stylesheets contain at least one valid @property rule representing a
+    // registration with the custom property’s name, the last such one in document order is the registration.
+    if (auto registered_property = m_cached_registered_properties_from_css_property_rules.get(name); registered_property.has_value())
+        return registered_property;
 
     // Otherwise there is no registration, and the custom property is not a registered custom property.
     return {};
@@ -6938,6 +6942,17 @@ NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(Fly
     // For non-registered properties, the initial value is the guaranteed-invalid value.
     // See: https://drafts.csswg.org/css-variables/#propdef-
     return CSS::GuaranteedInvalidStyleValue::create();
+}
+
+void Document::build_registered_properties_cache()
+{
+    m_cached_registered_properties_from_css_property_rules.clear_with_capacity();
+    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& style_sheet) {
+        style_sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSS::CSSRule const& rule) {
+            if (auto* property_rule = as_if<CSS::CSSPropertyRule>(rule))
+                m_cached_registered_properties_from_css_property_rules.set(property_rule->name(), property_rule->to_registration());
+        });
+    });
 }
 
 GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const

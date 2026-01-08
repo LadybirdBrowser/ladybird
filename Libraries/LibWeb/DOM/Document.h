@@ -1026,6 +1026,8 @@ private:
 
     void run_csp_initialization() const;
 
+    void build_registered_properties_cache();
+
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::FontComputer> m_font_computer;
@@ -1370,6 +1372,7 @@ private:
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, CSS::CustomPropertyRegistration> m_registered_property_set;
+    HashMap<FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
 
     CSS::StyleScope m_style_scope;
 
