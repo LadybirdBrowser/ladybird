@@ -198,29 +198,28 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto origin = longhand(PropertyID::BackgroundOrigin);
         auto clip = longhand(PropertyID::BackgroundClip);
 
-        auto serialize_layer = [mode](Optional<String> color_value_string, String image_value_string, String position_x_value_string, String position_y_value_string, String size_value_string, String repeat_value_string, String attachment_value_string, String origin_value_string, String clip_value_string) {
-            StringBuilder builder;
-
+        auto serialize_layer = [mode](StringBuilder& builder, ValueComparingRefPtr<StyleValue const> color_value, ValueComparingRefPtr<StyleValue const> image_value, ValueComparingRefPtr<StyleValue const> position_x_value, ValueComparingRefPtr<StyleValue const> position_y_value, ValueComparingRefPtr<StyleValue const> size_value, ValueComparingRefPtr<StyleValue const> repeat_value, ValueComparingRefPtr<StyleValue const> attachment_value, ValueComparingRefPtr<StyleValue const> origin_value, ValueComparingRefPtr<StyleValue const> clip_value) {
             Vector<PropertyID> property_ids = { PropertyID::BackgroundColor, PropertyID::BackgroundImage, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY, PropertyID::BackgroundSize, PropertyID::BackgroundRepeat, PropertyID::BackgroundAttachment, PropertyID::BackgroundOrigin, PropertyID::BackgroundClip };
-            Vector<Optional<String>> property_value_strings = { move(color_value_string), move(image_value_string), move(position_x_value_string), move(position_y_value_string), move(size_value_string), move(repeat_value_string), move(attachment_value_string), move(origin_value_string), move(clip_value_string) };
+            Vector<ValueComparingRefPtr<StyleValue const>> property_values = { move(color_value), move(image_value), move(position_x_value), move(position_y_value), move(size_value), move(repeat_value), move(attachment_value), move(origin_value), move(clip_value) };
 
+            bool first = true;
             for (size_t i = 0; i < property_ids.size(); i++) {
-                if (!property_value_strings[i].has_value())
+                if (!property_values[i])
                     continue;
 
-                auto intial_property_string_value = property_initial_value(property_ids[i])->to_string(mode);
+                auto value_string = property_values[i]->to_string(mode);
+                auto initial_value_string = property_initial_value(property_ids[i])->to_string(mode);
 
-                if (property_value_strings[i].value() != intial_property_string_value) {
-                    if (!builder.is_empty())
-                        builder.append(" "sv);
-                    builder.append(property_value_strings[i].value());
+                if (value_string != initial_value_string) {
+                    if (!first)
+                        builder.append(' ');
+                    builder.append(value_string);
+                    first = false;
                 }
             }
 
-            if (builder.is_empty())
-                return "none"_string;
-
-            return builder.to_string_without_validation();
+            if (first)
+                builder.append("none"sv);
         };
 
         auto get_layer_count = [](auto style_value) -> size_t {
@@ -230,25 +229,25 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto layer_count = max(get_layer_count(image), max(get_layer_count(position_x), max(get_layer_count(position_y), max(get_layer_count(size), max(get_layer_count(repeat), max(get_layer_count(attachment), max(get_layer_count(origin), get_layer_count(clip))))))));
 
         if (layer_count == 1) {
-            builder.append(serialize_layer(color->to_string(mode), image->to_string(mode), position_x->to_string(mode), position_y->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode)));
+            serialize_layer(builder, color, image, position_x, position_y, size, repeat, attachment, origin, clip);
             return;
         }
 
-        auto get_layer_value_string = [mode](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
+        auto get_layer_value = [](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) -> ValueComparingRefPtr<StyleValue const> {
             if (style_value->is_value_list())
-                return style_value->as_value_list().value_at(index, true)->to_string(mode);
-            return style_value->to_string(mode);
+                return style_value->as_value_list().value_at(index, true);
+            return style_value;
         };
 
         for (size_t i = 0; i < layer_count; i++) {
             if (i)
                 builder.append(", "sv);
 
-            Optional<String> maybe_color_value_string;
+            ValueComparingRefPtr<StyleValue const> maybe_color_value;
             if (i == layer_count - 1)
-                maybe_color_value_string = color->to_string(mode);
+                maybe_color_value = color;
 
-            builder.append(serialize_layer(maybe_color_value_string, get_layer_value_string(image, i), get_layer_value_string(position_x, i), get_layer_value_string(position_y, i), get_layer_value_string(size, i), get_layer_value_string(repeat, i), get_layer_value_string(attachment, i), get_layer_value_string(origin, i), get_layer_value_string(clip, i)));
+            serialize_layer(builder, maybe_color_value, get_layer_value(image, i), get_layer_value(position_x, i), get_layer_value(position_y, i), get_layer_value(size, i), get_layer_value(repeat, i), get_layer_value(attachment, i), get_layer_value(origin, i), get_layer_value(clip, i));
         }
         return;
     }
@@ -730,7 +729,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         return;
     }
     case PropertyID::Mask: {
-        auto serialize_layer = [mode, &builder](String image_value_string, String position_value_string, String size_value_string, String repeat_value_string, String origin_value_string, String clip_value_string, String composite_value_string, String mode_value_string) {
+        auto serialize_layer = [mode](StringBuilder& builder, ValueComparingRefPtr<StyleValue const> image_value, ValueComparingRefPtr<StyleValue const> position_value, ValueComparingRefPtr<StyleValue const> size_value, ValueComparingRefPtr<StyleValue const> repeat_value, ValueComparingRefPtr<StyleValue const> origin_value, ValueComparingRefPtr<StyleValue const> clip_value, ValueComparingRefPtr<StyleValue const> composite_value, ValueComparingRefPtr<StyleValue const> mode_value) {
             PropertyID canonical_property_order[] = {
                 PropertyID::MaskImage,
                 PropertyID::MaskPosition,
@@ -742,39 +741,27 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 PropertyID::MaskMode,
             };
 
-            auto property_value = [&](PropertyID property) -> String const& {
-                switch (property) {
-                case PropertyID::MaskImage:
-                    return image_value_string;
-                case PropertyID::MaskPosition:
-                    return position_value_string;
-                case PropertyID::MaskSize:
-                    return size_value_string;
-                case PropertyID::MaskRepeat:
-                    return repeat_value_string;
-                case PropertyID::MaskOrigin:
-                    return origin_value_string;
-                case PropertyID::MaskClip:
-                    return clip_value_string;
-                case PropertyID::MaskComposite:
-                    return composite_value_string;
-                case PropertyID::MaskMode:
-                    return mode_value_string;
-                default:
-                    VERIFY_NOT_REACHED();
+            Vector<PropertyID> property_ids = { PropertyID::MaskImage, PropertyID::MaskPosition, PropertyID::MaskSize, PropertyID::MaskRepeat, PropertyID::MaskOrigin, PropertyID::MaskClip, PropertyID::MaskComposite, PropertyID::MaskMode };
+            Vector<ValueComparingRefPtr<StyleValue const>> property_values = { move(image_value), move(position_value), move(size_value), move(repeat_value), move(origin_value), move(clip_value), move(composite_value), move(mode_value) };
+
+            auto property_value_string = [&](PropertyID property) -> String {
+                for (size_t i = 0; i < property_ids.size(); i++) {
+                    if (property_ids[i] == property)
+                        return property_values[i]->to_string(mode);
                 }
+                VERIFY_NOT_REACHED();
             };
 
-            auto is_initial_value = [mode, property_value](PropertyID property) -> bool {
-                return property_value(property) == property_initial_value(property)->to_string(mode);
+            auto is_initial_value = [&](PropertyID property) -> bool {
+                return property_value_string(property) == property_initial_value(property)->to_string(mode);
             };
 
-            auto can_skip_serializing_initial_value = [is_initial_value, property_value](PropertyID property) -> bool {
+            auto can_skip_serializing_initial_value = [&](PropertyID property) -> bool {
                 switch (property) {
                 case PropertyID::MaskPosition:
                     return is_initial_value(PropertyID::MaskSize);
                 case PropertyID::MaskOrigin:
-                    return is_initial_value(PropertyID::MaskClip) || property_value(PropertyID::MaskClip) == string_from_keyword(Keyword::NoClip);
+                    return is_initial_value(PropertyID::MaskClip) || property_value_string(PropertyID::MaskClip) == string_from_keyword(Keyword::NoClip);
                 default:
                     return true;
                 }
@@ -783,19 +770,19 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             bool layer_is_empty = true;
             for (size_t i = 0; i < array_size(canonical_property_order); i++) {
                 auto property = canonical_property_order[i];
-                auto const& value = property_value(property);
+                auto value = property_value_string(property);
 
                 if (is_initial_value(property) && can_skip_serializing_initial_value(property))
                     continue;
-                if (property == PropertyID::MaskClip && value == property_value(PropertyID::MaskOrigin))
+                if (property == PropertyID::MaskClip && value == property_value_string(PropertyID::MaskOrigin))
                     continue;
 
                 if (!layer_is_empty)
-                    builder.append(" "sv);
+                    builder.append(' ');
                 builder.append(value);
                 if (property == PropertyID::MaskPosition && !is_initial_value(PropertyID::MaskSize)) {
                     builder.append(" / "sv);
-                    builder.append(property_value(PropertyID::MaskSize));
+                    builder.append(property_value_string(PropertyID::MaskSize));
                 }
                 layer_is_empty = false;
             }
@@ -820,19 +807,19 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto layer_count = max(get_layer_count(mask_image), max(get_layer_count(mask_position), max(get_layer_count(mask_size), max(get_layer_count(mask_repeat), max(get_layer_count(mask_origin), max(get_layer_count(mask_clip), max(get_layer_count(mask_composite), get_layer_count(mask_mode))))))));
 
         if (layer_count == 1) {
-            serialize_layer(mask_image->to_string(mode), mask_position->to_string(mode), mask_size->to_string(mode), mask_repeat->to_string(mode), mask_origin->to_string(mode), mask_clip->to_string(mode), mask_composite->to_string(mode), mask_mode->to_string(mode));
+            serialize_layer(builder, mask_image, mask_position, mask_size, mask_repeat, mask_origin, mask_clip, mask_composite, mask_mode);
         } else {
-            auto get_layer_value_string = [mode](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) {
+            auto get_layer_value = [](ValueComparingRefPtr<StyleValue const> const& style_value, size_t index) -> ValueComparingRefPtr<StyleValue const> {
                 if (style_value->is_value_list())
-                    return style_value->as_value_list().value_at(index, true)->to_string(mode);
-                return style_value->to_string(mode);
+                    return style_value->as_value_list().value_at(index, true);
+                return style_value;
             };
 
             for (size_t i = 0; i < layer_count; i++) {
                 if (i)
                     builder.append(", "sv);
 
-                serialize_layer(get_layer_value_string(mask_image, i), get_layer_value_string(mask_position, i), get_layer_value_string(mask_size, i), get_layer_value_string(mask_repeat, i), get_layer_value_string(mask_origin, i), get_layer_value_string(mask_clip, i), get_layer_value_string(mask_composite, i), get_layer_value_string(mask_mode, i));
+                serialize_layer(builder, get_layer_value(mask_image, i), get_layer_value(mask_position, i), get_layer_value(mask_size, i), get_layer_value(mask_repeat, i), get_layer_value(mask_origin, i), get_layer_value(mask_clip, i), get_layer_value(mask_composite, i), get_layer_value(mask_mode, i));
             }
         }
         return;
