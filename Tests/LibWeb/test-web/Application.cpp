@@ -65,7 +65,7 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     request_server_options.http_disk_cache_mode = WebView::HTTPDiskCacheMode::Testing;
 
-    web_content_options.is_layout_test_mode = WebView::IsLayoutTestMode::Yes;
+    web_content_options.is_test_mode = WebView::IsTestMode::Yes;
 
     // Allow window.open() to succeed for tests.
     browser_options.allow_popups = WebView::AllowPopups::Yes;

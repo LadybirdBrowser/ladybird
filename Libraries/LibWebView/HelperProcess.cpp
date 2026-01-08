@@ -104,8 +104,8 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--config-path"sv);
         arguments.append(web_content_options.config_path.value());
     }
-    if (web_content_options.is_layout_test_mode == WebView::IsLayoutTestMode::Yes)
-        arguments.append("--layout-test-mode"sv);
+    if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
+        arguments.append("--test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
     if (web_content_options.disable_site_isolation == WebView::DisableSiteIsolation::Yes)
