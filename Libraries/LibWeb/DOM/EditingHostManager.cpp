@@ -208,4 +208,12 @@ EventResult EditingHostManager::handle_return_key(FlyString const& ui_input_type
     return editing_result.value() ? EventResult::Handled : EventResult::Dropped;
 }
 
+bool EditingHostManager::is_within_active_contenteditable(Node const& node) const
+{
+    if (!m_active_contenteditable_element)
+        return false;
+    Node const* active = m_active_contenteditable_element.ptr();
+    return node.find_in_shadow_including_ancestry([&](Node const& it) { return &it == active; });
+}
+
 }

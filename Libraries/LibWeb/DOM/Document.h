@@ -855,7 +855,7 @@ public:
     void set_console_client(GC::Ptr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     GC::Ptr<JS::ConsoleClient> console_client() const { return m_console_client; }
 
-    InputEventsTarget* active_input_events_target();
+    InputEventsTarget* active_input_events_target(DOM::Node const* for_node = nullptr);
     GC::Ptr<DOM::Position> cursor_position() const;
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
