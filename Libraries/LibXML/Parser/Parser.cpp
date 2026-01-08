@@ -29,6 +29,8 @@ struct ParserContext {
 
     Vector<ParseError> parse_errors;
 
+    Parser::Options const* options { nullptr };
+    bool is_xhtml_document { false };
     int depth { 0 };
 };
 
@@ -51,6 +53,82 @@ static StringView xml_char_to_string_view(xmlChar const* str)
     if (!str)
         return {};
     return StringView(reinterpret_cast<char const*>(str), strlen(reinterpret_cast<char const*>(str)));
+}
+
+static bool is_known_xhtml_public_id(StringView public_id)
+{
+    return public_id.is_one_of(
+        "-//W3C//DTD XHTML 1.0 Transitional//EN"sv,
+        "-//W3C//DTD XHTML 1.1//EN"sv,
+        "-//W3C//DTD XHTML 1.0 Strict//EN"sv,
+        "-//W3C//DTD XHTML 1.0 Frameset//EN"sv,
+        "-//W3C//DTD XHTML Basic 1.0//EN"sv,
+        "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN"sv,
+        "-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN"sv,
+        "-//W3C//DTD MathML 2.0//EN"sv,
+        "-//WAPFORUM//DTD XHTML Mobile 1.0//EN"sv,
+        "-//WAPFORUM//DTD XHTML Mobile 1.1//EN"sv,
+        "-//WAPFORUM//DTD XHTML Mobile 1.2//EN"sv);
+}
+
+static void external_subset_handler(void* ctx, xmlChar const*, xmlChar const* external_id, xmlChar const*)
+{
+    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
+    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
+    if (!context || !external_id)
+        return;
+
+    auto public_id = xml_char_to_string_view(external_id);
+    if (is_known_xhtml_public_id(public_id))
+        context->is_xhtml_document = true;
+}
+
+static xmlEntity s_xhtml_entity_result;
+static char s_xhtml_entity_utf8_buffer[32];
+
+static xmlEntityPtr get_entity_handler(void* ctx, xmlChar const* name)
+{
+    auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
+
+    auto* predefined = xmlGetPredefinedEntity(name);
+    if (predefined)
+        return predefined;
+
+    if (parser_ctx->myDoc) {
+        auto* doc_entity = xmlGetDocEntity(parser_ctx->myDoc, name);
+        if (doc_entity)
+            return doc_entity;
+    }
+
+    auto* context = static_cast<ParserContext*>(parser_ctx->_private);
+    if (!context || !context->is_xhtml_document)
+        return nullptr;
+
+    // For XHTML documents, resolve named character entities (e.g., &nbsp;) using the
+    // HTML entity table. This avoids parsing a large embedded DTD on every document
+    // and matches the approach used by Blink and WebKit.
+    if (!context->options || !context->options->resolve_named_html_entity)
+        return nullptr;
+
+    auto entity_name = xml_char_to_string_view(name);
+    auto resolved = context->options->resolve_named_html_entity(entity_name);
+    if (!resolved.has_value())
+        return nullptr;
+
+    auto utf8_bytes = resolved->bytes_as_string_view();
+    if (utf8_bytes.length() >= sizeof(s_xhtml_entity_utf8_buffer))
+        return nullptr;
+
+    (void)utf8_bytes.copy_characters_to_buffer(s_xhtml_entity_utf8_buffer, sizeof(s_xhtml_entity_utf8_buffer));
+
+    s_xhtml_entity_result = {};
+    s_xhtml_entity_result.type = XML_ENTITY_DECL;
+    s_xhtml_entity_result.name = name;
+    s_xhtml_entity_result.content = reinterpret_cast<xmlChar*>(s_xhtml_entity_utf8_buffer);
+    s_xhtml_entity_result.length = static_cast<int>(utf8_bytes.length());
+    s_xhtml_entity_result.etype = XML_INTERNAL_PREDEFINED_ENTITY;
+
+    return &s_xhtml_entity_result;
 }
 
 static void start_document_handler(void* ctx)
@@ -345,7 +423,7 @@ static void structured_error_handler(void* ctx, xmlError const* error)
         context->error = move(parse_error);
 }
 
-static xmlSAXHandler create_sax_handler(bool preserve_comments)
+static xmlSAXHandler create_sax_handler(bool preserve_comments, bool resolve_html_entities)
 {
     xmlSAXHandler handler = {};
     handler.initialized = XML_SAX2_MAGIC;
@@ -360,6 +438,10 @@ static xmlSAXHandler create_sax_handler(bool preserve_comments)
     handler.serror = structured_error_handler;
     if (preserve_comments)
         handler.comment = comment_handler;
+    if (resolve_html_entities) {
+        handler.externalSubset = external_subset_handler;
+        handler.getEntity = get_entity_handler;
+    }
     return handler;
 }
 
@@ -371,8 +453,10 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 
     ParserContext context;
     context.listener = &listener;
+    context.options = &m_options;
 
-    auto sax_handler = create_sax_handler(m_options.preserve_comments);
+    bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
+    auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
 
     int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
     if (!m_options.preserve_cdata)
@@ -412,8 +496,10 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
 ErrorOr<Document, ParseError> Parser::parse()
 {
     ParserContext context;
+    context.options = &m_options;
 
-    auto sax_handler = create_sax_handler(m_options.preserve_comments);
+    bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
+    auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
 
     int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
     if (!m_options.preserve_cdata)

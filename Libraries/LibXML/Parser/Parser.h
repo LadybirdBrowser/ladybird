@@ -11,7 +11,9 @@
 #include <AK/Function.h>
 #include <AK/GenericLexer.h>
 #include <AK/HashMap.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
+#include <AK/String.h>
 #include <LibXML/DOM/Document.h>
 #include <LibXML/DOM/DocumentTypeDeclaration.h>
 #include <LibXML/DOM/Node.h>
@@ -51,7 +53,7 @@ public:
         bool preserve_cdata { true };
         bool preserve_comments { false };
         bool treat_errors_as_fatal { true };
-        Function<ErrorOr<Variant<ByteString, Vector<MarkupDeclaration>>>(SystemID const&, Optional<PublicID> const&)> resolve_external_resource {};
+        Function<Optional<String>(StringView)> resolve_named_html_entity {};
     };
 
     Parser(StringView source, Options options)

@@ -21,7 +21,7 @@ enum class XMLScriptingSupport {
     Enabled,
 };
 
-ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resource(XML::SystemID const&, Optional<XML::PublicID> const&);
+Optional<String> resolve_named_html_entity(StringView entity_name);
 
 class XMLDocumentBuilder final : public XML::Listener {
 public:

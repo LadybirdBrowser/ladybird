@@ -56,7 +56,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
         return false;
     }
     auto source = decoder->to_utf8(data).release_value_but_fixme_should_propagate_errors();
-    XML::Parser parser(source, { .resolve_external_resource = resolve_xml_resource });
+    XML::Parser parser(source, { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { document };
     auto result = parser.parse_with_listener(builder);
     return !result.is_error() && !builder.has_error();
@@ -189,7 +189,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         }
         // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
         signal_to_continue_session_history_processing->resolve({});
-        XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_external_resource = resolve_xml_resource });
+        XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
         XMLDocumentBuilder builder { document };
         auto result = parser.parse_with_listener(builder);
         if (result.is_error()) {

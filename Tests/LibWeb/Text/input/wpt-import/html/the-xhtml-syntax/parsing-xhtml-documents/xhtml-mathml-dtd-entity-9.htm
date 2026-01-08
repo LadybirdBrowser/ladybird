@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<title>HTML entities for various XHTML Doctype</title>
+<link rel=help href="http://w3c.github.io/html/xhtml.html#parsing-xhtml-documents">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<iframe id="test" src="support/xhtml-mathml-dtd-entity.htm"></iframe>
+
+<script>
+onload = () => document.getElementById("test").contentWindow.run(
+["application/xhtml+xml", "-//WAPFORUM//DTD XHTML Mobile 1.0//EN", "foo", "XHTML Mobile"]);
+</script>
