@@ -62,7 +62,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 
-    XML::Parser parser(data, { .resolve_external_resource = resolve_xml_resource });
+    XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { document };
     auto result = parser.parse_with_listener(builder);
     (void)result;

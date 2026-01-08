@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
     if (allow_declarative_shadow_roots == HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes)
         document->set_allow_declarative_shadow_roots(true);
 
-    XML::Parser parser(feed.string_view());
+    XML::Parser parser(feed.string_view(), { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
     auto result = parser.parse_with_listener(builder);
 

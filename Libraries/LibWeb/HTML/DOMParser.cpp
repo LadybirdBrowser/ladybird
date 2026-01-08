@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(Truste
 
         // 1. Create an XML parser parse, associated with document, and with XML scripting support disabled.
         auto const utf8_complaint_string = compliant_string.to_utf8_but_should_be_ported_to_utf16();
-        XML::Parser parser(utf8_complaint_string, { .resolve_external_resource = resolve_xml_resource });
+        XML::Parser parser(utf8_complaint_string, { .resolve_named_html_entity = resolve_named_html_entity });
         XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
         // 2. Parse compliantString using parser.
         auto result = parser.parse_with_listener(builder);
