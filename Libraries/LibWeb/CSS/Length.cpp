@@ -252,11 +252,6 @@ Optional<Length> Length::absolutize(CSSPixelRect const& viewport_rect, FontMetri
     return {};
 }
 
-Length Length::absolutized(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
-{
-    return absolutize(viewport_rect, font_metrics, root_font_metrics).value_or(*this);
-}
-
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
 {
     CalculationResolutionContext context {
