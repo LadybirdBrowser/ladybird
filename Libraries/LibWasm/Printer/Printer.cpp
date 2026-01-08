@@ -462,12 +462,6 @@ void Printer::print(Wasm::TagSection const& section)
     print(")\n");
 }
 
-void Printer::print(Wasm::TagSection::Tag const& tag)
-{
-    print_indent();
-    print("(tag (type index {}))\n", tag.type().value());
-}
-
 void Printer::print(Wasm::TypeIndex const& index)
 {
     print_indent();

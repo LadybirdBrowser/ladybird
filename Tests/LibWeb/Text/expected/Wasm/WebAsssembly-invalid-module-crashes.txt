@@ -1,2 +1,3 @@
 CompileError: A parsed type did not make sense in context
+CompileError: Invalid TypeIndex
 PASS! (Didn't crash)

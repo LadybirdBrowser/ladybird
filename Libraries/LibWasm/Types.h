@@ -1169,29 +1169,9 @@ private:
 
 class TagSection {
 public:
-    class Tag {
-    public:
-        using Flags = TagType::Flags;
-
-        Tag(TypeIndex type, Flags flags)
-            : m_type(type)
-            , m_flags(flags)
-        {
-        }
-
-        auto type() const { return m_type; }
-        auto flags() const { return m_flags; }
-
-        static ParseResult<Tag> parse(ConstrainedStream& stream);
-
-    private:
-        TypeIndex m_type;
-        Flags m_flags { Flags::None };
-    };
-
     TagSection() = default;
 
-    explicit TagSection(Vector<Tag> tags)
+    explicit TagSection(Vector<TagType> tags)
         : m_tags(move(tags))
     {
     }
@@ -1201,7 +1181,7 @@ public:
     static ParseResult<TagSection> parse(ConstrainedStream& stream);
 
 private:
-    Vector<Tag> m_tags;
+    Vector<TagType> m_tags;
 };
 
 class WASM_API Module : public RefCounted<Module>
