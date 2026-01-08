@@ -46,7 +46,7 @@ DiskCache::~DiskCache() = default;
 
 Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)
 {
-    if (!is_cacheable(method))
+    if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryWriter&> {};
 
     if (m_mode == Mode::Testing) {
@@ -79,7 +79,7 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
 
 Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::open_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, OpenMode open_mode)
 {
-    if (!is_cacheable(method))
+    if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryReader&> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
