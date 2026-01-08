@@ -51,7 +51,7 @@ protected:
 class OKLabColorStyleValue final : public LabLikeColorStyleValue {
 public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     OKLabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : LabLikeColorStyleValue(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
@@ -62,7 +62,7 @@ public:
 class LabColorStyleValue final : public LabLikeColorStyleValue {
 public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     LabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : LabLikeColorStyleValue(ColorType::Lab, move(l), move(a), move(b), move(alpha))

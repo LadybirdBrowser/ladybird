@@ -23,7 +23,7 @@ public:
 
     FlyString const& custom_ident() const { return m_custom_ident; }
 
-    virtual String to_string(SerializationMode) const override { return serialize_an_identifier(m_custom_ident.to_string()); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(serialize_an_identifier(m_custom_ident.to_string())); }
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm& realm, FlyString const&) const override;
 

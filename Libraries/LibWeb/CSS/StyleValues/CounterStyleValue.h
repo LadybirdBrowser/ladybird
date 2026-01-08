@@ -36,7 +36,7 @@ public:
 
     String resolve(DOM::AbstractElement&) const;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(CounterStyleValue const& other) const;
 

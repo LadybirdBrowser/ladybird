@@ -23,7 +23,7 @@ public:
     virtual double raw_value() const override { return m_flex.raw_value(); }
     virtual FlyString unit_name() const override { return m_flex.unit_name(); }
 
-    virtual String to_string(SerializationMode serialization_mode) const override { return m_flex.to_string(serialization_mode); }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { builder.append(m_flex.to_string(mode)); }
 
     bool equals(StyleValue const& other) const override
     {

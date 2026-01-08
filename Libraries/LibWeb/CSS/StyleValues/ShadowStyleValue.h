@@ -50,7 +50,7 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> spread_distance() const;
     ShadowPlacement placement() const { return m_properties.placement; }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(ShadowStyleValue const& other) const { return m_properties == other.m_properties; }
 

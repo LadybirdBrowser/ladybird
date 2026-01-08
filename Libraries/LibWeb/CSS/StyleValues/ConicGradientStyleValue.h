@@ -23,7 +23,7 @@ public:
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 

@@ -20,17 +20,23 @@ RepeatStyleStyleValue::RepeatStyleStyleValue(Repetition repeat_x, Repetition rep
 
 RepeatStyleStyleValue::~RepeatStyleStyleValue() = default;
 
-String RepeatStyleStyleValue::to_string(SerializationMode) const
+void RepeatStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_properties.repeat_x == m_properties.repeat_y)
-        return MUST(String::from_utf8(CSS::to_string(m_properties.repeat_x)));
+    if (m_properties.repeat_x == m_properties.repeat_y) {
+        builder.append(CSS::to_string(m_properties.repeat_x));
+        return;
+    }
 
-    if (m_properties.repeat_x == Repetition::Repeat && m_properties.repeat_y == Repetition::NoRepeat)
-        return "repeat-x"_string;
-    if (m_properties.repeat_x == Repetition::NoRepeat && m_properties.repeat_y == Repetition::Repeat)
-        return "repeat-y"_string;
+    if (m_properties.repeat_x == Repetition::Repeat && m_properties.repeat_y == Repetition::NoRepeat) {
+        builder.append("repeat-x"sv);
+        return;
+    }
+    if (m_properties.repeat_x == Repetition::NoRepeat && m_properties.repeat_y == Repetition::Repeat) {
+        builder.append("repeat-y"sv);
+        return;
+    }
 
-    return MUST(String::formatted("{} {}", CSS::to_string(m_properties.repeat_x), CSS::to_string(m_properties.repeat_y)));
+    builder.appendff("{} {}", CSS::to_string(m_properties.repeat_x), CSS::to_string(m_properties.repeat_y));
 }
 
 }

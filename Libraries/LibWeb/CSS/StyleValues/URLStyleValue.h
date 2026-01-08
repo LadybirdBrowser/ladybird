@@ -25,9 +25,9 @@ public:
 
     bool properties_equal(URLStyleValue const& other) const { return m_url == other.m_url; }
 
-    virtual String to_string(SerializationMode) const override
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override
     {
-        return m_url.to_string();
+        builder.append(m_url.to_string());
     }
 
 private:

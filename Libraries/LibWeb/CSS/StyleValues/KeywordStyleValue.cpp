@@ -17,9 +17,9 @@
 
 namespace Web::CSS {
 
-String KeywordStyleValue::to_string(SerializationMode) const
+void KeywordStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    return MUST(String::from_utf8(string_from_keyword(keyword())));
+    builder.append(string_from_keyword(keyword()));
 }
 
 bool KeywordStyleValue::is_color(Keyword keyword)

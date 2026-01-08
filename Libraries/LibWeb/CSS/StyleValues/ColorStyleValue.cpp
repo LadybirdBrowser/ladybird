@@ -160,14 +160,14 @@ void ColorStyleValue::serialize_color_component(StringBuilder& builder, Serializ
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 
     auto maybe_resolved_value = resolve_with_reference_value(component, one_hundred_percent_value, {});
 
     if (!maybe_resolved_value.has_value()) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 
@@ -192,14 +192,14 @@ void ColorStyleValue::serialize_alpha_component(StringBuilder& builder, Serializ
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 
     auto maybe_resolved_value = resolve_alpha(component, {});
 
     if (!maybe_resolved_value.has_value()) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 
@@ -213,14 +213,14 @@ void ColorStyleValue::serialize_hue_component(StringBuilder& builder, Serializat
         return;
     }
     if (component.is_calculated() && mode == SerializationMode::Normal) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 
     auto maybe_resolved_value = resolve_hue(component, {});
 
     if (!maybe_resolved_value.has_value()) {
-        builder.append(component.to_string(mode));
+        component.serialize(builder, mode);
         return;
     }
 

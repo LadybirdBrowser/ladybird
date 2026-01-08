@@ -16,9 +16,9 @@ UnicodeRangeStyleValue::UnicodeRangeStyleValue(Gfx::UnicodeRange unicode_range)
 
 UnicodeRangeStyleValue::~UnicodeRangeStyleValue() = default;
 
-String UnicodeRangeStyleValue::to_string(SerializationMode) const
+void UnicodeRangeStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    return m_unicode_range.to_string();
+    builder.append(m_unicode_range.to_string());
 }
 
 bool UnicodeRangeStyleValue::properties_equal(UnicodeRangeStyleValue const& other) const

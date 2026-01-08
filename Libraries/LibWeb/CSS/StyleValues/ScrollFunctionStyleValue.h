@@ -19,7 +19,7 @@ public:
     }
     virtual ~ScrollFunctionStyleValue() override = default;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
     bool properties_equal(ScrollFunctionStyleValue const& other) const { return m_scroller == other.m_scroller && m_axis == other.m_axis; }
 
     Scroller scroller() const { return m_scroller; }

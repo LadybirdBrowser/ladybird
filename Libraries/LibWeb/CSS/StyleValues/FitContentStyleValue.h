@@ -23,11 +23,13 @@ public:
     }
     virtual ~FitContentStyleValue() override = default;
 
-    virtual String to_string(SerializationMode mode) const override
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override
     {
-        if (!m_length_percentage.has_value())
-            return "fit-content"_string;
-        return MUST(String::formatted("fit-content({})", m_length_percentage->to_string(mode)));
+        if (!m_length_percentage.has_value()) {
+            builder.append("fit-content"sv);
+            return;
+        }
+        builder.appendff("fit-content({})", m_length_percentage->to_string(mode));
     }
 
     bool equals(StyleValue const& other) const override

@@ -8,9 +8,8 @@
 
 namespace Web::CSS {
 
-String ViewFunctionStyleValue::to_string(SerializationMode mode) const
+void ViewFunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     builder.append("view("sv);
 
     if (m_axis != Axis::Block)
@@ -22,11 +21,10 @@ String ViewFunctionStyleValue::to_string(SerializationMode mode) const
         if (m_axis != Axis::Block)
             builder.append(' ');
 
-        builder.append(stringified_inset);
+        m_inset->serialize(builder, mode);
     }
 
     builder.append(')');
-    return builder.to_string_without_validation();
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ViewFunctionStyleValue::absolutized(ComputationContext const& computation_context) const

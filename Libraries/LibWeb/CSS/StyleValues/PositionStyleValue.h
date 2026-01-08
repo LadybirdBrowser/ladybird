@@ -43,7 +43,7 @@ public:
 
     ValueComparingNonnullRefPtr<PositionStyleValue const> with_resolved_keywords() const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(PositionStyleValue const& other) const { return m_properties == other.m_properties; }
 

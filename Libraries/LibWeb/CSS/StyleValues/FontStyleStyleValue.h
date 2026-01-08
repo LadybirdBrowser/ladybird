@@ -25,7 +25,7 @@ public:
 
     int to_font_slope() const;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
 
     bool equals(StyleValue const& other) const override

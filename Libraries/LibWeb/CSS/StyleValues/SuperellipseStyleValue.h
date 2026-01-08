@@ -29,7 +29,7 @@ public:
         return m_parameter->as_number().number();
     }
 
-    virtual String to_string(SerializationMode serialization_mode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 

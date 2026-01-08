@@ -22,7 +22,7 @@ public:
     TextUnderlinePositionHorizontal horizontal() const { return m_horizontal; }
     TextUnderlinePositionVertical vertical() const { return m_vertical; }
 
-    virtual String to_string(SerializationMode serialization_mode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return m_horizontal == other.m_horizontal && m_vertical == other.m_vertical; }
 

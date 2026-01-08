@@ -264,11 +264,11 @@ Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node
     });
 }
 
-String BasicShapeStyleValue::to_string(SerializationMode mode) const
+void BasicShapeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    return m_basic_shape.visit([mode](auto const& shape) {
+    builder.append(m_basic_shape.visit([mode](auto const& shape) {
         return shape.to_string(mode);
-    });
+    }));
 }
 
 // https://www.w3.org/TR/css-shapes-1/#basic-shape-computed-values

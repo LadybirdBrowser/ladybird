@@ -14,25 +14,29 @@
 
 namespace Web::CSS {
 
-String ShadowStyleValue::to_string(SerializationMode mode) const
+void ShadowStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
-    if (m_properties.color)
-        builder.append(m_properties.color->to_string(mode));
-
-    if (!builder.is_empty())
+    if (m_properties.color) {
+        m_properties.color->serialize(builder, mode);
         builder.append(' ');
-    builder.appendff("{} {}", m_properties.offset_x->to_string(mode), m_properties.offset_y->to_string(mode));
+    }
 
-    if (m_properties.blur_radius)
-        builder.appendff(" {}", m_properties.blur_radius->to_string(mode));
+    m_properties.offset_x->serialize(builder, mode);
+    builder.append(' ');
+    m_properties.offset_y->serialize(builder, mode);
 
-    if (m_properties.spread_distance && m_properties.shadow_type == ShadowType::Normal)
-        builder.appendff(" {}", m_properties.spread_distance->to_string(mode));
+    if (m_properties.blur_radius) {
+        builder.append(' ');
+        m_properties.blur_radius->serialize(builder, mode);
+    }
+
+    if (m_properties.spread_distance && m_properties.shadow_type == ShadowType::Normal) {
+        builder.append(' ');
+        m_properties.spread_distance->serialize(builder, mode);
+    }
 
     if (m_properties.placement == ShadowPlacement::Inner)
         builder.append(" inset"sv);
-    return MUST(builder.to_string());
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const

@@ -23,15 +23,13 @@ TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> lengt
 
 TextIndentStyleValue::~TextIndentStyleValue() = default;
 
-String TextIndentStyleValue::to_string(SerializationMode mode) const
+void TextIndentStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
-    builder.append(m_length_percentage->to_string(mode));
+    m_length_percentage->serialize(builder, mode);
     if (m_each_line)
         builder.append(" each-line"sv);
     if (m_hanging)
         builder.append(" hanging"sv);
-    return builder.to_string_without_validation();
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> TextIndentStyleValue::absolutized(ComputationContext const& context) const

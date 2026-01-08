@@ -19,9 +19,9 @@ AngleStyleValue::AngleStyleValue(Angle angle)
 
 AngleStyleValue::~AngleStyleValue() = default;
 
-String AngleStyleValue::to_string(SerializationMode serialization_mode) const
+void AngleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    return m_angle.to_string(serialization_mode);
+    builder.append(m_angle.to_string(mode));
 }
 
 bool AngleStyleValue::equals(StyleValue const& other) const

@@ -14,6 +14,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -212,7 +213,8 @@ public:
     virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
 
-    virtual String to_string(SerializationMode) const = 0;
+    String to_string(SerializationMode) const;
+    virtual void serialize(StringBuilder&, SerializationMode) const = 0;
     virtual Vector<Parser::ComponentValue> tokenize() const;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const;
     virtual StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;

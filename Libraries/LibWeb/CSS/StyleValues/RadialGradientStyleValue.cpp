@@ -15,13 +15,13 @@
 
 namespace Web::CSS {
 
-String RadialGradientStyleValue::to_string(SerializationMode mode) const
+void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     if (is_repeating())
         builder.append("repeating-"sv);
     builder.append("radial-gradient("sv);
 
+    // AD-HOC: We need to check the serialized size to determine if it should be included.
     auto const& serialized_size = m_properties.size->to_string(mode);
 
     bool has_size = serialized_size != "farthest-corner"sv;
@@ -29,13 +29,14 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     if (has_size)
-        builder.append(serialized_size);
+        m_properties.size->serialize(builder, mode);
 
     if (has_position) {
         if (has_size)
             builder.append(' ');
 
-        builder.appendff("at {}", m_properties.position->to_string(mode));
+        builder.append("at "sv);
+        m_properties.position->serialize(builder, mode);
     }
 
     if (has_color_space) {
@@ -50,7 +51,6 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
 
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
-    return MUST(builder.to_string());
 }
 
 CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box, Layout::NodeWithStyle const& node) const

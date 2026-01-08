@@ -105,7 +105,7 @@ Optional<ColorFunctionStyleValue::Resolved> ColorFunctionStyleValue::resolve_pro
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
-String ColorFunctionStyleValue::to_string(SerializationMode mode) const
+void ColorFunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     auto convert_percentage = [&](ValueComparingNonnullRefPtr<StyleValue const> const& value) -> RemoveReference<decltype(value)> {
         if (value->is_percentage())
@@ -141,20 +141,17 @@ String ColorFunctionStyleValue::to_string(SerializationMode mode) const
     if (alpha->is_number() && alpha->as_number().number() < 0)
         alpha = NumberStyleValue::create(0);
 
+    builder.appendff("color({} ", string_view_from_color_type(m_color_type));
+    convert_percentage(m_properties.channels[0])->serialize(builder, mode);
+    builder.append(' ');
+    convert_percentage(m_properties.channels[1])->serialize(builder, mode);
+    builder.append(' ');
+    convert_percentage(m_properties.channels[2])->serialize(builder, mode);
     if (is_alpha_required) {
-        return MUST(String::formatted("color({} {} {} {} / {})",
-            string_view_from_color_type(m_color_type),
-            convert_percentage(m_properties.channels[0])->to_string(mode),
-            convert_percentage(m_properties.channels[1])->to_string(mode),
-            convert_percentage(m_properties.channels[2])->to_string(mode),
-            alpha->to_string(mode)));
+        builder.append(" / "sv);
+        alpha->serialize(builder, mode);
     }
-
-    return MUST(String::formatted("color({} {} {} {})",
-        string_view_from_color_type(m_color_type),
-        convert_percentage(m_properties.channels[0])->to_string(mode),
-        convert_percentage(m_properties.channels[1])->to_string(mode),
-        convert_percentage(m_properties.channels[2])->to_string(mode)));
+    builder.append(')');
 }
 
 Optional<Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_resolution_context) const

@@ -20,7 +20,7 @@ public:
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorSizeStyleValue() override = default;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(AnchorSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 

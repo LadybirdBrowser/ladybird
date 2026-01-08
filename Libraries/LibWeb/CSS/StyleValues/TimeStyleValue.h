@@ -26,7 +26,7 @@ public:
     virtual double raw_value() const override { return m_time.raw_value(); }
     virtual FlyString unit_name() const override { return m_time.unit_name(); }
 
-    virtual String to_string(SerializationMode serialization_mode) const override { return m_time.to_string(serialization_mode); }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { builder.append(m_time.to_string(mode)); }
 
     bool equals(StyleValue const& other) const override
     {

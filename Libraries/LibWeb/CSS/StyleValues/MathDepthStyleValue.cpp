@@ -36,17 +36,21 @@ bool MathDepthStyleValue::properties_equal(MathDepthStyleValue const& other) con
         && m_integer_value == other.m_integer_value;
 }
 
-String MathDepthStyleValue::to_string(SerializationMode mode) const
+void MathDepthStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     switch (m_type) {
     case MathDepthType::AutoAdd:
-        return "auto-add"_string;
+        builder.append("auto-add"sv);
+        break;
     case MathDepthType::Add:
-        return MUST(String::formatted("add({})", m_integer_value->to_string(mode)));
+        builder.append("add("sv);
+        m_integer_value->serialize(builder, mode);
+        builder.append(')');
+        break;
     case MathDepthType::Integer:
-        return m_integer_value->to_string(mode);
+        m_integer_value->serialize(builder, mode);
+        break;
     }
-    VERIFY_NOT_REACHED();
 }
 
 }

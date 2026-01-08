@@ -19,7 +19,7 @@ public:
         return instance;
     }
     virtual ~PendingSubstitutionStyleValue() override = default;
-    virtual String to_string(SerializationMode) const override { return {}; }
+    virtual void serialize(StringBuilder&, SerializationMode) const override { }
     virtual Vector<Parser::ComponentValue> tokenize() const override
     {
         // Not sure what to do here, but this isn't valid so returning GIV seems the most correct.

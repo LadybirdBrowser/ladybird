@@ -13,9 +13,11 @@ ValueComparingNonnullRefPtr<ScrollbarColorStyleValue const> ScrollbarColorStyleV
     return adopt_ref(*new ScrollbarColorStyleValue(move(thumb_color), move(track_color)));
 }
 
-String ScrollbarColorStyleValue::to_string(SerializationMode mode) const
+void ScrollbarColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    return MUST(String::formatted("{} {}", m_thumb_color->to_string(mode), m_track_color->to_string(mode)));
+    m_thumb_color->serialize(builder, mode);
+    builder.append(' ');
+    m_track_color->serialize(builder, mode);
 }
 
 }

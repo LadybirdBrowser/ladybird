@@ -30,7 +30,7 @@ public:
         return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     void paint(DisplayListRecordingContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 

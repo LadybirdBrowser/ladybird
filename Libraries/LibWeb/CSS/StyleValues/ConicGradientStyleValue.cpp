@@ -15,9 +15,8 @@
 
 namespace Web::CSS {
 
-String ConicGradientStyleValue::to_string(SerializationMode mode) const
+void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     if (is_repeating())
         builder.append("repeating-"sv);
     builder.append("conic-gradient("sv);
@@ -25,12 +24,15 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
     bool has_at_position = !m_properties.position->is_center(mode);
     bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
-    if (has_from_angle)
-        builder.appendff("from {}", m_properties.from_angle->to_string(mode));
+    if (has_from_angle) {
+        builder.append("from "sv);
+        m_properties.from_angle->serialize(builder, mode);
+    }
     if (has_at_position) {
         if (has_from_angle)
             builder.append(' ');
-        builder.appendff("at {}", m_properties.position->to_string(mode));
+        builder.append("at "sv);
+        m_properties.position->serialize(builder, mode);
     }
     if (has_color_space) {
         if (has_from_angle || has_at_position)
@@ -41,7 +43,6 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
         builder.append(", "sv);
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
-    return MUST(builder.to_string());
 }
 
 void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const

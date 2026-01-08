@@ -41,14 +41,20 @@ void serialize_color_stop_list(StringBuilder& builder, Vector<ColorStopListEleme
         if (!first)
             builder.append(", "sv);
 
-        if (element.transition_hint)
-            builder.appendff("{}, "sv, element.transition_hint->to_string(mode));
+        if (element.transition_hint) {
+            element.transition_hint->serialize(builder, mode);
+            builder.append(", "sv);
+        }
 
-        builder.append(element.color_stop.color->to_string(mode));
-        if (element.color_stop.position)
-            builder.appendff(" {}"sv, element.color_stop.position->to_string(mode));
-        if (element.color_stop.second_position)
-            builder.appendff(" {}"sv, element.color_stop.second_position->to_string(mode));
+        element.color_stop.color->serialize(builder, mode);
+        if (element.color_stop.position) {
+            builder.append(' ');
+            element.color_stop.position->serialize(builder, mode);
+        }
+        if (element.color_stop.second_position) {
+            builder.append(' ');
+            element.color_stop.second_position->serialize(builder, mode);
+        }
         first = false;
     }
 }

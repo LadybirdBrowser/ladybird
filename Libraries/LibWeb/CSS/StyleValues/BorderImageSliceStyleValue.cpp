@@ -9,23 +9,24 @@
 
 namespace Web::CSS {
 
-String BorderImageSliceStyleValue::to_string(SerializationMode mode) const
+void BorderImageSliceStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
-    if (first_is_equal_to_all_of(top(), right(), bottom(), left())) {
-        builder.append(top()->to_string(mode));
-    } else if (top() == bottom() && right() == left()) {
-        builder.appendff("{} {}", top()->to_string(mode), right()->to_string(mode));
-    } else if (left() == right()) {
-        builder.appendff("{} {} {}", top()->to_string(mode), right()->to_string(mode), bottom()->to_string(mode));
-    } else {
-        builder.appendff("{} {} {} {}", top()->to_string(mode), right()->to_string(mode), bottom()->to_string(mode), left()->to_string(mode));
+    top()->serialize(builder, mode);
+    if (!first_is_equal_to_all_of(top(), right(), bottom(), left())) {
+        builder.append(' ');
+        right()->serialize(builder, mode);
+        if (top() != bottom() || right() != left()) {
+            builder.append(' ');
+            bottom()->serialize(builder, mode);
+            if (left() != right()) {
+                builder.append(' ');
+                left()->serialize(builder, mode);
+            }
+        }
     }
 
     if (fill())
         builder.append(" fill"sv);
-
-    return MUST(builder.to_string());
 }
 
 }

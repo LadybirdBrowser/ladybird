@@ -22,7 +22,7 @@ public:
     Ratio const& ratio() const { return m_ratio; }
     Ratio& ratio() { return m_ratio; }
 
-    virtual String to_string(SerializationMode) const override { return m_ratio.to_string(); }
+    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(m_ratio.to_string()); }
     Vector<Parser::ComponentValue> tokenize() const override
     {
         return {

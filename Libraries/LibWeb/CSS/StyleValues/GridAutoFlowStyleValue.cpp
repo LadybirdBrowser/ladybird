@@ -13,16 +13,14 @@ ValueComparingNonnullRefPtr<GridAutoFlowStyleValue const> GridAutoFlowStyleValue
     return adopt_ref(*new GridAutoFlowStyleValue(axis, dense));
 }
 
-String GridAutoFlowStyleValue::to_string(SerializationMode) const
+void GridAutoFlowStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    StringBuilder builder;
     if (m_row)
         builder.append("row"sv);
     else
         builder.append("column"sv);
     if (m_dense)
         builder.append(" dense"sv);
-    return MUST(builder.to_string());
 }
 
 }

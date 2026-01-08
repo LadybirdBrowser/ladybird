@@ -41,12 +41,14 @@ UnresolvedStyleValue::UnresolvedStyleValue(Vector<Parser::ComponentValue>&& valu
 {
 }
 
-String UnresolvedStyleValue::to_string(SerializationMode) const
+void UnresolvedStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_original_source_text.has_value())
-        return *m_original_source_text;
+    if (m_original_source_text.has_value()) {
+        builder.append(*m_original_source_text);
+        return;
+    }
 
-    return MUST(serialize_a_series_of_component_values(m_values).trim_ascii_whitespace());
+    builder.append(MUST(serialize_a_series_of_component_values(m_values).trim_ascii_whitespace()));
 }
 
 bool UnresolvedStyleValue::equals(StyleValue const& other) const

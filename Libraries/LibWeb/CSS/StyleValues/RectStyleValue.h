@@ -20,7 +20,7 @@ public:
     virtual ~RectStyleValue() override = default;
 
     EdgeRect rect() const { return m_rect; }
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(RectStyleValue const& other) const { return m_rect == other.m_rect; }
 

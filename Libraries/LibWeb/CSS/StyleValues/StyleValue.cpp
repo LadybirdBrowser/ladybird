@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringBuilder.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -112,6 +113,13 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
 StyleValue::StyleValue(Type type)
     : m_type(type)
 {
+}
+
+String StyleValue::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    serialize(builder, mode);
+    return builder.to_string_without_validation();
 }
 
 AbstractImageStyleValue const& StyleValue::as_abstract_image() const

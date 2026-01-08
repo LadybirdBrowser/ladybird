@@ -30,7 +30,7 @@ public:
     Optional<FlyString> const& format() const { return m_format; }
     Vector<FontTech> const& tech() const { return m_tech; }
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(FontSourceStyleValue const&) const;
 

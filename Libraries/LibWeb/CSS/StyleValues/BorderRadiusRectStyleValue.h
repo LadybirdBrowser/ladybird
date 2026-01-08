@@ -26,7 +26,7 @@ public:
 
     virtual ~BorderRadiusRectStyleValue() override = default;
 
-    virtual String to_string(SerializationMode) const override;
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     NonnullRefPtr<StyleValue const> top_left() const { return m_top_left; }

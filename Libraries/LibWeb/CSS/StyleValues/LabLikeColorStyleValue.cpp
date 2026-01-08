@@ -40,9 +40,8 @@ Optional<Color> OKLabColorStyleValue::to_color(ColorResolutionContext color_reso
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
-String OKLabColorStyleValue::to_string(SerializationMode mode) const
+void OKLabColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     builder.append("oklab("sv);
     serialize_color_component(builder, mode, m_properties.l, 1.0f, 0, 1);
     builder.append(' ');
@@ -56,7 +55,6 @@ String OKLabColorStyleValue::to_string(SerializationMode mode) const
     }
 
     builder.append(')');
-    return MUST(builder.to_string());
 }
 
 Optional<Color> LabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
@@ -73,9 +71,8 @@ Optional<Color> LabColorStyleValue::to_color(ColorResolutionContext color_resolu
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
-String LabColorStyleValue::to_string(SerializationMode mode) const
+void LabColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    StringBuilder builder;
     builder.append("lab("sv);
     serialize_color_component(builder, mode, m_properties.l, 100, 0, 100);
     builder.append(' ');
@@ -89,7 +86,6 @@ String LabColorStyleValue::to_string(SerializationMode mode) const
     }
 
     builder.append(')');
-    return MUST(builder.to_string());
 }
 
 }

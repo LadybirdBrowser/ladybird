@@ -359,7 +359,7 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
     return FloatMatrix4x4::identity();
 }
 
-String TransformationStyleValue::to_string(SerializationMode mode) const
+void TransformationStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     // https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
     if (m_properties.property == PropertyID::Rotate) {
@@ -376,14 +376,19 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         switch (m_properties.transform_function) {
             // If the axis is parallel with the x or y axes, it must serialize as the appropriate keyword.
         case TransformFunction::RotateX:
-            return MUST(String::formatted("x {}", m_properties.values[0]->to_string(mode)));
+            builder.append("x "sv);
+            m_properties.values[0]->serialize(builder, mode);
+            return;
         case TransformFunction::RotateY:
-            return MUST(String::formatted("y {}", m_properties.values[0]->to_string(mode)));
+            builder.append("y "sv);
+            m_properties.values[0]->serialize(builder, mode);
+            return;
 
             // If a rotation about the z axis (that is, in 2D) is specified, the property must serialize as just an <angle>.
         case TransformFunction::Rotate:
         case TransformFunction::RotateZ:
-            return m_properties.values[0]->to_string(mode);
+            m_properties.values[0]->serialize(builder, mode);
+            return;
 
         default:
             break;
@@ -399,21 +404,36 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         auto z_value = resolve_to_number(rotation_z).value_or(0);
 
         // If the axis is parallel with the x or y axes, it must serialize as the appropriate keyword.
-        if (x_value > 0.0 && y_value == 0 && z_value == 0)
-            return MUST(String::formatted("x {}", angle->to_string(mode)));
+        if (x_value > 0.0 && y_value == 0 && z_value == 0) {
+            builder.append("x "sv);
+            angle->serialize(builder, mode);
+            return;
+        }
 
-        if (x_value == 0 && y_value > 0.0 && z_value == 0)
-            return MUST(String::formatted("y {}", angle->to_string(mode)));
+        if (x_value == 0 && y_value > 0.0 && z_value == 0) {
+            builder.append("y "sv);
+            angle->serialize(builder, mode);
+            return;
+        }
 
         // If a rotation about the z axis (that is, in 2D) is specified, the property must serialize as just an <angle>.
-        if (x_value == 0 && y_value == 0 && z_value > 0.0)
-            return angle->to_string(mode);
+        if (x_value == 0 && y_value == 0 && z_value > 0.0) {
+            angle->serialize(builder, mode);
+            return;
+        }
 
         // It must serialize as the keyword none if and only if none was originally specified.
         // NOTE: This is handled by returning a keyword from the parser.
 
         // If any other rotation is specified, the property must serialize with an axis specified.
-        return MUST(String::formatted("{} {} {} {}", rotation_x->to_string(mode), rotation_y->to_string(mode), rotation_z->to_string(mode), angle->to_string(mode)));
+        rotation_x->serialize(builder, mode);
+        builder.append(' ');
+        rotation_y->serialize(builder, mode);
+        builder.append(' ');
+        rotation_z->serialize(builder, mode);
+        builder.append(' ');
+        angle->serialize(builder, mode);
+        return;
     }
     if (m_properties.property == PropertyID::Scale) {
         auto resolve_to_string = [mode](StyleValue const& value) -> String {
@@ -446,7 +466,6 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_number() || m_properties.values[2]->as_number().number() != 1))
             z_value = resolve_to_string(m_properties.values[2]);
 
-        StringBuilder builder;
         builder.append(x_value);
         if (x_value != y_value || (z_value.has_value() && *z_value != "1"sv)) {
             builder.append(" "sv);
@@ -456,7 +475,7 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
             builder.append(" "sv);
             builder.append(z_value.value());
         }
-        return builder.to_string_without_validation();
+        return;
     }
     if (m_properties.property == PropertyID::Translate) {
         auto resolve_to_string = [mode](StyleValue const& value) -> Optional<String> {
@@ -474,7 +493,6 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         if (m_properties.values.size() == 3 && (!m_properties.values[2]->is_length() || m_properties.values[2]->as_length().length() != Length::make_px(0)))
             z_value = resolve_to_string(m_properties.values[2]);
 
-        StringBuilder builder;
         builder.append(x_value.value_or("0px"_string));
         if (y_value.has_value() || z_value.has_value()) {
             builder.append(" "sv);
@@ -484,11 +502,9 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
             builder.append(" "sv);
             builder.append(z_value.value());
         }
-
-        return builder.to_string_without_validation();
+        return;
     }
 
-    StringBuilder builder;
     builder.append(CSS::to_string(m_properties.transform_function));
     builder.append('(');
     for (size_t i = 0; i < m_properties.values.size(); ++i) {
@@ -505,15 +521,13 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
             && value->is_percentage()) {
             builder.append(String::number(value->as_percentage().percentage().as_fraction()));
         } else {
-            builder.append(value->to_string(mode));
+            value->serialize(builder, mode);
         }
 
         if (i != m_properties.values.size() - 1)
             builder.append(", "sv);
     }
     builder.append(')');
-
-    return MUST(builder.to_string());
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-transform-function

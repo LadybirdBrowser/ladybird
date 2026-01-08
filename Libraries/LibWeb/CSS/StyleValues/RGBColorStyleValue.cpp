@@ -84,15 +84,19 @@ bool RGBColorStyleValue::equals(StyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String RGBColorStyleValue::to_string(SerializationMode mode) const
+void RGBColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
-        return m_properties.name.value().to_string().to_ascii_lowercase();
+    if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value()) {
+        for (auto c : m_properties.name.value().bytes_as_string_view())
+            builder.append(AK::to_ascii_lowercase(c));
+        return;
+    }
 
-    if (auto color = to_color({}); color.has_value())
-        return color->serialize_a_srgb_value();
+    if (auto color = to_color({}); color.has_value()) {
+        builder.append(color->serialize_a_srgb_value());
+        return;
+    }
 
-    StringBuilder builder;
     builder.append("rgb("sv);
     serialize_color_component(builder, mode, m_properties.r, 255, 0, 255);
     builder.append(" "sv);
@@ -104,8 +108,6 @@ String RGBColorStyleValue::to_string(SerializationMode mode) const
         serialize_alpha_component(builder, mode, m_properties.alpha);
     }
     builder.append(")"sv);
-
-    return builder.to_string_without_validation();
 }
 
 }

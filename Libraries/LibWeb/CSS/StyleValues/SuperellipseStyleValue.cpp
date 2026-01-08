@@ -8,46 +8,56 @@
 
 namespace Web::CSS {
 
-String SuperellipseStyleValue::to_string(SerializationMode mode) const
+void SuperellipseStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     if (mode == SerializationMode::ResolvedValue && m_parameter->is_number()) {
         auto number = m_parameter->as_number().number();
 
-        if (number == 1)
-            return "round"_string;
+        if (number == 1) {
+            builder.append("round"sv);
+            return;
+        }
 
-        if (number == 2)
-            return "squircle"_string;
+        if (number == 2) {
+            builder.append("squircle"sv);
+            return;
+        }
 
-        if (number == AK::Infinity<double>)
-            return "square"_string;
+        if (number == AK::Infinity<double>) {
+            builder.append("square"sv);
+            return;
+        }
 
-        if (number == 0)
-            return "bevel"_string;
+        if (number == 0) {
+            builder.append("bevel"sv);
+            return;
+        }
 
-        if (number == -1)
-            return "scoop"_string;
+        if (number == -1) {
+            builder.append("scoop"sv);
+            return;
+        }
 
-        if (number == -AK::Infinity<double>)
-            return "notch"_string;
+        if (number == -AK::Infinity<double>) {
+            builder.append("notch"sv);
+            return;
+        }
     }
 
-    auto stringified_parameter = [&] {
-        if (!m_parameter->is_number())
-            return m_parameter->to_string(mode);
-
+    builder.append("superellipse("sv);
+    if (!m_parameter->is_number()) {
+        m_parameter->serialize(builder, mode);
+    } else {
         auto number = m_parameter->as_number().number();
-
-        if (number == AK::Infinity<double>)
-            return "infinity"_string;
-
-        if (number == -AK::Infinity<double>)
-            return "-infinity"_string;
-
-        return m_parameter->to_string(mode);
-    }();
-
-    return MUST(String::formatted("superellipse({})", stringified_parameter));
+        if (number == AK::Infinity<double>) {
+            builder.append("infinity"sv);
+        } else if (number == -AK::Infinity<double>) {
+            builder.append("-infinity"sv);
+        } else {
+            m_parameter->serialize(builder, mode);
+        }
+    }
+    builder.append(')');
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> SuperellipseStyleValue::absolutized(ComputationContext const& computation_context) const

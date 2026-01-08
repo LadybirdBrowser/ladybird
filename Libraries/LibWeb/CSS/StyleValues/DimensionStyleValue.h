@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-class DimensionStyleValue : public StyleValue {
+class WEB_API DimensionStyleValue : public StyleValue {
 public:
     virtual ~DimensionStyleValue() override = default;
 

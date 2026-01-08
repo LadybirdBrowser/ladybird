@@ -9,12 +9,13 @@
 
 namespace Web::CSS {
 
-String ColorSchemeStyleValue::to_string(SerializationMode) const
+void ColorSchemeStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (schemes().is_empty())
-        return "normal"_string;
+    if (schemes().is_empty()) {
+        builder.append("normal"sv);
+        return;
+    }
 
-    StringBuilder builder;
     bool first = true;
     for (auto const& scheme : schemes()) {
         if (first) {
@@ -27,8 +28,6 @@ String ColorSchemeStyleValue::to_string(SerializationMode) const
 
     if (only())
         builder.append(" only"sv);
-
-    return MUST(builder.to_string());
 }
 
 }
