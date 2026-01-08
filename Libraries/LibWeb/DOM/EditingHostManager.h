@@ -39,7 +39,7 @@ public:
     virtual void decrement_cursor_position_to_previous_line(CollapseSelection) override;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
-
+    bool is_within_active_contenteditable(DOM::Node const& node) const;
     void set_active_contenteditable_element(GC::Ptr<DOM::Node> element)
     {
         m_active_contenteditable_element = element;

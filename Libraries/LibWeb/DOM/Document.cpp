@@ -6444,18 +6444,20 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     return document;
 }
 
-InputEventsTarget* Document::active_input_events_target()
+InputEventsTarget* Document::active_input_events_target(Node const* for_node)
 {
     auto focused_area = this->focused_area();
     if (!focused_area)
-        return {};
+        return nullptr;
 
-    if (auto* input_element = as_if<HTML::HTMLInputElement>(*focused_area))
-        return input_element;
-    if (auto* text_area_element = as_if<HTML::HTMLTextAreaElement>(*focused_area))
-        return text_area_element;
-    if (focused_area->is_editable_or_editing_host())
-        return m_editing_host_manager;
+    if (focused_area->is_editable_or_editing_host()) {
+        if (!for_node || m_editing_host_manager->is_within_active_contenteditable(*for_node))
+            return m_editing_host_manager;
+    }
+    if (auto* form_text_element = as_if<HTML::FormAssociatedTextControlElement>(*focused_area)) {
+        if (!for_node || for_node->find_in_shadow_including_ancestry([&](Node const& it) { return &it == focused_area; }))
+            return form_text_element;
+    }
     return nullptr;
 }
 
