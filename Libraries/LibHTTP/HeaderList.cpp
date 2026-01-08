@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <AK/StringUtils.h>
 #include <LibHTTP/HeaderList.h>
 
@@ -254,6 +255,79 @@ Variant<Empty, u64, HeaderList::ExtractLengthFailure> HeaderList::extract_length
         return {};
 
     return *result;
+}
+
+// https://wicg.github.io/background-fetch/#single-byte-content-range
+static Optional<HeaderList::ContentRangeValues> parse_single_byte_content_range_as_values(ByteString const& string)
+{
+    HeaderList::ContentRangeValues result;
+    GenericLexer lexer { string };
+
+    // "bytes=" first-byte-pos "-" last-byte-pos "/" complete-length
+
+    // AD-HOC: The spec wants an '=', but the RFC mentioned in the spec requires a space.
+    //         https://github.com/WICG/background-fetch/issues/154
+    if (!lexer.consume_specific("bytes "sv))
+        return {};
+
+    // first-byte-pos = 1*DIGIT
+    auto first_byte_pos_result = lexer.consume_decimal_integer<u64>();
+    if (first_byte_pos_result.is_error())
+        return {};
+    result.first_byte_pos = first_byte_pos_result.release_value();
+
+    if (!lexer.consume_specific('-'))
+        return {};
+
+    // last-byte-pos  = 1*DIGIT
+    auto last_byte_pos_result = lexer.consume_decimal_integer<u64>();
+    if (last_byte_pos_result.is_error())
+        return {};
+    result.last_byte_pos = last_byte_pos_result.release_value();
+
+    if (!lexer.consume_specific('/'))
+        return {};
+
+    // complete-length = ( 1*DIGIT / "*" )
+    if (!lexer.consume_specific('*')) {
+        result.complete_length = {};
+    } else {
+        auto complete_length_result = lexer.consume_decimal_integer<u64>();
+        if (complete_length_result.is_error())
+            return {};
+        result.complete_length = complete_length_result.release_value();
+    }
+
+    return result;
+}
+
+// https://wicg.github.io/background-fetch/#extract-content-range-values
+Variant<HeaderList::ContentRangeValues, HeaderList::ExtractContentRangeFailure> HeaderList::extract_content_range_values() const
+{
+    // 1. If response’s header list does not contain `Content-Range`, then return failure.
+    // 2. Let contentRangeValue be the value of the first header whose name is a byte-case-insensitive match for
+    //    `Content-Range` in response’s header list.
+    auto content_range_value = get("Content-Range"sv);
+    if (!content_range_value.has_value())
+        return ExtractContentRangeFailure {};
+
+    // 3. If parsing contentRangeValue per single byte content-range fails, then return failure.
+    // 4. Let firstBytePos be the portion of contentRangeValue named first-byte-pos when parsed as single byte content-range,
+    //    parsed as an integer.
+    // 5. Let lastBytePos be the portion of contentRangeValue named last-byte-pos when parsed as single byte content-range,
+    //    parsed as an integer.
+    // 6. Let completeLength be the portion of contentRangeValue named complete-length when parsed as single byte
+    //    content-range.
+    // 7. If completeLength is "*", then set completeLength to null, otherwise set completeLength to completeLength parsed as
+    //    an integer.
+
+    // NB: The variables above are converted to integers as part of the single byte content-range parsing algorithm.
+    auto result = parse_single_byte_content_range_as_values(content_range_value.value());
+    if (!result.has_value())
+        return ExtractContentRangeFailure {};
+
+    // 8. Return firstBytePos, lastBytePos, and completeLength.
+    return result.release_value();
 }
 
 // Non-standard
