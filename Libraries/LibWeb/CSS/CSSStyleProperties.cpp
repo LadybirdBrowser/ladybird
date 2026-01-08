@@ -541,6 +541,15 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     .value = maybe_value.release_nonnull(),
                 };
             }
+            // FIXME: Currently, to get the initial value for a registered custom property we have to look at the document.
+            //        These should be cascaded like other properties.
+            if (auto maybe_value = abstract_element.document().get_registered_custom_property(property_name_and_id.name()); maybe_value.has_value() && maybe_value->initial_value) {
+                return StyleProperty {
+                    .property_id = property_id,
+                    .value = *maybe_value->initial_value,
+                };
+            }
+
             return {};
         }
 
