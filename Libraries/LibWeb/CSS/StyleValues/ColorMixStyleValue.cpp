@@ -48,7 +48,8 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
                 return;
 
             // else, p1 is serialized as is.
-            builder.appendff(" {}", p1->to_string(mode));
+            builder.append(' ');
+            p1->serialize(builder, mode);
         }
         // else if ONLY the first percentage p1 is specified:
         else if (p1.has_value()) {
@@ -57,7 +58,8 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
                 return;
 
             // else, p1 is serialized as is.
-            builder.appendff(" {}", p1->to_string(mode));
+            builder.append(' ');
+            p1->serialize(builder, mode);
         }
         // else if ONLY the second percentage p2 is specified:
         else if (p2.has_value()) {
@@ -85,7 +87,8 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
                 return;
 
             // else, p2 is serialized as is.
-            builder.appendff(" {}", p2->to_string(mode));
+            builder.append(' ');
+            p2->serialize(builder, mode);
         }
         // else if ONLY the first percentage p1 is specified:
         else if (p1.has_value()) {
@@ -102,7 +105,8 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
                 return;
 
             // else, p2 is serialized as is.
-            builder.appendff(" {}", p2->to_string(mode));
+            builder.append(' ');
+            p2->serialize(builder, mode);
         }
         // else if NEITHER is specified:
         else {

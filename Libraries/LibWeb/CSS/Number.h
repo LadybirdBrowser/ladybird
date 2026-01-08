@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <AK/Types.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <math.h>
@@ -71,6 +72,7 @@ public:
         return { Type::Number, m_value / other.m_value };
     }
 
+    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
     String to_string(SerializationMode = SerializationMode::Normal) const;
 
     bool operator==(Number const& other) const

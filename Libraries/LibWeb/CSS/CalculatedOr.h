@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Flex.h>
@@ -64,19 +65,27 @@ public:
             });
     }
 
-    String to_string(SerializationMode mode) const
+    void serialize(StringBuilder& builder, SerializationMode mode) const
     {
-        return m_value.visit(
-            [](T const& t) {
+        m_value.visit(
+            [&builder, mode](T const& t) {
                 if constexpr (IsArithmetic<T>) {
-                    return String::number(t);
+                    (void)mode;
+                    builder.append(String::number(t));
                 } else {
-                    return t.to_string();
+                    t.serialize(builder, mode);
                 }
             },
-            [&mode](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
-                return calculated->to_string(mode);
+            [&builder, mode](NonnullRefPtr<CalculatedStyleValue const> const& calculated) {
+                calculated->serialize(builder, mode);
             });
+    }
+
+    String to_string(SerializationMode mode) const
+    {
+        StringBuilder builder;
+        serialize(builder, mode);
+        return builder.to_string_without_validation();
     }
 
     bool operator==(CalculatedOr<Self, T> const& other) const

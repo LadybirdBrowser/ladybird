@@ -98,27 +98,43 @@ bool Size::contains_percentage() const
     }
 }
 
-String Size::to_string(SerializationMode mode) const
+void Size::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     switch (m_type) {
     case Type::Auto:
-        return "auto"_string;
+        builder.append("auto"sv);
+        break;
     case Type::Calculated:
     case Type::Length:
     case Type::Percentage:
-        return m_length_percentage->to_string(mode);
+        m_length_percentage->serialize(builder, mode);
+        break;
     case Type::MinContent:
-        return "min-content"_string;
+        builder.append("min-content"sv);
+        break;
     case Type::MaxContent:
-        return "max-content"_string;
+        builder.append("max-content"sv);
+        break;
     case Type::FitContent:
-        if (!m_length_percentage.has_value())
-            return "fit-content"_string;
-        return MUST(String::formatted("fit-content({})", m_length_percentage->to_string(mode)));
+        if (!m_length_percentage.has_value()) {
+            builder.append("fit-content"sv);
+        } else {
+            builder.append("fit-content("sv);
+            m_length_percentage->serialize(builder, mode);
+            builder.append(")"sv);
+        }
+        break;
     case Type::None:
-        return "none"_string;
+        builder.append("none"sv);
+        break;
     }
-    VERIFY_NOT_REACHED();
+}
+
+String Size::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    serialize(builder, mode);
+    return MUST(builder.to_string());
 }
 
 }

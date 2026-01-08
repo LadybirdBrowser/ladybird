@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Frequency.h>
@@ -121,13 +122,22 @@ public:
             });
     }
 
+    void serialize(StringBuilder& builder, SerializationMode mode) const
+    {
+        if (is_calculated()) {
+            m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>()->serialize(builder, mode);
+        } else if (is_percentage()) {
+            m_value.template get<Percentage>().serialize(builder, mode);
+        } else {
+            m_value.template get<T>().serialize(builder, mode);
+        }
+    }
+
     String to_string(SerializationMode mode) const
     {
-        if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CalculatedStyleValue const>>()->to_string(mode);
-        if (is_percentage())
-            return m_value.template get<Percentage>().to_string();
-        return m_value.template get<T>().to_string();
+        StringBuilder builder;
+        serialize(builder, mode);
+        return builder.to_string_without_validation();
     }
 
     bool operator==(PercentageOr<T> const& other) const
@@ -267,11 +277,19 @@ public:
         return length_percentage().to_px(layout_node, reference_value);
     }
 
-    String to_string(SerializationMode mode) const
+    void serialize(StringBuilder& builder, SerializationMode mode) const
     {
         if (is_auto())
-            return "auto"_string;
-        return m_length_percentage->to_string(mode);
+            builder.append("auto"sv);
+        else
+            m_length_percentage->serialize(builder, mode);
+    }
+
+    String to_string(SerializationMode mode) const
+    {
+        StringBuilder builder;
+        serialize(builder, mode);
+        return builder.to_string_without_validation();
     }
 
     bool operator==(LengthPercentageOrAuto const&) const = default;

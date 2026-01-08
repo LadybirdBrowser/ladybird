@@ -84,6 +84,7 @@ public:
         return m_length_percentage;
     }
 
+    void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     bool operator==(Size const&) const = default;
 

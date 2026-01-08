@@ -21,7 +21,7 @@ Resolution Resolution::make_dots_per_pixel(double value)
     return { value, ResolutionUnit::Dppx };
 }
 
-String Resolution::to_string(SerializationMode serialization_mode) const
+void Resolution::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
     // -> <resolution>
@@ -29,14 +29,18 @@ String Resolution::to_string(SerializationMode serialization_mode) const
     // AD-HOC: WPT expects us to serialize using the actual unit, like for other dimensions.
     //         https://github.com/w3c/csswg-drafts/issues/12616
     if (serialization_mode == SerializationMode::ResolvedValue) {
-        StringBuilder builder;
         serialize_a_number(builder, to_dots_per_pixel());
         builder.append("dppx"sv);
-        return builder.to_string_without_validation();
+        return;
     }
-    StringBuilder builder;
     serialize_a_number(builder, raw_value());
     builder.append(unit_name());
+}
+
+String Resolution::to_string(SerializationMode serialization_mode) const
+{
+    StringBuilder builder;
+    serialize(builder, serialization_mode);
     return builder.to_string_without_validation();
 }
 

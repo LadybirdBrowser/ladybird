@@ -21,7 +21,7 @@ AngleStyleValue::~AngleStyleValue() = default;
 
 void AngleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    builder.append(m_angle.to_string(mode));
+    m_angle.serialize(builder, mode);
 }
 
 bool AngleStyleValue::equals(StyleValue const& other) const

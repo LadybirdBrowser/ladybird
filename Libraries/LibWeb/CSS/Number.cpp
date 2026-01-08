@@ -10,17 +10,32 @@
 
 namespace Web::CSS {
 
-String Number::to_string(SerializationMode) const
+void Number::serialize(StringBuilder& builder, SerializationMode) const
 {
-    if (m_type == Type::IntegerWithExplicitSign)
-        return MUST(String::formatted("{:+}", m_value));
-    if (m_value == AK::Infinity<double>)
-        return "infinity"_string;
-    if (m_value == -AK::Infinity<double>)
-        return "-infinity"_string;
-    if (isnan(m_value))
-        return "NaN"_string;
-    return serialize_a_number(m_value);
+    if (m_type == Type::IntegerWithExplicitSign) {
+        builder.appendff("{:+}", m_value);
+        return;
+    }
+    if (m_value == AK::Infinity<double>) {
+        builder.append("infinity"sv);
+        return;
+    }
+    if (m_value == -AK::Infinity<double>) {
+        builder.append("-infinity"sv);
+        return;
+    }
+    if (isnan(m_value)) {
+        builder.append("NaN"sv);
+        return;
+    }
+    serialize_a_number(builder, m_value);
+}
+
+String Number::to_string(SerializationMode mode) const
+{
+    StringBuilder builder;
+    serialize(builder, mode);
+    return builder.to_string_without_validation();
 }
 
 }

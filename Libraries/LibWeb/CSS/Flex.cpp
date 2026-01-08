@@ -26,19 +26,23 @@ Flex Flex::percentage_of(Percentage const& percentage) const
     return Flex { percentage.as_fraction() * m_value, m_unit };
 }
 
-String Flex::to_string(SerializationMode serialization_mode) const
+void Flex::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
     // AD-HOC: No spec definition, so copy the other <dimension> definitions
     if (serialization_mode == SerializationMode::ResolvedValue) {
-        StringBuilder builder;
         serialize_a_number(builder, to_fr());
         builder.append("fr"sv);
-        return builder.to_string_without_validation();
+        return;
     }
-    StringBuilder builder;
     serialize_a_number(builder, raw_value());
     builder.append(unit_name());
+}
+
+String Flex::to_string(SerializationMode serialization_mode) const
+{
+    StringBuilder builder;
+    serialize(builder, serialization_mode);
     return builder.to_string_without_validation();
 }
 

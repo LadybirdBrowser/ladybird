@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/Units.h>
 #include <LibWeb/Forward.h>
@@ -19,6 +20,7 @@ public:
     static Frequency make_hertz(double);
     Frequency percentage_of(Percentage const&) const;
 
+    void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;
     String to_string(SerializationMode = SerializationMode::Normal) const;
     double to_hertz() const;
 

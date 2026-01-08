@@ -220,7 +220,7 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
     return viewport_relative_length_to_px(viewport_rect);
 }
 
-String Length::to_string(SerializationMode serialization_mode) const
+void Length::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
 {
     // https://drafts.csswg.org/cssom/#serialize-a-css-value
     // -> <length>
@@ -230,14 +230,18 @@ String Length::to_string(SerializationMode serialization_mode) const
     // FIXME: Manually skip this for px so we avoid rounding errors in absolute_length_to_px.
     //        Maybe provide alternative functions that don't produce CSSPixels?
     if (serialization_mode == SerializationMode::ResolvedValue && is_absolute() && m_unit != LengthUnit::Px) {
-        StringBuilder builder;
         serialize_a_number(builder, absolute_length_to_px().to_double());
         builder.append("px"sv);
-        return builder.to_string_without_validation();
+        return;
     }
-    StringBuilder builder;
     serialize_a_number(builder, m_value);
     builder.append(unit_name());
+}
+
+String Length::to_string(SerializationMode serialization_mode) const
+{
+    StringBuilder builder;
+    serialize(builder, serialization_mode);
     return builder.to_string_without_validation();
 }
 
