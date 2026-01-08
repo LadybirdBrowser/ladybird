@@ -1098,7 +1098,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 
             // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
-            auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range);
+            auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
             if (maybe_verify_response_failure.has_value()) {
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
                 return;
@@ -1166,7 +1166,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
+Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range, NonnullRefPtr<FetchData> const& fetch_data)
 {
     // 1. If response is a network error, then return false.
     if (response->is_network_error()) {
@@ -1190,10 +1190,15 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
         return MUST(String::formatted("Unexpected status code: {}", internal_response->status()));
 
     // 6. If the result of extracting content-range values from internalResponse is failure, then return false.
-    auto maybe_content_range = internal_response->header_list()->get("Content-Range"sv);
-    // FIXME: Implement the content-range extraction algorithm.
-    if (!maybe_content_range.has_value())
-        return "Response did not have a Content-Range header"_string;
+    auto maybe_content_range = internal_response->header_list()->extract_content_range_values();
+    if (!maybe_content_range.has<HTTP::HeaderList::ContentRangeValues>())
+        return MUST(String::formatted("Failed to extract values from Content-Range: {}", internal_response->header_list()->get("Content-Range"sv)));
+
+    auto const& content_range = maybe_content_range.get<HTTP::HeaderList::ContentRangeValues>();
+    fetch_data->offset = content_range.first_byte_pos;
+    if (content_range.complete_length.has_value())
+        fetch_data->stream->set_expected_size(content_range.complete_length.value());
+
     return {};
 }
 
