@@ -498,7 +498,7 @@ public:
 
     virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
     {
-        m_work_queue.ensure_capacity(m_work_queue.size() + values.size());
+        m_work_queue.grow_capacity(m_work_queue.size() + values.size());
 
         for (auto value : values) {
             if (!value.is_cell())
