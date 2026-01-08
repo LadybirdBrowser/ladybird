@@ -40,14 +40,14 @@ GC::Ptr<Layout::Node> SVGFEFloodElement::create_layout_node(GC::Ref<CSS::Compute
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
 Gfx::Color SVGFEFloodElement::flood_color()
 {
-    if (this->computed_properties())
-        return this->computed_properties()->color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::flood_color());
-    return CSS::InitialValues::flood_color();
+    VERIFY(computed_properties());
+    return computed_properties()->color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::flood_color());
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty
 float SVGFEFloodElement::flood_opacity() const
 {
+    VERIFY(computed_properties());
     return computed_properties()->flood_opacity();
 }
 
