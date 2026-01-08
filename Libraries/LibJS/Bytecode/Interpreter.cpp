@@ -45,6 +45,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/SourceTextModule.h>
+#include <math.h>
 
 namespace JS::Bytecode {
 
@@ -1571,6 +1572,40 @@ ThrowCompletionOr<void> Div::execute_impl(Bytecode::Interpreter& interpreter) co
     }
 
     interpreter.set(m_dst, TRY(div(vm, lhs, rhs)));
+    return {};
+}
+
+ThrowCompletionOr<void> Mod::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto const lhs = interpreter.get(m_lhs);
+    auto const rhs = interpreter.get(m_rhs);
+
+    if (lhs.is_number() && rhs.is_number()) [[likely]] {
+        if (lhs.is_int32() && rhs.is_int32()) {
+            auto n = lhs.as_i32();
+            auto d = rhs.as_i32();
+            if (d == 0) {
+                interpreter.set(m_dst, js_nan());
+                return {};
+            }
+            if (n == NumericLimits<i32>::min() && d == -1) {
+                interpreter.set(m_dst, Value(-0.0));
+                return {};
+            }
+            auto result = n % d;
+            if (result == 0 && n < 0) {
+                interpreter.set(m_dst, Value(-0.0));
+                return {};
+            }
+            interpreter.set(m_dst, Value(result));
+            return {};
+        }
+        interpreter.set(m_dst, Value(fmod(lhs.as_double(), rhs.as_double())));
+        return {};
+    }
+
+    interpreter.set(m_dst, TRY(mod(vm, lhs, rhs)));
     return {};
 }
 
