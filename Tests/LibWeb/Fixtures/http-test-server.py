@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+
 import argparse
 import http.server
 import json
 import os
+import socket
 import socketserver
 import sys
 import time
@@ -135,6 +137,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         is_revalidation_request = "If-Modified-Since" in self.headers
         send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
 
+        send_incomplete_response = "X-Ladybird-Respond-With-Incomplete-Response" in self.headers
+
         if key in echo_store:
             echo = echo_store[key]
             response_headers = echo.headers.copy()
@@ -150,6 +154,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if is_revalidation_request:
                     # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
                     response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
+                elif send_incomplete_response:
+                    # We emulate an incomplete response by advertising a 10KB file, but only sending 2KB.
+                    response_headers["Content-Length"] = str(10 * 1024)
 
             # Set only the headers defined in the echo definition
             if response_headers:
@@ -158,6 +165,14 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
 
             if send_not_modified:
+                return
+
+            if send_incomplete_response:
+                self.wfile.write(b"a" * (2 * 1024))
+                self.wfile.flush()
+
+                self.connection.shutdown(socket.SHUT_WR)
+                self.connection.close()
                 return
 
             if echo.reflect_headers_in_body:

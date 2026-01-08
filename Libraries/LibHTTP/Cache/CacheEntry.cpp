@@ -205,6 +205,12 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> response_headers
     return {};
 }
 
+void CacheEntryWriter::on_network_error()
+{
+    remove();
+    close_and_destroy_cache_entry();
+}
+
 ErrorOr<NonnullOwnPtr<CacheEntryReader>> CacheEntryReader::create(DiskCache& disk_cache, CacheIndex& index, u64 cache_key, NonnullRefPtr<HeaderList> response_headers, u64 data_size)
 {
     auto path = path_for_cache_key(disk_cache.cache_directory(), cache_key);

@@ -482,6 +482,11 @@ void Request::handle_complete_state()
                 char const* curl_error_message = curl_easy_strerror(static_cast<CURLcode>(*m_curl_result_code));
                 dbgln("Request::handle_complete_state: Unable to map error ({}): \"\033[31;1m{}\033[0m\"", *m_curl_result_code, curl_error_message);
             }
+
+            if (m_cache_entry_writer.has_value()) {
+                m_cache_entry_writer->on_network_error();
+                m_cache_entry_writer.clear();
+            }
         }
 
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
