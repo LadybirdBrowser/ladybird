@@ -683,60 +683,69 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (button != UIEvents::MouseButton::Primary)
         return EventResult::Handled;
 
-    auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor);
-    if (!result.has_value())
-        return EventResult::Handled;
+    // First do an exact hit test for focus management.
+    auto exact_hit = paint_root()->hit_test(viewport_position, Painting::HitTestType::Exact);
+    GC::Ptr<Painting::Paintable> focus_paintable;
+    GC::Ptr<DOM::Node> focus_dom_node;
+    if (exact_hit.has_value()) {
+        focus_paintable = exact_hit->paintable;
+        focus_dom_node = focus_paintable ? focus_paintable->dom_node() : nullptr;
+    }
 
-    auto paintable = result->paintable;
-    auto dom_node = paintable->dom_node();
-    if (!dom_node)
-        return EventResult::Handled;
-
-    // See if we want to focus something.
     GC::Ptr<DOM::Node> focus_candidate;
-    if (auto input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
-        focus_candidate = input_control;
-    } else {
-        for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
-            if (candidate->is_focusable()) {
-                focus_candidate = candidate;
-                break;
-            }
-        }
+    if (focus_paintable && focus_dom_node) {
+        if (auto input_control = input_control_associated_with_ancestor_label_element(*focus_paintable))
+            focus_candidate = input_control;
+        else
+            for (focus_candidate = focus_dom_node;
+                focus_candidate && !focus_candidate->is_focusable();
+                focus_candidate = focus_candidate->parent_or_shadow_host())
+                ;
     }
 
     // When a user activates a click focusable focusable area, the user agent must run the focusing steps on the focusable area with focus trigger set to "click".
-    // Spec Note: Note that focusing is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
-    if (focus_candidate)
+    // Spec Note: Note that programmatic click is not an activation behavior, i.e. calling the click() method on an element or dispatching a synthetic click event on it won't cause the element to get focused.
+    if (focus_candidate) {
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
-    else if (auto focused_area = document->focused_area())
+    } else if (auto focused_area = document->focused_area()) {
         HTML::run_unfocusing_steps(focused_area);
+    }
+
+    // Now we can do selection with a cursor hit test.
+    auto cursor_hit = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor);
+    if (!cursor_hit.has_value())
+        return EventResult::Handled;
+
+    auto dom_node = cursor_hit->paintable->dom_node();
+    if (!dom_node)
+        return EventResult::Handled;
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting
     // a drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
-    auto user_select = paintable->layout_node().user_select_used_value();
+    auto user_select = cursor_hit->paintable->layout_node().user_select_used_value();
     if (user_select == CSS::UserSelect::None)
         return EventResult::Handled;
 
-    auto target = document->active_input_events_target();
-    if (target) {
+    size_t index = cursor_hit->index_in_node;
+    if (InputEventsTarget* active_target = document->active_input_events_target(dom_node)) {
         m_in_mouse_selection = true;
-        m_mouse_selection_target = target;
-        if (modifiers & UIEvents::KeyModifier::Mod_Shift) {
-            target->set_selection_focus(*dom_node, result->index_in_node);
-        } else {
-            target->set_selection_anchor(*dom_node, result->index_in_node);
-        }
+        m_mouse_selection_target = active_target;
+
+        if (modifiers & UIEvents::KeyModifier::Mod_Shift)
+            active_target->set_selection_focus(*dom_node, index);
+        else
+            active_target->set_selection_anchor(*dom_node, index);
     } else if (!focus_candidate) {
         m_in_mouse_selection = true;
+        m_mouse_selection_target = nullptr;
+
         if (auto selection = document->get_selection()) {
             auto anchor_node = selection->anchor_node();
-            if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
-                set_user_selection(*anchor_node, selection->anchor_offset(), *dom_node, result->index_in_node, selection, user_select);
-            } else {
-                set_user_selection(*dom_node, result->index_in_node, *dom_node, result->index_in_node, selection, user_select);
-            }
+            if (anchor_node && (modifiers & UIEvents::KeyModifier::Mod_Shift))
+                set_user_selection(*anchor_node, selection->anchor_offset(), *dom_node, index, selection, user_select);
+            else
+                set_user_selection(*dom_node, index, *dom_node, index, selection, user_select);
         }
     }
     return EventResult::Handled;

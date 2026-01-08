@@ -113,9 +113,14 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
     // 4. For each entry entry in new chain, in reverse order, run these substeps:
     for (auto& entry : new_chain.in_reverse()) {
         // 1. If entry is a focusable area, and the focused area of the document is not entry:
-        if (entry->is_focusable() && entry->document().focused_area() != entry.ptr()) {
-            // 1. Set document's relevant global object's navigation API's focus changed during ongoing navigation to
-            //    true.
+        if (entry->is_document()) {
+            if (entry->document().focused_area() != nullptr) {
+                as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
+
+                // AD-HOC: null focused_area indicates "viewport focus".
+                entry->document().set_focused_area(nullptr);
+            }
+        } else if (entry->is_focusable() && entry->document().focused_area() != entry.ptr()) {
             as<Window>(relevant_global_object(*entry)).navigation()->set_focus_changed_during_ongoing_navigation(true);
 
             // 2. Designate entry as the focused area of the document.
@@ -242,7 +247,7 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
     new_focus_target->document().set_last_focus_trigger(focus_trigger);
 
     // 8. Run the focus update steps with old chain, new chain, and new focus target respectively.
-    run_focus_update_steps(old_chain, new_chain, new_focus_target);
+    run_focus_update_steps(move(old_chain), move(new_chain), new_focus_target);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#unfocusing-steps
@@ -301,21 +306,28 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     auto& top_document = as<DOM::Document>(*old_chain.last());
 
     // 8. If topDocument's node navigable has system focus, then run the focusing steps for topDocument's viewport.
-    if (top_document.navigable()->traversable_navigable()->system_visibility_state() == HTML::VisibilityState::Visible) {
-        run_focusing_steps(&top_document);
+    if (top_document.navigable()->traversable_navigable()->is_focused()) {
+
+        // AD-HOC: Remove top_document from old_chain so step 1 in run_focus_update_steps doesn't cancel the blur.
+        auto without_viewport_surrogate = old_chain;
+        without_viewport_surrogate.take_last();
+
+        auto with_viewport_surrogate = focus_chain(&top_document);
+
+        run_focus_update_steps(move(without_viewport_surrogate), move(with_viewport_surrogate), &top_document);
     } else {
         // FIXME: Otherwise, apply any relevant platform-specific conventions for removing system focus from topDocument's
         // browsing context, and run the focus update steps with old chain, an empty list, and null respectively.
 
-        // What? It already doesn't have system focus, what possible platform-specific conventions are there?
-
-        run_focus_update_steps(old_chain, {}, nullptr);
+        run_focus_update_steps(move(old_chain), {}, nullptr);
     }
 
     // NOTE: The unfocusing steps do not always result in the focus changing, even when applied to the currently focused
     //       area of a top-level traversable. For example, if the currently focused area of a top-level traversable is a
     //       viewport, then it will usually keep its focus regardless until another focusable area is explicitly focused
     //       with the focusing steps.
+
+    // What? It already doesn't have system focus, what possible platform-specific conventions are there?
 }
 
 }
