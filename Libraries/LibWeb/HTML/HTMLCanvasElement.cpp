@@ -40,7 +40,6 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLCanvasElement);
@@ -264,6 +263,10 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
 
     // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
     // NOTE: See the spec for the full table.
+    if (m_context.has<GC::Ref<OffscreenCanvas>>()) {
+        return realm().vm().throw_completion<WebIDL::InvalidStateError>("Cannot get context of a placeholder canvas"_utf16);
+    }
+
     if (type == "2d"sv) {
         if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>());
