@@ -17,7 +17,6 @@ namespace JS::Bytecode::Op {
 
 #define JS_ENUMERATE_COMMON_BINARY_OPS_WITHOUT_FAST_PATH(O) \
     O(Exp, exp)                                             \
-    O(Mod, mod)                                             \
     O(In, in)                                               \
     O(InstanceOf, instance_of)                              \
     O(LooselyInequals, loosely_inequals)                    \
