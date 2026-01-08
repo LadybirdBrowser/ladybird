@@ -127,10 +127,40 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
             return false;
         return true;
     }();
+
+    // OPTIMIZATION: Skip automatic_minimum_size calculation when we can prove it won't affect the result.
+    //               We compute:
+    //                   hypothetical_main_size = clamp(flex_base_size, automatic_minimum_size, max_size)
+    //               For non-replaced elements without aspect ratio, the spec defines:
+    //                   automatic_minimum_size = content_based_minimum_size
+    //                   content_based_minimum_size = min(content_size_suggestion, specified_size_suggestion)
+    //               This means:
+    //                   automatic_minimum_size <= specified_size_suggestion (when specified exists).
+    //.              So if flex_base_size == specified_size_suggestion, then automatic_minimum_size <= flex_base_size,
+    //               and the lower clamp becomes a no-op. We can substitute 0 and get the same result.
+    //.              We exclude: scroll containers (content can overflow, different behavior), replaced elements (use
+    //               different formula with intrinsic sizes), and items with aspect-ratio (transferred_size_suggestion
+    //               complicates the calculation).
+    auto can_skip_automatic_minimum_size_for_item = [&](FlexItem const& item) -> bool {
+        if (item.box->is_scroll_container())
+            return false;
+        if (item.box->is_replaced_box() || item.box->has_preferred_aspect_ratio())
+            return false;
+        if (!item.used_flex_basis_is_definite)
+            return false;
+        return item.flex_base_size == specified_size_suggestion(item);
+    };
+
     for (auto& item : m_flex_items) {
         // The hypothetical main size is the item’s flex base size clamped according to its used min and max main sizes (and flooring the content box size at zero).
         auto clamp_max = has_main_max_size(item.box) ? specified_main_max_size(item) : CSSPixels::max();
-        auto clamp_min = has_main_min_size(item.box) ? specified_main_min_size(item) : (should_skip_automatic_minimum_size_clamp ? 0 : automatic_minimum_size(item));
+        auto clamp_min = [&] {
+            if (has_main_min_size(item.box))
+                return specified_main_min_size(item);
+            if (should_skip_automatic_minimum_size_clamp || can_skip_automatic_minimum_size_for_item(item))
+                return CSSPixels(0);
+            return automatic_minimum_size(item);
+        }();
         item.hypothetical_main_size = max(CSSPixels(0), css_clamp(item.flex_base_size, clamp_min, clamp_max));
     }
 
