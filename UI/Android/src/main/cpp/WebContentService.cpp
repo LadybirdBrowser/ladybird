@@ -59,10 +59,10 @@ ErrorOr<int> service_main(int ipc_socket)
     auto request_server_client = TRY(bind_request_server_service());
     Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap(), move(request_server_client));
 
-    bool is_layout_test_mode = false;
+    bool is_test_mode = false;
 
-    Web::HTML::Window::set_internals_object_exposed(is_layout_test_mode);
-    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_layout_test_mode));
+    Web::HTML::Window::set_internals_object_exposed(is_test_mode);
+    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_test_mode));
 
     // Currently site isolation doesn't work on Android since everything is running
     // in the same process. It would require an entire redesign of this port

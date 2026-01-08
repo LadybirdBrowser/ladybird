@@ -112,7 +112,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<StringView> default_time_zone;
     Optional<u16> dns_server_port;
     bool use_dns_over_tls = false;
-    bool layout_test_mode = false;
+    bool enable_test_mode = false;
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     bool disable_site_isolation = false;
@@ -165,7 +165,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
-    args_parser.add_option(layout_test_mode, "Enable layout test mode", "layout-test-mode");
+    args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
@@ -278,7 +278,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .command_line = MUST(String::join(' ', m_arguments.strings)),
         .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
         .user_agent_preset = move(user_agent_preset),
-        .is_layout_test_mode = layout_test_mode ? IsLayoutTestMode::Yes : IsLayoutTestMode::No,
+        .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .disable_site_isolation = disable_site_isolation ? DisableSiteIsolation::Yes : DisableSiteIsolation::No,
         .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
