@@ -9,6 +9,7 @@
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/LabelableNode.h>
 #include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/TextPaintable.h>
 
 namespace Web::Painting {
@@ -65,7 +66,7 @@ void TextPaintable::paint_inspector_overlay_internal(DisplayListRecordingContext
     if (auto const* parent_paintable = as_if<PaintableWithLines>(parent())) {
         for (auto const& fragment : parent_paintable->fragments()) {
             if (&fragment.paintable() == this) {
-                paint_text_fragment_debug_highlight(context, fragment);
+                PaintableWithLines::paint_text_fragment_debug_highlight(context, fragment);
             }
         }
     }

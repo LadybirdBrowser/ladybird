@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Layout {
 
