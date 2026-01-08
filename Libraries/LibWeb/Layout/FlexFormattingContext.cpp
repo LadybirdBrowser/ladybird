@@ -66,6 +66,7 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
         return;
     }
 
+    FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
 
     // 1. Generate anonymous flex items

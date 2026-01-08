@@ -74,6 +74,7 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
 
 void BlockFormattingContext::run(AvailableSpace const& available_space)
 {
+    FORMATTING_CONTEXT_TRACE();
     // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
     auto root_state = m_state.get(root());
     auto column_count = determine_used_value_for_column_count(root_state.content_width());

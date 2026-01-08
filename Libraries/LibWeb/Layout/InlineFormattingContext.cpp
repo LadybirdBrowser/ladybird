@@ -82,6 +82,7 @@ CSSPixels InlineFormattingContext::automatic_content_height() const
 
 void InlineFormattingContext::run(AvailableSpace const& available_space)
 {
+    FORMATTING_CONTEXT_TRACE();
     VERIFY(containing_block().children_are_inline());
     m_available_space = available_space;
     generate_line_boxes();

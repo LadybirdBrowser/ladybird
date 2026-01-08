@@ -1672,6 +1672,7 @@ void TableFormattingContext::parent_context_did_dimension_child_root_box()
 
 void TableFormattingContext::run(AvailableSpace const& available_space)
 {
+    FORMATTING_CONTEXT_TRACE();
     m_available_space = available_space;
 
     auto total_captions_height = run_caption_layout(CSS::CaptionSide::Top);
