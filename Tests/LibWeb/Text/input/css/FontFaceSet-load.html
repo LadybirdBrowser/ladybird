@@ -4,7 +4,7 @@
     asyncTest(async done => {
         const fontFaceSet = document.fonts;
 
-        const fontFace = new FontFace("Hash Sans", "url(../../../../Assets/HashSans.woff)");
+        const fontFace = new FontFace("Hash Sans", "url(../../../Assets/HashSans.woff)");
         fontFaceSet.add(fontFace);
 
         try {
@@ -22,8 +22,15 @@
         }
 
         try {
-            await fontFaceSet.load("1em Hash Sans");
-            println("Load valid font: PASS");
+            const result = await fontFaceSet.load("10px NonExistentFont");
+            println(`Load non-existent font: ${result.length == 0 ? "PASS" : "FAIL"}`);
+        } catch {
+            println("Load non-existent font: FAIL");
+        }
+
+        try {
+            const result = await fontFaceSet.load("1em Hash Sans");
+            println(`Load valid font: ${result.length > 0 ? "PASS" : "FAIL"}`);
         } catch (e) {
             println("Load valid font: FAIL");
             println(e);
