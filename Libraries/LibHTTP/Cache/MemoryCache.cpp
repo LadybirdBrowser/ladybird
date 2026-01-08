@@ -44,9 +44,9 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     return cache_entry;
 }
 
-void MemoryCache::create_entry(URL::URL const& url, StringView method, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers)
+void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers)
 {
-    if (!is_cacheable(method))
+    if (!is_cacheable(method, request_headers))
         return;
     if (!is_cacheable(status_code, response_headers))
         return;

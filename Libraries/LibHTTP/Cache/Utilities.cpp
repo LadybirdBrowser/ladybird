@@ -77,12 +77,16 @@ LexicalPath path_for_cache_key(LexicalPath const& cache_directory, u64 cache_key
 }
 
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
-bool is_cacheable(StringView method)
+bool is_cacheable(StringView method, HTTP::HeaderList const& request_headers)
 {
     // A cache MUST NOT store a response to a request unless:
 
     // * the request method is understood by the cache;
-    return method.is_one_of("GET"sv, "HEAD"sv);
+    if (!method.is_one_of("GET"sv, "HEAD"sv))
+        return false;
+
+    // FIXME: Neither the disk cache nor the memory cache handle partial responses yet. So we don't cache them for now.
+    return !request_headers.contains("Range"sv);
 }
 
 // https://datatracker.ietf.org/doc/html/rfc9110#name-overview-of-status-codes
@@ -117,6 +121,10 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
 
     // * the response status code is final (see Section 15 of [HTTP]);
     if (status_code < 200)
+        return false;
+
+    // FIXME: Neither the disk cache nor the memory cache handle partial responses yet. So we don't cache them for now.
+    if (status_code == 206)
         return false;
 
     auto cache_control = headers.get("Cache-Control"sv);
