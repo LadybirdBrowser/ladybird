@@ -205,7 +205,7 @@ private:
     struct FetchData;
     void fetch_resource(NonnullRefPtr<FetchData> const&, ByteRange const&);
 
-    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
+    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&, NonnullRefPtr<FetchData> const&);
 
     void restart_fetch_at_offset(NonnullRefPtr<FetchData> const&, u64 offset);
 
