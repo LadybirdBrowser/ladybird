@@ -2,7 +2,7 @@
 <div id="foo"></div>
 <script src="../../include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
         const foo = document.getElementById("foo");
 
         let animation = new Animation(null, null);
@@ -15,6 +15,8 @@
         animation = foo.animate({ color: "red" }, { duration: 1000, timeline });
         println(`Played animation has a currentTime of 0: ${animation.currentTime === 0}`);
 
+        await animationFrame();
+        
         timeline.setTime(100);
         if (animation.currentTime === 100)
             println("Animation time after 100ms is correct");
