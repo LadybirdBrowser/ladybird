@@ -91,6 +91,7 @@ public:
     ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const&);
     ErrorOr<void> write_data(ReadonlyBytes);
     ErrorOr<void> flush(NonnullRefPtr<HeaderList>);
+    void on_network_error();
 
 private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, LexicalPath, NonnullOwnPtr<Core::OutputBufferedFile>, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);

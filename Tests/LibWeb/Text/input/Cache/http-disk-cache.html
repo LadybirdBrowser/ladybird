@@ -8,11 +8,13 @@
     const TEST_CACHE_REQUEST_TIME_OFFSET = "X-Ladybird-Request-Time-Offset";
 
     // http-test-server custom headers.
+    const TEST_CACHE_RESPOND_WITH_INCOMPLETE_RESPONSE = "X-Ladybird-Respond-With-Incomplete-Response";
     const TEST_CACHE_RESPOND_WITH_NOT_MODIFIED = "X-Ladybird-Respond-With-Not-Modified";
 
     const ACCESS_CONTROL_ALLOW_HEADERS = [
         TEST_CACHE_ENABLED_HEADER,
         TEST_CACHE_REQUEST_TIME_OFFSET,
+        TEST_CACHE_RESPOND_WITH_INCOMPLETE_RESPONSE,
         TEST_CACHE_RESPOND_WITH_NOT_MODIFIED,
     ].join(", ");
 
@@ -176,6 +178,34 @@
 
             response = await cacheFetch(url);
             expectCacheStatus(url, response, "not-cached");
+        })();
+
+        // Incomplete responses are not cached.
+        await (async () => {
+            url = await createRequest(`/cache-test/incomplete`, {
+                headers: {
+                    "Cache-Control": "max-age=999",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    [TEST_CACHE_RESPOND_WITH_INCOMPLETE_RESPONSE]: "1",
+                },
+            });
+
+            try {
+                await response.text();
+
+                println(`Expected ${url} to result in an error while reading the response body`);
+                anyTestFailed = true;
+            } catch (e) {}
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "read-from-cache");
         })();
 
         // Expired responses are cached until their max-age directive is reached.
