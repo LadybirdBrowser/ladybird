@@ -18,20 +18,20 @@ GC_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 // https://html.spec.whatwg.org/multipage/workers.html#set-up-a-worker-environment-settings-object
 GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(GC::Ref<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
 {
-    // 1. Let inherited origin be outside settings's origin.
-    auto inherited_origin = outside_settings.origin;
-
-    // 2. Let realm be the value of execution context's Realm component.
+    // 1. Let realm be the value of execution context's Realm component.
     auto realm = execution_context->realm;
     VERIFY(realm);
 
-    // 3. Let worker global scope be realm's global object.
+    // 2. Let worker global scope be realm's global object.
     auto& worker = as<HTML::WorkerGlobalScope>(realm->global_object());
+
+    // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
+    auto origin = worker.url().scheme() == "data" ? URL::Origin::create_opaque() : outside_settings.origin;
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
     // FIXME: Is it enough to cache the has_cross_site_ancestor of outside_settings, or do we need to check the live object somehow?
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(inherited_origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
@@ -64,9 +64,7 @@ URL::URL WorkerEnvironmentSettingsObject::api_base_url() const
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-origin-2
 URL::Origin WorkerEnvironmentSettingsObject::origin() const
 {
-    // Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
-    if (m_global_scope->url().scheme() == "data")
-        return URL::Origin::create_opaque();
+    // Return origin.
     return m_origin;
 }
 
