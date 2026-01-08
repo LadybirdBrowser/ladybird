@@ -14,6 +14,8 @@
 
 namespace XML {
 
+static constexpr int MAX_XML_TREE_DEPTH = 5000;
+
 struct ParserContext {
     Listener* listener { nullptr };
     Optional<ParseError> error;
@@ -26,6 +28,8 @@ struct ParserContext {
     Version version { Version::Version11 };
 
     Vector<ParseError> parse_errors;
+
+    int depth { 0 };
 };
 
 static ByteString xml_char_to_byte_string(xmlChar const* str)
@@ -90,6 +94,24 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
     auto* context = static_cast<ParserContext*>(parser_ctx->_private);
     if (!context)
         return;
+
+    if (++context->depth > MAX_XML_TREE_DEPTH) {
+        size_t offset = 0;
+        if (parser_ctx->input && parser_ctx->input->cur && parser_ctx->input->base)
+            offset = static_cast<size_t>(parser_ctx->input->cur - parser_ctx->input->base);
+
+        ParseError parse_error {
+            .position = LineTrackingLexer::Position { .offset = offset },
+            .error = ByteString("Excessive node nesting."sv),
+        };
+        context->parse_errors.append(parse_error);
+
+        if (context->listener)
+            context->listener->error(parse_error);
+
+        xmlStopParser(parser_ctx);
+        return;
+    }
 
     StringBuilder name_builder;
     if (prefix) {
@@ -161,6 +183,8 @@ static void end_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar 
     auto* context = static_cast<ParserContext*>(parser_ctx->_private);
     if (!context)
         return;
+
+    --context->depth;
 
     StringBuilder name_builder;
     if (prefix) {
