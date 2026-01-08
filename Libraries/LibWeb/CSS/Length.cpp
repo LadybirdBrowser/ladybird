@@ -245,11 +245,8 @@ Optional<Length> Length::absolutize(ResolutionContext const& context) const
 {
     if (is_px())
         return {};
-    if (is_absolute() || is_relative()) {
-        auto px = to_px(context.viewport_rect, context.font_metrics, context.root_font_metrics);
-        return CSS::Length::make_px(px);
-    }
-    return {};
+
+    return CSS::Length::make_px(to_px_without_rounding(context));
 }
 
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Length const& reference_value)

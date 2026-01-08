@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 520 tests
 
-440 Pass
-80 Fail
+480 Pass
+40 Fail
 Pass	inset(10cm round 10cm) - inline
 Pass	inset(10cm round 10cm / 10cm) - inline
 Pass	inset(10cm round 10cm / 10cm 20cm) - inline
@@ -284,26 +284,26 @@ Pass	inset(10cm round 10cm 20cm 30cm 40cm / 10cm) - computed
 Pass	inset(10cm round 10cm 20cm 30cm 40cm / 10cm 20cm) - computed
 Pass	inset(10cm round 10cm 20cm 30cm 40cm / 10cm 20cm 30cm) - computed
 Pass	inset(10cm round 10cm 20cm 30cm 40cm / 10cm 20cm 30cm 40cm) - computed
-Fail	inset(10mm round 10mm) - computed
-Fail	inset(10mm round 10mm / 10mm) - computed
-Fail	inset(10mm round 10mm / 10mm 20mm) - computed
-Fail	inset(10mm round 10mm / 10mm 20mm 30mm) - computed
-Fail	inset(10mm round 10mm / 10mm 20mm 30mm 40mm) - computed
-Fail	inset(10mm round 10mm 20mm) - computed
-Fail	inset(10mm round 10mm 20mm / 10mm) - computed
-Fail	inset(10mm round 10mm 20mm / 10mm 20mm) - computed
-Fail	inset(10mm round 10mm 20mm / 10mm 20mm 30mm) - computed
-Fail	inset(10mm round 10mm 20mm / 10mm 20mm 30mm 40mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm / 10mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm / 10mm 20mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm / 10mm 20mm 30mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm / 10mm 20mm 30mm 40mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm 40mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm 40mm / 10mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm 30mm) - computed
-Fail	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm 30mm 40mm) - computed
+Pass	inset(10mm round 10mm) - computed
+Pass	inset(10mm round 10mm / 10mm) - computed
+Pass	inset(10mm round 10mm / 10mm 20mm) - computed
+Pass	inset(10mm round 10mm / 10mm 20mm 30mm) - computed
+Pass	inset(10mm round 10mm / 10mm 20mm 30mm 40mm) - computed
+Pass	inset(10mm round 10mm 20mm) - computed
+Pass	inset(10mm round 10mm 20mm / 10mm) - computed
+Pass	inset(10mm round 10mm 20mm / 10mm 20mm) - computed
+Pass	inset(10mm round 10mm 20mm / 10mm 20mm 30mm) - computed
+Pass	inset(10mm round 10mm 20mm / 10mm 20mm 30mm 40mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm / 10mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm / 10mm 20mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm / 10mm 20mm 30mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm / 10mm 20mm 30mm 40mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm 40mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm 40mm / 10mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm 30mm) - computed
+Pass	inset(10mm round 10mm 20mm 30mm 40mm / 10mm 20mm 30mm 40mm) - computed
 Pass	inset(10in round 10in) - computed
 Pass	inset(10in round 10in / 10in) - computed
 Pass	inset(10in round 10in / 10in 20in) - computed
@@ -324,26 +324,26 @@ Pass	inset(10in round 10in 20in 30in 40in / 10in) - computed
 Pass	inset(10in round 10in 20in 30in 40in / 10in 20in) - computed
 Pass	inset(10in round 10in 20in 30in 40in / 10in 20in 30in) - computed
 Pass	inset(10in round 10in 20in 30in 40in / 10in 20in 30in 40in) - computed
-Fail	inset(10pt round 10pt) - computed
-Fail	inset(10pt round 10pt / 10pt) - computed
-Fail	inset(10pt round 10pt / 10pt 20pt) - computed
-Fail	inset(10pt round 10pt / 10pt 20pt 30pt) - computed
-Fail	inset(10pt round 10pt / 10pt 20pt 30pt 40pt) - computed
-Fail	inset(10pt round 10pt 20pt) - computed
-Fail	inset(10pt round 10pt 20pt / 10pt) - computed
-Fail	inset(10pt round 10pt 20pt / 10pt 20pt) - computed
-Fail	inset(10pt round 10pt 20pt / 10pt 20pt 30pt) - computed
-Fail	inset(10pt round 10pt 20pt / 10pt 20pt 30pt 40pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt / 10pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt / 10pt 20pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt / 10pt 20pt 30pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt / 10pt 20pt 30pt 40pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt 40pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt 40pt / 10pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt 30pt) - computed
-Fail	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt 30pt 40pt) - computed
+Pass	inset(10pt round 10pt) - computed
+Pass	inset(10pt round 10pt / 10pt) - computed
+Pass	inset(10pt round 10pt / 10pt 20pt) - computed
+Pass	inset(10pt round 10pt / 10pt 20pt 30pt) - computed
+Pass	inset(10pt round 10pt / 10pt 20pt 30pt 40pt) - computed
+Pass	inset(10pt round 10pt 20pt) - computed
+Pass	inset(10pt round 10pt 20pt / 10pt) - computed
+Pass	inset(10pt round 10pt 20pt / 10pt 20pt) - computed
+Pass	inset(10pt round 10pt 20pt / 10pt 20pt 30pt) - computed
+Pass	inset(10pt round 10pt 20pt / 10pt 20pt 30pt 40pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt / 10pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt / 10pt 20pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt / 10pt 20pt 30pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt / 10pt 20pt 30pt 40pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt 40pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt 40pt / 10pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt 30pt) - computed
+Pass	inset(10pt round 10pt 20pt 30pt 40pt / 10pt 20pt 30pt 40pt) - computed
 Pass	inset(10pc round 10pc) - computed
 Pass	inset(10pc round 10pc / 10pc) - computed
 Pass	inset(10pc round 10pc / 10pc 20pc) - computed
