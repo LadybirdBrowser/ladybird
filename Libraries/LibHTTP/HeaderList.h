@@ -50,6 +50,14 @@ public:
     struct ExtractLengthFailure { };
     [[nodiscard]] Variant<Empty, u64, ExtractLengthFailure> extract_length() const;
 
+    struct ExtractContentRangeFailure { };
+    struct ContentRangeValues {
+        u64 first_byte_pos { 0 };
+        u64 last_byte_pos { 0 };
+        Optional<u64> complete_length;
+    };
+    [[nodiscard]] Variant<ContentRangeValues, ExtractContentRangeFailure> extract_content_range_values() const;
+
     [[nodiscard]] Vector<ByteString> unique_names() const;
 
     template<typename Callback>
