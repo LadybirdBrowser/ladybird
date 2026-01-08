@@ -735,6 +735,18 @@ Vector<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
     return m_pdf_viewer_mime_type_objects;
 }
 
+static bool s_test_mode = false;
+
+bool Window::in_test_mode()
+{
+    return s_test_mode;
+}
+
+void Window::set_enable_test_mode(bool exposed)
+{
+    s_test_mode = exposed;
+}
+
 static bool s_internals_object_exposed = false;
 
 void Window::set_internals_object_exposed(bool exposed)

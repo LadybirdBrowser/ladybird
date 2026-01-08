@@ -189,6 +189,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     TRY(initialize_image_decoder(image_decoder_socket));
 
+    Web::HTML::Window::set_enable_test_mode(enable_test_mode);
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
 
     Web::Platform::FontPlugin::install(*new WebView::FontPlugin(enable_test_mode, &font_provider));
