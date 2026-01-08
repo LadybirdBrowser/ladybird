@@ -1,0 +1,2 @@
+CompileError: A parsed type did not make sense in context
+PASS! (Didn't crash)
