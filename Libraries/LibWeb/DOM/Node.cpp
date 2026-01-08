@@ -1775,6 +1775,13 @@ Element* Node::parent_or_shadow_host_element()
     return nullptr;
 }
 
+Node const* Node::parent_or_shadow_host_node() const
+{
+    if (is<ShadowRoot>(*this))
+        return static_cast<ShadowRoot const&>(*this).host();
+    return parent();
+}
+
 Slottable Node::as_slottable()
 {
     VERIFY(is_slottable());
