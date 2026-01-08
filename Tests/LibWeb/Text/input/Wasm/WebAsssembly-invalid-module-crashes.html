@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const testCases = [
+            "AGFzbQEAAAAJEhAAHwAABQ==", // Structured else has argument type that isn't StructuredInstructionArgs
+        ];
+
+        for (const testCase of testCases) {
+            try {
+                await WebAssembly.instantiate(Uint8Array.fromBase64(testCase));
+                println("FAIL! Test case unexpectedly instantiated.");
+            } catch (e) {
+                println(e.toString());
+            }
+        }
+
+        println("PASS! (Didn't crash)");
+        done();
+    });
+</script>
