@@ -43,7 +43,7 @@ void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMo
         if (has_size || has_position)
             builder.append(' ');
 
-        builder.append(m_properties.interpolation_method.value().to_string());
+        m_properties.interpolation_method.value().serialize(builder);
     }
 
     if (has_size || has_position || has_color_space)
