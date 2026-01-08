@@ -104,7 +104,7 @@ struct RequestServerOptions {
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
 };
 
-enum class IsLayoutTestMode {
+enum class IsTestMode {
     No,
     Yes,
 };
@@ -159,7 +159,7 @@ struct WebContentOptions {
     String executable_path;
     Optional<ByteString> config_path {};
     Optional<StringView> user_agent_preset {};
-    IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
+    IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     DisableSiteIsolation disable_site_isolation { DisableSiteIsolation::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
