@@ -126,7 +126,6 @@ public:
 
     // Returns empty optional if it's already absolute.
     Optional<Length> absolutize(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
-    Length absolutized(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const;
 
     static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, Length const& reference_value);
     static Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, CSSPixels reference_value);
