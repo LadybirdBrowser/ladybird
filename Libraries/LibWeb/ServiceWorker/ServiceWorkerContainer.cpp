@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ServiceWorkerContainerPrototype.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -44,6 +45,7 @@ void ServiceWorkerContainer::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_service_worker_client);
+    visitor.visit(m_ready_promise);
 }
 
 GC::Ref<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
@@ -146,6 +148,55 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& 
     }));
 
     return promise;
+}
+
+// https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::ready()
+{
+    auto& realm = this->realm();
+
+    // 1. If this’s ready promise is null, then set this’s ready promise to a new promise.
+    if (!m_ready_promise) {
+        m_ready_promise = WebIDL::create_promise(realm);
+
+        // 2. Let readyPromise be this’s ready promise.
+        auto ready_promise = GC::Ref { *m_ready_promise };
+
+        // 3. If readyPromise is pending, run the following substeps in parallel:
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, ready_promise]() {
+            // 1. Let client be this’s service worker client.
+            auto client = m_service_worker_client;
+
+            // 2. Let storage key be the result of running obtain a storage key given client.
+            auto storage_key = StorageAPI::obtain_a_storage_key(client);
+            if (!storage_key.has_value()) {
+                // AD-HOC: Spec doesn't say what to do here, but we can't continue without a storage key.
+                return;
+            }
+
+            // 3. Let registration be the result of running Match Service Worker Registration given storage key and client’s creation URL.
+            auto maybe_registration = Registration::match(storage_key.value(), client->creation_url);
+
+            // 4. If registration is not null, and registration’s active worker is not null, queue a task on
+            //    readyPromise’s relevant settings object’s responsible event loop, using the DOM manipulation task source,
+            //    to resolve readyPromise with the result of getting the service worker registration object that represents
+            //    registration in readyPromise’s relevant settings object.
+            if (maybe_registration.has_value() && maybe_registration->active_worker() != nullptr) {
+                auto registration_object = HTML::relevant_settings_object(ready_promise->promise()).get_service_worker_registration_object(maybe_registration.value());
+                queue_a_task(HTML::Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), [ready_promise, registration_object]() {
+                    auto& realm = HTML::relevant_realm(ready_promise->promise());
+                    HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::resolve_promise(realm, ready_promise, registration_object);
+                }));
+            }
+            // NOTE: The returned ready promise will never reject.
+            //       If it does not resolve in this algorithm, it will eventually resolve when a matching service worker
+            //       registration is registered and its active worker is set. (See the relevant Activate algorithm step.)
+        }));
+    }
+
+    // 4. Return readyPromise.
+    return *m_ready_promise;
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm
