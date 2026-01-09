@@ -336,6 +336,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             }
             state.instruction_position = 0;
             state.repetition_marks.clear();
+            state.string_position_before_rseek = NumericLimits<size_t>::max();
+            state.string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
 
             if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;

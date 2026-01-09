@@ -25,3 +25,9 @@ describe("basic functionality", () => {
         expect(accessedUnicode).toBeFalse();
     });
 });
+
+describe("seek pattern with global flags", () => {
+    test("doesn't consider matches from before the current position", () => {
+        expect("1234\nabcdefg\n1234".match(/.*b(cd)/g)).toEqual(["abcd"]);
+    });
+});

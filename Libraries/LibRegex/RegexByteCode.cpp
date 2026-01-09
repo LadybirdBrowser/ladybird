@@ -560,9 +560,21 @@ ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const
     auto ch = argument(0);
     auto last_position = exchange(state.string_position_before_rseek, state.string_position);
     auto last_position_in_code_units = exchange(state.string_position_in_code_units_before_rseek, state.string_position_in_code_units);
+
+    auto line_limited = false;
+    if (last_position == NumericLimits<size_t>::max() && !input.regex_options.has_flag_set(AllFlags::SingleLine)) {
+        auto end_of_line = input.view.find_end_of_line(state.string_position, state.string_position_in_code_units);
+        last_position = end_of_line.code_point_index;
+        last_position_in_code_units = end_of_line.code_unit_index;
+        line_limited = true;
+    }
+
     auto next = input.view.find_index_of_previous(ch, last_position, last_position_in_code_units);
-    if (!next.has_value())
+    if (!next.has_value() || next->code_unit_index < state.string_position_in_code_units_before_rseek) {
+        if (line_limited)
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
         return ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches;
+    }
     state.string_position = next->code_point_index;
     state.string_position_in_code_units = next->code_unit_index;
     return ExecutionResult::Continue;
