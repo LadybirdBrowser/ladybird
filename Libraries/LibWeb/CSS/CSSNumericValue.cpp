@@ -5,6 +5,7 @@
  */
 
 #include "CSSNumericValue.h"
+#include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathValue.h>
@@ -154,18 +155,26 @@ CSSNumericType CSSNumericValue::type_for_bindings() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssnumericvalue
-String CSSNumericValue::to_string(SerializationParams const& params) const
+void CSSNumericValue::serialize(StringBuilder& builder, SerializationParams const& params) const
 {
     // To serialize a CSSNumericValue this, given an optional minimum, a numeric value, and optional maximum, a numeric value:
     // 1. If this is a CSSUnitValue, serialize a CSSUnitValue from this, passing minimum and maximum. Return the result.
     if (auto* unit_value = as_if<CSSUnitValue>(this)) {
-        return unit_value->serialize_unit_value(params.minimum, params.maximum);
+        unit_value->serialize_unit_value(builder, params.minimum, params.maximum);
+        return;
     }
     // 2. Otherwise, serialize a CSSMathValue from this, and return the result.
     auto& math_value = as<CSSMathValue>(*this);
-    return math_value.serialize_math_value(
+    math_value.serialize_math_value(builder,
         params.nested ? CSSMathValue::Nested::Yes : CSSMathValue::Nested::No,
         params.parenless ? CSSMathValue::Parens::Without : CSSMathValue::Parens::With);
+}
+
+String CSSNumericValue::to_string(SerializationParams const& params) const
+{
+    StringBuilder builder;
+    serialize(builder, params);
+    return builder.to_string_without_validation();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-numberish-value

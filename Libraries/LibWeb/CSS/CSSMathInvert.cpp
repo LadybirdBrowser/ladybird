@@ -54,11 +54,10 @@ void CSSMathInvert::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-String CSSMathInvert::serialize_math_value(Nested nested, Parens parens) const
+void CSSMathInvert::serialize_math_value(StringBuilder& s, Nested nested, Parens parens) const
 {
     // NB: Only steps 1 and 6 apply here.
     // 1. Let s initially be the empty string.
-    StringBuilder s;
 
     // 6. Otherwise, if this is a CSSMathInvert:
     {
@@ -66,7 +65,7 @@ String CSSMathInvert::serialize_math_value(Nested nested, Parens parens) const
         //    otherwise, append "calc(" to s.
         if (parens == Parens::With) {
             if (nested == Nested::Yes) {
-                s.append("("sv);
+                s.append('(');
             } else {
                 s.append("calc("sv);
             }
@@ -76,14 +75,13 @@ String CSSMathInvert::serialize_math_value(Nested nested, Parens parens) const
         s.append("1 / "sv);
 
         // 3. Serialize this’s value internal slot with nested set to true, and append the result to s.
-        s.append(m_value->to_string({ .nested = true }));
+        m_value->serialize(s, { .nested = true });
 
         // 4. If paren-less is false, append ")" to s,
         if (parens == Parens::With)
-            s.append(")"sv);
+            s.append(')');
 
         // 5. Return s.
-        return s.to_string_without_validation();
     }
 }
 

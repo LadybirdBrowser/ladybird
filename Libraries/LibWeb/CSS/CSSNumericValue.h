@@ -58,6 +58,7 @@ public:
     NumericType const& type() const { return m_type; }
 
     virtual WebIDL::ExceptionOr<String> to_string() const final override { return to_string({}); }
+    void serialize(StringBuilder&, SerializationParams const&) const;
     String to_string(SerializationParams const&) const;
 
     static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> parse(JS::VM&, String const& css_text);

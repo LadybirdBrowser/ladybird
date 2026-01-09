@@ -28,7 +28,7 @@ public:
 
     FlyString const& unit() const { return m_unit; }
 
-    String serialize_unit_value(Optional<double> minimum, Optional<double> maximum) const;
+    void serialize_unit_value(StringBuilder&, Optional<double> minimum, Optional<double> maximum) const;
 
     GC::Ptr<CSSUnitValue> converted_to_unit(FlyString const& unit) const;
 
