@@ -11,12 +11,12 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create(ColorInterpolationMethod interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
+ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create(Optional<ColorInterpolationMethod> interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
 {
     return adopt_ref(*new (nothrow) ColorMixStyleValue(move(interpolation_method), move(first_component), move(second_component)));
 }
 
-ColorMixStyleValue::ColorMixStyleValue(ColorInterpolationMethod color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
+ColorMixStyleValue::ColorMixStyleValue(Optional<ColorInterpolationMethod> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
     : ColorStyleValue(ColorType::ColorMix, ColorSyntax::Modern)
     , m_properties {
         .color_interpolation_method = move(color_interpolation_method),
@@ -114,10 +114,15 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
         }
     };
 
-    builder.appendff("color-mix(in {}", m_properties.color_interpolation_method.color_space);
-    if (m_properties.color_interpolation_method.hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
-        builder.appendff(" {} hue", CSS::to_string(*m_properties.color_interpolation_method.hue_interpolation_method));
-    builder.append(", "sv);
+    builder.append("color-mix("sv);
+
+    if (m_properties.color_interpolation_method.has_value()) {
+        builder.appendff("in {}", m_properties.color_interpolation_method->color_space);
+        if (m_properties.color_interpolation_method->hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
+            builder.appendff(" {} hue", CSS::to_string(*m_properties.color_interpolation_method->hue_interpolation_method));
+        builder.append(", "sv);
+    }
+
     m_properties.first_component.color->serialize(builder, mode);
     serialize_first_percentage(builder, m_properties.first_component.percentage, m_properties.second_component.percentage);
     builder.append(", "sv);
