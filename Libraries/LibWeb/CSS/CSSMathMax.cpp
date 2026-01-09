@@ -81,11 +81,10 @@ void CSSMathMax::visit_edges(Visitor& visitor)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssmathvalue
-String CSSMathMax::serialize_math_value(Nested, Parens) const
+void CSSMathMax::serialize_math_value(StringBuilder& s, Nested, Parens) const
 {
     // NB: Only steps 1 and 2 apply here.
     // 1. Let s initially be the empty string.
-    StringBuilder s;
 
     // 2. If this is a CSSMathMin or CSSMathMax:
     {
@@ -101,12 +100,11 @@ String CSSMathMax::serialize_math_value(Nested, Parens) const
             } else {
                 s.append(", "sv);
             }
-            s.append(arg->to_string({ .nested = true, .parenless = true }));
+            arg->serialize(s, { .nested = true, .parenless = true });
         }
 
         // 3. Append ")" to s and return s.
-        s.append(")"sv);
-        return s.to_string_without_validation();
+        s.append(')');
     }
 }
 

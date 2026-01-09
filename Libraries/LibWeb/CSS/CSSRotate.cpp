@@ -106,25 +106,25 @@ WebIDL::ExceptionOr<Utf16String> CSSRotate::to_string() const
         builder.append("rotate3d("sv);
 
         // 2. Serialize this’s x internal slot, and append it to s.
-        builder.append(TRY(m_x->to_string()));
+        m_x->serialize(builder, {});
 
         // 3. Append ", " to s.
         builder.append(", "sv);
 
         // 4. Serialize this’s y internal slot, and append it to s.
-        builder.append(TRY(m_y->to_string()));
+        m_y->serialize(builder, {});
 
         // 5. Append ", " to s.
         builder.append(", "sv);
 
         // 6. Serialize this’s z internal slot, and append it to s.
-        builder.append(TRY(m_z->to_string()));
+        m_z->serialize(builder, {});
 
         // 7. Append "," to s.
         builder.append(", "sv);
 
         // 8. Serialize this’s angle internal slot, and append it to s.
-        builder.append(TRY(m_angle->to_string()));
+        m_angle->serialize(builder, {});
 
         // 9. Append ")" to s, and return s.
         builder.append(")"sv);
@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<Utf16String> CSSRotate::to_string() const
         builder.append("rotate("sv);
 
         // 2. Serialize this’s angle internal slot, and append it to s.
-        builder.append(TRY(m_angle->to_string()));
+        m_angle->serialize(builder, {});
 
         // 3. Append ")" to s, and return s.
         builder.append(")"sv);

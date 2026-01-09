@@ -92,15 +92,25 @@ void CSSUnitValue::set_value(double value)
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#serialize-a-cssunitvalue
-String CSSUnitValue::serialize_unit_value(Optional<double> minimum, Optional<double> maximum) const
+void CSSUnitValue::serialize_unit_value(StringBuilder& builder, Optional<double> minimum, Optional<double> maximum) const
 {
     // To serialize a CSSUnitValue this, with optional arguments minimum, a numeric value, and maximum, a numeric value:
 
     // 1. Let value and unit be this‘s value and unit internal slots.
 
+    // 4. If minimum was passed and this is less than minimum, or if maximum was passed and this is greater than
+    //    maximum, or either minimum and/or maximum were passed and the relative size of this and minimum/maximum can’t
+    //    be determined with the available information at this time, prepend "calc(" to s, then append ")" to s.
+    // NB: This step is done first to avoid prepending to the StringBuilder.
+    // FIXME: "or either minimum and/or maximum were passed and the relative size of this and minimum/maximum can't be determined with the available information at this time"
+    bool needs_calc_wrapper = (minimum.has_value() && m_value < minimum.value())
+        || (maximum.has_value() && m_value > maximum.value());
+
+    if (needs_calc_wrapper)
+        builder.append("calc("sv);
+
     // 2. Set s to the result of serializing a <number> from value, per CSSOM §6.7.2 Serializing CSS Values.
-    StringBuilder s;
-    serialize_a_number(s, m_value);
+    serialize_a_number(builder, m_value);
 
     // 3. If unit is:
     // -> "number"
@@ -110,25 +120,18 @@ String CSSUnitValue::serialize_unit_value(Optional<double> minimum, Optional<dou
     // -> "percent"
     else if (m_unit == "percent"_fly_string) {
         // Append "%" to s.
-        s.append("%"sv);
+        builder.append('%');
     }
     // -> anything else
     else {
         // Append unit to s.
-        s.append(m_unit.to_ascii_lowercase());
+        builder.append(m_unit.to_ascii_lowercase());
     }
 
-    // 4. If minimum was passed and this is less than minimum, or if maximum was passed and this is greater than
-    //    maximum, or either minimum and/or maximum were passed and the relative size of this and minimum/maximum can’t
-    //    be determined with the available information at this time, prepend "calc(" to s, then append ")" to s.
-    if ((minimum.has_value() && m_value < minimum.value())
-        || (maximum.has_value() && m_value > maximum.value())) {
-        // FIXME: "or either minimum and/or maximum were passed and the relative size of this and minimum/maximum can’t be determined with the available information at this time"
-        return MUST(String::formatted("calc({})", s.string_view()));
-    }
+    if (needs_calc_wrapper)
+        builder.append(')');
 
     // 5. Return s.
-    return s.to_string_without_validation();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#convert-a-cssunitvalue
