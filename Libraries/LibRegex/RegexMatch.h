@@ -16,6 +16,7 @@
 #include <AK/MemMem.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/UnicodeUtils.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
@@ -303,7 +304,7 @@ public:
     {
         return m_view.visit(
             [&](Utf16View const& view) -> Optional<FoundIndex> {
-                auto result = view.find_last_code_unit_offset(code_point, end_code_unit_index);
+                auto result = view.find_last_code_point_offset(code_point, end_code_unit_index);
                 if (!result.has_value())
                     return {};
                 return FoundIndex { result.value(), view.code_point_offset_of(result.value()) };
@@ -316,7 +317,7 @@ public:
                     Optional<FoundIndex> found_index;
 
                     for (; it != utf8_view.end(); ++it, ++current_code_point_index) {
-                        if (current_code_point_index > end_code_point_index)
+                        if (current_code_point_index >= end_code_point_index)
                             break;
                         if (*it == code_point) {
                             auto byte_index = utf8_view.byte_offset_of(it);
@@ -331,6 +332,62 @@ public:
                 if (!byte_index.has_value())
                     return {};
                 return FoundIndex { byte_index.value(), byte_index.value() };
+            });
+    }
+
+    FoundIndex find_end_of_line(size_t start_code_point_index, size_t start_code_unit_index) const
+    {
+        constexpr auto is_newline = [](u32 ch) { return ch == '\n' || ch == '\r' || ch == 0x2028 || ch == 0x2029; };
+
+        return m_view.visit(
+            [&](Utf16View const& view) -> FoundIndex {
+                size_t code_unit_index = start_code_unit_index;
+                size_t code_point_index = start_code_point_index;
+                while (code_unit_index < view.length_in_code_units()) {
+                    auto code_unit = view.code_unit_at(code_unit_index);
+                    u32 ch = code_unit;
+                    size_t code_units_for_this = 1;
+                    if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit) && code_unit_index + 1 < view.length_in_code_units()) {
+                        auto next_code_unit = view.code_unit_at(code_unit_index + 1);
+                        if (AK::UnicodeUtils::is_utf16_low_surrogate(next_code_unit)) {
+                            ch = AK::UnicodeUtils::decode_utf16_surrogate_pair(code_unit, next_code_unit);
+                            code_units_for_this = 2;
+                        }
+                    }
+
+                    if (is_newline(ch))
+                        return FoundIndex { code_unit_index, code_point_index };
+                    code_unit_index += code_units_for_this;
+                    ++code_point_index;
+                }
+                return FoundIndex { view.length_in_code_units(), code_point_index };
+            },
+            [&](StringView const& view) -> FoundIndex {
+                if (unicode()) {
+                    Utf8View utf8_view { view };
+                    auto it = utf8_view.begin();
+                    size_t current_code_point_index = 0;
+
+                    // Skip to start position
+                    while (it != utf8_view.end() && current_code_point_index < start_code_point_index) {
+                        ++it;
+                        ++current_code_point_index;
+                    }
+
+                    for (; it != utf8_view.end(); ++it, ++current_code_point_index) {
+                        if (is_newline(*it)) {
+                            return FoundIndex { utf8_view.byte_offset_of(it), current_code_point_index };
+                        }
+                    }
+
+                    return FoundIndex { view.length(), utf8_view.length() };
+                }
+
+                for (size_t i = start_code_unit_index; i < view.length(); ++i) {
+                    if (is_newline(static_cast<u8>(view[i])))
+                        return FoundIndex { i, i };
+                }
+                return FoundIndex { view.length(), view.length() };
             });
     }
 

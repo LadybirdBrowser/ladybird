@@ -641,11 +641,35 @@ template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_RSeekTo<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     auto ch = argument(0);
-    auto last_position = exchange(state.string_position_before_rseek, state.string_position);
-    auto last_position_in_code_units = exchange(state.string_position_in_code_units_before_rseek, state.string_position_in_code_units);
-    auto next = input.view.find_index_of_previous(ch, last_position, last_position_in_code_units);
-    if (!next.has_value())
+
+    size_t search_from;
+    size_t search_from_in_code_units;
+    auto line_limited = false;
+
+    if (state.string_position_before_rseek == NumericLimits<size_t>::max()) {
+        state.string_position_before_rseek = state.string_position;
+        state.string_position_in_code_units_before_rseek = state.string_position_in_code_units;
+
+        if (!input.regex_options.has_flag_set(AllFlags::SingleLine)) {
+            auto end_of_line = input.view.find_end_of_line(state.string_position, state.string_position_in_code_units);
+            search_from = end_of_line.code_point_index + 1;
+            search_from_in_code_units = end_of_line.code_unit_index + 1;
+            line_limited = true;
+        } else {
+            search_from = NumericLimits<size_t>::max();
+            search_from_in_code_units = NumericLimits<size_t>::max();
+        }
+    } else {
+        search_from = state.string_position;
+        search_from_in_code_units = state.string_position_in_code_units;
+    }
+
+    auto next = input.view.find_index_of_previous(ch, search_from, search_from_in_code_units);
+    if (!next.has_value() || next->code_unit_index < state.string_position_in_code_units_before_rseek) {
+        if (line_limited)
+            return ExecutionResult::Failed_ExecuteLowPrioForks;
         return ExecutionResult::Failed_ExecuteLowPrioForksButNoFurtherPossibleMatches;
+    }
     state.string_position = next->code_point_index;
     state.string_position_in_code_units = next->code_unit_index;
     return ExecutionResult::Continue;
