@@ -1271,6 +1271,17 @@ TEST_CASE(optimizer_alternation)
     }
 }
 
+TEST_CASE(optimizer_rseekto)
+{
+    Regex<ECMA262> re("^(.*)\\/(?:\\/(.*))$"); // should backtrack from the second '/'.
+
+    auto result = re.match("foo//bar"sv);
+    EXPECT_EQ(result.success, true);
+    EXPECT_EQ(result.matches.at(0).view, "foo//bar"sv);
+    EXPECT_EQ(result.capture_group_matches.at(0).at(0).view, "foo"sv);
+    EXPECT_EQ(result.capture_group_matches.at(0).at(1).view, "bar"sv);
+}
+
 TEST_CASE(start_anchor)
 {
     // Ensure that a circumflex at the start only matches the start of the line.
