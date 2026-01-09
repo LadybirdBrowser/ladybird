@@ -8,7 +8,7 @@
 [SecureContext, Exposed=(Window,Worker)]
 interface ServiceWorkerContainer : EventTarget {
     [FIXME] readonly attribute ServiceWorker? controller;
-    [FIXME] readonly attribute Promise<ServiceWorkerRegistration> ready;
+    readonly attribute Promise<ServiceWorkerRegistration> ready;
 
     [NewObject, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or Utf16USVString) scriptURL, optional RegistrationOptions options = {});
 
