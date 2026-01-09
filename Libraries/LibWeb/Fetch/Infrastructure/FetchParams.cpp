@@ -22,11 +22,27 @@ FetchParams::FetchParams(GC::Ref<Request> request, GC::Ref<FetchAlgorithms> algo
     m_controller->set_fetch_params({}, *this);
 }
 
+FetchParams::FetchParams(FetchParams const& params)
+    : m_request(params.m_request)
+    , m_algorithms(params.m_algorithms)
+    , m_task_destination(params.m_task_destination)
+    , m_cross_origin_isolated_capability(params.m_cross_origin_isolated_capability)
+    , m_controller(params.m_controller)
+    , m_timing_info(params.m_timing_info)
+    , m_preloaded_response_candidate(params.m_preloaded_response_candidate)
+{
+}
+
 GC::Ref<FetchParams> FetchParams::create(JS::VM& vm, GC::Ref<Request> request, GC::Ref<FetchTimingInfo> timing_info)
 {
     auto algorithms = Infrastructure::FetchAlgorithms::create(vm, {});
     auto controller = Infrastructure::FetchController::create(vm);
     return vm.heap().allocate<FetchParams>(request, algorithms, controller, timing_info);
+}
+
+GC::Ref<FetchParams> FetchParams::copy(FetchParams const& params)
+{
+    return params.vm().heap().allocate<FetchParams>(params);
 }
 
 void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
