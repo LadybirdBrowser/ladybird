@@ -350,7 +350,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
+RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_headers_received, GC::Root<OnDataReceived> on_data_received, GC::Root<OnComplete> on_complete)
 {
     auto const& url = request.url().value();
 
@@ -359,7 +359,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
 
     if (should_block_request(request)) {
         on_complete->function()(false, {}, "Request was blocked"sv);
-        return;
+        return nullptr;
     }
 
     if (url.scheme() == "about"sv) {
@@ -371,7 +371,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
                 on_data_received->function()(data);
                 on_complete->function()(true, timing_info, {});
             });
-        return;
+        return nullptr;
     }
 
     if (url.scheme() == "resource"sv) {
@@ -386,7 +386,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
                 Requests::RequestTimingInfo fixme_implement_timing_info {};
                 on_complete->function()(false, fixme_implement_timing_info, StringView(message));
             });
-        return;
+        return nullptr;
     }
 
     if (url.scheme() == "file"sv) {
@@ -403,20 +403,20 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
                 on_complete->function()(false, {}, StringView(message));
             });
 
-        return;
+        return nullptr;
     }
 
     if (!url.scheme().is_one_of("http"sv, "https"sv)) {
         auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
         log_failure(request, not_implemented_error);
         on_complete->function()(false, {}, not_implemented_error);
-        return;
+        return nullptr;
     }
 
     auto protocol_request = start_network_request(request);
     if (!protocol_request) {
         on_complete->function()(false, {}, "Failed to start network request"sv);
-        return;
+        return nullptr;
     }
 
     auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, request_id = protocol_request->id()](auto const& response_headers, auto status_code, auto const& reason_phrase) {
@@ -453,6 +453,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
     };
 
     protocol_request->set_unbuffered_request_callbacks(move(protocol_headers_received), move(protocol_data_received), move(protocol_complete));
+    return protocol_request;
 }
 
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request)
