@@ -1,9 +1,8 @@
 Harness status: OK
 
-Found 29 tests
+Found 31 tests
 
-28 Pass
-1 Fail
+31 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "create with factory method"
 Pass	Executing "different length with factory method"
@@ -11,7 +10,7 @@ Pass	Executing "too small with factory method"
 Pass	Executing "create with constructor"
 Pass	Executing "different length with constructor"
 Pass	Executing "too small with constructor"
-Fail	Executing "output test"
+Pass	Executing "output test"
 Pass	Audit report
 Pass	> [create with factory method] 
 Pass	  context.createPeriodicWave(new Float32Array(8192), new Float32Array(8192)) did not throw an exception.
@@ -32,4 +31,6 @@ Pass	> [too small with constructor]
 Pass	  new PeriodicWave(context, { real : new Float32Array(1), imag : new Float32Array(1) }) threw IndexSizeError: "Real and imaginary arrays must have the same length and contain at least 2 elements".
 Pass	< [too small with constructor] All assertions passed. (total 1 assertions)
 Pass	> [output test] 
+Pass	  rendering PeriodicWave is identical to the array AudioBuffer.
+Pass	< [output test] All assertions passed. (total 1 assertions)
 Pass	# AUDIT TASK RUNNER FINISHED: 7 tasks ran successfully.
