@@ -116,11 +116,14 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
 
     builder.append("color-mix("sv);
 
-    if (m_properties.color_interpolation_method.has_value()) {
-        builder.appendff("in {}", m_properties.color_interpolation_method->color_space);
-        if (m_properties.color_interpolation_method->hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
-            builder.appendff(" {} hue", CSS::to_string(*m_properties.color_interpolation_method->hue_interpolation_method));
-        builder.append(", "sv);
+    if (auto const& interpolation = m_properties.color_interpolation_method; interpolation.has_value()) {
+        // NB: We're expected to skip the interpolation method if it's the default.
+        if (!interpolation->color_space.equals_ignoring_ascii_case("oklab"sv) || interpolation->hue_interpolation_method.has_value()) {
+            builder.appendff("in {}", interpolation->color_space);
+            if (interpolation->hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
+                builder.appendff(" {} hue", CSS::to_string(*interpolation->hue_interpolation_method));
+            builder.append(", "sv);
+        }
     }
 
     m_properties.first_component.color->serialize(builder, mode);

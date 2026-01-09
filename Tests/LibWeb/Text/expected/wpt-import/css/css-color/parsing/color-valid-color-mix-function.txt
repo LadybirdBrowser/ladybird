@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 631 tests
 
-603 Pass
-28 Fail
+630 Pass
+1 Fail
 Pass	e.style['color'] = "color-mix(in srgb, red, blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, 70% red, 50% blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, red, blue)" should set the property value
@@ -301,33 +301,33 @@ Pass	e.style['color'] = "color-mix(in lab, lab(10 20 30 / none), lab(50 60 70))"
 Pass	e.style['color'] = "color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / 0.5))" should set the property value
 Pass	e.style['color'] = "color-mix(in lab, lab(10 20 30 / none), lab(50 60 70 / none))" should set the property value
 Pass	e.style['color'] = "color-mix(lab(10 20 30), lab(50 60 70))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, 25% oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), 25% oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7) 25%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7) 75%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 30%, oklab(0.5 0.6 0.7) 90%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 12.5%, oklab(0.5 0.6 0.7) 37.5%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 0%, oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, 25% oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), 25% oklab(0.5 0.6 0.7 / .8))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8) 25%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8) 75%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 30%, oklab(0.5 0.6 0.7 / .8) 90%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 12.5%, oklab(0.5 0.6 0.7 / .8) 37.5%)" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 0%, oklab(0.5 0.6 0.7 / .8))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(none none none), oklab(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(none none none), oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 none), oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 none))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(none 0.2 0.3), oklab(0.5 none 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / 0.5))" should set the property value
-Fail	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / none))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, 25% oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), 25% oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7) 25%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 25%, oklab(0.5 0.6 0.7) 75%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 30%, oklab(0.5 0.6 0.7) 90%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 12.5%, oklab(0.5 0.6 0.7) 37.5%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3) 0%, oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, 25% oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), 25% oklab(0.5 0.6 0.7 / .8))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4), oklab(0.5 0.6 0.7 / .8) 25%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 25%, oklab(0.5 0.6 0.7 / .8) 75%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 30%, oklab(0.5 0.6 0.7 / .8) 90%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 12.5%, oklab(0.5 0.6 0.7 / .8) 37.5%)" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / .4) 0%, oklab(0.5 0.6 0.7 / .8))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(none none none), oklab(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(none none none), oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 none), oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(0.5 0.6 none))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(none 0.2 0.3), oklab(0.5 none 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / 0.5))" should set the property value
+Pass	e.style['color'] = "color-mix(in oklab, oklab(0.1 0.2 0.3 / none), oklab(0.5 0.6 0.7 / none))" should set the property value
 Pass	e.style['color'] = "color-mix(oklab(0.1 0.2 0.3), oklab(0.5 0.6 0.7))" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, color(srgb .1 .2 .3), color(srgb .5 .6 .7))" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, 50% color(srgb .1 .2 .3), color(srgb .5 .6 .7))" should set the property value
