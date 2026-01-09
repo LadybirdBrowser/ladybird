@@ -26,7 +26,7 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
 
     auto cache_entry = m_complete_entries.get(cache_key);
     if (!cache_entry.has_value()) {
-        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[35;1mNo cache entry for\033[0m {}", url);
         return {};
     }
 
@@ -40,7 +40,7 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     //          + allowed to be served stale (see Section 4.2.4), or
     //          + successfully validated (see Section 4.3).
 
-    dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
+    dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened cache entry for\033[0m {} ({} bytes)", url, cache_entry->response_body.size());
     return cache_entry;
 }
 
@@ -64,6 +64,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
         .response_body = {},
     };
 
+    dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mCreated cache entry for\033[0m {}", url);
     m_pending_entries.set(cache_key, move(cache_entry));
 }
 
@@ -73,6 +74,8 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, ByteBuf
     auto cache_key = create_cache_key(serialized_url, method);
 
     if (auto cache_entry = m_pending_entries.take(cache_key); cache_entry.has_value()) {
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", url, response_body.size());
+
         cache_entry->response_body = move(response_body);
         m_complete_entries.set(cache_key, cache_entry.release_value());
     }
