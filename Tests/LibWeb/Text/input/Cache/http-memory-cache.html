@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // FIXME: http-disk-cache.html should just run for both disk and memory caches. But our memory cache does not yet
+    //        handle cache expiration, so for now, memory cache specific tests are here.
+    asyncTest(async done => {
+        const ALPHABET = "abcdefghijklmnabcdefghijklmnopqrstuvwxyz";
+
+        const server = httpTestServer();
+        let response, text;
+
+        await server.createEcho("OPTIONS", "/memory-cache-test/range", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Headers": "Range",
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Origin": location.origin,
+            },
+        });
+
+        const url = await server.createEcho("GET", "/memory-cache-test/range", {
+            status: 200,
+            body: ALPHABET,
+            headers: {
+                "Access-Control-Allow-Origin": location.origin,
+                "Cache-Control": "max-age=500",
+            },
+        });
+
+        response = await fetch(url, {
+            mode: "cors",
+        });
+
+        text = await response.text();
+        println(`Original response: "${text}"`);
+
+        response = await fetch(url, {
+            headers: {
+                Range: "bytes=10-20",
+            },
+            mode: "cors",
+        });
+
+        text = await response.text();
+        println(`Range response: "${text}"`);
+
+        done();
+    });
+</script>

@@ -182,6 +182,22 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 response_body = json.dumps(headers)
             else:
                 response_body = echo.body or ""
+
+            # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
+            #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
+            if "Range" in self.headers:
+                range_value = self.headers["Range"].strip()
+                assert range_value.startswith("bytes=")
+                assert range_value.count("-") == 1
+
+                range_value = range_value[len("bytes=") :]
+                start, end = range_value.split("-")
+
+                if end:
+                    response_body = response_body[int(start) : min(int(end), len(response_body))]
+                else:
+                    response_body = response_body[int(start) :]
+
             self.wfile.write(response_body.encode("utf-8"))
         else:
             self.send_error(404, f"Echo response not found for {key}")

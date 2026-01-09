@@ -21,6 +21,9 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     // When presented with a request, a cache MUST NOT reuse a stored response unless:
     // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
     // - the request method associated with the stored response allows it to be used for the presented request, and
+    if (!is_cacheable(method, request_headers))
+        return {};
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
 
