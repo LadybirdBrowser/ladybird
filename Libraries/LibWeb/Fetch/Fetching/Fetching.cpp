@@ -1873,7 +1873,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
             // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
             if (revalidating_flag->value() && forward_response->status() == 304) {
-                dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[34;1mHTTP CACHE REVALIDATE (304)\033[0m {}", http_request->current_url());
+                dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", http_request->current_url());
 
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
