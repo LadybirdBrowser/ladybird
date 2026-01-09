@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    [data-theme="light"] {
+        color: rgb(0, 0, 0);
+    }
+    [data-theme="dark"] {
+        color: rgb(255, 255, 255);
+    }
+    [data-theme="light"] #dark-icon {
+        display: none;
+    }
+    [data-theme="dark"] #light-icon {
+        display: none;
+    }
+</style>
+<div id="container" data-theme="light">
+    <svg id="light-icon" width="24" height="24">
+        <circle cx="12" cy="12" r="10" fill="currentColor"/>
+    </svg>
+    <svg id="dark-icon" width="24" height="24">
+        <circle cx="12" cy="12" r="10" fill="currentColor"/>
+    </svg>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const darkIcon = document.getElementById("dark-icon");
+        const darkCircle = darkIcon.querySelector("circle");
+
+        // Initial state: light theme, dark-icon is display:none
+        // The dark-icon's inherited color should be black (from light theme)
+        let initialColor = getComputedStyle(darkCircle).color;
+        println(`Light theme - dark-icon (hidden) inherited color: ${initialColor}`);
+
+        // Toggle to dark theme
+        // dark-icon becomes visible, its inherited color should now be white
+        container.setAttribute("data-theme", "dark");
+
+        // Force style recalculation
+        document.body.offsetHeight;
+
+        let newColor = getComputedStyle(darkCircle).color;
+        println(`Dark theme - dark-icon (visible) inherited color: ${newColor}`);
+
+        // The dark icon should have inherited white color (rgb(255, 255, 255))
+        // This was the bug: display:none elements retained stale inherited color values
+        // so currentColor would resolve to black instead of white
+        if (newColor === "rgb(255, 255, 255)") {
+            println("PASS: Inherited color correctly updated for previously hidden element");
+        } else {
+            println(`FAIL: Expected rgb(255, 255, 255), got ${newColor}`);
+        }
+    });
+</script>
