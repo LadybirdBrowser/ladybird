@@ -1,0 +1,76 @@
+Harness status: OK
+
+Found 40 tests
+
+30 Pass
+10 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "disconnect()"
+Pass	Executing "disconnect(output)"
+Pass	Executing "disconnect(AudioNode)"
+Pass	Executing "disconnect(AudioNode, output)"
+Pass	Executing "disconnect(AudioNode, output, input)"
+Pass	Executing "exceptions"
+Pass	Executing "disabled-outputs"
+Pass	Audit report
+Pass	> [disconnect()] 
+Pass	  Channel #0 contains only the constant 0.
+Pass	< [disconnect()] All assertions passed. (total 1 assertions)
+Pass	> [disconnect(output)] 
+Fail	X Channel #0: Expected 4 for all values but found 128 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 124 more errors.
+Fail	< [disconnect(output)] 1 out of 1 assertions were failed.
+Pass	> [disconnect(AudioNode)] 
+Fail	X Channel #0: Expected 2 for all values but found 128 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 124 more errors.
+Fail	< [disconnect(AudioNode)] 1 out of 1 assertions were failed.
+Pass	> [disconnect(AudioNode, output)] 
+Fail	X Channel #0: Expected 3 for all values but found 128 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 124 more errors.
+Fail	< [disconnect(AudioNode, output)] 1 out of 1 assertions were failed.
+Pass	> [disconnect(AudioNode, output, input)] 
+Fail	X Channel #0: Expected 1 for all values but found 128 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 124 more errors.
+Fail	X Channel #1: Expected 2 for all values but found 128 unexpected values: 
+	Index	Actual
+	[0]	0
+	[1]	0
+	[2]	0
+	[3]	0
+	...and 124 more errors.
+Pass	  Channel #2 contains only the constant 0.
+Fail	< [disconnect(AudioNode, output, input)] 2 out of 3 assertions were failed.
+Pass	> [exceptions] 
+Pass	  splitter.disconnect(2) threw IndexSizeError: "Output index 2 exceeds number of outputs".
+Pass	  Disconnecting a connection twice did not throw an exception.
+Pass	  gain1.disconnect(gain2) threw InvalidAccessError: "No connection to given AudioNode".
+Pass	  gain1.disconnect(gain3) threw InvalidAccessError: "No connection to given AudioNode".
+Pass	  splitter.disconnect(gain2, 2) threw IndexSizeError: "Output index 2 exceeds number of outputs".
+Pass	  splitter.disconnect(gain1, 0) threw InvalidAccessError: "No connection from output 0 to given AudioNode".
+Pass	  splitter.disconnect(gain3, 0, 0) threw InvalidAccessError: "No connection from output 0 to input 0 of given AudioNode".
+Pass	  splitter.disconnect(merger, 3, 0) threw IndexSizeError: "Output index 3 exceeds number of outputs".
+Pass	< [exceptions] All assertions passed. (total 8 assertions)
+Pass	> [disabled-outputs] 
+Pass	  Disabled outputs handled correctly
+Pass	< [disabled-outputs] All assertions passed. (total 1 assertions)
+Fail	# AUDIT TASK RUNNER FINISHED: 4 out of 7 tasks were failed.
