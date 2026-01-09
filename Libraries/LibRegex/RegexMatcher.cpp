@@ -340,6 +340,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             state.repetition_marks.clear();
             state.modifier_stack.clear();
             state.current_options = input.regex_options;
+            state.string_position_before_rseek = NumericLimits<size_t>::max();
+            state.string_position_in_code_units_before_rseek = NumericLimits<size_t>::max();
 
             if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;

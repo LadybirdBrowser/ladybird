@@ -485,7 +485,7 @@ public:
     }
 
     Optional<size_t> find_code_unit_offset(char16_t needle, size_t start_offset = 0) const;
-    Optional<size_t> find_last_code_unit_offset(char16_t needle, size_t end_offset = NumericLimits<size_t>::max()) const;
+    Optional<size_t> find_last_code_point_offset(u32 needle, size_t end_offset = NumericLimits<size_t>::max()) const;
 
     constexpr Optional<size_t> find_code_unit_offset(Utf16View const& needle, size_t start_offset = 0) const
     {
