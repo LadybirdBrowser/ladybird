@@ -2203,6 +2203,7 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
         // <custom-color-space> = <dashed-ident>
         // <hue-interpolation-method> = [ shorter | longer | increasing | decreasing ] hue
         // <color-interpolation-method> = in [ <rectangular-color-space> | <polar-color-space> <hue-interpolation-method>? | <custom-color-space> ]
+        auto transaction = function_tokens.begin_transaction();
         function_tokens.discard_whitespace();
         if (!function_tokens.consume_a_token().is_ident("in"sv))
             return {};
@@ -2243,6 +2244,7 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
             return color_space_name;
         };
 
+        transaction.commit();
         return ColorMixStyleValue::ColorInterpolationMethod {
             .color_space = canonical_color_space_name(color_space),
             .hue_interpolation_method = hue_interpolation_method,
@@ -2283,9 +2285,8 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
         };
     };
 
-    // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#)
+    // color-mix() = color-mix( <color-interpolation-method>? , [ <color> && <percentage [0,100]>? ]#)
     // FIXME: Update color-mix to accept 1+ colors instead of exactly 2.
-    // FIXME: <color-interpolation-method> is optional in the current spec.
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
@@ -2296,11 +2297,11 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
     auto function_tokens = TokenStream { function_token.function().value };
     auto color_interpolation_method = parse_color_interpolation_method(function_tokens);
-    if (!color_interpolation_method.has_value())
-        return {};
-    function_tokens.discard_whitespace();
-    if (!function_tokens.consume_a_token().is(Token::Type::Comma))
-        return {};
+    if (color_interpolation_method.has_value()) {
+        function_tokens.discard_whitespace();
+        if (!function_tokens.consume_a_token().is(Token::Type::Comma))
+            return {};
+    }
 
     auto first_component = parse_component(function_tokens);
     if (!first_component.has_value())
@@ -2324,7 +2325,7 @@ RefPtr<StyleValue const> Parser::parse_color_mix_function(TokenStream<ComponentV
         return {};
 
     transaction.commit();
-    return ColorMixStyleValue::create(move(*color_interpolation_method), move(*first_component), move(*second_component));
+    return ColorMixStyleValue::create(move(color_interpolation_method), move(*first_component), move(*second_component));
 }
 
 // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
