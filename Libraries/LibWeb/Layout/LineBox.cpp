@@ -41,8 +41,11 @@ void LineBox::add_fragment(Node const& layout_node, size_t start, size_t length,
     CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run)
 {
     bool text_align_is_justify = layout_node.computed_values().text_align() == CSS::TextAlign::Justify;
-    if (glyph_run && !text_align_is_justify && !m_fragments.is_empty()
+    if (glyph_run
+        && !text_align_is_justify
+        && !m_fragments.is_empty()
         && &m_fragments.last().layout_node() == &layout_node
+        && m_fragments.last().m_glyph_run
         && &m_fragments.last().m_glyph_run->font() == &glyph_run->font()
         && m_fragments.last().start() + m_fragments.last().length_in_code_units() == start) {
         // The fragment we're adding is from the last Layout::Node on the line.

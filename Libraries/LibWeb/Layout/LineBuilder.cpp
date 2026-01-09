@@ -449,4 +449,36 @@ void LineBuilder::did_introduce_clearance(CSSPixels clearance)
     m_current_block_offset = clearance;
 }
 
+void LineBuilder::append_newline(TextNode const& text_node, size_t offset_in_node)
+{
+    auto const* dom_node = text_node.containing_block()->dom_node();
+    bool needs_caret_anchor = dom_node
+        && (dom_node->is_editing_host()
+            || dom_node->is_editable()
+            || dom_node->find_in_shadow_including_ancestor_chain(
+                [&](DOM::Node const& it) { return it.is_html_textarea_element(); }));
+    if (needs_caret_anchor)
+        insert_caret_anchor(text_node, offset_in_node);
+    break_line(ForcedBreak::Yes);
+    if (needs_caret_anchor)
+        insert_caret_anchor(text_node, offset_in_node + 1);
+}
+
+void LineBuilder::insert_caret_anchor(TextNode const& text_node, size_t offset_in_node)
+{
+    LineBox& line_box = ensure_last_line_box();
+    if (!line_box.fragments().is_empty()) {
+        LineBoxFragment const& last = line_box.fragments().last();
+        if (&last.layout_node() == &text_node
+            && last.start() == offset_in_node
+            && last.length_in_code_units() == 0)
+            // Two caret anchors at the same offset may be useful for soft wrapping and
+            // affinity, but at this stage in development they're just dupes.
+            return;
+    }
+    line_box.add_fragment(text_node, offset_in_node, 0, 0, 0, 0,
+        0, 0, text_node.computed_values().line_height(), 0, 0,
+        nullptr);
+}
+
 }

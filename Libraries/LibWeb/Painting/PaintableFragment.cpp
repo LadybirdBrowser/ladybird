@@ -41,6 +41,9 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     if (!is<TextPaintable>(paintable()))
         return 0;
 
+    if (is_caret_anchor())
+        return m_start_offset;
+
     auto relative_inline_offset = [&] {
         switch (orientation()) {
         case Orientation::Horizontal:
@@ -55,6 +58,7 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 
     GraphemeEdgeTracker tracker { relative_inline_offset };
 
+    VERIFY(m_glyph_run);
     for (auto const& glyph : m_glyph_run->glyphs()) {
         if (tracker.update(glyph.length_in_code_units, glyph.glyph_width) == IterationDecision::Break)
             break;
@@ -63,10 +67,29 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
     return m_start_offset + tracker.resolve();
 }
 
+CSSPixelRect PaintableFragment::cursor_rect(size_t cursor_offset) const
+{
+    if (is_caret_anchor()) {
+        auto rect = absolute_rect();
+        rect.set_primary_size_for_orientation(orientation(), 1);
+        return rect;
+    }
+    return range_rect(Paintable::SelectionState::None, cursor_offset, cursor_offset);
+}
+
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
     if (selection_state == Paintable::SelectionState::Full)
         return absolute_rect();
+
+    if (is_caret_anchor()) {
+        if (start_offset_in_code_units > m_start_offset
+            || end_offset_in_code_units <= m_start_offset)
+            return {};
+        auto rect = absolute_rect();
+        rect.set_primary_size_for_orientation(orientation(), 1);
+        return rect;
+    }
 
     auto const start_index = m_start_offset;
     auto const end_index = m_start_offset + m_length_in_code_units;
@@ -207,6 +230,11 @@ Utf16View PaintableFragment::text() const
     if (!is<TextPaintable>(paintable()))
         return {};
     return as<TextPaintable>(paintable()).layout_node().text_for_rendering().substring_view(m_start_offset, m_length_in_code_units);
+}
+
+bool PaintableFragment::is_caret_anchor() const
+{
+    return !m_glyph_run && m_length_in_code_units == 0 && is<TextPaintable>(paintable());
 }
 
 }
