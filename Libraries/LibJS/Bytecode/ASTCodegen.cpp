@@ -1151,12 +1151,28 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
     auto object = choose_dst(generator, preferred_dst);
 
-    generator.emit<Bytecode::Op::NewObject>(object);
+    // Determine if this is a simple object literal (all KeyValue with StringLiteral keys)
+    // Simple literals can benefit from shape caching with direct property offset writes.
+    bool is_simple = !m_properties.is_empty();
+    for (auto& property : m_properties) {
+        if (property->type() != ObjectProperty::Type::KeyValue || !is<StringLiteral>(property->key())) {
+            is_simple = false;
+            break;
+        }
+    }
+
+    Optional<u32> shape_cache_index;
+    if (is_simple)
+        shape_cache_index = generator.next_object_shape_cache();
+
+    generator.emit<Bytecode::Op::NewObject>(object, shape_cache_index.value_or(NumericLimits<u32>::max()));
+
     if (m_properties.is_empty())
         return object;
 
     generator.push_home_object(object);
 
+    u32 property_slot = 0;
     for (auto& property : m_properties) {
         Bytecode::PutKind property_kind;
         switch (property->type()) {
@@ -1195,7 +1211,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             }
 
             auto property_key_table_index = generator.intern_property_key(string_literal.value());
-            generator.emit_put_by_id(object, property_key_table_index, *value, property_kind, generator.next_property_lookup_cache());
+
+            // For simple object literals, use InitObjectLiteralProperty for direct offset writes
+            if (is_simple) {
+                generator.emit<Bytecode::Op::InitObjectLiteralProperty>(object, property_key_table_index, *value, *shape_cache_index, property_slot++);
+            } else {
+                generator.emit_put_by_id(object, property_key_table_index, *value, property_kind, generator.next_property_lookup_cache());
+            }
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
             auto value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), {}, {}, property->is_method()));
@@ -1205,6 +1227,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
     }
 
     generator.pop_home_object();
+
+    if (shape_cache_index.has_value())
+        generator.emit<Bytecode::Op::CacheObjectShape>(object, *shape_cache_index);
+
     return object;
 }
 

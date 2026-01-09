@@ -27,6 +27,7 @@ Executable::Executable(
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
     size_t number_of_template_object_caches,
+    size_t number_of_object_shape_caches,
     size_t number_of_registers,
     Strict strict)
     : bytecode(move(bytecode))
@@ -42,6 +43,7 @@ Executable::Executable(
     property_lookup_caches.resize(number_of_property_lookup_caches);
     global_variable_caches.resize(number_of_global_variable_caches);
     template_object_caches.resize(number_of_template_object_caches);
+    object_shape_caches.resize(number_of_object_shape_caches);
 }
 
 Executable::~Executable() = default;
