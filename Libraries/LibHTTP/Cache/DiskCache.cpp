@@ -65,11 +65,11 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
 
     auto cache_entry = CacheEntryWriter::create(*this, m_index, cache_key, move(serialized_url), request_start_time, current_time_offset_for_testing);
     if (cache_entry.is_error()) {
-        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mUnable to create cache entry for\033[0m {}: {}", url, cache_entry.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to create cache entry for\033[0m {}: {}", url, cache_entry.error());
         return Optional<CacheEntryWriter&> {};
     }
 
-    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[32;1mCreated disk cache entry for\033[0m {}", url);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mCreated cache entry for\033[0m {}", url);
 
     auto* cache_entry_pointer = cache_entry.value().ptr();
     m_open_cache_entries.ensure(cache_key).append({ cache_entry.release_value(), request });
@@ -90,13 +90,13 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
 
     auto index_entry = m_index.find_entry(cache_key);
     if (!index_entry.has_value()) {
-        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[35;1mNo disk cache entry for\033[0m {}", url);
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[35;1mNo cache entry for\033[0m {}", url);
         return Optional<CacheEntryReader&> {};
     }
 
     auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
-        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
         m_index.remove_entry(cache_key);
 
         return Optional<CacheEntryReader&> {};
@@ -111,18 +111,18 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     switch (cache_lifetime_status(response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
         if (open_mode == OpenMode::Read) {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[32;1mOpened disk cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         } else {
             // This should be rare, but it's possible for client A to revalidate the request while client B is waiting.
             // In that case, there is no work for client B to do.
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[33;1mCache entry is already fresh for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry is already fresh for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
             return Optional<CacheEntryReader&> {};
         }
 
         break;
 
     case CacheLifetimeStatus::Expired:
-        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
         cache_entry.value()->remove();
 
         return Optional<CacheEntryReader&> {};
@@ -133,20 +133,20 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
             if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
                 return CacheHasOpenEntry {};
 
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36;1mMust revalidate disk cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mMust revalidate cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
             cache_entry.value()->set_revalidation_type(CacheEntryReader::RevalidationType::MustRevalidate);
         } else {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[32;1mOpened disk cache entry for revalidation\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for revalidation\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         }
 
         break;
 
     case CacheLifetimeStatus::StaleWhileRevalidate:
         if (open_mode == OpenMode::Read) {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36;1mMust revalidate, but may use, disk cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mMust revalidate, but may use, cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
             cache_entry.value()->set_revalidation_type(CacheEntryReader::RevalidationType::StaleWhileRevalidate);
         } else {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[32;1mOpened disk cache entry for revalidation\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for revalidation\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         }
 
         break;
@@ -166,7 +166,7 @@ bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_k
 
     for (auto const& [open_entry, open_request] : *open_entries) {
         if (is<CacheEntryWriter>(*open_entry)) {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36;1mDeferring disk cache entry for\033[0m {} (waiting for existing writer)", url);
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mDeferring cache entry for\033[0m {} (waiting for existing writer)", url);
             m_requests_waiting_completion.ensure(cache_key).append(request);
             return true;
         }
@@ -174,7 +174,7 @@ bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_k
         // We allow concurrent readers unless another reader is open for revalidation. That reader will issue the network
         // request, which may then result in the cache entry being updated or deleted.
         if (check_reader_entries == CheckReaderEntries::Yes || (open_request && open_request->is_revalidation_request())) {
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36;1mDeferring disk cache entry for\033[0m {} (waiting for existing reader)", url);
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mDeferring cache entry for\033[0m {} (waiting for existing reader)", url);
             m_requests_waiting_completion.ensure(cache_key).append(request);
             return true;
         }
