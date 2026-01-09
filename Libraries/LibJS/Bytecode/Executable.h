@@ -76,6 +76,17 @@ struct TemplateObjectCache {
     GC::Ptr<Array> cached_template_object;
 };
 
+// Cache for object literal shapes.
+// When an object literal like {a: 1, b: 2} is instantiated, we cache the final shape
+// so that subsequent instantiations can allocate the object with the correct shape directly,
+// avoiding repeated shape transitions.
+// We also cache the property offsets so that subsequent property writes can bypass
+// shape lookups and write directly to the correct storage slot.
+struct ObjectShapeCache {
+    GC::Weak<Shape> shape;
+    Vector<u32> property_offsets;
+};
+
 struct SourceRecord {
     u32 source_start_offset {};
     u32 source_end_offset {};
@@ -97,6 +108,7 @@ public:
         size_t number_of_property_lookup_caches,
         size_t number_of_global_variable_caches,
         size_t number_of_template_object_caches,
+        size_t number_of_object_shape_caches,
         size_t number_of_registers,
         Strict);
 
@@ -107,6 +119,7 @@ public:
     Vector<PropertyLookupCache> property_lookup_caches;
     Vector<GlobalVariableCache> global_variable_caches;
     Vector<TemplateObjectCache> template_object_caches;
+    Vector<ObjectShapeCache> object_shape_caches;
     NonnullOwnPtr<StringTable> string_table;
     NonnullOwnPtr<IdentifierTable> identifier_table;
     NonnullOwnPtr<PropertyKeyTable> property_key_table;

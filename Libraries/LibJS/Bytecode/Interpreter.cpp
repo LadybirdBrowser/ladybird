@@ -551,6 +551,8 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(NewClass);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewFunction);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObject);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(CacheObjectShape);
+            HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(InitObjectLiteralProperty);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewObjectWithNoPrototype);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewPrimitiveArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(NewRegExp);
@@ -1957,6 +1959,16 @@ void NewObject::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
     auto& realm = *vm.current_realm();
+
+    if (m_cache_index != NumericLimits<u32>::max()) {
+        auto& cache = interpreter.current_executable().object_shape_caches[m_cache_index];
+        auto cached_shape = cache.shape.ptr();
+        if (cached_shape) {
+            interpreter.set(dst(), Object::create_with_premade_shape(*cached_shape));
+            return;
+        }
+    }
+
     interpreter.set(dst(), Object::create(realm, realm.intrinsics().object_prototype()));
 }
 
@@ -1965,6 +1977,49 @@ void NewObjectWithNoPrototype::execute_impl(Bytecode::Interpreter& interpreter) 
     auto& vm = interpreter.vm();
     auto& realm = *vm.current_realm();
     interpreter.set(dst(), Object::create(realm, nullptr));
+}
+
+void CacheObjectShape::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& cache = interpreter.current_executable().object_shape_caches[m_cache_index];
+    if (!cache.shape) {
+        auto& object = interpreter.get(m_object).as_object();
+        cache.shape = &object.shape();
+    }
+}
+
+COLD static void init_object_literal_property_slow(Object& object, PropertyKey const& property_key, Value value, ObjectShapeCache& cache, u32 property_slot)
+{
+    object.define_direct_property(property_key, value, JS::Attribute::Enumerable | JS::Attribute::Writable | JS::Attribute::Configurable);
+
+    // Cache the property offset for future fast-path use
+    // Note: lookup may fail if the shape is in dictionary mode or for other edge cases.
+    // We only cache if we're not in dictionary mode and the lookup succeeds.
+    if (!object.shape().is_dictionary()) {
+        auto metadata = object.shape().lookup(property_key);
+        if (metadata.has_value()) {
+            if (property_slot >= cache.property_offsets.size())
+                cache.property_offsets.resize(property_slot + 1);
+            cache.property_offsets[property_slot] = metadata->offset;
+        }
+    }
+}
+
+void InitObjectLiteralProperty::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& object = interpreter.get(m_object).as_object();
+    auto value = interpreter.get(m_src);
+    auto& cache = interpreter.current_executable().object_shape_caches[m_shape_cache_index];
+
+    // Fast path: if we have a cached shape and it matches, write directly to the cached offset
+    auto cached_shape = cache.shape.ptr();
+    if (cached_shape && &object.shape() == cached_shape && m_property_slot < cache.property_offsets.size()) {
+        object.put_direct(cache.property_offsets[m_property_slot], value);
+        return;
+    }
+
+    auto const& property_key = interpreter.current_executable().get_property_key(m_property);
+    init_object_literal_property_slow(object, property_key, value, cache, m_property_slot);
 }
 
 void NewRegExp::execute_impl(Bytecode::Interpreter& interpreter) const

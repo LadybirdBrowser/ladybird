@@ -706,6 +706,7 @@ endop
 op NewObject < Instruction
     @nothrow
     m_dst: Operand
+    m_cache_index: u32
 endop
 
 op NewObjectWithNoPrototype < Instruction
@@ -1061,5 +1062,20 @@ op Yield < Instruction
     @nothrow
     m_continuation_label: Optional<Label>
     m_value: Operand
+endop
+
+op CacheObjectShape < Instruction
+    @nothrow
+    m_object: Operand
+    m_cache_index: u32
+endop
+
+op InitObjectLiteralProperty < Instruction
+    @nothrow
+    m_object: Operand
+    m_property: PropertyKeyTableIndex
+    m_src: Operand
+    m_shape_cache_index: u32
+    m_property_slot: u32
 endop
 
