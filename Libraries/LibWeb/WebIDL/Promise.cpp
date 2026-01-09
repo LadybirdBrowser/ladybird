@@ -140,13 +140,12 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
     // NOTE: When called with %Promise%, NewPromiseCapability can't throw.
     auto new_capability = MUST(JS::new_promise_capability(vm, constructor));
 
-    // 7. Return PerformPromiseThen(promise.[[Promise]], onFulfilled, onRejected, newCapability).
-    // FIXME: https://github.com/whatwg/webidl/issues/1443
-    //  Returning newCapability instead of newCapability.[[Promise].
+    // 7. Perform PerformPromiseThen(promise.[[Promise]], onFulfilled, onRejected, newCapability).
     auto promise_object = as<JS::Promise>(promise.promise().ptr());
     auto value = promise_object->perform_then(on_fulfilled, on_rejected, new_capability);
-
     VERIFY(value == new_capability->promise());
+
+    // 8. Return newCapability.
     return new_capability;
 }
 
