@@ -97,9 +97,11 @@ void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Inherits: {}\n", inherits());
 
-    if (initial_value().has_value()) {
+    if (m_initial_value) {
         dump_indent(builder, indent_levels + 1);
-        builder.appendff("Initial value: {}\n", initial_value().value());
+        builder.append("Initial value: "sv);
+        m_initial_value->serialize(builder, SerializationMode::Normal);
+        builder.append('\n');
     }
 }
 
