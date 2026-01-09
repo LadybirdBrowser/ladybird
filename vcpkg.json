@@ -306,7 +306,7 @@
     },
     {
       "name": "qtbase",
-      "version": "6.8.3#2"
+      "version": "6.10.0#1"
     },
     {
       "name": "sdl3",
