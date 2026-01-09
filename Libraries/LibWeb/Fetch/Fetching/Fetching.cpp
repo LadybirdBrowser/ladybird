@@ -1556,12 +1556,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             http_request = request->clone(realm);
 
             // 2. Set httpFetchParams to a copy of fetchParams.
+            auto new_http_fetch_params = Infrastructure::FetchParams::copy(fetch_params);
             // 3. Set httpFetchParams’s request to httpRequest.
-            auto new_http_fetch_params = Infrastructure::FetchParams::create(vm, *http_request, fetch_params.timing_info());
-            new_http_fetch_params->set_algorithms(fetch_params.algorithms());
-            new_http_fetch_params->set_task_destination(fetch_params.task_destination());
-            new_http_fetch_params->set_cross_origin_isolated_capability(fetch_params.cross_origin_isolated_capability());
-            new_http_fetch_params->set_preloaded_response_candidate(fetch_params.preloaded_response_candidate());
+            new_http_fetch_params->set_request(*http_request);
             http_fetch_params = new_http_fetch_params;
         }
 
