@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibRequests/Request.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -31,6 +32,11 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_report_timing_steps);
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
+}
+
+void FetchController::set_pending_request(RefPtr<Requests::Request> request)
+{
+    m_pending_request = move(request);
 }
 
 void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)
@@ -128,6 +134,8 @@ void FetchController::terminate()
 
 void FetchController::stop_fetch()
 {
+    m_state = State::Stopped;
+
     auto& vm = this->vm();
 
     // AD-HOC: Some HTML elements need to stop an ongoing fetching process without causing any network error to be raised
@@ -145,6 +153,17 @@ void FetchController::stop_fetch()
     if (m_fetch_params) {
         auto fetch_algorithms = FetchAlgorithms::create(vm, {});
         m_fetch_params->set_algorithms(fetch_algorithms);
+    }
+
+    stop_request();
+}
+
+void FetchController::stop_request()
+{
+    VERIFY(m_state == State::Stopped);
+    if (m_pending_request) {
+        m_pending_request->stop();
+        m_pending_request = nullptr;
     }
 }
 
