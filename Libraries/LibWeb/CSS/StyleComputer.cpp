@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/Error.h>
 #include <AK/Find.h>
+#include <AK/FixedBitmap.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Math.h>
@@ -86,7 +87,6 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <math.h>
-#include <stdio.h>
 
 namespace Web::CSS {
 
@@ -444,7 +444,7 @@ void StyleComputer::cascade_declarations(
     Optional<LogicalAliasMappingContext> logical_alias_mapping_context,
     ReadonlySpan<PropertyID> properties_to_cascade) const
 {
-    auto seen_properties = MUST(Bitmap::create(to_underlying(last_property_id) + 1, false));
+    AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
@@ -630,7 +630,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     auto compute_keyframe_values = [&computed_properties, &abstract_element, this](auto const& keyframe_values) {
         HashMap<PropertyID, RefPtr<StyleValue const>> result;
         HashMap<PropertyID, PropertyID> longhands_set_by_property_id;
-        auto property_is_set_by_use_initial = MUST(Bitmap::create(number_of_longhand_properties, false));
+        AK::FixedBitmap<number_of_longhand_properties> property_is_set_by_use_initial(false);
 
         auto property_is_logical_alias_including_shorthands = [&](PropertyID property_id) {
             if (property_is_shorthand(property_id))
