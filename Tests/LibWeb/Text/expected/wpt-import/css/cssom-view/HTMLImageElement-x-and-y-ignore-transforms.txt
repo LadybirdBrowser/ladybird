@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	HTMLImageElement's 'x' and 'y' property values ignore transforms

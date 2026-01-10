@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 415 tests
 
-338 Pass
-77 Fail
+342 Pass
+73 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -214,10 +214,10 @@ Fail	Element interface: document.createElement("div") must inherit property "con
 Fail	Element interface: calling convertRectFromNode(DOMRectReadOnly, GeometryNode, optional ConvertCoordinateOptions) on document.createElement("div") with too few arguments must throw TypeError
 Fail	Element interface: document.createElement("div") must inherit property "convertPointFromNode(DOMPointInit, GeometryNode, optional ConvertCoordinateOptions)" with the proper type
 Fail	Element interface: calling convertPointFromNode(DOMPointInit, GeometryNode, optional ConvertCoordinateOptions) on document.createElement("div") with too few arguments must throw TypeError
-Fail	HTMLImageElement interface: attribute x
-Fail	HTMLImageElement interface: attribute y
-Fail	HTMLImageElement interface: document.createElement("img") must inherit property "x" with the proper type
-Fail	HTMLImageElement interface: document.createElement("img") must inherit property "y" with the proper type
+Pass	HTMLImageElement interface: attribute x
+Pass	HTMLImageElement interface: attribute y
+Pass	HTMLImageElement interface: document.createElement("img") must inherit property "x" with the proper type
+Pass	HTMLImageElement interface: document.createElement("img") must inherit property "y" with the proper type
 Pass	HTMLElement interface: document.createElement("img") must inherit property "scrollParent" with the proper type
 Pass	HTMLElement interface: document.createElement("img") must inherit property "offsetParent" with the proper type
 Pass	HTMLElement interface: document.createElement("img") must inherit property "offsetTop" with the proper type

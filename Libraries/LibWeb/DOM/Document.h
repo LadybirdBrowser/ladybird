@@ -119,6 +119,8 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLEventLoopRenderingUpdate)           \
     X(HTMLImageElementHeight)                 \
     X(HTMLImageElementWidth)                  \
+    X(HTMLImageElementX)                      \
+    X(HTMLImageElementY)                      \
     X(HTMLInputElementHeight)                 \
     X(HTMLInputElementWidth)                  \
     X(InternalsHitTest)                       \
