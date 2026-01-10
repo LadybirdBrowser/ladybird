@@ -85,8 +85,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ 'x86_64' ]
-        runner_labels: [ '["blacksmith-8vcpu-ubuntu-2404"]' ]
+        arch: ['x86_64']
+        runner_labels: ['["blacksmith-8vcpu-ubuntu-2404"]']
 
         include:
           - arch: 'aarch64'
