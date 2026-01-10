@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="target-frame" name="target-frame"></iframe>
+<svg>
+    <a id="basic-link" href="javascript:println('basic link activated')">
+        <text y="20">Basic Link</text>
+    </a>
+    <a id="target-link" href="javascript:parent.println('target link activated in iframe')" target="target-frame">
+        <text y="40">Target Link</text>
+    </a>
+</svg>
+<script>
+promiseTest(async () => {
+    document.getElementById("basic-link").dispatchEvent(new MouseEvent("click"));
+    await animationFrame();
+
+    document.getElementById("target-link").dispatchEvent(new MouseEvent("click"));
+    await animationFrame();
+});
+</script>

@@ -39,6 +39,9 @@ private:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
 
+    virtual bool has_activation_behavior() const override { return true; }
+    virtual void activation_behavior(DOM::Event const&) override;
+
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
 
     GC::Ptr<SVGAnimatedString> m_target;
