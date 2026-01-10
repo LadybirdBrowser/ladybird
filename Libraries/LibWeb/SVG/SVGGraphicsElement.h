@@ -103,6 +103,14 @@ protected:
             return {};
         if (auto node = document().get_element_by_id(*fragment); node && is<T>(*node))
             return static_cast<T&>(*node);
+
+        auto containing_shadow = containing_shadow_root();
+        if (containing_shadow) {
+            auto node = containing_shadow->get_element_by_id(*fragment);
+            if (node && is<T>(*node))
+                return static_cast<T&>(*node);
+        }
+
         return {};
     }
 
