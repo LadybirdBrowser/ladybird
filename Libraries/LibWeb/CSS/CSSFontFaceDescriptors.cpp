@@ -165,12 +165,7 @@ String CSSFontFaceDescriptors::line_gap_override() const
 
 WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_src(StringView value)
 {
-    TRY(set_property("src"_fly_string, value, ""sv));
-
-    if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
-        font_face_rule->handle_src_descriptor_change();
-
-    return {};
+    return set_property("src"_fly_string, value, ""sv);
 }
 
 String CSSFontFaceDescriptors::src() const
