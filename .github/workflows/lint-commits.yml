@@ -49,7 +49,7 @@ jobs:
                 error: "Commit title ends in a period",
               },
               {
-                pattern: /^(.{0,72}|\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@:%+.~?&=\-]+)*)$/,
+                pattern: /^(.{0,72}|\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@#:;%+.~?&=\-]+)*)$/,
                 error: "Commit message lines are too long (maximum allowed is 72 characters, except for URLs on their own line)",
               },
               {
