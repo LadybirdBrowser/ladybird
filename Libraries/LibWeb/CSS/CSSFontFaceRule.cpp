@@ -63,16 +63,24 @@ String CSSFontFaceRule::serialized() const
     // The result of concatenating the following:
 
     // 1. The string "@font-face {", followed by a single SPACE (U+0020).
-    builder.append("@font-face { "sv);
+    // AD-HOC: We add the in the below AD-HOC block to avoid an extra space if there is no font-family descriptor.
+    builder.append("@font-face {"sv);
 
-    // 2. The string "font-family:", followed by a single SPACE (U+0020).
-    builder.append("font-family: "sv);
+    // AD-HOC: We don't necessary always have a font-family descriptor as the spec assumes,
+    //         see https://github.com/w3c/csswg-drafts/issues/13323
 
-    // 3. The result of performing serialize a string on the rule’s font family name.
-    descriptors.descriptor(DescriptorID::FontFamily)->serialize(builder, SerializationMode::Normal);
+    if (auto font_family = descriptors.descriptor(DescriptorID::FontFamily); !font_family.is_null()) {
+        builder.append(' ');
 
-    // 4. The string ";", i.e., SEMICOLON (U+003B).
-    builder.append(';');
+        // 2. The string "font-family:", followed by a single SPACE (U+0020).
+        builder.append("font-family: "sv);
+
+        // 3. The result of performing serialize a string on the rule’s font family name.
+        descriptors.descriptor(DescriptorID::FontFamily)->serialize(builder, SerializationMode::Normal);
+
+        // 4. The string ";", i.e., SEMICOLON (U+003B).
+        builder.append(';');
+    }
 
     // 5. If the rule’s associated source list is not empty, follow these substeps:
     if (auto sources = descriptors.descriptor(DescriptorID::Src)) {
