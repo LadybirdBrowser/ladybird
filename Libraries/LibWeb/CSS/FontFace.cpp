@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -272,7 +273,12 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_family(string));
 
-    m_family = property->as_custom_ident().custom_ident().to_string();
+    if (property->is_custom_ident())
+        m_family = property->as_custom_ident().custom_ident().to_string();
+    else if (property->is_string())
+        m_family = property->as_string().string_value().to_string();
+    else
+        VERIFY_NOT_REACHED();
 
     return {};
 }
