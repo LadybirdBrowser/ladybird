@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 545 tests
 
-421 Pass
-124 Fail
+439 Pass
+106 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: original interface defined
@@ -105,12 +105,12 @@ Pass	CSSNumericValue interface object name
 Pass	CSSNumericValue interface: existence and properties of interface prototype object
 Pass	CSSNumericValue interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSNumericValue interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSNumericValue interface: operation add(CSSNumberish...)
-Fail	CSSNumericValue interface: operation sub(CSSNumberish...)
-Fail	CSSNumericValue interface: operation mul(CSSNumberish...)
-Fail	CSSNumericValue interface: operation div(CSSNumberish...)
-Fail	CSSNumericValue interface: operation min(CSSNumberish...)
-Fail	CSSNumericValue interface: operation max(CSSNumberish...)
+Pass	CSSNumericValue interface: operation add(CSSNumberish...)
+Pass	CSSNumericValue interface: operation sub(CSSNumberish...)
+Pass	CSSNumericValue interface: operation mul(CSSNumberish...)
+Pass	CSSNumericValue interface: operation div(CSSNumberish...)
+Pass	CSSNumericValue interface: operation min(CSSNumberish...)
+Pass	CSSNumericValue interface: operation max(CSSNumberish...)
 Pass	CSSNumericValue interface: operation equals(CSSNumberish...)
 Pass	CSSNumericValue interface: operation to(USVString)
 Fail	CSSNumericValue interface: operation toSum(USVString...)
@@ -128,17 +128,17 @@ Pass	CSSUnitValue must be primary interface of unitValue
 Pass	Stringification of unitValue
 Pass	CSSUnitValue interface: unitValue must inherit property "value" with the proper type
 Pass	CSSUnitValue interface: unitValue must inherit property "unit" with the proper type
-Fail	CSSNumericValue interface: unitValue must inherit property "add(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "add(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling add(CSSNumberish...) on unitValue with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: unitValue must inherit property "sub(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "sub(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling sub(CSSNumberish...) on unitValue with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: unitValue must inherit property "mul(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "mul(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling mul(CSSNumberish...) on unitValue with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: unitValue must inherit property "div(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "div(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling div(CSSNumberish...) on unitValue with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: unitValue must inherit property "min(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "min(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling min(CSSNumberish...) on unitValue with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: unitValue must inherit property "max(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: unitValue must inherit property "max(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling max(CSSNumberish...) on unitValue with too few arguments must throw TypeError
 Pass	CSSNumericValue interface: unitValue must inherit property "equals(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling equals(CSSNumberish...) on unitValue with too few arguments must throw TypeError
@@ -171,17 +171,17 @@ Pass	CSSMathSum must be primary interface of mathSum
 Pass	Stringification of mathSum
 Pass	CSSMathSum interface: mathSum must inherit property "values" with the proper type
 Pass	CSSMathValue interface: mathSum must inherit property "operator" with the proper type
-Fail	CSSNumericValue interface: mathSum must inherit property "add(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "add(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling add(CSSNumberish...) on mathSum with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: mathSum must inherit property "sub(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "sub(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling sub(CSSNumberish...) on mathSum with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: mathSum must inherit property "mul(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "mul(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling mul(CSSNumberish...) on mathSum with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: mathSum must inherit property "div(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "div(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling div(CSSNumberish...) on mathSum with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: mathSum must inherit property "min(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "min(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling min(CSSNumberish...) on mathSum with too few arguments must throw TypeError
-Fail	CSSNumericValue interface: mathSum must inherit property "max(CSSNumberish...)" with the proper type
+Pass	CSSNumericValue interface: mathSum must inherit property "max(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling max(CSSNumberish...) on mathSum with too few arguments must throw TypeError
 Pass	CSSNumericValue interface: mathSum must inherit property "equals(CSSNumberish...)" with the proper type
 Pass	CSSNumericValue interface: calling equals(CSSNumberish...) on mathSum with too few arguments must throw TypeError
