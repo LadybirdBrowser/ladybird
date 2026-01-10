@@ -18,9 +18,15 @@
 #    define LIBTEST_LONGJMP longjmp
 #endif
 
+#if defined(AK_OS_FREEBSD) || defined(AK_OS_OPENBSD)
+using libtest_jmp_buf = sigjmp_buf;
+#else
+using libtest_jmp_buf = jmp_buf;
+#endif
+
 namespace Test {
 
-jmp_buf& assertion_jump_buffer();
+libtest_jmp_buf& assertion_jump_buffer();
 void set_assertion_jump_validity(bool);
 bool assertion_jump_validity();
 
