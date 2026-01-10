@@ -22,6 +22,26 @@ GC::Ref<CSSMathSum> CSSMathSum::create(JS::Realm& realm, NumericType type, GC::R
     return realm.create<CSSMathSum>(realm, move(type), move(values));
 }
 
+WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::add_all_types_into_math_sum(JS::Realm& realm, GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
+{
+    auto type = values.first()->type();
+    bool first = true;
+    for (auto const& value : values) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        if (auto added_types = type.added_to(value->type()); added_types.has_value()) {
+            type = added_types.release_value();
+        } else {
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathSum with values of incompatible types"sv };
+        }
+    }
+
+    auto values_array = CSSNumericArray::create(realm, { values });
+    return CSSMathSum::create(realm, type, values_array);
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathsum-cssmathsum
 WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
 {
@@ -39,23 +59,8 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathSum>> CSSMathSum::construct_impl(JS::Realm& r
         return WebIDL::SyntaxError::create(realm, "Cannot create an empty CSSMathSum"_utf16);
 
     // 3. Let type be the result of adding the types of all the items of args. If type is failure, throw a TypeError.
-    auto type = converted_values.first()->type();
-    bool first = true;
-    for (auto const& value : converted_values) {
-        if (first) {
-            first = false;
-            continue;
-        }
-        if (auto added_types = type.added_to(value->type()); added_types.has_value()) {
-            type = added_types.release_value();
-        } else {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathSum with values of incompatible types"sv };
-        }
-    }
-
     // 4. Return a new CSSMathSum whose values internal slot is set to args.
-    auto values_array = CSSNumericArray::create(realm, { converted_values });
-    return CSSMathSum::create(realm, move(type), move(values_array));
+    return add_all_types_into_math_sum(realm, converted_values);
 }
 
 CSSMathSum::CSSMathSum(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArray> values)

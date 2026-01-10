@@ -18,6 +18,7 @@ class CSSMathMin final : public CSSMathValue {
 public:
     [[nodiscard]] static GC::Ref<CSSMathMin> create(JS::Realm&, NumericType, GC::Ref<CSSNumericArray>);
     static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> construct_impl(JS::Realm&, Vector<CSSNumberish>);
+    static WebIDL::ExceptionOr<GC::Ref<CSSMathMin>> add_all_types_into_math_min(JS::Realm&, GC::RootVector<GC::Ref<CSSNumericValue>> const&);
 
     virtual ~CSSMathMin() override;
 
