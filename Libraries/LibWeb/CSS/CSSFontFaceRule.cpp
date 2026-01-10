@@ -162,7 +162,7 @@ void CSSFontFaceRule::handle_src_descriptor_change()
     if (!m_css_connected_font_face)
         return;
 
-    m_css_connected_font_face->disconnect_from_css_rule();
+    disconnect_font_face();
 
     auto* style_sheet = parent_style_sheet();
     if (!style_sheet)
@@ -182,6 +182,12 @@ void CSSFontFaceRule::disconnect_font_face()
         return;
 
     m_css_connected_font_face->disconnect_from_css_rule();
+
+    if (auto* style_sheet = parent_style_sheet()) {
+        if (auto document = style_sheet->owning_document())
+            document->fonts()->delete_(m_css_connected_font_face);
+    }
+
     m_css_connected_font_face = nullptr;
 }
 

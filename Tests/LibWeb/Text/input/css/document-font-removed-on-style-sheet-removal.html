@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Foo;
+        src: url("./Foo.woff");
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready.then(() => {
+            println(document.fonts.size);
+
+            document.querySelector("style").remove();
+
+            println(document.fonts.size);
+        });
+    });
+</script>
