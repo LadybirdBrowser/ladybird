@@ -41,6 +41,92 @@ StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granul
     VERIFY_NOT_REACHED();
 }
 
+// Fast path segmenter for ASCII text where every character is its own grapheme.
+// This avoids all ICU overhead for the common case of ASCII-only text.
+class AsciiGraphemeSegmenter : public Segmenter {
+public:
+    explicit AsciiGraphemeSegmenter(size_t length)
+        : Segmenter(SegmenterGranularity::Grapheme)
+        , m_length(length)
+    {
+    }
+
+    virtual ~AsciiGraphemeSegmenter() override = default;
+
+    virtual NonnullOwnPtr<Segmenter> clone() const override
+    {
+        return make<AsciiGraphemeSegmenter>(m_length);
+    }
+
+    virtual void set_segmented_text(String text) override
+    {
+        m_length = text.byte_count();
+    }
+
+    virtual void set_segmented_text(Utf16View const& text) override
+    {
+        m_length = text.length_in_code_units();
+    }
+
+    virtual size_t current_boundary() override
+    {
+        return m_current;
+    }
+
+    virtual Optional<size_t> previous_boundary(size_t index, Inclusive inclusive) override
+    {
+        if (inclusive == Inclusive::Yes && index <= m_length)
+            return index;
+        if (index == 0)
+            return {};
+        return index - 1;
+    }
+
+    virtual Optional<size_t> next_boundary(size_t index, Inclusive inclusive) override
+    {
+        if (inclusive == Inclusive::Yes && index <= m_length)
+            return index;
+        if (index >= m_length)
+            return {};
+        return index + 1;
+    }
+
+    virtual void for_each_boundary(String text, SegmentationCallback callback) override
+    {
+        set_segmented_text(move(text));
+        for_each_boundary_impl(callback);
+    }
+
+    virtual void for_each_boundary(Utf16View const& text, SegmentationCallback callback) override
+    {
+        set_segmented_text(text);
+        for_each_boundary_impl(callback);
+    }
+
+    virtual void for_each_boundary(Utf32View const& text, SegmentationCallback callback) override
+    {
+        m_length = text.length();
+        for_each_boundary_impl(callback);
+    }
+
+    virtual bool is_current_boundary_word_like() const override
+    {
+        return false;
+    }
+
+private:
+    void for_each_boundary_impl(SegmentationCallback& callback)
+    {
+        for (size_t i = 0; i <= m_length; ++i) {
+            if (callback(i) == IterationDecision::Break)
+                return;
+        }
+    }
+
+    size_t m_length { 0 };
+    size_t m_current { 0 };
+};
+
 class SegmenterImpl : public Segmenter {
 public:
     SegmenterImpl(NonnullOwnPtr<icu::BreakIterator> segmenter, SegmenterGranularity segmenter_granularity)
@@ -245,6 +331,11 @@ NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranulari
     VERIFY(icu_success(status));
 
     return make<SegmenterImpl>(segmenter.release_nonnull(), segmenter_granularity);
+}
+
+NonnullOwnPtr<Segmenter> Segmenter::create_for_ascii_grapheme(size_t length)
+{
+    return make<AsciiGraphemeSegmenter>(length);
 }
 
 bool Segmenter::should_continue_beyond_word(Utf16View const& word)

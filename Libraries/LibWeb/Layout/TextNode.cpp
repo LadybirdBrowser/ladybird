@@ -396,8 +396,15 @@ void TextNode::compute_text_for_rendering()
 Unicode::Segmenter& TextNode::grapheme_segmenter() const
 {
     if (!m_grapheme_segmenter) {
-        m_grapheme_segmenter = document().grapheme_segmenter().clone();
-        m_grapheme_segmenter->set_segmented_text(text_for_rendering());
+        auto const& text = text_for_rendering();
+        // Fast path: For ASCII text, every character is its own grapheme.
+        // We can use a trivial segmenter that avoids all ICU overhead.
+        if (text.is_ascii()) {
+            m_grapheme_segmenter = Unicode::Segmenter::create_for_ascii_grapheme(text.length_in_code_units());
+        } else {
+            m_grapheme_segmenter = document().grapheme_segmenter().clone();
+            m_grapheme_segmenter->set_segmented_text(text);
+        }
     }
 
     return *m_grapheme_segmenter;
