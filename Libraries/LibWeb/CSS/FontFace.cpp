@@ -188,27 +188,33 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
     HTML::TemporaryExecutionContext execution_context { realm };
 
     auto font_face = realm.create<FontFace>(realm, WebIDL::create_promise(realm));
-    auto const& descriptors = *rule.descriptors();
-
-    font_face->m_family = descriptors.font_family();
-    font_face->m_style = descriptors.font_style();
-    font_face->m_weight = descriptors.font_weight();
-    font_face->m_stretch = descriptors.font_width();
-    font_face->m_unicode_range = descriptors.unicode_range();
-    font_face->m_feature_settings = descriptors.font_feature_settings();
-    font_face->m_variation_settings = descriptors.font_variation_settings();
-    font_face->m_display = descriptors.font_display();
-    font_face->m_ascent_override = descriptors.ascent_override();
-    font_face->m_descent_override = descriptors.descent_override();
-    font_face->m_line_gap_override = descriptors.line_gap_override();
-
-    if (auto src_value = descriptors.descriptor(DescriptorID::Src))
-        font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
 
     font_face->m_css_font_face_rule = &rule;
+    font_face->reparse_connected_css_font_face_rule_descriptors();
+
+    if (auto src_value = rule.descriptors()->descriptor(DescriptorID::Src))
+        font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
+
     rule.set_css_connected_font_face(font_face);
 
     return font_face;
+}
+
+void FontFace::reparse_connected_css_font_face_rule_descriptors()
+{
+    auto const& descriptors = m_css_font_face_rule->descriptors();
+
+    m_family = descriptors->font_family();
+    m_style = descriptors->font_style();
+    m_weight = descriptors->font_weight();
+    m_stretch = descriptors->font_width();
+    m_unicode_range = descriptors->unicode_range();
+    m_feature_settings = descriptors->font_feature_settings();
+    m_variation_settings = descriptors->font_variation_settings();
+    m_display = descriptors->font_display();
+    m_ascent_override = descriptors->ascent_override();
+    m_descent_override = descriptors->descent_override();
+    m_line_gap_override = descriptors->line_gap_override();
 }
 
 FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
@@ -231,83 +237,6 @@ void FontFace::visit_edges(JS::Cell::Visitor& visitor)
 
     visitor.visit(m_font_status_promise);
     visitor.visit(m_css_font_face_rule);
-}
-
-String FontFace::family() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_family();
-    return m_family;
-}
-
-String FontFace::style() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_style();
-    return m_style;
-}
-
-String FontFace::weight() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_weight();
-    return m_weight;
-}
-
-String FontFace::stretch() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_width();
-    return m_stretch;
-}
-
-String FontFace::unicode_range() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->unicode_range();
-    return m_unicode_range;
-}
-
-String FontFace::feature_settings() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_feature_settings();
-    return m_feature_settings;
-}
-
-String FontFace::variation_settings() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_variation_settings();
-    return m_variation_settings;
-}
-
-String FontFace::display() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->font_display();
-    return m_display;
-}
-
-String FontFace::ascent_override() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->ascent_override();
-    return m_ascent_override;
-}
-
-String FontFace::descent_override() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->descent_override();
-    return m_descent_override;
-}
-
-String FontFace::line_gap_override() const
-{
-    if (m_css_font_face_rule)
-        return m_css_font_face_rule->descriptors()->line_gap_override();
-    return m_line_gap_override;
 }
 
 GC::Ref<WebIDL::Promise> FontFace::loaded() const

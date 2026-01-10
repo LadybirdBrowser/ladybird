@@ -160,6 +160,19 @@ void CSSFontFaceRule::visit_edges(Visitor& visitor)
     visitor.visit(m_css_connected_font_face);
 }
 
+void CSSFontFaceRule::handle_descriptor_change(FlyString const& property)
+{
+    if (property.equals_ignoring_ascii_case("src"sv))
+        handle_src_descriptor_change();
+
+    if (!m_css_connected_font_face)
+        return;
+
+    // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
+    // any change made to a @font-face descriptor is immediately reflected in the corresponding FontFace attribute
+    m_css_connected_font_face->reparse_connected_css_font_face_rule_descriptors();
+}
+
 // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
 void CSSFontFaceRule::handle_src_descriptor_change()
 {
