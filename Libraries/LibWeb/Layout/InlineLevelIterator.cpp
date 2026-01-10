@@ -24,6 +24,26 @@ InlineLevelIterator::InlineLevelIterator(Layout::InlineFormattingContext& inline
     , m_layout_mode(layout_mode)
 {
     skip_to_next();
+    generate_all_items();
+}
+
+void InlineLevelIterator::generate_all_items()
+{
+    for (;;) {
+        auto item = generate_next_item();
+        if (!item.has_value())
+            break;
+
+        // Track accumulated width for tab calculations.
+        // Reset on forced breaks since tabs measure from line start.
+        if (item->type == Item::Type::ForcedBreak) {
+            m_accumulated_width_for_tabs = 0;
+        } else {
+            m_accumulated_width_for_tabs += item->border_box_width();
+        }
+
+        m_items.append(item.release_value());
+    }
 }
 
 void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyleAndBoxModelMetrics const& node)
@@ -140,20 +160,16 @@ void InlineLevelIterator::skip_to_next()
 
 Optional<InlineLevelIterator::Item> InlineLevelIterator::next()
 {
-    if (m_lookahead_items.is_empty())
-        return next_without_lookahead();
-    return m_lookahead_items.dequeue();
+    if (m_next_item_index >= m_items.size())
+        return {};
+    return m_items[m_next_item_index++];
 }
 
 CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
 {
     CSSPixels next_width = 0;
-    for (;;) {
-        auto next_item_opt = next_without_lookahead();
-        if (!next_item_opt.has_value())
-            break;
-        m_lookahead_items.enqueue(next_item_opt.release_value());
-        auto& next_item = m_lookahead_items.tail();
+    for (size_t i = m_next_item_index; i < m_items.size(); ++i) {
+        auto const& next_item = m_items[i];
         if (next_item.type == InlineLevelIterator::Item::Type::ForcedBreak)
             break;
         if (next_item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
@@ -205,7 +221,7 @@ Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context
     return Gfx::GlyphRun::TextType::ContextDependent;
 }
 
-Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead()
+Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
 {
     if (!m_current_node)
         return {};
@@ -248,7 +264,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             } else {
                 m_text_node_context = {};
                 skip_to_next();
-                return next_without_lookahead();
+                return generate_next_item();
             }
         }
 
@@ -277,13 +293,9 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
 
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {
-            CSSPixels accumulated_width;
-
-            // make sure to account for any fragments that take up a portion of the measured tab stop distance
-            auto fragments = m_containing_block_used_values.line_boxes.last().fragments();
-            for (auto const& frag : fragments) {
-                accumulated_width += frag.width();
-            }
+            // Use the accumulated width we've been tracking during pre-generation.
+            // This accounts for items that would appear before this tab on the same line.
+            CSSPixels accumulated_width = m_accumulated_width_for_tabs;
 
             // https://drafts.csswg.org/css-text/#tab-size-property
             auto tab_width = text_node->computed_values().tab_size().visit(
@@ -369,12 +381,12 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
 
     if (is<Layout::ListItemMarkerBox>(*m_current_node)) {
         skip_to_next();
-        return next_without_lookahead();
+        return generate_next_item();
     }
 
     if (!is<Layout::Box>(*m_current_node)) {
         skip_to_next();
-        return next_without_lookahead();
+        return generate_next_item();
     }
 
     if (is<Layout::ReplacedBox>(*m_current_node)) {

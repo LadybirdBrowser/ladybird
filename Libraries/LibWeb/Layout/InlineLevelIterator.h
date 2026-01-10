@@ -55,7 +55,8 @@ public:
     CSSPixels next_non_whitespace_sequence_width();
 
 private:
-    Optional<Item> next_without_lookahead();
+    void generate_all_items();
+    Optional<Item> generate_next_item();
     Gfx::GlyphRun::TextType resolve_text_direction_from_context();
     void skip_to_next();
     void compute_next();
@@ -98,7 +99,13 @@ private:
     Optional<ExtraBoxMetrics> m_extra_trailing_metrics;
 
     Vector<GC::Ref<NodeWithStyleAndBoxModelMetrics const>> m_box_model_node_stack;
-    Queue<InlineLevelIterator::Item> m_lookahead_items;
+
+    // Pre-generated items for O(1) iteration and lookahead.
+    Vector<Item> m_items;
+    size_t m_next_item_index { 0 };
+
+    // Accumulated width tracking for tab calculations during pre-generation.
+    CSSPixels m_accumulated_width_for_tabs { 0 };
 };
 
 }
