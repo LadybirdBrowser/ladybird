@@ -1,0 +1,2 @@
+no-referrer policy: PASS (no Referer header sent)
+origin policy: PASS (only origin sent)
