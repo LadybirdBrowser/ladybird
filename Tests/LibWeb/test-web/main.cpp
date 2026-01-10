@@ -40,6 +40,7 @@ namespace TestWeb {
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
+static Vector<ByteString> s_run_in_serial_tests;
 static HashMap<WebView::ViewImplementation const*, Test*> s_test_by_view;
 
 static constexpr StringView test_result_to_string(TestResult result)
@@ -76,6 +77,9 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
         if (group == "Skipped"sv) {
             for (auto& key : config->keys(group))
                 s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+        } else if (group == "RunInSerial"sv) {
+            for (auto& key : config->keys(group))
+                s_run_in_serial_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -558,7 +562,7 @@ struct TestStats {
 
 static ErrorOr<void> run_test_batch(
     ReadonlySpan<NonnullOwnPtr<TestWebView>> views,
-    Vector<Test>& batch_tests,
+    Vector<Test&>& batch_tests,
     size_t total_test_count,
     size_t& global_test_index,
     size_t& total_tests_remaining,
@@ -673,20 +677,20 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto& app = Application::the();
     TRY(load_test_config(app.test_root_path));
 
-    Vector<Test> tests;
+    Vector<Test> all_tests;
 
     for (auto& glob : app.test_globs)
         glob = ByteString::formatted("*{}*", glob);
     if (app.test_globs.is_empty())
         app.test_globs.append("*"sv);
 
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
-    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
+    TRY(collect_dump_tests(app, all_tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
+    TRY(collect_dump_tests(app, all_tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+    TRY(collect_ref_tests(app, all_tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
+    TRY(collect_crash_tests(app, all_tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
+    TRY(collect_ref_tests(app, all_tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 
-    tests.remove_all_matching([&](auto const& test) {
+    all_tests.remove_all_matching([&](auto const& test) {
         static constexpr Array support_file_patterns {
             "*/wpt-import/*/support/*"sv,
             "*/wpt-import/*/resources/*"sv,
@@ -699,33 +703,44 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     });
 
     if (app.shuffle)
-        shuffle(tests);
+        shuffle(all_tests);
 
     if (app.test_dry_run) {
-        outln("Found {} tests...", tests.size());
+        outln("Found {} tests...", all_tests.size());
 
-        for (auto const& [i, test] : enumerate(tests))
-            outln("{}/{}: {}", i + 1, tests.size(), test.relative_path);
+        for (auto const& [i, test] : enumerate(all_tests))
+            outln("{}/{}: {}", i + 1, all_tests.size(), test.relative_path);
 
         return 0;
     }
 
-    if (tests.is_empty()) {
+    if (all_tests.is_empty()) {
         if (app.test_globs.is_empty())
             return Error::from_string_literal("No tests found");
         return Error::from_string_literal("No tests found matching filter");
     }
 
+    Vector<Test&> parallel_tests;
+    Vector<Test&> serial_tests;
+
+    for (auto& test : all_tests) {
+        if (s_run_in_serial_tests.contains_slow(test.input_path)) {
+            serial_tests.append(test);
+        } else {
+            parallel_tests.append(test);
+        }
+    }
+
     TestStats stats;
     // Keep clearing and reusing the same line if stdout is a TTY.
     bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
-    outln("Running {} tests...", tests.size());
+    outln("Running {} tests...", all_tests.size());
 
     size_t global_test_index = 0;
-    size_t total_tests = tests.size();
+    size_t total_tests = all_tests.size();
     size_t total_tests_remaining = total_tests;
 
-    size_t concurrency = min(app.test_concurrency, tests.size());
+    size_t concurrency = min(app.test_concurrency, parallel_tests.size());
     size_t loaded_web_views = 0;
 
     Vector<NonnullOwnPtr<TestWebView>> views;
@@ -745,7 +760,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return loaded_web_views == concurrency;
     });
 
-    auto result_or_rejection = run_test_batch(views, tests, total_tests, global_test_index, total_tests_remaining, stats, app);
+    auto result_or_rejection = run_test_batch(views, parallel_tests, total_tests, global_test_index, total_tests_remaining, stats, app);
+    if (!result_or_rejection.is_error()) {
+        // Only use a single view so that the serial tests run one web view at a time.
+        auto single_view = views.span().trim(1);
+        result_or_rejection = run_test_batch(single_view, serial_tests, total_tests, global_test_index, total_tests_remaining, stats, app);
+    }
 
     if (result_or_rejection.is_error())
         outln("Halted; {} tests not executed.", total_tests_remaining);
@@ -764,16 +784,16 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
-        auto tests_to_print = min(10uz, tests.size());
+        auto tests_to_print = min(10uz, all_tests.size());
         outln("\nSlowest {} tests:", tests_to_print);
 
-        quick_sort(tests, [&](auto const& lhs, auto const& rhs) {
+        quick_sort(all_tests, [&](auto const& lhs, auto const& rhs) {
             auto lhs_duration = lhs.end_time - lhs.start_time;
             auto rhs_duration = rhs.end_time - rhs.start_time;
             return lhs_duration > rhs_duration;
         });
 
-        for (auto const& test : tests.span().trim(tests_to_print)) {
+        for (auto const& test : all_tests.span().trim(tests_to_print)) {
             auto duration = test.end_time - test.start_time;
 
             outln("{}: {}ms", test.relative_path, duration.to_milliseconds());
