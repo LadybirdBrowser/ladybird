@@ -73,11 +73,6 @@ public:
     u64 request_id() const { return m_request_id; }
     Type type() const { return m_type; }
 
-    URL::URL const& url() const { return m_url; }
-    ByteString const& method() const { return m_method; }
-    HTTP::HeaderList const& request_headers() const { return m_request_headers; }
-    UnixDateTime request_start_time() const { return m_request_start_time; }
-
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
 
