@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <link href="../../../Ref/data/fonts/ahem.css" rel="stylesheet" />
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await document.fonts.ready.then(async () => {
+                await document.fonts
+                    .load('10px \\"Ahem\\"')
+                    .then(loadedFonts => {
+                        if (loadedFonts.length == 1) println("PASS!");
+                        else println("FAIL! Didn't match any fonts.");
+                    })
+                    .catch(e => println("FAIL! Exception during font load: " + e));
+            });
+        });
+    </script>
+</html>

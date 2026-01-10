@@ -523,8 +523,8 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         if (auto* window = as_if<HTML::Window>(global)) {
             auto& font_computer = const_cast<FontComputer&>(window->document()->font_computer());
 
-            // Create a dummy CSSFontFaceRule to satisfy ParsedFontFace's requirements in order to make a fetch as if it were a @font-face rule’s src descriptor.
-            auto font_face_rule = CSS::CSSFontFaceRule::create(realm(), CSS::CSSFontFaceDescriptors::create(realm(), {}));
+            // Use the connected CSSFontFaceRule otherwise create a dummy one so that we load relative to the document's base URL
+            GC::Ref<CSSRule> font_face_rule = m_css_font_face_rule ? *m_css_font_face_rule : *CSS::CSSFontFaceRule::create(realm(), CSS::CSSFontFaceDescriptors::create(realm(), {}));
 
             // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
             ParsedFontFace parsed_font_face {
