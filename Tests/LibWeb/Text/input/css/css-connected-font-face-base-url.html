@@ -6,7 +6,7 @@
         promiseTest(async () => {
             await document.fonts.ready.then(async () => {
                 await document.fonts
-                    .load('10px \\"Ahem\\"')
+                    .load("10px Ahem")
                     .then(loadedFonts => {
                         if (loadedFonts.length == 1) println("PASS!");
                         else println("FAIL! Didn't match any fonts.");
