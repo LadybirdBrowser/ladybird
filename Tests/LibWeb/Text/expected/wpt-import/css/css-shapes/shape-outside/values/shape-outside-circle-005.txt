@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 52 tests
 
-48 Pass
-4 Fail
+50 Pass
+2 Fail
 Pass	test unit: cm - circle(50cm at 50% 50%) - inline
 Pass	test unit: cm - circle(50cm) - inline
 Pass	test unit: mm - circle(50mm at 50% 50%) - inline
@@ -44,8 +44,8 @@ Pass	test unit: em - circle(50em at 50% 50%) - computed
 Pass	test unit: em - circle(50em) - computed
 Fail	test unit: ex - circle(50ex at 50% 50%) - computed
 Fail	test unit: ex - circle(50ex) - computed
-Fail	test unit: ch - circle(50ch at 50% 50%) - computed
-Fail	test unit: ch - circle(50ch) - computed
+Pass	test unit: ch - circle(50ch at 50% 50%) - computed
+Pass	test unit: ch - circle(50ch) - computed
 Pass	test unit: rem - circle(50rem at 50% 50%) - computed
 Pass	test unit: rem - circle(50rem) - computed
 Pass	test unit: vw - circle(50vw at 50% 50%) - computed

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 416 tests
 
-380 Pass
-36 Fail
+396 Pass
+20 Fail
 Pass	test unit: cm - ellipse(50cm 100cm at 50% 50%) - inline
 Pass	test unit: cm - ellipse(100cm 100px at 50% 50%) - inline
 Pass	test unit: cm - ellipse(50cm 25% at 50% 50%) - inline
@@ -324,22 +324,22 @@ Fail	test unit: ex - ellipse(25ex closest-side) - computed
 Fail	test unit: ex - ellipse(closest-side 75ex) - computed
 Fail	test unit: ex - ellipse(25ex farthest-side) - computed
 Fail	test unit: ex - ellipse(farthest-side 75ex) - computed
-Fail	test unit: ch - ellipse(50ch 100ch at 50% 50%) - computed
-Fail	test unit: ch - ellipse(100ch 100px at 50% 50%) - computed
-Fail	test unit: ch - ellipse(50ch 25% at 50% 50%) - computed
-Fail	test unit: ch - ellipse(25% 50ch at 50% 50%) - computed
-Fail	test unit: ch - ellipse(25ch closest-side at 50% 50%) - computed
-Fail	test unit: ch - ellipse(closest-side 75ch at 50% 50%) - computed
-Fail	test unit: ch - ellipse(25ch farthest-side at 50% 50%) - computed
-Fail	test unit: ch - ellipse(farthest-side 75ch at 50% 50%) - computed
-Fail	test unit: ch - ellipse(50ch 100ch) - computed
-Fail	test unit: ch - ellipse(100ch 100px) - computed
-Fail	test unit: ch - ellipse(50ch 25%) - computed
-Fail	test unit: ch - ellipse(25% 50ch) - computed
-Fail	test unit: ch - ellipse(25ch closest-side) - computed
-Fail	test unit: ch - ellipse(closest-side 75ch) - computed
-Fail	test unit: ch - ellipse(25ch farthest-side) - computed
-Fail	test unit: ch - ellipse(farthest-side 75ch) - computed
+Pass	test unit: ch - ellipse(50ch 100ch at 50% 50%) - computed
+Pass	test unit: ch - ellipse(100ch 100px at 50% 50%) - computed
+Pass	test unit: ch - ellipse(50ch 25% at 50% 50%) - computed
+Pass	test unit: ch - ellipse(25% 50ch at 50% 50%) - computed
+Pass	test unit: ch - ellipse(25ch closest-side at 50% 50%) - computed
+Pass	test unit: ch - ellipse(closest-side 75ch at 50% 50%) - computed
+Pass	test unit: ch - ellipse(25ch farthest-side at 50% 50%) - computed
+Pass	test unit: ch - ellipse(farthest-side 75ch at 50% 50%) - computed
+Pass	test unit: ch - ellipse(50ch 100ch) - computed
+Pass	test unit: ch - ellipse(100ch 100px) - computed
+Pass	test unit: ch - ellipse(50ch 25%) - computed
+Pass	test unit: ch - ellipse(25% 50ch) - computed
+Pass	test unit: ch - ellipse(25ch closest-side) - computed
+Pass	test unit: ch - ellipse(closest-side 75ch) - computed
+Pass	test unit: ch - ellipse(25ch farthest-side) - computed
+Pass	test unit: ch - ellipse(farthest-side 75ch) - computed
 Pass	test unit: rem - ellipse(50rem 100rem at 50% 50%) - computed
 Pass	test unit: rem - ellipse(100rem 100px at 50% 50%) - computed
 Pass	test unit: rem - ellipse(50rem 25% at 50% 50%) - computed

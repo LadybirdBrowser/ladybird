@@ -205,17 +205,17 @@ void FontFace::reparse_connected_css_font_face_rule_descriptors()
 {
     auto const& descriptors = m_css_font_face_rule->descriptors();
 
-    m_family = descriptors->font_family();
-    m_style = descriptors->font_style();
-    m_weight = descriptors->font_weight();
-    m_stretch = descriptors->font_width();
-    m_unicode_range = descriptors->unicode_range();
-    m_feature_settings = descriptors->font_feature_settings();
-    m_variation_settings = descriptors->font_variation_settings();
-    m_display = descriptors->font_display();
-    m_ascent_override = descriptors->ascent_override();
-    m_descent_override = descriptors->descent_override();
-    m_line_gap_override = descriptors->line_gap_override();
+    set_family_impl(*descriptors->descriptor(DescriptorID::FontFamily));
+    set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontStyle));
+    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontWeight));
+    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontWidth));
+    set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorID::UnicodeRange));
+    set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontFeatureSettings));
+    set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontVariationSettings));
+    set_display_impl(*descriptors->descriptor_or_initial_value(DescriptorID::FontDisplay));
+    set_ascent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::AscentOverride));
+    set_descent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::DescentOverride));
+    set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorID::LineGapOverride));
 }
 
 FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promise)
@@ -273,14 +273,19 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_family(string));
 
-    if (property->is_custom_ident())
-        m_family = property->as_custom_ident().custom_ident().to_string();
-    else if (property->is_string())
-        m_family = property->as_string().string_value().to_string();
-    else
-        VERIFY_NOT_REACHED();
+    set_family_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    if (value->is_custom_ident())
+        m_family = value->as_custom_ident().custom_ident().to_string();
+    else if (value->is_string())
+        m_family = value->as_string().string_value().to_string();
+    else
+        VERIFY_NOT_REACHED();
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
@@ -297,9 +302,14 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_style(string));
 
-    m_style = property->to_string(SerializationMode::Normal);
+    set_style_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_style_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_style = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-weight
@@ -316,9 +326,14 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_weight(string));
 
-    m_weight = property->to_string(SerializationMode::Normal);
+    set_weight_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_weight_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_weight = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-stretch
@@ -336,9 +351,14 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_width(string));
 
-    m_stretch = property->to_string(SerializationMode::Normal);
+    set_stretch_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_stretch_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_stretch = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-unicoderange
@@ -355,9 +375,14 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_unicode_range(string));
 
-    m_unicode_range = property->to_string(SerializationMode::Normal);
+    set_unicode_range_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_unicode_range_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_unicode_range = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-featuresettings
@@ -374,9 +399,14 @@ WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_feature_settings(string));
 
-    m_feature_settings = property->to_string(SerializationMode::Normal);
+    set_feature_settings_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_feature_settings_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_feature_settings = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-variationsettings
@@ -393,9 +423,14 @@ WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_variation_settings(string));
 
-    m_variation_settings = property->to_string(SerializationMode::Normal);
+    set_variation_settings_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_variation_settings_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_variation_settings = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-display
@@ -412,9 +447,14 @@ WebIDL::ExceptionOr<void> FontFace::set_display(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_font_display(string));
 
-    m_display = property->to_string(SerializationMode::Normal);
+    set_display_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_display_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_display = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
@@ -431,9 +471,14 @@ WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_ascent_override(string));
 
-    m_ascent_override = property->to_string(SerializationMode::Normal);
+    set_ascent_override_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_ascent_override_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_ascent_override = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-descentoverride
@@ -450,9 +495,14 @@ WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_descent_override(string));
 
-    m_descent_override = property->to_string(SerializationMode::Normal);
+    set_descent_override_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_descent_override_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_descent_override = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-linegapoverride
@@ -469,9 +519,14 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const& string)
     if (m_css_font_face_rule)
         TRY(m_css_font_face_rule->descriptors()->set_line_gap_override(string));
 
-    m_line_gap_override = property->to_string(SerializationMode::Normal);
+    set_line_gap_override_impl(property.release_nonnull());
 
     return {};
+}
+
+void FontFace::set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const& value)
+{
+    m_line_gap_override = value->to_string(SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
