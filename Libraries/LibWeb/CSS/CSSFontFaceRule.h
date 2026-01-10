@@ -32,7 +32,7 @@ public:
 
     GC::Ptr<FontFace> css_connected_font_face() const { return m_css_connected_font_face; }
     void set_css_connected_font_face(GC::Ptr<FontFace> font_face) { m_css_connected_font_face = font_face; }
-    void handle_src_descriptor_change();
+    void handle_descriptor_change(FlyString const& property);
     void disconnect_font_face();
 
 private:
@@ -42,6 +42,8 @@ private:
     virtual String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
+
+    void handle_src_descriptor_change();
 
     GC::Ref<CSSFontFaceDescriptors> m_style;
     GC::Ptr<FontFace> m_css_connected_font_face;

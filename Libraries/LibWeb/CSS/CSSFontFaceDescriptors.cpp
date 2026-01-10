@@ -36,9 +36,8 @@ WebIDL::ExceptionOr<void> CSSFontFaceDescriptors::set_property(FlyString const& 
 {
     TRY(Base::set_property(property, value, priority));
 
-    if (property.equals_ignoring_ascii_case("src"sv))
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
-            font_face_rule->handle_src_descriptor_change();
+    if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+        font_face_rule->handle_descriptor_change(property);
 
     return {};
 }
