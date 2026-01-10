@@ -110,7 +110,7 @@ enum ErrorType {
 #undef __JS_ENUMERATE
 };
 
-static ErrorType error_name_to_type(String const& name)
+static ErrorType error_name_to_type(StringView name)
 {
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     if (name == #ClassName##sv)                                                          \
@@ -390,14 +390,12 @@ public:
             // 17. Otherwise, if value has an [[ErrorData]] internal slot and value is not a platform object, then:
             else if (is<JS::Error>(object) && !is<Bindings::PlatformObject>(object)) {
                 // 1. Let name be ? Get(value, "name").
-                auto name_property = TRY(object.get(m_vm.names.name));
-
-                // FIXME: Spec bug - https://github.com/whatwg/html/issues/9923
-                // MISSING STEP: Set name to ? ToString(name).
-                auto name = TRY(name_property.to_string(m_vm));
+                auto name = TRY(object.get(m_vm.names.name));
 
                 // 2. If name is not one of "Error", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError", or "URIError", then set name to "Error".
-                auto type = error_name_to_type(name);
+                auto type = ErrorType::Error;
+                if (name.is_string())
+                    type = error_name_to_type(name.as_string().utf8_string_view());
 
                 // 3. Let valueMessageDesc be ? value.[[GetOwnProperty]]("message").
                 auto value_message_descriptor = TRY(object.internal_get_own_property(m_vm.names.message));
