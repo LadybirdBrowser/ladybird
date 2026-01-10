@@ -294,7 +294,11 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
     // -> If the WebSocket connection is not yet established [WSP]
     // -> If the WebSocket closing handshake has not yet been started [WSP]
     // -> Otherwise
-    // NOTE: All of these are handled by the WebSocket Protocol when calling close()
+    // NB: All of these are handled by the WebSocket Protocol when calling close(). We still set the ready state to
+    //     CLOSING now though (which every case above expects), to prevent handling any messages from the remote server
+    //     in the meantime.
+    m_websocket->set_ready_state(Requests::WebSocket::ReadyState::Closing);
+
     // FIXME: LibProtocol does not yet support sending empty Close messages, so we use default values for now
     m_websocket->close(code.value_or(1000), reason.value_or(String {}).to_byte_string());
     return {};
