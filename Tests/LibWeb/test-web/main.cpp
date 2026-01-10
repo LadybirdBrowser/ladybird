@@ -572,8 +572,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             "*/wpt-import/common/*"sv,
             "*/wpt-import/images/*"sv,
         };
-        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
-        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
+        auto normalize_path = [](ByteString const& path) { return path.replace("\\"sv, "/"sv); };
+        auto const test_input_path = normalize_path(test.input_path);
+        auto const test_relative_path = normalize_path(test.relative_path);
+        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test_input_path.matches(pattern); });
+        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test_relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
         return is_support_file || !match_glob;
     });
 
