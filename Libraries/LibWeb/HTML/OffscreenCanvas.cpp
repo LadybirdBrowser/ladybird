@@ -273,22 +273,20 @@ static Tuple<FlyString, Optional<double>> options_convert_or_default(Optional<Im
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-offscreencanvas-converttoblob
 GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOptions> maybe_options)
 {
-    // The convertToBlob(options) method, when invoked, must run the following steps:
+    // FIXME: 1. If the value of this's [[Detached]] internal slot is true, then return a promise rejected with an "InvalidStateError" DOMException.
 
-    // FIXME: 1. If the value of this OffscreenCanvas object's [[Detached]] internal slot is set to true, then return a promise rejected with an "InvalidStateError" DOMException.
-
-    // FIXME: 2. If this OffscreenCanvas object's context mode is 2d and the rendering context's output bitmap's origin-clean flag is set to false, then return a promise rejected with a "SecurityError" DOMException.
+    // FIXME: 2. If this's context mode is 2d and the rendering context's output bitmap's origin-clean flag is set to false, then return a promise rejected with a "SecurityError" DOMException.
 
     auto size = bitmap_size_for_canvas();
 
-    // 3. If this OffscreenCanvas object's bitmap has no pixels (i.e., either its horizontal dimension or its vertical dimension is zero) then return a promise rejected with an "IndexSizeError" DOMException.
+    // 3. If this's bitmap has no pixels (i.e., either its horizontal dimension or its vertical dimension is zero), then return a promise rejected with an "IndexSizeError" DOMException.
     if (size.height() == 0 or size.width() == 0) {
         auto error = WebIDL::IndexSizeError::create(realm(), "OffscreenCanvas has invalid dimensions. The bitmap has no pixels"_utf16);
 
         return WebIDL::create_rejected_promise_from_exception(realm(), error);
     }
 
-    // 4. Let bitmap be a copy of this OffscreenCanvas object's bitmap.
+    // 4. Let bitmap be a copy of this's bitmap.
     RefPtr<Gfx::Bitmap> bitmap;
     if (m_bitmap)
         bitmap = MUST(m_bitmap->clone());
@@ -296,8 +294,11 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
     // 5. Let result be a new promise object.
     auto result_promise = WebIDL::create_promise(realm());
 
-    // 6. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, result_promise, bitmap, maybe_options] {
+    // 6. Let global be this's relevant global object.
+    auto& global = HTML::relevant_global_object(*this);
+
+    // 7. Run these steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, &global, result_promise, bitmap, maybe_options] {
         // 1. Let file be a serialization of bitmap as a file, with options's type and quality if present.
         Optional<SerializeBitmapResult> file_result {};
         auto options = options_convert_or_default(maybe_options);
@@ -305,51 +306,24 @@ GC::Ref<WebIDL::Promise> OffscreenCanvas::convert_to_blob(Optional<ImageEncodeOp
         if (auto result = serialize_bitmap(*bitmap, options.get<0>(), options.get<1>()); !result.is_error())
             file_result = result.release_value();
 
-        // 2. Queue an element task on the canvas blob serialization task source given the canvas element to run these steps:
-        // FIXME: wait for spec bug to be resolve: https://github.com/whatwg/html/issues/11101
-
-        // AD-HOC: queue the task in an appropiate queue. This depends if the global object is a window or a worker
-        Function<void()> task_to_queue = [this, result_promise, file_result = move(file_result)] -> void {
+        // 2. Queue a global task on the canvas blob serialization task source given global to run these steps:
+        HTML::queue_global_task(Task::Source::CanvasBlobSerializationTask, global, GC::create_function(heap(), [this, result_promise, file_result = move(file_result)] -> void {
             HTML::TemporaryExecutionContext context(realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
             // 1. If file is null, then reject result with an "EncodingError" DOMException.
             if (!file_result.has_value()) {
                 auto error = WebIDL::EncodingError::create(realm(), "Failed to convert OffscreenCanvas to Blob"_utf16);
-
                 WebIDL::reject_promise(realm(), result_promise, error);
-            } else {
-                // 1. If result is non-null, resolve result with a new Blob object, created in the relevant realm of this OffscreenCanvas object, representing file. [FILEAPI]
-                auto type = String::from_utf8(file_result->mime_type);
-                if (type.is_error()) {
-                    auto error = WebIDL::EncodingError::create(realm(), Utf16String::formatted("OOM Error while converting string in OffscreenCanvas to blob: {}", type.error()));
-                    WebIDL::reject_promise(realm(), result_promise, error);
-                    return;
-                }
-
-                GC::Ptr<FileAPI::Blob> blob_result = FileAPI::Blob::create(realm(), file_result->buffer, type.release_value());
-                WebIDL::resolve_promise(realm(), result_promise, blob_result);
             }
-        };
-
-        auto& global_object = HTML::relevant_global_object(*this);
-
-        // AD-HOC: if the global_object is a window, queue an element task on the canvas blob serialization task source
-        if (is<HTML::Window>(global_object)) {
-            auto& window = as<HTML::Window>(global_object);
-            window.associated_document().document_element()->queue_an_element_task(Task::Source::CanvasBlobSerializationTask, move(task_to_queue));
-            return;
-        }
-
-        // AD-HOC: the global object only can be a worker or a window
-        VERIFY(is<HTML::WorkerGlobalScope>(global_object));
-
-        auto& worker = as<HTML::WorkerGlobalScope>(global_object);
-
-        // AD-HOC: if the global_object is a worker, queue a global task on the canvas blob serialization task source
-        HTML::queue_global_task(Task::Source::CanvasBlobSerializationTask, worker, GC::create_function(heap(), move(task_to_queue)));
+            // 2. Otherwise, resolve result with a new Blob object, created in global's relevant realm, representing file. [FILEAPI]
+            else {
+                auto blob = FileAPI::Blob::create(realm(), file_result->buffer, MUST(String::from_utf8(file_result->mime_type)));
+                WebIDL::resolve_promise(realm(), result_promise, blob);
+            }
+        }));
     }));
 
-    // 7. Return result.
+    // 8. Return result.
     return result_promise;
 }
 void OffscreenCanvas::set_oncontextlost(GC::Ptr<WebIDL::CallbackType> event_handler)
