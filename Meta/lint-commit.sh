@@ -54,7 +54,7 @@ while read -r line; do
     error "Commit title ends in a period"
   fi
 
-  url_pattern='^\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@:%+.~?&=\-]+)*$'
+  url_pattern='^\s*[a-z]+:\/\/([a-z0-9\-]+\.)+[a-z]{2,}(:\d+)?(\/[a-zA-Z_0-9@#:;%+.~?&=\-]+)*$'
   if [[ $line_length -gt 72 ]] && (echo "$line" | grep -E -v -q "$url_pattern"); then
     error "Commit message lines are too long (maximum allowed is 72 characters, except for URLs on their own line)"
   fi
