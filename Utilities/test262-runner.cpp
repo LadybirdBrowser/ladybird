@@ -546,6 +546,8 @@ static bool g_in_assert = false;
 
 #ifdef AK_OS_MACOS
 extern "C" __attribute__((__noreturn__)) void __assert_rtn(char const* function, char const* file, int line, char const* assertion)
+#elifdef AK_OS_FREEBSD
+extern "C" __attribute__((__noreturn__)) void __assert(char const* function, char const* file, int line, char const* assertion)
 #elifdef ASSERT_FAIL_HAS_INT /* Set by CMake */
 extern "C" __attribute__((__noreturn__)) void __assert_fail(char const* assertion, char const* file, int line, char const* function)
 #else
