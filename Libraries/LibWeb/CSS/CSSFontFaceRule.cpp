@@ -162,11 +162,16 @@ void CSSFontFaceRule::visit_edges(Visitor& visitor)
 
 void CSSFontFaceRule::handle_descriptor_change(FlyString const& property)
 {
-    if (property.equals_ignoring_ascii_case("src"sv))
-        handle_src_descriptor_change();
-
     if (!m_css_connected_font_face)
         return;
+
+    if (!is_valid()) {
+        disconnect_font_face();
+        return;
+    }
+
+    if (property.equals_ignoring_ascii_case("src"sv))
+        handle_src_descriptor_change();
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // any change made to a @font-face descriptor is immediately reflected in the corresponding FontFace attribute
