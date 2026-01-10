@@ -408,7 +408,7 @@ try_select_again:
             if (has_flag(revents, POLLOUT))
                 type |= NotificationType::Write;
             if (has_flag(revents, POLLHUP))
-                type |= NotificationType::Read | NotificationType::HangUp;
+                type |= NotificationType::Read | NotificationType::Write | NotificationType::HangUp;
             if (has_flag(revents, POLLERR))
                 type |= NotificationType::Error;
 
