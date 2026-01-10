@@ -67,16 +67,28 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     return runs;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, ShapeFeatures const& features)
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, ShapeFeatures const& features, GlyphRun::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
-    if (string.has_ascii_storage())
+    if (string.has_ascii_storage()) {
         hb_buffer_add_utf8(buffer, string.ascii_span().data(), string.length_in_code_units(), 0, -1);
-    else
+        // Fast path for ASCII: we know it's Latin script, LTR direction.
+        hb_buffer_set_script(buffer, HB_SCRIPT_LATIN);
+        hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
+    } else {
         hb_buffer_add_utf16(buffer, reinterpret_cast<u16 const*>(string.utf16_span().data()), string.length_in_code_units(), 0, -1);
-
-    hb_buffer_guess_segment_properties(buffer);
+        // For non-ASCII, set direction from text_type if known, otherwise guess.
+        if (text_type == GlyphRun::TextType::Ltr) {
+            hb_buffer_set_direction(buffer, HB_DIRECTION_LTR);
+            hb_buffer_guess_segment_properties(buffer);
+        } else if (text_type == GlyphRun::TextType::Rtl) {
+            hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
+            hb_buffer_guess_segment_properties(buffer);
+        } else {
+            hb_buffer_guess_segment_properties(buffer);
+        }
+    }
 
     auto* hb_font = font.harfbuzz_font();
     hb_feature_t const* hb_features_data = nullptr;
@@ -117,7 +129,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             if (code_unit < 128) {
                 auto*& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
                 if (!cache_slot) {
-                    cache_slot = setup_text_shaping(string, font, features);
+                    cache_slot = setup_text_shaping(string, font, features, text_type);
                 }
                 return cache_slot;
             }
@@ -127,7 +139,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             it != shaping_cache.map.end()) {
             return it->value;
         }
-        auto* buffer = setup_text_shaping(string, font, features);
+        auto* buffer = setup_text_shaping(string, font, features, text_type);
         shaping_cache.map.set(Utf16String::from_utf16(string), buffer);
         return buffer;
     };
@@ -182,7 +194,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
 
 float measure_text_width(Utf16View const& string, Font const& font, ShapeFeatures const& features)
 {
-    auto* buffer = setup_text_shaping(string, font, features);
+    auto* buffer = setup_text_shaping(string, font, features, GlyphRun::TextType::Common);
 
     u32 glyph_count;
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
