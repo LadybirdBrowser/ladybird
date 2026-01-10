@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
 #include <LibJS/Parser.h>
@@ -23,11 +24,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
-
-#if !defined(AK_OS_MACOS) && !defined(AK_OS_GNU_HURD)
-// Only used to disable core dumps
-#    include <sys/prctl.h>
-#endif
 
 static ByteString s_current_test = "";
 static bool s_parse_only = false;
@@ -590,9 +586,12 @@ int main(int argc, char** argv)
     if (disable_core_dumping)
         setenv("CRASHSERVER", "/servers/crash-kill", true);
 #elif !defined(AK_OS_MACOS)
-    if (disable_core_dumping && prctl(PR_SET_DUMPABLE, 0, 0, 0) < 0) {
-        perror("prctl(PR_SET_DUMPABLE)");
-        return exit_wrong_arguments;
+    if (disable_core_dumping) {
+        auto maybe_error = Core::System::set_resource_limits(RLIMIT_CORE, 0);
+        if (maybe_error.is_error()) {
+            warnln("Failed to disable core dumps: {}", maybe_error.release_error());
+            return exit_wrong_arguments;
+        }
     }
 #endif
 
