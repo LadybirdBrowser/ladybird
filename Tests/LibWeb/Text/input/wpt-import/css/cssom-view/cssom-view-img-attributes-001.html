@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSS Test: HTMLImageElement x and y attributes</title>
+        <link rel="author" title="Adobe" href="http://html.adobe.com/">
+        <link rel="author" title="Alan Stearns" href="mailto:stearns@adobe.com">
+        <link rel="reviewer" title="" href="">
+        <link rel="help" href="https://drafts.csswg.org/cssom-view/#excensions-to-the-htmlimageelement-interface">
+        <meta name="assert" content="HTMLImageElement attributes give x and y position of CSS layout box">
+        <meta name="flags" content="dom">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script type="text/javascript">
+
+        function testIMGAttributes(attribute_name, display_none) {
+            var element = document.createElement("img");
+            document.body.appendChild(element);
+            element.style.setProperty("position", "absolute");
+            element.style.setProperty("left", "10px");
+            element.style.setProperty("top", "10px");
+            if (display_none) {
+                element.style.setProperty("display", "none");
+            }
+            var attributeValue = element[attribute_name];
+            document.body.removeChild(element);
+            return attributeValue;
+        }
+
+        var imgAttributes = [
+            ["x", false, 10],
+            ["y", false, 10],
+            ["x", true, 0],
+            ["y", true, 0],
+        ];
+
+        imgAttributes.forEach(function(test_data) {
+            test (function() { assert_equals(testIMGAttributes(test_data[0], test_data[1]), test_data[2])},
+                "test " + test_data[0] + " with display " + test_data[1])
+            }
+        );
+        </script>
+    </body>
+</html>

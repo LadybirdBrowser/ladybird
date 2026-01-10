@@ -305,6 +305,44 @@ unsigned HTMLImageElement::natural_height() const
     return 0;
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-x
+int HTMLImageElement::x() const
+{
+    // The x attribute, on getting, must return the scaled x-coordinate of the left border edge of the first box
+    // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
+    // to the element and its ancestors, or zero if there is no box.
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLImageElementX);
+
+    auto const* paintable_box = this->paintable_box();
+    if (!paintable_box)
+        return 0;
+
+    CSSPixels scroll_offset_x = 0;
+    if (auto enclosing_scroll = paintable_box->enclosing_scroll_frame(); enclosing_scroll)
+        scroll_offset_x = enclosing_scroll->cumulative_offset().x();
+
+    return (paintable_box->absolute_border_box_rect().x() - scroll_offset_x).to_int();
+}
+
+// https://drafts.csswg.org/cssom-view/#dom-htmlimageelement-y
+int HTMLImageElement::y() const
+{
+    // The y attribute, on getting, must return the scaled y-coordinate of the top border edge of the first box
+    // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
+    // to the element and its ancestors, or zero if there is no box.
+    const_cast<DOM::Document&>(document()).update_layout(DOM::UpdateLayoutReason::HTMLImageElementY);
+
+    auto const* paintable_box = this->paintable_box();
+    if (!paintable_box)
+        return 0;
+
+    CSSPixels scroll_offset_y = 0;
+    if (auto enclosing_scroll = paintable_box->enclosing_scroll_frame(); enclosing_scroll)
+        scroll_offset_y = enclosing_scroll->cumulative_offset().y();
+
+    return (paintable_box->absolute_border_box_rect().y() - scroll_offset_y).to_int();
+}
+
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-complete
 bool HTMLImageElement::complete() const
 {
