@@ -20,7 +20,7 @@ GC::Ref<CSSMathInvert> CSSMathInvert::create(JS::Realm& realm, NumericType type,
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathinvert-cssmathinvert
-WebIDL::ExceptionOr<GC::Ref<CSSMathInvert>> CSSMathInvert::construct_impl(JS::Realm& realm, CSSNumberish value)
+GC::Ref<CSSMathInvert> CSSMathInvert::construct_impl(JS::Realm& realm, CSSNumberish value)
 {
     // The CSSMathInvert(arg) constructor is defined identically to the above, except that in the last step it returns
     // a new CSSMathInvert object.

@@ -20,7 +20,7 @@ GC::Ref<CSSMathNegate> CSSMathNegate::create(JS::Realm& realm, NumericType type,
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathnegate-cssmathnegate
-WebIDL::ExceptionOr<GC::Ref<CSSMathNegate>> CSSMathNegate::construct_impl(JS::Realm& realm, CSSNumberish value)
+GC::Ref<CSSMathNegate> CSSMathNegate::construct_impl(JS::Realm& realm, CSSNumberish value)
 {
     // The CSSMathNegate(arg) constructor must, when called, perform the following steps:
     // 1. Replace arg with the result of rectifying a numberish value for arg.
