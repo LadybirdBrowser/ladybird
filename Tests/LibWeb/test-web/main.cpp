@@ -547,6 +547,15 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
     };
 }
 
+struct TestStats {
+    size_t pass_count { 0 };
+    size_t fail_count { 0 };
+    size_t timeout_count { 0 };
+    size_t crashed_count { 0 };
+    size_t skipped_count { 0 };
+    Vector<TestCompletion> non_passing_tests;
+};
+
 static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
@@ -616,12 +625,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return loaded_web_views == concurrency;
     });
 
-    size_t pass_count = 0;
-    size_t fail_count = 0;
-    size_t timeout_count = 0;
-    size_t crashed_count = 0;
-    size_t skipped_count = 0;
-
+    TestStats stats;
     // Keep clearing and reusing the same line if stdout is a TTY.
     bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
     outln("Running {} tests...", tests.size());
@@ -629,8 +633,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     s_all_tests_complete = Core::Promise<Empty>::construct();
     auto tests_remaining = tests.size();
     auto current_test = 0uz;
-
-    Vector<TestCompletion> non_passing_tests;
 
     auto digits_for_view_id = static_cast<size_t>(log10(views.size()) + 1);
     auto digits_for_test_id = static_cast<size_t>(log10(tests.size()) + 1);
@@ -685,24 +687,24 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             switch (result.result) {
             case TestResult::Pass:
-                ++pass_count;
+                ++stats.pass_count;
                 break;
             case TestResult::Fail:
-                ++fail_count;
+                ++stats.fail_count;
                 break;
             case TestResult::Timeout:
-                ++timeout_count;
+                ++stats.timeout_count;
                 break;
             case TestResult::Crashed:
-                ++crashed_count;
+                ++stats.crashed_count;
                 break;
             case TestResult::Skipped:
-                ++skipped_count;
+                ++stats.skipped_count;
                 break;
             }
 
             if (result.result != TestResult::Pass)
-                non_passing_tests.append(move(result));
+                stats.non_passing_tests.append(move(result));
 
             if (--tests_remaining == 0)
                 s_all_tests_complete->resolve({});
@@ -723,10 +725,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         outln("\33[2K\rDone!");
 
     outln("==========================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count, timeout_count, crashed_count);
+    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", stats.pass_count, stats.fail_count, stats.skipped_count, stats.timeout_count, stats.crashed_count);
     outln("==========================================================");
 
-    for (auto const& non_passing_test : non_passing_tests) {
+    for (auto const& non_passing_test : stats.non_passing_tests) {
         if (non_passing_test.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
             continue;
 
@@ -759,7 +761,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         }
     }
 
-    return fail_count + timeout_count + crashed_count + tests_remaining;
+    return test_stats.fail_count + test_stats.timeout_count + test_stats.crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)
