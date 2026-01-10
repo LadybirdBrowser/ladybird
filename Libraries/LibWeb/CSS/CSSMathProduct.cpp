@@ -22,6 +22,26 @@ GC::Ref<CSSMathProduct> CSSMathProduct::create(JS::Realm& realm, NumericType typ
     return realm.create<CSSMathProduct>(realm, move(type), move(values));
 }
 
+WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_into_math_product(JS::Realm& realm, GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
+{
+    auto type = values.first()->type();
+    bool first = true;
+    for (auto const& value : values) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        if (auto multiplied_types = type.multiplied_by(value->type()); multiplied_types.has_value()) {
+            type = multiplied_types.release_value();
+        } else {
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathProduct with values of incompatible types"sv };
+        }
+    }
+
+    auto values_array = CSSNumericArray::create(realm, { values });
+    return CSSMathProduct::create(realm, type, values_array);
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathproduct-cssmathproduct
 WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::Realm& realm, Vector<CSSNumberish> values)
 {
@@ -41,23 +61,8 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::
         return WebIDL::SyntaxError::create(realm, "Cannot create an empty CSSMathProduct"_utf16);
 
     // 3. Let type be the result of multiplying the types of all the items of args. If type is failure, throw a TypeError.
-    auto type = converted_values.first()->type();
-    bool first = true;
-    for (auto const& value : converted_values) {
-        if (first) {
-            first = false;
-            continue;
-        }
-        if (auto multiplied_types = type.multiplied_by(value->type()); multiplied_types.has_value()) {
-            type = multiplied_types.release_value();
-        } else {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSMathProduct with values of incompatible types"sv };
-        }
-    }
-
     // 4. Return a new CSSMathProduct whose values internal slot is set to args.
-    auto values_array = CSSNumericArray::create(realm, { converted_values });
-    return CSSMathProduct::create(realm, move(type), move(values_array));
+    return multiply_all_types_into_math_product(realm, converted_values);
 }
 
 CSSMathProduct::CSSMathProduct(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArray> values)
