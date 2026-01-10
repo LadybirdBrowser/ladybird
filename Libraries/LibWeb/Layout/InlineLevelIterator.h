@@ -78,9 +78,11 @@ private:
     LayoutMode const m_layout_mode;
 
     struct TextNodeContext {
-        bool is_first_chunk {};
-        bool is_last_chunk {};
-        TextNode::ChunkIterator chunk_iterator;
+        Vector<TextNode::Chunk> chunks;
+        size_t next_chunk_index { 0 };
+        bool should_collapse_whitespace {};
+        bool should_wrap_lines {};
+        bool should_respect_linebreaks {};
         Optional<Gfx::GlyphRun::TextType> last_known_direction {};
     };
 
