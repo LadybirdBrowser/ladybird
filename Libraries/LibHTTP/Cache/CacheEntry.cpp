@@ -112,7 +112,6 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
     : CacheEntry(disk_cache, index, cache_key, move(url), move(path), cache_header)
     , m_file(move(file))
     , m_request_time(request_time)
-    , m_response_time(UnixDateTime::now() + current_time_offset_for_testing)
     , m_current_time_offset_for_testing(current_time_offset_for_testing)
 {
 }
@@ -124,6 +123,7 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         return Error::from_string_literal("Cache entry has been deleted");
     }
 
+    m_response_time = UnixDateTime::now() + m_current_time_offset_for_testing;
     m_cache_header.status_code = status_code;
 
     if (reason_phrase.has_value()) {
