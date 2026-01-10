@@ -267,7 +267,7 @@ bool Element::cannot_navigate() const
         return true;
 
     // - element is not an a element and is not connected.
-    return !is_html_anchor_element() && !is_connected();
+    return !(is_html_anchor_element() || is_svg_a_element()) && !is_connected();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#following-hyperlinks-2
@@ -281,7 +281,7 @@ void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::User
     String target_attribute_value;
 
     // 3. If subject is an a or area element, then set targetAttributeValue to the result of getting an element's target given subject.
-    if (is_html_anchor_element() || is_html_area_element())
+    if (is_html_anchor_element() || is_html_area_element() || is_svg_a_element())
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
