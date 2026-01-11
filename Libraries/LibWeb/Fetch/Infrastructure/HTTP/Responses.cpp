@@ -7,7 +7,6 @@
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
-#include <LibHTTP/Cache/Utilities.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -33,7 +32,6 @@ GC::Ref<Response> Response::create(JS::VM& vm)
 
 Response::Response(NonnullRefPtr<HTTP::HeaderList> header_list)
     : m_header_list(move(header_list))
-    , m_response_time(UnixDateTime::now())
     , m_monotonic_response_time(MonotonicTime::now())
 {
 }
@@ -221,45 +219,6 @@ bool Response::is_cors_cross_origin() const
 {
     // A response whose type is "opaque" or "opaqueredirect" is CORS-cross-origin.
     return type() == Type::Opaque || type() == Type::OpaqueRedirect;
-}
-
-// https://fetch.spec.whatwg.org/#concept-fresh-response
-bool Response::is_fresh() const
-{
-    // A fresh response is a response whose current age is within its freshness lifetime.
-    return current_age() < freshness_lifetime();
-}
-
-// https://fetch.spec.whatwg.org/#concept-stale-while-revalidate-response
-bool Response::is_stale_while_revalidate() const
-{
-    // A stale-while-revalidate response is a response that is not a fresh response and whose current age is within the stale-while-revalidate lifetime.
-    return !is_fresh() && current_age() < stale_while_revalidate_lifetime();
-}
-
-// https://fetch.spec.whatwg.org/#concept-stale-response
-bool Response::is_stale() const
-{
-    // A stale response is a response that is not a fresh response or a stale-while-revalidate response.
-    return !is_fresh() && !is_stale_while_revalidate();
-}
-
-AK::Duration Response::current_age() const
-{
-    // FIXME: Let's get the correct time.
-    auto const request_time = UnixDateTime::now() - AK::Duration::from_seconds(5);
-
-    return HTTP::calculate_age(m_header_list, request_time, m_response_time);
-}
-
-AK::Duration Response::freshness_lifetime() const
-{
-    return HTTP::calculate_freshness_lifetime(m_status, m_header_list);
-}
-
-AK::Duration Response::stale_while_revalidate_lifetime() const
-{
-    return HTTP::calculate_stale_while_revalidate_lifetime(m_header_list, freshness_lifetime());
 }
 
 FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, NonnullRefPtr<HTTP::HeaderList> header_list)
