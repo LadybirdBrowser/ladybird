@@ -144,14 +144,23 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
 
     PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
 
+    if (keyword() == Keyword::Accentcolortext) {
+        // Calculate accent_color_text based on contrast to accent_color
+        auto constexpr min_contrast = 2;
+        auto system_accent_text = SystemColor::accent_color_text(scheme);
+
+        if (color_resolution_context.accent_color.value_or({}).contrast_ratio(system_accent_text) < min_contrast)
+            return system_accent_text.inverted();
+            
+        return system_accent_text;
+    }
+
     // First, handle <system-color>s, since they don't strictly require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
     case Keyword::Accentcolor:
-        return SystemColor::accent_color(scheme);
-    case Keyword::Accentcolortext:
-        return SystemColor::accent_color_text(scheme);
+        return color_resolution_context.accent_color.value_or(SystemColor::accent_color(scheme));
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
     case Keyword::Inactiveborder:
