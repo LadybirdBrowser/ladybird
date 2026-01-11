@@ -1732,6 +1732,14 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::maybe_generate_builtin
         return add_constant(js_undefined());
     }
 
+    if (constant_name == "NaN"sv) {
+        return add_constant(js_nan());
+    }
+
+    if (constant_name == "Infinity"sv) {
+        return add_constant(js_infinity());
+    }
+
     if (!m_builtin_abstract_operations_enabled)
         return OptionalNone {};
 

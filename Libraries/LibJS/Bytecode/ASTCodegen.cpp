@@ -299,19 +299,59 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
     return dst;
 }
 
+static Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> constant_fold_logical_expression(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst, ScopedOperand& lhs, LogicalExpression const* expr)
+{
+    auto constant = generator.get_constant(lhs);
+
+    auto return_rhs = [&] -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+        auto dst = choose_dst(generator, preferred_dst);
+        auto rhs = TRY(expr->rhs()->generate_bytecode(generator, dst)).value();
+
+        if (rhs.operand().is_constant())
+            return rhs;
+
+        generator.emit_mov(dst, rhs);
+        return dst;
+    };
+
+    switch (expr->op()) {
+    case LogicalOp::And:
+        if (constant.to_boolean_slow_case())
+            return TRY(return_rhs());
+        return lhs;
+    case LogicalOp::Or:
+        if (constant.to_boolean_slow_case())
+            return lhs;
+        return TRY(return_rhs());
+    case LogicalOp::NullishCoalescing:
+        if (constant.is_nullish())
+            return TRY(return_rhs());
+        return lhs;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    return Optional<ScopedOperand> {};
+}
+
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> LogicalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto dst = choose_dst(generator, preferred_dst);
     auto lhs = TRY(m_lhs->generate_bytecode(generator, preferred_dst)).value();
-    // FIXME: Only mov lhs into dst in case lhs is the value taken.
-    generator.emit_mov(dst, lhs);
+
+    // OPTIMIZATION: return lhs/rhs directly if we can detect lhs as a truthy/falsey literal
+    if (auto constant = generator.try_get_constant(lhs); constant.has_value()) {
+        return TRY(constant_fold_logical_expression(generator, preferred_dst, lhs, this));
+    }
 
     // lhs
     // jump op (true) end (false) rhs
     // rhs
     // jump always (true) end
     // end
+
+    auto dst = choose_dst(generator, preferred_dst);
+    generator.emit_mov(dst, lhs);
 
     auto& rhs_block = generator.make_block();
     auto& end_block = generator.make_block();
