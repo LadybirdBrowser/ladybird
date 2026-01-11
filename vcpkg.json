@@ -10,7 +10,7 @@
     },
     {
       "name": "angle",
-      "platform": "linux | windows | android | freebsd"
+      "platform": "linux | windows | android | bsd"
     },
     {
       "name": "cpptrace",
@@ -57,11 +57,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd | osx"
+      "platform": "linux | bsd | osx"
     },
     {
       "name": "harfbuzz",
-      "platform": "linux | freebsd | openbsd | windows",
+      "platform": "linux | bsd | windows",
       "features": [
         "freetype",
         "icu"
@@ -86,7 +86,7 @@
     },
     {
       "name": "libproxy",
-      "platform": "!(android | freebsd)"
+      "platform": "!(android | bsd)"
     },
     {
       "name": "libavif",
@@ -188,7 +188,7 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd",
+      "platform": "linux | bsd",
       "default-features": false,
       "features": [
         "freetype",
@@ -245,7 +245,7 @@
     },
     {
       "name": "ffmpeg",
-      "version": "7.1.1#5"
+      "version": "7.1.2#2"
     },
     {
       "name": "fontconfig",
