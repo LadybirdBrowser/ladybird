@@ -1515,25 +1515,29 @@ GC::Ref<WebIDL::Promise> Window::scroll(ScrollToOptions const& options)
     auto const document = navigable->active_document();
     VERIFY(document);
 
-    // NB: Make sure layout is up-to-date before looking at scrollable overflow metrics.
-    document->update_layout(DOM::UpdateLayoutReason::WindowScroll);
+    // OPTIMIZATION: If we're scrolling to (0, 0), we don't need to do any of the overflow calculations.
+    //               This also means we don't need to update layout in that case.
+    if (x != 0 || y != 0) {
+        // NB: Make sure layout is up-to-date before looking at scrollable overflow metrics.
+        document->update_layout(DOM::UpdateLayoutReason::WindowScroll);
 
-    VERIFY(document->paintable_box());
-    auto scrolling_area = document->paintable_box()->scrollable_overflow_rect()->to_type<float>();
+        VERIFY(document->paintable_box());
+        auto scrolling_area = document->paintable_box()->scrollable_overflow_rect()->to_type<float>();
 
-    // 7. FIXME: For now we always assume overflow direction is rightward
-    // -> If the viewport has rightward overflow direction
-    //    Let x be max(0, min(x, viewport scrolling area width - viewport width)).
-    x = max(0.0f, min(x, scrolling_area.width() - viewport_width));
-    // -> If the viewport has leftward overflow direction
-    //    Let x be min(0, max(x, viewport width - viewport scrolling area width)).
+        // 7. FIXME: For now we always assume overflow direction is rightward
+        // -> If the viewport has rightward overflow direction
+        //    Let x be max(0, min(x, viewport scrolling area width - viewport width)).
+        x = max(0.0f, min(x, scrolling_area.width() - viewport_width));
+        // -> If the viewport has leftward overflow direction
+        //    Let x be min(0, max(x, viewport width - viewport scrolling area width)).
 
-    // 8. FIXME: For now we always assume overflow direction is downward
-    // -> If the viewport has downward overflow direction
-    //    Let y be max(0, min(y, viewport scrolling area height - viewport height)).
-    y = max(0.0f, min(y, scrolling_area.height() - viewport_height));
-    // -> If the viewport has upward overflow direction
-    //    Let y be min(0, max(y, viewport height - viewport scrolling area height)).
+        // 8. FIXME: For now we always assume overflow direction is downward
+        // -> If the viewport has downward overflow direction
+        //    Let y be max(0, min(y, viewport scrolling area height - viewport height)).
+        y = max(0.0f, min(y, scrolling_area.height() - viewport_height));
+        // -> If the viewport has upward overflow direction
+        //    Let y be min(0, max(y, viewport height - viewport scrolling area height)).
+    }
 
     // FIXME: 9. Let position be the scroll position the viewport would have by aligning the x-coordinate x of the viewport
     //           scrolling area with the left of the viewport and aligning the y-coordinate y of the viewport scrolling area
