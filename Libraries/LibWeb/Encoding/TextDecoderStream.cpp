@@ -24,13 +24,12 @@ namespace Web::Encoding {
 GC_DEFINE_ALLOCATOR(TextDecoderStream);
 
 // https://encoding.spec.whatwg.org/#dom-textdecoderstream
-WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, Optional<FlyString> label, Optional<TextDecoderOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_impl(JS::Realm& realm, FlyString encoding_label, TextDecoderOptions const& options)
 {
     auto& vm = realm.vm();
 
     // 1. Let encoding be the result of getting an encoding from label.
     // If label is not given, let encoding be UTF-8.
-    FlyString encoding_label = label.value_or("utf-8"_fly_string);
     auto encoding = TextCodec::get_standardized_encoding(encoding_label);
 
     // 2. If encoding is failure or replacement, then throw a RangeError.
@@ -43,10 +42,10 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoderStream>> TextDecoderStream::construct_imp
     auto lowercase_encoding_name = encoding.value().to_ascii_lowercase_string();
 
     // 4. If options["fatal"] is true, then set this's error mode to "fatal".
-    auto fatal = options.value_or({}).fatal;
+    auto fatal = options.fatal;
 
     // 5. Set this's ignore BOM to options["ignoreBOM"].
-    auto ignore_bom = options.value_or({}).ignore_bom;
+    auto ignore_bom = options.ignore_bom;
 
     // 6. Set this's decoder to a new decoder for this's encoding, and set this's I/O queue to a new I/O queue.
     auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
