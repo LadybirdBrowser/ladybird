@@ -201,6 +201,12 @@ void DisplayListPlayerSkia::add_clip_rect(AddClipRect const& command)
     canvas.clipRect(to_skia_rect(rect), true);
 }
 
+void DisplayListPlayerSkia::add_clip_path(AddClipPath const& command)
+{
+    auto& canvas = surface().canvas();
+    canvas.clipPath(to_skia_path(command.path), true);
+}
+
 void DisplayListPlayerSkia::save(Save const&)
 {
     auto& canvas = surface().canvas();

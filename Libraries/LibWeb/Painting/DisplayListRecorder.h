@@ -92,6 +92,7 @@ public:
     void draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
 
     void add_clip_rect(Gfx::IntRect const& rect);
+    void add_clip_path(Gfx::Path const& path, Gfx::IntRect bounding_rect);
 
     void translate(Gfx::IntPoint delta);
 

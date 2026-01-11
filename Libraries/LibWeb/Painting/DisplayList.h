@@ -45,6 +45,7 @@ private:
     virtual void restore(Restore const&) = 0;
     virtual void translate(Translate const&) = 0;
     virtual void add_clip_rect(AddClipRect const&) = 0;
+    virtual void add_clip_path(AddClipPath const&) = 0;
     virtual void push_stacking_context(PushStackingContext const&) = 0;
     virtual void pop_stacking_context(PopStackingContext const&) = 0;
     virtual void paint_linear_gradient(PaintLinearGradient const&) = 0;
