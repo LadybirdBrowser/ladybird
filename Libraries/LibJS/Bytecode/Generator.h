@@ -363,6 +363,13 @@ public:
         return m_constants[operand.operand().index()];
     }
 
+    [[nodiscard]] Optional<Value> try_get_constant(ScopedOperand const& operand) const
+    {
+        if (operand.operand().is_constant())
+            return get_constant(operand);
+        return {};
+    }
+
     UnwindContext const* current_unwind_context() const { return m_current_unwind_context; }
 
     [[nodiscard]] bool is_finished() const { return m_finished; }
