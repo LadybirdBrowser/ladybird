@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -33,17 +34,14 @@ public:
     Painting::PaintableBox* paintable_box();
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
-    Optional<CSSPixels> natural_width() const;
-    Optional<CSSPixels> natural_height() const;
-    Optional<CSSPixelFraction> natural_aspect_ratio() const;
+    virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
 
-    bool has_natural_width() const { return natural_width().has_value(); }
-    bool has_natural_height() const { return natural_height().has_value(); }
-    bool has_natural_aspect_ratio() const { return natural_aspect_ratio().has_value(); }
-
-    void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
-    void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
-    void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
+    // AD-HOC: auto_content_box_size is an API choke-point for natural size (replaced) and
+    // attribute-sized (replaced-like) element sizes used when an axis is auto/indefinite.
+    // The optional ratio corresponds to a natural aspect ratio and should not be confused with
+    // the CSS preferred aspect ratio.
+    CSS::SizeWithAspectRatio auto_content_box_size() const;
+    virtual bool has_auto_content_box_size() const { return false; }
 
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
@@ -72,13 +70,10 @@ public:
 protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }
 
 private:
     virtual bool is_box() const final { return true; }
-
-    Optional<CSSPixels> m_natural_width;
-    Optional<CSSPixels> m_natural_height;
-    Optional<CSSPixelFraction> m_natural_aspect_ratio;
 
     Vector<GC::Ref<Node>> m_contained_abspos_children;
 
