@@ -56,8 +56,6 @@ private:
     // ^HTML::HTMLHyperlinkElementUtils
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
     virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
-    virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target) const override { return get_an_elements_target(move(target)); }
-    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const override { return get_an_elements_noopener(url, target); }
 
     virtual Optional<ARIA::Role> default_role() const override;
 
