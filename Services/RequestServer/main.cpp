@@ -12,6 +12,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -28,6 +29,12 @@ namespace RequestServer {
 extern Optional<HTTP::DiskCache> g_disk_cache;
 OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
+}
+
+static void handle_signal(int signal)
+{
+    VERIFY(signal == SIGINT || signal == SIGTERM);
+    Core::EventLoop::current().quit(0);
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -64,16 +71,24 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     Core::EventLoop event_loop;
+    Core::EventLoop::register_signal(SIGINT, handle_signal);
+    Core::EventLoop::register_signal(SIGTERM, handle_signal);
 
 #if defined(AK_OS_MACOS)
     if (!mach_server_name.is_empty())
         Core::Platform::register_with_mach_server(mach_server_name);
 #endif
 
-    if (http_disk_cache_mode.is_one_of("enabled"sv, "testing"sv)) {
-        auto mode = http_disk_cache_mode == "enabled"sv
-            ? HTTP::DiskCache::Mode::Normal
-            : HTTP::DiskCache::Mode::Testing;
+    if (http_disk_cache_mode != "disabled"sv) {
+        auto mode = TRY([&]() -> ErrorOr<HTTP::DiskCache::Mode> {
+            if (http_disk_cache_mode == "enabled"sv)
+                return HTTP::DiskCache::Mode::Normal;
+            if (http_disk_cache_mode == "partitioned"sv)
+                return HTTP::DiskCache::Mode::Partitioned;
+            if (http_disk_cache_mode == "testing"sv)
+                return HTTP::DiskCache::Mode::Testing;
+            return Error::from_string_literal("Unrecognized disk cache mode");
+        }());
 
         if (auto cache = HTTP::DiskCache::create(mode); cache.is_error())
             warnln("Unable to create disk cache: {}", cache.error());

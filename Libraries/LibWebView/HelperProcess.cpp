@@ -224,6 +224,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     case HTTPDiskCacheMode::Enabled:
         arguments.append("enabled"sv);
         break;
+    case HTTPDiskCacheMode::Partitioned:
+        arguments.append("partitioned"sv);
+        break;
     case HTTPDiskCacheMode::Testing:
         arguments.append("testing"sv);
         break;
