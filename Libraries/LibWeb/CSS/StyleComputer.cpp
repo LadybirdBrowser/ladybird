@@ -1996,8 +1996,14 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
-        auto value = cascaded_properties.property(property_id);
         auto inherited = ComputedProperties::Inherited::No;
+        RefPtr<StyleValue const> value;
+        auto important = Important::No;
+
+        if (auto cascaded_style_property = cascaded_properties.style_property(property_id); cascaded_style_property.has_value()) {
+            important = cascaded_style_property->important;
+            value = cascaded_style_property->value;
+        }
 
         // NOTE: We've already handled font-size above.
         if (property_id == PropertyID::FontSize && !value && new_font_size)
@@ -2029,7 +2035,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (!value || value->is_initial() || value->is_unset())
             value = property_initial_value(property_id);
 
-        computed_style->set_property(property_id, value.release_nonnull(), inherited, cascaded_properties.is_property_important(property_id) ? Important::Yes : Important::No);
+        computed_style->set_property(property_id, value.release_nonnull(), inherited, important);
     }
 
     // Compute the value of custom properties

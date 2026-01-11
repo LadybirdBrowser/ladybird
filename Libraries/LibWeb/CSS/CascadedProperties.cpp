@@ -136,13 +136,9 @@ GC::Ptr<CSSStyleDeclaration const> CascadedProperties::property_source(PropertyI
     return it->value.last().source;
 }
 
-bool CascadedProperties::is_property_important(PropertyID property_id) const
+Optional<StyleProperty> CascadedProperties::style_property(PropertyID property_id) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
-        return false;
-
-    return it->value.last().property.important == Important::Yes;
+    return m_properties.get(property_id).map([&](auto const& value) { return value.last().property; });
 }
 
 }
