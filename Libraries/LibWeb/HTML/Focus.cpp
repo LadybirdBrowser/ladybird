@@ -326,8 +326,6 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     //       area of a top-level traversable. For example, if the currently focused area of a top-level traversable is a
     //       viewport, then it will usually keep its focus regardless until another focusable area is explicitly focused
     //       with the focusing steps.
-
-    // What? It already doesn't have system focus, what possible platform-specific conventions are there?
 }
 
 }
