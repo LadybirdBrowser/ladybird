@@ -1790,6 +1790,7 @@ CSSPixelRect FormattingContext::absolute_content_rect(Box const& box) const
 
 Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) const
 {
+    // AD-HOC: <textarea> has no text-derived baseline, as its text is not part of CSS inline layout.
     if (!box.has_children() || box.children_are_inline())
         return nullptr;
     // To find the baseline of a box, we first look for the last in-flow child with at least one line box.
@@ -1840,11 +1841,14 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
     auto const& overflow_x = box.computed_values().overflow_x();
     auto const& overflow_y = box.computed_values().overflow_y();
 
-    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible)
-        return box_state.margin_box_top() + box_state.offset.y() + box_state.line_boxes.last().baseline();
-    if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
-        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible) {
+        auto const& last = box_state.line_boxes.last();
+        return box_state.margin_box_top() + box_state.offset.y() + last.baseline() + last.bottom() - last.height();
     }
+
+    if (auto const* child_box = box_child_to_derive_baseline_from(box))
+        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+
     // If none of the children have a baseline set, the bottom margin edge of the box is used.
     return box_state.margin_box_height();
 }
