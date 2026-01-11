@@ -121,10 +121,6 @@ public:
     [[nodiscard]] bool is_cors_same_origin() const;
     [[nodiscard]] bool is_cors_cross_origin() const;
 
-    [[nodiscard]] bool is_fresh() const;
-    [[nodiscard]] bool is_stale_while_revalidate() const;
-    [[nodiscard]] bool is_stale() const;
-
     // Non-standard
     [[nodiscard]] Optional<String> const& network_error_message() const { return m_network_error_message; }
     MonotonicTime monotonic_response_time() const { return m_monotonic_response_time; }
@@ -135,10 +131,6 @@ protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    AK::Duration current_age() const;
-    AK::Duration freshness_lifetime() const;
-    AK::Duration stale_while_revalidate_lifetime() const;
-
     // https://fetch.spec.whatwg.org/#concept-response-type
     // A response has an associated type which is "basic", "cors", "default", "error", "opaque", or "opaqueredirect". Unless stated otherwise, it is "default".
     Type m_type { Type::Default };
@@ -200,7 +192,6 @@ private:
 
     // Non-standard
     ByteString m_method;
-    UnixDateTime m_response_time;
     MonotonicTime m_monotonic_response_time;
 
     Optional<String> m_network_error_message;
