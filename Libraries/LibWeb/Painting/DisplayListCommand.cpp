@@ -92,6 +92,11 @@ void AddClipRect::dump(StringBuilder& builder) const
     builder.appendff("AddClipRect rect={}", rect);
 }
 
+void AddClipPath::dump(StringBuilder& builder) const
+{
+    builder.appendff("AddClipPath bounding_rect={}", bounding_rectangle);
+}
+
 void PushStackingContext::dump(StringBuilder& builder) const
 {
     auto affine_transform = extract_2d_affine_transform(transform.matrix);

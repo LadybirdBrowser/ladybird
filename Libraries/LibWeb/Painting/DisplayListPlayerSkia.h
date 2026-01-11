@@ -29,6 +29,7 @@ private:
     void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
     void add_clip_rect(AddClipRect const&) override;
+    void add_clip_path(AddClipPath const&) override;
     void save(Save const&) override;
     void save_layer(SaveLayer const&) override;
     void restore(Restore const&) override;

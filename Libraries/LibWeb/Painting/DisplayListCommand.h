@@ -135,6 +135,15 @@ struct AddClipRect {
     void dump(StringBuilder&) const;
 };
 
+struct AddClipPath {
+    Gfx::Path path;
+    Gfx::IntRect bounding_rectangle;
+
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return bounding_rectangle; }
+    bool is_clip_or_mask() const { return true; }
+    void dump(StringBuilder&) const;
+};
+
 struct PushStackingContext {
     static constexpr int nesting_level_change = 1;
 
@@ -465,6 +474,7 @@ using DisplayListCommand = Variant<
     Restore,
     Translate,
     AddClipRect,
+    AddClipPath,
     PushStackingContext,
     PopStackingContext,
     PaintLinearGradient,
