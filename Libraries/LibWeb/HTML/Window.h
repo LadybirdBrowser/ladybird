@@ -261,7 +261,10 @@ public:
 
     void consume_history_action_user_activation();
 
+    static bool in_test_mode();
+    static void set_enable_test_mode(bool);
     static void set_internals_object_exposed(bool);
+    GC::Ptr<Internals::Internals> internals() const { return m_internals; }
 
     [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
@@ -358,6 +361,8 @@ private:
     GC::Ptr<BarProp const> m_scrollbars;
     GC::Ptr<BarProp const> m_statusbar;
     GC::Ptr<BarProp const> m_toolbar;
+
+    GC::Ptr<Internals::Internals> m_internals;
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);

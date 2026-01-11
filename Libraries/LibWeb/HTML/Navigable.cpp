@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
@@ -1622,6 +1623,11 @@ void Navigable::begin_navigation(NavigateParams params)
     auto initial_insertion = params.initial_insertion;
     auto& active_document = *this->active_document();
     auto& vm = this->vm();
+
+    // AD-HOC: Perform any clean-up in test mode.
+    // FIXME: This should run at the end of each test, and navigating is a heuristic for that.
+    if (Window::in_test_mode())
+        active_window()->internals()->perform_per_test_cleanup();
 
     // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
     auto csp_navigation_type = params.form_data_entry_list.has_value() ? ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission : ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
