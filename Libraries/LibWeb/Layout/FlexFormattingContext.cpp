@@ -2040,13 +2040,14 @@ bool FlexFormattingContext::should_treat_cross_max_size_as_none(Box const& box) 
 
 CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexItem const& item, bool resolve_percentage_min_max_sizes) const
 {
+    bool cross_size_auto = should_treat_cross_size_as_auto(item.box);
     auto size = [&] {
-        if (should_treat_cross_size_as_auto(item.box))
+        if (cross_size_auto)
             return calculate_min_content_cross_size(item);
         return !is_row_layout() ? get_pixel_width(item, computed_cross_size(item.box)) : get_pixel_height(item, computed_cross_size(item.box));
     }();
 
-    if (item.box->has_preferred_aspect_ratio())
+    if (cross_size_auto && item.box->has_preferred_aspect_ratio())
         size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
@@ -2062,13 +2063,14 @@ CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexIt
 
 CSSPixels FlexFormattingContext::calculate_cross_max_content_contribution(FlexItem const& item, bool resolve_percentage_min_max_sizes) const
 {
+    bool cross_size_auto = should_treat_cross_size_as_auto(item.box);
     auto size = [&] {
-        if (should_treat_cross_size_as_auto(item.box))
+        if (cross_size_auto)
             return calculate_max_content_cross_size(item);
         return !is_row_layout() ? get_pixel_width(item, computed_cross_size(item.box)) : get_pixel_height(item, computed_cross_size(item.box));
     }();
 
-    if (item.box->has_preferred_aspect_ratio())
+    if (cross_size_auto && item.box->has_preferred_aspect_ratio())
         size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
