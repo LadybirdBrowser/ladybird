@@ -54,21 +54,6 @@ GC::Ref<DOM::DOMTokenList> HTMLAreaElement::rel_list()
     return *m_rel_list;
 }
 
-Optional<String> HTMLAreaElement::hyperlink_element_utils_href() const
-{
-    return attribute(HTML::AttributeNames::href);
-}
-
-void HTMLAreaElement::set_hyperlink_element_utils_href(String href)
-{
-    set_attribute_value(HTML::AttributeNames::href, move(href));
-}
-
-Optional<String> HTMLAreaElement::hyperlink_element_utils_referrerpolicy() const
-{
-    return attribute(HTML::AttributeNames::referrerpolicy);
-}
-
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 HTMLAreaElement::default_tab_index_value() const
 {

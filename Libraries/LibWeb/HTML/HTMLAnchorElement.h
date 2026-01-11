@@ -54,25 +54,10 @@ private:
     virtual i32 default_tab_index_value() const override;
 
     // ^HTML::HTMLHyperlinkElementUtils
-    virtual DOM::Document& hyperlink_element_utils_document() override { return document(); }
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
-    virtual Optional<String> hyperlink_element_utils_href() const override;
-    virtual void set_hyperlink_element_utils_href(String) override;
-    virtual Optional<String> hyperlink_element_utils_referrerpolicy() const override;
-    virtual bool hyperlink_element_utils_is_html_anchor_element() const final { return true; }
-    virtual bool hyperlink_element_utils_is_connected() const final { return is_connected(); }
-    virtual void hyperlink_element_utils_queue_an_element_task(HTML::Task::Source source, Function<void()> steps) override
-    {
-        queue_an_element_task(source, move(steps));
-    }
-    virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target) const override
-    {
-        return get_an_elements_target(target);
-    }
-    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const override
-    {
-        return get_an_elements_noopener(url, target);
-    }
+    virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
+    virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target) const override { return get_an_elements_target(move(target)); }
+    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const override { return get_an_elements_noopener(url, target); }
 
     virtual Optional<ARIA::Role> default_role() const override;
 
