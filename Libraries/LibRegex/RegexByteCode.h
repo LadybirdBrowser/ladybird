@@ -47,6 +47,7 @@ using ByteCodeValueType = u64;
     __ENUMERATE_OPCODE(Restore)                    \
     __ENUMERATE_OPCODE(GoBack)                     \
     __ENUMERATE_OPCODE(ClearCaptureGroup)          \
+    __ENUMERATE_OPCODE(FailIfEmpty)                \
     __ENUMERATE_OPCODE(Repeat)                     \
     __ENUMERATE_OPCODE(ResetRepeat)                \
     __ENUMERATE_OPCODE(Checkpoint)                 \
@@ -602,6 +603,10 @@ public:
                 return transform_bytecode_repetition_min_one(bytecode_to_repeat, greedy);
         }
 
+        if (minimum == 0 && maximum.has_value() && maximum.value() == 1) {
+            return transform_bytecode_repetition_zero_or_one(bytecode_to_repeat, greedy);
+        }
+
         ByteCode new_bytecode;
         new_bytecode.insert_bytecode_repetition_n(bytecode_to_repeat, minimum, min_repetition_mark_id);
 
@@ -609,10 +614,14 @@ public:
             // (REPEAT REGEXP MIN)
             // LABEL _MAX_LOOP            |
             // FORK END                   |
+            // CHECKPOINT (if min==0)     |
             // REGEXP                     |
+            // FAILIFEMPTY (if min==0)    |
             // REPEAT _MAX_LOOP MAX-MIN   | if max > min
             // FORK END                   |
+            // CHECKPOINT (if min==0)     |
             // REGEXP                     |
+            // FAILIFEMPTY (if min==0)    |
             // LABEL END                  |
             // RESET _MAX_LOOP            |
             auto jump_kind = static_cast<ByteCodeValueType>(greedy ? OpCodeId::ForkStay : OpCodeId::ForkJump);
@@ -620,18 +629,48 @@ public:
                 new_bytecode.empend(jump_kind);
                 new_bytecode.empend((ByteCodeValueType)0); // Placeholder for the jump target.
                 auto pre_loop_fork_jump_index = new_bytecode.size();
+
+                auto checkpoint1 = minimum == 0 ? s_next_checkpoint_serial_id++ : 0;
+                if (minimum == 0) {
+                    new_bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::Checkpoint));
+                    new_bytecode.empend(static_cast<ByteCodeValueType>(checkpoint1));
+                }
+
                 new_bytecode.extend(bytecode_to_repeat);
+
+                if (minimum == 0) {
+                    new_bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::FailIfEmpty));
+                    new_bytecode.empend(checkpoint1);
+                }
+
                 auto repetitions = maximum.value() - minimum;
                 auto fork_jump_address = new_bytecode.size();
                 if (repetitions > 1) {
+                    auto repeated_bytecode_size = bytecode_to_repeat.size();
+                    if (minimum == 0)
+                        repeated_bytecode_size += 4; // Checkpoint + FailIfEmpty
+
                     new_bytecode.empend((ByteCodeValueType)OpCodeId::Repeat);
-                    new_bytecode.empend(bytecode_to_repeat.size() + 2);
+                    new_bytecode.empend(repeated_bytecode_size + 2);
                     new_bytecode.empend(static_cast<ByteCodeValueType>(repetitions - 1));
                     new_bytecode.empend(max_repetition_mark_id);
                     new_bytecode.empend(jump_kind);
                     new_bytecode.empend((ByteCodeValueType)0); // Placeholder for the jump target.
                     auto post_loop_fork_jump_index = new_bytecode.size();
+
+                    auto checkpoint2 = minimum == 0 ? s_next_checkpoint_serial_id++ : 0;
+                    if (minimum == 0) {
+                        new_bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::Checkpoint));
+                        new_bytecode.empend(static_cast<ByteCodeValueType>(checkpoint2));
+                    }
+
                     new_bytecode.extend(bytecode_to_repeat);
+
+                    if (minimum == 0) {
+                        new_bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::FailIfEmpty));
+                        new_bytecode.empend(checkpoint2);
+                    }
+
                     fork_jump_address = new_bytecode.size();
 
                     new_bytecode[post_loop_fork_jump_index - 1] = (ByteCodeValueType)(fork_jump_address - post_loop_fork_jump_index);
@@ -715,6 +754,7 @@ public:
         // FORKJUMP _END  (FORKSTAY -> Greedy)
         // CHECKPOINT _C
         // REGEXP
+        // FAILIFEMPTY _C
         // JUMP_NONEMPTY _C _START JUMP
         // LABEL _END
 
@@ -726,13 +766,16 @@ public:
         else
             bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
 
-        bytecode.empend(bytecode_to_repeat.size() + 2 + 4); // Jump to the _END label
+        bytecode.empend(bytecode_to_repeat.size() + 2 + 4 + 2); // Jump to the _END label
 
         auto checkpoint = s_next_checkpoint_serial_id++;
         bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::Checkpoint));
         bytecode.empend(static_cast<ByteCodeValueType>(checkpoint));
 
         bytecode.extend(bytecode_to_repeat);
+
+        bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::FailIfEmpty));
+        bytecode.empend(checkpoint);
 
         bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::JumpNonEmpty));
         bytecode.empend(-bytecode.size() - 3); // Jump(...) to the _START label...
@@ -746,7 +789,9 @@ public:
     static void transform_bytecode_repetition_zero_or_one(ByteCode& bytecode_to_repeat, bool greedy)
     {
         // FORKJUMP _END (FORKSTAY -> Greedy)
+        // CHECKPOINT _C
         // REGEXP
+        // FAILIFEMPTY _C
         // LABEL _END
         ByteCode bytecode;
 
@@ -755,9 +800,16 @@ public:
         else
             bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::ForkJump));
 
-        bytecode.empend(bytecode_to_repeat.size()); // Jump to the _END label
+        bytecode.empend(bytecode_to_repeat.size() + 4); // Jump to the _END label
+
+        auto checkpoint = s_next_checkpoint_serial_id++;
+        bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::Checkpoint));
+        bytecode.empend(static_cast<ByteCodeValueType>(checkpoint));
 
         bytecode.extend(move(bytecode_to_repeat));
+
+        bytecode.empend(static_cast<ByteCodeValueType>(OpCodeId::FailIfEmpty));
+        bytecode.empend(checkpoint);
         // LABEL _END = bytecode.size()
 
         bytecode_to_repeat = move(bytecode);
@@ -1094,6 +1146,21 @@ public:
     ALWAYS_INLINE size_t size() const override { return 2; }
     ALWAYS_INLINE size_t id() const { return argument(0); }
     ByteString arguments_string() const override { return ByteString::formatted("id={}", id()); }
+};
+
+template<typename ByteCode>
+class OpCode_FailIfEmpty final : public OpCode<ByteCode> {
+public:
+    using OpCode<ByteCode>::argument;
+    using OpCode<ByteCode>::name;
+    using OpCode<ByteCode>::state;
+    using OpCode<ByteCode>::bytecode;
+
+    ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
+    ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::FailIfEmpty; }
+    ALWAYS_INLINE size_t size() const override { return 2; }
+    ALWAYS_INLINE size_t checkpoint() const { return argument(0); }
+    ByteString arguments_string() const override { return ByteString::formatted("checkpoint={}", checkpoint()); }
 };
 
 template<typename ByteCode>
