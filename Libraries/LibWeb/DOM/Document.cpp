@@ -1357,6 +1357,7 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     viewport_computed_values.set_overflow_y(overflow_y_to_apply);
 
     // The element from which the value is propagated must then have a used overflow value of visible.
+    // FIXME: Apply this to the used values, not the computed ones.
     overflow_origin_computed_values.set_overflow_x(CSS::Overflow::Visible);
     overflow_origin_computed_values.set_overflow_y(CSS::Overflow::Visible);
 }
@@ -5761,7 +5762,7 @@ GC::Ptr<Element const> Document::scrolling_element() const
     if (in_quirks_mode()) {
         // 1. If the body element exists, and it is not potentially scrollable, return the body element and abort these steps.
         //    For this purpose, a value of overflow:clip on the the body element’s parent element must be treated as overflow:hidden.
-        if (auto const* body_element = body(); body_element && !body_element->is_potentially_scrollable())
+        if (auto const* body_element = body(); body_element && !body_element->is_potentially_scrollable(Element::TreatOverflowClipOnBodyParentAsOverflowHidden::Yes))
             return body_element;
 
         // 2. Return null and abort these steps.

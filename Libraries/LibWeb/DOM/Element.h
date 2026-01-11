@@ -326,7 +326,11 @@ public:
     i32 tab_index() const;
     void set_tab_index(i32 tab_index);
 
-    bool is_potentially_scrollable() const;
+    enum class TreatOverflowClipOnBodyParentAsOverflowHidden {
+        No,
+        Yes,
+    };
+    bool is_potentially_scrollable(TreatOverflowClipOnBodyParentAsOverflowHidden) const;
 
     double scroll_top() const;
     double scroll_left() const;
