@@ -66,6 +66,7 @@ enum class CompletionType : u8 {
     Wake,
     Timer,
     Notifer,
+    Process,
 };
 
 struct CompletionPacket {
@@ -99,6 +100,15 @@ struct EventLoopNotifier final : CompletionPacket {
     Notifier* notifier;
     OwnHandle wait_packet;
     OwnHandle wait_event;
+};
+
+struct EventLoopProcess final : CompletionPacket {
+    ~EventLoopProcess() = default;
+
+    OwnHandle process;
+    pid_t pid;
+    Function<void(pid_t)> exit_handler;
+    OwnHandle jobobject;
 };
 
 struct ThreadData {
@@ -136,6 +146,7 @@ struct ThreadData {
     // These are only used to register and unregister. The event loop doesn't access these.
     HashMap<intptr_t, NonnullOwnPtr<EventLoopTimer>> timers;
     HashMap<Notifier*, NonnullOwnPtr<EventLoopNotifier>> notifiers;
+    HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>> processes;
 
     // The wake completion packet is posted to the thread's event loop to wake it.
     NonnullOwnPtr<EventLoopWake> wake_data;
@@ -208,6 +219,16 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
                 VERIFY(NT_SUCCESS(status));
+                continue;
+            }
+            if (packet->type == CompletionType::Process) {
+                auto* process_data = static_cast<EventLoopProcess*>(packet);
+                pid_t const process_id = process_data->pid;
+                // NOTE: This may seem like the incorrect parameter, but https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_associate_completion_port
+                // states that this field represents the event type indicator
+                DWORD const event_type = entry.dwNumberOfBytesTransferred;
+                if (reinterpret_cast<intptr_t>(entry.lpOverlapped) == process_id && (event_type == JOB_OBJECT_MSG_EXIT_PROCESS || event_type == JOB_OBJECT_MSG_ABNORMAL_EXIT_PROCESS))
+                    process_data->exit_handler(process_id);
                 continue;
             }
             VERIFY_NOT_REACHED();
@@ -349,6 +370,51 @@ void EventLoopManagerWindows::unregister_signal([[maybe_unused]] int handler_id)
 {
     dbgln("Core::EventLoopManagerWindows::unregister_signal() is not implemented");
     VERIFY_NOT_REACHED();
+}
+
+void EventLoopManagerWindows::register_process(pid_t pid, ESCAPING Function<void(pid_t)> exit_handler)
+{
+    auto* thread_data = ThreadData::the();
+    VERIFY(thread_data);
+
+    auto& processes = thread_data->processes;
+    if (processes.contains(pid))
+        return;
+
+    HANDLE process_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    VERIFY(process_handle);
+
+    HANDLE job_object_handle = CreateJobObject(nullptr, nullptr);
+    VERIFY(job_object_handle);
+
+    BOOL succeeded = AssignProcessToJobObject(job_object_handle, process_handle);
+    VERIFY(succeeded);
+
+    auto process_data = make<EventLoopProcess>();
+    process_data->type = CompletionType::Process;
+    process_data->process.handle = process_handle;
+    process_data->pid = pid;
+    process_data->exit_handler = move(exit_handler);
+    process_data->jobobject.handle = job_object_handle;
+
+    JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = process_data.ptr(), .CompletionPort = thread_data->iocp.handle };
+    succeeded = SetInformationJobObject(job_object_handle, JobObjectAssociateCompletionPortInformation, &joacp, sizeof(JOBOBJECT_ASSOCIATE_COMPLETION_PORT));
+    VERIFY(succeeded);
+
+    processes.set(pid, move(process_data));
+}
+
+void EventLoopManagerWindows::unregister_process(pid_t pid)
+{
+    if (auto* thread_data = ThreadData::the()) {
+        auto maybe_process = thread_data->processes.take(pid);
+        if (!maybe_process.has_value())
+            return;
+        auto process_data = maybe_process.release_value();
+        JOBOBJECT_ASSOCIATE_COMPLETION_PORT joacp = { .CompletionKey = process_data, .CompletionPort = nullptr };
+        BOOL succeeded = SetInformationJobObject(process_data->jobobject.handle, JobObjectAssociateCompletionPortInformation, &joacp, sizeof(JOBOBJECT_ASSOCIATE_COMPLETION_PORT));
+        VERIFY(succeeded);
+    }
 }
 
 void EventLoopManagerWindows::did_post_event()
