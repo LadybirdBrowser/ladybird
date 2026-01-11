@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+10 Pass
+6 Fail
+Pass	Setting a scroll timeline on a play-pending animation synchronizes currentTime of the animation with the scroll position.
+Pass	Setting a scroll timeline on a pause-pending animation fixes the currentTime of the animation based on the scroll position once resumed
+Pass	Setting a scroll timeline on a reversed play-pending animation synchronizes the currentTime of the animation with the scroll position.
+Fail	Setting a scroll timeline on a running animation synchronizes the currentTime of the animation with the scroll position.
+Pass	Setting a scroll timeline on a paused animation fixes the currentTime of the animation based on the scroll position when resumed
+Pass	Setting a scroll timeline on a reversed paused animation fixes the currentTime of the animation based on the scroll position when resumed
+Pass	Transitioning from a scroll timeline to a document timeline on a running animation preserves currentTime
+Pass	Transitioning from a scroll timeline to a document timeline on a pause-pending animation preserves currentTime
+Pass	Transition from a scroll timeline to a document timeline on a reversed paused animation maintains correct currentTime
+Pass	Transitioning from a scroll timeline to a null timeline on a running animation preserves current progress.
+Fail	Switching from a null timeline to a scroll timeline on an animation with a resolved start time preserved the play state
+Fail	Switching from one scroll timeline to another updates currentTime
+Fail	Switching from a document timeline to a scroll timeline updates currentTime when unpaused via CSS.
+Pass	Switching from a document timeline to a scroll timeline and updating currentTime preserves the progress while paused.
+Fail	Switching from a document timeline to a scroll timeline on an infinite duration animation.
+Fail	Changing from a scroll-timeline to a view-timeline updates start time.

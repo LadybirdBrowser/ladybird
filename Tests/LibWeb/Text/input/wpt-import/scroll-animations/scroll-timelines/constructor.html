@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ScrollTimeline constructor</title>
+  <link rel="help" href="https://wicg.github.io/scroll-animations/#scrolltimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+.scroller {
+  height: 100px;
+  width: 100px;
+  overflow: scroll;
+}
+
+.content {
+  height: 500px;
+  width: 500px;
+}
+</style>
+
+<div class="scroller">
+  <div class="content"></div>
+</div>
+
+<script>
+'use strict';
+
+function formatOffset(v) {
+  if (typeof(v) == 'object')
+    return `${v.constructor.name}(${v.toString()})`;
+  return `'${v.toString()}'`;
+}
+
+function assert_offsets_equal(a, b) {
+  assert_equals(formatOffset(a), formatOffset(b));
+}
+
+// source
+
+test(t => {
+  const scroller = document.querySelector('.scroller');
+  assert_equals(
+      new ScrollTimeline({source: scroller}).source, scroller);
+}, 'A ScrollTimeline can be created with a source');
+
+test(t => {
+  const div = document.createElement('div');
+  assert_equals(new ScrollTimeline({source: div}).source, div);
+}, 'A ScrollTimeline can be created with a non-scrolling source');
+
+test(t => {
+  assert_equals(new ScrollTimeline({source: null}).source, null);
+}, 'A ScrollTimeline created with a null source should have no source');
+
+test(t => {
+  assert_equals(new ScrollTimeline().source, document.scrollingElement);
+}, 'A ScrollTimeline created without a source should use the ' +
+   'document.scrollingElement');
+
+// axis
+
+test(t => {
+  assert_equals(new ScrollTimeline().axis, 'block');
+}, 'A ScrollTimeline created with the default axis should default to ' +
+   `'block'`);
+
+const gValidAxisValues = [
+  'block',
+  'inline',
+  'x',
+  'y',
+];
+
+for (let axis of gValidAxisValues) {
+  test(function() {
+    const scrollTimeline =
+        new ScrollTimeline({axis: axis});
+    assert_equals(scrollTimeline.axis, axis);
+  }, `'${axis}' is a valid axis value`);
+}
+
+test(t => {
+  let constructorFunc = function() {
+    new ScrollTimeline({axis: 'nonsense'})
+  };
+  assert_throws_js(TypeError, constructorFunc);
+
+  // 'auto' for axis was previously in the spec, but was removed. Make
+  // sure that implementations do not support it.
+  constructorFunc = function() {
+    new ScrollTimeline({axis: 'auto'})
+  };
+  assert_throws_js(TypeError, constructorFunc);
+}, 'Creating a ScrollTimeline with an invalid axis value should throw');
+</script>

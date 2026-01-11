@@ -1,0 +1,18 @@
+#import <DOM/Element.idl>
+
+// https://drafts.csswg.org/scroll-animations-1/#scrolltimeline
+[Exposed=Window]
+interface ScrollTimeline : AnimationTimeline {
+    constructor(optional ScrollTimelineOptions options = {});
+    readonly attribute Element? source;
+    readonly attribute ScrollAxis axis;
+};
+
+// https://drafts.csswg.org/scroll-animations-1/#dictdef-scrolltimelineoptions
+dictionary ScrollTimelineOptions {
+    Element? source;
+    ScrollAxis axis = "block";
+};
+
+// https://drafts.csswg.org/scroll-animations-1/#enumdef-scrollaxis
+enum ScrollAxis { "block", "inline", "x", "y" };

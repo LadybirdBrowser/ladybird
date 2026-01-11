@@ -108,7 +108,7 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
     //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
     //       percentage when the effect is associated with a progress-based timeline.
-    auto duration = m_iteration_duration.as_css_numberish();
+    auto duration = m_iteration_duration.as_css_numberish(realm());
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
@@ -129,9 +129,9 @@ ComputedEffectTiming AnimationEffect::get_computed_timing() const
             .easing = m_timing_function.to_string(),
         },
 
-        end_time().as_css_numberish(),
-        active_duration().as_css_numberish(),
-        NullableCSSNumberish::from_optional_css_numberish_time(local_time()),
+        end_time().as_css_numberish(realm()),
+        active_duration().as_css_numberish(realm()),
+        NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time()),
         transformed_progress(),
         current_iteration(),
     };
@@ -160,11 +160,13 @@ TimeValue AnimationEffect::intrinsic_iteration_duration() const
         return TimeValue::create_zero(associated_timeline());
     }
 
-    // FIXME: Otherwise
+    // Otherwise
     else {
         // Return(100% - start delay - end delay) / iteration count
         // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
-        TODO();
+        auto one_hundred_percent = TimeValue { TimeValue::Type::Percentage, 100.0 };
+
+        return (one_hundred_percent - m_start_delay - m_end_delay) / m_iteration_count;
     }
 }
 
@@ -185,12 +187,59 @@ Optional<TimeValue> AnimationEffect::timeline_duration() const
     return timeline->duration();
 }
 
+// https://drafts.csswg.org/web-animations-2/#time-based-animation-to-a-proportional-animation
+void AnimationEffect::convert_a_time_based_animation_to_a_proportional_animation()
+{
+    // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+    //         https://github.com/w3c/csswg-drafts/pull/13170
+    // If the iteration duration is auto, then perform the following steps.
+    if (m_specified_iteration_duration.has<String>()) {
+        // Set start delay and end delay to 0, as it is not possible to mix time and proportions.
+        // Note: Future versions may allow these properties to be assigned percentages, at which point the delays are
+        //       only to be ignored if their values are expressed as times and not as percentages.
+        m_start_delay = TimeValue::create_zero(associated_timeline());
+        m_end_delay = TimeValue::create_zero(associated_timeline());
+
+        // AD-HOC: The spec doesn't say what to set iteration duration to in this case so we set it to the intrinsic
+        //         iteration duration, see: https://github.com/w3c/csswg-drafts/issues/13220
+        m_iteration_duration = intrinsic_iteration_duration();
+        return;
+    }
+
+    // Otherwise:
+
+    // NB: The caller asserts that timeline duration is resolved
+    auto const& timeline_duration = this->timeline_duration().value();
+
+    // 1. Let total time be equal to end time
+    // AD-HOC: Using end time here only works if we haven't already converted to a proportional animation, we instead
+    //         recompute the specified equivalent of "end time", see https://github.com/w3c/csswg-drafts/issues/13230
+    auto total_time = max(m_specified_start_delay + (m_specified_iteration_duration.get<double>() * m_iteration_count) + m_specified_end_delay, 0);
+
+    // AD-HOC: Avoid a division by zero below, see https://github.com/w3c/csswg-drafts/issues/11276
+    if (total_time == 0) {
+        m_start_delay = TimeValue::create_zero(associated_timeline());
+        m_iteration_duration = TimeValue::create_zero(associated_timeline());
+        m_end_delay = TimeValue::create_zero(associated_timeline());
+        return;
+    }
+
+    // 2. Set start delay to be the result of evaluating specified start delay / total time * timeline duration.
+    m_start_delay = timeline_duration * (m_specified_start_delay / total_time);
+
+    // 3. Set iteration duration to be the result of evaluating specified iteration duration / total time * timeline duration.
+    m_iteration_duration = timeline_duration * (m_specified_iteration_duration.get<double>() / total_time);
+
+    // 4. Set end delay to be the result of evaluating specified end delay / total time * timeline duration.
+    m_end_delay = timeline_duration * (m_specified_end_delay / total_time);
+}
+
 // https://drafts.csswg.org/web-animations-2/#normalize-specified-timing
 void AnimationEffect::normalize_specified_timing()
 {
     // If timeline duration is resolved:
     if (timeline_duration().has_value()) {
-        // FIXME: Follow the procedure to convert a time-based animation to a proportional animation
+        convert_a_time_based_animation_to_a_proportional_animation();
     }
     // Otherwise:
     else {

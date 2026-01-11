@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Pass	Computed duration in percent even when specified in ms
+Fail	Time-based duration normalized to fill animation range.
+Pass	Time-based duration normalized to preserve proportional delays.
+Pass	Intrinsic iteration duration fills timeline.
+Fail	Intrinsic iteration duration accounts for animation range.
+Pass	Intrinsic iteration duration accounts for number of iterations

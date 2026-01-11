@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	currentTime should be null for a display: inline source
+Pass	currentTime should be null for a display: none source
+Pass	currentTime should be null for an unattached source
+Pass	currentTime should be null when the source is not a scroller
