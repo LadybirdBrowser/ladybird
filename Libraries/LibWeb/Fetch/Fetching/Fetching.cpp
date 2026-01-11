@@ -1521,7 +1521,6 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     RefPtr<HTTP::MemoryCache> http_cache;
 
     // 7. Let the revalidatingFlag be unset.
-    auto revalidating_flag = RefCountedFlag::create(false);
 
     auto include_credentials = IncludeCredentials::No;
 
@@ -1787,62 +1786,21 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
             // 2. If storedResponse is non-null, then:
             if (stored_response) {
-                // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response,
-                //    and httpRequest’s client is non-null, then:
-                if (http_request->cache_mode() == Infrastructure::Request::CacheMode::Default
-                    && stored_response->is_stale_while_revalidate()
-                    && http_request->client() != nullptr) {
-
-                    // 1. Set response to storedResponse.
-                    response = stored_response;
-
-                    // 2. Set response’s cache state to "local".
-                    response->set_cache_state(Infrastructure::Response::CacheState::Local);
-
-                    // 3. Let revalidateRequest be a clone of request.
-                    auto revalidate_request = request->clone(realm);
-
-                    // 4. Set revalidateRequest’s cache mode set to "no-cache".
-                    revalidate_request->set_cache_mode(Infrastructure::Request::CacheMode::NoCache);
-
-                    // 5. Set revalidateRequest’s prevent no-cache cache-control header modification flag.
-                    revalidate_request->set_prevent_no_cache_cache_control_header_modification(true);
-
-                    // 6. Set revalidateRequest’s service-workers mode set to "none".
-                    revalidate_request->set_service_workers_mode(Infrastructure::Request::ServiceWorkersMode::None);
-
-                    // 7. In parallel, run main fetch given a new fetch params whose request is revalidateRequest.
-                    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, revalidate_request, fetch_params = GC::Ref(fetch_params)] {
-                        (void)main_fetch(realm, Infrastructure::FetchParams::create(vm, revalidate_request, fetch_params->timing_info()));
-                    }));
-                }
+                // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response, and httpRequest’s
+                //    client is non-null, then:
                 // 2. Otherwise:
-                else {
-                    // 1. If storedResponse is a stale response, then set the revalidatingFlag.
-                    if (stored_response->is_stale())
-                        revalidating_flag->set_value(true);
+                //     1. If storedResponse is a stale response, then set the revalidatingFlag.
+                //     2. If the revalidatingFlag is set and httpRequest’s cache mode is neither "force-cache" nor
+                //        "only-if-cached", then:
+                //         1. If storedResponse’s header list contains `ETag`, then append (`If-None-Match`, `ETag`'s value)
+                //            to httpRequest’s header list.
+                //         2. If storedResponse’s header list contains `Last-Modified`, then append (`If-Modified-Since`,
+                //            `Last-Modified`'s value) to httpRequest’s header list.
+                //     3. Otherwise, set response to storedResponse and set response’s cache state to "local".
 
-                    // 2. If the revalidatingFlag is set and httpRequest’s cache mode is neither "force-cache" nor "only-if-cached", then:
-                    if (revalidating_flag->value()
-                        && http_request->cache_mode() != Infrastructure::Request::CacheMode::ForceCache
-                        && http_request->cache_mode() != Infrastructure::Request::CacheMode::OnlyIfCached) {
-
-                        // 1. If storedResponse’s header list contains `ETag`, then append (`If-None-Match`, `ETag`'s value) to httpRequest’s header list.
-                        if (auto etag = stored_response->header_list()->get("ETag"sv); etag.has_value()) {
-                            http_request->header_list()->append(HTTP::Header::isomorphic_encode("If-None-Match"sv, *etag));
-                        }
-
-                        // 2. If storedResponse’s header list contains `Last-Modified`, then append (`If-Modified-Since`, `Last-Modified`'s value) to httpRequest’s header list.
-                        if (auto last_modified = stored_response->header_list()->get("Last-Modified"sv); last_modified.has_value()) {
-                            http_request->header_list()->append(HTTP::Header::isomorphic_encode("If-Modified-Since"sv, *last_modified));
-                        }
-                    }
-                    // 3. Otherwise, set response to storedResponse and set response’s cache state to "local".
-                    else {
-                        response = stored_response;
-                        response->set_cache_state(Infrastructure::Response::CacheState::Local);
-                    }
-                }
+                // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
+                response = stored_response;
+                response->set_cache_state(Infrastructure::Response::CacheState::Local);
             }
         }
     }
@@ -1868,7 +1826,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
@@ -1885,21 +1843,11 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             }
 
             // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
-            if (revalidating_flag->value() && forward_response->status() == 304) {
-                dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", http_request->current_url());
-
-                // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
-                //    Stored Responses upon Validation" chapter of HTTP Caching.
-                // NOTE: This updates the stored response in cache as well.
-                HTTP::update_header_fields(stored_response->header_list(), forward_response->header_list());
-
-                // 2. Set response to storedResponse.
-                response = stored_response;
-
-                // 3. Set response’s cache state to "validated".
-                if (response)
-                    response->set_cache_state(Infrastructure::Response::CacheState::Validated);
-            }
+            //     1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
+            //        Stored Responses upon Validation" chapter of HTTP Caching.
+            //     2. Set response to storedResponse.
+            //     3. Set response’s cache state to "validated".
+            // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
 
             // 5. If response is null, then:
             if (!response) {
