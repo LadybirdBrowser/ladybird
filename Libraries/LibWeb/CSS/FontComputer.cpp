@@ -63,13 +63,28 @@ struct Traits<Web::CSS::OwnFontFaceKey> : public DefaultTraits<Web::CSS::OwnFont
 };
 
 template<>
-struct Traits<Web::CSS::FontMatchingAlgorithmCacheKey> : public DefaultTraits<Web::CSS::FontMatchingAlgorithmCacheKey> {
-    static unsigned hash(Web::CSS::FontMatchingAlgorithmCacheKey const& key)
+struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::ComputedFontCacheKey> {
+    static unsigned hash(Web::CSS::ComputedFontCacheKey const& key)
     {
-        auto hash = key.family_name.hash();
-        hash = pair_int_hash(hash, key.weight);
-        hash = pair_int_hash(hash, key.slope);
-        hash = pair_int_hash(hash, Traits<float>::hash(key.font_size_in_pt));
+        unsigned hash = 0;
+        for (auto const& family_value : key.font_family->as_value_list().values()) {
+            if (family_value->is_keyword())
+                hash = pair_int_hash(hash, to_underlying(family_value->as_keyword().keyword()));
+            else if (family_value->is_string())
+                hash = pair_int_hash(hash, family_value->as_string().string_value().hash());
+            else if (family_value->is_custom_ident())
+                hash = pair_int_hash(hash, family_value->as_custom_ident().custom_ident().hash());
+            else
+                VERIFY_NOT_REACHED();
+        }
+
+        hash = pair_int_hash(hash, Traits<Web::CSSPixels>::hash(key.font_size));
+        hash = pair_int_hash(hash, key.font_slope);
+        hash = pair_int_hash(hash, Traits<double>::hash(key.font_weight));
+        hash = pair_int_hash(hash, Traits<double>::hash(key.font_width.value()));
+        for (auto const& [variation_name, variation_value] : key.font_variation_settings)
+            hash = pair_int_hash(hash, pair_int_hash(variation_name.hash(), Traits<double>::hash(variation_value)));
+
         return hash;
     }
 };
@@ -276,17 +291,9 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_desce
     return {};
 }
 
-RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
-{
-    FontMatchingAlgorithmCacheKey key { family_name, weight, slope, font_size_in_pt };
-    return m_font_matching_algorithm_cache.ensure(key, [&] {
-        return font_matching_algorithm_impl(family_name, weight, slope, font_size_in_pt);
-    });
-}
-
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm_impl(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
+RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
@@ -359,7 +366,23 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm_impl(Fl
     return {};
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
+{
+    ComputedFontCacheKey cache_key {
+        .font_family = font_family,
+        .font_size = font_size,
+        .font_slope = font_slope,
+        .font_weight = font_weight,
+        .font_width = font_width,
+        .font_variation_settings = font_variation_settings,
+    };
+
+    return m_computed_font_cache.ensure(cache_key, [&]() {
+        return compute_font_for_style_values_impl(font_family, font_size, font_slope, font_weight, font_width, font_variation_settings);
+    });
+}
+
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto width = round_to<int>(font_width.value());
@@ -494,7 +517,7 @@ Gfx::Font const& FontComputer::initial_font() const
 
 void FontComputer::did_load_font(FlyString const&)
 {
-    m_font_matching_algorithm_cache = {};
+    m_computed_font_cache = {};
     document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
 }
 
