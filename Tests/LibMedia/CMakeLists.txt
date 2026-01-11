@@ -16,4 +16,5 @@ endforeach()
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
+    target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
 endif()
