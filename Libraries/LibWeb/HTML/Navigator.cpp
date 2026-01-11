@@ -72,6 +72,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_plugin_array);
     visitor.visit(m_clipboard);
     visitor.visit(m_geolocation);
+    visitor.visit(m_gpu);
     visitor.visit(m_serial);
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
@@ -107,6 +108,13 @@ GC::Ref<Geolocation::Geolocation> Navigator::geolocation()
     if (!m_geolocation)
         m_geolocation = realm().create<Geolocation::Geolocation>(realm());
     return *m_geolocation;
+}
+
+GC::Ref<WebGPU::GPU> Navigator::gpu()
+{
+    if (!m_gpu)
+        m_gpu = realm().create<WebGPU::GPU>(realm());
+    return *m_gpu;
 }
 
 GC::Ref<Serial::Serial> Navigator::serial()

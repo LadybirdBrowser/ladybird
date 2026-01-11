@@ -1,0 +1,7 @@
+// https://gpuweb.github.io/gpuweb/#gpu-interface
+[Exposed=(Window,Worker), SecureContext]
+interface GPU {
+    // FIXME: Promise<GPUAdapter?> requestAdapter(optional GPURequestAdapterOptions options = {});
+    // FIXME: GPUTextureFormat getPreferredCanvasFormat();
+    // FIXME: [SameObject] readonly attribute WGSLLanguageFeatures wgslLanguageFeatures;
+};

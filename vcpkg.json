@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "4f95fba7a7d1101bb8acdeb51e4609686449701e",
+  "builtin-baseline": "af752f21c9d79ba3df9cb0250ce2233933f58486",
   "dependencies": [
     {
       "name": "angle",
@@ -218,6 +218,46 @@
     "woff2",
     "zlib"
   ],
+  "features": {
+    "webgpu-dawn" : {
+      "description": "Build Dawn WebGPU Backend",
+      "dependencies": [
+        {
+          "name": "dawn",
+          "platform": "android",
+          "default-features": false,
+          "features": [
+            "vulkan"
+          ]
+        },
+        {
+          "name": "dawn",
+          "platform": "linux | bsd",
+          "default-features": false,
+          "features": [
+            "vulkan",
+            "wayland"
+          ]
+        },
+        {
+          "name": "dawn",
+          "platform": "osx",
+          "default-features": false,
+          "features": [
+            "metal"
+          ]
+        },
+        {
+          "name": "dawn",
+          "platform": "windows",
+          "default-features": false,
+          "features": [
+            "d3d12"
+          ]
+        }
+      ]
+    }
+  },
   "overrides": [
     {
       "name": "angle",
@@ -230,6 +270,10 @@
     {
       "name": "curl",
       "version": "8.16.0#0"
+    },
+    {
+      "name": "dawn",
+      "version": "20251202.213730#2"
     },
     {
       "name": "dbus",
