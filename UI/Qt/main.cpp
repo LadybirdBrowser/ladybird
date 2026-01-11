@@ -12,6 +12,7 @@
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Settings.h>
+#include <signal.h>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #    include <QStyleHints>
@@ -37,6 +38,12 @@ bool is_using_dark_system_theme(QWidget& widget)
     return luma <= 0.5f;
 }
 
+static void handle_signal(int signal)
+{
+    VERIFY(signal == SIGINT || signal == SIGTERM);
+    Core::EventLoop::current().quit(0);
+}
+
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -45,6 +52,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto app = TRY(Ladybird::Application::create(arguments));
     WebView::BrowserProcess browser_process;
+
+    Core::EventLoop::register_signal(SIGINT, Ladybird::handle_signal);
+    Core::EventLoop::register_signal(SIGTERM, Ladybird::handle_signal);
 
     WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
 
