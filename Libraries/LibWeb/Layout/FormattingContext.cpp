@@ -1791,7 +1791,7 @@ CSSPixelRect FormattingContext::absolute_content_rect(Box const& box) const
 Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) const
 {
     // AD-HOC: <textarea> has no text-derived baseline, as its text is not part of CSS inline layout.
-    if (!box.has_children() || box.children_are_inline())
+    if (!box.has_children() || box.children_are_inline() || box.is_textarea_box())
         return nullptr;
     // To find the baseline of a box, we first look for the last in-flow child with at least one line box.
     auto const* last_box_child = box.last_child_of_type<Box>();
