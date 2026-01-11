@@ -141,7 +141,7 @@ Request::~Request()
         curl_slist_free_all(string_list);
 
     if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush(m_response_headers);
+        (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
 }
 
 void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
@@ -607,7 +607,7 @@ void Request::transfer_headers_to_client_if_needed()
         m_status_code = acquire_status_code();
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error()) {
+        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {
             m_cache_status = CacheStatus::NotCached;
             m_cache_entry_writer.clear();
         } else {
