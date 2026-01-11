@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+13 Pass
+4 Fail
+Pass	Alternations are tried left to right, with no backtracking into a lookbehind
+Pass	Back-references
+Fail	Back-references to captures inside the lookbehind
+Fail	Capturing matches
+Fail	Captures inside negative lookbehind
+Pass	Do not backtrack into a lookbehind
+Pass	Greedy loop
+Pass	Miscellaneous
+Fail	Mutual recursive capture/back references
+Pass	Negative lookbehinds
+Pass	Nested lookaround
+Pass	Simple fixed-length matches
+Pass	Sliced strings
+Pass	Start of line matches
+Pass	Sticky matches
+Pass	Variable-length matches
+Pass	Word boundary matches

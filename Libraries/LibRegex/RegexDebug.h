@@ -101,6 +101,17 @@ public:
 
         outln(m_file, " | {:20}", builder.to_byte_string());
 
+        if (is<OpCode_CheckSavedPosition>(opcode)) {
+            auto formatted_result = String::formatted("saved: {}", input.saved_positions.last());
+            ByteString saved = formatted_result.value().to_byte_string();
+            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", saved, "");
+        }
+        if (is<OpCode_CheckStepBack>(opcode) || is<OpCode_IncStepBack>(opcode)) {
+            auto formatted_result = String::formatted("step: {}", state.step_backs.last());
+            ByteString stepString = formatted_result.value().to_byte_string();
+            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", stepString, "");
+        }
+
         if (is<OpCode_Compare>(opcode)) {
             for (auto& line : to<OpCode_Compare>(opcode).variable_arguments_to_byte_string(input)) {
                 outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", line, "");

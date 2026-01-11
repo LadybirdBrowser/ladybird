@@ -276,6 +276,56 @@ ALWAYS_INLINE ExecutionResult OpCode_GoBack<ByteCode>::execute(MatchInput const&
 }
 
 template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_SetStepBack<ByteCode>::execute(MatchInput const&, MatchState& state) const
+{
+    state.step_backs.append(step());
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_IncStepBack<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.step_backs.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    size_t last_step_back = static_cast<size_t>(++state.step_backs.last());
+
+    if (last_step_back > state.string_position)
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    reverse_string_position(state, input.view, last_step_back);
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CheckStepBack<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    if (state.step_backs.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (input.saved_positions.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    // NOTE: Fail if the step-back would move before the lookbehind start.
+    if (static_cast<size_t>(state.step_backs.last()) > input.saved_positions.last())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+
+    // NOTE: Restores the string position saved before executing a lookbehind.
+    state.string_position = input.saved_positions.last();
+    state.string_position_in_code_units = input.saved_code_unit_positions.last();
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
+ALWAYS_INLINE ExecutionResult OpCode_CheckSavedPosition<ByteCode>::execute(MatchInput const& input, MatchState& state) const
+{
+    if (input.saved_positions.is_empty())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    if (state.string_position != input.saved_positions.last())
+        return ExecutionResult::Failed_ExecuteLowPrioForks;
+    state.step_backs.take_last();
+    return ExecutionResult::Continue;
+}
+
+template<typename ByteCode>
 ALWAYS_INLINE ExecutionResult OpCode_FailForks<ByteCode>::execute(MatchInput const& input, MatchState& state) const
 {
     input.fail_counter += state.forks_since_last_save;
@@ -498,7 +548,7 @@ ALWAYS_INLINE ExecutionResult OpCode_SaveRightCaptureGroup<ByteCode>::execute(Ma
 
     auto length = state.string_position - start_position;
 
-    if (start_position < match.column)
+    if (start_position < match.column && state.step_backs.is_empty())
         return ExecutionResult::Continue;
 
     VERIFY(start_position + length <= input.view.length_in_code_units());
