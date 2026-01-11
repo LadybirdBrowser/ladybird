@@ -35,6 +35,7 @@ enum class SerializeType : u8 {
     DOMQuad = 13,
     ImageData = 14,
     QuotaExceededError = 15,
+    AudioData = 16,
 };
 
 enum class TransferType : u8 {
