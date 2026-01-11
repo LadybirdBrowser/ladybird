@@ -374,19 +374,22 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duratio
     if (freshness_lifetime > current_age)
         return CacheLifetimeStatus::Fresh;
 
-    if (cache_control.has_value()) {
-        // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
-        // When present in an HTTP response, the stale-while-revalidate Cache-Control extension indicates that caches
-        // MAY serve the response it appears in after it becomes stale, up to the indicated number of seconds.
-        if (calculate_stale_while_revalidate_lifetime(headers, freshness_lifetime) > current_age)
-            return revalidation_status(CacheLifetimeStatus::StaleWhileRevalidate);
+    // AD-HOC: If there isn't a Cache-Control header, we have already at least determined the response is heuristically
+    //         cacheable by the time we reach here. Allow revalidating these responses. This is expected by WPT.
+    if (!cache_control.has_value())
+        return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
-        // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
-        // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT
-        // reuse that response to satisfy another request until it has been successfully validated by the origin
-        if (cache_control->contains("must-revalidate"sv, CaseSensitivity::CaseInsensitive))
-            return revalidation_status(CacheLifetimeStatus::MustRevalidate);
-    }
+    // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
+    // When present in an HTTP response, the stale-while-revalidate Cache-Control extension indicates that caches MAY
+    // serve the response it appears in after it becomes stale, up to the indicated number of seconds.
+    if (calculate_stale_while_revalidate_lifetime(headers, freshness_lifetime) > current_age)
+        return revalidation_status(CacheLifetimeStatus::StaleWhileRevalidate);
+
+    // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
+    // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT reuse
+    // that response to satisfy another request until it has been successfully validated by the origin
+    if (cache_control->contains("must-revalidate"sv, CaseSensitivity::CaseInsensitive))
+        return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     return CacheLifetimeStatus::Expired;
 }

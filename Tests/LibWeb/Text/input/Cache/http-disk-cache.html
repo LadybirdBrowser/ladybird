@@ -375,6 +375,14 @@
             response = await cacheFetch(url, {
                 headers: {
                     [TEST_CACHE_REQUEST_TIME_OFFSET]: 90 * 60,
+                    [TEST_CACHE_RESPOND_WITH_NOT_MODIFIED]: "1",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: 90 * 60,
                 },
             });
             expectCacheStatus(url, response, "written-to-cache");
