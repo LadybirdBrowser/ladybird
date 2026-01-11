@@ -64,7 +64,7 @@ public:
     WebIDL::ExceptionOr<void> disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output);
 
     // https://webaudio.github.io/web-audio-api/#dom-audionode-context
-    GC::Ref<BaseAudioContext const> context() const
+    GC::Ref<BaseAudioContext> context()
     {
         // The BaseAudioContext which owns this AudioNode.
         return m_context;

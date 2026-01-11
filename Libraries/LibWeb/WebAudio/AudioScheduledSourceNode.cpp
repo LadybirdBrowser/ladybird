@@ -8,6 +8,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/ControlMessage.h>
 
 namespace Web::WebAudio {
 
@@ -39,18 +41,22 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     if (source_started())
         return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has already started"_utf16);
 
-    // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
-    // A RangeError exception MUST be thrown if when is negative.
+    // 2. Check for any errors that must be thrown due to parameter constraints described below.
+    //    If any exception is thrown during this step, abort those steps.
+    //    A RangeError exception MUST be thrown if when is negative.
     if (when < 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
 
     // 3. Set the internal slot [[source started]] on this AudioScheduledSourceNode to true.
     set_source_started(true);
 
-    // FIXME: 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
+    // 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
+    // FIXME: Include a stable source id so the rendering thread can route this message to the correct AudioScheduledSourceNode
+    // once render-thread scheduling is implemented.
+    context()->queue_control_message(StartSource { .when = when });
+
     // FIXME: 5. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
 
-    dbgln("FIXME: Implement AudioScheduledSourceNode::start");
     return {};
 }
 
@@ -62,13 +68,15 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
         return WebIDL::InvalidStateError::create(realm(), "AudioScheduledSourceNode source has not been started"_utf16);
 
     // 2. Check for any errors that must be thrown due to parameter constraints described below.
-    // A RangeError exception MUST be thrown if when is negative.
+    //    A RangeError exception MUST be thrown if when is negative.
     if (when < 0)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
 
-    // FIXME: 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
+    // 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
+    // FIXME: Include a stable source id so the rendering thread can route this message to the correct AudioScheduledSourceNode
+    // once render-thread scheduling is implemented.
+    context()->queue_control_message(StopSource { .when = when });
 
-    dbgln("FIXME: Implement AudioScheduledSourceNode::stop");
     return {};
 }
 

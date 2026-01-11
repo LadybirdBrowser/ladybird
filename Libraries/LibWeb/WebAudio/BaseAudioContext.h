@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/ChannelSplitterNode.h>
 #include <LibWeb/WebAudio/ConstantSourceNode.h>
+#include <LibWeb/WebAudio/ControlMessage.h>
 #include <LibWeb/WebAudio/DelayNode.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebAudio/ScriptProcessorNode.h>
@@ -25,6 +27,7 @@
 namespace Web::WebAudio {
 
 class AudioDestinationNode;
+class ControlMessageQueue;
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 class BaseAudioContext : public DOM::EventTarget {
@@ -84,6 +87,8 @@ public:
 
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
+    void queue_control_message(ControlMessage);
+
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
@@ -110,6 +115,8 @@ private:
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
 
     HTML::UniqueTaskSource m_media_element_event_task_source {};
+
+    NonnullOwnPtr<ControlMessageQueue> m_control_message_queue;
 };
 
 }

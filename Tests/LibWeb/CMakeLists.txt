@@ -1,6 +1,7 @@
 set(TEST_SOURCES
     TestCSSIDSpeed.cpp
     TestContentFilter.cpp
+    TestControlMessageQueue.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
     TestCSSSyntaxParser.cpp
