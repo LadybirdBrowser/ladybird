@@ -71,7 +71,7 @@
 
 namespace Web::Fetch::Fetching {
 
-bool g_http_memory_cache_enabled = false;
+static bool g_http_memory_cache_enabled = false;
 
 #define TRY_OR_IGNORE(expression)                                                                    \
     ({                                                                                               \
