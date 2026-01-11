@@ -337,6 +337,13 @@
     "normal",
     "none"
   ],
+  "font-metric": [
+    "ex-height",
+    "cap-height",
+    "ch-width",
+    "ic-width",
+    "ic-height"
+  ],
   "font-style": [
     "normal",
     "italic",
