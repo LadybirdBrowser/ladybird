@@ -24,22 +24,20 @@ NavigableContainerViewport::NavigableContainerViewport(DOM::Document& document, 
 
 NavigableContainerViewport::~NavigableContainerViewport() = default;
 
-void NavigableContainerViewport::prepare_for_replaced_layout()
+CSS::SizeWithAspectRatio NavigableContainerViewport::natural_size() const
 {
-    if (is<HTML::HTMLObjectElement>(dom_node())) {
-        if (auto const* content_document = dom_node().content_document_without_origin_check()) {
-            if (auto const* root_element = content_document->document_element(); root_element && root_element->is_svg_svg_element()) {
-                auto natural_metrics = SVG::SVGSVGElement::negotiate_natural_metrics(static_cast<SVG::SVGSVGElement const&>(*root_element));
-                set_natural_width(natural_metrics.width);
-                set_natural_height(natural_metrics.height);
-                set_natural_aspect_ratio(natural_metrics.aspect_ratio);
-                return;
-            }
+    if (!is<HTML::HTMLObjectElement>(dom_node()))
+        return {};
+
+    if (auto const* content_document = dom_node().content_document_without_origin_check()) {
+        if (auto const* root = content_document->document_element();
+            root && root->is_svg_svg_element()) {
+
+            auto metrics = SVG::SVGSVGElement::negotiate_natural_metrics(static_cast<SVG::SVGSVGElement const&>(*root));
+            return { metrics.width, metrics.height, metrics.aspect_ratio };
         }
     }
-    // FIXME: Do proper error checking, etc.
-    set_natural_width(dom_node().get_attribute_value(HTML::AttributeNames::width).to_number<int>().value_or(300));
-    set_natural_height(dom_node().get_attribute_value(HTML::AttributeNames::height).to_number<int>().value_or(150));
+    return {};
 }
 
 void NavigableContainerViewport::did_set_content_size()

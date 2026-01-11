@@ -97,10 +97,6 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
     // 3. Determine the flex base size and hypothetical main size of each item
     for (auto& item : m_flex_items) {
-        if (item.box->is_replaced_box()) {
-            // FIXME: Get rid of prepare_for_replaced_layout() and make replaced elements figure out their intrinsic size lazily.
-            static_cast<ReplacedBox&>(*item.box).prepare_for_replaced_layout();
-        }
         determine_flex_base_size(item);
     }
 
@@ -775,8 +771,9 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
     //         - using stretch-fit main size if the flex basis is indefinite, there is no
     //           intrinsic size and no cross size to resolve the ratio against.
     //         - in response to cross size min/max constraints.
-    if (item.box->has_natural_aspect_ratio()) {
-        if (!item.used_flex_basis_is_definite && !item.box->has_natural_width() && !item.box->has_natural_height() && !has_definite_cross_size(item)) {
+    auto auto_size = item.box->auto_content_box_size();
+    if (auto_size.has_aspect_ratio()) {
+        if (!item.used_flex_basis_is_definite && !auto_size.has_width() && !auto_size.has_height() && !has_definite_cross_size(item)) {
             item.flex_base_size = inner_main_size(m_flex_container_state);
         }
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));
@@ -1187,7 +1184,8 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     if (item.box->has_preferred_aspect_ratio()) {
-        if (item.used_flex_basis_is_definite || (item.box->has_natural_width() && item.box->has_natural_height())) {
+        auto auto_size = item.box->auto_content_box_size();
+        if (item.used_flex_basis_is_definite || (auto_size.has_width() && auto_size.has_height())) {
             item.hypothetical_cross_size = calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box->preferred_aspect_ratio().value());
             return;
         }

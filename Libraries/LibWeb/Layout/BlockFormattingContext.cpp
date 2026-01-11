@@ -199,11 +199,6 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     }
 
     if (box_is_sized_as_replaced_element(box, available_space)) {
-        // FIXME: This should not be done *by* ReplacedBox
-        if (auto* replaced = as_if<ReplacedBox>(box)) {
-            // FIXME: This const_cast is gross.
-            const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
-        }
         compute_width_for_block_level_replaced_element_in_normal_flow(box, available_space);
         if (box.is_floating()) {
             // 10.3.6 Floating, replaced elements:
@@ -851,7 +846,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     resolve_used_height_if_not_treated_as_auto(box, available_space_for_height_resolution);
 
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
-    if (box.is_replaced_box() || box.display().is_flex_inside()) {
+    if (box.has_auto_content_box_size() || box.display().is_flex_inside()) {
         resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution);
     }
 
@@ -1145,7 +1140,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     resolve_used_height_if_not_treated_as_auto(box, available_space);
 
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
-    if (box.is_replaced_box() || box.display().is_flex_inside()) {
+    if (box.has_auto_content_box_size() || box.display().is_flex_inside()) {
         resolve_used_height_if_treated_as_auto(box, available_space);
     }
 

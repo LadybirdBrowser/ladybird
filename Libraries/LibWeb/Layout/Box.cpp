@@ -31,32 +31,15 @@ Box::~Box()
 {
 }
 
-Optional<CSSPixels> Box::natural_width() const
+CSS::SizeWithAspectRatio Box::auto_content_box_size() const
 {
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
     if (has_size_containment())
-        return 0;
-    return m_natural_width;
-}
-Optional<CSSPixels> Box::natural_height() const
-{
-    // https://drafts.csswg.org/css-contain-2/#containment-size
-    // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
-    // ratio.
-    if (has_size_containment())
-        return 0;
-    return m_natural_height;
-}
-Optional<CSSPixelFraction> Box::natural_aspect_ratio() const
-{
-    // https://drafts.csswg.org/css-contain-2/#containment-size
-    // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
-    // ratio.
-    if (has_size_containment())
-        return {};
-    return m_natural_aspect_ratio;
+        return { 0, 0, {} };
+
+    return compute_auto_content_box_size();
 }
 
 void Box::visit_edges(Cell::Visitor& visitor)
@@ -82,14 +65,18 @@ Painting::PaintableBox const* Box::paintable_box() const
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
 {
-    auto computed_aspect_ratio = computed_values().aspect_ratio();
-    if (computed_aspect_ratio.use_natural_aspect_ratio_if_available && natural_aspect_ratio().has_value())
-        return natural_aspect_ratio();
+    auto const& computed_aspect_ratio = computed_values().aspect_ratio();
+
+    // https://www.w3.org/TR/css-contain-2/#containment-size
+    if (!has_size_containment() && computed_aspect_ratio.use_natural_aspect_ratio_if_available) {
+        if (auto auto_size = auto_content_box_size(); auto_size.has_aspect_ratio())
+            return auto_size.aspect_ratio;
+    }
 
     if (!computed_aspect_ratio.preferred_ratio.has_value())
         return {};
 
-    auto ratio = computed_aspect_ratio.preferred_ratio.release_value();
+    auto ratio = computed_aspect_ratio.preferred_ratio.value();
     if (ratio.is_degenerate())
         return {};
 

@@ -521,8 +521,9 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
 
     // If 'height' and 'width' both have computed values of 'auto' and the element also has an intrinsic width,
     // then that intrinsic width is the used value of 'width'.
-    if (computed_height.is_auto() && computed_width.is_auto() && box.has_natural_width())
-        return box.natural_width().value();
+    auto intrinsic = box.auto_content_box_size();
+    if (computed_height.is_auto() && computed_width.is_auto() && intrinsic.has_width())
+        return intrinsic.width.value();
 
     // If 'height' and 'width' both have computed values of 'auto' and the element has no intrinsic width,
     // but does have an intrinsic height and intrinsic ratio;
@@ -530,7 +531,7 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
     // 'height' has some other computed value, and the element does have an intrinsic ratio; then the used value of 'width' is:
     //
     //     (used height) * (intrinsic ratio)
-    if ((computed_height.is_auto() && computed_width.is_auto() && !box.has_natural_width() && box.has_natural_height() && box.has_preferred_aspect_ratio())
+    if ((computed_height.is_auto() && computed_width.is_auto() && !intrinsic.has_width() && intrinsic.has_height() && box.has_preferred_aspect_ratio())
         || (computed_width.is_auto() && !computed_height.is_auto() && box.has_preferred_aspect_ratio())) {
         return compute_height_for_replaced_element(box, available_space) * box.preferred_aspect_ratio().value();
     }
@@ -539,13 +540,13 @@ CSSPixels FormattingContext::tentative_width_for_replaced_element(Box const& box
     // then the used value of 'width' is undefined in CSS 2.2. However, it is suggested that, if the containing block's width does not itself
     // depend on the replaced element's width, then the used value of 'width' is calculated from the constraint equation used for block-level,
     // non-replaced elements in normal flow.
-    if (computed_height.is_auto() && computed_width.is_auto() && !box.has_natural_width() && !box.has_natural_height() && box.has_preferred_aspect_ratio()) {
+    if (computed_height.is_auto() && computed_width.is_auto() && !intrinsic.has_width() && !intrinsic.has_height() && box.has_preferred_aspect_ratio()) {
         return calculate_stretch_fit_width(box, available_space.width);
     }
 
     // Otherwise, if 'width' has a computed value of 'auto', and the element has an intrinsic width, then that intrinsic width is the used value of 'width'.
-    if (computed_width.is_auto() && box.has_natural_width())
-        return box.natural_width().value();
+    if (computed_width.is_auto() && intrinsic.has_width())
+        return intrinsic.width.value();
 
     // Otherwise, if 'width' has a computed value of 'auto', but none of the conditions above are met, then the used value of 'width' becomes 300px.
     // If 300px is too wide to fit the device, UAs should use the width of the largest rectangle that has a 2:1 ratio and fits the device instead.
@@ -615,10 +616,11 @@ CSSPixels FormattingContext::compute_width_for_replaced_element(Box const& box, 
 // https://www.w3.org/TR/CSS22/visudet.html#inline-replaced-height
 CSSPixels FormattingContext::tentative_height_for_replaced_element(Box const& box, CSS::Size const& computed_height, AvailableSpace const& available_space) const
 {
+    auto intrinsic = box.auto_content_box_size();
     // If 'height' and 'width' both have computed values of 'auto' and the element also has
     // an intrinsic height, then that intrinsic height is the used value of 'height'.
-    if (should_treat_width_as_auto(box, available_space) && should_treat_height_as_auto(box, available_space) && box.has_natural_height())
-        return box.natural_height().value();
+    if (should_treat_width_as_auto(box, available_space) && should_treat_height_as_auto(box, available_space) && intrinsic.has_height())
+        return intrinsic.height.value();
 
     // Otherwise, if 'height' has a computed value of 'auto', and the element has an intrinsic ratio then the used value of 'height' is:
     //
@@ -627,8 +629,8 @@ CSSPixels FormattingContext::tentative_height_for_replaced_element(Box const& bo
         return m_state.get(box).content_width() / box.preferred_aspect_ratio().value();
 
     // Otherwise, if 'height' has a computed value of 'auto', and the element has an intrinsic height, then that intrinsic height is the used value of 'height'.
-    if (computed_height.is_auto() && box.has_natural_height())
-        return box.natural_height().value();
+    if (computed_height.is_auto() && intrinsic.has_height())
+        return intrinsic.height.value();
 
     // Otherwise, if 'height' has a computed value of 'auto', but none of the conditions above are met,
     // then the used value of 'height' must be set to the height of the largest rectangle that has a 2:1 ratio, has a height not greater than 150px,
@@ -658,15 +660,15 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
     // use the algorithm under 'Minimum and maximum widths'
     // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
     // to find the used width and height.
-    if ((computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio())
+    if ((computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio())) {
         // NOTE: This is a special case where calling tentative_width_for_replaced_element() would call us right back,
         //       and we'd end up in an infinite loop. So we need to handle this case separately.
-        && !(!box.has_natural_width() && box.has_natural_height())) {
-        CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space);
-        CSSPixels h = used_height;
-        used_height = solve_replaced_size_constraint(w, h, box, available_space).height();
+        if (auto intrinsic = box.auto_content_box_size(); intrinsic.has_width() || !intrinsic.has_height()) {
+            CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space);
+            CSSPixels h = used_height;
+            used_height = solve_replaced_size_constraint(w, h, box, available_space).height();
+        }
     }
-
     // 2. If this tentative height is greater than 'max-height', the rules above are applied again,
     //    but this time using the value of 'max-height' as the computed value for 'height'.
     if (!should_treat_max_height_as_none(box, available_space.height)) {
@@ -875,10 +877,6 @@ void FormattingContext::compute_width_for_absolutely_positioned_replaced_element
     // but the rest of section 10.3.7 is replaced by the following rules:
 
     // 1. The used value of 'width' is determined as for inline replaced elements.
-    if (auto const* replaced = as_if<ReplacedBox>(box)) {
-        // FIXME: This const_cast is gross.
-        const_cast<ReplacedBox&>(*replaced).prepare_for_replaced_layout();
-    }
 
     auto width = compute_width_for_replaced_element(box, available_space);
     auto width_of_containing_block = available_space.width.to_px_or_zero();
@@ -1600,9 +1598,8 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
         if (auto const& max_width = box.computed_values().max_width(); max_width.is_percentage())
             return max_width.to_px(box, 0);
     }
-
-    if (box.has_natural_width())
-        return *box.natural_width();
+    if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
+        return auto_size.width.value();
 
     // Boxes with no children have zero intrinsic width.
     if (!box.has_children())
@@ -1634,8 +1631,9 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
 CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box) const
 {
-    if (box.has_natural_width())
-        return *box.natural_width();
+
+    if (auto auto_size = box.auto_content_box_size(); auto_size.has_width())
+        return auto_size.width.value();
 
     // Boxes with no children have zero intrinsic width.
     if (!box.has_children())
@@ -1680,10 +1678,10 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
     if (box.is_block_container() || box.display().is_table_inside())
         return calculate_max_content_height(box, width);
 
-    if (box.has_natural_height()) {
-        if (box.has_natural_aspect_ratio())
-            return width / *box.natural_aspect_ratio();
-        return *box.natural_height();
+    if (auto auto_size = box.auto_content_box_size(); auto_size.has_height()) {
+        if (auto_size.has_aspect_ratio())
+            return width / auto_size.aspect_ratio.value();
+        return auto_size.height.value();
     }
 
     // Boxes with no children have zero intrinsic height.
@@ -1715,8 +1713,8 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
     if (box.has_preferred_aspect_ratio())
         return width / *box.preferred_aspect_ratio();
 
-    if (box.has_natural_height())
-        return *box.natural_height();
+    if (auto auto_size = box.auto_content_box_size(); auto_size.has_height())
+        return auto_size.height.value();
 
     // Boxes with no children have zero intrinsic height.
     if (!box.has_children())
@@ -1902,7 +1900,7 @@ bool FormattingContext::should_treat_width_as_auto(Box const& box, AvailableSpac
     // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for width...
     if (box.has_preferred_aspect_ratio() && computed_width.is_intrinsic_sizing_constraint()) {
         // If the box has no natural height to resolve the aspect ratio, we treat the width as auto.
-        if (!box.has_natural_height())
+        if (!box.auto_content_box_size().has_height())
             return true;
         // If the box has definite height, we can resolve the width through the aspect ratio.
         if (m_state.get(box).has_definite_height())
@@ -1967,7 +1965,7 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
     // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
     if (box.has_preferred_aspect_ratio() && computed_height.is_intrinsic_sizing_constraint()) {
         // If the box has no natural width to resolve the aspect ratio, we treat the height as auto.
-        if (!box.has_natural_width())
+        if (!box.auto_content_box_size().has_width())
             return true;
         // If the box has definite width, we can resolve the height through the aspect ratio.
         if (m_state.get(box).has_definite_width())
@@ -2146,7 +2144,7 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
     if (is<ReplacedBox>(box))
         return true;
 
-    if (box.has_preferred_aspect_ratio()) {
+    if (box.has_preferred_aspect_ratio() || box.has_auto_content_box_size()) {
         // From CSS2:
         // If height and width both have computed values of auto and the element has an intrinsic ratio but no intrinsic height or width,
         // then the used value of width is undefined in CSS 2.
@@ -2155,10 +2153,12 @@ bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, Availab
 
         // AD-HOC: If box has preferred aspect ratio but width and height are not specified, then we should
         //         size it as a normal box to match other browsers.
+
+        auto auto_size = box.auto_content_box_size();
         if (should_treat_width_as_auto(box, available_space)
             && should_treat_height_as_auto(box, available_space)
-            && !box.has_natural_width()
-            && !box.has_natural_height()) {
+            && !auto_size.has_width()
+            && !auto_size.has_height()) {
             return false;
         }
         return true;

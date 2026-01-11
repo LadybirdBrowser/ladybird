@@ -387,12 +387,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         return generate_next_item();
     }
 
-    if (is<Layout::ReplacedBox>(*m_current_node)) {
-        auto const& replaced_box = static_cast<Layout::ReplacedBox const&>(*m_current_node);
-        // FIXME: This const_cast is gross.
-        const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
-    }
-
     auto const& box = as<Layout::Box>(*m_current_node);
     auto const& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
