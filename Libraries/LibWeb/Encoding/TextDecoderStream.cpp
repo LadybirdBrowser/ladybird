@@ -144,8 +144,8 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::Value 
     // 4. While true:
     while (true) {
         // 1. Let item be the result of reading from decoder's I/O queue.
+        // 2. If item is end-of-queue, then:
         if (m_io_queue.is_empty()) {
-            // 2. If item is end-of-queue, then:
             // 1. Let outputChunk be the result of running serialize I/O queue with decoder and output.
             auto output_chunk = TRY(serialize_io_queue(output));
 
