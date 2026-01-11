@@ -233,7 +233,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
     return {};
 }
 
-// https://encoding.spec.whatwg.org/#serialize-io-queue
+// https://encoding.spec.whatwg.org/#concept-td-serialize
 WebIDL::ExceptionOr<String> TextDecoderStream::serialize_io_queue(Vector<u32> const& queue)
 {
     auto& vm = this->vm();
