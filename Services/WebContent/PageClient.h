@@ -53,7 +53,11 @@ public:
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport_size(Web::DevicePixelSize const&);
-    void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index) { m_screen_rect = rects[main_screen_index]; }
+    void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index)
+    {
+        m_all_screen_rects = rects;
+        m_main_screen_index = main_screen_index;
+    }
     void set_device_pixels_per_css_pixel(float device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     void set_maximum_frames_per_second(u64 maximum_frames_per_second);
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
@@ -106,7 +110,8 @@ private:
     virtual bool is_url_suitable_for_same_process_navigation(URL::URL const& current_url, URL::URL const& target_url) const override;
     virtual void request_new_process_for_navigation(URL::URL const&) override;
     virtual Gfx::Palette palette() const override;
-    virtual Web::DevicePixelRect screen_rect() const override { return m_screen_rect; }
+    virtual Web::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
+    virtual size_t screen_count() const override { return m_all_screen_rects.size(); }
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
@@ -185,7 +190,8 @@ private:
     PageHost& m_owner;
     GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
-    Web::DevicePixelRect m_screen_rect;
+    Vector<Web::DevicePixelRect, 4> m_all_screen_rects { Web::DevicePixelRect {} };
+    size_t m_main_screen_index { 0 };
     float m_device_pixels_per_css_pixel { 1.0f };
     double m_maximum_frames_per_second { 60.0 };
     u64 m_id { 0 };
