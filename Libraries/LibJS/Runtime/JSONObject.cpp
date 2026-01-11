@@ -111,7 +111,12 @@ ThrowCompletionOr<Optional<String>> JSONObject::stringify_impl(VM& vm, Value val
 
     auto wrapper = Object::create(realm, realm.intrinsics().object_prototype());
     MUST(wrapper->create_data_property_or_throw(Utf16String {}, value));
-    return serialize_json_property(vm, state, Utf16String {}, wrapper);
+
+    bool wrote_value = TRY(serialize_json_property(vm, state, Utf16String {}, wrapper));
+    if (!wrote_value)
+        return Optional<String> {};
+
+    return state.builder.to_string_without_validation();
 }
 
 // 25.5.2 JSON.stringify ( value [ , replacer [ , space ] ] ), https://tc39.es/ecma262/#sec-json.stringify
@@ -133,8 +138,11 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::stringify)
 
 // 25.5.2.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/ecma262/#sec-serializejsonproperty
 // 1.4.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/proposal-json-parse-with-source/#sec-serializejsonproperty
-ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object* holder)
+// Returns true if a value was serialized, false if the value was undefined (should be omitted).
+ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object* holder)
 {
+    auto& builder = state.builder;
+
     // 1. Let value be ? Get(holder, key).
     auto value = TRY(holder->get(key));
 
@@ -163,7 +171,8 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
         // a. If value has an [[IsRawJSON]] internal slot, then
         if (is<RawJSONObject>(value_object)) {
             // i. Return ! Get(value, "rawJSON").
-            return MUST(value_object.get(vm.names.rawJSON)).as_string().utf8_string();
+            builder.append(MUST(value_object.get(vm.names.rawJSON)).as_string().utf8_string());
+            return true;
         }
         // b. If value has a [[NumberData]] internal slot, then
         if (is<NumberObject>(value_object)) {
@@ -188,26 +197,35 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
     }
 
     // 5. If value is null, return "null".
-    if (value.is_null())
-        return "null"_string;
+    if (value.is_null()) {
+        builder.append("null"sv);
+        return true;
+    }
 
     // 6. If value is true, return "true".
     // 7. If value is false, return "false".
-    if (value.is_boolean())
-        return value.as_bool() ? "true"_string : "false"_string;
+    if (value.is_boolean()) {
+        builder.append(value.as_bool() ? "true"sv : "false"sv);
+        return true;
+    }
 
     // 8. If Type(value) is String, return QuoteJSONString(value).
-    if (value.is_string())
-        return quote_json_string(value.as_string().utf16_string_view());
+    if (value.is_string()) {
+        quote_json_string(builder, value.as_string().utf16_string_view());
+        return true;
+    }
 
     // 9. If Type(value) is Number, then
     if (value.is_number()) {
         // a. If value is finite, return ! ToString(value).
-        if (value.is_finite_number())
-            return MUST(value.to_string(vm));
+        if (value.is_finite_number()) {
+            number_to_string(builder, value.as_double());
+            return true;
+        }
 
         // b. Return "null".
-        return "null"_string;
+        builder.append("null"sv);
+        return true;
     }
 
     // 10. If Type(value) is BigInt, throw a TypeError exception.
@@ -220,38 +238,73 @@ ThrowCompletionOr<Optional<String>> JSONObject::serialize_json_property(VM& vm, 
         auto is_array = TRY(value.is_array(vm));
 
         // b. If isArray is true, return ? SerializeJSONArray(state, value).
-        if (is_array)
-            return TRY(serialize_json_array(vm, state, value.as_object()));
+        if (is_array) {
+            TRY(serialize_json_array(vm, state, value.as_object()));
+            return true;
+        }
 
         // c. Return ? SerializeJSONObject(state, value).
-        return TRY(serialize_json_object(vm, state, value.as_object()));
+        TRY(serialize_json_object(vm, state, value.as_object()));
+        return true;
     }
 
     // 12. Return undefined.
-    return Optional<String> {};
+    return false;
+}
+
+static void write_indent(StringBuilder& builder, StringView gap, size_t depth)
+{
+    for (size_t i = 0; i < depth; ++i)
+        builder.append(gap);
 }
 
 // 25.5.2.4 SerializeJSONObject ( state, value ), https://tc39.es/ecma262/#sec-serializejsonobject
-ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifyState& state, Object& object)
+ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState& state, Object& object)
 {
     if (state.seen_objects.contains(&object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 
     state.seen_objects.set(&object);
-    String previous_indent = state.indent;
-    state.indent = MUST(String::formatted("{}{}", state.indent, state.gap));
-    Vector<String> property_strings;
+    ++state.indent_depth;
+
+    auto& builder = state.builder;
+    builder.append('{');
+    size_t position_after_open_brace = builder.length();
+    bool first = true;
 
     auto process_property = [&](PropertyKey const& key) -> ThrowCompletionOr<void> {
         if (key.is_symbol())
             return {};
-        auto serialized_property_string = TRY(serialize_json_property(vm, state, key, &object));
-        if (serialized_property_string.has_value()) {
-            property_strings.append(MUST(String::formatted(
-                "{}:{}{}",
-                quote_json_string(key.to_string()),
-                state.gap.is_empty() ? "" : " ",
-                serialized_property_string)));
+
+        // Mark position before writing anything for this property
+        size_t mark = builder.length();
+
+        // Write separator (comma and possibly newline/indent)
+        if (!first) {
+            builder.append(',');
+            if (!state.gap.is_empty()) {
+                builder.append('\n');
+                write_indent(builder, state.gap, state.indent_depth);
+            }
+        } else if (!state.gap.is_empty()) {
+            builder.append('\n');
+            write_indent(builder, state.gap, state.indent_depth);
+        }
+
+        // Write key and colon
+        quote_json_string(builder, key.to_string());
+        builder.append(':');
+        if (!state.gap.is_empty())
+            builder.append(' ');
+
+        // Serialize value
+        bool wrote_value = TRY(serialize_json_property(vm, state, key, &object));
+
+        if (wrote_value) {
+            first = false;
+        } else {
+            // Rollback - value was undefined, remove everything we wrote for this property
+            builder.trim(builder.length() - mark);
         }
         return {};
     };
@@ -265,112 +318,74 @@ ThrowCompletionOr<String> JSONObject::serialize_json_object(VM& vm, StringifySta
         for (auto& property : property_list)
             TRY(process_property(property.as_string().utf16_string()));
     }
-    StringBuilder builder;
-    if (property_strings.is_empty()) {
-        builder.append("{}"sv);
-    } else {
-        bool first = true;
-        builder.append('{');
-        if (state.gap.is_empty()) {
-            for (auto& property_string : property_strings) {
-                if (!first)
-                    builder.append(',');
-                first = false;
-                builder.append(property_string);
-            }
-        } else {
-            builder.append('\n');
-            builder.append(state.indent);
-            auto separator = MUST(String::formatted(",\n{}", state.indent));
-            for (auto& property_string : property_strings) {
-                if (!first)
-                    builder.append(separator);
-                first = false;
-                builder.append(property_string);
-            }
-            builder.append('\n');
-            builder.append(previous_indent);
-        }
-        builder.append('}');
+
+    // Close the object
+    --state.indent_depth;
+    if (builder.length() > position_after_open_brace && !state.gap.is_empty()) {
+        builder.append('\n');
+        write_indent(builder, state.gap, state.indent_depth);
     }
+    builder.append('}');
 
     state.seen_objects.remove(&object);
-    state.indent = previous_indent;
-    return builder.to_string_without_validation();
+    return {};
 }
 
 // 25.5.2.5 SerializeJSONArray ( state, value ), https://tc39.es/ecma262/#sec-serializejsonarray
-ThrowCompletionOr<String> JSONObject::serialize_json_array(VM& vm, StringifyState& state, Object& object)
+ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState& state, Object& object)
 {
     if (state.seen_objects.contains(&object))
         return vm.throw_completion<TypeError>(ErrorType::JsonCircular);
 
     state.seen_objects.set(&object);
-    String previous_indent = state.indent;
-    state.indent = MUST(String::formatted("{}{}", state.indent, state.gap));
-    Vector<String> property_strings;
+    ++state.indent_depth;
 
+    auto& builder = state.builder;
     auto length = TRY(length_of_array_like(vm, object));
 
-    // Optimization
-    property_strings.ensure_capacity(length);
+    builder.append('[');
 
     for (size_t i = 0; i < length; ++i) {
-        auto serialized_property_string = TRY(serialize_json_property(vm, state, i, &object));
-        if (!serialized_property_string.has_value()) {
-            property_strings.append("null"_string);
-        } else {
-            property_strings.append(serialized_property_string.release_value());
+        // Write separator
+        if (i > 0) {
+            builder.append(',');
+            if (!state.gap.is_empty()) {
+                builder.append('\n');
+                write_indent(builder, state.gap, state.indent_depth);
+            }
+        } else if (!state.gap.is_empty()) {
+            builder.append('\n');
+            write_indent(builder, state.gap, state.indent_depth);
         }
+
+        // Serialize value (undefined becomes null for arrays)
+        bool wrote_value = TRY(serialize_json_property(vm, state, i, &object));
+        if (!wrote_value)
+            builder.append("null"sv);
     }
 
-    StringBuilder builder;
-    if (property_strings.is_empty()) {
-        builder.append("[]"sv);
-    } else {
-        if (state.gap.is_empty()) {
-            builder.append('[');
-            bool first = true;
-            for (auto& property_string : property_strings) {
-                if (!first)
-                    builder.append(',');
-                first = false;
-                builder.append(property_string);
-            }
-            builder.append(']');
-        } else {
-            builder.append("[\n"sv);
-            builder.append(state.indent);
-            auto separator = MUST(String::formatted(",\n{}", state.indent));
-            bool first = true;
-            for (auto& property_string : property_strings) {
-                if (!first)
-                    builder.append(separator);
-                first = false;
-                builder.append(property_string);
-            }
-            builder.append('\n');
-            builder.append(previous_indent);
-            builder.append(']');
-        }
+    // Close the array
+    --state.indent_depth;
+    if (length > 0 && !state.gap.is_empty()) {
+        builder.append('\n');
+        write_indent(builder, state.gap, state.indent_depth);
     }
+    builder.append(']');
 
     state.seen_objects.remove(&object);
-    state.indent = previous_indent;
-    return builder.to_string_without_validation();
+    return {};
 }
 
 // 25.5.2.2 QuoteJSONString ( value ), https://tc39.es/ecma262/#sec-quotejsonstring
-String JSONObject::quote_json_string(Utf16View const& string)
+void JSONObject::quote_json_string(StringBuilder& builder, Utf16View const& string)
 {
     // 1. Let product be the String value consisting solely of the code unit 0x0022 (QUOTATION MARK).
-    StringBuilder builder;
     builder.append('"');
 
     // 2. For each code point C of StringToCodePoints(value), do
     for (auto code_point : string) {
-        // a. If C is listed in the “Code Point” column of Table 70, then
-        // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the “Escape Sequence” column of the corresponding row.
+        // a. If C is listed in the "Code Point" column of Table 70, then
+        // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the "Escape Sequence" column of the corresponding row.
         switch (code_point) {
         case '\b':
             builder.append("\\b"sv);
@@ -410,9 +425,6 @@ String JSONObject::quote_json_string(Utf16View const& string)
 
     // 3. Set product to the string-concatenation of product and the code unit 0x0022 (QUOTATION MARK).
     builder.append('"');
-
-    // 4. Return product.
-    return builder.to_string_without_validation();
 }
 
 // 25.5.1 JSON.parse ( text [ , reviver ] ), https://tc39.es/ecma262/#sec-json.parse

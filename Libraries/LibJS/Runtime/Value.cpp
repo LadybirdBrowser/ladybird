@@ -72,7 +72,7 @@ static ALWAYS_INLINE bool both_bigint(Value const& lhs, Value const& rhs)
 
 // 6.1.6.1.20 Number::toString ( x ), https://tc39.es/ecma262/#sec-numeric-types-number-tostring
 // Implementation for radix = 10
-static void number_to_string_impl(StringBuilder& builder, double d, NumberToStringMode mode)
+void number_to_string(StringBuilder& builder, double d, NumberToStringMode mode)
 {
     auto convert_to_decimal_digits_array = [](auto x, auto& digits, auto& length) {
         for (; x; x /= 10)
@@ -207,21 +207,21 @@ static void number_to_string_impl(StringBuilder& builder, double d, NumberToStri
 String number_to_string(double d, NumberToStringMode mode)
 {
     StringBuilder builder;
-    number_to_string_impl(builder, d, mode);
+    number_to_string(builder, d, mode);
     return MUST(builder.to_string());
 }
 
 Utf16String number_to_utf16_string(double d, NumberToStringMode mode)
 {
     StringBuilder builder(StringBuilder::Mode::UTF16);
-    number_to_string_impl(builder, d, mode);
+    number_to_string(builder, d, mode);
     return builder.to_utf16_string();
 }
 
 ByteString number_to_byte_string(double d, NumberToStringMode mode)
 {
     StringBuilder builder;
-    number_to_string_impl(builder, d, mode);
+    number_to_string(builder, d, mode);
     return builder.to_byte_string();
 }
 
