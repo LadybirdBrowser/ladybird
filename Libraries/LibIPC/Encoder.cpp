@@ -147,7 +147,8 @@ ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
 {
     if (origin.is_opaque()) {
         TRY(encoder.encode(true));
-        TRY(encoder.encode(origin.nonce()));
+        TRY(encoder.encode(origin.opaque_data().nonce));
+        TRY(encoder.encode(origin.opaque_data().type));
     } else {
         TRY(encoder.encode(false));
         TRY(encoder.encode(origin.scheme()));

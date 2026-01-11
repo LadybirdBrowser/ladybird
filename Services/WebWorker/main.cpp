@@ -50,6 +50,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView worker_type_string;
     Vector<ByteString> certificates;
     bool wait_for_debugger = false;
+    bool file_origins_are_tuple_origins = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(request_server_socket, "File descriptor of the request server socket", "request-server-socket", 's', "request-server-socket");
@@ -58,11 +59,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
+    args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
 
     args_parser.parse(arguments);
 
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
+
+    if (file_origins_are_tuple_origins)
+        URL::set_file_scheme_urls_have_tuple_origins();
 
     auto worker_type = TRY(agent_type_from_string(worker_type_string));
 
