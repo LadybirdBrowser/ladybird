@@ -225,10 +225,15 @@ static GC::Ptr<CSSNumericArray> reify_children(JS::Realm& realm, ReadonlySpan<No
     return CSSNumericArray::create(realm, move(reified_children));
 }
 
-static String serialize_a_calculation_tree(CalculationNode const&, CalculationContext const&, SerializationMode);
+enum class EmitOuterParentheses {
+    No,
+    Yes,
+};
+
+static void serialize_a_calculation_tree(StringBuilder&, CalculationNode const&, CalculationContext const&, SerializationMode, EmitOuterParentheses = EmitOuterParentheses::Yes);
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-math-function
-static String serialize_a_math_function(CalculationNode const& fn, CalculationContext const& context, SerializationMode serialization_mode)
+static void serialize_a_math_function(StringBuilder& builder, CalculationNode const& fn, CalculationContext const& context, SerializationMode serialization_mode)
 {
     // To serialize a math function fn:
 
@@ -237,8 +242,8 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     //    for its context (if necessary), then serialize the value as normal and return the result.
     if (fn.type() == CalculationNode::Type::Numeric && serialization_mode == SerializationMode::ResolvedValue) {
         auto clamped_value = clamp_and_censor_numeric_value(static_cast<NumericCalculationNode const&>(fn), context);
-
-        return clamped_value.visit([&](auto const& value) { return value.to_string(serialization_mode); });
+        clamped_value.visit([&](auto const& value) { value.serialize(builder, serialization_mode); });
+        return;
     }
 
     // 2. If fn represents an infinite or NaN value:
@@ -246,7 +251,6 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
         auto const& numeric_node = static_cast<NumericCalculationNode const&>(fn);
         if (auto infinite_or_nan = numeric_node.infinite_or_nan_value(); infinite_or_nan.has_value()) {
             // 1. Let s be the string "calc(".
-            StringBuilder builder;
             builder.append("calc("sv);
 
             // 2. Serialize the keyword infinity, -infinity, or NaN, as appropriate to represent the value, and append it to s.
@@ -281,20 +285,21 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
 
             // 4. Append ")" to s, then return it.
             builder.append(')');
-            return builder.to_string_without_validation();
+            return;
         }
     }
 
     // AD-HOC: We serialize random() directly since it has abnormal children (e.g. m_random_value_sharing which is not a
     //         calculation node and m_step which is nullable).
-    if (fn.type() == CalculationNode::Type::Random)
-        return as<RandomCalculationNode>(fn).to_string(context, serialization_mode);
+    if (fn.type() == CalculationNode::Type::Random) {
+        as<RandomCalculationNode>(fn).serialize(builder, context, serialization_mode);
+        return;
+    }
 
     // 3. If the calculation tree’s root node is a numeric value, or a calc-operator node, let s be a string initially
     //    containing "calc(".
     //    Otherwise, let s be a string initially containing the name of the root node, lowercased (such as "sin" or
     //    "max"), followed by a "(" (open parenthesis).
-    StringBuilder builder;
     if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
         builder.append("calc("sv);
     } else {
@@ -306,39 +311,33 @@ static String serialize_a_math_function(CalculationNode const& fn, CalculationCo
     //    remove those characters from the result.
     //    Concatenate all of the results using ", " (comma followed by space), then append the result to s.
 
-    auto serialized_tree_without_parentheses = [&](CalculationNode const& tree) {
-        auto tree_serialized = serialize_a_calculation_tree(tree, context, serialization_mode);
-        if (tree_serialized.starts_with('(') && tree_serialized.ends_with(')')) {
-            tree_serialized = MUST(tree_serialized.substring_from_byte_offset_with_shared_superstring(1, tree_serialized.byte_count() - 2));
-        }
-        return tree_serialized;
-    };
-
     // Spec issue: https://github.com/w3c/csswg-drafts/issues/11783
     //             The three AD-HOCs in this step are mentioned there.
     // AD-HOC: Numeric nodes have no children and should serialize directly.
     // AD-HOC: calc-operator nodes should also serialize directly, instead of separating their children by commas.#
     if (fn.type() == CalculationNode::Type::Numeric || fn.is_calc_operator_node()) {
-        builder.append(serialized_tree_without_parentheses(fn));
+        serialize_a_calculation_tree(builder, fn, context, serialization_mode, EmitOuterParentheses::No);
     } else {
-        Vector<String> serialized_children;
+        bool first = true;
         // AD-HOC: For `clamp()`, the first child is a <rounding-strategy>, which is incompatible with "serialize a calculation tree".
         //         So, we serialize it directly first, and hope for the best.
         if (fn.type() == CalculationNode::Type::Round) {
             auto rounding_strategy = static_cast<RoundCalculationNode const&>(fn).rounding_strategy();
-            serialized_children.append(MUST(String::from_utf8(CSS::to_string(rounding_strategy))));
+            builder.append(CSS::to_string(rounding_strategy));
+            first = false;
         }
         for (auto const& child : fn.children()) {
-            serialized_children.append(serialized_tree_without_parentheses(child));
+            if (!first)
+                builder.append(", "sv);
+            first = false;
+            serialize_a_calculation_tree(builder, child, context, serialization_mode, EmitOuterParentheses::No);
         }
-        builder.join(", "sv, serialized_children);
     }
 
     // 5. Append ")" (close parenthesis) to s.
     builder.append(')');
 
     // 6. Return s.
-    return builder.to_string_without_validation();
 }
 
 // https://drafts.csswg.org/css-values-4/#sort-a-calculations-children
@@ -412,60 +411,69 @@ static Vector<NonnullRefPtr<CalculationNode const>> sort_a_calculations_children
 }
 
 // https://drafts.csswg.org/css-values-4/#serialize-a-calculation-tree
-static String serialize_a_calculation_tree(CalculationNode const& root, CalculationContext const& context, SerializationMode serialization_mode)
+static void serialize_a_calculation_tree(StringBuilder& builder, CalculationNode const& root, CalculationContext const& context, SerializationMode serialization_mode, EmitOuterParentheses emit_outer_parentheses)
 {
     // 1. Let root be the root node of the calculation tree.
     // NOTE: Already the case.
 
     // 2. If root is a numeric value, or a non-math function, serialize root per the normal rules for it and return the result.
-    if (root.type() == CalculationNode::Type::Numeric)
-        return static_cast<NumericCalculationNode const&>(root).value_to_string();
+    if (root.type() == CalculationNode::Type::Numeric) {
+        static_cast<NumericCalculationNode const&>(root).serialize_value(builder);
+        return;
+    }
 
-    if (root.type() == CalculationNode::Type::NonMathFunction)
-        return as<NonMathFunctionCalculationNode>(root).function()->to_string(serialization_mode);
+    if (root.type() == CalculationNode::Type::NonMathFunction) {
+        as<NonMathFunctionCalculationNode>(root).function()->serialize(builder, serialization_mode);
+        return;
+    }
 
     // 3. If root is anything but a Sum, Negate, Product, or Invert node, serialize a math function for the function
     //    corresponding to the node type, treating the node’s children as the function’s comma-separated calculation
     //    arguments, and return the result.
     if (!first_is_one_of(root.type(), CalculationNode::Type::Sum, CalculationNode::Type::Product, CalculationNode::Type::Negate, CalculationNode::Type::Invert)) {
-        return serialize_a_math_function(root, context, serialization_mode);
+        serialize_a_math_function(builder, root, context, serialization_mode);
+        return;
     }
 
     // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
     if (root.type() == CalculationNode::Type::Negate) {
-        StringBuilder builder;
-        builder.append("(-1 * "sv);
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append('(');
+        builder.append("-1 * "sv);
 
         // Serialize root’s child, and append it to s.
-        builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
+        serialize_a_calculation_tree(builder, root.children().first(), context, serialization_mode);
 
         // Append ")" to s, then return it.
-        builder.append(')');
-        return builder.to_string_without_validation();
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append(')');
+        return;
     }
 
     // 5. If root is an Invert node, let s be a string initially containing "(1 / ".
     if (root.type() == CalculationNode::Type::Invert) {
-        StringBuilder builder;
-        builder.append("(1 / "sv);
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append('(');
+        builder.append("1 / "sv);
 
         // Serialize root’s child, and append it to s.
-        builder.append(serialize_a_calculation_tree(root.children().first(), context, serialization_mode));
+        serialize_a_calculation_tree(builder, root.children().first(), context, serialization_mode);
 
         // Append ")" to s, then return it.
-        builder.append(')');
-        return builder.to_string_without_validation();
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append(')');
+        return;
     }
 
     // 6. If root is a Sum node, let s be a string initially containing "(".
     if (root.type() == CalculationNode::Type::Sum) {
-        StringBuilder builder;
-        builder.append('(');
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append('(');
 
         auto sorted_children = sort_a_calculations_children(root.children());
 
         // Serialize root’s first child, and append it to s.
-        builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
+        serialize_a_calculation_tree(builder, *sorted_children.first(), context, serialization_mode);
 
         // For each child of root beyond the first:
         for (auto i = 1u; i < sorted_children.size(); ++i) {
@@ -475,7 +483,7 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
             //    result to s.
             if (child.type() == CalculationNode::Type::Negate) {
                 builder.append(" - "sv);
-                builder.append(serialize_a_calculation_tree(static_cast<NegateCalculationNode const&>(child).child(), context, serialization_mode));
+                serialize_a_calculation_tree(builder, static_cast<NegateCalculationNode const&>(child).child(), context, serialization_mode);
             }
 
             // 2. If child is a negative numeric value, append " - " to s, then serialize the negation of child as
@@ -483,30 +491,31 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
             else if (child.type() == CalculationNode::Type::Numeric && static_cast<NumericCalculationNode const&>(child).is_negative()) {
                 auto const& numeric_node = static_cast<NumericCalculationNode const&>(child);
                 builder.append(" - "sv);
-                builder.append(serialize_a_calculation_tree(numeric_node.negated(context), context, serialization_mode));
+                serialize_a_calculation_tree(builder, *numeric_node.negated(context), context, serialization_mode);
             }
 
             // 3. Otherwise, append " + " to s, then serialize child and append the result to s.
             else {
                 builder.append(" + "sv);
-                builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
+                serialize_a_calculation_tree(builder, child, context, serialization_mode);
             }
         }
 
         // Finally, append ")" to s and return it.
-        builder.append(')');
-        return builder.to_string_without_validation();
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append(')');
+        return;
     }
 
     // 7. If root is a Product node, let s be a string initially containing "(".
     if (root.type() == CalculationNode::Type::Product) {
-        StringBuilder builder;
-        builder.append('(');
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append('(');
 
         auto sorted_children = sort_a_calculations_children(root.children());
 
         // Serialize root’s first child, and append it to s.
-        builder.append(serialize_a_calculation_tree(sorted_children.first(), context, serialization_mode));
+        serialize_a_calculation_tree(builder, *sorted_children.first(), context, serialization_mode);
 
         // For each child of root beyond the first:
         for (auto i = 1u; i < sorted_children.size(); ++i) {
@@ -515,19 +524,20 @@ static String serialize_a_calculation_tree(CalculationNode const& root, Calculat
             // 1. If child is an Invert node, append " / " to s, then serialize the Invert’s child and append the result to s.
             if (child.type() == CalculationNode::Type::Invert) {
                 builder.append(" / "sv);
-                builder.append(serialize_a_calculation_tree(static_cast<InvertCalculationNode const&>(child).child(), context, serialization_mode));
+                serialize_a_calculation_tree(builder, static_cast<InvertCalculationNode const&>(child).child(), context, serialization_mode);
             }
 
             // 2. Otherwise, append " * " to s, then serialize child and append the result to s.
             else {
                 builder.append(" * "sv);
-                builder.append(serialize_a_calculation_tree(child, context, serialization_mode));
+                serialize_a_calculation_tree(builder, child, context, serialization_mode);
             }
         }
 
         // Finally, append ")" to s and return it.
-        builder.append(')');
-        return builder.to_string_without_validation();
+        if (emit_outer_parentheses == EmitOuterParentheses::Yes)
+            builder.append(')');
+        return;
     }
 
     VERIFY_NOT_REACHED();
@@ -723,9 +733,16 @@ NumericCalculationNode::NumericCalculationNode(NumericValue value, NumericType n
 
 NumericCalculationNode::~NumericCalculationNode() = default;
 
+void NumericCalculationNode::serialize_value(StringBuilder& builder) const
+{
+    m_value.visit([&](auto& value) { value.serialize(builder); });
+}
+
 String NumericCalculationNode::value_to_string() const
 {
-    return m_value.visit([](auto& value) { return value.to_string(); });
+    StringBuilder builder;
+    serialize_value(builder);
+    return builder.to_string_without_validation();
 }
 
 bool NumericCalculationNode::contains_percentage() const
@@ -2614,20 +2631,27 @@ Optional<CalculatedStyleValue::CalculationResult> RandomCalculationNode::run_ope
     return CalculatedStyleValue::CalculationResult { value, numeric_type() };
 }
 
+void RandomCalculationNode::serialize(StringBuilder& builder, CalculationContext const& context, SerializationMode serialization_mode) const
+{
+    builder.append("random("sv);
+    auto start_length = builder.length();
+    m_random_value_sharing->serialize(builder, serialization_mode);
+    if (builder.length() > start_length)
+        builder.append(", "sv);
+    serialize_a_calculation_tree(builder, *m_minimum, context, serialization_mode);
+    builder.append(", "sv);
+    serialize_a_calculation_tree(builder, *m_maximum, context, serialization_mode);
+    if (m_step) {
+        builder.append(", "sv);
+        serialize_a_calculation_tree(builder, *m_step, context, serialization_mode);
+    }
+    builder.append(')');
+}
+
 String RandomCalculationNode::to_string(CalculationContext const& context, SerializationMode serialization_mode) const
 {
     StringBuilder builder;
-
-    builder.append("random("sv);
-    auto random_value_sharing_stringified = m_random_value_sharing->to_string(serialization_mode);
-    if (!random_value_sharing_stringified.is_empty())
-        builder.appendff("{}, ", random_value_sharing_stringified);
-    builder.appendff("{}, ", serialize_a_calculation_tree(m_minimum, context, serialization_mode));
-    builder.append(serialize_a_calculation_tree(m_maximum, context, serialization_mode));
-    if (m_step)
-        builder.appendff(", {}", serialize_a_calculation_tree(*m_step, context, serialization_mode));
-    builder.append(')');
-
+    serialize(builder, context, serialization_mode);
     return builder.to_string_without_validation();
 }
 
@@ -2804,7 +2828,7 @@ void CalculatedStyleValue::CalculationResult::invert()
 
 void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    builder.append(serialize_a_math_function(m_calculation, m_context, mode));
+    serialize_a_math_function(builder, *m_calculation, m_context, mode);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
