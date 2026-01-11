@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 278 tests
+Found 279 tests
 
-272 Pass
+273 Pass
 6 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -237,6 +237,7 @@ Pass	perspective
 Pass	perspective-origin
 Pass	position
 Pass	r
+Pass	resize
 Pass	right
 Pass	rotate
 Pass	row-gap

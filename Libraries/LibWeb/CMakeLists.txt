@@ -797,6 +797,7 @@ set(SOURCES
     NavigationTiming/PerformanceTiming.cpp
     NotificationsAPI/Notification.cpp
     Page/DragAndDropEventHandler.cpp
+    Page/ElementResizeAction.cpp
     Page/EventHandler.cpp
     Page/InputEvent.cpp
     Page/Page.cpp
@@ -826,6 +827,7 @@ set(SOURCES
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
     Painting/PaintableFragment.cpp
+    Painting/PaintableWithLines.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ScrollFrame.cpp
     Painting/ScrollState.cpp

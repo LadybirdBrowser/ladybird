@@ -57,6 +57,16 @@ Web::DevicePixelRect PageHost::screen_rect() const
     return {};
 }
 
+double PageHost::zoom_level() const
+{
+    return 1.0;
+}
+
+double PageHost::device_pixel_ratio() const
+{
+    return 1.0;
+}
+
 double PageHost::device_pixels_per_css_pixel() const
 {
     return 1.0;

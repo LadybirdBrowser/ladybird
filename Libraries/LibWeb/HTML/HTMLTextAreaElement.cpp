@@ -22,7 +22,6 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::HTML {

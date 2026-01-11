@@ -899,6 +899,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_caret_color(computed_style.caret_color(*this));
     computed_values.set_color_interpolation(computed_style.color_interpolation());
+    computed_values.set_resize(computed_style.resize());
 
     propagate_style_to_anonymous_wrappers();
 

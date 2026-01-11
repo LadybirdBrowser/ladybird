@@ -711,6 +711,14 @@
     "round",
     "space"
   ],
+  "resize": [
+    "none",
+    "both",
+    "horizontal",
+    "vertical",
+    "inline",
+    "block"
+  ],
   "rounding-strategy": [
     "down",
     "nearest",

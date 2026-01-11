@@ -9,16 +9,13 @@
 
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
+#include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/ShouldAntiAlias.h>
 
 namespace Web::Painting {
 
@@ -143,8 +140,6 @@ public:
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
     Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType) const;
-    [[nodiscard]] TraversalDecision hit_test_children(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const&) const;
-    [[nodiscard]] TraversalDecision hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const;
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
 
@@ -284,7 +279,7 @@ protected:
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;
-        CSSPixelFraction scroll_length { 0 };
+        CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
     };
     enum class ScrollDirection {
         Horizontal,
@@ -294,11 +289,22 @@ protected:
         No,
         Yes,
     };
-    Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection, AdjustThumbRectForScrollOffset = AdjustThumbRectForScrollOffset::No) const;
-    [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
+    [[nodiscard]] TraversalDecision hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const;
+    [[nodiscard]] TraversalDecision hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const;
+    [[nodiscard]] TraversalDecision hit_test_chrome(CSSPixelPoint adjusted_position, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
-    TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
-    CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint) const;
+    Optional<ScrollbarData> compute_scrollbar_data(
+        ScrollDirection direction,
+        ChromeMetrics const& chrome_metrics,
+        AdjustThumbRectForScrollOffset = AdjustThumbRectForScrollOffset::No) const;
+    CSSPixelPoint adjust_position_for_cumulative_scroll_offset(CSSPixelPoint position) const;
+    CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
+    Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
+    Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
+    bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
+    bool resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& chrome_metrics) const;
+    bool is_chrome_mirrored() const;
+    bool has_resizer() const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
@@ -308,8 +314,8 @@ private:
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
     virtual void handle_mouseleave(Badge<EventHandler>) override;
 
-    bool scrollbar_contains_mouse_position(ScrollDirection, CSSPixelPoint);
-    void scroll_to_mouse_position(CSSPixelPoint);
+    bool scrollbar_contains(ScrollDirection, CSSPixelPoint adjusted_position, ChromeMetrics const& chrome_metrics) const;
+    void scroll_to_mouse_position(CSSPixelPoint, ChromeMetrics const& chrome_metrics);
 
     GC::Ptr<StackingContext> m_stacking_context;
 
@@ -340,8 +346,8 @@ private:
 
     Optional<CSSPixels> m_scroll_thumb_grab_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
-    bool m_draw_enlarged_horizontal_scrollbar { false };
-    bool m_draw_enlarged_vertical_scrollbar { false };
+    mutable bool m_draw_enlarged_horizontal_scrollbar { false };
+    mutable bool m_draw_enlarged_vertical_scrollbar { false };
 
     ResolvedBackground m_resolved_background;
 
@@ -352,54 +358,5 @@ private:
 
     BoxModelMetrics m_box_model;
 };
-
-class PaintableWithLines : public PaintableBox {
-    GC_CELL(PaintableWithLines, PaintableBox);
-    GC_DECLARE_ALLOCATOR(PaintableWithLines);
-
-public:
-    static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);
-    static GC::Ref<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
-    virtual ~PaintableWithLines() override;
-
-    Vector<PaintableFragment> const& fragments() const { return m_fragments; }
-    Vector<PaintableFragment>& fragments() { return m_fragments; }
-
-    void add_fragment(Layout::LineBoxFragment const& fragment)
-    {
-        m_fragments.append(PaintableFragment { fragment });
-    }
-
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
-    [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
-
-    virtual void visit_edges(Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        for (auto& fragment : m_fragments)
-            visitor.visit(GC::Ref { fragment.layout_node() });
-    }
-
-    virtual void resolve_paint_properties() override;
-
-    size_t line_index() const { return m_line_index; }
-
-protected:
-    PaintableWithLines(Layout::BlockContainer const&);
-    PaintableWithLines(Layout::InlineNode const&, size_t line_index);
-
-private:
-    [[nodiscard]] virtual bool is_paintable_with_lines() const final { return true; }
-
-    Vector<PaintableFragment> m_fragments;
-
-    size_t m_line_index { 0 };
-};
-
-void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
-void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
-void paint_text_fragment(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&, PaintPhase);
-void paint_text_fragment_debug_highlight(DisplayListRecordingContext&, PaintableFragment const&);
 
 }
