@@ -24,8 +24,6 @@ if (CMAKE_OSX_DEPLOYMENT_TARGET)
     string(APPEND EXTRA_VCPKG_VARIABLES "set(VCPKG_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET})\n")
 endif()
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")
-
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets
 # Just make sure not to override if the developer is trying to cross-compile
 # or the developer set it manually, or if this is not the first run of CMake
@@ -88,3 +86,9 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     set(VCPKG_TARGET_TRIPLET ${full_triplet} CACHE STRING "")
     set(VCPKG_HOST_TRIPLET ${full_triplet} CACHE STRING "")
 endif()
+
+if (VCPKG_TARGET_TRIPLET MATCHES ".*linux.*" AND "gtk" IN_LIST VCPKG_MANIFEST_FEATURES)
+    string(APPEND EXTRA_VCPKG_VARIABLES "set(X_VCPKG_FORCE_VCPKG_WAYLAND_LIBRARIES ON)\n")
+endif()
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")

@@ -46,17 +46,7 @@ function(create_ladybird_bundle target_name)
     copy_resources_to_build(${resource_base_dir} ${target_name})
 endfunction()
 
-# Select UI Framework
-if (ENABLE_QT)
-   add_subdirectory(Qt)
-elseif (APPLE)
-   add_subdirectory(AppKit)
-elseif(ANDROID)
-   add_subdirectory(Android)
-else()
-    # TODO: Check for other GUI frameworks here when we move them in-tree
-    return()
-endif()
+add_subdirectory(${LADYBIRD_GUI_FRAMEWORK})
 
 if (NOT TARGET ladybird)
     message(FATAL_ERROR "UI Framework selection must declare a ladybird target")

@@ -50,6 +50,7 @@ endif()
 
 include(check_for_dependencies)
 include(use_linker)
+include(gui_framework)
 include(lagom_options NO_POLICY_SCOPE)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)

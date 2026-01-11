@@ -18,9 +18,15 @@ if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     endif()
 endif()
 
-# Pass additional information to vcpkg toolchain files if we are using vcpkg.
+include("Meta/CMake/gui_framework.cmake")
+
+# Pass additional information to vcpkg if we are using it.
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
+    if (LADYBIRD_GUI_FRAMEWORK STREQUAL "Qt" OR LADYBIRD_GUI_FRAMEWORK STREQUAL "GTK")
+        string(TOLOWER "${LADYBIRD_GUI_FRAMEWORK}" framework_feature)
+        set(VCPKG_MANIFEST_FEATURES "${framework_feature}")
+    endif()
 endif()
 
 if (APPLE AND NOT CMAKE_OSX_SYSROOT)

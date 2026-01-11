@@ -40,8 +40,6 @@ flatpak_runtime_libs = [
     "harfbuzz",
     "libjpeg-turbo",
     "libproxy",
-    "qtbase",
-    "qtmultimedia",
     "sqlite3",
     "zlib",
 ]
@@ -50,6 +48,28 @@ flatpak_runtime_libs = [
 vcpkg_not_linux = [
     "dirent",
     "mman",
+]
+
+# List of libraries that are in the KDE flatpak sdk
+flatpak_kde_libs = [
+    "qtbase",
+    "qtmultimedia",
+]
+
+# List of libraries that are in the GNOME flatpak sdk
+flatpak_gnome_libs = [
+    "wayland-protocols",
+    "libadwaita",
+    "glib",
+    "librsvg",
+    "gtk",
+    "appstream",
+]
+
+# List of libraries that are only used by GTK UI builds
+gtk_ui_libs = [
+    "glibmm",
+    "gtkmm",
 ]
 
 
@@ -162,7 +182,8 @@ def check_vcpkg_vs_flatpak_versioning():
                     flatpak.append(name)
 
         # Remove excluded dependencies from the vcpkg list
-        for name in flatpak_runtime_libs + vcpkg_not_linux:
+        # FIXME: Process differences in flatpak runtime and UI library when we have flatpaks for both Qt and GTK
+        for name in flatpak_runtime_libs + vcpkg_not_linux + flatpak_kde_libs + flatpak_gnome_libs + gtk_ui_libs:
             if name in vcpkg:
                 del vcpkg[name]
 
