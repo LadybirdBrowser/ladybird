@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const fontFace = new FontFace("Foo", "url(./Foo.woff)");
+            fontFace.family = '"Bar"';
+            println(fontFace.family);
+        });
+    </script>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        @font-face {
+            font-family: Foo;
+            src: url("./Foo.woff");
+        }
+    </style>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            await document.fonts.ready.then(() => {
+                const fontFace = Array.from(document.fonts)[0];
+                document.styleSheets[0].cssRules[0].style.fontFamily = "Bar";
+                document.styleSheets[0].removeRule(0);
+                println(fontFace.family);
+            });
+        });
+    </script>
+</html>
