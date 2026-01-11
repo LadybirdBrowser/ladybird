@@ -825,7 +825,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
     auto computed_properties = this->computed_properties();
-    if (!m_cascaded_properties || !computed_properties || !layout_node())
+    if (!m_cascaded_properties || !computed_properties)
         return {};
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -886,7 +886,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     if (invalidation.is_none())
         return invalidation;
 
-    layout_node()->apply_style(*computed_properties);
+    // NOTE: Only call apply_style() if we have a layout node. Elements without layout nodes
+    // (e.g., descendants of display:none elements) still need their computed_properties updated
+    // with inherited values so that when they later get a layout node, the correct values are used.
+    if (layout_node())
+        layout_node()->apply_style(*computed_properties);
     return invalidation;
 }
 
