@@ -163,6 +163,7 @@
       "name": "sdl3",
       "default-features": false
     },
+    "simdjson",
     "simdutf",
     {
       "name": "skia",
@@ -306,6 +307,10 @@
     {
       "name": "sdl3",
       "version": "3.2.22#0"
+    },
+    {
+      "name": "simdjson",
+      "version": "3.13.0#0"
     },
     {
       "name": "simdutf",

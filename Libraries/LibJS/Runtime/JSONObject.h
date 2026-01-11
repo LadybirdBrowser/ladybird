@@ -24,7 +24,6 @@ public:
     static ThrowCompletionOr<Optional<String>> stringify_impl(VM&, Value value, Value replacer, Value space);
 
     static ThrowCompletionOr<Value> parse_json(VM&, StringView text);
-    static Value parse_json_value(VM&, JsonValue const&);
 
 private:
     explicit JSONObject(Realm&);
@@ -44,8 +43,6 @@ private:
     static String quote_json_string(Utf16View const&);
 
     // Parse helpers
-    static Object* parse_json_object(VM&, JsonObject const&);
-    static Array* parse_json_array(VM&, JsonArray const&);
     static ThrowCompletionOr<Value> internalize_json_property(VM&, Object* holder, PropertyKey const& name, FunctionObject& reviver);
 
     JS_DECLARE_NATIVE_FUNCTION(stringify);
