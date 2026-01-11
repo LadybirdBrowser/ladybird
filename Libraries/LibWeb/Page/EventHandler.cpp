@@ -1478,6 +1478,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_End:
         document->window()->scroll_by(0, INT64_MAX);
         return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Return:
+        if (auto* element = as_if<HTML::HTMLElement>(focused_area.ptr())) {
+            element->click();
+            return EventResult::Handled;
+        }
+        break;
     default:
         break;
     }
@@ -1491,6 +1497,14 @@ EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32
     // See: https://w3c.github.io/uievents/#events-keyboard-event-order
     if (repeat)
         return EventResult::Dropped;
+
+    if (key == UIEvents::KeyCode::Key_Space) {
+        auto focused_area = m_navigable->active_document()->focused_area();
+        if (auto* element = as_if<HTML::HTMLElement>(focused_area.ptr())) {
+            element->click();
+            return EventResult::Handled;
+        }
+    }
 
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
