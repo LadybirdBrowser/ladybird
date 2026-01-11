@@ -5,10 +5,9 @@
  */
 
 #include <AK/Function.h>
-#include <AK/JsonArray.h>
-#include <AK/JsonObject.h>
-#include <AK/JsonParser.h>
+#include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
+#include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
@@ -25,6 +24,8 @@
 #include <LibJS/Runtime/RawJSONObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/ValueInlines.h>
+
+#include <simdjson.h>
 
 namespace JS {
 
@@ -447,13 +448,327 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::parse)
     return unfiltered;
 }
 
+// Unescape a JSON string, properly handling \uXXXX escape sequences including lone surrogates.
+// simdjson validates UTF-8 strictly and rejects lone surrogates, but JSON allows them.
+// Returns {} on malformed escape sequences.
+static Optional<Utf16String> unescape_json_string(StringView raw)
+{
+    StringBuilder builder(StringBuilder::Mode::UTF16, raw.length());
+
+    GenericLexer lexer { raw };
+
+    auto consume_hex4 = [&]() -> Optional<u16> {
+        if (lexer.tell_remaining() < 4)
+            return {};
+        u16 value = 0;
+        for (int i = 0; i < 4; ++i) {
+            auto ch = lexer.consume();
+            value <<= 4;
+            if (ch >= '0' && ch <= '9')
+                value |= ch - '0';
+            else if (ch >= 'a' && ch <= 'f')
+                value |= ch - 'a' + 10;
+            else if (ch >= 'A' && ch <= 'F')
+                value |= ch - 'A' + 10;
+            else
+                return {};
+        }
+        return value;
+    };
+
+    while (!lexer.is_eof()) {
+        if (lexer.consume_specific('\\')) {
+            if (lexer.is_eof())
+                return {};
+            auto escaped = lexer.consume();
+            switch (escaped) {
+            case '"':
+                builder.append_code_unit('"');
+                break;
+            case '\\':
+                builder.append_code_unit('\\');
+                break;
+            case '/':
+                builder.append_code_unit('/');
+                break;
+            case 'b':
+                builder.append_code_unit('\b');
+                break;
+            case 'f':
+                builder.append_code_unit('\f');
+                break;
+            case 'n':
+                builder.append_code_unit('\n');
+                break;
+            case 'r':
+                builder.append_code_unit('\r');
+                break;
+            case 't':
+                builder.append_code_unit('\t');
+                break;
+            case 'u': {
+                auto code_unit = consume_hex4();
+                if (!code_unit.has_value())
+                    return {};
+                builder.append_code_unit(*code_unit);
+                break;
+            }
+            default:
+                return {};
+            }
+        } else {
+            // Non-escaped character - copy UTF-8 code point to UTF-16
+            auto ch = lexer.consume();
+            if ((ch & 0x80) == 0) {
+                // ASCII
+                builder.append_code_unit(ch);
+            } else if ((ch & 0xE0) == 0xC0) {
+                // 2-byte UTF-8
+                if (lexer.is_eof())
+                    return {};
+                auto ch2 = lexer.consume();
+                u32 code_point = ((ch & 0x1F) << 6) | (ch2 & 0x3F);
+                builder.append_code_unit(code_point);
+            } else if ((ch & 0xF0) == 0xE0) {
+                // 3-byte UTF-8
+                if (lexer.tell_remaining() < 2)
+                    return {};
+                auto ch2 = lexer.consume();
+                auto ch3 = lexer.consume();
+                u32 code_point = ((ch & 0x0F) << 12) | ((ch2 & 0x3F) << 6) | (ch3 & 0x3F);
+                builder.append_code_unit(code_point);
+            } else if ((ch & 0xF8) == 0xF0) {
+                // 4-byte UTF-8 (needs surrogate pair)
+                if (lexer.tell_remaining() < 3)
+                    return {};
+                auto ch2 = lexer.consume();
+                auto ch3 = lexer.consume();
+                auto ch4 = lexer.consume();
+                u32 code_point = ((ch & 0x07) << 18) | ((ch2 & 0x3F) << 12) | ((ch3 & 0x3F) << 6) | (ch4 & 0x3F);
+                builder.append_code_point(code_point);
+            } else {
+                return {};
+            }
+        }
+    }
+
+    return builder.to_utf16_string();
+}
+
+template<typename T>
+static ALWAYS_INLINE ThrowCompletionOr<void> ensure_simdjson_fully_parsed(VM& vm, T& value)
+{
+    if constexpr (IsSame<T, simdjson::ondemand::document>) {
+        if (!value.at_end())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    }
+    return {};
+}
+
+static ThrowCompletionOr<Value> parse_simdjson_value(VM&, simdjson::ondemand::value);
+
+template<typename T>
+static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringView raw_sv)
+{
+    // Validate JSON number format (simdjson is more lenient than spec)
+    // - No leading zeros (except "0" or "0.xxx")
+    // - No trailing decimal point (e.g., "1." is invalid)
+    size_t i = 0;
+    if (i < raw_sv.length() && raw_sv[i] == '-')
+        ++i;
+    if (i < raw_sv.length() && raw_sv[i] == '0' && i + 1 < raw_sv.length() && is_ascii_digit(raw_sv[i + 1]))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed); // Leading zero
+    while (i < raw_sv.length() && is_ascii_digit(raw_sv[i]))
+        ++i;
+    if (i < raw_sv.length() && raw_sv[i] == '.') {
+        ++i;
+        if (i >= raw_sv.length() || !is_ascii_digit(raw_sv[i]))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed); // Trailing decimal
+    }
+
+    double double_value;
+    auto error = value.get_double().get(double_value);
+    if (!error) {
+        TRY(ensure_simdjson_fully_parsed(vm, value));
+        return Value(double_value);
+    }
+
+    // Handle overflow to infinity (e.g., 1e309)
+    // simdjson returns NUMBER_ERROR for numbers that overflow double
+    // Use parse_first_number as fallback - it handles overflow correctly
+    if (error == simdjson::NUMBER_ERROR) {
+        auto result = parse_first_number<double>(raw_sv, TrimWhitespace::No);
+        if (result.has_value() && result->characters_parsed == raw_sv.length())
+            return Value(result->value);
+    }
+
+    return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+}
+
+template<typename T>
+static ThrowCompletionOr<Value> parse_simdjson_string(VM& vm, T& value)
+{
+    // Use get_raw_json_string() to get the raw JSON string content (without quotes, with escapes),
+    // then unescape ourselves to properly handle lone surrogates like \uD800 which simdjson rejects.
+    simdjson::ondemand::raw_json_string raw_string;
+    if (value.get_raw_json_string().get(raw_string))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    char const* raw = raw_string.raw();
+    // Find the length by looking for the closing quote (simdjson validated the structure)
+    size_t length = 0;
+    while (raw[length] != '"') {
+        if (raw[length] == '\\')
+            ++length; // Skip escaped character
+        ++length;
+    }
+    auto unescaped = unescape_json_string({ raw, length });
+    if (!unescaped.has_value())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    return PrimitiveString::create(vm, unescaped.release_value());
+}
+
+template<typename T>
+static ThrowCompletionOr<Value> parse_simdjson_array(VM& vm, T& value)
+{
+    auto& realm = *vm.current_realm();
+
+    simdjson::ondemand::array simdjson_array;
+    if (value.get_array().get(simdjson_array))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    auto array = MUST(Array::create(realm, 0));
+    size_t index = 0;
+
+    for (auto element : simdjson_array) {
+        simdjson::ondemand::value element_value;
+        if (element.get(element_value))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        auto parsed = TRY(parse_simdjson_value(vm, element_value));
+        array->define_direct_property(index++, parsed, default_attributes);
+    }
+
+    TRY(ensure_simdjson_fully_parsed(vm, value));
+    return array;
+}
+
+template<typename T>
+static ThrowCompletionOr<Value> parse_simdjson_object(VM& vm, T& value)
+{
+    auto& realm = *vm.current_realm();
+
+    simdjson::ondemand::object simdjson_object;
+    if (value.get_object().get(simdjson_object))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    auto object = Object::create(realm, realm.intrinsics().object_prototype());
+
+    for (auto field : simdjson_object) {
+        // Use escaped_key() to get the raw JSON key (with escapes), then unescape ourselves
+        std::string_view raw_key;
+        if (field.escaped_key().get(raw_key))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        auto unescaped_key = unescape_json_string({ raw_key.data(), raw_key.size() });
+        if (!unescaped_key.has_value())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        simdjson::ondemand::value field_value;
+        if (field.value().get(field_value))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        auto parsed = TRY(parse_simdjson_value(vm, field_value));
+        object->define_direct_property(unescaped_key.release_value(), parsed, default_attributes);
+    }
+
+    TRY(ensure_simdjson_fully_parsed(vm, value));
+    return object;
+}
+
+static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand::value value)
+{
+    simdjson::ondemand::json_type type;
+    if (value.type().get(type))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    switch (type) {
+    case simdjson::ondemand::json_type::null:
+        return js_null();
+    case simdjson::ondemand::json_type::boolean: {
+        bool boolean_value;
+        if (value.get_bool().get(boolean_value))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        return Value(boolean_value);
+    }
+    case simdjson::ondemand::json_type::number: {
+        auto raw = value.raw_json_token();
+        StringView raw_sv { raw.data(), raw.size() };
+        return parse_simdjson_number(vm, value, raw_sv);
+    }
+    case simdjson::ondemand::json_type::string:
+        return parse_simdjson_string(vm, value);
+    case simdjson::ondemand::json_type::array:
+        return parse_simdjson_array(vm, value);
+    case simdjson::ondemand::json_type::object:
+        return parse_simdjson_object(vm, value);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondemand::document& document)
+{
+    simdjson::ondemand::json_type type;
+    if (document.type().get(type))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    switch (type) {
+    case simdjson::ondemand::json_type::null: {
+        if (document.is_null().error())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (!document.at_end())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        return js_null();
+    }
+    case simdjson::ondemand::json_type::boolean: {
+        bool boolean_value;
+        if (document.get_bool().get(boolean_value))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (!document.at_end())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        return Value(boolean_value);
+    }
+    case simdjson::ondemand::json_type::number: {
+        // Get raw token first in case get_double fails (e.g., overflow)
+        std::string_view raw;
+        if (document.raw_json_token().get(raw))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        StringView raw_sv { raw.data(), raw.size() };
+        auto trimmed = raw_sv.trim_whitespace();
+        return parse_simdjson_number(vm, document, trimmed);
+    }
+    case simdjson::ondemand::json_type::string:
+        return parse_simdjson_string(vm, document);
+    case simdjson::ondemand::json_type::array:
+        return parse_simdjson_array(vm, document);
+    case simdjson::ondemand::json_type::object:
+        return parse_simdjson_object(vm, document);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // 25.5.1.1 ParseJSON ( text ), https://tc39.es/ecma262/#sec-ParseJSON
 ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
 {
-    auto json = JsonValue::from_string(text);
-
     // 1. If StringToCodePoints(text) is not a valid JSON text as specified in ECMA-404, throw a SyntaxError exception.
-    if (json.is_error())
+    // NB: Per ECMA-404, the BOM is not valid JSON whitespace. simdjson silently skips it, so we must reject it explicitly.
+    if (text.length() >= 3
+        && static_cast<u8>(text[0]) == 0xEF
+        && static_cast<u8>(text[1]) == 0xBB
+        && static_cast<u8>(text[2]) == 0xBF) {
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    }
+
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string padded(text.characters_without_null_termination(), text.length());
+
+    simdjson::ondemand::document document;
+    if (parser.iterate(padded).get(document))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     // 2. Let scriptString be the string-concatenation of "(", text, and ");".
@@ -461,51 +776,13 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, StringView text)
     // 4. NOTE: The early error rules defined in 13.2.5.1 have special handling for the above invocation of ParseText.
     // 5. Assert: script is a Parse Node.
     // 6. Let result be ! Evaluation of script.
-    auto result = JSONObject::parse_json_value(vm, json.value());
+    auto result = TRY(parse_simdjson_document(vm, document));
 
     // 7. NOTE: The PropertyDefinitionEvaluation semantics defined in 13.2.5.5 have special handling for the above evaluation.
     // 8. Assert: result is either a String, a Number, a Boolean, an Object that is defined by either an ArrayLiteral or an ObjectLiteral, or null.
 
     // 9. Return result.
     return result;
-}
-
-Value JSONObject::parse_json_value(VM& vm, JsonValue const& value)
-{
-    if (value.is_object())
-        return Value(parse_json_object(vm, value.as_object()));
-    if (value.is_array())
-        return Value(parse_json_array(vm, value.as_array()));
-    if (value.is_null())
-        return js_null();
-    if (auto double_value = value.get_double_with_precision_loss(); double_value.has_value())
-        return Value(double_value.value());
-    if (value.is_string())
-        return PrimitiveString::create(vm, value.as_string());
-    if (value.is_bool())
-        return Value(value.as_bool());
-    VERIFY_NOT_REACHED();
-}
-
-Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
-{
-    auto& realm = *vm.current_realm();
-    auto object = Object::create(realm, realm.intrinsics().object_prototype());
-    json_object.for_each_member([&](auto& key, auto& value) {
-        object->define_direct_property(Utf16String::from_utf8(key), parse_json_value(vm, value), default_attributes);
-    });
-    return object;
-}
-
-Array* JSONObject::parse_json_array(VM& vm, JsonArray const& json_array)
-{
-    auto& realm = *vm.current_realm();
-    auto array = MUST(Array::create(realm, 0));
-    size_t index = 0;
-    json_array.for_each([&](auto& value) {
-        array->define_direct_property(index++, parse_json_value(vm, value), default_attributes);
-    });
-    return array;
 }
 
 // 25.5.1.1 InternalizeJSONProperty ( holder, name, reviver ), https://tc39.es/ecma262/#sec-internalizejsonproperty
@@ -564,12 +841,40 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     // 3. Parse StringToCodePoints(jsonString) as a JSON text as specified in ECMA-404. Throw a SyntaxError exception
     //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
     //    array as defined in that specification.
-    auto json = JsonValue::from_string(json_string);
-    if (json.is_error())
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string padded(json_string.bytes_as_string_view().characters_without_null_termination(), json_string.bytes_as_string_view().length());
+
+    simdjson::ondemand::document doc;
+    if (parser.iterate(padded).get(doc))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
-    if (json.value().is_object() || json.value().is_array())
+    simdjson::ondemand::json_type type;
+    if (doc.type().get(type))
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+
+    if (type == simdjson::ondemand::json_type::object || type == simdjson::ondemand::json_type::array)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonRawJSONNonPrimitive);
+
+    // Consume the value to advance past it, then check for trailing content
+    switch (type) {
+    case simdjson::ondemand::json_type::null:
+        (void)doc.is_null();
+        break;
+    case simdjson::ondemand::json_type::boolean:
+        (void)doc.get_bool();
+        break;
+    case simdjson::ondemand::json_type::number:
+        (void)doc.get_double();
+        break;
+    case simdjson::ondemand::json_type::string:
+        (void)doc.get_string();
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    if (!doc.at_end())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     // 4. Let internalSlotsList be « [[IsRawJSON]] ».
     // 5. Let obj be OrdinaryObjectCreate(null, internalSlotsList).

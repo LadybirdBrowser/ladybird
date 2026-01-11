@@ -10,9 +10,11 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/JSONObject.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
@@ -65,6 +67,47 @@ static bool is_collection(JS::Object const& value)
         || is<HTML::HTMLOptionsCollection>(value)
         // - instance of NodeList
         || is<DOM::NodeList>(value));
+}
+
+// Helper to convert AK::JsonValue to JS::Value (for WebDriver protocol)
+static JS::Value json_value_to_js_value(JS::VM& vm, JsonValue const& value);
+
+static JS::Object* json_object_to_js_object(JS::VM& vm, JsonObject const& json_object)
+{
+    auto& realm = *vm.current_realm();
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    json_object.for_each_member([&](auto& key, auto& value) {
+        object->define_direct_property(Utf16String::from_utf8(key), json_value_to_js_value(vm, value), JS::default_attributes);
+    });
+    return object;
+}
+
+static JS::Array* json_array_to_js_array(JS::VM& vm, JsonArray const& json_array)
+{
+    auto& realm = *vm.current_realm();
+    auto array = MUST(JS::Array::create(realm, 0));
+    size_t index = 0;
+    json_array.for_each([&](auto& value) {
+        array->define_direct_property(index++, json_value_to_js_value(vm, value), JS::default_attributes);
+    });
+    return array;
+}
+
+static JS::Value json_value_to_js_value(JS::VM& vm, JsonValue const& value)
+{
+    if (value.is_object())
+        return JS::Value(json_object_to_js_object(vm, value.as_object()));
+    if (value.is_array())
+        return JS::Value(json_array_to_js_array(vm, value.as_array()));
+    if (value.is_null())
+        return JS::js_null();
+    if (auto double_value = value.get_double_with_precision_loss(); double_value.has_value())
+        return JS::Value(double_value.value());
+    if (value.is_string())
+        return JS::PrimitiveString::create(vm, value.as_string());
+    if (value.is_bool())
+        return JS::Value(value.as_bool());
+    VERIFY_NOT_REACHED();
 }
 
 // https://w3c.github.io/webdriver/#dfn-clone-an-object
@@ -334,7 +377,7 @@ ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext cons
     auto& vm = browsing_context.vm();
 
     SeenMap seen;
-    return internal_json_deserialize(browsing_context, JS::JSONObject::parse_json_value(vm, value), seen);
+    return internal_json_deserialize(browsing_context, json_value_to_js_value(vm, value), seen);
 }
 
 }
