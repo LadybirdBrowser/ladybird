@@ -51,17 +51,10 @@ public:
     void set_hash(StringView);
 
 protected:
-    virtual DOM::Document& hyperlink_element_utils_document() = 0;
     virtual DOM::Element& hyperlink_element_utils_element() = 0;
-    virtual Optional<String> hyperlink_element_utils_href() const = 0;
-    virtual void set_hyperlink_element_utils_href(String) = 0;
-    virtual Optional<String> hyperlink_element_utils_referrerpolicy() const = 0;
-    virtual bool hyperlink_element_utils_is_html_anchor_element() const = 0;
-    virtual bool hyperlink_element_utils_is_connected() const = 0;
+    virtual DOM::Element const& hyperlink_element_utils_element() const = 0;
     virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target = {}) const = 0;
     virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const = 0;
-
-    virtual void hyperlink_element_utils_queue_an_element_task(HTML::Task::Source source, Function<void()> steps) = 0;
 
     Optional<URL::Origin> hyperlink_element_utils_extract_an_origin() const;
 

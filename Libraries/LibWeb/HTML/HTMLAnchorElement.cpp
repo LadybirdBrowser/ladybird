@@ -52,21 +52,6 @@ void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<String
     }
 }
 
-Optional<String> HTMLAnchorElement::hyperlink_element_utils_href() const
-{
-    return attribute(HTML::AttributeNames::href);
-}
-
-void HTMLAnchorElement::set_hyperlink_element_utils_href(String href)
-{
-    set_attribute_value(HTML::AttributeNames::href, move(href));
-}
-
-Optional<String> HTMLAnchorElement::hyperlink_element_utils_referrerpolicy() const
-{
-    return attribute(HTML::AttributeNames::referrerpolicy);
-}
-
 bool HTMLAnchorElement::has_activation_behavior() const
 {
     return true;
