@@ -57,6 +57,15 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
     GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = as<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
 
+    // AD-HOC: The spec assumes when setting up the worker environment settings object that the URL is already set on
+    //         the worker global scope. This is not the case. This URL is only known after performing the fetch, and in
+    //         particular after redirects. See spec issue: https://github.com/whatwg/html/issues/11340. The main part
+    //         which will need some rework to fix in a nice way is setting up a temporary environment for use in
+    //         performing the initial fetch.
+    //
+    //         As a workaround for now, set the URL here before setting up the environment settings object.
+    worker_global_scope->set_url(m_url);
+
     // 7. Set up a worker environment settings object with realm execution context, outside settings, and
     //    unsafeWorkerCreationTime, and let inside settings be the result.
     auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
@@ -257,11 +266,6 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         // FIXME: 18. Empty worker global scope's owner set.
     };
     auto on_complete = Web::HTML::create_on_fetch_script_complete(inside_settings->vm().heap(), move(on_complete_function));
-
-    // AD-HOC: Fetching a script performs actions such as for blobs checking that they are on the same partition
-    //         based on origin. However, this is performed before the consume body algorithm is run, where
-    //         this URL for that worker is set. As a workaround, set the URL upfront.
-    worker_global_scope->set_url(m_url);
 
     // 12. Obtain script by switching on the value of options's type member:
     if (m_type == Web::Bindings::WorkerType::Classic) {
