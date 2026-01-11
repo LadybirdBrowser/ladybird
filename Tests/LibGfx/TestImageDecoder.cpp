@@ -516,6 +516,21 @@ TEST_CASE(test_png_malformed_frame)
     }
 }
 
+TEST_CASE(test_png_large_dimensions)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/65535x1.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 65535, 1 }));
+    EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+
+    file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/1x65535.png"sv)));
+    EXPECT(Gfx::PNGImageDecoderPlugin::sniff(file->bytes()));
+    plugin_decoder = TRY_OR_FAIL(Gfx::PNGImageDecoderPlugin::create(file->bytes()));
+    TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 65535 }));
+    EXPECT_EQ(plugin_decoder->frame(0).value().image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
 TEST_CASE(test_tiff_uncompressed)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("tiff/uncompressed.tiff"sv)));
