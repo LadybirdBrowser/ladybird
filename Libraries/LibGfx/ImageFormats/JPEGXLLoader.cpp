@@ -5,18 +5,22 @@
  */
 
 #include <AK/Error.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <jxl/decode.h>
 
 namespace Gfx {
+
+static constexpr size_t READ_BUFFER_SIZE = 4 * KiB;
 
 class JPEGXLLoadingContext {
     AK_MAKE_NONCOPYABLE(JPEGXLLoadingContext);
     AK_MAKE_NONMOVABLE(JPEGXLLoadingContext);
 
 public:
-    JPEGXLLoadingContext(JxlDecoder* decoder)
+    JPEGXLLoadingContext(JxlDecoder* decoder, NonnullRefPtr<ImageDecoderStream> stream)
         : m_decoder(decoder)
+        , m_stream(move(stream))
     {
     }
 
@@ -73,11 +77,34 @@ public:
     }
 
 private:
+    ErrorOr<JxlDecoderStatus> perform_operation_that_may_require_more_input(Function<JxlDecoderStatus()> operation)
+    {
+        for (;;) {
+            auto status = operation();
+            if (status != JXL_DEC_NEED_MORE_INPUT)
+                return status;
+
+            size_t unprocessed_bytes = JxlDecoderReleaseInput(m_decoder);
+            TRY(m_stream->seek(-unprocessed_bytes, SeekMode::FromCurrentPosition));
+            auto bytes = TRY(m_stream->read_some(m_read_buffer));
+
+            if (!bytes.is_empty()) {
+                status = JxlDecoderSetInput(m_decoder, bytes.data(), bytes.size());
+                if (status == JXL_DEC_ERROR)
+                    return status;
+            } else {
+                JxlDecoderCloseInput(m_decoder);
+            }
+        }
+    }
+
     ErrorOr<void> run_state_machine_until(State requested_state)
     {
         Optional<u32> frame_duration;
         for (;;) {
-            auto const status = JxlDecoderProcessInput(m_decoder);
+            auto const status = TRY(perform_operation_that_may_require_more_input([this] {
+                return JxlDecoderProcessInput(m_decoder);
+            }));
 
             if (status == JXL_DEC_ERROR)
                 return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder is corrupted.");
@@ -92,8 +119,12 @@ private:
 
             if (status == JXL_DEC_FRAME) {
                 JxlFrameHeader header;
-                if (auto res = JxlDecoderGetFrameHeader(m_decoder, &header);
-                    res != JXL_DEC_SUCCESS)
+
+                auto const res = TRY(perform_operation_that_may_require_more_input([this, &header] {
+                    return JxlDecoderGetFrameHeader(m_decoder, &header);
+                }));
+
+                if (res != JXL_DEC_SUCCESS)
                     return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to retrieve frame header.");
 
                 frame_duration = header.duration;
@@ -128,7 +159,11 @@ private:
     {
         JxlBasicInfo info;
 
-        if (auto res = JxlDecoderGetBasicInfo(m_decoder, &info); res != JXL_DEC_SUCCESS)
+        auto const res = TRY(perform_operation_that_may_require_more_input([this, &info] {
+            return JxlDecoderGetBasicInfo(m_decoder, &info);
+        }));
+
+        if (res != JXL_DEC_SUCCESS)
             return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to decode basic information.");
 
         m_size = { info.xsize, info.ysize };
@@ -146,7 +181,11 @@ private:
     ErrorOr<void> set_output_buffer(u32 duration)
     {
         auto result = [this, duration]() -> ErrorOr<void> {
-            if (JxlDecoderProcessInput(m_decoder) != JXL_DEC_NEED_IMAGE_OUT_BUFFER)
+            auto res = TRY(perform_operation_that_may_require_more_input([this] {
+                return JxlDecoderProcessInput(m_decoder);
+            }));
+
+            if (res != JXL_DEC_NEED_IMAGE_OUT_BUFFER)
                 return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder is in an unexpected state.");
 
             auto bitmap = TRY(Bitmap::create(Gfx::BitmapFormat::RGBA8888, m_alpha_premultiplied, m_size));
@@ -160,7 +199,7 @@ private:
             if (needed_size != bitmap->size_in_bytes())
                 return Error::from_string_literal("JPEGXLImageDecoderPlugin: Expected bitmap size is wrong.");
 
-            if (auto res = JxlDecoderSetImageOutBuffer(m_decoder, &format, bitmap->begin(), bitmap->size_in_bytes());
+            if (res = JxlDecoderSetImageOutBuffer(m_decoder, &format, bitmap->begin(), bitmap->size_in_bytes());
                 res != JXL_DEC_SUCCESS)
                 return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to decode frame.");
 
@@ -178,6 +217,8 @@ private:
     State m_state { State::NotDecoded };
 
     JxlDecoder* m_decoder;
+    NonnullRefPtr<ImageDecoderStream> m_stream;
+    Array<u8, READ_BUFFER_SIZE> m_read_buffer;
 
     IntSize m_size;
     Vector<ImageFrameDescriptor> m_frame_descriptors;
@@ -200,13 +241,20 @@ IntSize JPEGXLImageDecoderPlugin::size()
     return m_context->size();
 }
 
-bool JPEGXLImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool JPEGXLImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto signature = JxlSignatureCheck(data.data(), data.size());
+    ByteBuffer buffer;
+    JxlSignature signature = JXL_SIG_NOT_ENOUGH_BYTES;
+    do {
+        constexpr size_t SIGNATURE_READ_BUFFER_INCREMENT = 32;
+        auto bytes = buffer.must_get_bytes_for_writing(SIGNATURE_READ_BUFFER_INCREMENT);
+        MUST(stream->read_some(bytes));
+        signature = JxlSignatureCheck(buffer.data(), buffer.size());
+    } while (signature == JXL_SIG_NOT_ENOUGH_BYTES);
     return signature == JXL_SIG_CODESTREAM || signature == JXL_SIG_CONTAINER;
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> JPEGXLImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> JPEGXLImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
     auto* decoder = JxlDecoderCreate(nullptr);
     if (!decoder)
@@ -216,13 +264,7 @@ ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> JPEGXLImageDecoderPlugin::create(Read
     if (auto res = JxlDecoderSubscribeEvents(decoder, events); res == JXL_DEC_ERROR)
         return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to subscribe to events.");
 
-    if (auto res = JxlDecoderSetInput(decoder, data.data(), data.size()); res == JXL_DEC_ERROR)
-        return Error::from_string_literal("JPEGXLImageDecoderPlugin: Unable to set decoder input.");
-
-    // Tell the decoder that it won't receive more data for the image.
-    JxlDecoderCloseInput(decoder);
-
-    auto context = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLLoadingContext(decoder)));
+    auto context = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLLoadingContext(decoder, move(stream))));
     auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) JPEGXLImageDecoderPlugin(move(context))));
 
     TRY(plugin->m_context->decode_image_header());

@@ -10,6 +10,7 @@
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
 #include <AK/Variant.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
@@ -93,35 +94,35 @@ struct TinyVGHeader {
     u32 color_count;
 };
 
-static ErrorOr<TinyVGHeader> decode_tinyvg_header(Stream& stream)
+static ErrorOr<TinyVGHeader> decode_tinyvg_header(NonnullRefPtr<ImageDecoderStream> stream)
 {
     TinyVGHeader header {};
     Array<u8, 2> magic_bytes;
-    TRY(stream.read_until_filled(magic_bytes));
+    TRY(stream->read_until_filled(magic_bytes));
     if (magic_bytes != TVG_MAGIC)
         return Error::from_string_literal("Invalid TinyVG: Incorrect header magic");
-    header.version = TRY(stream.read_value<u8>());
-    u8 properties = TRY(stream.read_value<u8>());
+    header.version = TRY(stream->read_value<u8>());
+    u8 properties = TRY(stream->read_value<u8>());
     header.scale = properties & 0xF;
     header.color_encoding = static_cast<ColorEncoding>((properties >> 4) & 0x3);
     header.coordinate_range = static_cast<CoordinateRange>((properties >> 6) & 0x3);
     switch (header.coordinate_range) {
     case CoordinateRange::Default:
-        header.width = TRY(stream.read_value<LittleEndian<u16>>());
-        header.height = TRY(stream.read_value<LittleEndian<u16>>());
+        header.width = TRY(stream->read_value<LittleEndian<u16>>());
+        header.height = TRY(stream->read_value<LittleEndian<u16>>());
         break;
     case CoordinateRange::Reduced:
-        header.width = TRY(stream.read_value<u8>());
-        header.height = TRY(stream.read_value<u8>());
+        header.width = TRY(stream->read_value<u8>());
+        header.height = TRY(stream->read_value<u8>());
         break;
     case CoordinateRange::Enhanced:
-        header.width = TRY(stream.read_value<LittleEndian<u32>>());
-        header.height = TRY(stream.read_value<LittleEndian<u32>>());
+        header.width = TRY(stream->read_value<LittleEndian<u32>>());
+        header.height = TRY(stream->read_value<LittleEndian<u32>>());
         break;
     default:
         return Error::from_string_literal("Invalid TinyVG: Bad coordinate range");
     }
-    header.color_count = TRY(stream.read_value<VarUInt>());
+    header.color_count = TRY(stream->read_value<VarUInt>());
     return header;
 }
 
@@ -170,7 +171,7 @@ static ErrorOr<Vector<Color>> decode_color_table(Stream& stream, ColorEncoding e
 
 class TinyVGReader {
 public:
-    TinyVGReader(Stream& stream, TinyVGHeader const& header, ReadonlySpan<Color> color_table)
+    TinyVGReader(NonnullRefPtr<ImageDecoderStream> stream, TinyVGHeader const& header, ReadonlySpan<Color> color_table)
         : m_stream(stream)
         , m_scale(powf(0.5, header.scale))
         , m_coordinate_range(header.coordinate_range)
@@ -183,11 +184,11 @@ public:
         auto read_value = [&]() -> ErrorOr<i32> {
             switch (m_coordinate_range) {
             case CoordinateRange::Default:
-                return TRY(m_stream.read_value<LittleEndian<i16>>());
+                return TRY(m_stream->read_value<LittleEndian<i16>>());
             case CoordinateRange::Reduced:
-                return TRY(m_stream.read_value<i8>());
+                return TRY(m_stream->read_value<i8>());
             case CoordinateRange::Enhanced:
-                return TRY(m_stream.read_value<LittleEndian<i32>>());
+                return TRY(m_stream->read_value<LittleEndian<i32>>());
             default:
                 // Note: Already checked while reading the header.
                 VERIFY_NOT_REACHED();
@@ -198,7 +199,7 @@ public:
 
     ErrorOr<u32> read_var_uint()
     {
-        return TRY(m_stream.read_value<VarUInt>());
+        return TRY(m_stream->read_value<VarUInt>());
     }
 
     ErrorOr<FloatPoint> read_point()
@@ -209,7 +210,7 @@ public:
     ErrorOr<TinyVGDecodedImageData::Style> read_style(StyleType type)
     {
         auto read_color = [&]() -> ErrorOr<Color> {
-            auto color_index = TRY(m_stream.read_value<VarUInt>());
+            auto color_index = TRY(m_stream->read_value<VarUInt>());
             if (color_index >= m_color_table.size())
                 return Error::from_string_literal("Invalid color table index");
 
@@ -259,7 +260,7 @@ public:
             auto start_point = TRY(read_point());
             path.move_to(start_point);
             for (u32 i = 0; i < command_count; i++) {
-                u8 command_tag = TRY(m_stream.read_value<u8>());
+                u8 command_tag = TRY(m_stream->read_value<u8>());
                 auto path_command = static_cast<PathCommand>(command_tag & 0x7);
                 bool has_line_width = (command_tag >> 4) & 0b1;
                 if (has_line_width) {
@@ -285,7 +286,7 @@ public:
                     break;
                 }
                 case PathCommand::ArcCircle: {
-                    u8 flags = TRY(m_stream.read_value<u8>());
+                    u8 flags = TRY(m_stream->read_value<u8>());
                     bool large_arc = (flags >> 0) & 0b1;
                     bool sweep = (flags >> 1) & 0b1;
                     auto radius = TRY(read_unit());
@@ -294,7 +295,7 @@ public:
                     break;
                 }
                 case PathCommand::ArcEllipse: {
-                    u8 flags = TRY(m_stream.read_value<u8>());
+                    u8 flags = TRY(m_stream->read_value<u8>());
                     bool large_arc = (flags >> 0) & 0b1;
                     bool sweep = (flags >> 1) & 0b1;
                     auto radius_x = TRY(read_unit());
@@ -334,25 +335,25 @@ public:
 
     ErrorOr<OutlineFillCommandHeader> read_outline_fill_command_header(StyleType style_type)
     {
-        u8 header = TRY(m_stream.read_value<u8>());
+        u8 header = TRY(m_stream->read_value<u8>());
         u8 count = (header & 0x3f) + 1;
         auto stroke_type = static_cast<StyleType>((header >> 6) & 0x3);
         return OutlineFillCommandHeader { count, TRY(read_style(style_type)), TRY(read_style(stroke_type)), TRY(read_unit()) };
     }
 
 private:
-    Stream& m_stream;
+    NonnullRefPtr<ImageDecoderStream> m_stream;
     float m_scale {};
     CoordinateRange m_coordinate_range;
     ReadonlySpan<Color> m_color_table;
 };
 
-ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(Stream& stream)
+ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(NonnullRefPtr<ImageDecoderStream> stream)
 {
     return decode(stream, TRY(decode_tinyvg_header(stream)));
 }
 
-ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(Stream& stream, TinyVGHeader const& header)
+ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(NonnullRefPtr<ImageDecoderStream> stream, TinyVGHeader const& header)
 {
     if (header.version != 1)
         return Error::from_string_literal("Invalid TinyVG: Unsupported version");
@@ -373,7 +374,7 @@ ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(St
     Vector<DrawCommand> draw_commands;
     bool at_end = false;
     while (!at_end) {
-        u8 command_info = TRY(stream.read_value<u8>());
+        u8 command_info = TRY(stream->read_value<u8>());
         auto command = static_cast<Command>(command_info & 0x3f);
         auto style_type = static_cast<StyleType>((command_info >> 6) & 0x3);
 
@@ -488,7 +489,7 @@ void TinyVGDecodedImageData::draw(Painter& painter) const
 }
 
 struct TinyVGLoadingContext {
-    FixedMemoryStream stream;
+    NonnullRefPtr<ImageDecoderStream> stream;
     TinyVGHeader header {};
     RefPtr<TinyVGDecodedImageData> decoded_image {};
     RefPtr<Bitmap> bitmap {};
@@ -532,23 +533,22 @@ static ErrorOr<void> ensure_fully_decoded(TinyVGLoadingContext& context)
     return {};
 }
 
-TinyVGImageDecoderPlugin::TinyVGImageDecoderPlugin(ReadonlyBytes bytes)
-    : m_context { make<TinyVGLoadingContext>(FixedMemoryStream { bytes }) }
+TinyVGImageDecoderPlugin::TinyVGImageDecoderPlugin(NonnullRefPtr<ImageDecoderStream> stream)
+    : m_context { make<TinyVGLoadingContext>(stream) }
 {
 }
 
 TinyVGImageDecoderPlugin::~TinyVGImageDecoderPlugin() = default;
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> TinyVGImageDecoderPlugin::create(ReadonlyBytes bytes)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> TinyVGImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TinyVGImageDecoderPlugin(bytes)));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) TinyVGImageDecoderPlugin(stream)));
     TRY(decode_header_and_update_context(*plugin->m_context));
     return plugin;
 }
 
-bool TinyVGImageDecoderPlugin::sniff(ReadonlyBytes bytes)
+bool TinyVGImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    FixedMemoryStream stream { { bytes.data(), bytes.size() } };
     return !decode_tinyvg_header(stream).is_error();
 }
 
