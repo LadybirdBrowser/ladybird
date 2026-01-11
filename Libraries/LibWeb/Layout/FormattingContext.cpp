@@ -1468,6 +1468,10 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     if (box.has_natural_width())
         return *box.natural_width();
 
+    // Boxes with no children have zero intrinsic width.
+    if (!box.has_children())
+        return 0;
+
     auto& cache = box.cached_intrinsic_sizes().min_content_width;
     if (cache.has_value())
         return cache.value();
@@ -1496,6 +1500,10 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
 {
     if (box.has_natural_width())
         return *box.natural_width();
+
+    // Boxes with no children have zero intrinsic width.
+    if (!box.has_children())
+        return 0;
 
     auto& cache = box.cached_intrinsic_sizes().max_content_width;
     if (cache.has_value())
@@ -1542,6 +1550,10 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
         return *box.natural_height();
     }
 
+    // Boxes with no children have zero intrinsic height.
+    if (!box.has_children())
+        return 0;
+
     auto& cache = box.cached_intrinsic_sizes().min_content_height.ensure(width);
     if (cache.has_value())
         return cache.value();
@@ -1569,6 +1581,10 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     if (box.has_natural_height())
         return *box.natural_height();
+
+    // Boxes with no children have zero intrinsic height.
+    if (!box.has_children())
+        return 0;
 
     auto& cache_slot = box.cached_intrinsic_sizes().max_content_height.ensure(width);
     if (cache_slot.has_value())
