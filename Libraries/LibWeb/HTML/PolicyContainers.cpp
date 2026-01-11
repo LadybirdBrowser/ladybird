@@ -13,6 +13,7 @@
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
+#include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 
 namespace Web::HTML {
 
@@ -50,9 +51,11 @@ GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Hea
     // FIXME: 4. If environment is non-null, then set result's embedder policy to the result of obtaining an embedder
     //           policy given response and environment. Otherwise, set it to "unsafe-none".
 
-    // FIXME: 5. Set result's referrer policy to the result of parsing the `Referrer-Policy` header given response.
-    //           [REFERRERPOLICY]
-    //        Doing this currently makes Fetch fail the policy != ReferrerPolicy::EmptyString verification.
+    // 5. Set result's referrer policy to the result of parsing the `Referrer-Policy` header given response.
+    //    [REFERRERPOLICY]
+    auto parsed_referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(response);
+    if (parsed_referrer_policy != ReferrerPolicy::ReferrerPolicy::EmptyString)
+        result->referrer_policy = parsed_referrer_policy;
 
     // FIXME: 6. Parse Integrity-Policy headers with response and result.
 

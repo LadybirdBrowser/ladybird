@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+
+        const reflectorUrl = await httpServer.createEcho("GET", "/referrer-policy-reflector", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            reflect_headers_in_body: true,
+        });
+
+        const noReferrerIframeUrl = await httpServer.createEcho("GET", "/no-referrer-iframe", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Referrer-Policy": "no-referrer",
+            },
+            body: `<!DOCTYPE html>
+                <script>
+                    (async () => {
+                        try {
+                            const response = await fetch("${reflectorUrl}");
+                            const headers = await response.json();
+                            const refererArray = headers["Referer"];
+                            const referer = refererArray ? refererArray[0] : null;
+                            parent.postMessage({ test: "no-referrer", referer: referer }, "*");
+                        } catch (e) {
+                            parent.postMessage({ test: "no-referrer", error: e.message }, "*");
+                        }
+                    })();
+                <\/script>`,
+        });
+
+        const originIframeUrl = await httpServer.createEcho("GET", "/origin-iframe", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Referrer-Policy": "origin",
+            },
+            body: `<!DOCTYPE html>
+                <script>
+                    (async () => {
+                        try {
+                            const response = await fetch("${reflectorUrl}");
+                            const headers = await response.json();
+                            const refererArray = headers["Referer"];
+                            const referer = refererArray ? refererArray[0] : null;
+                            parent.postMessage({ test: "origin", referer: referer }, "*");
+                        } catch (e) {
+                            parent.postMessage({ test: "origin", error: e.message }, "*");
+                        }
+                    })();
+                <\/script>`,
+        });
+
+        const results = {};
+        let expectedResults = 2;
+        addEventListener("message", (event) => {
+            const { test, referer, error } = event.data;
+            if (error) {
+                println(`${test}: ERROR - ${error}`);
+            } else {
+                results[test] = referer;
+            }
+
+            expectedResults--;
+            if (expectedResults === 0) {
+                if (results["no-referrer"] === null) {
+                    println("no-referrer policy: PASS (no Referer header sent)");
+                } else {
+                    println(`no-referrer policy: FAIL (Referer was "${results["no-referrer"]}")`);
+                }
+
+                // Verify origin policy: referer should be origin only (e.g., "http://127.0.0.1:PORT/")
+                const originReferer = results["origin"];
+                const isOriginOnly = originReferer &&
+                    originReferer.endsWith("/") &&
+                    !originReferer.includes("?") &&
+                    originReferer.match(/^https?:\/\/[^\/]+\/$/) !== null;
+                if (isOriginOnly) {
+                    println("origin policy: PASS (only origin sent)");
+                } else {
+                    println(`origin policy: FAIL (Referer was "${originReferer}")`);
+                }
+
+                done();
+            }
+        }, false);
+
+        const frame1 = document.createElement('iframe');
+        frame1.src = noReferrerIframeUrl;
+        document.body.appendChild(frame1);
+
+        const frame2 = document.createElement('iframe');
+        frame2.src = originIframeUrl;
+        document.body.appendChild(frame2);
+    });
+</script>
