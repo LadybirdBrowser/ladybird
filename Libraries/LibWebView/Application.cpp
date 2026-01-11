@@ -216,10 +216,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     // Our persisted SQL storage assumes it runs in a singleton process. If we have multiple UI processes accessing
     // the same underlying database, one of them is likely to fail.
-    if (force_new_process) {
+    if (force_new_process)
         disable_sql_database = true;
-        disable_http_disk_cache = true;
-    }
 
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
@@ -264,9 +262,15 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (webdriver_content_ipc_path.has_value())
         m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
 
+    auto http_disk_cache_mode = HTTPDiskCacheMode::Enabled;
+    if (disable_http_disk_cache)
+        http_disk_cache_mode = HTTPDiskCacheMode::Disabled;
+    else if (force_new_process)
+        http_disk_cache_mode = HTTPDiskCacheMode::Partitioned;
+
     m_request_server_options = {
         .certificates = move(certificates),
-        .http_disk_cache_mode = disable_http_disk_cache ? HTTPDiskCacheMode::Disabled : HTTPDiskCacheMode::Enabled,
+        .http_disk_cache_mode = http_disk_cache_mode,
         .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
     };
 

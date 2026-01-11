@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
@@ -17,10 +18,25 @@ namespace HTTP {
 
 static constexpr auto INDEX_DATABASE = "INDEX"sv;
 
+static ByteString cache_directory_for_mode(DiskCache::Mode mode)
+{
+    switch (mode) {
+    case DiskCache::Mode::Normal:
+        return "Cache"sv;
+    case DiskCache::Mode::Partitioned:
+        // FIXME: Ideally, we could support multiple RequestServer processes using the same database by enabling the
+        //        WAL and setting a reasonable busy timeout. We would also have to prevent multiple processes writing
+        //        to the same cache entry file at the same time with some locking mechanism.
+        return ByteString::formatted("PartitionedCache-{}", Core::System::getpid());
+    case DiskCache::Mode::Testing:
+        return "TestCache"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 ErrorOr<DiskCache> DiskCache::create(Mode mode)
 {
-    auto cache_name = mode == Mode::Normal ? "Cache"sv : "TestCache"sv;
-    auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_name);
+    auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_directory_for_mode(mode));
 
     auto database = TRY(Database::Database::create(cache_directory.string(), INDEX_DATABASE));
     auto index = TRY(CacheIndex::create(database));
@@ -34,15 +50,23 @@ DiskCache::DiskCache(Mode mode, NonnullRefPtr<Database::Database> database, Lexi
     , m_cache_directory(move(cache_directory))
     , m_index(move(index))
 {
-    // Start with a clean slate in test mode.
-    if (m_mode == Mode::Testing)
+    // Start with a clean slate in non-normal modes.
+    if (m_mode != Mode::Normal)
         remove_entries_accessed_since(UnixDateTime::earliest());
 }
 
 DiskCache::DiskCache(DiskCache&&) = default;
 DiskCache& DiskCache::operator=(DiskCache&&) = default;
 
-DiskCache::~DiskCache() = default;
+DiskCache::~DiskCache()
+{
+    if (m_mode != Mode::Partitioned)
+        return;
+
+    // Clean up partitioned cache directories to prevent endless growth of disk usage.
+    if (auto const& cache_directory = m_cache_directory.string(); !cache_directory.is_empty())
+        (void)FileSystem::remove(cache_directory, FileSystem::RecursionMode::Allowed);
+}
 
 Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)
 {
