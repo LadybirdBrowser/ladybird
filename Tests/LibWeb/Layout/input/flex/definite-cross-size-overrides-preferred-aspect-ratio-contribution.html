@@ -1,0 +1,32 @@
+<!doctype html>
+<style>
+  .max-content-row {
+    display: flex;
+    flex-direction: row;
+    height: max-content;
+    outline: 1px solid black;
+  }
+  .min-content-row {
+    display: flex;
+    flex-direction: row;
+    height: min-content;
+    outline: 1px solid black;
+  }
+  .green-block-definite-height {
+    height: 200px; /* should win */
+    max-width: 50px; /* this should not affect height */
+    aspect-ratio: 1 / 1; /* should lose */
+    background: green;
+  }
+  .blue-block-definite-height {
+    height: 50px; /* should win */
+    min-width: 200px; /* this should not affect height */
+    aspect-ratio: 1 / 1; /* should lose */
+    background: blue;
+  }
+</style>
+
+<div class="max-content-row"><div class="green-block-definite-height"></div></div>
+<div class="max-content-row"><div class="blue-block-definite-height"></div></div>
+<div class="min-content-row"><div class="green-block-definite-height"></div></div>
+<div class="min-content-row"><div class="blue-block-definite-height"></div></div>
