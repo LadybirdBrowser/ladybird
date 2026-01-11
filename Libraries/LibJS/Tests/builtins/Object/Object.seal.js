@@ -33,7 +33,7 @@ describe("normal behavior", () => {
         expect(Object.defineProperty(o, "foo", { configurable: false })).toBe(o);
         expect(() => {
             Object.defineProperty(o, "foo", { configurable: true });
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'foo' on [object Object]");
     });
 
     test("doesn't prevent changing value of existing properties", () => {

@@ -73,7 +73,7 @@ describe("[[SetPrototypeOf]] invariants", () => {
 
         expect(() => {
             Object.setPrototypeOf(p, {});
-        }).toThrowWithMessage(TypeError, "Object's [[SetPrototypeOf]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot set prototype of [object ProxyObject]");
     });
 
     test("the argument must match the target's prototype if the target is non-extensible", () => {

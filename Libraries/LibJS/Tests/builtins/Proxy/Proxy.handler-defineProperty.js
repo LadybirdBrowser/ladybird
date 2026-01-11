@@ -96,7 +96,7 @@ describe("[[DefineProperty]] invariants", () => {
 
         expect(() => {
             Object.defineProperty(p, "foo", {});
-        }).toThrowWithMessage(TypeError, "Object's [[DefineOwnProperty]] method returned false");
+        }).toThrowWithMessage(TypeError, "Cannot define property 'foo' on [object ProxyObject]");
     });
 
     test("trap cannot return true for a non-extensible target if the property does not exist", () => {
