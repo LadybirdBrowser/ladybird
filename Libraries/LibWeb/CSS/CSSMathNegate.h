@@ -17,7 +17,7 @@ class CSSMathNegate final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathNegate> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathNegate>> construct_impl(JS::Realm&, CSSNumberish);
+    static GC::Ref<CSSMathNegate> construct_impl(JS::Realm&, CSSNumberish);
 
     virtual ~CSSMathNegate() override;
 

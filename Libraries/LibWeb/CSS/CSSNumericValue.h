@@ -47,10 +47,20 @@ public:
     };
     virtual ~CSSNumericValue() override = default;
 
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> add(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> sub(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> mul(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> div(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> min(Vector<CSSNumberish> const&);
+    WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> max(Vector<CSSNumberish> const&);
+
     bool equals_for_bindings(Vector<CSSNumberish>) const;
     virtual bool is_equal_numeric_value(GC::Ref<CSSNumericValue> other) const = 0;
 
     WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> to(FlyString const& unit) const;
+
+    CSSNumberish negate();
+    WebIDL::ExceptionOr<CSSNumberish> invert();
 
     virtual Optional<SumValue> create_a_sum_value() const = 0;
 

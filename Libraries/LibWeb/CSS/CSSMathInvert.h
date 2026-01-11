@@ -17,7 +17,7 @@ class CSSMathInvert final : public CSSMathValue {
 
 public:
     [[nodiscard]] static GC::Ref<CSSMathInvert> create(JS::Realm&, NumericType, GC::Ref<CSSNumericValue>);
-    static WebIDL::ExceptionOr<GC::Ref<CSSMathInvert>> construct_impl(JS::Realm&, CSSNumberish);
+    static GC::Ref<CSSMathInvert> construct_impl(JS::Realm&, CSSNumberish);
 
     virtual ~CSSMathInvert() override;
 

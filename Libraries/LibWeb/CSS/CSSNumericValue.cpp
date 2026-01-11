@@ -1,14 +1,22 @@
 /*
  * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSNumericValue.h"
 #include <AK/StringBuilder.h>
 #include <LibWeb/Bindings/CSSNumericValuePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSMathInvert.h>
+#include <LibWeb/CSS/CSSMathMax.h>
+#include <LibWeb/CSS/CSSMathMin.h>
+#include <LibWeb/CSS/CSSMathNegate.h>
+#include <LibWeb/CSS/CSSMathProduct.h>
+#include <LibWeb/CSS/CSSMathSum.h>
 #include <LibWeb/CSS/CSSMathValue.h>
+#include <LibWeb/CSS/CSSNumericArray.h>
+#include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/MathFunctions.h>
 #include <LibWeb/CSS/NumericType.h>
@@ -53,6 +61,247 @@ void CSSNumericValue::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNumericValue);
     Base::initialize(realm);
+}
+
+static bool all_values_are_css_unit_values_with_the_same_unit(GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
+{
+    VERIFY(!values.is_empty());
+    return all_of(values, [&](auto& value) {
+        if (auto* unit_value = as_if<CSSUnitValue>(*value))
+            return unit_value->unit() == as<CSSUnitValue>(*values[0]).unit();
+        return false;
+    });
+}
+
+template<typename Operation>
+static GC::Ref<CSSNumericValue> apply_math_operation_on_css_unit_values(JS::Realm& realm, GC::RootVector<GC::Ref<CSSNumericValue>> const& values, Operation&& operation)
+{
+    auto& first_unit_value = as<CSSUnitValue>(*values[0]);
+    auto& unit = first_unit_value.unit();
+
+    double result = first_unit_value.value();
+    for (size_t i = 1; i < values.size(); ++i)
+        result = operation(result, as<CSSUnitValue>(*values[i]).value());
+    return CSSUnitValue::create(realm, result, unit);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-add
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item.
+    // 2. If this is a CSSMathSum object, prepend the items in this’s values internal slot to values.
+    //    Otherwise, prepend this to values.
+
+    // NB: We reorder the steps a little to avoid the awkward prepending.
+    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    if (auto const* math_sum = as_if<CSSMathSum>(*this))
+        values.extend(math_sum->values()->values());
+    else
+        values.append(*this);
+
+    for (auto const& value : initial_values)
+        values.append(rectify_a_numberish_value(realm, value));
+
+    // 3. If all of the items in values are CSSUnitValues and have the same unit, return a new CSSUnitValue whose unit
+    //    internal slot is set to that unit, and value internal slot is set to the sum of the value internal slots of
+    //    the items in values. This addition must be done "left to right" - if values is « 1, 2, 3, 4 », the result must
+    //    be (((1 + 2) + 3) + 4). (This detail is necessary to ensure interoperability in the presence of floating-point
+    //    arithmetic.)
+    if (all_values_are_css_unit_values_with_the_same_unit(values))
+        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return a + b; });
+
+    // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
+    // 5. Return a new CSSMathSum object whose values internal slot is set to values.
+    return TRY(CSSMathSum::add_all_types_into_math_sum(realm, values));
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-sub
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item, then negating the value.
+    Vector<CSSNumberish> values;
+    for (auto const& value : initial_values)
+        values.append(rectify_a_numberish_value(realm, value)->negate());
+
+    // 2. Return the result of calling the add() internal algorithm with this and values.
+    return add(values);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssmath-negate-a-cssnumericvalue
+CSSNumberish CSSNumericValue::negate()
+{
+    // 1. If this is a CSSMathNegate object, return this’s value internal slot.
+    if (auto* negate = as_if<CSSMathNegate>(*this))
+        return GC::Root<CSSNumericValue> { negate->value().ptr() };
+
+    // 2. If this is a CSSUnitValue object, return a new CSSUnitValue with the same unit internal slot as this, and a
+    //    value internal slot set to the negation of this’s.
+    if (auto* unit_value = as_if<CSSUnitValue>(*this))
+        return GC::Root<CSSNumericValue> { CSSUnitValue::create(realm(), -unit_value->value(), unit_value->unit()).ptr() };
+
+    // 3. Otherwise, return a new CSSMathNegate object whose value internal slot is set to this.
+    return GC::Root<CSSNumericValue> { CSSMathNegate::construct_impl(realm(), GC::Root<CSSNumericValue> { this }).ptr() };
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-mul
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item.
+    // 2. If this is a CSSMathProduct object, prepend the items in this’s values internal slot to values.
+    //    Otherwise, prepend this to values.
+
+    // NB: We reorder the steps a little to avoid the awkward prepending.
+    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    if (auto const* math_product = as_if<CSSMathProduct>(*this))
+        values.extend(math_product->values()->values());
+    else
+        values.append(*this);
+
+    for (auto const& value : initial_values)
+        values.append(rectify_a_numberish_value(realm, value));
+
+    // 3. If all of the items in values are CSSUnitValues with unit internal slot set to "number", return a new
+    //    CSSUnitValue whose unit internal slot is set to "number", and value internal slot is set to the product of the
+    //    value internal slots of the items in values.
+    //
+    //    This multiplication must be done "left to right" - if values is « 1, 2, 3, 4 », the result must be (((1 × 2) × 3) × 4).
+    //    (This detail is necessary to ensure interoperability in the presence of floating-point arithmetic.)
+    //
+    // 4. If all of the items in values are CSSUnitValues with unit internal slot set to "number" except one which is
+    //    set to unit, return a new CSSUnitValue whose unit internal slot is set to unit, and value internal slot is set
+    //    to the product of the value internal slots of the items in values.
+    //
+    //    This multiplication must be done "left to right" - if values is « 1, 2, 3, 4 », the result must be (((1 × 2) × 3) × 4).
+    bool all_values_are_units = all_of(values, [](auto& value) {
+        return is<CSSUnitValue>(*value);
+    });
+
+    if (all_values_are_units) {
+        bool multiple_units_found = false;
+        Optional<size_t> non_number_unit_index;
+        for (size_t i = 0; i < values.size(); ++i) {
+            auto unit = as<CSSUnitValue>(*values[i]).unit();
+            if (unit == "number"sv)
+                continue;
+            if (non_number_unit_index.has_value()) {
+                multiple_units_found = true;
+                break;
+            }
+            non_number_unit_index = i;
+        }
+        if (!multiple_units_found) {
+            double product = 1;
+            for (auto& value : values)
+                product *= as<CSSUnitValue>(*value).value();
+            auto unit = non_number_unit_index.has_value() ? as<CSSUnitValue>(*values[*non_number_unit_index]).unit() : "number"_fly_string;
+            return CSSUnitValue::create(realm, product, unit);
+        }
+    }
+
+    // 5. Let type be the result of multiplying the types of every item in values. If type is failure, throw a TypeError.
+    // 6. Return a new CSSMathProduct object whose values internal slot is set to values.
+    return TRY(CSSMathProduct::multiply_all_types_into_math_product(realm, values));
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-div
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::div(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item, then inverting the value.
+    Vector<CSSNumberish> values;
+    for (auto const& value : initial_values)
+        values.append(TRY(rectify_a_numberish_value(realm, value)->invert()));
+
+    // 2. Return the result of calling the mul() internal algorithm with this and values.
+    return mul(values);
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#cssmath-invert-a-cssnumericvalue
+WebIDL::ExceptionOr<CSSNumberish> CSSNumericValue::invert()
+{
+    // 1. If this is a CSSMathInvert object, return this’s value internal slot.
+    if (auto* invert = as_if<CSSMathInvert>(*this))
+        return GC::Root<CSSNumericValue> { invert->value().ptr() };
+
+    // 2. If this is a CSSUnitValue object with unit internal slot set to "number":
+    if (auto* unit_value = as_if<CSSUnitValue>(*this); unit_value && unit_value->unit() == "number"sv) {
+        // 1. If this’s value internal slot is set to 0 or -0, throw a RangeError.
+        if (unit_value->value() == 0 || unit_value->value() == -0)
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Zero has no multiplicative inverse"sv };
+
+        // 2. Else return a new CSSUnitValue with the unit internal slot set to "number", and a value internal slot set
+        //    to 1 divided by this’s {CSSUnitValue/value}} internal slot.
+        return GC::Root<CSSNumericValue> { CSSUnitValue::create(realm(), 1.0 / unit_value->value(), "number"_fly_string).ptr() };
+    }
+
+    // 3. Otherwise, return a new CSSMathInvert object whose value internal slot is set to this.
+    return GC::Root<CSSNumericValue> { CSSMathInvert::construct_impl(realm(), GC::Root<CSSNumericValue> { this }).ptr() };
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-min
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item.
+    // 2. If this is a CSSMathMin object, prepend the items in this’s values internal slot to values.
+    //    Otherwise, prepend this to values.
+
+    // NB: We reorder the steps a little to avoid the awkward prepending.
+    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    if (auto const* math_product = as_if<CSSMathMin>(*this))
+        values.extend(math_product->values()->values());
+    else
+        values.append(*this);
+
+    for (auto const& value : initial_values)
+        values.append(rectify_a_numberish_value(realm, value));
+
+    // 3. If all of the items in values are CSSUnitValues and have the same unit, return a new CSSUnitValue whose unit
+    //    internal slot is set to that unit, and value internal slot is set to the minimum of the value internal slots
+    //    of the items in values.
+    if (all_values_are_css_unit_values_with_the_same_unit(values))
+        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return AK::min(a, b); });
+
+    // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
+    // 5. Return a new CSSMathMin object whose values internal slot is set to values.
+    return TRY(CSSMathMin::add_all_types_into_math_min(realm, values));
+}
+
+// https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-max
+WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(Vector<CSSNumberish> const& initial_values)
+{
+    auto& realm = this->realm();
+
+    // 1. Replace each item of values with the result of rectifying a numberish value for the item.
+    // 2. If this is a CSSMathMax object, prepend the items in this’s values internal slot to values.
+    //    Otherwise, prepend this to values.
+
+    // NB: We reorder the steps a little to avoid the awkward prepending.
+    GC::RootVector<GC::Ref<CSSNumericValue>> values { heap() };
+    if (auto const* math_product = as_if<CSSMathMax>(*this))
+        values.extend(math_product->values()->values());
+    else
+        values.append(*this);
+
+    for (auto const& value : initial_values)
+        values.append(rectify_a_numberish_value(realm, value));
+
+    // 3. If all of the items in values are CSSUnitValues and have the same unit, return a new CSSUnitValue whose unit
+    //    internal slot is set to that unit, and value internal slot is set to the maximum of the value internal slots
+    //    of the items in values.
+    if (all_values_are_css_unit_values_with_the_same_unit(values))
+        return apply_math_operation_on_css_unit_values(realm, values, [](double a, double b) { return AK::max(a, b); });
+
+    // 4. Let type be the result of adding the types of every item in values. If type is failure, throw a TypeError.
+    // 5. Return a new CSSMathMax object whose values internal slot is set to values.
+    return TRY(CSSMathMax::add_all_types_into_math_max(realm, values));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssnumericvalue-equals
