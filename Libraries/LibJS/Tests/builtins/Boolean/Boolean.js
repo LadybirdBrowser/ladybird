@@ -30,3 +30,20 @@ test("basic functionality", () => {
     expect(Boolean([])).toBeTrue();
     expect(Boolean(1)).toBeTrue();
 });
+
+test("double negate", () => {
+    expect(!true).toBeFalse();
+    expect(!!true).toBeTrue();
+    expect(!false).toBeTrue();
+    expect(!!false).toBeFalse();
+    expect(!!null).toBeFalse();
+    expect(!!undefined).toBeFalse();
+    expect(!!NaN).toBeFalse();
+    expect(!!"").toBeFalse();
+    expect(!!0.0).toBeFalse();
+    expect(!!-0.0).toBeFalse();
+    expect(!!"0").toBeTrue();
+    expect(!!{}).toBeTrue();
+    expect(!![]).toBeTrue();
+    expect(!!1).toBeTrue();
+});
