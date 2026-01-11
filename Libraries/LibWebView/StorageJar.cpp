@@ -107,7 +107,7 @@ Optional<String> StorageJar::get_item(StorageEndpointType storage_endpoint, Stri
     return m_transient_storage.get_item(storage_location);
 }
 
-StorageOperationError StorageJar::set_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& bottle_value)
+StorageSetResult StorageJar::set_item(StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key, String const& bottle_value)
 {
     StorageLocation storage_location { storage_endpoint, storage_key, bottle_key };
 
@@ -166,8 +166,10 @@ Optional<String> StorageJar::TransientStorage::get_item(StorageLocation const& k
     return {};
 }
 
-StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation const& key, String const& value)
+StorageSetResult StorageJar::TransientStorage::set_item(StorageLocation const& key, String const& value)
 {
+    auto old_value = get_item(key);
+
     u64 current_size = 0;
 
     for (auto const& [existing_key, existing_entry] : m_storage_items) {
@@ -182,7 +184,7 @@ StorageOperationError StorageJar::TransientStorage::set_item(StorageLocation con
         return StorageOperationError::QuotaExceededError;
 
     m_storage_items.set(key, { value, UnixDateTime::now() });
-    return StorageOperationError::None;
+    return old_value;
 }
 
 void StorageJar::TransientStorage::delete_item(StorageLocation const& key)
@@ -262,8 +264,10 @@ Optional<String> StorageJar::PersistedStorage::get_item(StorageLocation const& k
     return result;
 }
 
-StorageOperationError StorageJar::PersistedStorage::set_item(StorageLocation const& key, String const& value)
+StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& key, String const& value)
 {
+    auto old_value = get_item(key);
+
     size_t current_size = 0;
     database.execute_statement(
         statements.calculate_size_excluding_key,
@@ -287,7 +291,7 @@ StorageOperationError StorageJar::PersistedStorage::set_item(StorageLocation con
         value,
         UnixDateTime::now());
 
-    return StorageOperationError::None;
+    return old_value;
 }
 
 void StorageJar::PersistedStorage::delete_item(StorageLocation const& key)

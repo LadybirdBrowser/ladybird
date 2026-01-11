@@ -40,6 +40,7 @@ namespace TestWeb {
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
+static Vector<ByteString> s_run_in_serial_tests;
 static HashMap<WebView::ViewImplementation const*, Test*> s_test_by_view;
 
 static constexpr StringView test_result_to_string(TestResult result)
@@ -76,6 +77,9 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
         if (group == "Skipped"sv) {
             for (auto& key : config->keys(group))
                 s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
+        } else if (group == "RunInSerial"sv) {
+            for (auto& key : config->keys(group))
+                s_run_in_serial_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -454,7 +458,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
     timer->start();
 }
 
-static void run_test(TestWebView& view, Test& test, Application& app)
+static void run_test(TestWebView& view, Test& test, Application const& app)
 {
     s_test_by_view.set(&view, &test);
 
@@ -547,93 +551,37 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
     };
 }
 
-static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
+struct TestStats {
+    size_t pass_count { 0 };
+    size_t fail_count { 0 };
+    size_t timeout_count { 0 };
+    size_t crashed_count { 0 };
+    size_t skipped_count { 0 };
+    Vector<TestCompletion> non_passing_tests;
+};
+
+static ErrorOr<void> run_test_batch(
+    ReadonlySpan<NonnullOwnPtr<TestWebView>> views,
+    Vector<Test&>& batch_tests,
+    size_t total_test_count,
+    size_t& global_test_index,
+    size_t& total_tests_remaining,
+    TestStats& stats,
+    Application const& app)
 {
-    auto& app = Application::the();
-    TRY(load_test_config(app.test_root_path));
-
-    Vector<Test> tests;
-
-    for (auto& glob : app.test_globs)
-        glob = ByteString::formatted("*{}*", glob);
-    if (app.test_globs.is_empty())
-        app.test_globs.append("*"sv);
-
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
-    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
-
-    tests.remove_all_matching([&](auto const& test) {
-        static constexpr Array support_file_patterns {
-            "*/wpt-import/*/support/*"sv,
-            "*/wpt-import/*/resources/*"sv,
-            "*/wpt-import/common/*"sv,
-            "*/wpt-import/images/*"sv,
-        };
-        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
-        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
-        return is_support_file || !match_glob;
-    });
-
-    if (app.shuffle)
-        shuffle(tests);
-
-    if (app.test_dry_run) {
-        outln("Found {} tests...", tests.size());
-
-        for (auto const& [i, test] : enumerate(tests))
-            outln("{}/{}: {}", i + 1, tests.size(), test.relative_path);
-
-        return 0;
-    }
-
-    if (tests.is_empty()) {
-        if (app.test_globs.is_empty())
-            return Error::from_string_literal("No tests found");
-        return Error::from_string_literal("No tests found matching filter");
-    }
-
-    auto concurrency = min(app.test_concurrency, tests.size());
-    size_t loaded_web_views = 0;
-
-    Vector<NonnullOwnPtr<TestWebView>> views;
-    views.ensure_capacity(concurrency);
-
-    for (size_t i = 0; i < concurrency; ++i) {
-        auto view = TestWebView::create(theme, window_size);
-        view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
-        // FIXME: Figure out a better way to ensure that tests use default browser settings.
-        view->reset_zoom();
-
-        views.unchecked_append(move(view));
-    }
-
-    // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
-    // test URL before the about:blank load completes. WebContent currently cannot handle this, and will drop the test URL.
-    Core::EventLoop::current().spin_until([&]() {
-        return loaded_web_views == concurrency;
-    });
-
-    size_t pass_count = 0;
-    size_t fail_count = 0;
-    size_t timeout_count = 0;
-    size_t crashed_count = 0;
-    size_t skipped_count = 0;
-
-    // Keep clearing and reusing the same line if stdout is a TTY.
-    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
-    outln("Running {} tests...", tests.size());
+    if (batch_tests.is_empty())
+        return {};
 
     s_all_tests_complete = Core::Promise<Empty>::construct();
-    auto tests_remaining = tests.size();
+
+    // Keep clearing and reusing the same line if stdout is a TTY.
+    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && MUST(Core::System::isatty(STDOUT_FILENO));
+
+    auto batch_tests_remaining = batch_tests.size();
     auto current_test = 0uz;
 
-    Vector<TestCompletion> non_passing_tests;
-
     auto digits_for_view_id = static_cast<size_t>(log10(views.size()) + 1);
-    auto digits_for_test_id = static_cast<size_t>(log10(tests.size()) + 1);
+    auto digits_for_test_id = static_cast<size_t>(log10(total_test_count) + 1);
 
     for (auto [view_id, view] : enumerate(views)) {
         set_ui_callbacks_for_tests(*view);
@@ -641,18 +589,18 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         auto run_next_test = [&, view_id]() {
             auto index = current_test++;
-            if (index >= tests.size())
+            if (index >= batch_tests.size())
                 return;
 
-            auto& test = tests[index];
+            auto& test = batch_tests[index];
             test.start_time = UnixDateTime::now();
-            test.index = index + 1;
+            test.index = ++global_test_index;
 
             if (log_on_one_line) {
-                out("\33[2K\r{}/{}: {}", test.index, tests.size(), test.relative_path);
+                out("\33[2K\r{}/{}: {}", test.index, total_test_count, test.relative_path);
                 (void)fflush(stdout);
             } else {
-                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index, digits_for_test_id, tests.size(), test.relative_path);
+                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index, digits_for_test_id, total_test_count, test.relative_path);
             }
 
             Core::deferred_invoke([&]() mutable {
@@ -680,31 +628,32 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                 auto duration = result.test.end_time - result.test.start_time;
-                outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, result.test.index, digits_for_test_id, tests.size(), result.test.relative_path, duration.to_milliseconds());
+                outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, result.test.index, digits_for_test_id, total_test_count, result.test.relative_path, duration.to_milliseconds());
             }
 
             switch (result.result) {
             case TestResult::Pass:
-                ++pass_count;
+                ++stats.pass_count;
                 break;
             case TestResult::Fail:
-                ++fail_count;
+                ++stats.fail_count;
                 break;
             case TestResult::Timeout:
-                ++timeout_count;
+                ++stats.timeout_count;
                 break;
             case TestResult::Crashed:
-                ++crashed_count;
+                ++stats.crashed_count;
                 break;
             case TestResult::Skipped:
-                ++skipped_count;
+                ++stats.skipped_count;
                 break;
             }
 
             if (result.result != TestResult::Pass)
-                non_passing_tests.append(move(result));
+                stats.non_passing_tests.append(move(result));
 
-            if (--tests_remaining == 0)
+            --total_tests_remaining;
+            if (--batch_tests_remaining == 0)
                 s_all_tests_complete->resolve({});
             else
                 run_next_test();
@@ -715,18 +664,119 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         });
     }
 
-    auto result_or_rejection = s_all_tests_complete->await();
+    auto result = s_all_tests_complete->await();
+
+    if (result.is_error())
+        return result.release_error();
+
+    return {};
+}
+
+static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
+{
+    auto& app = Application::the();
+    TRY(load_test_config(app.test_root_path));
+
+    Vector<Test> all_tests;
+
+    for (auto& glob : app.test_globs)
+        glob = ByteString::formatted("*{}*", glob);
+    if (app.test_globs.is_empty())
+        app.test_globs.append("*"sv);
+
+    TRY(collect_dump_tests(app, all_tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
+    TRY(collect_dump_tests(app, all_tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+    TRY(collect_ref_tests(app, all_tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
+    TRY(collect_crash_tests(app, all_tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
+    TRY(collect_ref_tests(app, all_tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
+
+    all_tests.remove_all_matching([&](auto const& test) {
+        static constexpr Array support_file_patterns {
+            "*/wpt-import/*/support/*"sv,
+            "*/wpt-import/*/resources/*"sv,
+            "*/wpt-import/common/*"sv,
+            "*/wpt-import/images/*"sv,
+        };
+        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
+        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
+        return is_support_file || !match_glob;
+    });
+
+    if (app.shuffle)
+        shuffle(all_tests);
+
+    if (app.test_dry_run) {
+        outln("Found {} tests...", all_tests.size());
+
+        for (auto const& [i, test] : enumerate(all_tests))
+            outln("{}/{}: {}", i + 1, all_tests.size(), test.relative_path);
+
+        return 0;
+    }
+
+    if (all_tests.is_empty()) {
+        if (app.test_globs.is_empty())
+            return Error::from_string_literal("No tests found");
+        return Error::from_string_literal("No tests found matching filter");
+    }
+
+    Vector<Test&> parallel_tests;
+    Vector<Test&> serial_tests;
+
+    for (auto& test : all_tests) {
+        if (s_run_in_serial_tests.contains_slow(test.input_path)) {
+            serial_tests.append(test);
+        } else {
+            parallel_tests.append(test);
+        }
+    }
+
+    TestStats stats;
+    // Keep clearing and reusing the same line if stdout is a TTY.
+    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
+    outln("Running {} tests...", all_tests.size());
+
+    size_t global_test_index = 0;
+    size_t total_tests = all_tests.size();
+    size_t total_tests_remaining = total_tests;
+
+    size_t concurrency = min(app.test_concurrency, parallel_tests.size());
+    size_t loaded_web_views = 0;
+
+    Vector<NonnullOwnPtr<TestWebView>> views;
+    views.ensure_capacity(concurrency);
+
+    for (size_t i = 0; i < concurrency; ++i) {
+        auto view = TestWebView::create(theme, window_size);
+        view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
+        // FIXME: Figure out a better way to ensure that tests use default browser settings.
+        view->reset_zoom();
+        views.unchecked_append(move(view));
+    }
+
+    // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
+    // test URL before the about:blank load completes. WebContent currently cannot handle this, and will drop the test URL.
+    Core::EventLoop::current().spin_until([&]() {
+        return loaded_web_views == concurrency;
+    });
+
+    auto result_or_rejection = run_test_batch(views, parallel_tests, total_tests, global_test_index, total_tests_remaining, stats, app);
+    if (!result_or_rejection.is_error()) {
+        // Only use a single view so that the serial tests run one web view at a time.
+        auto single_view = views.span().trim(1);
+        result_or_rejection = run_test_batch(single_view, serial_tests, total_tests, global_test_index, total_tests_remaining, stats, app);
+    }
 
     if (result_or_rejection.is_error())
-        outln("Halted; {} tests not executed.", tests_remaining);
+        outln("Halted; {} tests not executed.", total_tests_remaining);
     else if (log_on_one_line)
         outln("\33[2K\rDone!");
 
     outln("==========================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count, timeout_count, crashed_count);
+    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", stats.pass_count, stats.fail_count, stats.skipped_count, stats.timeout_count, stats.crashed_count);
     outln("==========================================================");
 
-    for (auto const& non_passing_test : non_passing_tests) {
+    for (auto const& non_passing_test : stats.non_passing_tests) {
         if (non_passing_test.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
             continue;
 
@@ -734,16 +784,16 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
-        auto tests_to_print = min(10uz, tests.size());
+        auto tests_to_print = min(10uz, all_tests.size());
         outln("\nSlowest {} tests:", tests_to_print);
 
-        quick_sort(tests, [&](auto const& lhs, auto const& rhs) {
+        quick_sort(all_tests, [&](auto const& lhs, auto const& rhs) {
             auto lhs_duration = lhs.end_time - lhs.start_time;
             auto rhs_duration = rhs.end_time - rhs.start_time;
             return lhs_duration > rhs_duration;
         });
 
-        for (auto const& test : tests.span().trim(tests_to_print)) {
+        for (auto const& test : all_tests.span().trim(tests_to_print)) {
             auto duration = test.end_time - test.start_time;
 
             outln("{}: {}ms", test.relative_path, duration.to_milliseconds());
@@ -759,7 +809,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         }
     }
 
-    return fail_count + timeout_count + crashed_count + tests_remaining;
+    return stats.fail_count + stats.timeout_count + stats.crashed_count + total_tests_remaining;
 }
 
 static void handle_signal(int signal)
