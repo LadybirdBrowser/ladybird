@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/SourceLocation.h>
+#include <LibGC/Export.h>
 
 namespace GC {
 
