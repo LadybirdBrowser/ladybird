@@ -565,6 +565,7 @@ enum class NumberToStringMode {
     WithExponent,
     WithoutExponent,
 };
+JS_API void number_to_string(StringBuilder&, double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] JS_API String number_to_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] JS_API Utf16String number_to_utf16_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] ByteString number_to_byte_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
