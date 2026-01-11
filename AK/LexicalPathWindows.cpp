@@ -8,6 +8,8 @@
 
 #include <AK/LexicalPath.h>
 
+#include <utility>
+
 namespace AK {
 
 static bool is_root(auto const& parts)
@@ -17,7 +19,7 @@ static bool is_root(auto const& parts)
 
 LexicalPath::LexicalPath(ByteString path)
 {
-    m_string = canonicalized_path(path);
+    m_string = canonicalized_path(move(path));
     m_parts = m_string.split_view('\\');
 
     auto last_slash_index = m_string.find_last('\\');
@@ -106,7 +108,7 @@ ByteString LexicalPath::canonicalized_path(ByteString path)
     return path == "" ? "." : path;
 }
 
-ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
+ByteString LexicalPath::absolute_path(ByteString const& dir_path, ByteString const& target)
 {
     if (is_absolute_path(target))
         return canonicalized_path(target);
@@ -114,15 +116,15 @@ ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
     return join(dir_path, target).string();
 }
 
-// Returns relative version of abs_path (relative to abs_prefix), such that join(abs_prefix, rel_path) == abs_path.
-Optional<ByteString> LexicalPath::relative_path(StringView abs_path, StringView abs_prefix)
+// Returns relative version of absolute_path (relative to absolute_prefix), such that join(absolute_prefix, rel_path) == absolute_path.
+Optional<ByteString> LexicalPath::relative_path(StringView absolute_path, StringView absolute_prefix)
 {
-    if (!is_absolute_path(abs_path) || !is_absolute_path(abs_prefix)
-        || abs_path[0] != abs_prefix[0]) // different drives
+    if (!is_absolute_path(absolute_path) || !is_absolute_path(absolute_prefix)
+        || absolute_path[0] != absolute_prefix[0]) // different drives
         return {};
 
-    auto path = canonicalized_path(abs_path);
-    auto prefix = canonicalized_path(abs_prefix);
+    auto path = canonicalized_path(absolute_path);
+    auto prefix = canonicalized_path(absolute_prefix);
 
     if (path == prefix)
         return ".";

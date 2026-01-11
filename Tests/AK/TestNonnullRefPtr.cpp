@@ -24,6 +24,7 @@ TEST_CASE(basics)
     EXPECT_EQ(object->ref_count(), 1u);
 
     {
+        // NOLINTNEXTLINE(performance-unnecessary-copy-initialization) we want to test this functionality
         NonnullRefPtr another = object;
         EXPECT_EQ(object->ref_count(), 2u);
     }

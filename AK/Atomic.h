@@ -14,12 +14,12 @@ namespace AK {
 
 static inline void atomic_signal_fence(MemoryOrder order) noexcept
 {
-    return __atomic_signal_fence(order);
+    __atomic_signal_fence(order);
 }
 
 static inline void atomic_thread_fence(MemoryOrder order) noexcept
 {
-    return __atomic_thread_fence(order);
+    __atomic_thread_fence(order);
 }
 
 static inline void full_memory_barrier() noexcept

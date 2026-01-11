@@ -77,7 +77,7 @@ namespace StringUtils {
 
 bool matches(StringView str, StringView mask, CaseSensitivity = CaseSensitivity::CaseInsensitive, Vector<MaskSpan>* match_spans = nullptr);
 bool equals_ignoring_ascii_case(StringView, StringView);
-bool ends_with(StringView a, StringView b, CaseSensitivity);
+bool ends_with(StringView str, StringView end, CaseSensitivity);
 bool starts_with(StringView, StringView, CaseSensitivity);
 bool contains(StringView, StringView, CaseSensitivity);
 bool is_whitespace(StringView);

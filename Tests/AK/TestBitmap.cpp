@@ -144,7 +144,7 @@ TEST_CASE(set_range)
         for (size_t i = 0; i < bitmap.size(); i++) {
             bool should_be_set = (i >= 48 && i < 48 + 32)
                 || (i >= 94 && i < 94 + 39)
-                || ((i >= 190 && i < 190 + 71) && !(i >= 190 + 71 - 7 && i < 190 + 71 - 7 + 21));
+                || ((i >= 190 && i < 190 + 71) && (i < 190 + 71 - 7 || i >= 190 + 71 - 7 + 21));
             EXPECT_EQ(bitmap.get(i), should_be_set);
         }
         EXPECT_EQ(bitmap.count_slow(true), 32u + 39u + 71u - 7u);

@@ -86,7 +86,7 @@ public:
 
     bool is_empty() const { return !head(); }
 
-    inline size_t size() const
+    size_t size() const
     {
         return m_size_policy.size(m_head);
     }

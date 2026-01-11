@@ -998,7 +998,7 @@ TEST_CASE(copy_operations)
         auto original = make_copy(string1);
 
         // Copy constructor.
-        Utf16String string2(string1);
+        Utf16String const& string2(string1);
 
         EXPECT_EQ(string1, original);
         EXPECT_EQ(string1, string2);

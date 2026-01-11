@@ -31,7 +31,8 @@ template<typename Callback>
     if (code_point <= 0x7f) {
         callback(static_cast<char>(code_point));
         return 1;
-    } else if (code_point <= 0x07ff) {
+    }
+    if (code_point <= 0x07ff) {
         callback(static_cast<char>(((code_point >> 6) & 0x1f) | 0xc0));
         callback(static_cast<char>(((code_point >> 0) & 0x3f) | 0x80));
         return 2;

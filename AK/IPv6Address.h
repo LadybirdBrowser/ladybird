@@ -232,9 +232,9 @@ public:
                 VERIFY(piece >= 0);
                 i += empty_parts;
                 continue;
-            } else {
-                i++;
             }
+            i++;
+
             auto part = AK::parse_hexadecimal_number<u32>(trimmed_part);
             if (!part.has_value() || part.value() > 0xffff)
                 return {};
@@ -244,7 +244,7 @@ public:
 
             VERIFY(piece < 8);
             addr[piece * sizeof(u16)] = (u8)(part.value() >> 8);
-            addr[piece * sizeof(u16) + 1] = (u8)part.value();
+            addr[(piece * sizeof(u16)) + 1] = (u8)part.value();
             piece++;
         }
 
@@ -258,7 +258,7 @@ public:
 
     constexpr bool is_zero() const
     {
-        for (auto& d : m_data) {
+        for (auto const& d : m_data) {
             if (d != 0)
                 return false;
         }
@@ -291,7 +291,7 @@ private:
     constexpr u16 piece(size_t i) const
     {
         VERIFY(i < 8);
-        return ((u16)m_data[i * sizeof(u16)] << 8) | m_data[i * sizeof(u16) + 1];
+        return ((u16)m_data[i * sizeof(u16)] << 8) | m_data[(i * sizeof(u16)) + 1];
     }
 
     in6_addr_t m_data {};
