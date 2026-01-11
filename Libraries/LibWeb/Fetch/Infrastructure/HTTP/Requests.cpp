@@ -27,6 +27,7 @@ GC::Ref<Request> Request::create(JS::VM& vm)
 
 Request::Request(NonnullRefPtr<HTTP::HeaderList> header_list)
     : m_header_list(move(header_list))
+    , m_request_time(UnixDateTime::now())
 {
 }
 
