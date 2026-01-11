@@ -682,6 +682,15 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
         }
     }
 
+    // AD-HOC: Contenteditable elements must have a minimum height (line-height) when empty, to remain clickable and
+    //         usable for text input, even though this is not specified.
+    //         See: https://github.com/w3c/editing/issues/70.
+    if (box.dom_node() && !box.is_anonymous() && !box.is_generated_for_pseudo_element()) {
+        if (auto const* element = as_if<DOM::Element>(box.dom_node()); element && element->is_editing_host()) {
+            return box.computed_values().line_height();
+        }
+    }
+
     // 4. zero, otherwise
     return 0;
 }
