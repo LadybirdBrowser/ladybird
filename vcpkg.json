@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "4f95fba7a7d1101bb8acdeb51e4609686449701e",
+  "builtin-baseline": "67e2629463db1f39b684e21cd1eab23909c1e56c",
   "dependencies": [
     {
       "name": "angle",
@@ -257,7 +257,7 @@
     },
     {
       "name": "icu",
-      "version": "78.1#0"
+      "version": "78.1#1"
     },
     {
       "name": "libjpeg-turbo",
@@ -301,11 +301,11 @@
     },
     {
       "name": "qtbase",
-      "version": "6.8.3#2"
+      "version": "6.10.0#1"
     },
     {
       "name": "sdl3",
-      "version": "3.2.22#0"
+      "version": "3.2.28#0"
     },
     {
       "name": "simdutf",
