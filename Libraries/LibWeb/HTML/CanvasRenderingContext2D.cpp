@@ -146,6 +146,28 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     if (!bitmap)
         return {};
 
+    // Source rectangle coordinates are specified in the image's coordinate space (CSS pixels for density-corrected images).
+    // Map them to the underlying bitmap's physical pixels so we sample the correct region.
+    double source_coordinate_width = bitmap->width();
+    double source_coordinate_height = bitmap->height();
+    image.visit(
+        [&](GC::Root<HTMLImageElement> const& html_image) {
+            if (auto intrinsic_width = html_image->intrinsic_width(); intrinsic_width.has_value() && intrinsic_width->to_double() > 0)
+                source_coordinate_width = intrinsic_width->to_double();
+            if (auto intrinsic_height = html_image->intrinsic_height(); intrinsic_height.has_value() && intrinsic_height->to_double() > 0)
+                source_coordinate_height = intrinsic_height->to_double();
+        },
+        [](auto const&) {
+        });
+
+    auto scale_source_x = source_coordinate_width > 0 ? static_cast<float>(bitmap->width() / source_coordinate_width) : 1.0f;
+    auto scale_source_y = source_coordinate_height > 0 ? static_cast<float>(bitmap->height() / source_coordinate_height) : 1.0f;
+
+    source_x *= scale_source_x;
+    source_y *= scale_source_y;
+    source_width *= scale_source_x;
+    source_height *= scale_source_y;
+
     // 4. Establish the source and destination rectangles as follows:
     //    If not specified, the dw and dh arguments must default to the values of sw and sh, interpreted such that one CSS pixel in the image is treated as one unit in the output bitmap's coordinate space.
     //    If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's intrinsic width in image pixels, and the image's intrinsic height in image pixels, respectively.
