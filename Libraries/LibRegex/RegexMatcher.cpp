@@ -276,6 +276,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
 
             state.instruction_position = 0;
             state.repetition_marks.clear();
+            state.modifier_stack.clear();
+            state.current_options = {};
 
             auto result = execute(input, state, temp_operations);
             // This success is acceptable only if it doesn't read anything from the input (input length is 0).
@@ -336,6 +338,8 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             }
             state.instruction_position = 0;
             state.repetition_marks.clear();
+            state.modifier_stack.clear();
+            state.current_options = {};
 
             if (auto const result = execute(input, state, operations); result == ExecuteResult::Matched) {
                 succeeded = true;

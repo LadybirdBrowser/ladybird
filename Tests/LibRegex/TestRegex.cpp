@@ -608,6 +608,14 @@ TEST_CASE(ECMA262_parse)
         { "(\"|')(?:(?!\\2)[^\\\\\\r\\n]|\\\\.)*\\2"sv, regex::Error::NoError, ECMAScriptFlags::BrowserExtended },                         // LegacyOctalEscapeSequence should not consume too many chars (and should not crash)
         // #18324, Capture group counter skipped past EOF.
         { "\\1[\\"sv, regex::Error::InvalidNumber },
+        { "(?ii:a)"sv, regex::Error::RepeatedModifierFlag },
+        { "(?i-i:a)"sv, regex::Error::RepeatedModifierFlag },
+        { "(?-ii:a)"sv, regex::Error::RepeatedModifierFlag },
+        { "(?-:a)"sv, regex::Error::InvalidModifierGroup },
+        { "(?-ig:a)"sv, regex::Error::InvalidModifierGroup },
+        { "(?-x:a)"sv, regex::Error::InvalidModifierGroup },
+        { "(?i)"sv, regex::Error::InvalidCaptureGroup },
+        { "(?-i)"sv, regex::Error::InvalidCaptureGroup },
     };
 
     for (auto& test : tests) {
@@ -1501,5 +1509,33 @@ TEST_CASE(backreference_to_undefined_capture_groups)
         EXPECT_EQ(result2.capture_group_matches.first().size(), 2u);
         EXPECT(result2.capture_group_matches.first()[0].view.is_null());
         EXPECT(result2.capture_group_matches.first()[1].view.is_null());
+    }
+}
+
+TEST_CASE(ecma262_modifiers)
+{
+    struct Test {
+        StringView pattern;
+        StringView subject;
+        bool matches { true };
+        ECMAScriptFlags flags {};
+    };
+
+    constexpr Test tests[] {
+        { "a(?i:b)c"sv, "aBc"sv, true, {} },
+        { "a(?i:b)c"sv, "aBC"sv, false, {} },
+        { "a(?s:.)c"sv, "a\nc"sv, true, {} },
+        { "(?ims:a.b)"sv, "A\nB"sv, true, {} },
+        { "(?i:a(?-i:b)c)"sv, "AbC"sv, true, {} },
+        { "(?i:a(?-i:b)c)"sv, "ABC"sv, false, {} },
+        { "a(?-i:b)c"sv, "AbC"sv, true, ECMAScriptFlags::Insensitive },
+        { "a(?-i:b)c"sv, "ABC"sv, false, ECMAScriptFlags::Insensitive },
+        { "x.(?m:^a)"sv, "x\na"sv, true, ECMAScriptFlags::SingleLine },
+    };
+
+    for (auto const& test : tests) {
+        Regex<ECMA262> re(test.pattern, test.flags);
+        auto result = re.match(test.subject);
+        EXPECT_EQ(result.success, test.matches);
     }
 }
