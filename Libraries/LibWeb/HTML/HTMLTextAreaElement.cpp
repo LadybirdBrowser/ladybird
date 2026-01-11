@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/TextAreaBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -50,11 +51,6 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
     //         This is required for the internal shadow tree to work correctly in layout.
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
-
-    if (style.property(CSS::PropertyID::Width).has_auto())
-        style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(cols(), CSS::LengthUnit::Ch)));
-    if (style.property(CSS::PropertyID::Height).has_auto())
-        style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length(rows(), CSS::LengthUnit::Lh)));
 }
 
 void HTMLTextAreaElement::initialize(JS::Realm& realm)
@@ -479,6 +475,11 @@ bool HTMLTextAreaElement::is_mutable() const
 {
     // A textarea element is mutable if it is neither disabled nor has a readonly attribute specified.
     return enabled() && !has_attribute(AttributeNames::readonly);
+}
+
+GC::Ptr<Layout::Node> HTMLTextAreaElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+{
+    return heap().allocate<Layout::TextAreaBox>(document(), *this, style);
 }
 
 }
