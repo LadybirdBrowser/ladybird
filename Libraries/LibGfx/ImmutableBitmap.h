@@ -12,6 +12,7 @@
 #include <LibGfx/BitmapExportResult.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -36,7 +37,7 @@ enum class ExportFormat : u8 {
 #undef ENUMERATE_EXPORT_FORMAT
 };
 
-[[nodiscard]] StringView export_format_name(ExportFormat);
+[[nodiscard]] GFX_API StringView export_format_name(ExportFormat);
 
 struct ExportFlags {
     enum : u8 {
@@ -45,7 +46,7 @@ struct ExportFlags {
     };
 };
 
-class ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
+class GFX_API ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
 public:
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, AlphaType, ColorSpace color_space = {});

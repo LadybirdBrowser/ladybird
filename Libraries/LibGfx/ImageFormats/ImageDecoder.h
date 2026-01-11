@@ -14,6 +14,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ColorSpace.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/VectorGraphic.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
@@ -96,7 +97,7 @@ protected:
     ImageDecoderPlugin() = default;
 };
 
-class ImageDecoder : public RefCounted<ImageDecoder> {
+class GFX_API ImageDecoder : public RefCounted<ImageDecoder> {
 public:
     static ErrorOr<RefPtr<ImageDecoder>> try_create_for_raw_bytes(ReadonlyBytes, Optional<ByteString> mime_type = {});
     ~ImageDecoder() = default;

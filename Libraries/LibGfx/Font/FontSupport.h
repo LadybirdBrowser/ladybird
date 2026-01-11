@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGfx/Export.h>
 
 namespace Gfx {
 
@@ -35,7 +36,7 @@ enum class FontTech : u8 {
     Variations,
 };
 
-bool font_format_is_supported(FontFormat);
-bool font_tech_is_supported(FontTech);
+GFX_API bool font_format_is_supported(FontFormat);
+GFX_API bool font_tech_is_supported(FontTech);
 
 }

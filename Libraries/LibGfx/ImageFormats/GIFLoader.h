@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/MemoryStream.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {
@@ -15,7 +16,7 @@ struct GIFLoadingContext;
 
 // Specified at: https://www.w3.org/Graphics/GIF/spec-gif89a.txt
 
-class GIFImageDecoderPlugin final : public ImageDecoderPlugin {
+class GFX_API GIFImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
     static bool sniff(ReadonlyBytes);
     static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
