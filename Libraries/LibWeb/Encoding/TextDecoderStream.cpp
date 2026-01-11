@@ -207,10 +207,8 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
         //    output, and decoder's error mode.
         auto result = TRY_OR_THROW_OOM(vm, m_decoder.to_utf8({ bytes_to_process.data(), bytes_to_process.size() }));
 
-        // 3. If result is finished, then:
-        // Note: In our implementation, we check for errors
+        // 4. Otherwise, if result is error, throw a TypeError.
         if (m_fatal && result.contains(0xfffd)) {
-            // If decoder's error mode is "fatal", then throw a TypeError.
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
         }
 
@@ -220,7 +218,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
         }
     }
 
-    // When queue is empty, serialize and enqueue final output
+    // 3. If result is finished, then:
     // 1. Let outputChunk be the result of running serialize I/O queue with decoder and output.
     auto output_chunk = TRY(serialize_io_queue(output));
 
@@ -234,7 +232,7 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue()
 }
 
 // https://encoding.spec.whatwg.org/#concept-td-serialize
-WebIDL::ExceptionOr<String> TextDecoderStream::serialize_io_queue(Vector<u32> const& queue)
+WebIDL::ExceptionOr<String> TextDecoderStream::serialize_io_queue(Vector<u32> const& ioQueue)
 {
     auto& vm = this->vm();
 
@@ -242,13 +240,13 @@ WebIDL::ExceptionOr<String> TextDecoderStream::serialize_io_queue(Vector<u32> co
     StringBuilder output;
 
     // 2. While true:
-    for (size_t i = 0; i < queue.size(); ++i) {
-        auto item = queue[i];
+    for (size_t i = 0; i < ioQueue.size(); ++i) {
+        // 1. Let item be the result of reading from ioQueue
+        auto item = ioQueue[i];
 
-        // Skip BOM handling for UTF-8 and UTF-16
-        // Note: do not flush is BOM seen flag in spec
+        // 3. If decoder’s encoding is UTF-8 or UTF-16BE/LE,
+        // and decoder’s ignore BOM and BOM seen are false:
         if (!m_do_not_flush) {
-            // For UTF-8, UTF-16BE, UTF-16LE encodings
             if ((m_encoding == "utf-8"_fly_string || m_encoding == "utf-16be"_fly_string || m_encoding == "utf-16le"_fly_string)) {
                 // If ignore BOM is false and item is U+FEFF, then:
                 if (!m_ignore_bom && item == 0xFEFF) {
@@ -266,7 +264,7 @@ WebIDL::ExceptionOr<String> TextDecoderStream::serialize_io_queue(Vector<u32> co
         TRY_OR_THROW_OOM(vm, output.try_append_code_point(item));
     }
 
-    // 4. Return output.
+    // If item is end-of-queue, then return output.
     return TRY_OR_THROW_OOM(vm, output.to_string());
 }
 
