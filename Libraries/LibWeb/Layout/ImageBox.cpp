@@ -29,33 +29,34 @@ void ImageBox::visit_edges(JS::Cell::Visitor& visitor)
     m_image_provider.image_provider_visit_edges(visitor);
 }
 
-void ImageBox::prepare_for_replaced_layout()
+CSS::SizeWithAspectRatio ImageBox::natural_size() const
 {
-    set_natural_width(m_image_provider.intrinsic_width());
-    set_natural_height(m_image_provider.intrinsic_height());
-    set_natural_aspect_ratio(m_image_provider.intrinsic_aspect_ratio());
-
-    if (renders_as_alt_text()) {
-        String alt;
-        if (auto element = dom_node())
-            alt = element->get_attribute_value(HTML::AttributeNames::alt);
-
-        if (alt.is_empty()) {
-            set_natural_width(0);
-            set_natural_height(0);
-        } else {
-            auto font = Platform::FontPlugin::the().default_font(12);
-            CSSPixels alt_text_width = m_cached_alt_text_width.ensure([&] {
-                return CSSPixels::nearest_value_for(font->width(Utf16String::from_utf8(alt)));
-            });
-            set_natural_width(alt_text_width + 16);
-            set_natural_height(CSSPixels::nearest_value_for(font->pixel_size()) + 16);
-        }
+    if (m_image_provider.is_image_available()) {
+        return {
+            .width = m_image_provider.intrinsic_width(),
+            .height = m_image_provider.intrinsic_height(),
+            .aspect_ratio = m_image_provider.intrinsic_aspect_ratio()
+        };
     }
 
-    if (!has_natural_width() && !has_natural_height()) {
-        // FIXME: Do something.
-    }
+    String alt;
+    if (auto element = dom_node())
+        alt = element->get_attribute_value(HTML::AttributeNames::alt);
+    if (alt.is_empty())
+        return { 0, 0, {} };
+
+    auto font = Platform::FontPlugin::the().default_font(12);
+    CSSPixels alt_text_width = m_cached_alt_text_width.ensure([&] {
+        return CSSPixels::nearest_value_for(font->width(Utf16String::from_utf8(alt)));
+    });
+    auto width = alt_text_width + 16;
+    auto height = CSSPixels::nearest_value_for(font->pixel_size()) + 16;
+
+    Optional<CSSPixelFraction> aspect_ratio;
+    if (height > 0)
+        aspect_ratio = CSSPixelFraction(width, height);
+
+    return { width, height, aspect_ratio };
 }
 
 void ImageBox::dom_node_did_update_alt_text(Badge<ImageProvider>)

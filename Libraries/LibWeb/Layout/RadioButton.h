@@ -20,6 +20,7 @@ public:
     virtual ~RadioButton() override;
 
 private:
+    CSS::SizeWithAspectRatio compute_auto_content_box_size() const override { return { 12, 12, {} }; }
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 

@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -34,17 +35,15 @@ public:
     Painting::PaintableBox* paintable_box();
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
-    Optional<CSSPixels> natural_width() const;
-    Optional<CSSPixels> natural_height() const;
-    Optional<CSSPixelFraction> natural_aspect_ratio() const;
+    virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
 
-    bool has_natural_width() const { return natural_width().has_value(); }
-    bool has_natural_height() const { return natural_height().has_value(); }
-    bool has_natural_aspect_ratio() const { return natural_aspect_ratio().has_value(); }
-
-    void set_natural_width(Optional<CSSPixels> width) { m_natural_width = width; }
-    void set_natural_height(Optional<CSSPixels> height) { m_natural_height = height; }
-    void set_natural_aspect_ratio(Optional<CSSPixelFraction> ratio) { m_natural_aspect_ratio = ratio; }
+    // When computed width/height is auto, auto_content_box_size gives the fallback content-box size for
+    // elements whose used size is determined by natural dimensions, attributes, or defaults other than
+    // the generic UA fallback (300x150). Any returned aspect ratio comes from natural dimensions (when
+    // available) or may be computed from fallback sizing. Don't confuse this with the CSS preferred
+    // aspect ratio.
+    CSS::SizeWithAspectRatio auto_content_box_size() const;
+    virtual bool has_auto_content_box_size() const { return false; }
 
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
@@ -73,13 +72,10 @@ public:
 protected:
     Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
+    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }
 
 private:
     virtual bool is_box() const final { return true; }
-
-    Optional<CSSPixels> m_natural_width;
-    Optional<CSSPixels> m_natural_height;
-    Optional<CSSPixelFraction> m_natural_aspect_ratio;
 
     Vector<GC::Ref<Node>> m_contained_abspos_children;
 
