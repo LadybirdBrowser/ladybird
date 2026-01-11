@@ -1,0 +1,2 @@
+AccentColor with custom accent-color: rgb(255, 0, 0)
+PASS: AccentColor respects element's accent-color property

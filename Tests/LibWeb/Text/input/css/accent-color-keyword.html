@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        accent-color: rgb(255, 0, 0);
+        background-color: AccentColor;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    const computedBg = getComputedStyle(target).backgroundColor;
+    println(`AccentColor with custom accent-color: ${computedBg}`);
+
+    // Verify it's the custom red, not the system default
+    if (computedBg === "rgb(255, 0, 0)") {
+        println("PASS: AccentColor respects element's accent-color property");
+    } else {
+        println(`FAIL: Expected rgb(255, 0, 0), got ${computedBg}`);
+    }
+});
+</script>
