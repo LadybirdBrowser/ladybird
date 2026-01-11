@@ -21,8 +21,6 @@ class VideoBox final
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    virtual void prepare_for_replaced_layout() override;
-
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
 
@@ -30,6 +28,7 @@ public:
 
 private:
     VideoBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);
+    virtual CSS::SizeWithAspectRatio natural_size() const override;
 
     // ^Document::ViewportClient
     virtual void did_set_viewport_rect(CSSPixelRect const&) final;
