@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
@@ -17,10 +18,22 @@ namespace HTTP {
 
 static constexpr auto INDEX_DATABASE = "INDEX"sv;
 
+static ByteString cache_directory_for_mode(DiskCache::Mode mode)
+{
+    switch (mode) {
+    case DiskCache::Mode::Normal:
+        return "Cache"sv;
+    case DiskCache::Mode::Partitioned:
+        return ByteString::formatted("Cache-{}", Core::System::getpid());
+    case DiskCache::Mode::Testing:
+        return "TestCache"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 ErrorOr<DiskCache> DiskCache::create(Mode mode)
 {
-    auto cache_name = mode == Mode::Normal ? "Cache"sv : "TestCache"sv;
-    auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_name);
+    auto cache_directory = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, cache_directory_for_mode(mode));
 
     auto database = TRY(Database::Database::create(cache_directory.string(), INDEX_DATABASE));
     auto index = TRY(CacheIndex::create(database));
@@ -34,8 +47,8 @@ DiskCache::DiskCache(Mode mode, NonnullRefPtr<Database::Database> database, Lexi
     , m_cache_directory(move(cache_directory))
     , m_index(move(index))
 {
-    // Start with a clean slate in test mode.
-    if (m_mode == Mode::Testing)
+    // Start with a clean slate in non-normal modes.
+    if (m_mode != Mode::Normal)
         remove_entries_accessed_since(UnixDateTime::earliest());
 }
 

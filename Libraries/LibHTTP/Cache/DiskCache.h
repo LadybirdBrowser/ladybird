@@ -25,6 +25,10 @@ public:
     enum class Mode {
         Normal,
 
+        // In partitioned mode, the cache is enabled as normal, but each RequestServer process operates with a unique
+        // disk cache database.
+        Partitioned,
+
         // In test mode, we only enable caching of responses on a per-request basis, signified by a request header. The
         // response headers will include some status on how the request was handled.
         Testing,
@@ -50,7 +54,7 @@ public:
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
-    LexicalPath const& cache_directory() { return m_cache_directory; }
+    LexicalPath const& cache_directory() const { return m_cache_directory; }
 
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
 
