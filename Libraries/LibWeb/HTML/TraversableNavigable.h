@@ -116,6 +116,11 @@ public:
     Geolocation::EmulatedPositionData const& emulated_position_data() const;
     void set_emulated_position_data(Geolocation::EmulatedPositionData data);
 
+    // FIXME: Implement WebDriver BiDi emulated max_touch_points. The emulated value is stored
+    //        per BiDi session with mappings for default, user contexts, and navigables - not
+    //        on the traversable. Leaving this as a placeholder until BiDi is implemented.
+    //        https://www.w3.org/TR/webdriver-bidi/#webdriver-bidi-emulated-max-touch-points
+
     void process_screenshot_requests();
     void queue_screenshot_task(Optional<UniqueNodeID> node_id)
     {
