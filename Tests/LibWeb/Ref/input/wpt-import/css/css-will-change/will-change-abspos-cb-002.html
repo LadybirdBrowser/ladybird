@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: will-change: filter should generate a containing block for absolute positioned elements.</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=960953">
+<link rel="help" href="https://drafts.csswg.org/css-will-change/#will-change">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/css-will-change/will-change-abspos-cb-002-ref.html">
+<style>
+  .container {
+    border: 1px solid green;
+    background: red;
+    width: 100px;
+    height: 100px;
+    margin-top: 100px;
+    will-change: filter;
+  }
+  .abspos {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: green;
+    height: 100px;
+    width: 100px;
+  }
+</style>
+<div class="container">
+  <div class="abspos"></div>
+</div>
