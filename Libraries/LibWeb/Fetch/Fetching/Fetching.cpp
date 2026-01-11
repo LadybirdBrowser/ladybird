@@ -124,7 +124,7 @@ static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructu
     return HTTPCache::the().get(key.value());
 }
 
-static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& realm, HTTP::MemoryCache const& http_cache, Infrastructure::Request const& request)
+static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& realm, HTTP::MemoryCache& http_cache, Infrastructure::Request const& request)
 {
     auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list());
     if (!cache_entry.has_value())
@@ -146,7 +146,7 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
 
 static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response const& response)
 {
-    http_cache.create_entry(request.current_url(), request.method(), request.header_list(), response.status(), response.status_message(), response.header_list());
+    http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list());
 }
 
 // https://fetch.spec.whatwg.org/#concept-fetch

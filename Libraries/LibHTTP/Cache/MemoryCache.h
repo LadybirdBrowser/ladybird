@@ -10,7 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
-#include <AK/String.h>
+#include <AK/Time.h>
 #include <LibHTTP/Forward.h>
 #include <LibURL/URL.h>
 
@@ -24,13 +24,16 @@ public:
 
         NonnullRefPtr<HeaderList> response_headers;
         ByteBuffer response_body;
+
+        UnixDateTime request_time;
+        UnixDateTime response_time;
     };
 
     static NonnullRefPtr<MemoryCache> create();
 
-    Optional<Entry const&> open_entry(URL::URL const&, StringView method, HeaderList const& request_headers) const;
+    Optional<Entry const&> open_entry(URL::URL const&, StringView method, HeaderList const& request_headers);
 
-    void create_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers);
+    void create_entry(URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers);
     void finalize_entry(URL::URL const&, StringView method, ByteBuffer response_body);
 
 private:

@@ -16,7 +16,7 @@ NonnullRefPtr<MemoryCache> MemoryCache::create()
 }
 
 // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url, StringView method, HeaderList const& request_headers) const
+Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url, StringView method, HeaderList const& request_headers)
 {
     // When presented with a request, a cache MUST NOT reuse a stored response unless:
     // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
@@ -36,18 +36,32 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     // FIXME: - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
     (void)request_headers;
 
-    // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
+    // - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully
+    //   validated (Section 4.3), and
+    // - the stored response is one of the following:
+    //       * fresh (see Section 4.2), or
+    //       * allowed to be served stale (see Section 4.2.4), or
+    //       * successfully validated (see Section 4.3).
+    auto freshness_lifetime = calculate_freshness_lifetime(cache_entry->status_code, cache_entry->response_headers);
+    auto current_age = calculate_age(cache_entry->response_headers, cache_entry->request_time, cache_entry->response_time);
 
-    // FIXME: - the stored response is one of the following:
-    //          + fresh (see Section 4.2), or
-    //          + allowed to be served stale (see Section 4.2.4), or
-    //          + successfully validated (see Section 4.3).
+    switch (cache_lifetime_status(cache_entry->response_headers, freshness_lifetime, current_age)) {
+    case CacheLifetimeStatus::Fresh:
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), cache_entry->response_body.size());
+        return cache_entry;
 
-    dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened cache entry for\033[0m {} ({} bytes)", url, cache_entry->response_body.size());
-    return cache_entry;
+    case CacheLifetimeStatus::Expired:
+    case CacheLifetimeStatus::MustRevalidate:
+    case CacheLifetimeStatus::StaleWhileRevalidate:
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+        m_complete_entries.remove(cache_key);
+        return {};
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
-void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers)
+void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers)
 {
     if (!is_cacheable(method, request_headers))
         return;
@@ -65,6 +79,8 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
         .reason_phrase = move(reason_phrase),
         .response_headers = move(response_headers_copy),
         .response_body = {},
+        .request_time = request_time,
+        .response_time = UnixDateTime::now(),
     };
 
     dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mCreated cache entry for\033[0m {}", url);
