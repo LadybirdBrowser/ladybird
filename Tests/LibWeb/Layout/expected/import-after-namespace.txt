@@ -7,16 +7,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,50] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div#target1> at [8,50] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div#target1> at [8,50] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,150] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div#target2> at [8,150] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div#target2> at [8,150] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,250] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div#target3> at [8,250] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div#target3> at [8,250] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,350] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      BlockContainer <div#target4> at [8,350] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div#target4> at [8,350] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,450] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)

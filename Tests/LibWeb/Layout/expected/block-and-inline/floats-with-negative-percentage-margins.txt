@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 600 0+0+192] [8+0+0 0 0+0+8] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 600 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       BlockContainer <div#top> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 3, rect: [8,8 26.640625x18] baseline: 13.796875
             "top"

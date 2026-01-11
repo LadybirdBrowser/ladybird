@@ -29,7 +29,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [10,96] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      TableWrapper <(anonymous)> at [10,96] [0+0+0 42.625 0+0+737.375] [0+0+0 22 0+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [10,96] [0+0+0 42.625 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
         Box <div.table.formatting-context> at [11,97] table-box [0+1+0 40.625 0+1+0] [0+1+0 20 0+1+0] [TFC] children: not-inline
           Box <(anonymous)> at [11,97] table-row [0+0+0 40.625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [11,97] table-cell [0+0+0 40.625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline

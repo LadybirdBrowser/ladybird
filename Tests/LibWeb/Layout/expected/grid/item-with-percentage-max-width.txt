@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 121 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 105 0+0+8] children: not-inline
-      Box <div.grid-container> at [29,29] [0+1+20 500 20+1+242] [0+1+20 63 20+1+0] [GFC] children: not-inline
+      Box <div.grid-container> at [29,29] [0+1+20 500 20+1+0] [0+1+20 63 20+1+0] [GFC] children: not-inline
         BlockContainer <div.grid-item> at [49,49] [0+0+20 120 20+0+0] [0+0+20 23 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 3, rect: [90.359375,49 37.28125x23] baseline: 17.5
               "One"
