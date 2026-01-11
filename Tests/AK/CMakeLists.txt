@@ -55,6 +55,7 @@ set(AK_TEST_SOURCES
     TestOwnPtr.cpp
     TestQueue.cpp
     TestQuickSort.cpp
+    TestRandom.cpp
     TestRedBlackTree.cpp
     TestRefPtr.cpp
     TestSegmentedVector.cpp
