@@ -13,6 +13,7 @@
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -329,6 +330,8 @@ public:
         m_pending_responses.remove_first_matching([&](auto gc_ptr) { return gc_ptr == pending_response; });
     }
 
+    UnixDateTime request_time() const { return m_request_time; }
+
 private:
     explicit Request(NonnullRefPtr<HTTP::HeaderList>);
 
@@ -523,6 +526,7 @@ private:
 
     // Non-standard
     Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;
+    UnixDateTime m_request_time;
 };
 
 WEB_API StringView request_destination_to_string(Request::Destination);
