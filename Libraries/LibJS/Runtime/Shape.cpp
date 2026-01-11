@@ -197,16 +197,20 @@ void Shape::visit_edges(Cell::Visitor& visitor)
 
     visitor.ignore(m_prototype_transitions);
 
-    // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
+    // Only mark transition keys if their target Shape is still alive.
+    // If the weak reference has gone stale, the key can be collected.
     if (m_forward_transitions) {
-        for (auto& it : *m_forward_transitions)
-            it.key.property_key.visit_edges(visitor);
+        for (auto& it : *m_forward_transitions) {
+            if (it.value)
+                it.key.property_key.visit_edges(visitor);
+        }
     }
 
-    // FIXME: The delete transition keys should be weak, but we have to mark them for now in case they go stale.
     if (m_delete_transitions) {
-        for (auto& it : *m_delete_transitions)
-            it.key.visit_edges(visitor);
+        for (auto& it : *m_delete_transitions) {
+            if (it.value)
+                it.key.visit_edges(visitor);
+        }
     }
 
     visitor.visit(m_prototype_chain_validity);
