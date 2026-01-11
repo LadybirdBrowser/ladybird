@@ -108,8 +108,6 @@ public:
     GC::Ptr<Element> offset_parent() const;
     GC::Ptr<Element> scroll_parent() const;
 
-    bool cannot_navigate() const;
-
     Variant<bool, double, String> hidden() const;
     void set_hidden(Variant<bool, double, String> const&);
 
@@ -152,9 +150,6 @@ public:
     GC::Ptr<DOM::NodeList> labels();
 
     virtual Optional<ARIA::Role> default_role() const override;
-
-    String get_an_elements_target(Optional<String> target = {}) const;
-    TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, StringView target) const;
 
     WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 

@@ -8,9 +8,6 @@
 
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/EventLoop/Task.h>
-#include <LibWeb/HTML/TokenizedFeatures.h>
-#include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
 
@@ -53,18 +50,14 @@ public:
 protected:
     virtual DOM::Element& hyperlink_element_utils_element() = 0;
     virtual DOM::Element const& hyperlink_element_utils_element() const = 0;
-    virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target = {}) const = 0;
-    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const = 0;
 
     Optional<URL::Origin> hyperlink_element_utils_extract_an_origin() const;
 
     void set_the_url();
-    void follow_the_hyperlink(Optional<String> hyperlink_suffix, UserNavigationInvolvement = UserNavigationInvolvement::None);
 
 private:
     void reinitialize_url() const;
     void update_href();
-    bool cannot_navigate() const;
 
     Optional<URL::URL> m_url;
 };

@@ -15,6 +15,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibURL/Parser.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/Animations/Animation.h>
@@ -54,6 +55,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -72,8 +74,10 @@
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLUListElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -192,6 +196,128 @@ String Element::get_attribute_value(FlyString const& local_name, Optional<FlyStr
 
     // 3. Return attr’s value.
     return attribute->value();
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target
+String Element::get_an_elements_target(Optional<String> target) const
+{
+    // To get an element's target, given an a, area, or form element element, and an optional string-or-null target (default null), run these steps:
+
+    // 1. If target is null, then:
+    if (!target.has_value()) {
+        // 1. If element has a target attribute, then set target to that attribute's value.
+        if (auto maybe_target = attribute(HTML::AttributeNames::target); maybe_target.has_value()) {
+            target = maybe_target.release_value();
+        }
+        // 2. Otherwise, if element's node document contains a base element with a target attribute,
+        //    set target to the value of the target attribute of the first such base element.
+        if (auto base_element = document().first_base_element_with_target_in_tree_order())
+            target = base_element->attribute(HTML::AttributeNames::target);
+    }
+
+    // 2. If target is not null, and contains an ASCII tab or newline and a U+003C (<), then set target to "_blank".
+    if (target.has_value() && target->bytes_as_string_view().contains("\t\n\r"sv) && target->contains('<'))
+        target = "_blank"_string;
+
+    // 3. Return target.
+    return target.value_or({});
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
+HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, StringView target) const
+{
+    // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
+    // perform the following steps. They return a boolean.
+    auto rel = MUST(get_attribute_value(HTML::AttributeNames::rel).to_lowercase());
+    auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+
+    // 1. If element's link types include the noopener or noreferrer keyword, then return true.
+    if (link_types.contains_slow("noopener"sv) || link_types.contains_slow("noreferrer"sv))
+        return HTML::TokenizedFeature::NoOpener::Yes;
+
+    // 2. If element's link types do not include the opener keyword and
+    //    target is an ASCII case-insensitive match for "_blank", then return true.
+    if (!link_types.contains_slow("opener"sv) && target.equals_ignoring_ascii_case("_blank"sv))
+        return HTML::TokenizedFeature::NoOpener::Yes;
+
+    // 3. If url's blob URL entry is not null:
+    if (url.blob_url_entry().has_value()) {
+        // 1. Let blobOrigin be url's blob URL entry's environment's origin.
+        auto const& blob_origin = url.blob_url_entry()->environment.origin;
+
+        // 2. Let topLevelOrigin be element's relevant settings object's top-level origin.
+        auto const& top_level_origin = HTML::relevant_settings_object(*this).top_level_origin;
+
+        // 3. If blobOrigin is not same site with topLevelOrigin, then return true.
+        if (!blob_origin.is_same_site(top_level_origin.value()))
+            return HTML::TokenizedFeature::NoOpener::Yes;
+    }
+
+    // 4. Return false.
+    return HTML::TokenizedFeature::NoOpener::No;
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#cannot-navigate
+bool Element::cannot_navigate() const
+{
+    // An element element cannot navigate if one of the following is true:
+
+    // - element's node document is not fully active
+    if (!document().is_fully_active())
+        return true;
+
+    // - element is not an a element and is not connected.
+    return !is_html_anchor_element() && !is_connected();
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#following-hyperlinks-2
+void Element::follow_the_hyperlink(Optional<String> hyperlink_suffix, HTML::UserNavigationInvolvement user_involvement)
+{
+    // 1. If subject cannot navigate, then return.
+    if (cannot_navigate())
+        return;
+
+    // 2. Let targetAttributeValue be the empty string.
+    String target_attribute_value;
+
+    // 3. If subject is an a or area element, then set targetAttributeValue to the result of getting an element's target given subject.
+    if (is_html_anchor_element() || is_html_area_element())
+        target_attribute_value = get_an_elements_target();
+
+    // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
+    auto url_record = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href));
+
+    // 5. If urlRecord is failure, then return.
+    if (!url_record.has_value())
+        return;
+
+    // 6. Let noopener be the result of getting an element's noopener with subject, urlRecord, and targetAttributeValue.
+    auto noopener = get_an_elements_noopener(*url_record, target_attribute_value);
+
+    // 7. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
+    //    targetAttributeValue, subject's node navigable, and noopener.
+    auto target_navigable = document().navigable()->choose_a_navigable(target_attribute_value, noopener).navigable;
+
+    // 8. If targetNavigable is null, then return.
+    if (!target_navigable)
+        return;
+
+    // 9. Let urlString be the result of applying the URL serializer to urlRecord.
+    auto url_string = url_record->serialize();
+
+    // 10. If hyperlinkSuffix is non-null, then append it to urlString.
+    if (hyperlink_suffix.has_value())
+        url_string = MUST(String::formatted("{}{}", url_string, *hyperlink_suffix));
+
+    // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
+    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+
+    // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
+
+    // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
+    auto url = URL::Parser::basic_parse(url_string);
+    VERIFY(url.has_value());
+    MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenode
