@@ -21,6 +21,7 @@ struct TextDecodeOptions {
     bool stream = false;
 };
 
+// https://encoding.spec.whatwg.org/#interface-mixin-textdecodercommon
 class TextDecoderCommonMixin {
 public:
     virtual ~TextDecoderCommonMixin();
@@ -28,7 +29,7 @@ public:
     // https://encoding.spec.whatwg.org/#dom-textdecoder-encoding
     FlyString const& encoding() const { return m_encoding; }
     // https://encoding.spec.whatwg.org/#dom-textdecoder-fatal
-    bool const& fatal() const { return m_fatal; }
+    bool fatal() const { return m_fatal; }
     // https://encoding.spec.whatwg.org/#dom-textdecoder-ignorebom
     bool const& ignore_bom() const { return m_ignore_bom; }
 
