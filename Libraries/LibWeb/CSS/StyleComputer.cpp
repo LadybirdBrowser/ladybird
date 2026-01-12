@@ -1475,7 +1475,7 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
 
     style.set_property_without_modifying_flags(
         PropertyID::FontVariationSettings,
-        compute_font_variation_settings(font_variation_settings_value, font_computation_context));
+        compute_font_feature_tag_value_list(font_variation_settings_value, font_computation_context));
 
     RefPtr<Gfx::Font const> const found_font = style.first_available_computed_font(m_document->font_computer());
 
@@ -2278,8 +2278,9 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::CornerTopLeftShape:
     case PropertyID::CornerTopRightShape:
         return compute_corner_shape(absolutized_value);
+    case PropertyID::FontFeatureSettings:
     case PropertyID::FontVariationSettings:
-        return compute_font_variation_settings(absolutized_value, computation_context);
+        return compute_font_feature_tag_value_list(absolutized_value, computation_context);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
         if (absolutized_value->to_keyword() == Keyword::Normal)
@@ -2326,17 +2327,17 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
     });
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+// https://drafts.csswg.org/css-fonts-4/#font-variation-settings-def
+// https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
 {
+    // NB: The computation logic is the same for both font-feature-settings and font-variation-settings, first we
+    //     deduplicate feature tags (with latter taking precedence), then we sort them in ascending order by code unit
     auto const& absolutized_value = specified_value->absolutized(computation_context);
 
     if (absolutized_value->is_keyword())
         return absolutized_value;
 
-    // https://drafts.csswg.org/css-fonts-4/#font-variation-settings-def
-    // If the same axis name appears more than once, the value associated with the last appearance supersedes any
-    // previous value for that axis. This deduplication is observable by accessing the computed value of this property."
-    // So, we deduplicate them here using a HashSet.
     auto const& value_list = absolutized_value->as_value_list();
     OrderedHashMap<FlyString, NonnullRefPtr<OpenTypeTaggedStyleValue const>> axis_tags_map;
     for (size_t i = 0; i < value_list.values().size(); i++) {
@@ -2346,7 +2347,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_variation_settings(N
 
     StyleValueVector axis_tags;
 
-    // The computed value contains the de-duplicated axis names, sorted in ascending order by code unit.
     for (auto const& [key, axis_tag] : axis_tags_map)
         axis_tags.append(axis_tag);
 

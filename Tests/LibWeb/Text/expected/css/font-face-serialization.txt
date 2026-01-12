@@ -1,6 +1,6 @@
 @font-face { font-family: "a1"; src: local("xyz"); }
-@font-face { font-family: "b1"; font-feature-settings: "aaaa", "bbbb" 0, "yyyy" 3, "zzzz"; }
-@font-face { font-family: "b2"; font-feature-settings: "aaaa" 3; }
+@font-face { font-family: "b1"; font-feature-settings: "bbbb" 0, "aaaa", "zzzz", "yyyy" 3; }
+@font-face { font-family: "b2"; font-feature-settings: "aaaa", "aaaa" 0, "aaaa" 3; }
 @font-face { font-family: "c1"; font-stretch: extra-condensed; }
 @font-face { font-family: "c2"; font-stretch: 50%; }
 @font-face { font-family: "c3"; font-stretch: extra-condensed; }
