@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Cross-origin methods and accessors are created with correct 'length' property</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/browsers.html#crossorigingetownpropertyhelper-(-o,-p-)">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../common/get-host-info.sub.js"></script>
+<script src="cross-origin-objects-function-common.js"></script>
+<div id=log></div>
+<script>
+"use strict";
+
+promise_test(async t => {
+    const w = await makeCrossOriginWindow(t);
+    for (const {key, length} of crossOriginWindowMethods) {
+        assert_equals(w[key].length, length, `w.${key} via [[Get]]`);
+        const desc = Object.getOwnPropertyDescriptor(w, key);
+        assert_equals(desc.value.length, length, `w.${key} via [[GetOwnProperty]]`);
+    }
+}, "Cross-origin Window methods have correct 'length'");
+
+promise_test(async t => {
+    const w = await makeCrossOriginWindow(t);
+    for (const {key} of crossOriginWindowAccessors) {
+        const desc = Object.getOwnPropertyDescriptor(w, key);
+        assert_equals(desc.get.length, 0, `w.${key}`);
+        if (key === "location") {
+            assert_equals(desc.set.length, 1, `w.${key}`);
+        }
+    }
+}, "Cross-origin Window accessors have correct 'length'");
+
+promise_test(async t => {
+    const w = await makeCrossOriginWindow(t);
+    assert_equals(w.location.replace.length, 1);
+    const desc = Object.getOwnPropertyDescriptor(w.location, "replace");
+    assert_equals(desc.value.length, 1);
+}, "Cross-origin Location `replace` method has correct 'length'");
+
+promise_test(async t => {
+    const w = await makeCrossOriginWindow(t);
+    const desc = Object.getOwnPropertyDescriptor(w.location, "href");
+    assert_equals(desc.set.length, 1);
+}, "Cross-origin Location `href` setter has correct 'length'");
+</script>
