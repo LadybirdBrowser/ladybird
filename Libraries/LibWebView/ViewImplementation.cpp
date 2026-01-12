@@ -601,17 +601,30 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
 {
-    dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", m_url);
-    dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
+    auto const headless_mode = Application::browser_options().headless_mode.has_value();
+
+    if (!headless_mode) {
+        dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", m_url);
+        dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
+    }
 
     ++m_crash_count;
     constexpr size_t max_reasonable_crash_count = 5U;
     if (m_crash_count >= max_reasonable_crash_count) {
-        dbgln("WebContent has crashed {} times in quick succession! Not restarting...", m_crash_count);
-        m_repeated_crash_timer->stop();
-        return;
+        if (!headless_mode) {
+            dbgln("WebContent has crashed {} times in quick succession! Not restarting...", m_crash_count);
+            m_repeated_crash_timer->stop();
+            return;
+        }
+        // In headless mode, always respawn - tests need a working WebContent for each test.
+        // Reset the crash count so we can continue running tests.
+        m_crash_count = 0;
     }
     m_repeated_crash_timer->restart();
+
+    // In headless mode, respawn WebContent but skip the error page.
+    if (headless_mode)
+        load_error_page = LoadErrorPage::No;
 
     initialize_client();
     VERIFY(m_client_state.client);
