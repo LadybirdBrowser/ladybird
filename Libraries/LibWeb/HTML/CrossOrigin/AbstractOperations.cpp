@@ -93,7 +93,8 @@ bool is_platform_object_same_origin(JS::Object const& object)
 // https://whatpr.org/html/9893/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HTML::Location*, HTML::Window*> const& object, JS::PropertyKey const& property_key)
 {
-    auto& realm = *Bindings::main_thread_vm().current_realm();
+    auto& vm = Bindings::main_thread_vm();
+    auto& realm = *vm.current_realm();
     auto const* object_ptr = object.visit([](auto* o) { return static_cast<JS::Object const*>(o); });
     auto const object_const_variant = object.visit([](auto* o) { return Variant<HTML::Location const*, HTML::Window const*> { o }; });
 
@@ -134,12 +135,13 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             auto value = original_descriptor->value;
 
             // 2. If IsCallable(value) is true, then set value to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the IDL operation P on object O.
-            if (value->is_function()) {
+            if (auto* function = value->as_if<JS::FunctionObject>()) {
+                auto name = function->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
                 value = JS::NativeFunction::create(
-                    realm, [function = *value](auto& vm) {
+                    realm, [function](auto& vm) {
                         return JS::call(vm, function, JS::js_undefined(), vm.running_execution_context().arguments);
                     },
-                    0);
+                    0, name);
             }
 
             // 3. Set crossOriginDesc to PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
@@ -152,11 +154,12 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
 
             // 2. If e.[[NeedsGet]] is true, then set crossOriginGet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the getter of the IDL attribute P on object O.
             if (*entry.needs_get) {
+                auto name = original_descriptor->get.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
                 cross_origin_get = JS::NativeFunction::create(
                     realm, [object_ptr, getter = *original_descriptor->get](auto& vm) {
                         return JS::call(vm, getter, object_ptr, vm.running_execution_context().arguments);
                     },
-                    0);
+                    0, name);
             }
 
             // 3. Let crossOriginSet be undefined.
@@ -164,11 +167,12 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
 
             // If e.[[NeedsSet]] is true, then set crossOriginSet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the setter of the IDL attribute P on object O.
             if (*entry.needs_set) {
+                auto name = original_descriptor->set.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
                 cross_origin_set = JS::NativeFunction::create(
                     realm, [object_ptr, setter = *original_descriptor->set](auto& vm) {
                         return JS::call(vm, setter, object_ptr, vm.running_execution_context().arguments);
                     },
-                    0);
+                    0, name);
             }
 
             // 5. Set crossOriginDesc to PropertyDescriptor { [[Get]]: crossOriginGet, [[Set]]: crossOriginSet, [[Enumerable]]: false, [[Configurable]]: true }.
