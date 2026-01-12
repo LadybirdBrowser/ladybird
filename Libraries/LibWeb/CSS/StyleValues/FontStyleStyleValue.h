@@ -13,14 +13,14 @@ namespace Web::CSS {
 
 class FontStyleStyleValue final : public StyleValueWithDefaultOperators<FontStyleStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<FontStyleStyleValue const> create(FontStyle font_style, ValueComparingRefPtr<StyleValue const> angle_value = {})
+    static ValueComparingNonnullRefPtr<FontStyleStyleValue const> create(FontStyleKeyword font_style, ValueComparingRefPtr<StyleValue const> angle_value = {})
     {
         return adopt_ref(*new (nothrow) FontStyleStyleValue(font_style, angle_value));
     }
 
     virtual ~FontStyleStyleValue() override;
 
-    FontStyle font_style() const { return m_font_style; }
+    FontStyleKeyword font_style() const { return m_font_style; }
     ValueComparingRefPtr<StyleValue const> angle() const { return m_angle_value; }
 
     int to_font_slope() const;
@@ -39,9 +39,9 @@ public:
     bool properties_equal(FontStyleStyleValue const& other) const { return m_font_style == other.m_font_style && m_angle_value == other.m_angle_value; }
 
 private:
-    FontStyleStyleValue(FontStyle, ValueComparingRefPtr<StyleValue const> angle_value);
+    FontStyleStyleValue(FontStyleKeyword, ValueComparingRefPtr<StyleValue const> angle_value);
 
-    FontStyle m_font_style;
+    FontStyleKeyword m_font_style;
     ValueComparingRefPtr<StyleValue const> m_angle_value;
 };
 
