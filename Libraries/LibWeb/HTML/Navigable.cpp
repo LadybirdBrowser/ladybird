@@ -1110,6 +1110,7 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
     request->set_replaces_client_id(active_document.relevant_settings_object().id);
     request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
     request->set_referrer(entry->document_state()->request_referrer());
+    request->set_referrer_policy(entry->document_state()->request_referrer_policy());
     request->set_policy_container(source_snapshot_params.source_policy_container);
 
     // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
