@@ -57,8 +57,13 @@ ProcessManager::ProcessManager()
         while (!result.is_error() && result.value().pid > 0) {
             auto& [pid, status] = result.value();
             if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                if (auto process = remove_process(pid); process.has_value())
-                    on_process_exited(process.release_value());
+                if (auto process = remove_process(pid); process.has_value()) {
+                    // Defer the callback to avoid destroying Process from signal handler context,
+                    // which would try to join the IPC IO thread and potentially deadlock.
+                    Core::deferred_invoke([this, process = process.release_value()]() mutable {
+                        on_process_exited(move(process));
+                    });
+                }
             }
             result = Core::System::waitpid(-1, WNOHANG);
         }
