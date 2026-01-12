@@ -443,8 +443,8 @@ static ErrorOr<void> generate_result_files(Vector<TestCompletion> const& non_pas
     // Write results.js (as JS to avoid fetch CORS issues with file://)
     StringBuilder js;
     js.append("const RESULTS_DATA = {\n"sv);
-    js.appendff("  \"summary\": {{ \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
-        fail_count, timeout_count, crashed_count, skipped_count);
+    js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
+        s_total_tests, fail_count, timeout_count, crashed_count, skipped_count);
     js.append("  \"tests\": [\n"sv);
 
     bool first = true;
@@ -505,7 +505,7 @@ static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer con
     auto actual_file = TRY(Core::File::open(actual_path, Core::File::OpenMode::Write));
     TRY(actual_file->write_until_depleted(test.text.bytes()));
 
-    // Write diff
+    // Write diff (plain text for tools)
     auto diff_path = ByteString::formatted("{}.diff.txt", base_path);
     auto diff_file = TRY(Core::File::open(diff_path, Core::File::OpenMode::Write));
 
@@ -513,6 +513,53 @@ static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer con
     TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *diff_file));
     for (auto const& hunk : hunks)
         TRY(Diff::write_unified(hunk, *diff_file, Diff::ColorOutput::No));
+
+    // Write diff (colorized HTML for viewer)
+    auto html_path = ByteString::formatted("{}.diff.html", base_path);
+    auto html_file = TRY(Core::File::open(html_path, Core::File::OpenMode::Write));
+
+    TRY(html_file->write_until_depleted(R"html(<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { margin: 0; background: #0d1117; }
+pre { margin: 0; padding: 16px; font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.5; }
+.add { background: #12261e; color: #3fb950; border-left: 3px solid #238636; padding-left: 8px; margin-left: -11px; }
+.del { background: #2d1619; color: #f85149; border-left: 3px solid #f85149; padding-left: 8px; margin-left: -11px; }
+.hunk { color: #58a6ff; font-weight: 500; }
+.ctx { color: #8b949e; }
+</style>
+</head>
+<body><pre>)html"sv));
+
+    // Write header
+    TRY(html_file->write_until_depleted("<span class=\"ctx\">"sv));
+    TRY(html_file->write_formatted("--- {}\n", test.expectation_path));
+    TRY(html_file->write_formatted("+++ {}\n", test.expectation_path));
+    TRY(html_file->write_until_depleted("</span>"sv));
+
+    // Write hunks with colorization
+    for (auto const& hunk : hunks) {
+        TRY(html_file->write_formatted("<span class=\"hunk\">{}</span>\n", hunk.location));
+
+        for (auto const& line : hunk.lines) {
+            auto escaped = escape_html_entities(line.content);
+            switch (line.operation) {
+            case Diff::Line::Operation::Addition:
+                TRY(html_file->write_formatted("<span class=\"add\">+{}</span>\n", escaped));
+                break;
+            case Diff::Line::Operation::Removal:
+                TRY(html_file->write_formatted("<span class=\"del\">-{}</span>\n", escaped));
+                break;
+            case Diff::Line::Operation::Context:
+                TRY(html_file->write_formatted("<span class=\"ctx\"> {}</span>\n", escaped));
+                break;
+            }
+        }
+    }
+
+    TRY(html_file->write_until_depleted("</pre></body></html>"sv));
 
     return {};
 }
@@ -1002,11 +1049,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
     bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION;
+    s_total_tests = tests.size();
     outln("Running {} tests...", tests.size());
 
     // Set up display area for live display
     if (use_live_display) {
-        s_total_tests = tests.size();
         s_live_display_lines = concurrency + 2; // +1 for empty line, +1 for progress bar
         for (size_t i = 0; i < s_live_display_lines; ++i)
             outln();
