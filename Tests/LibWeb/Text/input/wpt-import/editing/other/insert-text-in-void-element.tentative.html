@@ -1,0 +1,322 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test insertText when selection collapsed in void element</title>
+<meta name="timeout" content="long">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<div contenteditable></div>
+<script>
+"use strict";
+
+const voidElements = [
+  "br",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "wbr",
+];
+
+// This test tests whether the inserted text is inserted into, when selection
+// is collapsed in the void element.  The expected results are based on Blink,
+// but the results of <embed> and <wbr> elements are not consistent with the
+// other elements'.  Therefore, Blink also does not pass some of the following
+// tests.
+// FYI: This cannot be tested by editing/run because there is no way to collapse
+//      selection into a void element with the framework.
+
+const editor = document.querySelector("div[contenteditable]");
+for (const tag of voidElements) {
+  test(() => {
+    editor.innerHTML = `<div></div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "abc");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div>abc</div>",
+          "<div>abc<br></div>",
+        ],
+        `The text should be inserted before the <br> element`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<${tag}></div>`,
+          `<div>abc<${tag}><br></div>`,
+        ],
+        `The text should be inserted before the <${tag}> element`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which is only child`);
+
+  test(() => {
+    editor.innerHTML = `<div></div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    element.getBoundingClientRect();
+    document.execCommand("insertText", false, "abc");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div>abc</div>",
+          "<div>abc<br></div>",
+        ],
+        `The text should be inserted before the <br> element`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<${tag}></div>`,
+          `<div>abc<${tag}><br></div>`,
+        ],
+        `The text should be inserted before the <${tag}> element`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which is only child (explicitly flushes maybe pending layout)`);
+
+  test(() => {
+    editor.innerHTML = `<div>abc</div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "def");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div>abcdef</div>",
+          "<div>abcdef<br></div>",
+        ],
+        `The text should be inserted before the <br> element`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abcdef<${tag}></div>`,
+          `<div>abcdef<${tag}><br></div>`,
+        ],
+        `The text should be inserted before the <${tag}> element`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which follows a text node`);
+
+  test(() => {
+    editor.innerHTML = `<div>def</div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.insertBefore(element, editor.firstChild.firstChild);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "abc");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div>abc<br>def</div>",
+          "<div>abc<br>def<br></div>",
+        ],
+        `The text should be inserted before the <br> element`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<${tag}>def</div>`,
+          `<div>abc<${tag}>def<br></div>`,
+        ],
+        `The text should be inserted before the <${tag}> element`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which is followed by a text node`);
+
+  test(() => {
+    editor.innerHTML = `<div><span></span></div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "abc");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div><span></span>abc</div>",
+          "<div><span></span>abc<br></div>",
+        ],
+        `The text should be inserted after the previous empty inline element of <br>`
+      );
+    } else if (tag == "input") { // visible inline?
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div><span></span>abc<${tag}></div>`,
+          `<div><span></span>abc<${tag}><br></div>`,
+        ],
+        `The text should be inserted after the previous empty inline element of <${tag}>`
+      );
+    } else if (tag == "hr") { // block
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div><span></span>abc<${tag}></div>`,
+          `<div><span></span>abc<br><${tag}></div>`,
+        ],
+        `The text should be inserted after the previous empty inline element of <${tag}>`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<span></span><${tag}></div>`,
+          `<div>abc<span></span><${tag}><br></div>`,
+        ],
+        `The text should be inserted before the previous empty inline element of <${tag}>`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which follows an empty <span> element`);
+
+  test(() => {
+    editor.innerHTML = `<div>abc<span></span></div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "def");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div>abcdef<span></span></div>",
+          "<div>abcdef<span></span><br></div>",
+        ],
+        `The text should be inserted at end of the first text node before empty <span> and <br>`
+      );
+    } else if (tag == "hr") { // block
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<span></span>def<${tag}></div>`,
+          `<div>abc<span></span>def<br><${tag}></div>`,
+        ],
+        `The text should be inserted after the previous empty inline element of <${tag}> even if the empty element follows a text node`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abcdef<span></span><${tag}></div>`,
+          `<div>abcdef<span></span><${tag}><br></div>`,
+        ],
+        `The text should be inserted before the previous empty inline element of <${tag}>`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which follows a text node and an empty <span> element`);
+
+  test(() => {
+    editor.innerHTML = `<div><span>abc</span></div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "def");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          "<div><span>abcdef</span></div>",
+          "<div><span>abcdef</span><br></div>",
+        ],
+        `The text should be inserted at end of the text node in <span>`
+      );
+    } else if (tag == "hr") { // block
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div><span>abc</span>def<${tag}></div>`,
+          `<div><span>abc</span>def<br><${tag}></div>`,
+        ],
+        `The text should be inserted at after the span and before <${tag}>`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div><span>abcdef</span><${tag}></div>`,
+          `<div><span>abcdef</span><${tag}><br></div>`,
+        ],
+        `The text should be inserted at end of the text node in <span> before <${tag}>`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which follows a non-empty <span> element`);
+
+  test(() => {
+    editor.innerHTML = `<div>abc<span></span>\n</div>`;
+    const element = document.createElement(tag);
+    editor.firstChild.appendChild(element);
+    editor.focus();
+    const selection = getSelection();
+    selection.collapse(element, 0);
+    document.execCommand("insertText", false, "def");
+    if (tag == "br") {
+      assert_in_array(
+        editor.innerHTML.replace(/\n/g, " "),
+        [
+          "<div>abcdef<span></span></div>",
+          "<div>abcdef<span></span><br></div>",
+          "<div>abcdef<span></span> </div>",
+          "<div>abcdef<span></span> <br></div>",
+        ],
+        `The text should be inserted at end of the first text node with ignoring the empty <span> and invisible text node before <br>`
+      );
+    } else if (tag == "img" || tag == "input") { // visible inline
+      assert_in_array(
+        editor.innerHTML.replace(/\n/g, " "),
+        [
+          `<div>abc<span></span> def<${tag}></div>`,
+          `<div>abc<span></span> def<${tag}><br></div>`,
+          `<div>abc<span></span>&nbsp;def<${tag}></div>`,
+          `<div>abc<span></span>&nbsp;def<${tag}><br></div>`,
+        ],
+        `The text should be inserted at end of the last visible text node`
+      );
+    } else if (tag == "hr") { // block
+      assert_in_array(
+        editor.innerHTML,
+        [
+          `<div>abc<span></span>def<${tag}></div>`,
+          `<div>abc<span></span>def<br><${tag}></div>`,
+        ],
+        `The text should be inserted after the previous empty inline element`
+      );
+    } else {
+      assert_in_array(
+        editor.innerHTML.replace(/\n/g, " "),
+        [
+          `<div>abcdef<span></span> <${tag}></div>`,
+          `<div>abcdef<span></span> <${tag}><br></div>`,
+        ],
+        `The text should be inserted before the previous empty inline element`
+      );
+    }
+  }, `Inserting text when selection is collapsed in <${tag}> which follows a text node, an empty <span> element and white-space only text node`);
+}
+
+</script>
