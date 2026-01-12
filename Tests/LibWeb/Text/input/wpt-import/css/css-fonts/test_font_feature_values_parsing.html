@@ -1,0 +1,356 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset=utf-8>
+  <title>@font-feature-values rule parsing tests</title>
+  <link rel="author" title="John Daggett" href="mailto:jdaggett@mozilla.com">
+  <link rel="help" href="http://www.w3.org/TR/css-fonts-4/#font-feature-values" />
+  <meta name="assert" content="tests that valid @font-feature-values rules parse and invalid ones don't" />
+  <!-- https://bugzilla.mozilla.org/show_bug.cgi?id=549861 -->
+  <script type="text/javascript" src="../../resources/testharness.js"></script>
+  <script type="text/javascript" src="../../resources/testharnessreport.js"></script>
+  <style type="text/css">
+  </style>
+</head>
+<body>
+<div id="log"></div>
+<pre id="display"></pre>
+<style type="text/css" id="testbox"></style>
+
+<script type="text/javascript">
+var gPrefix = "";
+var kFontFeatureValuesRuleType = 14;
+
+function ruleName() { return "@" + gPrefix + "font-feature-values"; }
+function makeRule(f, v) {
+  return ruleName() + " " + f + " { " + v + " }";
+}
+
+function _()
+{
+  var i, decl = [];
+  for (i = 0; i < arguments.length; i++) {
+    decl.push(arguments[i]);
+  }
+  return makeRule("bongo", decl.join(" "));
+}
+
+// note: because of bugs in the way family names are serialized,
+// 'serializationSame' only implies that the value definition block
+// is the same (i.e. not including the family name list)
+
+var testrules = [
+
+  /* basic syntax */
+  { rule: ruleName() + ";", invalid: true },
+  { rule: ruleName() + " bongo;", invalid: true },
+  { rule: ruleName().replace("values", "value") + " {;}", invalid: true },
+  { rule: ruleName().replace("feature", "features") + " {;}", invalid: true },
+  { rule: makeRule("bongo", ""), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", ";"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", ",;"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", ";,"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", ",;,"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset;"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset,;"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset abc;"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { ;;abc }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc;; }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc: }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc,: }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc:, }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc:,; }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { a,b }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { a;b }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { a:;b: }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { a:,;b: }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { a:1,;b: }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc 1 2 3 }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc:, 1 2 3 }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc:; 1 2 3 }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc: 1 2 3a }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@styleset { abc: 1 2 3, def: 1; }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@blah @styleset { abc: 1 2 3; }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@blah } @styleset { abc: 1 2 3; }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "@blah , @styleset { abc: 1 2 3; }"), serializationNoValueDefn: true },
+  { rule: ruleName() + " bongo { @styleset { abc: 1 2 3; }", serialization: _("@styleset { abc: 1 2 3; }") },
+  { rule: ruleName() + " bongo { @styleset { abc: 1 2 3 }", serialization: _("@styleset { abc: 1 2 3; }") },
+  { rule: ruleName() + " bongo { @styleset { abc: 1 2 3;", serialization: _("@styleset { abc: 1 2 3; }") },
+  { rule: ruleName() + " bongo { @styleset { abc: 1 2 3", serialization: _("@styleset { abc: 1 2 3; }") },
+  { rule: _("@styleset { ok-1: 1; }"), serializationSame: true },
+  { rule: _("@annotation { ok-1: 3; }"), serializationSame: true },
+  { rule: _("@stylistic { blah: 3; }"), serializationSame: true },
+  { rule: _("@stylistic { blah: sibling-index(); }"), serializationNoValueDefn: true },
+  { rule: makeRule("bongo", "\n@styleset\n  { blah: 3; super-blah: 4 5;\n  more-blah: 5 6 7;\n }"), serializationSame: true },
+  { rule: makeRule("bongo", "\n@styleset\n  {\n blah:\n 3\n;\n super-blah:\n 4\n 5\n;\n  more-blah:\n 5 6\n 7;\n }"), serializationSame: true },
+
+  /* limits on number of values */
+  { rule: _("@stylistic { blah: 1; }"), serializationSame: true },
+  { rule: _("@styleset { blah: 1 2 3 4; }"), serializationSame: true },
+  { rule: _("@character-variant { blah: 1 2; }"), serializationSame: true },
+  { rule: _("@swash { blah: 1; }"), serializationSame: true },
+  { rule: _("@ornaments { blah: 1; }"), serializationSame: true },
+  { rule: _("@annotation { blah: 1; }"), serializationSame: true },
+
+  /* values ignored when used */
+  { rule: _("@styleset { blah: 0; }"), serializationSame: true },
+  { rule: _("@styleset { blah: 120 124; }"), serializationSame: true },
+  { rule: _("@character-variant { blah: 0; }"), serializationSame: true },
+  { rule: _("@character-variant { blah: 111; }"), serializationSame: true },
+  { rule: _("@character-variant { blah: 111 13; }"), serializationSame: true },
+
+  /* invalid value name */
+  { rulesrc: ["styleset { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["stylistic { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["character-variant { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["swash { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["ornaments { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["annotation { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@bongo { blah: 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@bongo { blah: 1 2 3 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@bongo { blah: 1 2 3; burp: 1;;; }"], serializationNoValueDefn: true },
+
+  /* values */
+  { rulesrc: ["@styleset { blah: -1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1 -1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1.5 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 15px }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: red }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: (1) }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah:(1) }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah:, 1 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: <1> }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1! }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1,, }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1 1 1 1; }"], serializationSame: true },
+
+  /* limits on number of values */
+  { rulesrc: ["@stylistic { blah: 1 2 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@character-variant { blah: 1 2 3 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@swash { blah: 1 2 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@ornaments { blah: 1 2 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@annotation { blah: 1 2 }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { blah: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19; }"], serializationSame: true },
+
+  /* family names */
+  { rule: makeRule("bongo", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("\"bongo\"", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("'bongo'", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("\\62 ongo", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("bongo, super bongo, bongo the supreme", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("bongo,, super bongo", "@styleset { blah: 1; }"), invalid: true },
+  { rule: makeRule("bongo,*", "@styleset { blah: 1; }"), invalid: true },
+  { rule: makeRule("bongo, sans-serif", "@styleset { blah: 1; }"), invalid: true },
+  { rule: makeRule("serif, sans-serif", "@styleset { blah: 1; }"), invalid: true },
+  { rule: makeRule("'serif', 'sans-serif'", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("bongo, \"super bongo\", 'bongo the supreme'", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("毎日カレーを食べたい！", "@styleset { blah: 1; }"), serializationSame: true },
+  { rule: makeRule("毎日カレーを食べたい！, 納豆嫌い", "@styleset { blah: 1; }"), serializationSame: true },
+
+  { rule: makeRule("bongo, \"super\" bongo, bongo the supreme", "@styleset { blah: 1; }"), invalid: true },
+  { rule: makeRule("--bongo", "@styleset { blah: 1; }"), invalid: true },
+
+  /* ident tests */
+  { rule: _("@styleset { blah: 1; blah: 1; }"), serializationSame: true },
+  { rule: _("@styleset { blah: 1; de-blah: 1; blah: 2; }"), serializationSame: true },
+  { rule: _("@styleset { \\tra-la: 1; }"), serialization: _("@styleset { tra-la: 1; }") },
+  { rule: _("@styleset { b\\lah: 1; }"), serialization: _("@styleset { blah: 1; }") },
+  { rule: _("@styleset { \\62 lah: 1; }"), serialization: _("@styleset { blah: 1; }") },
+  { rule: _("@styleset { \\:blah: 1; }"), serialization: _("@styleset { \\:blah: 1; }") },
+  { rule: _("@styleset { \\;blah: 1; }"), serialization: _("@styleset { \\;blah: 1; }") },
+  { rule: _("@styleset { complex\\20 blah: 1; }"), serialization: _("@styleset { complex\\ blah: 1; }") },
+  { rule: _("@styleset { complex\\ blah: 1; }"), serializationSame: true },
+  { rule: _("@styleset { Håkon: 1; }"), serializationSame: true },
+  { rule: _("@styleset { Åквариум: 1; }"), serializationSame: true },
+  { rule: _("@styleset { \\1f449\\1f4a9\\1f448: 1; }"), serialization: _("@styleset { 👉💩👈: 1; }") },
+  { rule: _("@styleset { 魅力: 1; }"), serializationSame: true },
+  { rule: _("@styleset { 毎日カレーを食べたい！: 1; }"), serializationSame: true },
+  /* from http://en.wikipedia.org/wiki/Metal_umlaut */
+  { rule: _("@styleset { TECHNICIÄNS\\ ÖF\\ SPÅCE\\ SHIP\\ EÅRTH\\ THIS\\ IS\\ YÖÜR\\ CÄPTÅIN\\ SPEÄKING\\ YÖÜR\\ ØÅPTÅIN\\ IS\\ DEA̋D: 1; }"), serializationSame: true },
+
+  { rulesrc: ["@styleset { 123blah: 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { :123blah 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { :123blah: 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { ?123blah: 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { \"blah\": 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { complex blah: 1; }"], serializationNoValueDefn: true },
+  { rulesrc: ["@styleset { complex\\  blah: 1; }"], serializationNoValueDefn: true }
+
+];
+
+// test that invalid value declarations don't affect the parsing of surrounding
+// declarations.  So before + invalid + after should match the serialization
+// given in s.
+
+var gSurroundingTests = [
+  // -- invalid, valid ==> valid
+  { before: "", after: "@ornaments { whatchamacallit-1: 23; thingy-dingy: 3; }", s: _("@ornaments { whatchamacallit-1: 23; thingy-dingy: 3; }") },
+
+  // -- valid, invalid ==> valid
+  { before: "@ornaments { whatchamacallit-1: 23; thingy-dingy: 7; }", after: "", s: _("@ornaments { whatchamacallit-1: 23; thingy-dingy: 7; }") },
+
+  // -- valid, invalid, valid ==> valid, valid
+  { before: "@ornaments { whatchamacallit-1: 23; thingy-dingy: 3; }", after: "@character-variant { whatchamacallit-2: 23 4; }", s: _("@ornaments { whatchamacallit-1: 23; thingy-dingy: 3; } @character-variant { whatchamacallit-2: 23 4; }") },
+
+  // -- invalid, valid, invalid ==> valid
+  { between: "@ornaments { whatchamacallit-1: 23; thingy-dingy: 4; }", s: _("@ornaments { whatchamacallit-1: 23; thingy-dingy: 4; }") }
+];
+
+/* strip out just values, along with empty value blocks (e.g. @swash { })*/
+function valuesText(ruletext)
+{
+  var t = ruletext.replace(/@[a-zA-Z0-9\-]+[ \n]*{[ \n]*}/g, "");
+  t = t.replace(/[ \n]+/g, " ");
+  t = t.replace(/^[^{]+{[ \n]*/, "");
+  t = t.replace(/[ \n]*}[^}]*$/, "");
+  t = t.replace(/[ \n]*;/g, ";");
+  return t;
+}
+
+function testParse(rulesrc)
+{
+  var sheet = document.styleSheets[1];
+  var rule = _.apply(this, rulesrc);
+
+  while(sheet.cssRules.length > 0)
+    sheet.deleteRule(0);
+  try {
+    sheet.insertRule(rule, 0);
+  } catch (e) {
+    return e.toString();
+  }
+
+  if (sheet.cssRules.length == 1 && sheet.cssRules[0].type == kFontFeatureValuesRuleType) {
+    return sheet.cssRules[0].cssText.replace(/[ \n]+/g, " ");
+  }
+
+  return "";
+}
+
+function testOneRule(testrule) {
+  var sheet = document.styleSheets[1];
+  var rule;
+
+  if ("rulesrc" in testrule) {
+    rule = _.apply(this, testrule.rulesrc);
+  } else {
+    rule = testrule.rule;
+  }
+
+  var parseErr = false;
+  var expectedErr = false;
+  var invalid = false;
+  if ("invalid" in testrule && testrule.invalid) invalid = true;
+
+  while(sheet.cssRules.length > 0)
+    sheet.deleteRule(0);
+  try {
+    sheet.insertRule(rule, 0);
+  } catch (e) {
+    expectedErr = (e.name == "SyntaxError"
+      && e instanceof DOMException
+      && e.code == DOMException.SYNTAX_ERR
+      && invalid);
+    parseErr = true;
+  }
+
+  test(function() {
+    assert_true(!parseErr || expectedErr, "unexpected syntax error");
+    if (!parseErr) {
+      assert_equals(sheet.cssRules.length, 1, "bad rule count");
+      assert_equals(sheet.cssRules[0].type, kFontFeatureValuesRuleType, "bad rule type");
+    }
+  }, "basic parse tests - " + rule);
+
+  var sanitizedRule = rule.replace(/[ \n]+/g, " ");
+  if (parseErr) {
+    return;
+  }
+
+  // should result in one @font-feature-values rule constructed
+
+  // serialization matches expectation
+  // -- note: due to inconsistent font family serialization problems,
+  //    only the serialization of the values is tested currently
+
+  var ruleValues = valuesText(rule);
+  var serialized = sheet.cssRules[0].cssText;
+  var serializedValues = valuesText(serialized);
+  var haveSerialization = true;
+
+  if (testrule.serializationSame) {
+    test(function() {
+      assert_equals(serializedValues, ruleValues, "canonical cssText serialization doesn't match");
+    }, "serialization check - " + rule);
+  } else if ("serialization" in testrule) {
+    var s = valuesText(testrule.serialization);
+    test(function() {
+      assert_equals(serializedValues, s, "non-canonical cssText serialization doesn't match - ");
+    }, "serialization check - " + rule);
+  } else if (testrule.serializationNoValueDefn) {
+    test(function() {
+      assert_equals(serializedValues, "", "cssText serialization should have no value defintions - ");
+    }, "no value definitions in serialization - " + rule);
+
+    haveSerialization = false;
+
+    if ("rulesrc" in testrule) {
+      test(function() {
+        var j, rulesrc = testrule.rulesrc;
+
+        // invalid value definitions shouldn't affect the parsing of valid
+        // definitions before or after an invalid one
+        for (var j = 0; j < gSurroundingTests.length; j++) {
+          var t = gSurroundingTests[j];
+          var srulesrc = [];
+
+          if ("between" in t) {
+            srulesrc = srulesrc.concat(rulesrc);
+            srulesrc = srulesrc.concat(t.between);
+            srulesrc = srulesrc.concat(rulesrc);
+          } else {
+            if (t.before != "")
+              srulesrc = srulesrc.concat(t.before);
+            srulesrc = srulesrc.concat(rulesrc);
+            if (t.after != "")
+              srulesrc = srulesrc.concat(t.after);
+          }
+
+          var result = testParse(srulesrc);
+          assert_equals(valuesText(result), valuesText(t.s), "invalid declarations should not affect valid ones - ");
+        }
+      }, "invalid declarations don't affect valid ones - " + rule);
+    }
+  }
+
+  // if serialization non-empty, serialization should round-trip to itself
+  if (haveSerialization) {
+    var roundTripText = testParse([serializedValues]);
+    test(function() {
+      assert_equals(valuesText(roundTripText), serializedValues,
+         "serialization should round-trip to itself - ");
+    }, "serialization round-trip - " + rule);
+  }
+}
+
+function testFontFeatureValuesRuleParsing() {
+  var i;
+  for (i = 0; i < testrules.length; i++) {
+    var testrule = testrules[i];
+    var rule;
+
+    if ("rulesrc" in testrule) {
+      rule = _.apply(this, testrule.rulesrc);
+    } else {
+      rule = testrule.rule;
+    }
+
+    testOneRule(testrule);
+    //test(function() { testOneRule(testrule); }, "parsing " + rule);
+  }
+}
+
+testFontFeatureValuesRuleParsing();
+</script>
+</body></html>

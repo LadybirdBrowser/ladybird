@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSSOM - CSSFontFeatureValuesRule interface</title>
+<link
+  rel="help"
+  href="https://drafts.csswg.org/css-fonts-4/#om-fontfeaturevalues"
+/>
+<link rel="author" title="Dominik Röttsches" href="drott@chromium.org" />
+<meta
+  name="assert"
+  content="CSSFontFeatureValuesRule interface is accessible and supports read and write access."
+/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style></style>
+<body></body>
+<script>
+  let rule_initial = `
+  @font-feature-values test_family {
+    @annotation {
+      the_first: 6;
+    }
+    @styleset {
+      yo: 7;
+      del: 4;
+      di: 10 9 4 5;
+    }
+  }
+  `;
+
+  let rule_added = `
+  @font-feature-values second_family {
+    @annotation {
+      yabab: 2;
+      yogog: 4;
+      bidib: 5;
+    }
+  }
+  `;
+
+  let rule_overlap = `
+  @font-feature-values test_family {
+    @annotation {
+      baric: 17;
+    }
+    @ornaments {
+      fooic: 1;
+    }
+  }
+  `;
+
+  function resetStateAndTest(testFunction) {
+    var sheet = document.styleSheets[0];
+    while (sheet.cssRules.length > 0) sheet.deleteRule(0);
+    sheet.insertRule(rule_initial);
+    testFunction();
+  }
+
+  test(function () {
+    resetStateAndTest(() => {
+      let rule = document.styleSheets[0].cssRules[0];
+      assert_equals(rule.type, 14);
+      assert_equals(rule.annotation.size, 1);
+      assert_equals(rule.styleset.size, 3);
+      assert_array_equals(rule.styleset.get("yo"), [7]);
+      assert_array_equals(rule.styleset.get("del"), [4]);
+      assert_array_equals(rule.styleset.get("di"), [10, 9, 4, 5]);
+      assert_array_equals(rule.annotation.get("the_first"), [6]);
+      assert_equals(rule.stylistic.size, 0);
+      assert_equals(rule.swash.size, 0);
+      assert_equals(rule.ornaments.size, 0);
+      assert_equals(rule.characterVariant.size, 0);
+      assert_equals(rule.fontFamily, "test_family");
+    });
+  }, "CSSFontFeatureValuesRule is correctly parsed and accessible via CSSOM.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      let family_override = "test_changed_family";
+      let rule = document.styleSheets[0].cssRules[0];
+      rule.fontFamily = family_override;
+      let read_rule = document.styleSheets[0].cssRules[0];
+      assert_equals(read_rule.fontFamily, family_override);
+    });
+  }, "CSSFontFeatureValuesRule family is settable and readable.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      let rule = document.styleSheets[0].cssRules[0];
+      let override_number = 43;
+      assert_equals(rule.styleset.get("di").length, 4);
+      rule.styleset.set("di", override_number);
+      assert_array_equals(
+        document.styleSheets[0].cssRules[0].styleset.get("di"),
+        [override_number]
+      );
+      assert_equals(rule.styleset.size, 3);
+      assert_equals(
+        document.styleSheets[0].cssRules[0].styleset.get("di").length,
+        1
+      );
+    });
+  }, "CSSFontFeatureValuesMap entries are settable to single values.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      let rule = document.styleSheets[0].cssRules[0];
+      let override_sequence = [43, 22];
+      assert_equals(
+        document.styleSheets[0].cssRules[0].styleset.get("di").length,
+        4
+      );
+      rule.styleset.set("di", override_sequence);
+      assert_array_equals(
+        document.styleSheets[0].cssRules[0].styleset.get("di"),
+        override_sequence
+      );
+      assert_equals(document.styleSheets[0].cssRules[0].styleset.size, 3);
+      assert_equals(
+        document.styleSheets[0].cssRules[0].styleset.get("di").length,
+        2
+      );
+    });
+  }, "CSSFontFeatureValuesMap entries are settable to sequences of numbers.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      document.styleSheets[0].insertRule(rule_added, 1);
+      assert_equals(document.styleSheets[0].cssRules[1].type, 14);
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 3);
+    });
+  }, "New rules can be added.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      document.styleSheets[0].insertRule(rule_added, 1);
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 3);
+      document.styleSheets[0].cssRules[1].annotation.delete("yogog");
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 2);
+    });
+  }, "Deleting single entries is possible.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      document.styleSheets[0].insertRule(rule_added, 1);
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 3);
+      document.styleSheets[0].cssRules[1].annotation.clear();
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 0);
+    });
+  }, "Clearing all entries is possible.");
+
+  test(function () {
+    resetStateAndTest(() => {
+      assert_equals(document.styleSheets[0].cssRules.length, 1);
+      document.styleSheets[0].insertRule(rule_overlap, 1);
+      assert_equals(document.styleSheets[0].cssRules.length, 2);
+
+      // Force updating internal state.
+      getComputedStyle(document.body).borderTop;
+
+      assert_equals(
+        document.styleSheets[0].cssRules[0].annotation.size,
+        1,
+        "1 annotation."
+      );
+      assert_equals(
+        document.styleSheets[0].cssRules[0].styleset.size,
+        3,
+        "3 entries in styleset."
+      );
+      assert_equals(
+        document.styleSheets[0].cssRules[0].ornaments.size,
+        0,
+        "No ornament entries."
+      );
+      assert_false(
+        document.styleSheets[0].cssRules[0].annotation.has("baric"),
+        "Annotation must not contain 'baric'."
+      );
+      assert_false(
+        document.styleSheets[0].cssRules[0].ornaments.has("fooic"),
+        "Ornaments must not contain 'fooic'."
+      );
+
+      assert_equals(document.styleSheets[0].cssRules[1].annotation.size, 1);
+      assert_equals(document.styleSheets[0].cssRules[1].ornaments.size, 1);
+      assert_false(
+        document.styleSheets[0].cssRules[1].annotation.has("the_first")
+      );
+    });
+  }, "Multiple rules for the same family are kept separate in CSSOM.");
+</script>

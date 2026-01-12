@@ -1,0 +1,34 @@
+<!doctype html>
+<title>CSS Fonts IDL tests</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+
+<style>
+  div { display: block; }
+</style>
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+</style>
+
+<script>
+  "use strict";
+
+  idl_test(
+    ["css-fonts-5", "css-fonts"],
+    ["cssom"],
+    idl_array => {
+      idl_array.add_objects({
+        CSSRule: ['cssRule'],
+        CSSFontFaceRule: ['cssFontFaceRule'],
+      });
+      self.cssRule = document.styleSheets[0].cssRules[0];
+      self.cssFontFaceRule = document.styleSheets[1].cssRules[0];
+    }
+  );
+</script>
