@@ -101,7 +101,8 @@ intptr_t TransportSocket::io_thread_loop()
 
         if (pollfds[1].revents & POLLIN) {
             char buf[64];
-            MUST(Core::System::read(m_wakeup_io_thread_read_fd->value(), { buf, sizeof(buf) }));
+            // The wakeup pipe is non-blocking, so EAGAIN is possible if there's a spurious wakeup.
+            (void)Core::System::read(m_wakeup_io_thread_read_fd->value(), { buf, sizeof(buf) });
         }
 
         if (pollfds[0].revents & POLLIN)
