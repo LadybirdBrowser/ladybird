@@ -13,6 +13,10 @@
 
 #define ENUMERATE_GLOBAL_EVENT_HANDLERS(E)                                    \
     E(onabort, HTML::EventNames::abort)                                       \
+    E(onanimationcancel, HTML::EventNames::animationcancel)                   \
+    E(onanimationend, HTML::EventNames::animationend)                         \
+    E(onanimationiteration, HTML::EventNames::animationiteration)             \
+    E(onanimationstart, HTML::EventNames::animationstart)                     \
     E(onauxclick, UIEvents::EventNames::auxclick)                             \
     E(onbeforeinput, HTML::EventNames::beforeinput)                           \
     E(onbeforematch, HTML::EventNames::beforematch)                           \

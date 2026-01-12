@@ -144,6 +144,10 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(novalidate, "novalidate")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(nowrap, "nowrap")                                         \
     __ENUMERATE_HTML_ATTRIBUTE(onabort, "onabort")                                       \
+    __ENUMERATE_HTML_ATTRIBUTE(onanimationcancel, "onanimationcancel")                   \
+    __ENUMERATE_HTML_ATTRIBUTE(onanimationend, "onanimationend")                         \
+    __ENUMERATE_HTML_ATTRIBUTE(onanimationiteration, "onanimationiteration")             \
+    __ENUMERATE_HTML_ATTRIBUTE(onanimationstart, "onanimationstart")                     \
     __ENUMERATE_HTML_ATTRIBUTE(onafterprint, "onafterprint")                             \
     __ENUMERATE_HTML_ATTRIBUTE(onauxclick, "onauxclick")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeinput, "onbeforeinput")                           \
