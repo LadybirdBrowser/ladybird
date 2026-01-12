@@ -3215,6 +3215,29 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
         }
     }
 
+    if (interface.map_key_type.has_value()) {
+        auto maplike_generator = generator.fork();
+
+        maplike_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(get_size);
+    JS_DECLARE_NATIVE_FUNCTION(entries);
+    JS_DECLARE_NATIVE_FUNCTION(keys);
+    JS_DECLARE_NATIVE_FUNCTION(values);
+    JS_DECLARE_NATIVE_FUNCTION(for_each);
+    JS_DECLARE_NATIVE_FUNCTION(get);
+    JS_DECLARE_NATIVE_FUNCTION(has);
+)~~~");
+
+        if (!interface.overload_sets.contains("set"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    JS_DECLARE_NATIVE_FUNCTION(set);");
+
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    JS_DECLARE_NATIVE_FUNCTION(delete_);");
+
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    JS_DECLARE_NATIVE_FUNCTION(clear);");
+    }
+
     for (auto& attribute : interface.attributes) {
         if (attribute.extended_attributes.contains("FIXME"))
             continue;
@@ -3951,6 +3974,30 @@ void @class_name@::initialize(JS::Realm& realm)
         }
     }
 
+    if (interface.map_key_type.has_value() && generate_unforgeables == GenerateUnforgeables::No) {
+        auto maplike_generator = generator.fork();
+
+        maplike_generator.append(R"~~~(
+    @define_native_accessor@(realm, vm.names.size, get_size, nullptr, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    @define_native_function@(realm, vm.names.entries, entries, 0, default_attributes);
+    @define_direct_property@(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.entries), JS::Attribute::Configurable | JS::Attribute::Writable);
+    @define_native_function@(realm, vm.names.keys, keys, 0, default_attributes);
+    @define_native_function@(realm, vm.names.values, values, 0, default_attributes);
+    @define_native_function@(realm, vm.names.forEach, for_each, 1, default_attributes);
+    @define_native_function@(realm, vm.names.get, get, 1, default_attributes);
+    @define_native_function@(realm, vm.names.has, has, 1, default_attributes);
+)~~~");
+
+        if (!interface.overload_sets.contains("set"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    @define_native_function@(realm, vm.names.set, set, 2, default_attributes);");
+
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    @define_native_function@(realm, vm.names.delete_, delete_, 1, default_attributes);");
+
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_map_readonly)
+            maplike_generator.appendln("    @define_native_function@(realm, vm.names.clear, clear, 0, default_attributes);");
+    }
+
     if (interface.has_unscopable_member) {
         generator.append(R"~~~(
     @define_direct_property@(vm.well_known_symbol_unscopables(), unscopable_object, JS::Attribute::Configurable);
@@ -4003,7 +4050,7 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
     }
 
-    if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value()) {
+    if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value() || interface.map_key_type.has_value()) {
         generator.append(R"~~~(
 [[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
 {
@@ -4981,6 +5028,209 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
 
     set->set_clear();
     impl->on_set_modified_from_js({});
+
+    return JS::js_undefined();
+}
+)~~~");
+        }
+    }
+
+    if (interface.map_key_type.has_value()) {
+        auto maplike_generator = generator.fork();
+
+        if (interface.map_key_type.value()->is_string()) {
+            maplike_generator.set("key_arg_converted_to_idl_type", "JS::PrimitiveString::create(vm, TRY(key_arg.to_string(vm)));");
+        } else {
+            TODO();
+        }
+
+        if (interface.map_value_type.value()->is_sequence() && interface.map_value_type.value()->as_parameterized().parameters().at(0)->is_numeric()) {
+            // FIXME: We should convert rather than just fail if we have the wrong type.
+            maplike_generator.set("value_arg_converted_to_idl_type", R"~~~([&](){
+    if (!value_arg.is_object() || !is<JS::Array>(value_arg.as_object())) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Array");
+    }
+
+    for (auto const& item : as<JS::Array>(value_arg.as_object())) {
+        if (!item.is_numeric()) {
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Number");
+        }
+    }
+
+    return value_arg;
+}();
+)~~~");
+        } else {
+            TODO();
+        }
+
+        maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-map-size
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::get_size)
+{
+    WebIDL::log_trace(vm, "@class_name@::size");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    return map->map_size();
+}
+
+// https://webidl.spec.whatwg.org/#js-map-entries
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::entries)
+{
+    WebIDL::log_trace(vm, "@class_name@::entries");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::MapIterator::create(realm, *map, Object::PropertyKind::KeyAndValue); }));
+}
+
+// https://webidl.spec.whatwg.org/#js-map-keys
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::keys)
+{
+    WebIDL::log_trace(vm, "@class_name@::keys");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::MapIterator::create(realm, *map, Object::PropertyKind::Key); }));
+}
+
+// https://webidl.spec.whatwg.org/#js-map-values
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
+{
+    WebIDL::log_trace(vm, "@class_name@::values");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::MapIterator::create(realm, *map, Object::PropertyKind::Value); }));
+}
+
+// https://webidl.spec.whatwg.org/#js-map-forEach
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
+{
+    WebIDL::log_trace(vm, "@class_name@::for_each");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    auto callback = vm.argument(0);
+    if (!callback.is_function())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, callback);
+
+    for (auto& entry : *map)
+        TRY(JS::call(vm, callback.as_function(), vm.argument(1), entry.key, entry.value, impl));
+
+    return JS::js_undefined();
+}
+
+// https://webidl.spec.whatwg.org/#js-map-get
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::get)
+{
+    WebIDL::log_trace(vm, "@class_name@::get");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    auto key_arg = vm.argument(0);
+    auto key = @key_arg_converted_to_idl_type@
+
+    // FIXME: If key is -0, set key to +0.
+    // What? Which interfaces have a number as their map key type?
+
+    auto result = map->map_get(key);
+
+    if (!result.has_value())
+        return JS::js_undefined();
+
+    return result.release_value();
+}
+
+// https://webidl.spec.whatwg.org/#js-map-has
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
+{
+    WebIDL::log_trace(vm, "@class_name@::has");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    auto key_arg = vm.argument(0);
+    auto key = @key_arg_converted_to_idl_type@
+
+    // FIXME: If key is -0, set key to +0.
+    // What? Which interfaces have a number as their map key type?
+
+    return map->map_has(key);
+}
+)~~~");
+
+        if (!interface.overload_sets.contains("set"sv) && !interface.is_map_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-map-set
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::set)
+{
+    WebIDL::log_trace(vm, "@class_name@::set");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    auto key_arg = vm.argument(0);
+    auto key = @key_arg_converted_to_idl_type@
+
+    // FIXME: If value is -0, set value to +0.
+    // What? Which interfaces have a number as their set type?
+
+    auto value_arg = vm.argument(1);
+    auto value = @value_arg_converted_to_idl_type@
+
+    map->map_set(key, value);
+    impl->on_map_modified_from_js({});
+
+    return impl;
+}
+)~~~");
+        }
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_map_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-map-delete
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
+{
+    WebIDL::log_trace(vm, "@class_name@::delete_");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    auto key_arg = vm.argument(0);
+    auto key = @key_arg_converted_to_idl_type@
+
+    // FIXME: If key is -0, set key to +0.
+    // What? Which interfaces have a number as their map key type?
+
+    auto result = map->map_remove(key);
+    impl->on_map_modified_from_js({});
+
+    return result;
+}
+)~~~");
+        }
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_map_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-map-clear
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
+{
+    WebIDL::log_trace(vm, "@class_name@::clear");
+    auto* impl = TRY(impl_from(vm));
+
+    GC::Ref<JS::Map> map = impl->map_entries();
+
+    map->map_clear();
+    impl->on_map_modified_from_js({});
 
     return JS::js_undefined();
 }

@@ -63,6 +63,7 @@ private:
     void parse_iterable(Interface&);
     void parse_async_iterable(Interface&);
     void parse_setlike(Interface&, bool is_readonly);
+    void parse_maplike(Interface&, bool is_readonly);
     Function parse_function(HashMap<ByteString, ByteString>& extended_attributes, Interface&, IsStatic is_static = IsStatic::No, IsSpecialOperation is_special_operation = IsSpecialOperation::No);
     Vector<Parameter> parse_parameters();
     NonnullRefPtr<Type const> parse_type();
