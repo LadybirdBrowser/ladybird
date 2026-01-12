@@ -289,7 +289,7 @@ static RefPtr<StyleValue const> interpolate_filter_value_list(DOM::Element& elem
                     .offset_x = Length::make_px(0),
                     .offset_y = Length::make_px(0),
                     .radius = Length::make_px(0),
-                    .color = ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy)
+                    .color = ColorStyleValue::create_from_color(Gfx::Color::Transparent, ColorSyntax::Legacy)
                 };
             },
             [&](FilterOperation::HueRotate const&) -> FilterValue {
@@ -1361,7 +1361,7 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     return StyleValueList::create(move(result), StyleValueList::Separator::Space);
 }
 
-Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
+Gfx::Color interpolate_color(Gfx::Color from, Gfx::Color to, float delta, ColorSyntax syntax)
 {
     // https://drafts.csswg.org/css-color/#interpolation
     // FIXME: Handle all interpolation methods.
@@ -1374,7 +1374,7 @@ Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
     // rgb(), hsl() or hwb() and the equivalent alpha-including forms) in gamma-encoded sRGB space.  This provides
     // Web compatibility; legacy sRGB content interpolates in the sRGB space by default.
 
-    Color result;
+    Gfx::Color result;
     if (syntax == ColorSyntax::Modern) {
         // 5. changing the color components to premultiplied form
         auto from_oklab = from.to_premultiplied_oklab();
@@ -1386,13 +1386,13 @@ Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
         auto to_alpha = to.alpha() / 255.0f;
         auto interpolated_alpha = interpolate_raw(from_alpha, to_alpha, delta);
 
-        result = Color::from_oklab(
+        result = Gfx::Color::from_oklab(
             interpolate_raw(from_oklab.L, to_oklab.L, delta) / interpolated_alpha,
             interpolate_raw(from_oklab.a, to_oklab.a, delta) / interpolated_alpha,
             interpolate_raw(from_oklab.b, to_oklab.b, delta) / interpolated_alpha,
             interpolated_alpha);
     } else {
-        result = Color {
+        result = Gfx::Color {
             interpolate_raw(from.red(), to.red(), delta),
             interpolate_raw(from.green(), to.green(), delta),
             interpolate_raw(from.blue(), to.blue(), delta),
@@ -1422,7 +1422,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         for (size_t i = values.size(); i < other.size(); i++) {
             values.unchecked_append(ShadowStyleValue::create(
                 other.get(0).value()->as_shadow().shadow_type(),
-                ColorStyleValue::create_from_color(Color::Transparent, ColorSyntax::Legacy),
+                ColorStyleValue::create_from_color(Gfx::Color::Transparent, ColorSyntax::Legacy),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
@@ -1467,7 +1467,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         auto from_color = from_shadow.color()->to_color(color_resolution_context);
         auto to_color = to_shadow.color()->to_color(color_resolution_context);
 
-        Color interpolated_color = Color::Black;
+        Gfx::Color interpolated_color = Gfx::Color::Black;
 
         if (from_color.has_value() && to_color.has_value())
             interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
@@ -1812,7 +1812,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto from_color = from.to_color(color_resolution_context);
         auto to_color = to.to_color(color_resolution_context);
 
-        Color interpolated_color = Color::Black;
+        Gfx::Color interpolated_color = Gfx::Color::Black;
 
         if (from_color.has_value() && to_color.has_value())
             interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
@@ -2274,7 +2274,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     auto underlying_color = underlying_shadow.color->to_color(color_resolution_context);
                     auto animated_color = animated_shadow.color->to_color(color_resolution_context);
                     if (underlying_color.has_value() && animated_color.has_value()) {
-                        auto accumulated = Color(
+                        auto accumulated = Gfx::Color(
                             min(255, underlying_color->red() + animated_color->red()),
                             min(255, underlying_color->green() + animated_color->green()),
                             min(255, underlying_color->blue() + animated_color->blue()),

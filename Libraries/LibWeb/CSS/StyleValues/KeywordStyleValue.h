@@ -49,7 +49,7 @@ public:
 
     static bool is_color(Keyword);
     virtual bool has_color() const override;
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;

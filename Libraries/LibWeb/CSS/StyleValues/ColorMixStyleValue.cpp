@@ -186,7 +186,7 @@ ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-result
-Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Gfx::Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     // FIXME: Take the color space and hue interpolation method into account.
     // The current implementation only uses oklab interpolation.

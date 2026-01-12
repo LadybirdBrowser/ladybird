@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-Optional<Color> RGBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Gfx::Color> RGBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto resolve_rgb_to_u8 = [&color_resolution_context](StyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
@@ -69,7 +69,7 @@ Optional<Color> RGBColorStyleValue::to_color(ColorResolutionContext color_resolu
     if (!r_val.has_value() || !g_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
         return {};
 
-    return Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
+    return Gfx::Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
 }
 
 bool RGBColorStyleValue::equals(StyleValue const& other) const

@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-Optional<Color> HWBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Gfx::Color> HWBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
     auto raw_w_value = resolve_with_reference_value(m_properties.w, 100.0, color_resolution_context.calculation_resolution_context);
@@ -30,12 +30,12 @@ Optional<Color> HWBColorStyleValue::to_color(ColorResolutionContext color_resolu
             return round_to<u8>(clamp(value * 255.0f, 0.0f, 255.0f));
         };
         u8 gray = to_byte(w_val / (w_val + b_val));
-        return Color(gray, gray, gray, to_byte(alpha_val.value()));
+        return Gfx::Color(gray, gray, gray, to_byte(alpha_val.value()));
     }
 
     auto value = 1 - b_val;
     auto saturation = 1 - (w_val / value);
-    return Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value());
+    return Gfx::Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value());
 }
 
 bool HWBColorStyleValue::equals(StyleValue const& other) const

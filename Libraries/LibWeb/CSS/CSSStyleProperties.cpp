@@ -606,7 +606,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
     return {};
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)
+static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Gfx::Color computed_color)
 {
     if (style_value.is_color_function())
         return style_value;

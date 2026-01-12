@@ -153,7 +153,7 @@ private:
 
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
-    Optional<Color> current_color;
+    Optional<Gfx::Color> current_color;
     GC::Ptr<DOM::Document const> document;
     CalculationResolutionContext calculation_resolution_context;
 
@@ -210,7 +210,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
+    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
 
     String to_string(SerializationMode) const;

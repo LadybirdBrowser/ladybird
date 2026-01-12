@@ -21,7 +21,7 @@ public:
     }
 
     virtual bool equals(StyleValue const&) const override;
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
 private:

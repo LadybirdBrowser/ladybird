@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-Optional<Color> HSLColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Gfx::Color> HSLColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
     auto s_val = resolve_with_reference_value(m_properties.s, 100.0, color_resolution_context.calculation_resolution_context);
@@ -22,7 +22,7 @@ Optional<Color> HSLColorStyleValue::to_color(ColorResolutionContext color_resolu
     if (!h_val.has_value() || !s_val.has_value() || !l_val.has_value() || !alpha_val.has_value())
         return {};
 
-    return Color::from_hsla(h_val.value(), s_val.value() / 100.0f, l_val.value() / 100.0f, alpha_val.value());
+    return Gfx::Color::from_hsla(h_val.value(), s_val.value() / 100.0f, l_val.value() / 100.0f, alpha_val.value());
 }
 
 bool HSLColorStyleValue::equals(StyleValue const& other) const

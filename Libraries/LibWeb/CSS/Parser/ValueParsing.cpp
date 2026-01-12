@@ -2407,7 +2407,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
 
-        auto color = Color::from_string(ident);
+        auto color = Gfx::Color::from_string(ident);
         if (color.has_value()) {
             transaction.commit();
             return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy, ident);
@@ -2416,7 +2416,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
     }
 
     if (component_value.is(Token::Type::Hash)) {
-        auto color = Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
+        auto color = Gfx::Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
         if (color.has_value()) {
             transaction.commit();
             return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
@@ -2500,7 +2500,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
             }
 
             // 6. Return the concatenation of "#" (U+0023) and serialization.
-            auto color = Color::from_string(MUST(String::formatted("#{}", serialization)));
+            auto color = Gfx::Color::from_string(MUST(String::formatted("#{}", serialization)));
             if (color.has_value()) {
                 transaction.commit();
                 return ColorStyleValue::create_from_color(color.release_value(), ColorSyntax::Legacy);

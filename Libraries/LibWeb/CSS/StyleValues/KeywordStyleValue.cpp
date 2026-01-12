@@ -136,10 +136,10 @@ bool KeywordStyleValue::has_color() const
     return is_color(keyword());
 }
 
-Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     if (keyword() == Keyword::Currentcolor) {
-        return color_resolution_context.current_color.value_or(Color::Black);
+        return color_resolution_context.current_color.value_or(Gfx::Color::Black);
     }
 
     PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
@@ -213,7 +213,7 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
 
     if (!color_resolution_context.document) {
         // FIXME: Can't resolve palette colors without a document.
-        return Color::Black;
+        return Gfx::Color::Black;
     }
 
     switch (keyword()) {
