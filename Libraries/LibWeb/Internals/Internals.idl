@@ -70,4 +70,7 @@ interface Internals {
 
     InternalGamepad connectVirtualGamepad();
 
+    // FIXME: Temporary for testing AnalyserNode in lieu of a full audio pipeline.
+    undefined setAnalyserTimeDomainData(any analyser, Float32Array data);
+
 };

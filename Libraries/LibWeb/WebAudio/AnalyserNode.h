@@ -58,28 +58,45 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
+    struct ComplexBin {
+        f32 real { 0 };
+        f32 imaginary { 0 };
+    };
+
     unsigned long m_fft_size;
     double m_max_decibels;
     double m_min_decibels;
     double m_smoothing_time_constant;
 
     // https://webaudio.github.io/web-audio-api/#current-frequency-data
-    Vector<f32> current_frequency_data();
+    Vector<f32> const& current_frequency_data();
 
     // https://webaudio.github.io/web-audio-api/#current-time-domain-data
-    Vector<f32> current_time_domain_data();
+    Vector<f32> const& current_time_domain_data();
+    Vector<f32> compute_time_domain_data() const;
 
     // https://webaudio.github.io/web-audio-api/#blackman-window
     Vector<f32> apply_a_blackman_window(Vector<f32> const& x) const;
 
+    // https://webaudio.github.io/web-audio-api/#fourier-transform
+    Vector<ComplexBin> apply_a_fourier_transform(Vector<f32> const& input) const;
+
     // https://webaudio.github.io/web-audio-api/#smoothing-over-time
-    Vector<f32> smoothing_over_time(Vector<f32> const& current_block);
+    Vector<f32> smoothing_over_time(Vector<ComplexBin> const& current_block);
 
     // https://webaudio.github.io/web-audio-api/#previous-block
     Vector<f32> m_previous_block;
 
-    // https://webaudio.github.io/web-audio-api/#conversion-to-db
-    Vector<f32> conversion_to_dB(Vector<f32> const& X_hat) const;
+    // Cached results for the current render quantum (single block of sample frames)
+    size_t current_render_quantum_index() const;
+    Optional<size_t> m_cached_render_quantum_index;
+    Vector<f32> m_cached_time_domain_data;
+    Vector<f32> m_cached_frequency_data;
+
+    // Test details for js buffer input
+    friend class Internals::Internals;
+    void set_time_domain_data_for_testing(Badge<Internals::Internals>, ReadonlySpan<f32>);
+    Optional<Vector<f32>> m_testing_time_domain_data;
 };
 
 }

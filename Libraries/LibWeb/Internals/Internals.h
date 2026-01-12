@@ -80,6 +80,9 @@ public:
 
     GC::Ref<InternalGamepad> connect_virtual_gamepad();
 
+    // FIXME: Remove once audio can be ingested via normal means.
+    WebIDL::ExceptionOr<void> set_analyser_time_domain_data(JS::Value analyser, GC::Root<WebIDL::BufferSource> const&);
+
 private:
     explicit Internals(JS::Realm&);
 

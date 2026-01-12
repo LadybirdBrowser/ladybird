@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>AnalyserNode internals FFT/smoothing smoke test</title>
+    <script src="../include.js"></script>
+</head>
+<body>
+<script>
+'use strict';
+
+function blackmanWindowValue(n, N) {
+    const a = 0.16;
+    const a0 = 0.5 * (1 - a);
+    const a1 = 0.5;
+    const a2 = 0.5 * a;
+    const denom = N;
+    return a0 - (a1 * Math.cos(2 * Math.PI * n / denom)) + (a2 * Math.cos(4 * Math.PI * n / denom));
+}
+
+function approxEqual(a, b, eps) {
+    return Math.abs(a - b) <= eps;
+}
+
+function assert(condition, message) {
+    if (!condition)
+        throw new Error(message);
+}
+
+test(() => {
+    const context = new OfflineAudioContext(1, 128, 44100);
+    const analyser = context.createAnalyser();
+
+    assert(typeof internals.setAnalyserTimeDomainData === 'function', 'internals.setAnalyserTimeDomainData must be available in test runner');
+
+        const fftSize = 32;
+        analyser.fftSize = fftSize;
+
+        // Make sure FFT + Blackman + dB yields a flat spectrum for a single windowed impulse.
+        analyser.smoothingTimeConstant = 0;
+
+        const impulse = new Float32Array(fftSize);
+        const impulseIndex = fftSize / 2;
+        impulse[impulseIndex] = 1;
+
+        internals.setAnalyserTimeDomainData(analyser, impulse);
+
+        const bins = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(bins);
+
+        const w = blackmanWindowValue(impulseIndex, fftSize);
+        assert(w > 0, 'window value must be > 0 at the chosen index');
+
+        const expected = 20 * Math.log10(w);
+        for (let i = 0; i < bins.length; ++i) {
+            assert(Number.isFinite(bins[i]), `bin ${i} should be finite`);
+            assert(approxEqual(bins[i], expected, 1e-3), `bin ${i} expected ~${expected}, got ${bins[i]}`);
+        }
+
+        // Make sure smoothingTimeConstant affects consecutive calls.
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = 0.5;
+
+        internals.setAnalyserTimeDomainData(analyser, impulse);
+        const binsA = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsA);
+
+        // Make sure repeated calls within the same sample block returns the same result.
+        // Smoothing updates https://webaudio.github.io/web-audio-api/#previous-block as a side effect.
+        // Without caching, the second call would produce different data.
+        const binsARepeat = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsARepeat);
+        for (let i = 0; i < binsA.length; ++i) {
+            assert(approxEqual(binsARepeat[i], binsA[i], 1e-7), `bin ${i} expected cached repeat match, got ${binsARepeat[i]} vs ${binsA[i]}`);
+        }
+
+        // Inject silence and check that we drop by the expected amount.
+        const silence = new Float32Array(fftSize);
+        internals.setAnalyserTimeDomainData(analyser, silence);
+        const binsB = new Float32Array(analyser.frequencyBinCount);
+        analyser.getFloatFrequencyData(binsB);
+
+        const expectedDelta = -20 * Math.log10(2);
+        for (let i = 0; i < binsA.length; ++i) {
+            assert(approxEqual(binsB[i] - binsA[i], expectedDelta, 1e-2), `bin ${i} expected delta ~${expectedDelta}, got ${binsB[i] - binsA[i]}`);
+        }
+
+    println('passed');
+});
+</script>
+</body>

@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <LibGfx/Cursor.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/AriaData.h>
@@ -29,6 +30,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/WebAudio/AnalyserNode.h>
 
 namespace Web::Internals {
 
@@ -115,6 +117,21 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 void Internals::gc()
 {
     vm().heap().collect_garbage();
+}
+
+WebIDL::ExceptionOr<void> Internals::set_analyser_time_domain_data(JS::Value analyser_value, GC::Root<WebIDL::BufferSource> const& data)
+{
+    if (!analyser_value.is_object() || !is<WebAudio::AnalyserNode>(analyser_value.as_object()))
+        return vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "AnalyserNode");
+
+    auto& analyser = static_cast<WebAudio::AnalyserNode&>(analyser_value.as_object());
+
+    if (!is<JS::Float32Array>(*data->raw_object()))
+        return vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
+
+    auto& input_array = static_cast<JS::Float32Array&>(*data->raw_object());
+    analyser.set_time_domain_data_for_testing({}, input_array.data());
+    return {};
 }
 
 WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
