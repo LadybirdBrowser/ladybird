@@ -5659,12 +5659,9 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
         // 1. Set this's design mode enabled to true.
         set_design_mode_enabled_state(true);
         // 2. Reset this's active range's start and end boundary points to be at the start of this.
-        if (auto selection = get_selection(); selection) {
-            if (auto active_range = selection->range(); active_range) {
-                TRY(active_range->set_start(*this, 0));
-                TRY(active_range->set_end(*this, 0));
-                update_layout(UpdateLayoutReason::DocumentSetDesignMode);
-            }
+        if (auto selection = get_selection()) {
+            TRY(selection->collapse(this, 0));
+            update_layout(UpdateLayoutReason::DocumentSetDesignMode);
         }
         // 3. Run the focusing steps for this's document element, if non-null.
         if (auto* document_element = this->document_element(); document_element)
