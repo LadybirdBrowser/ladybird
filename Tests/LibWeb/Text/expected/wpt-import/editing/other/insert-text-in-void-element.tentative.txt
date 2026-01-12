@@ -2,52 +2,53 @@ Harness status: OK
 
 Found 48 tests
 
-48 Fail
-Fail	Inserting text when selection is collapsed in <br> which is only child
-Fail	Inserting text when selection is collapsed in <br> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <br> which follows a text node
-Fail	Inserting text when selection is collapsed in <br> which is followed by a text node
-Fail	Inserting text when selection is collapsed in <br> which follows an empty <span> element
+36 Pass
+12 Fail
+Pass	Inserting text when selection is collapsed in <br> which is only child
+Pass	Inserting text when selection is collapsed in <br> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <br> which follows a text node
+Pass	Inserting text when selection is collapsed in <br> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <br> which follows an empty <span> element
 Fail	Inserting text when selection is collapsed in <br> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <br> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <br> which follows a non-empty <span> element
 Fail	Inserting text when selection is collapsed in <br> which follows a text node, an empty <span> element and white-space only text node
-Fail	Inserting text when selection is collapsed in <embed> which is only child
-Fail	Inserting text when selection is collapsed in <embed> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <embed> which follows a text node
-Fail	Inserting text when selection is collapsed in <embed> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <embed> which is only child
+Pass	Inserting text when selection is collapsed in <embed> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <embed> which follows a text node
+Pass	Inserting text when selection is collapsed in <embed> which is followed by a text node
 Fail	Inserting text when selection is collapsed in <embed> which follows an empty <span> element
 Fail	Inserting text when selection is collapsed in <embed> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <embed> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <embed> which follows a non-empty <span> element
 Fail	Inserting text when selection is collapsed in <embed> which follows a text node, an empty <span> element and white-space only text node
-Fail	Inserting text when selection is collapsed in <hr> which is only child
-Fail	Inserting text when selection is collapsed in <hr> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <hr> which follows a text node
-Fail	Inserting text when selection is collapsed in <hr> which is followed by a text node
-Fail	Inserting text when selection is collapsed in <hr> which follows an empty <span> element
-Fail	Inserting text when selection is collapsed in <hr> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <hr> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <hr> which is only child
+Pass	Inserting text when selection is collapsed in <hr> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <hr> which follows a text node
+Pass	Inserting text when selection is collapsed in <hr> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <hr> which follows an empty <span> element
+Pass	Inserting text when selection is collapsed in <hr> which follows a text node and an empty <span> element
+Pass	Inserting text when selection is collapsed in <hr> which follows a non-empty <span> element
 Fail	Inserting text when selection is collapsed in <hr> which follows a text node, an empty <span> element and white-space only text node
-Fail	Inserting text when selection is collapsed in <img> which is only child
-Fail	Inserting text when selection is collapsed in <img> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <img> which follows a text node
-Fail	Inserting text when selection is collapsed in <img> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <img> which is only child
+Pass	Inserting text when selection is collapsed in <img> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <img> which follows a text node
+Pass	Inserting text when selection is collapsed in <img> which is followed by a text node
 Fail	Inserting text when selection is collapsed in <img> which follows an empty <span> element
 Fail	Inserting text when selection is collapsed in <img> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <img> which follows a non-empty <span> element
-Fail	Inserting text when selection is collapsed in <img> which follows a text node, an empty <span> element and white-space only text node
-Fail	Inserting text when selection is collapsed in <input> which is only child
-Fail	Inserting text when selection is collapsed in <input> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <input> which follows a text node
-Fail	Inserting text when selection is collapsed in <input> which is followed by a text node
-Fail	Inserting text when selection is collapsed in <input> which follows an empty <span> element
+Pass	Inserting text when selection is collapsed in <img> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <img> which follows a text node, an empty <span> element and white-space only text node
+Pass	Inserting text when selection is collapsed in <input> which is only child
+Pass	Inserting text when selection is collapsed in <input> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <input> which follows a text node
+Pass	Inserting text when selection is collapsed in <input> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <input> which follows an empty <span> element
 Fail	Inserting text when selection is collapsed in <input> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <input> which follows a non-empty <span> element
-Fail	Inserting text when selection is collapsed in <input> which follows a text node, an empty <span> element and white-space only text node
-Fail	Inserting text when selection is collapsed in <wbr> which is only child
-Fail	Inserting text when selection is collapsed in <wbr> which is only child (explicitly flushes maybe pending layout)
-Fail	Inserting text when selection is collapsed in <wbr> which follows a text node
-Fail	Inserting text when selection is collapsed in <wbr> which is followed by a text node
+Pass	Inserting text when selection is collapsed in <input> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <input> which follows a text node, an empty <span> element and white-space only text node
+Pass	Inserting text when selection is collapsed in <wbr> which is only child
+Pass	Inserting text when selection is collapsed in <wbr> which is only child (explicitly flushes maybe pending layout)
+Pass	Inserting text when selection is collapsed in <wbr> which follows a text node
+Pass	Inserting text when selection is collapsed in <wbr> which is followed by a text node
 Fail	Inserting text when selection is collapsed in <wbr> which follows an empty <span> element
 Fail	Inserting text when selection is collapsed in <wbr> which follows a text node and an empty <span> element
-Fail	Inserting text when selection is collapsed in <wbr> which follows a non-empty <span> element
+Pass	Inserting text when selection is collapsed in <wbr> which follows a non-empty <span> element
 Fail	Inserting text when selection is collapsed in <wbr> which follows a text node, an empty <span> element and white-space only text node

@@ -1785,6 +1785,20 @@ bool command_insert_text_action(DOM::Document& document, Utf16String const& valu
     auto node = range->start_container();
     auto offset = range->start_offset();
 
+    // AD-HOC: If node is a void element, move the position before it and find the best equivalent
+    //         insertion point. For inline void elements, this traverses into previous inline siblings
+    //         to find existing text nodes. For block void elements like <hr>, we stay in the parent.
+    //         See: https://github.com/w3c/editing/issues/522
+    if (auto* element = as_if<DOM::Element>(*node); element && element->is_void_element()) {
+        offset = node->index();
+        node = *node->parent();
+        if (is_inline_node(*element)) {
+            auto equivalent = first_equivalent_point({ node, offset });
+            node = equivalent.node;
+            offset = equivalent.offset;
+        }
+    }
+
     // 7. If node has a child whose index is offset − 1, and that child is a Text node, set node to that child, then set
     //    offset to node's length.
     if (is<DOM::Text>(node->child_at_index(offset - 1))) {
