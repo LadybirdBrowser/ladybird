@@ -1,5 +1,6 @@
 #import <CSS/AnimationEvent.idl>
 #import <DOM/Event.idl>
+#import <UIEvents/PointerEventHandlers.idl>
 
 [LegacyTreatNonObjectAsNull]
 callback EventHandlerNonNull = any (Event event);
@@ -94,19 +95,6 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onwebkitanimationstart;
     attribute EventHandler onwebkittransitionend;
     attribute EventHandler onwheel;
-
-    // https://w3c.github.io/pointerevents/#extensions-to-the-globaleventhandlers-mixin
-    attribute EventHandler onpointerover;
-    attribute EventHandler onpointerenter;
-    attribute EventHandler onpointerdown;
-    attribute EventHandler onpointermove;
-    [SecureContext] attribute EventHandler onpointerrawupdate;
-    attribute EventHandler onpointerup;
-    attribute EventHandler onpointercancel;
-    attribute EventHandler onpointerout;
-    attribute EventHandler onpointerleave;
-    attribute EventHandler ongotpointercapture;
-    attribute EventHandler onlostpointercapture;
 };
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoweventhandlers
