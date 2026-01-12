@@ -137,11 +137,13 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
             // 2. If IsCallable(value) is true, then set value to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the IDL operation P on object O.
             if (auto* function = value->as_if<JS::FunctionObject>()) {
                 auto name = function->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
+                auto length_property = function->get_without_side_effects(vm.names.length);
+                auto length = length_property.is_int32() ? length_property.as_i32() : 0;
                 value = JS::NativeFunction::create(
                     realm, [function](auto& vm) {
                         return JS::call(vm, function, JS::js_undefined(), vm.running_execution_context().arguments);
                     },
-                    0, name);
+                    length, name);
             }
 
             // 3. Set crossOriginDesc to PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
@@ -172,7 +174,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                     realm, [object_ptr, setter = *original_descriptor->set](auto& vm) {
                         return JS::call(vm, setter, object_ptr, vm.running_execution_context().arguments);
                     },
-                    0, name);
+                    1, name);
             }
 
             // 5. Set crossOriginDesc to PropertyDescriptor { [[Get]]: crossOriginGet, [[Set]]: crossOriginSet, [[Enumerable]]: false, [[Configurable]]: true }.
