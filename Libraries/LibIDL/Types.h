@@ -297,6 +297,10 @@ public:
     Optional<NonnullRefPtr<Type const>> set_entry_type;
     bool is_set_readonly { false };
 
+    Optional<NonnullRefPtr<Type const>> map_key_type;
+    Optional<NonnullRefPtr<Type const>> map_value_type;
+    bool is_map_readonly { false };
+
     Optional<Function> named_property_getter;
     Optional<Function> named_property_setter;
 

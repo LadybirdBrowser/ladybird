@@ -349,6 +349,8 @@ void Parser::parse_attribute(HashMap<ByteString, ByteString>& extended_attribute
         consume_whitespace();
     else if (lexer.consume_specific("setlike"sv) && !inherit)
         parse_setlike(interface, readonly);
+    else if (lexer.consume_specific("maplike"sv) && !inherit)
+        parse_maplike(interface, readonly);
     else
         report_parsing_error("expected 'attribute'"sv, filename, input, lexer.tell());
 
@@ -583,11 +585,39 @@ void Parser::parse_setlike(Interface& interface, bool is_readonly)
     if (interface.value_iterator_type.has_value() || interface.pair_iterator_types.has_value())
         report_parsing_error("Interfaces with a setlike declaration must not must not be iterable."sv, filename, input, lexer.tell());
 
+    if (interface.map_key_type.has_value())
+        report_parsing_error("Interfaces with a setlike declaration must not have a maplike declaration."sv, filename, input, lexer.tell());
+
     assert_string("setlike"sv);
     assert_specific('<');
 
     interface.set_entry_type = parse_type();
     interface.is_set_readonly = is_readonly;
+
+    assert_specific('>');
+    assert_specific(';');
+}
+
+void Parser::parse_maplike(Interface& interface, bool is_readonly)
+{
+    if (interface.supports_indexed_properties())
+        report_parsing_error("Interfaces with a maplike declaration must not support indexed properties."sv, filename, input, lexer.tell());
+
+    if (interface.value_iterator_type.has_value() || interface.pair_iterator_types.has_value())
+        report_parsing_error("Interfaces with a maplike declaration must not must not be iterable."sv, filename, input, lexer.tell());
+
+    if (interface.set_entry_type.has_value())
+        report_parsing_error("Interfaces with a maplike declaration must not have a setlike declaration."sv, filename, input, lexer.tell());
+
+    assert_string("maplike"sv);
+    assert_specific('<');
+
+    interface.map_key_type = parse_type();
+    consume_whitespace();
+    assert_specific(',');
+    consume_whitespace();
+    interface.map_value_type = parse_type();
+    interface.is_map_readonly = is_readonly;
 
     assert_specific('>');
     assert_specific(';');
@@ -756,6 +786,12 @@ void Parser::parse_interface(Interface& interface)
         if (lexer.next_is("setlike"sv)) {
             bool is_readonly = false;
             parse_setlike(interface, is_readonly);
+            continue;
+        }
+
+        if (lexer.next_is("maplike"sv)) {
+            bool is_readonly = false;
+            parse_maplike(interface, is_readonly);
             continue;
         }
 
