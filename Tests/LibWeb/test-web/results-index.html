@@ -4,113 +4,603 @@
     <meta charset="utf-8">
     <title>Test Results</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { color: #333; }
-        .summary { background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .test { margin: 10px 0; padding: 10px; border-left: 4px solid #ccc; }
-        .test.fail { border-color: #e74c3c; background: #fdf2f2; }
-        .test.timeout { border-color: #f39c12; background: #fef9e7; }
-        .test.crashed { border-color: #9b59b6; background: #f5eef8; }
-        .test.skipped { border-color: #95a5a6; background: #f8f9f9; }
-        .test-header { display: flex; align-items: center; cursor: pointer; }
-        .test-name { font-weight: bold; font-family: monospace; flex: 1; }
-        .test-links { margin-top: 5px; }
-        .test-links a, .test-links button { margin-right: 15px; color: #3498db; text-decoration: none; background: none; border: none; cursor: pointer; font-size: inherit; padding: 0; font-family: inherit; }
-        .test-links a:hover, .test-links button:hover { text-decoration: underline; }
-        .test-links button.active { font-weight: bold; }
-        .result-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px; }
-        .result-type.fail { background: #e74c3c; color: white; }
-        .result-type.timeout { background: #f39c12; color: white; }
-        .result-type.crashed { background: #9b59b6; color: white; }
-        .result-type.skipped { background: #95a5a6; color: white; }
-        .preview-frame { width: 100%; height: 400px; border: 1px solid #ccc; margin-top: 10px; display: none; background: white; }
-        .preview-frame.visible { display: block; }
+        :root {
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --bg-hover: #30363d;
+            --border-primary: #30363d;
+            --border-secondary: #21262d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-orange: #d29922;
+            --accent-purple: #a371f7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-red);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            width: 240px;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-card.total {
+            border-color: var(--accent-blue);
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, transparent 100%);
+        }
+
+        .stat-card.fail {
+            border-color: var(--accent-red);
+            background: linear-gradient(135deg, rgba(248, 81, 73, 0.1) 0%, transparent 100%);
+        }
+
+        .stat-card.timeout {
+            border-color: var(--accent-orange);
+            background: linear-gradient(135deg, rgba(210, 153, 34, 0.1) 0%, transparent 100%);
+        }
+
+        .stat-card.crashed {
+            border-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(163, 113, 247, 0.1) 0%, transparent 100%);
+        }
+
+        .stat-card.skipped {
+            border-color: var(--text-muted);
+            background: linear-gradient(135deg, rgba(110, 118, 129, 0.1) 0%, transparent 100%);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            line-height: 1;
+        }
+
+        .stat-card.total .stat-value { color: var(--accent-blue); }
+        .stat-card.fail .stat-value { color: var(--accent-red); }
+        .stat-card.timeout .stat-value { color: var(--accent-orange); }
+        .stat-card.crashed .stat-value { color: var(--accent-purple); }
+        .stat-card.skipped .stat-value { color: var(--text-muted); }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .test-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .test-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.15s ease;
+        }
+
+        .test-item:hover {
+            border-color: var(--border-primary);
+        }
+
+        .test-item.expanded {
+            border-color: var(--accent-blue);
+        }
+
+        .test-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            gap: 12px;
+            transition: background 0.15s ease;
+        }
+
+        .test-header:hover {
+            background: var(--bg-hover);
+        }
+
+        .result-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-badge.Fail {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+            border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+
+        .result-badge.Timeout {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-orange);
+            border: 1px solid rgba(210, 153, 34, 0.4);
+        }
+
+        .result-badge.Crashed {
+            background: rgba(163, 113, 247, 0.2);
+            color: var(--accent-purple);
+            border: 1px solid rgba(163, 113, 247, 0.4);
+        }
+
+        .result-badge.Skipped {
+            background: rgba(110, 118, 129, 0.2);
+            color: var(--text-secondary);
+            border: 1px solid rgba(110, 118, 129, 0.4);
+        }
+
+        .mode-badge {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .test-name {
+            flex: 1;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        .expand-icon {
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+            font-size: 12px;
+        }
+
+        .test-item.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .test-content {
+            display: none;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .test-item.expanded .test-content {
+            display: block;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: var(--bg-tertiary);
+            padding: 0 16px;
+            gap: 4px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .preview-container {
+            min-height: 300px;
+            max-height: 600px;
+            overflow: auto;
+            background: var(--bg-primary);
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 500px;
+            border: none;
+            background: white;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            display: block;
+            margin: 16px auto;
+        }
+
+        .image-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .image-panel {
+            text-align: center;
+        }
+
+        .image-panel-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .image-panel img {
+            max-width: 100%;
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state h2 {
+            color: var(--accent-green);
+            margin: 0 0 8px 0;
+        }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 16px;
+        }
+
+        .keyboard-hint kbd {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            margin-right: 4px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <h1>Test Results</h1>
-    <div id="content">Loading...</div>
+    <div class="container">
+        <header>
+            <h1>Test Results</h1>
+            <div class="search-box">
+                <span class="search-icon">&#128269;</span>
+                <input type="text" id="search" placeholder="Filter tests..." autocomplete="off">
+            </div>
+        </header>
+        <div id="content"><div class="loading">Loading results...</div></div>
+    </div>
+    <div class="keyboard-hint">
+        <span><kbd>&#8593;</kbd><kbd>&#8595;</kbd> Navigate</span>
+        <span><kbd>Enter</kbd> Expand</span>
+        <span><kbd>/</kbd> Search</span>
+    </div>
     <script src="results.js"></script>
     <script>
+        let currentIndex = -1;
+        let testElements = [];
+
         function loadResults() {
             if (typeof RESULTS_DATA === 'undefined') {
-                document.getElementById('content').textContent = 'Failed to load results: results.js not found';
+                document.getElementById('content').innerHTML = '<div class="empty-state"><h2>No Results</h2><p>results.js not found</p></div>';
                 return;
             }
             renderResults(RESULTS_DATA);
+            setupKeyboardNav();
         }
 
         function renderResults(data) {
             const content = document.getElementById('content');
-            content.innerHTML = '';
 
-            // Summary
-            const summary = document.createElement('div');
-            summary.className = 'summary';
-            summary.innerHTML = `<strong>Non-passing tests:</strong> ${data.tests.length} total
-                (${data.summary.fail} failed, ${data.summary.timeout} timeout, ${data.summary.crashed} crashed, ${data.summary.skipped} skipped)`;
-            content.appendChild(summary);
-
-            // Tests
-            for (const test of data.tests) {
-                const div = document.createElement('div');
-                div.className = `test ${test.result}`;
-
-                const header = document.createElement('div');
-                header.className = 'test-header';
-                header.innerHTML = `<span class="result-type ${test.result}">${test.result.toUpperCase()}</span>
-                    <span class="test-name">${test.name}</span>`;
-                div.appendChild(header);
-
-                const links = document.createElement('div');
-                links.className = 'test-links';
-
-                const previewId = `preview-${test.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-
-                const stdoutBtn = test.hasStdout ? `<button onclick="showPreview('${previewId}', '${test.name}.stdout.txt')">stdout</button>` : '';
-                const stderrBtn = test.hasStderr ? `<button onclick="showPreview('${previewId}', '${test.name}.stderr.txt')">stderr</button>` : '';
-
-                if (test.mode === 'Layout' || test.mode === 'Text') {
-                    links.innerHTML = `
-                        <button onclick="showPreview('${previewId}', '${test.name}.expected.txt')">Expected</button>
-                        <button onclick="showPreview('${previewId}', '${test.name}.actual.txt')">Actual</button>
-                        <button onclick="showPreview('${previewId}', '${test.name}.diff.txt')">Diff</button>
-                        ${stdoutBtn}${stderrBtn}
-                    `;
-                } else if (test.mode === 'Ref') {
-                    links.innerHTML = `
-                        <button onclick="showPreview('${previewId}', '${test.name}.expected.png')">Expected</button>
-                        <button onclick="showPreview('${previewId}', '${test.name}.actual.png')">Actual</button>
-                        ${stdoutBtn}${stderrBtn}
-                    `;
-                } else {
-                    links.innerHTML = `${stdoutBtn}${stderrBtn}`;
-                }
-                div.appendChild(links);
-
-                const preview = document.createElement('iframe');
-                preview.id = previewId;
-                preview.className = 'preview-frame';
-                div.appendChild(preview);
-
-                content.appendChild(div);
-            }
-        }
-
-        function showPreview(previewId, url) {
-            const preview = document.getElementById(previewId);
-
-            // Toggle off if clicking same button
-            if (preview.dataset.currentUrl === url && preview.classList.contains('visible')) {
-                preview.classList.remove('visible');
-                preview.dataset.currentUrl = '';
-                preview.src = '';
+            if (data.tests.length === 0) {
+                content.innerHTML = '<div class="empty-state"><h2>All Tests Passed!</h2><p>No failing tests to display.</p></div>';
                 return;
             }
 
-            preview.dataset.currentUrl = url;
-            preview.src = url;
-            preview.classList.add('visible');
+            let html = `
+                <div class="summary">
+                    <div class="stat-card total">
+                        <div class="stat-value">${data.summary.total}</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-card fail">
+                        <div class="stat-value">${data.summary.fail}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card timeout">
+                        <div class="stat-value">${data.summary.timeout}</div>
+                        <div class="stat-label">Timeout</div>
+                    </div>
+                    <div class="stat-card crashed">
+                        <div class="stat-value">${data.summary.crashed}</div>
+                        <div class="stat-label">Crashed</div>
+                    </div>
+                    <div class="stat-card skipped">
+                        <div class="stat-value">${data.summary.skipped}</div>
+                        <div class="stat-label">Skipped</div>
+                    </div>
+                </div>
+                <div class="test-list" id="testList">
+            `;
+
+            for (const test of data.tests) {
+                const testId = test.name.replace(/[^a-zA-Z0-9]/g, '-');
+                const tabs = buildTabs(test);
+
+                html += `
+                    <div class="test-item" data-name="${test.name.toLowerCase()}" id="test-${testId}">
+                        <div class="test-header" onclick="toggleTest('${testId}')">
+                            <span class="result-badge ${test.result}">${test.result}</span>
+                            <span class="mode-badge">${test.mode}</span>
+                            <span class="test-name">${test.name}</span>
+                            <span class="expand-icon">&#9654;</span>
+                        </div>
+                        <div class="test-content">
+                            <div class="tab-bar">${tabs.bar}</div>
+                            <div class="preview-container" id="preview-${testId}">
+                                <div class="loading">Select a tab to view content</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            content.innerHTML = html;
+            testElements = Array.from(document.querySelectorAll('.test-item'));
+        }
+
+        function buildTabs(test) {
+            let tabs = [];
+
+            if (test.mode === 'Layout' || test.mode === 'Text') {
+                tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
+                tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
+                tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
+            } else if (test.mode === 'Ref') {
+                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, type: 'compare' });
+                tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.png`, type: 'image' });
+                tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.png`, type: 'image' });
+            }
+
+            if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
+            if (test.hasStderr) tabs.push({ id: 'stderr', label: 'stderr', file: `${test.name}.stderr.txt`, type: 'text' });
+
+            const bar = tabs.map((t, i) =>
+                `<button class="tab-btn${i === 0 ? ' active' : ''}" onclick="showTab('${test.name.replace(/[^a-zA-Z0-9]/g, '-')}', ${JSON.stringify(t).replace(/"/g, '&quot;')}, this)">${t.label}</button>`
+            ).join('');
+
+            return { bar, tabs };
+        }
+
+        function toggleTest(testId) {
+            const item = document.getElementById(`test-${testId}`);
+            const wasExpanded = item.classList.contains('expanded');
+
+            // Collapse all
+            document.querySelectorAll('.test-item.expanded').forEach(el => el.classList.remove('expanded'));
+
+            if (!wasExpanded) {
+                item.classList.add('expanded');
+                // Auto-click first tab
+                const firstTab = item.querySelector('.tab-btn');
+                if (firstTab) firstTab.click();
+
+                // Update keyboard nav index
+                currentIndex = testElements.indexOf(item);
+            }
+        }
+
+        function showTab(testId, tab, btn) {
+            // Update active tab
+            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const container = document.getElementById(`preview-${testId}`);
+
+            if (tab.type === 'diff' || tab.type === 'text') {
+                container.innerHTML = `<iframe class="preview-frame" src="${tab.file}"></iframe>`;
+            } else if (tab.type === 'image') {
+                container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
+            } else if (tab.type === 'compare') {
+                container.innerHTML = `
+                    <div class="image-compare">
+                        <div class="image-panel">
+                            <div class="image-panel-label">Expected</div>
+                            <img src="${tab.expected}" alt="Expected">
+                        </div>
+                        <div class="image-panel">
+                            <div class="image-panel-label">Actual</div>
+                            <img src="${tab.actual}" alt="Actual">
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function setupKeyboardNav() {
+            const searchInput = document.getElementById('search');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                testElements.forEach(el => {
+                    const name = el.dataset.name;
+                    el.classList.toggle('hidden', !name.includes(query));
+                });
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                    return;
+                }
+
+                if (document.activeElement === searchInput) {
+                    if (e.key === 'Escape') {
+                        searchInput.blur();
+                    }
+                    return;
+                }
+
+                const visibleTests = testElements.filter(el => !el.classList.contains('hidden'));
+
+                if (e.key === 'ArrowDown' || e.key === 'j') {
+                    e.preventDefault();
+                    if (currentIndex < visibleTests.length - 1) {
+                        currentIndex++;
+                        visibleTests[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        highlightTest(visibleTests[currentIndex]);
+                    }
+                } else if (e.key === 'ArrowUp' || e.key === 'k') {
+                    e.preventDefault();
+                    if (currentIndex > 0) {
+                        currentIndex--;
+                        visibleTests[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        highlightTest(visibleTests[currentIndex]);
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentIndex >= 0 && visibleTests[currentIndex]) {
+                        const testId = visibleTests[currentIndex].id.replace('test-', '');
+                        toggleTest(testId);
+                    }
+                }
+            });
+        }
+
+        function highlightTest(el) {
+            testElements.forEach(t => t.style.outline = '');
+            el.style.outline = '2px solid var(--accent-blue)';
+            el.style.outlineOffset = '-2px';
         }
 
         loadResults();
