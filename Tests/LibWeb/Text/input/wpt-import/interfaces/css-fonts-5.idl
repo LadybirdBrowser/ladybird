@@ -1,0 +1,54 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Fonts Module Level 5 (https://drafts.csswg.org/css-fonts-5/)
+
+[Exposed=Window]
+interface CSSFontFaceDescriptors : CSSStyleDeclaration {
+  attribute [LegacyNullToEmptyString] CSSOMString src;
+  attribute [LegacyNullToEmptyString] CSSOMString fontFamily;
+  attribute [LegacyNullToEmptyString] CSSOMString font-family;
+  attribute [LegacyNullToEmptyString] CSSOMString fontStyle;
+  attribute [LegacyNullToEmptyString] CSSOMString font-style;
+  attribute [LegacyNullToEmptyString] CSSOMString fontWeight;
+  attribute [LegacyNullToEmptyString] CSSOMString font-weight;
+  attribute [LegacyNullToEmptyString] CSSOMString fontStretch;
+  attribute [LegacyNullToEmptyString] CSSOMString font-stretch;
+  attribute [LegacyNullToEmptyString] CSSOMString fontWidth;
+  attribute [LegacyNullToEmptyString] CSSOMString font-width;
+  attribute [LegacyNullToEmptyString] CSSOMString fontSize;
+  attribute [LegacyNullToEmptyString] CSSOMString font-size;
+  attribute [LegacyNullToEmptyString] CSSOMString sizeAdjust;
+  attribute [LegacyNullToEmptyString] CSSOMString size-adjust;
+  attribute [LegacyNullToEmptyString] CSSOMString unicodeRange;
+  attribute [LegacyNullToEmptyString] CSSOMString unicode-range;
+  attribute [LegacyNullToEmptyString] CSSOMString fontFeatureSettings;
+  attribute [LegacyNullToEmptyString] CSSOMString font-feature-settings;
+  attribute [LegacyNullToEmptyString] CSSOMString fontVariationSettings;
+  attribute [LegacyNullToEmptyString] CSSOMString font-variation-settings;
+  attribute [LegacyNullToEmptyString] CSSOMString fontNamedInstance;
+  attribute [LegacyNullToEmptyString] CSSOMString font-named-instance;
+  attribute [LegacyNullToEmptyString] CSSOMString fontDisplay;
+  attribute [LegacyNullToEmptyString] CSSOMString font-display;
+  attribute [LegacyNullToEmptyString] CSSOMString fontLanguageOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString font-language-override;
+  attribute [LegacyNullToEmptyString] CSSOMString ascentOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString ascent-override;
+  attribute [LegacyNullToEmptyString] CSSOMString descentOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString descent-override;
+  attribute [LegacyNullToEmptyString] CSSOMString lineGapOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString line-gap-override;
+  attribute [LegacyNullToEmptyString] CSSOMString superscriptPositionOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString superscript-position-override;
+  attribute [LegacyNullToEmptyString] CSSOMString subscriptPositionOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString subscript-position-override;
+  attribute [LegacyNullToEmptyString] CSSOMString superscriptSizeOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString superscript-size-override;
+  attribute [LegacyNullToEmptyString] CSSOMString subscriptSizeOverride;
+  attribute [LegacyNullToEmptyString] CSSOMString subscript-size-override;
+};
+
+[Exposed=Window]
+interface CSSFontFaceRule : CSSRule {
+  [SameObject, PutForwards=cssText] readonly attribute CSSFontFaceDescriptors style;
+};

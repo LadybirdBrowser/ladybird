@@ -1,0 +1,103 @@
+Harness status: OK
+
+Found 97 tests
+
+48 Pass
+49 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface CSSRule: original interface defined
+Pass	Partial interface CSSRule: member names are unique
+Pass	CSSFontFaceDescriptors interface: existence and properties of interface object
+Pass	CSSFontFaceDescriptors interface object length
+Pass	CSSFontFaceDescriptors interface object name
+Pass	CSSFontFaceDescriptors interface: existence and properties of interface prototype object
+Pass	CSSFontFaceDescriptors interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSFontFaceDescriptors interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSFontFaceDescriptors interface: attribute src
+Pass	CSSFontFaceDescriptors interface: attribute fontFamily
+Pass	CSSFontFaceDescriptors interface: attribute font-family
+Pass	CSSFontFaceDescriptors interface: attribute fontStyle
+Pass	CSSFontFaceDescriptors interface: attribute font-style
+Pass	CSSFontFaceDescriptors interface: attribute fontWeight
+Pass	CSSFontFaceDescriptors interface: attribute font-weight
+Pass	CSSFontFaceDescriptors interface: attribute fontStretch
+Pass	CSSFontFaceDescriptors interface: attribute font-stretch
+Pass	CSSFontFaceDescriptors interface: attribute fontWidth
+Pass	CSSFontFaceDescriptors interface: attribute font-width
+Fail	CSSFontFaceDescriptors interface: attribute fontSize
+Fail	CSSFontFaceDescriptors interface: attribute font-size
+Fail	CSSFontFaceDescriptors interface: attribute sizeAdjust
+Fail	CSSFontFaceDescriptors interface: attribute size-adjust
+Pass	CSSFontFaceDescriptors interface: attribute unicodeRange
+Pass	CSSFontFaceDescriptors interface: attribute unicode-range
+Pass	CSSFontFaceDescriptors interface: attribute fontFeatureSettings
+Pass	CSSFontFaceDescriptors interface: attribute font-feature-settings
+Pass	CSSFontFaceDescriptors interface: attribute fontVariationSettings
+Pass	CSSFontFaceDescriptors interface: attribute font-variation-settings
+Pass	CSSFontFaceDescriptors interface: attribute fontNamedInstance
+Pass	CSSFontFaceDescriptors interface: attribute font-named-instance
+Pass	CSSFontFaceDescriptors interface: attribute fontDisplay
+Pass	CSSFontFaceDescriptors interface: attribute font-display
+Pass	CSSFontFaceDescriptors interface: attribute fontLanguageOverride
+Pass	CSSFontFaceDescriptors interface: attribute font-language-override
+Pass	CSSFontFaceDescriptors interface: attribute ascentOverride
+Pass	CSSFontFaceDescriptors interface: attribute ascent-override
+Pass	CSSFontFaceDescriptors interface: attribute descentOverride
+Pass	CSSFontFaceDescriptors interface: attribute descent-override
+Pass	CSSFontFaceDescriptors interface: attribute lineGapOverride
+Pass	CSSFontFaceDescriptors interface: attribute line-gap-override
+Fail	CSSFontFaceDescriptors interface: attribute superscriptPositionOverride
+Fail	CSSFontFaceDescriptors interface: attribute superscript-position-override
+Fail	CSSFontFaceDescriptors interface: attribute subscriptPositionOverride
+Fail	CSSFontFaceDescriptors interface: attribute subscript-position-override
+Fail	CSSFontFaceDescriptors interface: attribute superscriptSizeOverride
+Fail	CSSFontFaceDescriptors interface: attribute superscript-size-override
+Fail	CSSFontFaceDescriptors interface: attribute subscriptSizeOverride
+Fail	CSSFontFaceDescriptors interface: attribute subscript-size-override
+Pass	CSSFontFaceRule interface: existence and properties of interface object
+Pass	CSSFontFaceRule interface object length
+Pass	CSSFontFaceRule interface object name
+Pass	CSSFontFaceRule interface: existence and properties of interface prototype object
+Pass	CSSFontFaceRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSFontFaceRule interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSFontFaceRule interface: attribute style
+Pass	CSSFontFaceRule must be primary interface of cssFontFaceRule
+Pass	Stringification of cssFontFaceRule
+Pass	CSSFontFaceRule interface: cssFontFaceRule must inherit property "style" with the proper type
+Fail	CSSRule interface: cssFontFaceRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type
+Fail	CSSFontFeatureValuesRule interface: existence and properties of interface object
+Fail	CSSFontFeatureValuesRule interface object length
+Fail	CSSFontFeatureValuesRule interface object name
+Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object
+Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's "constructor" property
+Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSFontFeatureValuesRule interface: attribute fontFamily
+Fail	CSSFontFeatureValuesRule interface: attribute annotation
+Fail	CSSFontFeatureValuesRule interface: attribute ornaments
+Fail	CSSFontFeatureValuesRule interface: attribute stylistic
+Fail	CSSFontFeatureValuesRule interface: attribute swash
+Fail	CSSFontFeatureValuesRule interface: attribute characterVariant
+Fail	CSSFontFeatureValuesRule interface: attribute styleset
+Fail	CSSFontFeatureValuesRule interface: attribute historicalForms
+Fail	CSSFontFeatureValuesMap interface: existence and properties of interface object
+Fail	CSSFontFeatureValuesMap interface object length
+Fail	CSSFontFeatureValuesMap interface object name
+Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object
+Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's "constructor" property
+Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSFontFeatureValuesMap interface: maplike<CSSOMString, [object Object]>
+Fail	CSSFontFeatureValuesMap interface: operation set(CSSOMString, (unsigned long or sequence<unsigned long>))
+Fail	CSSFontPaletteValuesRule interface: existence and properties of interface object
+Fail	CSSFontPaletteValuesRule interface object length
+Fail	CSSFontPaletteValuesRule interface object name
+Fail	CSSFontPaletteValuesRule interface: existence and properties of interface prototype object
+Fail	CSSFontPaletteValuesRule interface: existence and properties of interface prototype object's "constructor" property
+Fail	CSSFontPaletteValuesRule interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSFontPaletteValuesRule interface: attribute name
+Fail	CSSFontPaletteValuesRule interface: attribute fontFamily
+Fail	CSSFontPaletteValuesRule interface: attribute basePalette
+Fail	CSSFontPaletteValuesRule interface: attribute overrideColors
+Fail	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface object
+Fail	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface prototype object
+Fail	CSSRule interface: cssRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type

@@ -1,0 +1,34 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Fonts Module Level 4 (https://drafts.csswg.org/css-fonts-4/)
+
+partial interface CSSRule {
+    const unsigned short FONT_FEATURE_VALUES_RULE = 14;
+  };
+[Exposed=Window]
+interface CSSFontFeatureValuesRule : CSSRule {
+  attribute CSSOMString fontFamily;
+  readonly attribute CSSFontFeatureValuesMap annotation;
+  readonly attribute CSSFontFeatureValuesMap ornaments;
+  readonly attribute CSSFontFeatureValuesMap stylistic;
+  readonly attribute CSSFontFeatureValuesMap swash;
+  readonly attribute CSSFontFeatureValuesMap characterVariant;
+  readonly attribute CSSFontFeatureValuesMap styleset;
+  readonly attribute CSSFontFeatureValuesMap historicalForms;
+};
+
+[Exposed=Window]
+interface CSSFontFeatureValuesMap {
+  maplike<CSSOMString, sequence<unsigned long>>;
+  undefined set(CSSOMString featureValueName,
+    (unsigned long or sequence<unsigned long>) values);
+};
+
+[Exposed=Window]
+  interface CSSFontPaletteValuesRule : CSSRule {
+    readonly attribute CSSOMString name;
+    readonly attribute CSSOMString fontFamily;
+    readonly attribute CSSOMString basePalette;
+    readonly attribute CSSOMString overrideColors;
+  };

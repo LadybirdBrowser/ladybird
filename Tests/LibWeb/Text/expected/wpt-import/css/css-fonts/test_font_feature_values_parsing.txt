@@ -1,0 +1,140 @@
+Harness status: OK
+
+Found 117 tests
+
+10 Pass
+107 Fail
+Pass	basic parse tests - @font-feature-values;
+Pass	basic parse tests - @font-feature-values bongo;
+Pass	basic parse tests - @font-feature-value {;}
+Pass	basic parse tests - @font-features-values {;}
+Fail	basic parse tests - @font-feature-values bongo {  }
+Fail	basic parse tests - @font-feature-values bongo { ; }
+Fail	basic parse tests - @font-feature-values bongo { ,; }
+Fail	basic parse tests - @font-feature-values bongo { ;, }
+Fail	basic parse tests - @font-feature-values bongo { ,;, }
+Fail	basic parse tests - @font-feature-values bongo { @styleset; }
+Fail	basic parse tests - @font-feature-values bongo { @styleset,; }
+Fail	basic parse tests - @font-feature-values bongo { @styleset abc; }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { ;;abc } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc;; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc,: } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc:, } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc:,; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { a,b } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { a;b } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { a:;b: } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { a:,;b: } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { a:1,;b: } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc 1 2 3 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc:, 1 2 3 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc:; 1 2 3 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3a } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3, def: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @blah @styleset { abc: 1 2 3; } }
+Fail	basic parse tests - @font-feature-values bongo { @blah } @styleset { abc: 1 2 3; } }
+Fail	basic parse tests - @font-feature-values bongo { @blah , @styleset { abc: 1 2 3; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3; }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3 }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3;
+Fail	basic parse tests - @font-feature-values bongo { @styleset { abc: 1 2 3
+Fail	basic parse tests - @font-feature-values bongo { @styleset { ok-1: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @annotation { ok-1: 3; } }
+Fail	basic parse tests - @font-feature-values bongo { @stylistic { blah: 3; } }
+Fail	basic parse tests - @font-feature-values bongo { @stylistic { blah: sibling-index(); } }
+Fail	basic parse tests - @font-feature-values bongo { 
+@styleset
+  { blah: 3; super-blah: 4 5;
+  more-blah: 5 6 7;
+ } }
+Fail	basic parse tests - @font-feature-values bongo { 
+@styleset
+  {
+ blah:
+ 3
+;
+ super-blah:
+ 4
+ 5
+;
+  more-blah:
+ 5 6
+ 7;
+ } }
+Fail	basic parse tests - @font-feature-values bongo { @stylistic { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1 2 3 4; } }
+Fail	basic parse tests - @font-feature-values bongo { @character-variant { blah: 1 2; } }
+Fail	basic parse tests - @font-feature-values bongo { @swash { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @ornaments { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @annotation { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 0; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 120 124; } }
+Fail	basic parse tests - @font-feature-values bongo { @character-variant { blah: 0; } }
+Fail	basic parse tests - @font-feature-values bongo { @character-variant { blah: 111; } }
+Fail	basic parse tests - @font-feature-values bongo { @character-variant { blah: 111 13; } }
+Fail	basic parse tests - @font-feature-values bongo { styleset { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { stylistic { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { character-variant { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { swash { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { ornaments { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { annotation { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { @bongo { blah: 1 } }
+Fail	basic parse tests - @font-feature-values bongo { @bongo { blah: 1 2 3 } }
+Fail	basic parse tests - @font-feature-values bongo { @bongo { blah: 1 2 3; burp: 1;;; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: -1 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1 -1 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1.5 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 15px } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: red } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: (1) } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah:(1) } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah:, 1 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: <1> } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1! } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1,, } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1 1 1 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @stylistic { blah: 1 2 } }
+Fail	basic parse tests - @font-feature-values bongo { @character-variant { blah: 1 2 3 } }
+Fail	basic parse tests - @font-feature-values bongo { @swash { blah: 1 2 } }
+Fail	basic parse tests - @font-feature-values bongo { @ornaments { blah: 1 2 } }
+Fail	basic parse tests - @font-feature-values bongo { @annotation { blah: 1 2 } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values "bongo" { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values 'bongo' { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values \62 ongo { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo, super bongo, bongo the supreme { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values bongo,, super bongo { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values bongo,* { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values bongo, sans-serif { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values serif, sans-serif { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values 'serif', 'sans-serif' { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo, "super bongo", 'bongo the supreme' { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values 毎日カレーを食べたい！ { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values 毎日カレーを食べたい！, 納豆嫌い { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values bongo, "super" bongo, bongo the supreme { @styleset { blah: 1; } }
+Pass	basic parse tests - @font-feature-values --bongo { @styleset { blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1; blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { blah: 1; de-blah: 1; blah: 2; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { \tra-la: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { b\lah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { \62 lah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { \:blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { \;blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { complex\20 blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { complex\ blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { Håkon: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { Åквариум: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { \1f449\1f4a9\1f448: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { 魅力: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { 毎日カレーを食べたい！: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { TECHNICIÄNS\ ÖF\ SPÅCE\ SHIP\ EÅRTH\ THIS\ IS\ YÖÜR\ CÄPTÅIN\ SPEÄKING\ YÖÜR\ ØÅPTÅIN\ IS\ DEA̋D: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { 123blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { :123blah 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { :123blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { ?123blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { "blah": 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { complex blah: 1; } }
+Fail	basic parse tests - @font-feature-values bongo { @styleset { complex\  blah: 1; } }
