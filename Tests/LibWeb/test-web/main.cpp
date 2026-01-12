@@ -1113,7 +1113,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             view->on_test_finish = {};
             view->on_reference_test_metadata = {};
             view->on_set_test_timeout = {};
-            view->reset_zoom();
+
+            // Don't try to reset zoom if WebContent crashed - it's gone
+            if (result.result != TestResult::Crashed)
+                view->reset_zoom();
 
             if (result.test.timeout_timer) {
                 result.test.timeout_timer->stop();
@@ -1230,7 +1233,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     if (auto result = generate_result_files(non_passing_tests); result.is_error())
         warnln("Failed to generate result files: {}", result.error());
     else if (!app.results_directory.is_empty())
-        outln("Results written to {}", app.results_directory);
+        outln("Results: file://{}/index.html", app.results_directory);
 
     return fail_count + timeout_count + crashed_count + tests_remaining;
 }
@@ -1295,7 +1298,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // Set default results directory if not specified
     if (app->results_directory.is_empty())
-        app->results_directory = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "test-web-results"sv).string();
+        app->results_directory = "test-dumps/results"sv;
 
     app->results_directory = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->results_directory);
     TRY(Core::Directory::create(app->results_directory, Core::Directory::CreateDirectories::Yes));
