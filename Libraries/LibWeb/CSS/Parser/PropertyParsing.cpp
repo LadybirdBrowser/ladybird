@@ -2656,7 +2656,6 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
         line_height = property_initial_value(PropertyID::LineHeight);
 
     transaction.commit();
-    auto initial_value = KeywordStyleValue::create(Keyword::Initial);
     return ShorthandStyleValue::create(PropertyID::Font,
         {
             // Set explicitly https://drafts.csswg.org/css-fonts/#set-explicitly
@@ -2687,12 +2686,12 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             line_height.release_nonnull(),
 
             // Reset implicitly
-            initial_value,                                   // font-feature-settings
-            property_initial_value(PropertyID::FontKerning), // font-kerning,
-            initial_value,                                   // font-language-override
-                                                             // FIXME: font-optical-sizing,
-                                                             // FIXME: font-size-adjust,
-            initial_value,                                   // font-variation-settings
+            property_initial_value(PropertyID::FontFeatureSettings),   // font-feature-settings
+            property_initial_value(PropertyID::FontKerning),           // font-kerning,
+            property_initial_value(PropertyID::FontLanguageOverride),  // font-language-override
+                                                                       // FIXME: font-optical-sizing,
+                                                                       // FIXME: font-size-adjust,
+            property_initial_value(PropertyID::FontVariationSettings), // font-variation-settings
         });
 }
 
