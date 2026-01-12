@@ -496,7 +496,7 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
         target_attribute_value = hyperlink_element_utils_get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = element.document().encoding_parse_url(href());
+    auto url_record = element.document().encoding_parse_url(element.get_attribute_value(HTML::AttributeNames::href));
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())
