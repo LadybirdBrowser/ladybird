@@ -94,6 +94,13 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onwebkittransitionend;
     attribute EventHandler onwheel;
 
+    // https://drafts.csswg.org/css-animations/#interface-globaleventhandlers-idl
+    // FIXME: Move these to a separate file once we support `partial interface mixin`.
+    attribute EventHandler onanimationcancel;
+    attribute EventHandler onanimationend;
+    attribute EventHandler onanimationiteration;
+    attribute EventHandler onanimationstart;
+
     // https://w3c.github.io/pointerevents/#extensions-to-the-globaleventhandlers-mixin
     attribute EventHandler onpointerover;
     attribute EventHandler onpointerenter;
