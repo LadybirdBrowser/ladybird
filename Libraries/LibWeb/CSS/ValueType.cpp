@@ -121,6 +121,8 @@ StringView value_type_to_string(ValueType value_type)
         return "FitContent"sv;
     case Web::CSS::ValueType::Flex:
         return "Flex"sv;
+    case Web::CSS::ValueType::FontStyle:
+        return "FontStyle"sv;
     case Web::CSS::ValueType::Frequency:
         return "Frequency"sv;
     case Web::CSS::ValueType::FrequencyPercentage:

@@ -43,6 +43,7 @@
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -3574,6 +3575,40 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
     return FitContentStyleValue::create(maybe_length.release_value());
 }
 
+RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://drafts.csswg.org/css-fonts/#font-style-prop
+    // normal | italic | left | right | oblique <angle [-90deg,90deg]>?
+    auto transaction = tokens.begin_transaction();
+    auto keyword_value = parse_keyword_value(tokens);
+
+    if (!keyword_value || !keyword_to_font_style_keyword(keyword_value->to_keyword()).has_value())
+        return nullptr;
+
+    auto font_style = keyword_to_font_style_keyword(keyword_value->to_keyword());
+
+    if (!font_style.has_value())
+        return nullptr;
+
+    if (tokens.has_next_token() && keyword_value->to_keyword() == Keyword::Oblique) {
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::FontStyleAngle);
+        if (auto angle_value = parse_angle_value(tokens)) {
+            if (angle_value->is_angle()) {
+                auto angle = angle_value->as_angle().angle();
+                auto angle_degrees = angle.to_degrees();
+                if (angle_degrees < -90 || angle_degrees > 90)
+                    return nullptr;
+            }
+
+            transaction.commit();
+            return FontStyleStyleValue::create(font_style.release_value(), angle_value);
+        }
+    }
+
+    transaction.commit();
+    return FontStyleStyleValue::create(font_style.release_value());
+}
+
 RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -4653,6 +4688,8 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                case SpecialContext::FontStyleAngle:
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } } };
                 case SpecialContext::RadialSizeLengthPercentage:
                     // Radial size length-percentages are nonnegative
                     return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
@@ -5438,6 +5475,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_fit_content_value(tokens);
     case ValueType::Flex:
         return parse_flex_value(tokens);
+    case ValueType::FontStyle:
+        return parse_font_style_value(tokens);
     case ValueType::Frequency:
         return parse_frequency_value(tokens);
     case ValueType::FrequencyPercentage:

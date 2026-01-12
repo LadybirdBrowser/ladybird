@@ -28,6 +28,7 @@ enum class ValueType : u8 {
     FilterValueList,
     FitContent,
     Flex,
+    FontStyle,
     Frequency,
     FrequencyPercentage,
     Image,

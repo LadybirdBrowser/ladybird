@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 22 tests
 
-15 Pass
-7 Fail
+22 Pass
 Pass	Font shorthand: Font size specified as calc()
 Pass	Font shorthand: Font weight specified as number
 Pass	Font shorthand: Font weight specified as number, value less than 1
@@ -11,18 +10,18 @@ Pass	Font shorthand: Font weight specified as number, value greater than 1000
 Pass	Font shorthand: Font weight specified as calc()
 Pass	Font shorthand: Font weight specified as calc(), value smaller than 1
 Pass	Font shorthand: Font weight specified as calc(), value greater than 1000
-Fail	Font shorthand: 'oblique' with positive angle
-Fail	Font shorthand: 'oblique' with negative angle
+Pass	Font shorthand: 'oblique' with positive angle
+Pass	Font shorthand: 'oblique' with negative angle
 Pass	Font shorthand: 'oblique' without slant angle
 Pass	Font shorthand: 'oblique' with positive angle, value out of range
 Pass	Font shorthand: 'oblique' with negative angle, value out of range
 Pass	Font shorthand: 'oblique' followed by valid small weight
 Pass	Font shorthand: 'oblique' followed by valid large weight
-Fail	Font shorthand: 'oblique' with positive angle followed by valid weight
-Fail	Font shorthand: 'oblique' with negative angle followed by valid weight
+Pass	Font shorthand: 'oblique' with positive angle followed by valid weight
+Pass	Font shorthand: 'oblique' with negative angle followed by valid weight
 Pass	Font shorthand: 'oblique' followed by valid calc() weight
-Fail	Font shorthand: 'oblique' with angle followed by valid calc() weight
+Pass	Font shorthand: 'oblique' with angle followed by valid calc() weight
 Pass	Font shorthand: 'oblique' followed by a to-be-clamped calc() weight
 Pass	Font shorthand: calc() weight folowed by 'oblique'
-Fail	Font shorthand: calc() weight folowed by 'oblique' and slant angle
-Fail	Font shorthand: To-be-clamped calc() weight folowed by 'oblique' and slant angle
+Pass	Font shorthand: calc() weight folowed by 'oblique' and slant angle
+Pass	Font shorthand: To-be-clamped calc() weight folowed by 'oblique' and slant angle

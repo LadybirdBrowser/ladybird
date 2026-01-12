@@ -696,9 +696,9 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
         }
 
         if (property_id == PropertyID::FontStyle) {
-            auto static oblique_0deg_value = FontStyleStyleValue::create(FontStyle::Oblique, AngleStyleValue::create(Angle::make_degrees(0)));
-            auto from_value = from->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : from;
-            auto to_value = to->as_font_style().font_style() == FontStyle::Normal ? oblique_0deg_value : to;
+            auto static oblique_0deg_value = FontStyleStyleValue::create(FontStyleKeyword::Oblique, AngleStyleValue::create(Angle::make_degrees(0)));
+            auto from_value = from->as_font_style().font_style() == FontStyleKeyword::Normal ? oblique_0deg_value : from;
+            auto to_value = to->as_font_style().font_style() == FontStyleKeyword::Normal ? oblique_0deg_value : to;
             return interpolate_value(element, calculation_context, from_value, to_value, delta, allow_discrete);
         }
 
@@ -1835,13 +1835,13 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (!interpolated_font_style)
             return {};
         if (from_font_style.angle() && to_font_style.angle()) {
-            auto interpolated_angle = interpolate_value(element, calculation_context, *from_font_style.angle(), *to_font_style.angle(), delta, allow_discrete);
+            auto interpolated_angle = interpolate_value(element, { .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } } }, *from_font_style.angle(), *to_font_style.angle(), delta, allow_discrete);
             if (!interpolated_angle)
                 return {};
-            return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()), interpolated_angle);
+            return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()), interpolated_angle);
         }
 
-        return FontStyleStyleValue::create(*keyword_to_font_style(interpolated_font_style->to_keyword()));
+        return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()));
     }
     case StyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers

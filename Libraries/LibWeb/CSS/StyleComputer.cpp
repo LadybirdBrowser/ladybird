@@ -2489,7 +2489,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_style(NonnullRefPtr<
 
     // NB: We always parse as a FontStyleStyleValue, but StylePropertyMap is able to set a KeywordStyleValue directly.
     if (specified_value->is_keyword())
-        return FontStyleStyleValue::create(*keyword_to_font_style(specified_value->to_keyword()));
+        return FontStyleStyleValue::create(keyword_to_font_style_keyword(specified_value->to_keyword()).release_value());
 
     return specified_value->absolutized(computation_context);
 }
