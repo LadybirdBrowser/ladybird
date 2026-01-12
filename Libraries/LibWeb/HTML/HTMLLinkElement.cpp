@@ -952,6 +952,13 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     if (!document->url().scheme().is_one_of("http"sv, "https"sv))
         return;
 
+    // AD-HOC: Don't load fallback favicon for auxiliary browsing contexts (popup windows).
+    // This matches the behavior observed in Chrome and Firefox, and avoids unnecessary network requests
+    // that can interfere with Content Security Policy violation reporting.
+    // See: https://github.com/whatwg/html/issues/12082
+    if (auto browsing_context = document->browsing_context(); browsing_context->is_auxiliary())
+        return;
+
     // 1. Let request be a new request whose URL is the URL record obtained by resolving the URL "/favicon.ico" against
     //    the Document object's URL, client is the Document object's relevant settings object, destination is "image",
     //    synchronous flag is set, credentials mode is "include", and whose use-URL-credentials flag is set.
