@@ -424,6 +424,13 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto line_height = longhand(PropertyID::LineHeight);
         auto font_family = longhand(PropertyID::FontFamily);
 
+        for (auto const& reset_only_sub_property : { PropertyID::FontFeatureSettings, PropertyID::FontKerning, PropertyID::FontLanguageOverride, PropertyID::FontVariationSettings }) {
+            auto const& value = longhand(reset_only_sub_property);
+
+            if (!value->equals(property_initial_value(reset_only_sub_property)))
+                return;
+        }
+
         // Some longhands prevent serialization if they are not allowed in the shorthand.
         // <font-variant-css2> = normal | small-caps
         auto font_variant_string = font_variant->to_string(mode);

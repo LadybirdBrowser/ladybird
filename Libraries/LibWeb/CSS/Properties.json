@@ -1833,7 +1833,7 @@
   },
   "font": {
     "initial": "normal medium serif",
-    "__comment": "FIXME: Handle properties that are reset implicitly. https://drafts.csswg.org/css-fonts/#reset-implicitly",
+    "__comment": "FIXME: Support font-optical-sizing and font-size-adjust as reset-only sub-properties",
     "longhands": [
       "font-family",
       "font-size",
@@ -1841,7 +1841,11 @@
       "font-style",
       "font-variant",
       "font-weight",
-      "line-height"
+      "line-height",
+      "font-feature-settings",
+      "font-kerning",
+      "font-language-override",
+      "font-variation-settings"
     ]
   },
   "font-family": {
