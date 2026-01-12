@@ -1054,6 +1054,19 @@ void Parser::parse_interface_mixin(Interface& interface)
     interface.mixins.set(move(name), &mixin_interface);
 }
 
+void Parser::parse_partial_interface_mixin(Interface& interface)
+{
+    assert_string("partial"sv);
+    consume_whitespace();
+    assert_string("interface"sv);
+    consume_whitespace();
+    assert_string("mixin"sv);
+
+    auto partial_mixin = make<Interface>();
+    parse_interface(*partial_mixin);
+    interface.partial_mixins.append(move(partial_mixin));
+}
+
 void Parser::parse_callback_function(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
     assert_string("callback"sv);
@@ -1091,6 +1104,8 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
             parse_enumeration(extended_attributes, interface);
         } else if (lexer.next_is("typedef"sv)) {
             parse_typedef(interface);
+        } else if (lexer.next_is("partial interface mixin"sv)) {
+            parse_partial_interface_mixin(interface);
         } else if (lexer.next_is("partial interface"sv)) {
             parse_partial_interface(extended_attributes, interface);
         } else if (lexer.next_is("interface mixin"sv)) {
@@ -1263,6 +1278,17 @@ Interface& Parser::parse()
         }
 
         interface.callback_functions.update(import.callback_functions);
+
+        for (auto& partial_mixin : import.partial_mixins) {
+            if (auto it = interface.mixins.find(partial_mixin->name); it != interface.mixins.end())
+                it->value->extend_with_partial_interface(*partial_mixin);
+        }
+    }
+
+    // Extend mixins with partial mixins from this file
+    for (auto& partial_mixin : interface.partial_mixins) {
+        if (auto it = interface.mixins.find(partial_mixin->name); it != interface.mixins.end())
+            it->value->extend_with_partial_interface(*partial_mixin);
     }
 
     // Resolve mixins
