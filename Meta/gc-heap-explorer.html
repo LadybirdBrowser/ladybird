@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ladybird GC Heap Explorer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0f1419;
+            --bg-tertiary: #151b23;
+            --bg-elevated: #1a222d;
+            --border-color: #2d3a4a;
+            --border-highlight: #3d4f66;
+            --text-primary: #e6e8eb;
+            --text-secondary: #8a919a;
+            --text-muted: #5c6370;
+            --accent-cyan: #00d4ff;
+            --accent-cyan-dim: #00a3c7;
+            --accent-orange: #ff9f43;
+            --accent-orange-dim: #cc7a2e;
+            --accent-purple: #b48ead;
+            --accent-green: #98c379;
+            --accent-red: #e06c75;
+            --accent-yellow: #e5c07b;
+            --root-color: #ff6b9d;
+            --node-default: #4a5568;
+            --graph-bg: #080c10;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Drop Zone */
+        #drop-zone {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+
+        #drop-zone.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #drop-zone.drag-over {
+            background: var(--bg-secondary);
+        }
+
+        #drop-zone.drag-over .drop-border {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 60px rgba(0, 212, 255, 0.2);
+        }
+
+        .drop-content {
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .drop-border {
+            width: 400px;
+            height: 300px;
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 32px;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+        }
+
+        .drop-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .drop-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .drop-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .file-input-wrapper {
+            margin-top: 24px;
+        }
+
+        .file-input-btn {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border: none;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .file-input-btn:hover {
+            background: var(--accent-cyan-dim);
+            transform: translateY(-1px);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .brand {
+            position: absolute;
+            top: 32px;
+            left: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .brand-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Main Layout */
+        #main-app {
+            display: none;
+            height: 100vh;
+            grid-template-columns: 320px 1fr 380px;
+            grid-template-rows: auto 1fr;
+        }
+
+        #main-app.visible {
+            display: grid;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .header-brand-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .file-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value.cyan { color: var(--accent-cyan); }
+        .stat-value.orange { color: var(--accent-orange); }
+        .stat-value.purple { color: var(--accent-purple); }
+        .stat-value.green { color: var(--accent-green); }
+
+        .reload-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .reload-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border-color: var(--border-highlight);
+        }
+
+        /* Left Panel - Classes */
+        .left-panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            font-size: 13px;
+            border-radius: 6px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .class-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .class-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 2px;
+        }
+
+        .class-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .class-item.selected {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-highlight);
+        }
+
+        .class-item.root-class {
+            border-left: 3px solid var(--root-color);
+        }
+
+        .class-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            margin-right: 12px;
+        }
+
+        .class-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .class-bar {
+            height: 3px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+            margin-top: 6px;
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+
+        .class-item:hover .class-bar {
+            opacity: 1;
+        }
+
+        /* Center - Graph */
+        .graph-container {
+            background: var(--graph-bg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #graph-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .graph-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .graph-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .graph-btn:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-highlight);
+        }
+
+        .graph-info {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            background: rgba(15, 20, 25, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            backdrop-filter: blur(8px);
+        }
+
+        .graph-legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 20, 25, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.root { background: var(--root-color); }
+        .legend-dot.selected { background: var(--accent-orange); }
+        .legend-dot.connected { background: var(--accent-cyan); }
+        .legend-dot.default { background: var(--node-default); }
+
+        /* Right Panel - Details */
+        .right-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .detail-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .selected-node-info {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .node-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--accent-orange);
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+
+        .node-class {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .node-root-badge {
+            display: inline-block;
+            background: var(--root-color);
+            color: var(--bg-primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 8px;
+        }
+
+        .detail-section {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .section-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-count {
+            background: var(--bg-elevated);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-cyan);
+        }
+
+        .section-toggle {
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .section-content {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0 8px 8px;
+        }
+
+        .section-content.collapsed {
+            display: none;
+        }
+
+        .edge-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 2px;
+        }
+
+        .edge-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .edge-item.root {
+            border-left: 3px solid var(--root-color);
+        }
+
+        .edge-address {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 100px;
+            flex-shrink: 0;
+        }
+
+        .edge-class {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Path to Root */
+        .path-section {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .path-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .path-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .path-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .path-node {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-left: 2px solid var(--border-color);
+            margin-left: 8px;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .path-node::before {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 14px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border-color);
+        }
+
+        .path-node.root::before {
+            background: var(--root-color);
+        }
+
+        .path-node.target::before {
+            background: var(--accent-orange);
+        }
+
+        .path-node:first-child {
+            border-left-color: var(--root-color);
+        }
+
+        .path-node:last-child {
+            border-left-color: var(--accent-orange);
+        }
+
+        .path-node-info {
+            flex: 1;
+        }
+
+        .path-node-class {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .path-node-addr {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .path-root-info {
+            font-size: 10px;
+            color: var(--root-color);
+            margin-top: 4px;
+            word-break: break-all;
+        }
+
+        .no-selection {
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-highlight);
+        }
+
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 14, 20, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Graph nodes and links */
+        .node circle {
+            stroke-width: 2px;
+            cursor: pointer;
+            transition: r 0.2s ease;
+        }
+
+        .node:hover circle {
+            r: 10;
+        }
+
+        .node text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 7px;
+            fill: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .link {
+            stroke: var(--border-color);
+            stroke-opacity: 0.3;
+            fill: none;
+        }
+
+        .link.highlighted {
+            stroke: var(--accent-cyan);
+            stroke-opacity: 0.8;
+            stroke-width: 2px;
+        }
+
+        .link.path-highlight {
+            stroke: var(--accent-orange);
+            stroke-opacity: 1;
+            stroke-width: 3px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+        }
+
+        .tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Treemap styles */
+        .treemap-container {
+            flex: 1;
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        #treemap-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .treemap-cell {
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .treemap-cell:hover {
+            opacity: 0.8;
+        }
+
+        .treemap-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            fill: var(--text-primary);
+            pointer-events: none;
+        }
+
+        /* Filter buttons */
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .filter-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+
+        /* Root type badges */
+        .root-type {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255, 107, 157, 0.2);
+            color: var(--root-color);
+            margin-left: 8px;
+        }
+
+        .root-category-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+        }
+
+        .root-category-header:hover {
+            background: var(--bg-elevated) !important;
+        }
+
+        .root-category-header .class-name {
+            flex: 1;
+        }
+
+        .root-category-content {
+            margin-bottom: 8px;
+        }
+
+        /* Edge direction toggle */
+        .graph-mode-toggle {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            background: rgba(15, 20, 25, 0.95);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mode-btn:first-child {
+            border-right: 1px solid var(--border-color);
+        }
+
+        .mode-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .mode-btn.active {
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .mode-btn .arrow {
+            font-size: 14px;
+        }
+
+        /* Address search */
+        .address-search {
+            display: flex;
+            gap: 8px;
+        }
+
+        .address-input {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 6px;
+            width: 180px;
+            transition: all 0.2s ease;
+        }
+
+        .address-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .address-input::placeholder {
+            color: var(--text-muted);
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .address-search-btn {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .address-search-btn:hover {
+            background: var(--accent-cyan-dim);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading indicator -->
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <div class="loading-text">Processing heap dump...</div>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="drop-zone">
+        <div class="brand">
+            <div class="brand-icon">GC</div>
+            <div>
+                <div class="brand-text">Ladybird GC Heap Explorer</div>
+                <div class="brand-sub">Visualize and analyze garbage collector snapshots</div>
+            </div>
+        </div>
+        <div class="drop-content">
+            <div class="drop-border">
+                <div class="drop-icon">&#128202;</div>
+                <div class="drop-title">Drop GC Dump Here</div>
+                <div class="drop-subtitle">JSON file from LibGC heap dump</div>
+            </div>
+            <div class="file-input-wrapper">
+                <button class="file-input-btn" onclick="document.getElementById('file-input').click()">
+                    Choose File
+                </button>
+                <input type="file" id="file-input" accept=".json">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="header-brand">
+                    <div class="header-brand-icon">GC</div>
+                    <span>Heap Explorer</span>
+                </div>
+                <div class="file-name" id="file-name">-</div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-value cyan" id="stat-nodes">0</span>
+                    <span class="stat-label">Nodes</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value orange" id="stat-roots">0</span>
+                    <span class="stat-label">Roots</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value purple" id="stat-edges">0</span>
+                    <span class="stat-label">Edges</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value green" id="stat-classes">0</span>
+                    <span class="stat-label">Classes</span>
+                </div>
+            </div>
+            <div class="address-search">
+                <input type="text" id="address-input" class="address-input" placeholder="Find by address (0x...)">
+                <button class="address-search-btn" onclick="searchByAddress()">Go</button>
+            </div>
+            <button class="reload-btn" onclick="location.reload()">Load New File</button>
+        </header>
+
+        <!-- Left Panel -->
+        <aside class="left-panel">
+            <div class="tabs">
+                <div class="tab active" data-tab="classes">Classes</div>
+                <div class="tab" data-tab="roots">Roots</div>
+            </div>
+            <div class="tab-content active" id="tab-classes">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="class-search" placeholder="Filter classes...">
+                </div>
+                <div class="filter-row">
+                    <button class="filter-btn active" data-sort="count">By Count</button>
+                    <button class="filter-btn" data-sort="name">By Name</button>
+                    <button class="filter-btn" data-sort="edges">By Edges</button>
+                </div>
+                <div class="class-list" id="class-list"></div>
+            </div>
+            <div class="tab-content" id="tab-roots">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="root-search" placeholder="Filter roots...">
+                </div>
+                <div class="class-list" id="root-list"></div>
+            </div>
+        </aside>
+
+        <!-- Graph Container -->
+        <main class="graph-container">
+            <svg id="graph-svg"></svg>
+            <div class="graph-mode-toggle">
+                <button class="mode-btn active" id="mode-outgoing" onclick="setGraphMode('outgoing')">
+                    <span class="arrow">&#8594;</span> Outgoing
+                </button>
+                <button class="mode-btn" id="mode-incoming" onclick="setGraphMode('incoming')">
+                    <span class="arrow">&#8592;</span> Incoming
+                </button>
+            </div>
+            <div class="graph-controls">
+                <button class="graph-btn" onclick="zoomIn()" title="Zoom In">+</button>
+                <button class="graph-btn" onclick="zoomOut()" title="Zoom Out">-</button>
+                <button class="graph-btn" onclick="resetZoom()" title="Reset View">&#8634;</button>
+                <button class="graph-btn" onclick="toggleSimulation()" title="Pause/Resume" id="pause-btn">&#9208;</button>
+            </div>
+            <div class="graph-info" id="graph-info">
+                Click a class to visualize its instances
+            </div>
+            <div class="graph-legend">
+                <div class="legend-item"><div class="legend-dot root"></div> Root node</div>
+                <div class="legend-item"><div class="legend-dot selected"></div> Selected</div>
+                <div class="legend-item"><div class="legend-dot connected"></div> Connected</div>
+                <div class="legend-item"><div class="legend-dot default"></div> Other</div>
+            </div>
+        </main>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <div class="detail-header">
+                <div class="detail-title">Node Details</div>
+                <div id="selected-node-display">
+                    <div class="no-selection">Select a node to view details</div>
+                </div>
+            </div>
+
+            <div class="detail-section" id="outgoing-section">
+                <div class="section-header" onclick="toggleSection('outgoing')">
+                    <div class="section-title">
+                        Outgoing Edges <span class="section-count" id="outgoing-count">0</span>
+                    </div>
+                    <span class="section-toggle">&#9660;</span>
+                </div>
+                <div class="section-content" id="outgoing-content"></div>
+            </div>
+
+            <div class="detail-section" id="incoming-section">
+                <div class="section-header" onclick="toggleSection('incoming')">
+                    <div class="section-title">
+                        Incoming Edges <span class="section-count" id="incoming-count">0</span>
+                    </div>
+                    <span class="section-toggle">&#9660;</span>
+                </div>
+                <div class="section-content" id="incoming-content"></div>
+            </div>
+
+            <div class="path-section">
+                <div class="path-header">
+                    <span class="path-title">Path to Root</span>
+                </div>
+                <div class="path-content" id="path-content">
+                    <div class="no-selection">Select a node to see its retention path</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // Global state
+        let heapData = null;
+        let classStats = null;
+        let reverseEdges = null;
+        let rootNodes = null;
+        let selectedNode = null;
+        let selectedClass = null;
+        let simulation = null;
+        let svg, g, zoom;
+        let isPaused = false;
+        let graphMode = 'outgoing'; // 'outgoing' or 'incoming'
+
+        // DOM elements
+        const dropZone = document.getElementById('drop-zone');
+        const mainApp = document.getElementById('main-app');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+
+        // File handling
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) loadFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) loadFile(file);
+        });
+
+        function loadFile(file) {
+            loading.classList.remove('hidden');
+            document.getElementById('file-name').textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    processData(data);
+                    dropZone.classList.add('hidden');
+                    mainApp.classList.add('visible');
+                    loading.classList.add('hidden');
+                } catch (err) {
+                    alert('Error parsing JSON: ' + err.message);
+                    loading.classList.add('hidden');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function processData(data) {
+            heapData = data;
+
+            // Build reverse edges map
+            reverseEdges = {};
+            for (const addr in data) {
+                reverseEdges[addr] = [];
+            }
+            for (const addr in data) {
+                const node = data[addr];
+                for (const edge of (node.edges || [])) {
+                    if (reverseEdges[edge]) {
+                        reverseEdges[edge].push(addr);
+                    }
+                }
+            }
+
+            // Collect root nodes
+            rootNodes = {};
+            for (const addr in data) {
+                if (data[addr].root) {
+                    rootNodes[addr] = data[addr].root;
+                }
+            }
+
+            // Compute class statistics
+            classStats = {};
+            let totalEdges = 0;
+            for (const addr in data) {
+                const node = data[addr];
+                const className = node.class_name;
+                if (!classStats[className]) {
+                    classStats[className] = { count: 0, edges: 0, hasRoot: false, instances: [] };
+                }
+                classStats[className].count++;
+                classStats[className].edges += (node.edges || []).length;
+                classStats[className].instances.push(addr);
+                if (node.root) classStats[className].hasRoot = true;
+                totalEdges += (node.edges || []).length;
+            }
+
+            // Update stats
+            document.getElementById('stat-nodes').textContent = Object.keys(data).length.toLocaleString();
+            document.getElementById('stat-roots').textContent = Object.keys(rootNodes).length.toLocaleString();
+            document.getElementById('stat-edges').textContent = totalEdges.toLocaleString();
+            document.getElementById('stat-classes').textContent = Object.keys(classStats).length.toLocaleString();
+
+            // Render class list
+            renderClassList();
+            renderRootList();
+            setupTabs();
+            initGraph();
+        }
+
+        function renderClassList(filter = '', sortBy = 'count') {
+            const list = document.getElementById('class-list');
+            const maxCount = Math.max(...Object.values(classStats).map(s => s.count));
+
+            let entries = Object.entries(classStats);
+
+            // Filter
+            if (filter) {
+                entries = entries.filter(([name]) =>
+                    name.toLowerCase().includes(filter.toLowerCase())
+                );
+            }
+
+            // Sort
+            if (sortBy === 'count') {
+                entries.sort((a, b) => b[1].count - a[1].count);
+            } else if (sortBy === 'name') {
+                entries.sort((a, b) => a[0].localeCompare(b[0]));
+            } else if (sortBy === 'edges') {
+                entries.sort((a, b) => b[1].edges - a[1].edges);
+            }
+
+            list.innerHTML = entries.map(([name, stats]) => `
+                <div class="class-item ${stats.hasRoot ? 'root-class' : ''} ${selectedClass === name ? 'selected' : ''}"
+                     onclick="selectClass('${name}')">
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="class-name">${escapeHtml(name)}</div>
+                        <div class="class-bar" style="width: ${(stats.count / maxCount) * 100}%"></div>
+                    </div>
+                    <span class="class-count">${stats.count.toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderRootList(filter = '') {
+            const list = document.getElementById('root-list');
+
+            // Group roots by type
+            const rootsByType = {};
+            for (const addr in rootNodes) {
+                const rootType = rootNodes[addr];
+                const shortType = rootType.split(' ')[0];
+                if (!rootsByType[shortType]) {
+                    rootsByType[shortType] = [];
+                }
+                rootsByType[shortType].push({ addr, fullType: rootType, node: heapData[addr] });
+            }
+
+            let html = '';
+            let categoryIndex = 0;
+            for (const [type, roots] of Object.entries(rootsByType).sort((a, b) => b[1].length - a[1].length)) {
+                if (filter && !type.toLowerCase().includes(filter.toLowerCase())) continue;
+
+                const categoryId = `root-category-${categoryIndex++}`;
+                html += `<div class="root-category-header" onclick="toggleRootCategory('${categoryId}')" style="background: var(--bg-tertiary); margin-bottom: 2px; cursor: pointer;">
+                    <span class="section-toggle" id="${categoryId}-toggle" style="margin-right: 8px; display: inline-block; transition: transform 0.2s;">&#9654;</span>
+                    <span class="class-name" style="color: var(--root-color)">${escapeHtml(type)}</span>
+                    <span class="class-count">${roots.length}</span>
+                </div>`;
+
+                html += `<div id="${categoryId}" class="root-category-content" style="display: none;">`;
+                for (const root of roots) {
+                    html += `<div class="edge-item root" onclick="selectNode('${root.addr}')">
+                        <span class="edge-address">${formatAddress(root.addr)}</span>
+                        <span class="edge-class">${escapeHtml(root.node.class_name)}</span>
+                    </div>`;
+                }
+                html += `</div>`;
+            }
+
+            list.innerHTML = html || '<div class="no-selection">No roots found</div>';
+        }
+
+        function toggleRootCategory(categoryId) {
+            const content = document.getElementById(categoryId);
+            const toggle = document.getElementById(categoryId + '-toggle');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                toggle.style.transform = 'rotate(90deg)';
+            } else {
+                content.style.display = 'none';
+                toggle.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
+
+            document.getElementById('class-search').addEventListener('input', (e) => {
+                renderClassList(e.target.value, getCurrentSort());
+            });
+
+            document.getElementById('root-search').addEventListener('input', (e) => {
+                renderRootList(e.target.value);
+            });
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderClassList(document.getElementById('class-search').value, btn.dataset.sort);
+                });
+            });
+        }
+
+        function getCurrentSort() {
+            const active = document.querySelector('.filter-btn.active');
+            return active ? active.dataset.sort : 'count';
+        }
+
+        function selectClass(className) {
+            selectedClass = className;
+            renderClassList(document.getElementById('class-search').value, getCurrentSort());
+            visualizeClass(className);
+        }
+
+        function initGraph() {
+            svg = d3.select('#graph-svg');
+            const width = svg.node().parentElement.clientWidth;
+            const height = svg.node().parentElement.clientHeight;
+
+            svg.selectAll('*').remove();
+
+            // Add arrow marker
+            svg.append('defs').append('marker')
+                .attr('id', 'arrowhead')
+                .attr('viewBox', '-0 -5 10 10')
+                .attr('refX', 20)
+                .attr('refY', 0)
+                .attr('orient', 'auto')
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
+                .append('path')
+                .attr('d', 'M 0,-5 L 10,0 L 0,5')
+                .attr('fill', 'var(--border-color)');
+
+            g = svg.append('g');
+
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 10])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                    // Show labels when zoomed in past 1.5x
+                    const scale = event.transform.k;
+                    const labelOpacity = scale > 0.8 ? Math.min((scale - 0.8) / 0.4, 1) : 0;
+                    g.selectAll('.node-label').style('opacity', labelOpacity);
+                });
+
+            svg.call(zoom);
+
+            document.getElementById('graph-info').textContent =
+                `${Object.keys(heapData).length.toLocaleString()} nodes loaded. Select a class to visualize.`;
+        }
+
+        function visualizeClass(className) {
+            const stats = classStats[className];
+            if (!stats) return;
+
+            const width = svg.node().parentElement.clientWidth;
+            const height = svg.node().parentElement.clientHeight;
+
+            // Limit nodes for performance
+            const maxNodes = 500;
+            const instances = stats.instances.slice(0, maxNodes);
+
+            // Collect connected nodes based on mode
+            const nodeSet = new Set(instances);
+            const links = [];
+
+            for (const addr of instances) {
+                const node = heapData[addr];
+
+                if (graphMode === 'outgoing') {
+                    // Show what this class references (outgoing edges)
+                    for (const edge of (node.edges || [])) {
+                        if (heapData[edge]) {
+                            nodeSet.add(edge);
+                            links.push({ source: addr, target: edge });
+                        }
+                    }
+                } else {
+                    // Show what references this class (incoming edges)
+                    for (const incoming of (reverseEdges[addr] || [])) {
+                        nodeSet.add(incoming);
+                        links.push({ source: incoming, target: addr });
+                    }
+                }
+            }
+
+            // Limit total nodes
+            const nodes = Array.from(nodeSet).slice(0, maxNodes * 2).map(addr => ({
+                id: addr,
+                class_name: heapData[addr].class_name,
+                isRoot: !!heapData[addr].root,
+                isTarget: instances.includes(addr)
+            }));
+
+            const nodeIds = new Set(nodes.map(n => n.id));
+            const filteredLinks = links.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+
+            // Clear and redraw
+            g.selectAll('*').remove();
+
+            // Stop existing simulation
+            if (simulation) simulation.stop();
+
+            simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(filteredLinks).id(d => d.id).distance(80))
+                .force('charge', d3.forceManyBody().strength(-150))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(25));
+
+            const link = g.append('g')
+                .selectAll('line')
+                .data(filteredLinks)
+                .join('line')
+                .attr('class', 'link')
+                .attr('marker-end', 'url(#arrowhead)');
+
+            const node = g.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .attr('class', 'node')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', (event, d) => {
+                    event.stopPropagation();
+                    selectNode(d.id);
+                });
+
+            node.append('circle')
+                .attr('r', d => d.isTarget ? 8 : 6)
+                .attr('fill', d => {
+                    if (d.isRoot) return 'var(--root-color)';
+                    if (d.isTarget) return 'var(--accent-cyan)';
+                    return 'var(--node-default)';
+                })
+                .attr('stroke', d => {
+                    if (d.isRoot) return '#ff8ab5';
+                    if (d.isTarget) return '#33ddff';
+                    return '#6b7a8a';
+                });
+
+            node.append('title')
+                .text(d => `${d.class_name}\n${d.id}`);
+
+            node.append('text')
+                .attr('class', 'node-label')
+                .attr('dy', -12)
+                .attr('text-anchor', 'middle')
+                .text(d => d.class_name)
+                .style('opacity', 0);
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+
+            const modeLabel = graphMode === 'outgoing' ? 'outgoing refs from' : 'incoming refs to';
+            document.getElementById('graph-info').textContent =
+                `${nodes.length} nodes, ${filteredLinks.length} ${modeLabel} "${className}"`;
+
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+        }
+
+        function selectNode(addr) {
+            selectedNode = addr;
+            const node = heapData[addr];
+            if (!node) return;
+
+            // Update selected node display
+            const display = document.getElementById('selected-node-display');
+            display.innerHTML = `
+                <div class="selected-node-info">
+                    <div class="node-address">${toHex(addr)}</div>
+                    <div class="node-class">${escapeHtml(node.class_name)}</div>
+                    ${node.root ? `<div class="node-root-badge">ROOT: ${escapeHtml(node.root)}</div>` : ''}
+                </div>
+            `;
+
+            // Update outgoing edges
+            const outgoing = node.edges || [];
+            document.getElementById('outgoing-count').textContent = outgoing.length;
+            document.getElementById('outgoing-content').innerHTML = outgoing.map(edge => `
+                <div class="edge-item ${heapData[edge]?.root ? 'root' : ''}" onclick="selectNode('${edge}')">
+                    <span class="edge-address">${formatAddress(edge)}</span>
+                    <span class="edge-class">${escapeHtml(heapData[edge]?.class_name || 'Unknown')}</span>
+                </div>
+            `).join('') || '<div class="no-selection">No outgoing edges</div>';
+
+            // Update incoming edges
+            const incoming = reverseEdges[addr] || [];
+            document.getElementById('incoming-count').textContent = incoming.length;
+            document.getElementById('incoming-content').innerHTML = incoming.map(edge => `
+                <div class="edge-item ${heapData[edge]?.root ? 'root' : ''}" onclick="selectNode('${edge}')">
+                    <span class="edge-address">${formatAddress(edge)}</span>
+                    <span class="edge-class">${escapeHtml(heapData[edge]?.class_name || 'Unknown')}</span>
+                </div>
+            `).join('') || '<div class="no-selection">No incoming edges</div>';
+
+            // Highlight in graph
+            highlightNode(addr);
+
+            // Automatically find path to root
+            findPathToRoot();
+        }
+
+        function highlightNode(addr) {
+            g.selectAll('.node circle')
+                .attr('stroke-width', d => d.id === addr ? 4 : 2)
+                .attr('stroke', d => {
+                    if (d.id === addr) return 'var(--accent-orange)';
+                    if (d.isRoot) return '#ff8ab5';
+                    if (d.isTarget) return '#33ddff';
+                    return '#6b7a8a';
+                });
+
+            // Highlight connected links
+            g.selectAll('.link')
+                .classed('highlighted', d => d.source.id === addr || d.target.id === addr);
+        }
+
+        function findPathToRoot() {
+            if (!selectedNode) return;
+
+            const path = bfsToRoot(selectedNode);
+            const pathContent = document.getElementById('path-content');
+
+            if (!path) {
+                pathContent.innerHTML = '<div class="no-selection">No path to root found (node may be unreachable)</div>';
+                return;
+            }
+
+            pathContent.innerHTML = path.map((addr, i) => {
+                const node = heapData[addr];
+                const isRoot = i === 0;
+                const isTarget = i === path.length - 1;
+                return `
+                    <div class="path-node ${isRoot ? 'root' : ''} ${isTarget ? 'target' : ''}"
+                         onclick="selectNode('${addr}')" style="cursor: pointer;">
+                        <div class="path-node-info">
+                            <div class="path-node-class">${escapeHtml(node.class_name)}</div>
+                            <div class="path-node-addr">${formatAddress(addr)}</div>
+                            ${node.root ? `<div class="path-root-info">${escapeHtml(node.root)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Highlight path in graph
+            highlightPath(path);
+        }
+
+        function bfsToRoot(startAddr) {
+            const visited = new Set();
+            const queue = [[startAddr]];
+
+            while (queue.length > 0) {
+                const path = queue.shift();
+                const current = path[path.length - 1];
+
+                if (visited.has(current)) continue;
+                visited.add(current);
+
+                // Check if we've reached a root
+                if (heapData[current]?.root) {
+                    return path.reverse(); // Return path from root to target
+                }
+
+                // Add all nodes that point to this one
+                for (const incoming of (reverseEdges[current] || [])) {
+                    if (!visited.has(incoming)) {
+                        queue.push([...path, incoming]);
+                    }
+                }
+            }
+
+            return null; // No path found
+        }
+
+        function highlightPath(path) {
+            const pathSet = new Set(path);
+            const pathEdges = new Set();
+
+            for (let i = 0; i < path.length - 1; i++) {
+                pathEdges.add(`${path[i]}-${path[i + 1]}`);
+            }
+
+            g.selectAll('.node circle')
+                .attr('fill', d => {
+                    if (pathSet.has(d.id)) {
+                        if (heapData[d.id]?.root) return 'var(--root-color)';
+                        if (d.id === selectedNode) return 'var(--accent-orange)';
+                        return 'var(--accent-cyan)';
+                    }
+                    return d.isRoot ? 'var(--root-color)' : 'var(--node-default)';
+                })
+                .attr('stroke-width', d => pathSet.has(d.id) ? 4 : 2);
+
+            g.selectAll('.link')
+                .classed('path-highlight', d =>
+                    pathEdges.has(`${d.source.id}-${d.target.id}`) ||
+                    pathEdges.has(`${d.target.id}-${d.source.id}`)
+                )
+                .classed('highlighted', false);
+        }
+
+        function toggleSection(section) {
+            const content = document.getElementById(section + '-content');
+            content.classList.toggle('collapsed');
+        }
+
+        // Graph controls
+        function zoomIn() {
+            svg.transition().call(zoom.scaleBy, 1.5);
+        }
+
+        function zoomOut() {
+            svg.transition().call(zoom.scaleBy, 0.67);
+        }
+
+        function resetZoom() {
+            const width = svg.node().parentElement.clientWidth;
+            const height = svg.node().parentElement.clientHeight;
+            svg.transition().call(zoom.transform, d3.zoomIdentity.translate(width/2, height/2).scale(1));
+        }
+
+        function toggleSimulation() {
+            if (simulation) {
+                if (isPaused) {
+                    simulation.alpha(0.3).restart();
+                    document.getElementById('pause-btn').innerHTML = '&#9208;';
+                } else {
+                    simulation.stop();
+                    document.getElementById('pause-btn').innerHTML = '&#9654;';
+                }
+                isPaused = !isPaused;
+            }
+        }
+
+        function setGraphMode(mode) {
+            graphMode = mode;
+            document.getElementById('mode-outgoing').classList.toggle('active', mode === 'outgoing');
+            document.getElementById('mode-incoming').classList.toggle('active', mode === 'incoming');
+
+            // Re-visualize current class if one is selected
+            if (selectedClass) {
+                visualizeClass(selectedClass);
+            }
+        }
+
+        // Utility functions
+        function toHex(addr) {
+            return '0x' + BigInt(addr).toString(16).toUpperCase();
+        }
+
+        function formatAddress(addr) {
+            const hex = BigInt(addr).toString(16).toUpperCase();
+            return hex.length > 10 ? '...' + hex.slice(-8) : '0x' + hex;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function searchByAddress() {
+            const input = document.getElementById('address-input').value.trim();
+            if (!input || !heapData) return;
+
+            let decimalAddr;
+            try {
+                // Handle hex (0x...) or decimal input
+                if (input.toLowerCase().startsWith('0x')) {
+                    decimalAddr = BigInt(input).toString();
+                } else if (/^[0-9a-fA-F]+$/.test(input) && input.length > 10) {
+                    // Looks like hex without prefix
+                    decimalAddr = BigInt('0x' + input).toString();
+                } else {
+                    decimalAddr = input;
+                }
+            } catch (e) {
+                alert('Invalid address format');
+                return;
+            }
+
+            if (heapData[decimalAddr]) {
+                selectNode(decimalAddr);
+                // Also select the class to show it in the graph
+                const className = heapData[decimalAddr].class_name;
+                selectedClass = className;
+                renderClassList(document.getElementById('class-search').value, getCurrentSort());
+                visualizeClass(className);
+            } else {
+                alert('Address not found in heap dump');
+            }
+        }
+
+        // Allow Enter key to trigger search
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('address-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchByAddress();
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (selectedClass) {
+                visualizeClass(selectedClass);
+            }
+        });
+    </script>
+</body>
+</html>
