@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const div = document.getElementById("target");
+        const animation = div.animate(
+            { contentVisibility: ["visible", "auto"] },
+            { duration: 1000, fill: "both" }
+        );
+
+        animation.currentTime = 0;
+        println(`progress 0: ${getComputedStyle(div).contentVisibility}`);
+
+        animation.currentTime = 400;
+        println(`progress 0.4: ${getComputedStyle(div).contentVisibility}`);
+
+        animation.currentTime = 600;
+        println(`progress 0.6: ${getComputedStyle(div).contentVisibility}`);
+
+        animation.currentTime = 1000;
+        println(`progress 1: ${getComputedStyle(div).contentVisibility}`);
+
+        animation.cancel();
+    });
+</script>
