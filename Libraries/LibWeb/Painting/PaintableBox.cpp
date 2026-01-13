@@ -686,13 +686,6 @@ CSSPixelPoint PaintableBox::cumulative_offset_of_enclosing_scroll_frame() const
     return {};
 }
 
-Optional<CSSPixelRect> PaintableBox::clip_rect_for_hit_testing() const
-{
-    if (m_enclosing_clip_frame)
-        return m_enclosing_clip_frame->clip_rect_for_hit_testing();
-    return {};
-}
-
 CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
 {
     if (!accumulated_visual_context())

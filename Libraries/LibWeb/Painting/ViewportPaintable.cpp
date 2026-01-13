@@ -116,109 +116,6 @@ void ViewportPaintable::assign_scroll_frames()
     });
 }
 
-void ViewportPaintable::assign_clip_frames()
-{
-    for_each_in_subtree_of_type<PaintableBox>([&](auto const& paintable_box) {
-        auto overflow_x = paintable_box.computed_values().overflow_x();
-        auto overflow_y = paintable_box.computed_values().overflow_y();
-        // Note: Overflow may be clip on one axis and visible on the other.
-        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
-        if (has_hidden_overflow || paintable_box.get_clip_rect().has_value() || paintable_box.layout_node().has_paint_containment()) {
-            auto clip_frame = adopt_ref(*new ClipFrame());
-            m_clip_state.set(paintable_box, move(clip_frame));
-        }
-        return TraversalDecision::Continue;
-    });
-
-    for_each_in_subtree([&](auto& paintable) {
-        if (paintable.is_paintable_box()) {
-            auto& paintable_box = static_cast<PaintableBox&>(paintable);
-            if (auto clip_frame = m_clip_state.get(paintable_box); clip_frame.has_value()) {
-                paintable_box.set_own_clip_frame(clip_frame.value());
-            }
-        }
-        for (auto block = paintable.containing_block(); !block->is_viewport_paintable(); block = block->containing_block()) {
-            if (auto clip_frame = m_clip_state.get(block); clip_frame.has_value()) {
-                if (paintable.is_paintable_box()) {
-                    auto& paintable_box = static_cast<PaintableBox&>(paintable);
-                    paintable_box.set_enclosing_clip_frame(clip_frame.value());
-                }
-                break;
-            }
-            if (block->has_css_transform()) {
-                break;
-            }
-        }
-        return TraversalDecision::Continue;
-    });
-
-    for (auto& it : m_clip_state) {
-        auto const& paintable_box = *it.key;
-        auto& clip_frame = *it.value;
-        for (auto const* block = &paintable_box.layout_node_with_style_and_box_metrics(); !block->is_viewport(); block = block->containing_block()) {
-            auto const& paintable = block->first_paintable();
-            if (!paintable->is_paintable_box()) {
-                continue;
-            }
-            auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
-            bool clip_x = paintable->computed_values().overflow_x() != CSS::Overflow::Visible;
-            bool clip_y = paintable->computed_values().overflow_y() != CSS::Overflow::Visible;
-
-            auto clip_rect = block_paintable_box.overflow_clip_edge_rect();
-            if (block_paintable_box.get_clip_rect().has_value()) {
-                clip_frame.includes_rect_from_clip_property = true;
-                clip_rect.intersect(block_paintable_box.get_clip_rect().value());
-                clip_x = true;
-                clip_y = true;
-            }
-
-            // https://drafts.csswg.org/css-contain-2/#paint-containment
-            // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
-            //    edge of the paint containment box, taking corner clipping into account. This does not include the creation of
-            //    any mechanism to access or indicate the presence of the clipped content; nor does it inhibit the creation of
-            //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
-            //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
-            //          to still slightly overflow its normal bounds.
-            if (block->has_paint_containment()) {
-                // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
-                //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
-                //       values of 'overflow-x' and 'overflow-y' unchanged.
-                clip_x = true;
-                clip_y = true;
-            }
-
-            if (clip_x || clip_y) {
-                // https://drafts.csswg.org/css-overflow-3/#corner-clipping
-                // As mentioned in CSS Backgrounds 3 § 4.3 Corner Clipping, the clipping region established by overflow can be
-                // rounded:
-                if (clip_x && clip_y) {
-                    // - When overflow-x and overflow-y compute to hidden, scroll, or auto, the clipping region is rounded
-                    //   based on the border radius, adjusted to the padding edge, as described in CSS Backgrounds 3 § 4.2 Corner
-                    //   Shaping.
-                    // - When both overflow-x and overflow-y compute to clip, the clipping region is rounded as described in § 3.2
-                    //   Expanding Clipping Bounds: the overflow-clip-margin property.
-                    // FIXME: Implement overflow-clip-margin
-                    clip_frame.add_clip_rect(clip_rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
-                } else {
-                    // - However, when one of overflow-x or overflow-y computes to clip and the other computes to visible, the
-                    //   clipping region is not rounded.
-                    if (clip_x) {
-                        clip_rect.set_top(0);
-                        clip_rect.set_bottom(CSSPixels::max_integer_value);
-                    } else {
-                        clip_rect.set_left(0);
-                        clip_rect.set_right(CSSPixels::max_integer_value);
-                    }
-                    clip_frame.add_clip_rect(clip_rect, {}, block_paintable_box.enclosing_scroll_frame());
-                }
-            }
-            if (block->has_css_transform()) {
-                break;
-            }
-        }
-    }
-}
-
 static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
 {
     if (css_clip.width() < 0 || css_clip.height() < 0)
@@ -523,7 +420,6 @@ bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, un
 void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_clip_state);
     visitor.visit(m_paintable_boxes_with_auto_content_visibility);
 }
 

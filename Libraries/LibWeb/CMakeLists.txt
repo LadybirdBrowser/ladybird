@@ -812,7 +812,6 @@ set(SOURCES
     Painting/BoxModelMetrics.cpp
     Painting/CanvasPaintable.cpp
     Painting/CheckBoxPaintable.cpp
-    Painting/ClipFrame.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListCommand.cpp
     Painting/DisplayListPlayerSkia.cpp
