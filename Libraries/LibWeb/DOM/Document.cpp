@@ -1468,6 +1468,7 @@ void Document::update_layout(UpdateLayoutReason reason)
     // assign_clip_frames() needs border-radius be resolved
     update_paint_and_hit_testing_properties_if_needed();
     paintable()->assign_clip_frames();
+    paintable()->assign_accumulated_visual_contexts();
 
     if (auto range = get_selection()->range()) {
         paintable()->recompute_selection_states(*range);

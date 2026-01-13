@@ -8,7 +8,9 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -219,6 +221,117 @@ void ViewportPaintable::assign_clip_frames()
             }
         }
     }
+}
+
+static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
+{
+    if (css_clip.width() < 0 || css_clip.height() < 0)
+        return CSSPixelRect { 0, 0, 0, 0 };
+    return css_clip;
+}
+
+void ViewportPaintable::assign_accumulated_visual_contexts()
+{
+    m_next_accumulated_visual_context_id = 1;
+
+    auto append_node = [&](RefPtr<AccumulatedVisualContext const> parent, VisualContextData data) {
+        return AccumulatedVisualContext::create(allocate_accumulated_visual_context_id(), move(data), parent);
+    };
+
+    RefPtr<AccumulatedVisualContext const> viewport_state_for_descendants = nullptr;
+    if (own_scroll_frame())
+        viewport_state_for_descendants = append_node(nullptr, ScrollData { own_scroll_frame()->id(), false });
+    set_accumulated_visual_context(nullptr);
+    set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
+
+    for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
+        auto* visual_parent = as_if<PaintableBox>(paintable_box.parent());
+        if (!visual_parent)
+            return TraversalDecision::Continue;
+
+        auto* containing_block = paintable_box.containing_block();
+
+        auto inherited_state = containing_block->accumulated_visual_context_for_descendants();
+        if (paintable_box.is_fixed_position())
+            inherited_state = nullptr;
+
+        // Collect visual ancestors between this element and its containing block.
+        // For normal flow elements, this will be empty (containing block == visual parent).
+        // For positioned elements, we add their transforms (but not scroll/clip).
+        Vector<PaintableBox const*> intermediates;
+        for (Paintable* parent = visual_parent; parent != containing_block; parent = parent->parent()) {
+            if (auto* parent_paintable_box = as_if<PaintableBox>(parent))
+                intermediates.append(parent_paintable_box);
+        }
+
+        // Add intermediate ancestor's perspective and transform as separate nodes.
+        for (size_t i = intermediates.size(); i > 0; --i) {
+            auto const* ancestor = intermediates[i - 1];
+            if (auto perspective = ancestor->perspective_matrix(); perspective.has_value())
+                inherited_state = append_node(inherited_state, PerspectiveData { *perspective });
+            if (ancestor->has_css_transform())
+                inherited_state = append_node(inherited_state, TransformData { ancestor->transform(), ancestor->transform_origin() });
+        }
+
+        // Build this element's own state from inherited state.
+        RefPtr<AccumulatedVisualContext const> own_state = inherited_state;
+
+        if (paintable_box.is_sticky_position()) {
+            // For sticky elements, use enclosing_scroll_frame which holds the sticky frame.
+            // own_scroll_frame may be a different scroll frame if the sticky element also has scrollable overflow.
+            if (auto sticky_frame = paintable_box.enclosing_scroll_frame(); sticky_frame && sticky_frame->is_sticky())
+                own_state = append_node(own_state, ScrollData { sticky_frame->id(), true });
+        }
+
+        if (paintable_box.has_css_transform())
+            own_state = append_node(own_state, TransformData { paintable_box.transform(), paintable_box.transform_origin() });
+
+        if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
+            own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
+
+        paintable_box.set_accumulated_visual_context(own_state);
+
+        // Build state for descendants: own state + perspective + clip + scroll.
+        RefPtr<AccumulatedVisualContext const> state_for_descendants = own_state;
+
+        if (auto perspective = paintable_box.perspective_matrix(); perspective.has_value())
+            state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective });
+
+        auto overflow_x = paintable_box.computed_values().overflow_x();
+        auto overflow_y = paintable_box.computed_values().overflow_y();
+        auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
+
+        if (has_hidden_overflow || paintable_box.layout_node().has_paint_containment()) {
+            bool clip_x = overflow_x != CSS::Overflow::Visible;
+            bool clip_y = overflow_y != CSS::Overflow::Visible;
+
+            if (paintable_box.layout_node().has_paint_containment()) {
+                clip_x = true;
+                clip_y = true;
+            }
+
+            if (clip_x || clip_y) {
+                auto clip_rect = paintable_box.overflow_clip_edge_rect();
+                if (!clip_x) {
+                    clip_rect.set_left(0);
+                    clip_rect.set_right(CSSPixels::max_integer_value);
+                }
+                if (!clip_y) {
+                    clip_rect.set_top(0);
+                    clip_rect.set_bottom(CSSPixels::max_integer_value);
+                }
+                auto radii = (clip_x && clip_y) ? paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes) : BorderRadiiData {};
+                state_for_descendants = append_node(state_for_descendants, ClipData { clip_rect, radii });
+            }
+        }
+
+        if (paintable_box.own_scroll_frame() && !paintable_box.is_sticky_position())
+            state_for_descendants = append_node(state_for_descendants, ScrollData { paintable_box.own_scroll_frame()->id(), false });
+
+        paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
+
+        return TraversalDecision::Continue;
+    });
 }
 
 void ViewportPaintable::refresh_scroll_state()
