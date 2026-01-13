@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-property">
+<meta name="assert" content="transform supports animation as a transform list">
+<meta name="timeout" content="long">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.target {
+  color: white;
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  display: inline-block;
+  overflow: hidden;
+}
+.expected {
+  background-color: green;
+}
+.target > div {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  background: orange;
+  margin: 1px;
+}
+.test {
+  overflow: hidden;
+}
+</style>
+
+<body>
+  <template id="target-template">
+    <div></div>
+  </template>
+</body>
+
+<script>
+
+// The default comparison function calls normalizeValue, which rounds
+// everything to two decimal places, which isn't OK for the matrices
+// that result from large perspective values.
+const compareWithPerspective = (actual, expected) => {
+  // TODO: This RegExp should be more precise to capture only what is a
+  // valid float, and this code should be merged with other code doing
+  // the same thing, e.g., RoundMatrix in
+  // web-animations/animation-model/animation-types/property-list.js .
+  const matrixRegExp = /^matrix3d\(((?:(?:[-0-9.e]+), ){15}(?:[-0-9.]+))\)$/;
+  const actualMatch = actual.match(matrixRegExp);
+  const expectedMatch = expected.match(matrixRegExp);
+  assert_not_equals(actualMatch, null, `${actual} should be a matrix`);
+  assert_not_equals(expectedMatch, null, `${expected} should be a matrix`);
+  if (actualMatch === null || expectedMatch === null) {
+    return;
+  }
+  const actualArray = actualMatch[1].split(", ").map(Number);
+  const expectedArray = expectedMatch[1].split(", ").map(Number);
+  assert_equals(actualArray.length, 16);
+  assert_equals(expectedArray.length, 16);
+
+  if (actualArray.length != expectedArray.length) {
+    return;
+  }
+
+  for (let i in actualArray) {
+    const error = Math.abs((actualArray[i] - expectedArray[i])) /
+                  Math.max(1e-6,
+                           Math.min(Math.abs(expectedArray[i]),
+                                    Math.abs(actualArray[i])));
+    assert_less_than(error, 1e-5, `comparing (at index ${i} actual value "${actual}" [${actualArray[i]}] and expected value "${expected}" [${expectedArray[i]}]`);
+  }
+};
+
+// The spec at
+// https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+// requires that perspective be interpolated by decomposing the matrix
+// (which is trivial for perspective) and then interpolating the pieces.
+// The piece that's interpolated (the z part of the perspective array)
+// contains the negative reciprocal of the argument to perspective().
+const interpolatePerspective = (from, to, progress) => {
+  return 1.0/((1.0 - progress) * (1.0/from) + progress * (1.0/to));
+};
+
+// Perspective
+test_interpolation({
+  property: 'transform',
+  from: 'perspective(400px)',
+  to: 'perspective(500px)',
+  comparisonFunction: compareWithPerspective
+}, [
+  {at: -1, expect: `perspective(${interpolatePerspective(400, 500, -1)}px)`},
+  {at: 0, expect: `perspective(${interpolatePerspective(400, 500, 0)}px)`},
+  {at: 0.25, expect: `perspective(${interpolatePerspective(400, 500, 0.25)}px)`},
+  {at: 0.75, expect: `perspective(${interpolatePerspective(400, 500, 0.75)}px)`},
+  {at: 1, expect: `perspective(${interpolatePerspective(400, 500, 1)}px)`},
+  {at: 2, expect: `perspective(${interpolatePerspective(400, 500, 2)}px)`},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'skewX(10rad) perspective(400px)',
+  to: 'skewX(20rad) perspective(500px)',
+  comparisonFunction: compareWithPerspective
+}, [
+  {at: -1, expect: `skewX(0rad) perspective(${interpolatePerspective(400, 500, -1)}px)`},
+  {at: 0, expect: `skewX(10rad) perspective(${interpolatePerspective(400, 500, 0)}px)`},
+  {at: 0.25, expect: `skewX(12.5rad) perspective(${interpolatePerspective(400, 500, 0.25)}px)`},
+  {at: 0.75, expect: `skewX(17.5rad) perspective(${interpolatePerspective(400, 500, 0.75)}px)`},
+  {at: 1, expect: `skewX(20rad) perspective(${interpolatePerspective(400, 500, 1)}px)`},
+  {at: 2, expect: `skewX(30rad) perspective(${interpolatePerspective(400, 500, 2)}px)`},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'scaleZ(1) perspective(400px)',
+  to: 'scaleZ(2) perspective(500px)',
+  comparisonFunction: compareWithPerspective
+}, [
+  {at: -1, expect: `scaleZ(0) perspective(${interpolatePerspective(400, 500, -1)}px)`},
+  {at: 0, expect: `scaleZ(1.0) perspective(${interpolatePerspective(400, 500, 0)}px)`},
+  {at: 0.25, expect: `scaleZ(1.25) perspective(${interpolatePerspective(400, 500, 0.25)}px)`},
+  {at: 0.75, expect: `scaleZ(1.75) perspective(${interpolatePerspective(400, 500, 0.75)}px)`},
+  {at: 1, expect: `scaleZ(2) perspective(${interpolatePerspective(400, 500, 1)}px)`},
+  {at: 2, expect: `scaleZ(3) perspective(${interpolatePerspective(400, 500, 2)}px)`},
+]);
+// Test that the transform identity function for perspective is perspective(none)
+test_interpolation({
+  property: 'transform',
+  from: 'scaleZ(2)',
+  to: 'scaleZ(2) perspective(500px)',
+  comparisonFunction: compareWithPerspective
+}, [
+  {at: -1, expect: `scaleZ(2)`},
+  {at: 0, expect: `scaleZ(2)`},
+  {at: 0.5, expect: `scaleZ(2) perspective(1000px)`},
+  {at: 1, expect: `scaleZ(2) perspective(500px)`},
+  {at: 2, expect: `scaleZ(2) perspective(250px)`},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'perspective(none)',
+  to: 'perspective(500px)',
+}, [
+  {at: -1, expect: `perspective(none)`},
+  {at: 0, expect: `perspective(none)`},
+  {at: 0.5, expect: `perspective(1000px)`},
+  {at: 1, expect: `perspective(500px)`},
+  {at: 2, expect: `perspective(250px)`},
+]);
+
+// Rotate
+test_interpolation({
+  property: 'transform',
+  from: 'rotate(30deg)',
+  to: 'rotate(330deg)'
+}, [
+  {at: -1, expect: 'rotate(-270deg)'},
+  {at: 0, expect: 'rotate(30deg)'},
+  {at: 0.25, expect: 'rotate(105deg)'},
+  {at: 0.75, expect: 'rotate(255deg)'},
+  {at: 1, expect: 'rotate(330deg)'},
+  {at: 2, expect: 'rotate(630deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotateX(0deg)',
+  to: 'rotateX(700deg)'
+}, [
+  {at: -1, expect: 'rotateX(-700deg)'},
+  {at: 0, expect: 'rotateX(0deg)'},
+  {at: 0.25, expect: 'rotateX(175deg)'},
+  {at: 0.75, expect: 'rotateX(525deg)'},
+  {at: 1, expect: 'rotateX(700deg)'},
+  {at: 2, expect: 'rotateX(1400deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotateY(0deg)',
+  to: 'rotateY(800deg)'
+}, [
+  {at: -1, expect: 'rotateY(-800deg)'},
+  {at: 0, expect: 'rotateY(0deg)'},
+  {at: 0.25, expect: 'rotateY(200deg)'},
+  {at: 0.75, expect: 'rotateY(600deg)'},
+  {at: 1, expect: 'rotateY(800deg)'},
+  {at: 2, expect: 'rotateY(1600deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotateZ(0deg)',
+  to: 'rotateZ(900deg)'
+}, [
+  {at: -1, expect: 'rotateZ(-900deg)'},
+  {at: 0, expect: 'rotateZ(0deg)'},
+  {at: 0.25, expect: 'rotateZ(225deg)'},
+  {at: 0.75, expect: 'rotateZ(675deg)'},
+  {at: 1, expect: 'rotateZ(900deg)'},
+  {at: 2, expect: 'rotateZ(1800deg)'},
+]);
+// Interpolation is about a common axis if either endpoint has a rotation angle
+// of zero.
+test_interpolation({
+  property: 'transform',
+  from: 'rotateX(0deg)',
+  to: 'rotateY(900deg)'
+}, [
+  {at: -1, expect: 'rotateY(-900deg)'},
+  {at: 0, expect: 'rotateY(0deg)'},
+  {at: 0.25, expect: 'rotateY(225deg)'},
+  {at: 0.75, expect: 'rotateY(675deg)'},
+  {at: 1, expect: 'rotateY(900deg)'},
+  {at: 2, expect: 'rotateY(1800deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotateY(900deg)',
+  to: 'rotateZ(0deg)'
+}, [
+  {at: -1, expect: 'rotateY(1800deg)'},
+  {at: 0, expect: 'rotateY(900deg)'},
+  {at: 0.25, expect: 'rotateY(675deg)'},
+  {at: 0.75, expect: 'rotateY(225deg)'},
+  {at: 1, expect: 'rotateY(0deg)'},
+  {at: 2, expect: 'rotateY(-900deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotate3d(7, 8, 9, 100deg)',
+  to: 'rotate3d(7, 8, 9, 260deg)'
+}, [
+  {at: -1, expect: 'rotate3d(7, 8, 9, -60deg)'},
+  {at: 0, expect: 'rotate3d(7, 8, 9, 100deg)'},
+  {at: 0.25, expect: 'rotate3d(7, 8, 9, 140deg)'},
+  {at: 0.75, expect: 'rotate3d(7, 8, 9, 220deg)'},
+  {at: 1, expect: 'rotate3d(7, 8, 9, 260deg)'},
+  {at: 2, expect: 'rotate3d(7, 8, 9, 420deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotate3d(7, 8, 9, 0deg)',
+  to: 'rotate3d(7, 8, 9, 450deg)'
+}, [
+  {at: -1, expect: 'rotate3d(7, 8, 9, -450deg)'},
+  {at: 0, expect: 'rotate3d(7, 8, 9, 0deg)'},
+  {at: 0.25, expect: 'rotate3d(7, 8, 9, 112.5deg)'},
+  {at: 0.75, expect: 'rotate3d(7, 8, 9, 337.5deg)'},
+  {at: 1, expect: 'rotate3d(7, 8, 9, 450deg)'},
+  {at: 2, expect: 'rotate3d(7, 8, 9, 900deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotate3d(0, 1, 0, 0deg)',
+  to: 'rotate3d(0, 1, 0, 450deg)'
+}, [
+  {at: -1, expect: 'rotate3d(0, 1, 0, -450deg)'},
+  {at: 0, expect: 'rotate3d(0, 1, 0, 0deg)'},
+  {at: 0.25, expect: 'rotate3d(0, 1, 0, 112.5deg)'},
+  {at: 0.75, expect: 'rotate3d(0, 1, 0, 337.5deg)'},
+  {at: 1, expect: 'rotate3d(0, 1, 0, 450deg)'},
+  {at: 2, expect: 'rotate3d(0, 1, 0, 900deg)'},
+]);
+// Rotation is about a common axis if the axes are colinear.
+test_interpolation({
+  property: 'transform',
+  from: 'rotate3d(0, 1, 0, 0deg)',
+  to: 'rotate3d(0, 2, 0, 450deg)'
+}, [
+  {at: -1, expect: 'rotate3d(0, 1, 0, -450deg)'},
+  {at: 0, expect: 'rotate3d(0, 1, 0, 0deg)'},
+  {at: 0.25, expect: 'rotate3d(0, 1, 0, 112.5deg)'},
+  {at: 0.75, expect: 'rotate3d(0, 1, 0, 337.5deg)'},
+  {at: 1, expect: 'rotate3d(0, 1, 0, 450deg)'},
+  {at: 2, expect: 'rotate3d(0, 1, 0, 900deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotate3d(1, 1, 0, 90deg)',
+  to: 'rotate3d(0, 1, 1, 180deg)'
+}, [
+  {at: -1, expect: 'rotate3d(0.41, -0.41, -0.82, 120deg)'},
+  {at: 0, expect: 'rotate3d(1, 1, 0, 90deg)'},
+  {at: 0.25, expect: 'rotate3d(0.524083, 0.804261, 0.280178, 106.91deg)'},
+  {at: 0.75, expect: 'rotate3d(0.163027, 0.774382, 0.611354, 153.99deg)'},
+  {at: 1, expect: 'rotate3d(0, 1, 1, 180deg)'},
+  {at: 2, expect: 'rotate3d(0.71, 0, -0.71, 90deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'none',
+  to: 'rotate(90deg)'
+}, [
+  {at: -1, expect: 'rotate(-90deg)'},
+  {at: 0, expect: 'rotate(0deg)'},
+  {at: 0.25, expect: 'rotate(22.5deg)'},
+  {at: 0.75, expect: 'rotate(67.5deg)'},
+  {at: 1, expect: 'rotate(90deg)'},
+  {at: 2, expect: 'rotate(180deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotate(90deg)',
+  to: 'none'
+}, [
+  {at: -1, expect: 'rotate(180deg)'},
+  {at: 0, expect: 'rotate(90deg)'},
+  {at: 0.25, expect: 'rotate(67.5deg)'},
+  {at: 0.75, expect: 'rotate(22.5deg)'},
+  {at: 1, expect: 'rotate(0deg)'},
+  {at: 2, expect: 'rotate(-90deg)'},
+]);
+test_interpolation({
+  property: 'transform',
+  from: 'rotateX(0deg) rotateY(0deg) rotateZ(0deg)',
+  to: 'rotateX(700deg) rotateY(800deg) rotateZ(900deg)'
+}, [
+  {at: -1, expect: 'rotateX(-700deg) rotateY(-800deg) rotateZ(-900deg)'},
+  {at: 0, expect: 'rotateX(0deg) rotateY(0deg) rotateZ(0deg)'},
+  {at: 0.25, expect: 'rotateX(175deg) rotateY(200deg) rotateZ(225deg)'},
+  {at: 0.75, expect: 'rotateX(525deg) rotateY(600deg) rotateZ(675deg)'},
+  {at: 1, expect: 'rotateX(700deg) rotateY(800deg) rotateZ(900deg)'},
+  {at: 2, expect: 'rotateX(1400deg) rotateY(1600deg) rotateZ(1800deg)'},
+]);
+</script>
