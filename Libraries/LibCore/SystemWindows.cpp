@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Process.h>
@@ -352,6 +353,20 @@ ErrorOr<void> set_close_on_exec(int handle, bool enabled)
     if (!SetHandleInformation(to_handle(handle), HANDLE_FLAG_INHERIT, enabled ? 0 : HANDLE_FLAG_INHERIT))
         return Error::from_windows_error();
     return {};
+}
+
+ErrorOr<Array<int, 2>> pipe2(int flags)
+{
+    SECURITY_ATTRIBUTES sa = {};
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = (flags & O_CLOEXEC) ? FALSE : TRUE;
+
+    HANDLE read_handle = nullptr;
+    HANDLE write_handle = nullptr;
+    if (!CreatePipe(&read_handle, &write_handle, &sa, 0))
+        return Error::from_windows_error();
+
+    return Array<int, 2> { to_fd(read_handle), to_fd(write_handle) };
 }
 
 ErrorOr<bool> isatty(int handle)
