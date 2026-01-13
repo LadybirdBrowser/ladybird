@@ -20,6 +20,17 @@ public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
 
+    void disconnect_child_crash_handlers()
+    {
+        // Disconnect crash handlers so child crashes don't propagate to parent.
+        // We don't destroy the children because there may be pending deferred_invokes
+        // that would cause use-after-free.
+        for (auto& child : m_child_web_views) {
+            child->on_web_content_crashed = nullptr;
+            child->disconnect_child_crash_handlers();
+        }
+    }
+
 protected:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
