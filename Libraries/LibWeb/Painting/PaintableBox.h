@@ -14,7 +14,6 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 
@@ -230,8 +229,6 @@ public:
 
     void set_enclosing_scroll_frame(RefPtr<ScrollFrame const> const& scroll_frame) { m_enclosing_scroll_frame = scroll_frame; }
     void set_own_scroll_frame(RefPtr<ScrollFrame> const& scroll_frame) { m_own_scroll_frame = scroll_frame; }
-    void set_own_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_own_clip_frame = clip_frame; }
-    void set_enclosing_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_enclosing_clip_frame = clip_frame; }
 
     void set_accumulated_visual_context(auto state) { m_accumulated_visual_context = move(state); }
     [[nodiscard]] auto accumulated_visual_context() const { return m_accumulated_visual_context; }
@@ -250,11 +247,6 @@ public:
             return m_own_scroll_frame->own_offset();
         return {};
     }
-
-    [[nodiscard]] RefPtr<ClipFrame const> own_clip_frame() const { return m_own_clip_frame; }
-    [[nodiscard]] RefPtr<ClipFrame const> enclosing_clip_frame() const { return m_enclosing_clip_frame; }
-
-    [[nodiscard]] Optional<CSSPixelRect> clip_rect_for_hit_testing() const;
 
     Optional<Gfx::Filter> resolve_filter(DisplayListRecordingContext&, CSS::Filter const& computed_filter) const;
 
@@ -328,8 +320,6 @@ private:
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ScrollFrame const> m_own_scroll_frame;
-    RefPtr<ClipFrame const> m_enclosing_clip_frame;
-    RefPtr<ClipFrame const> m_own_clip_frame;
     RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context;
     RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context_for_descendants;
 
