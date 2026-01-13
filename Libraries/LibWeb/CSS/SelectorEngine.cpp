@@ -505,7 +505,7 @@ static bool matches_open_state_pseudo_class(DOM::Element const& element, bool op
     return false;
 }
 
-// https://drafts.csswg.org/css-scoping/#host-selector
+// https://drafts.csswg.org/css-shadow-1/#host-selector
 static inline bool matches_host_pseudo_class(GC::Ref<DOM::Element const> element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, CSS::SelectorList const& argument_selector_list)
 {
     // When evaluated in the context of a shadow tree, it matches the shadow tree’s shadow host if the shadow host,

@@ -129,7 +129,7 @@ interface Element : Node {
     undefined releasePointerCapture(long pointerId);
     boolean hasPointerCapture(long pointerId);
     
-    // https://drafts.csswg.org/css-shadow-parts/#idl
+    // https://drafts.csswg.org/css-shadow-1/#idl
     [SameObject, PutForwards=value, ImplementedAs=part_list] readonly attribute DOMTokenList part;
     
     // https://w3c.github.io/pointerlock/#requestPointerLock
