@@ -579,7 +579,6 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .creation_url = this->creation_url,
         .top_level_creation_url = this->top_level_creation_url,
         .top_level_origin = this->top_level_origin,
-        .api_url_character_encoding = api_url_character_encoding(),
         .api_base_url = api_base_url(),
         .origin = origin(),
         .has_cross_site_ancestor = has_cross_site_ancestor(),

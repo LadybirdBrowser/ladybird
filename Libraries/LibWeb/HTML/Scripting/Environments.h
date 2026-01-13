@@ -93,9 +93,6 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#responsible-document
     virtual GC::Ptr<DOM::Document> responsible_document() = 0;
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#api-url-character-encoding
-    virtual String api_url_character_encoding() const = 0;
-
     // https://html.spec.whatwg.org/multipage/webappapis.html#api-base-url
     virtual URL::URL api_base_url() const = 0;
 

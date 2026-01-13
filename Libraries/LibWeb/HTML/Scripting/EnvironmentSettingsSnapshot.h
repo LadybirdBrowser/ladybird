@@ -24,7 +24,6 @@ public:
     virtual ~EnvironmentSettingsSnapshot() override;
 
     virtual GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
-    virtual String api_url_character_encoding() const override { return m_api_url_character_encoding; }
     virtual URL::URL api_base_url() const override { return m_url; }
     virtual URL::Origin origin() const override { return m_origin; }
     virtual bool has_cross_site_ancestor() const override { return m_has_cross_site_ancestor; }
@@ -36,7 +35,6 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    String m_api_url_character_encoding;
     URL::URL m_url;
     URL::Origin m_origin;
     bool m_has_cross_site_ancestor;

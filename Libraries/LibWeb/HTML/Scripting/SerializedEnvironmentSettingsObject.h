@@ -26,7 +26,6 @@ struct SerializedEnvironmentSettingsObject {
     Optional<URL::URL> top_level_creation_url;
     Optional<URL::Origin> top_level_origin;
 
-    String api_url_character_encoding;
     URL::URL api_base_url;
     URL::Origin origin;
     bool has_cross_site_ancestor;

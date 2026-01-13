@@ -90,13 +90,6 @@ GC::Ptr<DOM::Document> WindowEnvironmentSettingsObject::responsible_document()
     return m_window->associated_document();
 }
 
-// https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:api-url-character-encoding
-String WindowEnvironmentSettingsObject::api_url_character_encoding() const
-{
-    // Return the current character encoding of window's associated Document.
-    return m_window->associated_document().encoding_or_default();
-}
-
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:api-base-url
 URL::URL WindowEnvironmentSettingsObject::api_base_url() const
 {

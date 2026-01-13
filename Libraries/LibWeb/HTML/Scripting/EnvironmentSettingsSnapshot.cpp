@@ -12,7 +12,6 @@ GC_DEFINE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
 EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(JS::Realm& realm, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
     : EnvironmentSettingsObject(move(execution_context))
-    , m_api_url_character_encoding(serialized_settings.api_url_character_encoding)
     , m_url(serialized_settings.api_base_url)
     , m_origin(serialized_settings.origin)
     , m_has_cross_site_ancestor(serialized_settings.has_cross_site_ancestor)

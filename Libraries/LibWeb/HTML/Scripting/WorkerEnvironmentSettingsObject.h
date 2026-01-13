@@ -33,7 +33,6 @@ public:
     virtual ~WorkerEnvironmentSettingsObject() override = default;
 
     virtual GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
-    virtual String api_url_character_encoding() const override { return m_api_url_character_encoding; }
     virtual URL::URL api_base_url() const override;
     virtual URL::Origin origin() const override;
     virtual bool has_cross_site_ancestor() const override;
@@ -44,7 +43,6 @@ public:
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    String m_api_url_character_encoding;
     URL::Origin m_origin;
     bool m_outside_settings_has_cross_site_ancestor;
 
