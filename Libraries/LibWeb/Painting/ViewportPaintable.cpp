@@ -76,11 +76,7 @@ void ViewportPaintable::assign_scroll_frames()
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         RefPtr<ScrollFrame> sticky_scroll_frame;
         if (paintable_box.is_sticky_position()) {
-            auto const* nearest_scrollable_ancestor = paintable_box.nearest_scrollable_ancestor();
-            RefPtr<ScrollFrame const> parent_scroll_frame;
-            if (nearest_scrollable_ancestor) {
-                parent_scroll_frame = nearest_scrollable_ancestor->nearest_scroll_frame();
-            }
+            auto parent_scroll_frame = paintable_box.nearest_scroll_frame();
             sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
 
             paintable_box.set_enclosing_scroll_frame(sticky_scroll_frame);
@@ -349,6 +345,13 @@ void ViewportPaintable::refresh_scroll_state()
             return;
         }
 
+        // For nested sticky elements, the parent sticky's offset is applied via cumulative_offset.
+        // We need to adjust all position calculations to account for this, so we work in the
+        // coordinate space where the parent sticky is at its current (offset) position.
+        CSSPixelPoint parent_sticky_offset;
+        if (auto parent = scroll_frame->parent(); parent && parent->is_sticky())
+            parent_sticky_offset = parent->cumulative_offset();
+
         // Min and max offsets are needed to clamp the sticky box's position to stay within bounds of containing block.
         CSSPixels min_y_offset_relative_to_nearest_scrollable_ancestor;
         CSSPixels max_y_offset_relative_to_nearest_scrollable_ancestor;
@@ -361,52 +364,50 @@ void ViewportPaintable::refresh_scroll_state()
             min_x_offset_relative_to_nearest_scrollable_ancestor = 0;
             max_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_of_sticky_box->scrollable_overflow_rect()->width() - sticky_box.absolute_border_box_rect().width();
         } else {
-            auto containing_block_rect_relative_to_nearest_scrollable_ancestor = containing_block_of_sticky_box->absolute_border_box_rect().translated(-nearest_scrollable_ancestor->absolute_rect().top_left());
-            min_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect_relative_to_nearest_scrollable_ancestor.top();
-            max_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect_relative_to_nearest_scrollable_ancestor.bottom() - sticky_box.absolute_border_box_rect().height();
-            min_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect_relative_to_nearest_scrollable_ancestor.left();
-            max_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect_relative_to_nearest_scrollable_ancestor.right() - sticky_box.absolute_border_box_rect().width();
+            auto containing_block_rect = containing_block_of_sticky_box->absolute_border_box_rect().translated(-nearest_scrollable_ancestor->absolute_rect().top_left());
+            containing_block_rect.translate_by(parent_sticky_offset);
+            min_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.top();
+            max_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.bottom() - sticky_box.absolute_border_box_rect().height();
+            min_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.left();
+            max_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.right() - sticky_box.absolute_border_box_rect().width();
         }
 
-        auto border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor = sticky_box.border_box_rect_relative_to_nearest_scrollable_ancestor();
+        auto sticky_rect = sticky_box.border_box_rect_relative_to_nearest_scrollable_ancestor();
+        sticky_rect.translate_by(parent_sticky_offset);
 
-        // By default, the sticky box is shifted by the scroll offset of the nearest scrollable ancestor.
-        CSSPixelPoint sticky_offset = -nearest_scrollable_ancestor->scroll_offset();
-        CSSPixelRect const scrollport_rect { nearest_scrollable_ancestor->scroll_offset(), nearest_scrollable_ancestor->absolute_rect().size() };
+        CSSPixelPoint sticky_offset;
+        auto scroll_offset = nearest_scrollable_ancestor->scroll_offset();
+        CSSPixelRect const scrollport_rect { scroll_offset, nearest_scrollable_ancestor->absolute_rect().size() };
 
         if (sticky_insets.top.has_value()) {
             auto top_inset = sticky_insets.top.value();
-            auto stick_to_top_scroll_offset_threshold = border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.top() - top_inset;
-            if (scrollport_rect.top() > stick_to_top_scroll_offset_threshold) {
-                sticky_offset.translate_by({ 0, -border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.top() });
-                sticky_offset.translate_by({ 0, min(scrollport_rect.top() + top_inset, max_y_offset_relative_to_nearest_scrollable_ancestor) });
+            if (scrollport_rect.top() > sticky_rect.top() - top_inset) {
+                auto desired_y = min(scrollport_rect.top() + top_inset, max_y_offset_relative_to_nearest_scrollable_ancestor);
+                sticky_offset.translate_by({ 0, desired_y - sticky_rect.top() });
             }
         }
 
         if (sticky_insets.left.has_value()) {
             auto left_inset = sticky_insets.left.value();
-            auto stick_to_left_scroll_offset_threshold = border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.left() - left_inset;
-            if (scrollport_rect.left() > stick_to_left_scroll_offset_threshold) {
-                sticky_offset.translate_by({ -border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.left(), 0 });
-                sticky_offset.translate_by({ min(scrollport_rect.left() + left_inset, max_x_offset_relative_to_nearest_scrollable_ancestor), 0 });
+            if (scrollport_rect.left() > sticky_rect.left() - left_inset) {
+                auto desired_x = min(scrollport_rect.left() + left_inset, max_x_offset_relative_to_nearest_scrollable_ancestor);
+                sticky_offset.translate_by({ desired_x - sticky_rect.left(), 0 });
             }
         }
 
         if (sticky_insets.bottom.has_value()) {
             auto bottom_inset = sticky_insets.bottom.value();
-            auto stick_to_bottom_scroll_offset_threshold = border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.bottom() + bottom_inset;
-            if (scrollport_rect.bottom() < stick_to_bottom_scroll_offset_threshold) {
-                sticky_offset.translate_by({ 0, -border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.top() });
-                sticky_offset.translate_by({ 0, max(scrollport_rect.bottom() - sticky_box.absolute_border_box_rect().height() - bottom_inset, min_y_offset_relative_to_nearest_scrollable_ancestor) });
+            if (scrollport_rect.bottom() < sticky_rect.bottom() + bottom_inset) {
+                auto desired_y = max(scrollport_rect.bottom() - sticky_box.absolute_border_box_rect().height() - bottom_inset, min_y_offset_relative_to_nearest_scrollable_ancestor);
+                sticky_offset.translate_by({ 0, desired_y - sticky_rect.top() });
             }
         }
 
         if (sticky_insets.right.has_value()) {
             auto right_inset = sticky_insets.right.value();
-            auto stick_to_right_scroll_offset_threshold = border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.right() + right_inset;
-            if (scrollport_rect.right() < stick_to_right_scroll_offset_threshold) {
-                sticky_offset.translate_by({ -border_rect_of_sticky_box_relative_to_nearest_scrollable_ancestor.left(), 0 });
-                sticky_offset.translate_by({ max(scrollport_rect.right() - sticky_box.absolute_border_box_rect().width() - right_inset, min_x_offset_relative_to_nearest_scrollable_ancestor), 0 });
+            if (scrollport_rect.right() < sticky_rect.right() + right_inset) {
+                auto desired_x = max(scrollport_rect.right() - sticky_box.absolute_border_box_rect().width() - right_inset, min_x_offset_relative_to_nearest_scrollable_ancestor);
+                sticky_offset.translate_by({ desired_x - sticky_rect.left(), 0 });
             }
         }
 

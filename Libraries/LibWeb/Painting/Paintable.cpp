@@ -169,43 +169,11 @@ StackingContext* Paintable::enclosing_stacking_context()
 
 void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
 {
-    Vector<Painting::Paintable const*> self_and_ancestors {};
-    for (Paintable const* paintable = this; paintable; paintable = paintable->parent()) {
-        self_and_ancestors.append(paintable);
-    }
-
-    for (auto const* paintable : self_and_ancestors.in_reverse()) {
-        if (auto const* box = as_if<PaintableBox>(paintable)) {
-            box->apply_scroll_offset(context);
-            if (box->stacking_context()) {
-                auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
-                auto transform_matrix = box->transform();
-                auto transform_origin = box->transform_origin().to_type<float>();
-                Optional<Gfx::FloatMatrix4x4> parent_perspective_matrix;
-                if (auto const* parent = as_if<PaintableBox>(box->parent()))
-                    parent_perspective_matrix = parent->perspective_matrix();
-                // We only want the transform here, everything else undesirable for the inspector overlay
-                DisplayListRecorder::PushStackingContextParams push_stacking_context_params {
-                    .opacity = 1.0,
-                    .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
-                    .isolate = false,
-                    .transform = StackingContextTransform(transform_origin, transform_matrix, parent_perspective_matrix, to_device_pixels_scale),
-                };
-                context.display_list_recorder().push_stacking_context(push_stacking_context_params);
-            }
-        }
-    }
-
+    auto& display_list_recorder = context.display_list_recorder();
+    if (auto const* paintable_box = as_if<PaintableBox>(this))
+        display_list_recorder.set_accumulated_visual_context(paintable_box->accumulated_visual_context());
     paint_inspector_overlay_internal(context);
-
-    for (auto const* paintable : self_and_ancestors) {
-        if (auto const* box = as_if<PaintableBox>(paintable)) {
-            if (box->stacking_context()) {
-                context.display_list_recorder().pop_stacking_context();
-            }
-            box->reset_scroll_offset(context);
-        }
-    }
+    display_list_recorder.set_accumulated_visual_context({});
 }
 
 void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)

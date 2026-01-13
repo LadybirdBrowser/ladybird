@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2023-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -11,16 +11,6 @@
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
-
-StackingContextTransform::StackingContextTransform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix, Optional<Gfx::FloatMatrix4x4> parent_perspective_matrix, float scale)
-{
-    this->origin = origin.scaled(scale);
-    matrix[0, 3] *= scale;
-    matrix[1, 3] *= scale;
-    matrix[2, 3] *= scale;
-    this->matrix = matrix;
-    this->parent_perspective_matrix = parent_perspective_matrix;
-}
 
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     : m_display_list(command_list)
@@ -44,17 +34,11 @@ consteval static int command_nesting_level_change(T const& command)
     return 0;
 }
 
-#define APPEND(...)                                                          \
-    do {                                                                     \
-        auto command = __VA_ARGS__;                                          \
-        Optional<i32> _scroll_frame_id;                                      \
-        if (!m_scroll_frame_id_stack.is_empty())                             \
-            _scroll_frame_id = m_scroll_frame_id_stack.last();               \
-        RefPtr<ClipFrame const> _clip_frame;                                 \
-        if (!m_clip_frame_stack.is_empty())                                  \
-            _clip_frame = m_clip_frame_stack.last();                         \
-        m_save_nesting_level += command_nesting_level_change(command);       \
-        m_display_list.append(move(command), _scroll_frame_id, _clip_frame); \
+#define APPEND(...)                                                         \
+    do {                                                                    \
+        auto command = __VA_ARGS__;                                         \
+        m_save_nesting_level += command_nesting_level_change(command);      \
+        m_display_list.append(move(command), m_accumulated_visual_context); \
     } while (false)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
@@ -297,36 +281,14 @@ void DisplayListRecorder::restore()
     APPEND(Restore {});
 }
 
-void DisplayListRecorder::push_scroll_frame_id(Optional<i32> id)
-{
-    m_scroll_frame_id_stack.append(id);
-}
-
-void DisplayListRecorder::pop_scroll_frame_id()
-{
-    (void)m_scroll_frame_id_stack.take_last();
-}
-
-void DisplayListRecorder::push_clip_frame(RefPtr<ClipFrame const> clip_frame)
-{
-    m_clip_frame_stack.append(clip_frame);
-}
-
-void DisplayListRecorder::pop_clip_frame()
-{
-    (void)m_clip_frame_stack.take_last();
-}
-
 void DisplayListRecorder::push_stacking_context(PushStackingContextParams params)
 {
     APPEND(PushStackingContext {
         .opacity = params.opacity,
         .compositing_and_blending_operator = params.compositing_and_blending_operator,
         .isolate = params.isolate,
-        .transform = params.transform,
         .clip_path = params.clip_path,
         .bounding_rect = params.bounding_rect });
-    m_clip_frame_stack.append({});
     m_push_sc_index_stack.append(m_display_list.commands().size() - 1);
 }
 
@@ -343,7 +305,6 @@ static bool command_has_bounding_rectangle(DisplayListCommand const& command)
 void DisplayListRecorder::pop_stacking_context()
 {
     APPEND(PopStackingContext {});
-    (void)m_clip_frame_stack.take_last();
     auto pop_index = m_display_list.commands().size() - 1;
     auto push_index = m_push_sc_index_stack.take_last();
     auto& push_stacking_context = m_display_list.commands({})[push_index].command.get<PushStackingContext>();
@@ -437,19 +398,9 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutt
         .vertical = vertical });
 }
 
-void DisplayListRecorder::apply_opacity(float opacity)
+void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter)
 {
-    APPEND(ApplyOpacity { .opacity = opacity });
-}
-
-void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
-{
-    APPEND(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
-}
-
-void DisplayListRecorder::apply_filter(Gfx::Filter filter)
-{
-    APPEND(ApplyFilter { .filter = move(filter) });
+    APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter) });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)

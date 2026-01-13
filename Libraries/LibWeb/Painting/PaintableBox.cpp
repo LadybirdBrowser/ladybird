@@ -317,50 +317,6 @@ bool PaintableBox::wants_mouse_events() const
     return (m_own_scroll_frame && could_be_scrolled_by_wheel_event()) || has_resizer();
 }
 
-void PaintableBox::before_paint(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-
-    auto const& own_clip_frame = this->own_clip_frame();
-    bool apply_own_clip_frame = [&] {
-        if (phase == PaintPhase::Background)
-            return own_clip_frame && own_clip_frame->includes_rect_from_clip_property;
-        if (phase == PaintPhase::Foreground || phase == PaintPhase::Overlay)
-            return !own_clip_frame.is_null();
-        return false;
-    }();
-    if (apply_own_clip_frame) {
-        context.display_list_recorder().push_clip_frame(own_clip_frame);
-    } else if (!has_css_transform()) {
-        apply_clip_overflow_rect(context, phase);
-    }
-
-    apply_scroll_offset(context);
-}
-
-void PaintableBox::after_paint(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-
-    reset_scroll_offset(context);
-
-    auto const& own_clip_frame = this->own_clip_frame();
-    bool reset_own_clip_frame = [&] {
-        if (phase == PaintPhase::Background)
-            return own_clip_frame && own_clip_frame->includes_rect_from_clip_property;
-        if (phase == PaintPhase::Foreground || phase == PaintPhase::Overlay)
-            return !own_clip_frame.is_null();
-        return false;
-    }();
-    if (reset_own_clip_frame) {
-        context.display_list_recorder().pop_clip_frame();
-    } else if (!has_css_transform()) {
-        clear_clip_overflow_rect(context, phase);
-    }
-}
-
 bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
@@ -737,40 +693,15 @@ Optional<CSSPixelRect> PaintableBox::clip_rect_for_hit_testing() const
     return {};
 }
 
-void PaintableBox::apply_scroll_offset(DisplayListRecordingContext& context) const
+CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
 {
-    if (scroll_frame_id().has_value()) {
-        context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
-    }
-}
+    if (!accumulated_visual_context())
+        return screen_position;
 
-void PaintableBox::reset_scroll_offset(DisplayListRecordingContext& context) const
-{
-    if (scroll_frame_id().has_value()) {
-        context.display_list_recorder().pop_scroll_frame_id();
-    }
-}
-
-void PaintableBox::apply_clip_overflow_rect(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!enclosing_clip_frame())
-        return;
-
-    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
-        return;
-
-    context.display_list_recorder().push_clip_frame(enclosing_clip_frame());
-}
-
-void PaintableBox::clear_clip_overflow_rect(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!enclosing_clip_frame())
-        return;
-
-    if (!AK::first_is_one_of(phase, PaintPhase::Background, PaintPhase::Border, PaintPhase::TableCollapsedBorder, PaintPhase::Foreground, PaintPhase::Outline))
-        return;
-
-    context.display_list_recorder().pop_clip_frame();
+    auto const& viewport_paintable = *document().paintable();
+    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+    auto local_pos = accumulated_visual_context()->transform_point_for_hit_test(screen_position, scroll_state);
+    return local_pos.value_or(screen_position);
 }
 
 bool PaintableBox::has_resizer() const
@@ -799,7 +730,7 @@ bool PaintableBox::is_chrome_mirrored() const
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    position = adjust_position_for_cumulative_scroll_offset(position);
+    position = transform_to_local_coordinates(position);
     ChromeMetrics metrics = document().page().chrome_metrics();
 
     if (resizer_contains(position, metrics)) {
@@ -845,7 +776,7 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mouseup(Badge<EventHandl
 
 Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    position = adjust_position_for_cumulative_scroll_offset(position);
+    position = transform_to_local_coordinates(position);
     ChromeMetrics metrics = document().page().chrome_metrics();
 
     if (m_scroll_thumb_grab_position.has_value()) {
@@ -987,11 +918,6 @@ TraversalDecision PaintableBox::hit_test_chrome(CSSPixelPoint adjusted_position,
     return TraversalDecision::Continue;
 }
 
-CSSPixelPoint PaintableBox::adjust_position_for_cumulative_scroll_offset(CSSPixelPoint position) const
-{
-    return position.translated(-cumulative_offset_of_enclosing_scroll_frame());
-}
-
 bool PaintableBox::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const
 {
     auto handle_rect = absolute_resizer_rect(metrics);
@@ -1005,15 +931,10 @@ bool PaintableBox::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetri
 
 TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
-        return TraversalDecision::Continue;
-
     if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
-    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
-
-    if (hit_test_chrome(offset_position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
+    if (hit_test_chrome(position, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
     if (is_viewport_paintable()) {
@@ -1033,7 +954,18 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    if (!absolute_border_box_rect().contains(offset_position_adjusted_by_scroll_offset))
+    auto const& viewport_paintable = *document().paintable();
+    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+    Optional<CSSPixelPoint> local_position;
+    if (auto state = accumulated_visual_context())
+        local_position = state->transform_point_for_hit_test(position, scroll_state);
+    else
+        local_position = position;
+
+    if (!local_position.has_value())
+        return TraversalDecision::Continue;
+
+    if (!absolute_border_box_rect().contains(local_position.value()))
         return TraversalDecision::Continue;
 
     if (hit_test_continuation(callback) == TraversalDecision::Break)

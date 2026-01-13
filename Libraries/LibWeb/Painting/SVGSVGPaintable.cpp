@@ -25,14 +25,6 @@ SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
 {
 }
 
-static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)
-{
-    matrix[0, 3] *= scale;
-    matrix[1, 3] *= scale;
-    matrix[2, 3] *= scale;
-    return matrix;
-}
-
 void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase)
 {
     auto const& computed_values = svg_box.computed_values();
@@ -42,34 +34,24 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
 
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode());
 
-    auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || svg_box.has_css_transform() || masking_area.has_value();
+    Optional<Gfx::Filter> resolved_filter;
+    if (filter.has_filters())
+        resolved_filter = svg_box.resolve_filter(context, filter);
 
-    if (needs_to_save_state) {
+    auto needs_effects_layer = computed_values.opacity() < 1 || resolved_filter.has_value() || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal;
+    auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || masking_area.has_value();
+
+    auto effective_state = svg_box.accumulated_visual_context();
+    bool has_own_transform = svg_box.has_css_transform();
+    auto stacking_state = (has_own_transform && effective_state) ? effective_state->parent() : effective_state;
+
+    context.display_list_recorder().set_accumulated_visual_context(stacking_state);
+    if (needs_effects_layer) {
+        context.display_list_recorder().apply_effects(computed_values.opacity(), compositing_and_blending_operator, resolved_filter);
+    } else if (needs_to_save_state) {
         context.display_list_recorder().save();
     }
-
-    if (computed_values.opacity() < 1) {
-        context.display_list_recorder().apply_opacity(computed_values.opacity());
-    }
-
-    auto filter_applied = false;
-    if (filter.has_filters()) {
-        if (auto resolved_filter = svg_box.resolve_filter(context, filter); resolved_filter.has_value()) {
-            context.display_list_recorder().apply_filter(*resolved_filter);
-            filter_applied = true;
-        }
-    }
-
-    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
-        context.display_list_recorder().apply_compositing_and_blending_operator(compositing_and_blending_operator);
-    }
-
-    if (svg_box.has_css_transform()) {
-        auto transform_matrix = svg_box.transform();
-        Gfx::FloatPoint transform_origin = svg_box.transform_origin().template to_type<float>();
-        auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
-        context.display_list_recorder().apply_transform(transform_origin.scaled(to_device_pixels_scale), matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale));
-    }
+    context.display_list_recorder().set_accumulated_visual_context(effective_state);
 
     bool skip_painting = false;
     if (masking_area.has_value()) {
@@ -90,21 +72,10 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
         paint_descendants(context, svg_box, phase);
     }
 
-    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
-        context.display_list_recorder().restore();
-    }
+    context.display_list_recorder().set_accumulated_visual_context(effective_state);
 
-    if (filter_applied) {
+    if (needs_effects_layer || needs_to_save_state)
         context.display_list_recorder().restore();
-    }
-
-    if (computed_values.opacity() < 1) {
-        context.display_list_recorder().restore();
-    }
-
-    if (needs_to_save_state) {
-        context.display_list_recorder().restore();
-    }
 }
 
 void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)

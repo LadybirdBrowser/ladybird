@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -235,17 +235,9 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
 {
     auto& canvas = surface().canvas();
 
-    auto new_transform = Gfx::translation_matrix(Vector3<float>(command.transform.origin.x(), command.transform.origin.y(), 0));
-    new_transform = new_transform * command.transform.matrix;
-    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.transform.origin.x(), -command.transform.origin.y(), 0));
-    if (command.transform.parent_perspective_matrix.has_value())
-        new_transform = command.transform.parent_perspective_matrix.value() * new_transform;
-    auto matrix = to_skia_matrix4x4(new_transform);
-
     surface().canvas().save();
     if (command.clip_path.has_value())
         canvas.clipPath(to_skia_path(command.clip_path.value()), true);
-    canvas.concat(matrix);
 
     if (command.opacity < 1 || command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || command.isolate) {
         SkPaint paint;
@@ -964,29 +956,20 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
+void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
-    paint.setAlphaf(command.opacity);
-    canvas.saveLayer(nullptr, &paint);
-}
 
-void DisplayListPlayerSkia::apply_composite_and_blending_operator(ApplyCompositeAndBlendingOperator const& command)
-{
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-    canvas.saveLayer(nullptr, &paint);
-}
+    if (command.opacity < 1.0f)
+        paint.setAlphaf(command.opacity);
 
-void DisplayListPlayerSkia::apply_filter(ApplyFilter const& command)
-{
-    sk_sp<SkImageFilter> image_filter = to_skia_image_filter(command.filter);
+    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
 
-    SkPaint paint;
-    paint.setImageFilter(image_filter);
-    auto& canvas = surface().canvas();
+    if (command.filter.has_value())
+        paint.setImageFilter(to_skia_image_filter(command.filter.value()));
+
     canvas.saveLayer(nullptr, &paint);
 }
 

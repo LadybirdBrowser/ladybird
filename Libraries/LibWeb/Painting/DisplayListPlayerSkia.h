@@ -54,9 +54,7 @@ private:
     void add_mask(AddMask const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
-    void apply_opacity(ApplyOpacity const&) override;
-    void apply_composite_and_blending_operator(ApplyCompositeAndBlendingOperator const&) override;
-    void apply_filter(ApplyFilter const&) override;
+    void apply_effects(ApplyEffects const&) override;
     void apply_transform(ApplyTransform const&) override;
     void apply_mask_bitmap(ApplyMaskBitmap const&) override;
 
