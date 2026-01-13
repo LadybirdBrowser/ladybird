@@ -23,6 +23,8 @@
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/Notifier.h>
+#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibDiff/Format.h>
@@ -34,13 +36,218 @@
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/Process.h>
 #include <LibWebView/Utilities.h>
 
+#ifndef AK_OS_WINDOWS
+#    include <sys/ioctl.h>
+#endif
+
 namespace TestWeb {
+
+// Terminal display state
+static size_t s_terminal_width = 80;
+static bool s_is_tty = false;
+
+static void update_terminal_size()
+{
+#ifndef AK_OS_WINDOWS
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+        s_terminal_width = ws.ws_col > 0 ? ws.ws_col : 80;
+#endif
+}
+
+struct ViewDisplayState {
+    pid_t pid { 0 };
+    ByteString test_name;
+    UnixDateTime start_time;
+    bool active { false };
+};
+
+static Vector<ViewDisplayState> s_view_display_states;
+static RefPtr<Core::Timer> s_display_timer;
+
+static size_t s_live_display_lines = 0;
+static size_t s_total_tests = 0;
+static size_t s_completed_tests = 0;
+
+// Deferred warning system - buffers warnings during live display mode
+static Vector<ByteString> s_deferred_warnings;
+
+void add_deferred_warning(ByteString message)
+{
+    if (s_live_display_lines > 0)
+        s_deferred_warnings.append(move(message));
+    else
+        warnln("{}", message);
+}
+
+void print_deferred_warnings()
+{
+    for (auto const& warning : s_deferred_warnings)
+        warnln("{}", warning);
+    s_deferred_warnings.clear();
+}
+
+static void render_live_display()
+{
+    if (!s_is_tty || s_live_display_lines == 0)
+        return;
+
+    auto now = UnixDateTime::now();
+
+    // Build everything into one buffer
+    StringBuilder output;
+
+    // Move up N lines using individual commands (more compatible)
+    for (size_t i = 0; i < s_live_display_lines; ++i)
+        output.append("\033[A"sv);
+    output.append("\r"sv);
+
+    // Print test status lines (not counting empty line and progress bar)
+    size_t num_view_lines = s_live_display_lines - 2;
+    for (size_t i = 0; i < num_view_lines; ++i) {
+        output.append("\033[2K"sv); // Clear line
+
+        if (i < s_view_display_states.size()) {
+            auto const& state = s_view_display_states[i];
+            if (state.active && state.pid > 0) {
+                auto duration = (now - state.start_time).to_seconds();
+                // Format: ⏺ pid (Xs): name
+                auto prefix = ByteString::formatted("\033[33m⏺\033[0m {} ({}s): ", state.pid, duration);
+                // Note: prefix contains ANSI codes, so visible length is different
+                size_t prefix_visible_len = ByteString::formatted("⏺ {} ({}s): ", state.pid, duration).length();
+                size_t avail = s_terminal_width > prefix_visible_len ? s_terminal_width - prefix_visible_len : 10;
+
+                ByteString name = state.test_name;
+                if (name.length() > avail && avail > 3)
+                    name = ByteString::formatted("...{}", name.substring_view(name.length() - avail + 3));
+
+                output.appendff("{}{}", prefix, name);
+            } else {
+                output.append("\033[90m⏺ (idle)\033[0m"sv);
+            }
+        }
+        output.append("\n"sv);
+    }
+
+    // Empty line separator
+    output.append("\033[2K\n"sv);
+
+    // Print progress bar on the last line
+    output.append("\033[2K"sv);
+    if (s_total_tests > 0) {
+        size_t completed = s_completed_tests;
+        size_t total = s_total_tests;
+
+        // Calculate progress bar width (leave room for "completed/total []")
+        auto counter = ByteString::formatted("{}/{} ", completed, total);
+        size_t bar_width = s_terminal_width > counter.length() + 3 ? s_terminal_width - counter.length() - 3 : 20;
+
+        size_t filled = total > 0 ? (completed * bar_width) / total : 0;
+        size_t empty = bar_width - filled;
+
+        output.append(counter);
+        output.append("\033[32m["sv); // Green color
+        for (size_t j = 0; j < filled; ++j)
+            output.append("█"sv);
+        if (empty > 0 && filled < bar_width) {
+            output.append("\033[33m▓\033[0m\033[90m"sv); // Yellow current position, then dim
+            for (size_t j = 1; j < empty; ++j)
+                output.append("░"sv);
+        }
+        output.append("\033[32m]\033[0m"sv);
+    }
+    output.append("\n"sv);
+
+    out("{}", output.string_view());
+    (void)fflush(stdout);
+}
 
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
 static HashMap<WebView::ViewImplementation const*, Test*> s_test_by_view;
+
+struct ViewOutputCapture {
+    StringBuilder stdout_buffer;
+    StringBuilder stderr_buffer;
+    RefPtr<Core::Notifier> stdout_notifier;
+    RefPtr<Core::Notifier> stderr_notifier;
+};
+
+static HashMap<WebView::ViewImplementation const*, OwnPtr<ViewOutputCapture>> s_output_captures;
+
+static void setup_output_capture_for_view(TestWebView& view)
+{
+    auto pid = view.web_content_pid();
+    auto process = Application::the().find_process(pid);
+    if (!process.has_value())
+        return;
+
+    auto& output_capture = process->output_capture();
+    if (!output_capture.stdout_file && !output_capture.stderr_file)
+        return;
+
+    auto view_capture = make<ViewOutputCapture>();
+
+    if (output_capture.stdout_file) {
+        auto fd = output_capture.stdout_file->fd();
+        view_capture->stdout_notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
+        view_capture->stdout_notifier->on_activation = [fd, &capture = *view_capture]() {
+            char buffer[4096];
+            auto nread = read(fd, buffer, sizeof(buffer));
+            if (nread > 0)
+                capture.stdout_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+        };
+    }
+
+    if (output_capture.stderr_file) {
+        auto fd = output_capture.stderr_file->fd();
+        view_capture->stderr_notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
+        view_capture->stderr_notifier->on_activation = [fd, &capture = *view_capture]() {
+            char buffer[4096];
+            auto nread = read(fd, buffer, sizeof(buffer));
+            if (nread > 0)
+                capture.stderr_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+        };
+    }
+
+    s_output_captures.set(&view, move(view_capture));
+}
+
+static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
+{
+    auto& app = Application::the();
+    if (app.results_directory.is_empty())
+        return {};
+
+    // Create the directory structure for this test's output
+    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.relative_path)).string();
+    TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
+
+    auto base_path = LexicalPath::join(app.results_directory, test.relative_path).string();
+
+    // Write stdout if not empty
+    if (!capture.stdout_buffer.is_empty()) {
+        auto stdout_path = ByteString::formatted("{}.stdout.txt", base_path);
+        auto file = TRY(Core::File::open(stdout_path, Core::File::OpenMode::Write));
+        TRY(file->write_until_depleted(capture.stdout_buffer.string_view().bytes()));
+    }
+
+    // Write stderr if not empty
+    if (!capture.stderr_buffer.is_empty()) {
+        auto stderr_path = ByteString::formatted("{}.stderr.txt", base_path);
+        auto file = TRY(Core::File::open(stderr_path, Core::File::OpenMode::Write));
+        TRY(file->write_until_depleted(capture.stderr_buffer.string_view().bytes()));
+    }
+
+    // Clear buffers for next test
+    capture.stdout_buffer.clear();
+    capture.stderr_buffer.clear();
+
+    return {};
+}
 
 static constexpr StringView test_result_to_string(TestResult result)
 {
@@ -188,6 +395,128 @@ if (!hasTestWaitClass()) {{
 static auto wait_for_crash_test_completion = generate_wait_for_test_string("test-wait"sv);
 static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv);
 
+static ByteString test_mode_to_string(TestMode mode)
+{
+    switch (mode) {
+    case TestMode::Layout:
+        return "Layout"sv;
+    case TestMode::Text:
+        return "Text"sv;
+    case TestMode::Ref:
+        return "Ref"sv;
+    case TestMode::Crash:
+        return "Crash"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static ErrorOr<void> generate_result_files(Vector<TestCompletion> const& non_passing_tests)
+{
+    auto& app = Application::the();
+    if (app.results_directory.is_empty())
+        return {};
+
+    // Count results
+    size_t fail_count = 0;
+    size_t timeout_count = 0;
+    size_t crashed_count = 0;
+    size_t skipped_count = 0;
+    for (auto const& result : non_passing_tests) {
+        switch (result.result) {
+        case TestResult::Fail:
+            ++fail_count;
+            break;
+        case TestResult::Timeout:
+            ++timeout_count;
+            break;
+        case TestResult::Crashed:
+            ++crashed_count;
+            break;
+        case TestResult::Skipped:
+            ++skipped_count;
+            break;
+        default:
+            break;
+        }
+    }
+
+    // Write results.js (as JS to avoid fetch CORS issues with file://)
+    StringBuilder js;
+    js.append("const RESULTS_DATA = {\n"sv);
+    js.appendff("  \"summary\": {{ \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
+        fail_count, timeout_count, crashed_count, skipped_count);
+    js.append("  \"tests\": [\n"sv);
+
+    bool first = true;
+    for (auto const& result : non_passing_tests) {
+        if (result.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
+            continue;
+
+        if (!first)
+            js.append(",\n"sv);
+        first = false;
+
+        auto base_path = LexicalPath::join(app.results_directory, result.test.relative_path).string();
+        bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.txt", base_path));
+        bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.txt", base_path));
+
+        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {} }}",
+            result.test.relative_path,
+            test_result_to_string(result.result),
+            test_mode_to_string(result.test.mode),
+            has_stdout ? "true" : "false",
+            has_stderr ? "true" : "false");
+    }
+
+    js.append("\n  ]\n};\n"sv);
+
+    auto js_path = LexicalPath::join(app.results_directory, "results.js"sv).string();
+    auto js_file = TRY(Core::File::open(js_path, Core::File::OpenMode::Write));
+    TRY(js_file->write_until_depleted(js.string_view().bytes()));
+
+    // Copy index.html from source tree
+    auto source_html_path = LexicalPath::join(app.test_root_path, "test-web/results-index.html"sv).string();
+    auto dest_html_path = LexicalPath::join(app.results_directory, "index.html"sv).string();
+    (void)FileSystem::remove(dest_html_path, FileSystem::RecursionMode::Disallowed);
+    TRY(FileSystem::copy_file_or_directory(dest_html_path, source_html_path));
+
+    return {};
+}
+
+static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer const& expectation)
+{
+    auto& app = Application::the();
+    if (app.results_directory.is_empty())
+        return {};
+
+    // Create the directory structure
+    auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.relative_path)).string();
+    TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
+
+    auto base_path = LexicalPath::join(app.results_directory, test.relative_path).string();
+
+    // Write expected output
+    auto expected_path = ByteString::formatted("{}.expected.txt", base_path);
+    auto expected_file = TRY(Core::File::open(expected_path, Core::File::OpenMode::Write));
+    TRY(expected_file->write_until_depleted(expectation));
+
+    // Write actual output
+    auto actual_path = ByteString::formatted("{}.actual.txt", base_path);
+    auto actual_file = TRY(Core::File::open(actual_path, Core::File::OpenMode::Write));
+    TRY(actual_file->write_until_depleted(test.text.bytes()));
+
+    // Write diff
+    auto diff_path = ByteString::formatted("{}.diff.txt", base_path);
+    auto diff_file = TRY(Core::File::open(diff_path, Core::File::OpenMode::Write));
+
+    auto hunks = TRY(Diff::from_text(expectation, test.text, 3));
+    TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *diff_file));
+    for (auto const& hunk : hunks)
+        TRY(Diff::write_unified(hunk, *diff_file, Diff::ColorOutput::No));
+
+    return {};
+}
+
 static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
@@ -232,19 +561,25 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
             return TestResult::Pass;
         }
 
-        auto const color_output = TRY(Core::System::isatty(STDOUT_FILENO)) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
+        // Write diff to results directory if specified
+        TRY(write_test_diff_to_results(test, expectation));
 
-        if (color_output == Diff::ColorOutput::Yes)
-            outln("\n\033[33;1mTest failed\033[0m: {}", url);
-        else
-            outln("\nTest failed: {}", url);
+        // Only output to stdout if not using results directory (for CI compatibility)
+        if (Application::the().results_directory.is_empty()) {
+            auto const color_output = TRY(Core::System::isatty(STDOUT_FILENO)) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
 
-        auto hunks = TRY(Diff::from_text(expectation, test.text, 3));
-        auto out = TRY(Core::File::standard_output());
+            if (color_output == Diff::ColorOutput::Yes)
+                outln("\n\033[33;1mTest failed\033[0m: {}", url);
+            else
+                outln("\nTest failed: {}", url);
 
-        TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *out));
-        for (auto const& hunk : hunks)
-            TRY(Diff::write_unified(hunk, *out, color_output));
+            auto hunks = TRY(Diff::from_text(expectation, test.text, 3));
+            auto out = TRY(Core::File::standard_output());
+
+            TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *out));
+            for (auto const& hunk : hunks)
+                TRY(Diff::write_unified(hunk, *out, color_output));
+        }
 
         return TestResult::Fail;
     };
@@ -344,23 +679,34 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
         if (should_match == screenshot_matches)
             return TestResult::Pass;
 
-        if (Application::the().dump_failed_ref_tests) {
+        auto& app = Application::the();
+
+        auto dump_screenshot = [](Gfx::Bitmap const& bitmap, StringView path) -> ErrorOr<void> {
+            auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+            auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
+            TRY(screenshot_file->write_until_depleted(encoded_data));
+            return {};
+        };
+
+        // Save to results directory if specified
+        if (!app.results_directory.is_empty()) {
+            auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.relative_path)).string();
+            TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
+
+            auto base_path = LexicalPath::join(app.results_directory, test.relative_path).string();
+            TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("{}.actual.png", base_path)));
+            TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("{}.expected.png", base_path)));
+        } else if (app.dump_failed_ref_tests) {
             warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", test.relative_path);
-
-            auto dump_screenshot = [&](Gfx::Bitmap const& bitmap, StringView path) -> ErrorOr<void> {
-                auto screenshot_file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
-                auto encoded_data = TRY(Gfx::PNGWriter::encode(bitmap));
-                TRY(screenshot_file->write_until_depleted(encoded_data));
-
-                outln("\033[33;1mDumped {}\033[0m", TRY(FileSystem::real_path(path)));
-                return {};
-            };
 
             TRY(Core::Directory::create("test-dumps"sv, Core::Directory::CreateDirectories::Yes));
 
             auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
             TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
             TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
+
+            outln("\033[33;1mDumped test-dumps/{}.png\033[0m", title);
+            outln("\033[33;1mDumped test-dumps/{}-ref.png\033[0m", title);
         }
 
         return TestResult::Fail;
@@ -616,15 +962,56 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return loaded_web_views == concurrency;
     });
 
+    // Set up output capture for each view if results directory is specified
+    for (auto& view : views)
+        setup_output_capture_for_view(*view);
+
+    // Initialize live terminal display
+    s_is_tty = TRY(Core::System::isatty(STDOUT_FILENO));
+    if (s_is_tty) {
+        update_terminal_size();
+
+#ifndef AK_OS_WINDOWS
+        // Handle terminal resize
+        Core::EventLoop::register_signal(SIGWINCH, [](int) {
+            Core::EventLoop::current().deferred_invoke([] {
+                update_terminal_size();
+            });
+        });
+#endif
+
+        // Initialize view display states
+        s_view_display_states.resize(concurrency);
+        for (auto [i, view] : enumerate(views)) {
+            s_view_display_states[i].pid = view->web_content_pid();
+            s_view_display_states[i].active = false;
+        }
+
+        // Start 1-second timer for display updates
+        s_display_timer = Core::Timer::create_repeating(1000, [] {
+            render_live_display();
+        });
+        s_display_timer->start();
+    }
+
     size_t pass_count = 0;
     size_t fail_count = 0;
     size_t timeout_count = 0;
     size_t crashed_count = 0;
     size_t skipped_count = 0;
 
-    // Keep clearing and reusing the same line if stdout is a TTY.
-    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
+    // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
+    bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION;
     outln("Running {} tests...", tests.size());
+
+    // Set up display area for live display
+    if (use_live_display) {
+        s_total_tests = tests.size();
+        s_live_display_lines = concurrency + 2; // +1 for empty line, +1 for progress bar
+        for (size_t i = 0; i < s_live_display_lines; ++i)
+            outln();
+        (void)fflush(stdout);
+    }
 
     s_all_tests_complete = Core::Promise<Empty>::construct();
     auto tests_remaining = tests.size();
@@ -641,18 +1028,29 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         auto run_next_test = [&, view_id]() {
             auto index = current_test++;
-            if (index >= tests.size())
+            if (index >= tests.size()) {
+                // Mark this view as idle
+                if (use_live_display && view_id < s_view_display_states.size())
+                    s_view_display_states[view_id].active = false;
                 return;
+            }
 
             auto& test = tests[index];
             test.start_time = UnixDateTime::now();
             test.index = index + 1;
 
-            if (log_on_one_line) {
-                out("\33[2K\r{}/{}: {}", test.index, tests.size(), test.relative_path);
-                (void)fflush(stdout);
+            if (use_live_display) {
+                // Update view display state for live display (refresh PID in case WebContent respawned)
+                if (view_id < s_view_display_states.size()) {
+                    s_view_display_states[view_id].pid = view->web_content_pid();
+                    s_view_display_states[view_id].test_name = test.relative_path;
+                    s_view_display_states[view_id].start_time = test.start_time;
+                    s_view_display_states[view_id].active = true;
+                }
+                render_live_display();
             } else {
-                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index, digits_for_test_id, tests.size(), test.relative_path);
+                // Non-TTY mode: print each test as it starts
+                outln("{}/{}: {}", test.index, tests.size(), test.relative_path);
             }
 
             Core::deferred_invoke([&]() mutable {
@@ -678,6 +1076,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             result.test.end_time = UnixDateTime::now();
             s_test_by_view.remove(view);
 
+            // Write captured stdout/stderr to results directory
+            if (auto capture = s_output_captures.get(view); capture.has_value() && *capture)
+                (void)write_output_for_test(result.test, **capture);
+
             if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                 auto duration = result.test.end_time - result.test.start_time;
                 outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, result.test.index, digits_for_test_id, tests.size(), result.test.relative_path, duration.to_milliseconds());
@@ -701,6 +1103,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 break;
             }
 
+            ++s_completed_tests;
+
             if (result.result != TestResult::Pass)
                 non_passing_tests.append(move(result));
 
@@ -717,10 +1121,26 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     auto result_or_rejection = s_all_tests_complete->await();
 
+    // Stop the live display timer
+    if (s_display_timer) {
+        s_display_timer->stop();
+        s_display_timer = nullptr;
+    }
+
+    // Clear the live display area and move cursor back up
+    if (use_live_display) {
+        for (size_t i = 0; i < s_live_display_lines; ++i)
+            out("\033[A\033[2K"sv); // Move up and clear each line
+        out("\r"sv);
+        (void)fflush(stdout);
+
+        // Print any warnings that were deferred during live display
+        s_live_display_lines = 0;
+        print_deferred_warnings();
+    }
+
     if (result_or_rejection.is_error())
         outln("Halted; {} tests not executed.", tests_remaining);
-    else if (log_on_one_line)
-        outln("\33[2K\rDone!");
 
     outln("==========================================================");
     outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count, timeout_count, crashed_count);
@@ -758,6 +1178,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 outln("GC graph dumped to {}", path.value());
         }
     }
+
+    // Generate result files (JSON data and HTML index)
+    if (auto result = generate_result_files(non_passing_tests); result.is_error())
+        warnln("Failed to generate result files: {}", result.error());
+    else if (!app.results_directory.is_empty())
+        outln("Results written to {}", app.results_directory);
 
     return fail_count + timeout_count + crashed_count + tests_remaining;
 }
@@ -819,6 +1245,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!app->test_root_path.is_empty());
 
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+
+    // Set default results directory if not specified
+    if (app->results_directory.is_empty())
+        app->results_directory = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "test-web-results"sv).string();
+
+    app->results_directory = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->results_directory);
+    TRY(Core::Directory::create(app->results_directory, Core::Directory::CreateDirectories::Yes));
+
     TRY(app->launch_test_fixtures());
 
     return TestWeb::run_tests(theme, window_size);

@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
+#include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Transport.h>
@@ -15,6 +16,11 @@
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
+
+struct ProcessOutputCapture {
+    OwnPtr<Core::File> stdout_file;
+    OwnPtr<Core::File> stderr_file;
+};
 
 class WEBVIEW_API Process {
     AK_MAKE_NONCOPYABLE(Process);
@@ -28,7 +34,7 @@ public:
     struct ProcessAndClient;
 
     template<typename ClientType, typename... ClientArguments>
-    static ErrorOr<ProcessAndClient<ClientType>> spawn(ProcessType type, Core::ProcessSpawnOptions const& options, ClientArguments&&... client_arguments);
+    static ErrorOr<ProcessAndClient<ClientType>> spawn(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output, ClientArguments&&... client_arguments);
 
     ProcessType type() const { return m_type; }
 
@@ -45,6 +51,9 @@ public:
 
     pid_t pid() const { return m_process.pid(); }
 
+    ProcessOutputCapture& output_capture() { return m_output_capture; }
+    ProcessOutputCapture const& output_capture() const { return m_output_capture; }
+
     struct ProcessPaths {
         ByteString socket_path;
         ByteString pid_path;
@@ -57,13 +66,15 @@ private:
     struct ProcessAndIPCTransport {
         Core::Process process;
         NonnullOwnPtr<IPC::Transport> transport;
+        ProcessOutputCapture output_capture;
     };
-    static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options);
+    static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output);
 
     Core::Process m_process;
     ProcessType m_type;
     Optional<Utf16String> m_title;
     WeakPtr<IPC::ConnectionBase> m_connection;
+    ProcessOutputCapture m_output_capture;
 };
 
 template<typename ClientType>
@@ -73,12 +84,14 @@ struct Process::ProcessAndClient {
 };
 
 template<typename ClientType, typename... ClientArguments>
-ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, ClientArguments&&... client_arguments)
+ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output, ClientArguments&&... client_arguments)
 {
-    auto [core_process, transport] = TRY(spawn_and_connect_to_process(options));
+    auto [core_process, transport, output_capture] = TRY(spawn_and_connect_to_process(options, capture_output));
     auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
 
-    return ProcessAndClient<ClientType> { Process { type, client, move(core_process) }, client };
+    Process process { type, client, move(core_process) };
+    process.m_output_capture = move(output_capture);
+    return ProcessAndClient<ClientType> { move(process), client };
 }
 
 }

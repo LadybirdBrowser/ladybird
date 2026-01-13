@@ -46,7 +46,8 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             options.executable = path;
         }
 
-        auto result = WebView::Process::spawn<ClientType>(process_type, move(options), forward<ClientArguments>(client_arguments)...);
+        bool capture_output = WebView::Application::the().should_capture_web_content_output();
+        auto result = WebView::Process::spawn<ClientType>(process_type, move(options), capture_output, forward<ClientArguments>(client_arguments)...);
 
         if (!result.is_error()) {
             auto&& [process, client] = result.release_value();

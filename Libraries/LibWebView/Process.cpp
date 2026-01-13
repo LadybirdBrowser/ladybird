@@ -5,11 +5,14 @@
  */
 
 #include <LibCore/Environment.h>
+#include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibWebView/Process.h>
+
+#include <fcntl.h>
 
 #if defined(AK_OS_WINDOWS)
 #    include <AK/ScopeGuard.h>
@@ -31,7 +34,7 @@ Process::~Process()
         m_connection->shutdown();
 }
 
-ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options)
+ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output)
 {
     // TODO: Mach IPC
 
@@ -47,13 +50,45 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
     TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
 
-    auto process = TRY(Core::Process::spawn(options));
+    // Set up pipes for stdout/stderr capture if requested
+    ProcessOutputCapture output_capture;
+    Array<int, 2> stdout_pipe {};
+    Array<int, 2> stderr_pipe {};
+
+    Core::ProcessSpawnOptions spawn_options = options;
+
+    if (capture_output) {
+        stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
+        stderr_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
+
+        // Clear close-on-exec for the write ends so they're inherited by the child
+        TRY(Core::System::set_close_on_exec(stdout_pipe[1], false));
+        TRY(Core::System::set_close_on_exec(stderr_pipe[1], false));
+
+        // Add file actions to redirect stdout/stderr in the child
+        spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = stdout_pipe[1], .fd = STDOUT_FILENO });
+        spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = stderr_pipe[1], .fd = STDERR_FILENO });
+        spawn_options.file_actions.append(Core::FileAction::CloseFile { .fd = stdout_pipe[1] });
+        spawn_options.file_actions.append(Core::FileAction::CloseFile { .fd = stderr_pipe[1] });
+    }
+
+    auto process = TRY(Core::Process::spawn(spawn_options));
+
+    if (capture_output) {
+        // Close write ends in parent
+        MUST(Core::System::close(stdout_pipe[1]));
+        MUST(Core::System::close(stderr_pipe[1]));
+
+        // Wrap read ends in File objects
+        output_capture.stdout_file = TRY(Core::File::adopt_fd(stdout_pipe[0], Core::File::OpenMode::Read));
+        output_capture.stderr_file = TRY(Core::File::adopt_fd(stderr_pipe[0], Core::File::OpenMode::Read));
+    }
 
     auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
     guard_fd_0.disarm();
     TRY(ipc_socket->set_blocking(true));
 
-    return ProcessAndIPCTransport { move(process), make<IPC::Transport>(move(ipc_socket)) };
+    return ProcessAndIPCTransport { move(process), make<IPC::Transport>(move(ipc_socket)), move(output_capture) };
 }
 
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)

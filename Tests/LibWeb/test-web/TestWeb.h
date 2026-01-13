@@ -71,4 +71,8 @@ struct TestCompletion {
 
 using TestPromise = Core::Promise<TestCompletion>;
 
+// Deferred warning system - buffers warnings during live display mode
+void add_deferred_warning(ByteString message);
+void print_deferred_warnings();
+
 }
