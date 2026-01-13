@@ -82,12 +82,14 @@ public:
         }
     }
 
+private:
+    friend class ViewportPaintable;
+
     ScrollStateSnapshot snapshot() const
     {
         return ScrollStateSnapshot::create(m_scroll_frames);
     }
 
-private:
     Vector<NonnullRefPtr<ScrollFrame>> m_scroll_frames;
 };
 

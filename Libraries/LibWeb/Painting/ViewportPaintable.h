@@ -40,6 +40,7 @@ public:
     void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
 
     ScrollState const& scroll_state() const { return m_scroll_state; }
+    ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
     void set_paintable_boxes_with_auto_content_visibility(Vector<GC::Ref<PaintableBox>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
     ReadonlySpan<GC::Ref<PaintableBox>> paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
@@ -57,6 +58,7 @@ private:
 
     HashMap<GC::Ptr<PaintableBox const>, RefPtr<ClipFrame>> m_clip_state;
     ScrollState m_scroll_state;
+    ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
 
     Vector<GC::Ref<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;

@@ -2776,8 +2776,7 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
     auto& document_paintable = *document->paintable();
     Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
     document_paintable.refresh_scroll_state();
-    auto scroll_state_snapshot = document_paintable.scroll_state().snapshot();
-    scroll_state_snapshot_by_display_list.set(*display_list, move(scroll_state_snapshot));
+    scroll_state_snapshot_by_display_list.set(*display_list, document_paintable.scroll_state_snapshot());
     // Collect scroll state snapshots for each nested navigable
     document_paintable.for_each_in_inclusive_subtree_of_type<Painting::NavigableContainerViewportPaintable>([&scroll_state_snapshot_by_display_list](auto& navigable_container_paintable) {
         auto const* hosted_document = navigable_container_paintable.navigable_container().content_document_without_origin_check();
@@ -2790,8 +2789,7 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
         if (!navigable_display_list)
             return TraversalDecision::Continue;
         const_cast<DOM::Document&>(*hosted_document).paintable()->refresh_scroll_state();
-        auto navigable_scroll_state_snapshot = hosted_document->paintable()->scroll_state().snapshot();
-        scroll_state_snapshot_by_display_list.set(*navigable_display_list, move(navigable_scroll_state_snapshot));
+        scroll_state_snapshot_by_display_list.set(*navigable_display_list, hosted_document->paintable()->scroll_state_snapshot());
         return TraversalDecision::Continue;
     });
 
