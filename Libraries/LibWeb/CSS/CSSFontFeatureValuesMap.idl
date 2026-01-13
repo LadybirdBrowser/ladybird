@@ -1,0 +1,5 @@
+[Exposed=Window]
+interface CSSFontFeatureValuesMap {
+    maplike<CSSOMString, sequence<unsigned long>>;
+    undefined set(CSSOMString featureValueName, (unsigned long or sequence<unsigned long>) values);
+};
