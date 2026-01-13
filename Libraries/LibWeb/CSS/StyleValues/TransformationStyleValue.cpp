@@ -312,8 +312,13 @@ ErrorOr<FloatMatrix4x4> TransformationStyleValue::to_matrix(Optional<Painting::P
                 0, 0, 0, 1);
         break;
     case TransformFunction::Rotate3d:
-        if (count == 4)
-            return Gfx::rotation_matrix({ TRY(get_value(0)), TRY(get_value(1)), TRY(get_value(2)) }, TRY(get_value(3)));
+        if (count == 4) {
+            auto axis = FloatVector3 { TRY(get_value(0)), TRY(get_value(1)), TRY(get_value(2)) };
+            auto epsilon = 1e-5f;
+            if (axis.length() < epsilon)
+                return FloatMatrix4x4::identity();
+            return Gfx::rotation_matrix(axis.normalized(), TRY(get_value(3)));
+        }
         break;
     case TransformFunction::RotateX:
         if (count == 1)

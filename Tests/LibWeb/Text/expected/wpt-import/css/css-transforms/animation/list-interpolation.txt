@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 76 tests
 
-72 Pass
-4 Fail
+76 Pass
 Pass	CSS Transitions: property <transform> from [none] to [none] at (0.25) should be [none]
 Pass	CSS Transitions with transition: all: property <transform> from [none] to [none] at (0.25) should be [none]
 Pass	CSS Animations: property <transform> from [none] to [none] at (0.25) should be [none]
@@ -40,10 +39,10 @@ Pass	CSS Transitions: property <transform> from [rotateX(90deg) translateX(100px
 Pass	CSS Transitions with transition: all: property <transform> from [rotateX(90deg) translateX(100px)] to [rotateY(0deg) translateY(200px)] at (0.25) should be [rotateX(67.5deg) translate(75px, 50px)]
 Pass	CSS Animations: property <transform> from [rotateX(90deg) translateX(100px)] to [rotateY(0deg) translateY(200px)] at (0.25) should be [rotateX(67.5deg) translate(75px, 50px)]
 Pass	Web Animations: property <transform> from [rotateX(90deg) translateX(100px)] to [rotateY(0deg) translateY(200px)] at (0.25) should be [rotateX(67.5deg) translate(75px, 50px)]
-Fail	CSS Transitions: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
-Fail	CSS Transitions with transition: all: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
-Fail	CSS Animations: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
-Fail	Web Animations: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
+Pass	CSS Transitions: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
+Pass	CSS Transitions with transition: all: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
+Pass	CSS Animations: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
+Pass	Web Animations: property <transform> from [rotate3d(1, 1, 1, -60deg) translateX(100px)] to [rotate3d(2, 2, 2, 60deg) translateY(200px)] at (0.25) should be [rotate3d(1, 1, 1, -30deg) translate(75px, 50px)]
 Pass	CSS Transitions: property <transform> from [rotate3d(1, 0, 0, 360deg) translateX(100px)] to [rotate3d(0, 1, 0, -720deg) translateY(200px)] at (0.25) should be [rotate3d(0, 0, 1, 0deg) translate(75px, 50px)]
 Pass	CSS Transitions with transition: all: property <transform> from [rotate3d(1, 0, 0, 360deg) translateX(100px)] to [rotate3d(0, 1, 0, -720deg) translateY(200px)] at (0.25) should be [rotate3d(0, 0, 1, 0deg) translate(75px, 50px)]
 Pass	CSS Animations: property <transform> from [rotate3d(1, 0, 0, 360deg) translateX(100px)] to [rotate3d(0, 1, 0, -720deg) translateY(200px)] at (0.25) should be [rotate3d(0, 0, 1, 0deg) translate(75px, 50px)]
