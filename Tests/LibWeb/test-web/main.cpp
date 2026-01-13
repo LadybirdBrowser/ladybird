@@ -737,7 +737,7 @@ static void run_dump_test(TestWebView& view, Test& test, URL::URL const& url, in
 
 static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
-    auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
+    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_test_complete({ test, TestResult::Timeout });
     });
 
@@ -867,7 +867,7 @@ static void run_ref_test(TestWebView& view, Test& test, URL::URL const& url, int
     };
 
     view.load(url);
-    timer->start();
+    test.timeout_timer->start();
 }
 
 static void run_test(TestWebView& view, Test& test, Application& app)
