@@ -22,5 +22,6 @@ interface CSSRule {
     const unsigned short NAMESPACE_RULE = 10;
     const unsigned short COUNTER_STYLE_RULE = 11;
     const unsigned short SUPPORTS_RULE = 12;
+    const unsigned short FONT_FEATURE_VALUES_RULE = 14;
 
 };

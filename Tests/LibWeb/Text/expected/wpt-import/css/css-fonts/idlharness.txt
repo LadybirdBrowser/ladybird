@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 97 tests
 
-56 Pass
-41 Fail
+74 Pass
+23 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -65,21 +65,21 @@ Fail	CSSFontFaceRule interface: attribute style
 Pass	CSSFontFaceRule must be primary interface of cssFontFaceRule
 Pass	Stringification of cssFontFaceRule
 Pass	CSSFontFaceRule interface: cssFontFaceRule must inherit property "style" with the proper type
-Fail	CSSRule interface: cssFontFaceRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type
-Fail	CSSFontFeatureValuesRule interface: existence and properties of interface object
-Fail	CSSFontFeatureValuesRule interface object length
-Fail	CSSFontFeatureValuesRule interface object name
-Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object
-Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSFontFeatureValuesRule interface: attribute fontFamily
-Fail	CSSFontFeatureValuesRule interface: attribute annotation
-Fail	CSSFontFeatureValuesRule interface: attribute ornaments
-Fail	CSSFontFeatureValuesRule interface: attribute stylistic
-Fail	CSSFontFeatureValuesRule interface: attribute swash
-Fail	CSSFontFeatureValuesRule interface: attribute characterVariant
-Fail	CSSFontFeatureValuesRule interface: attribute styleset
-Fail	CSSFontFeatureValuesRule interface: attribute historicalForms
+Pass	CSSRule interface: cssFontFaceRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type
+Pass	CSSFontFeatureValuesRule interface: existence and properties of interface object
+Pass	CSSFontFeatureValuesRule interface object length
+Pass	CSSFontFeatureValuesRule interface object name
+Pass	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object
+Pass	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSFontFeatureValuesRule interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSFontFeatureValuesRule interface: attribute fontFamily
+Pass	CSSFontFeatureValuesRule interface: attribute annotation
+Pass	CSSFontFeatureValuesRule interface: attribute ornaments
+Pass	CSSFontFeatureValuesRule interface: attribute stylistic
+Pass	CSSFontFeatureValuesRule interface: attribute swash
+Pass	CSSFontFeatureValuesRule interface: attribute characterVariant
+Pass	CSSFontFeatureValuesRule interface: attribute styleset
+Pass	CSSFontFeatureValuesRule interface: attribute historicalForms
 Pass	CSSFontFeatureValuesMap interface: existence and properties of interface object
 Pass	CSSFontFeatureValuesMap interface object length
 Pass	CSSFontFeatureValuesMap interface object name
@@ -98,6 +98,6 @@ Fail	CSSFontPaletteValuesRule interface: attribute name
 Fail	CSSFontPaletteValuesRule interface: attribute fontFamily
 Fail	CSSFontPaletteValuesRule interface: attribute basePalette
 Fail	CSSFontPaletteValuesRule interface: attribute overrideColors
-Fail	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface object
-Fail	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface prototype object
-Fail	CSSRule interface: cssRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type
+Pass	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface object
+Pass	CSSRule interface: constant FONT_FEATURE_VALUES_RULE on interface prototype object
+Pass	CSSRule interface: cssRule must inherit property "FONT_FEATURE_VALUES_RULE" with the proper type

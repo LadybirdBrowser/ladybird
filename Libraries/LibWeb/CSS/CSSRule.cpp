@@ -103,6 +103,7 @@ FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
         case Type::Style:
         case Type::Media:
         case Type::FontFace:
+        case Type::FontFeatureValues:
         case Type::Keyframes:
         case Type::Keyframe:
         case Type::Namespace:

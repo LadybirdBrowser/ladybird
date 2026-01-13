@@ -247,6 +247,7 @@ class CSSDescriptors;
 class CSSFontFaceDescriptors;
 class CSSFontFaceRule;
 class CSSFontFeatureValuesMap;
+class CSSFontFeatureValuesRule;
 class CSSGroupingRule;
 class CSSImageValue;
 class CSSImportRule;
