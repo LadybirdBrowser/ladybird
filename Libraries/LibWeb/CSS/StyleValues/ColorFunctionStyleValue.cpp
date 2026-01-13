@@ -154,7 +154,7 @@ void ColorFunctionStyleValue::serialize(StringBuilder& builder, SerializationMod
     builder.append(')');
 }
 
-Optional<Gfx::Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto properties = resolve_properties(color_resolution_context.calculation_resolution_context);
 
@@ -167,33 +167,33 @@ Optional<Gfx::Color> ColorFunctionStyleValue::to_color(ColorResolutionContext co
     auto c3 = channels[2];
 
     if (color_type() == ColorType::A98RGB)
-        return Gfx::Color::from_a98rgb(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_a98rgb(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::DisplayP3)
-        return Gfx::Color::from_display_p3(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_display_p3(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::DisplayP3Linear)
-        return Gfx::Color::from_linear_display_p3(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_linear_display_p3(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::sRGB) {
         auto const to_u8 = [](float c) -> u8 { return round_to<u8>(clamp(255 * c, 0, 255)); };
-        return Gfx::Color(to_u8(c1), to_u8(c2), to_u8(c3), to_u8(alpha_val));
+        return CSS::Color { Gfx::Color(to_u8(c1), to_u8(c2), to_u8(c3), to_u8(alpha_val)), *this };
     }
 
     if (color_type() == ColorType::sRGBLinear)
-        return Gfx::Color::from_linear_srgb(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_linear_srgb(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::ProPhotoRGB)
-        return Gfx::Color::from_pro_photo_rgb(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_pro_photo_rgb(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::Rec2020)
-        return Gfx::Color::from_rec2020(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_rec2020(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::XYZD50)
-        return Gfx::Color::from_xyz50(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_xyz50(c1, c2, c3, alpha_val), *this };
 
     if (color_type() == ColorType::XYZD65)
-        return Gfx::Color::from_xyz65(c1, c2, c3, alpha_val);
+        return CSS::Color { Gfx::Color::from_xyz65(c1, c2, c3, alpha_val), *this };
 
     VERIFY_NOT_REACHED();
 }

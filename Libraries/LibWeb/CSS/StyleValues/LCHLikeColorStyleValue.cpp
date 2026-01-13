@@ -27,7 +27,7 @@ bool LCHLikeColorStyleValue::equals(StyleValue const& other) const
     return m_properties == other_oklch_like.m_properties;
 }
 
-Optional<Gfx::Color> LCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> LCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto raw_l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
     auto c_val = resolve_with_reference_value(m_properties.c, 150, color_resolution_context.calculation_resolution_context);
@@ -40,7 +40,7 @@ Optional<Gfx::Color> LCHColorStyleValue::to_color(ColorResolutionContext color_r
     auto l_val = clamp(raw_l_val.value(), 0, 100);
     auto h_val = AK::to_radians(raw_h_val.value());
 
-    return Gfx::Color::from_lab(l_val, c_val.value() * cos(h_val), c_val.value() * sin(h_val), alpha_val.value());
+    return CSS::Color { Gfx::Color::from_lab(l_val, c_val.value() * cos(h_val), c_val.value() * sin(h_val), alpha_val.value()), *this };
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch
@@ -61,7 +61,7 @@ void LCHColorStyleValue::serialize(StringBuilder& builder, SerializationMode mod
     builder.append(')');
 }
 
-Optional<Gfx::Color> OKLCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> OKLCHColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto raw_l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
     auto raw_c_val = resolve_with_reference_value(m_properties.c, 0.4, color_resolution_context.calculation_resolution_context);
@@ -75,7 +75,7 @@ Optional<Gfx::Color> OKLCHColorStyleValue::to_color(ColorResolutionContext color
     auto c_val = max(raw_c_val.value(), 0);
     auto h_val = AK::to_radians(raw_h_val.value());
 
-    return Gfx::Color::from_oklab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val.value());
+    return CSS::Color { Gfx::Color::from_oklab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val.value()), *this };
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch

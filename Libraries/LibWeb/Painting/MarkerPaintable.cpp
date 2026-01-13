@@ -54,7 +54,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
     float top = device_rect.y().value();
     float bottom = top + device_rect.height().value();
 
-    auto color = computed_values().color();
+    auto color = computed_values().color().resolved();
 
     if (auto text = layout_box().text(); text.has_value()) {
         // FIXME: This should use proper text layout logic!

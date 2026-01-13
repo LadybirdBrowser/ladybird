@@ -17,7 +17,7 @@ public:
     static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(StringView color_space, ValueComparingNonnullRefPtr<StyleValue const> c1, ValueComparingNonnullRefPtr<StyleValue const> c2, ValueComparingNonnullRefPtr<StyleValue const> c3, ValueComparingRefPtr<StyleValue const> alpha = {});
 
     virtual bool equals(StyleValue const&) const override;
-    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     virtual bool is_color_function() const override { return true; }

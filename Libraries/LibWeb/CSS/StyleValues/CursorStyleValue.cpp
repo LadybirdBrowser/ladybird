@@ -56,7 +56,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
     CacheKey cache_key {
         .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-        .current_color = layout_node.computed_values().color(),
+        .current_color = layout_node.computed_values().color().resolved(),
     };
 
     // Create a bitmap if needed.

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,7 @@
 #include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/Color.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
@@ -136,11 +137,10 @@ bool KeywordStyleValue::has_color() const
     return is_color(keyword());
 }
 
-Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
-    if (keyword() == Keyword::Currentcolor) {
-        return color_resolution_context.current_color.value_or(Gfx::Color::Black);
-    }
+    if (keyword() == Keyword::Currentcolor)
+        return color_resolution_context.current_color.value_or(InitialValues::color());
 
     PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
 
@@ -149,9 +149,9 @@ Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_re
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
     case Keyword::Accentcolor:
-        return SystemColor::accent_color(scheme);
+        return CSS::Color { SystemColor::accent_color(scheme), *this };
     case Keyword::Accentcolortext:
-        return SystemColor::accent_color_text(scheme);
+        return CSS::Color { SystemColor::accent_color_text(scheme), *this };
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
     case Keyword::Inactiveborder:
@@ -160,14 +160,14 @@ Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_re
     case Keyword::Threedlightshadow:
     case Keyword::Threedshadow:
     case Keyword::Windowframe:
-        return SystemColor::button_border(scheme);
+        return CSS::Color { SystemColor::button_border(scheme), *this };
     case Keyword::Buttonface:
     case Keyword::Buttonhighlight:
     case Keyword::Buttonshadow:
     case Keyword::Threedface:
-        return SystemColor::button_face(scheme);
+        return CSS::Color { SystemColor::button_face(scheme), *this };
     case Keyword::Buttontext:
-        return SystemColor::button_text(scheme);
+        return CSS::Color { SystemColor::button_text(scheme), *this };
     case Keyword::Canvas:
     case Keyword::Appworkspace:
     case Keyword::Background:
@@ -176,54 +176,54 @@ Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_re
     case Keyword::Menu:
     case Keyword::Scrollbar:
     case Keyword::Window:
-        return SystemColor::canvas(scheme);
+        return CSS::Color { SystemColor::canvas(scheme), *this };
     case Keyword::Canvastext:
     case Keyword::Activecaption:
     case Keyword::Captiontext:
     case Keyword::Infotext:
     case Keyword::Menutext:
     case Keyword::Windowtext:
-        return SystemColor::canvas_text(scheme);
+        return CSS::Color { SystemColor::canvas_text(scheme), *this };
     case Keyword::Field:
-        return SystemColor::field(scheme);
+        return CSS::Color { SystemColor::field(scheme), *this };
     case Keyword::Fieldtext:
-        return SystemColor::field_text(scheme);
+        return CSS::Color { SystemColor::field_text(scheme), *this };
     case Keyword::Graytext:
     case Keyword::Inactivecaptiontext:
-        return SystemColor::gray_text(scheme);
+        return CSS::Color { SystemColor::gray_text(scheme), *this };
     case Keyword::Highlight:
-        return SystemColor::highlight(scheme);
+        return CSS::Color { SystemColor::highlight(scheme), *this };
     case Keyword::Highlighttext:
-        return SystemColor::highlight_text(scheme);
+        return CSS::Color { SystemColor::highlight_text(scheme), *this };
     case Keyword::Mark:
-        return SystemColor::mark(scheme);
+        return CSS::Color { SystemColor::mark(scheme), *this };
     case Keyword::Marktext:
-        return SystemColor::mark_text(scheme);
+        return CSS::Color { SystemColor::mark_text(scheme), *this };
     case Keyword::Selecteditem:
-        return SystemColor::selected_item(scheme);
+        return CSS::Color { SystemColor::selected_item(scheme), *this };
     case Keyword::Selecteditemtext:
-        return SystemColor::selected_item_text(scheme);
+        return CSS::Color { SystemColor::selected_item_text(scheme), *this };
     case Keyword::LibwebButtonfacedisabled:
-        return SystemColor::button_face(scheme).with_alpha(128);
+        return CSS::Color { SystemColor::button_face(scheme).with_alpha(128), *this };
     case Keyword::LibwebButtonfacehover:
-        return SystemColor::button_face(scheme).darkened(0.8f);
+        return CSS::Color { SystemColor::button_face(scheme).darkened(0.8f), *this };
     default:
         break;
     }
 
     if (!color_resolution_context.document) {
         // FIXME: Can't resolve palette colors without a document.
-        return Gfx::Color::Black;
+        return CSS::Color { Gfx::Color::Black, *this };
     }
 
     switch (keyword()) {
     case Keyword::LibwebLink:
     case Keyword::Linktext:
-        return color_resolution_context.document->normal_link_color().value_or(SystemColor::link_text(scheme));
+        return CSS::Color { color_resolution_context.document->normal_link_color().value_or(SystemColor::link_text(scheme)), *this };
     case Keyword::Visitedtext:
-        return color_resolution_context.document->visited_link_color().value_or(SystemColor::visited_text(scheme));
+        return CSS::Color { color_resolution_context.document->visited_link_color().value_or(SystemColor::visited_text(scheme)), *this };
     case Keyword::Activetext:
-        return color_resolution_context.document->active_link_color().value_or(SystemColor::active_text(scheme));
+        return CSS::Color { color_resolution_context.document->active_link_color().value_or(SystemColor::active_text(scheme)), *this };
     default:
         break;
     }
@@ -231,113 +231,113 @@ Optional<Gfx::Color> KeywordStyleValue::to_color(ColorResolutionContext color_re
     auto palette = color_resolution_context.document->page().palette();
     switch (keyword()) {
     case Keyword::LibwebPaletteDesktopBackground:
-        return palette.color(ColorRole::DesktopBackground);
+        return CSS::Color { palette.color(ColorRole::DesktopBackground), *this };
     case Keyword::LibwebPaletteActiveWindowBorder1:
-        return palette.color(ColorRole::ActiveWindowBorder1);
+        return CSS::Color { palette.color(ColorRole::ActiveWindowBorder1), *this };
     case Keyword::LibwebPaletteActiveWindowBorder2:
-        return palette.color(ColorRole::ActiveWindowBorder2);
+        return CSS::Color { palette.color(ColorRole::ActiveWindowBorder2), *this };
     case Keyword::LibwebPaletteActiveWindowTitle:
-        return palette.color(ColorRole::ActiveWindowTitle);
+        return CSS::Color { palette.color(ColorRole::ActiveWindowTitle), *this };
     case Keyword::LibwebPaletteInactiveWindowBorder1:
-        return palette.color(ColorRole::InactiveWindowBorder1);
+        return CSS::Color { palette.color(ColorRole::InactiveWindowBorder1), *this };
     case Keyword::LibwebPaletteInactiveWindowBorder2:
-        return palette.color(ColorRole::InactiveWindowBorder2);
+        return CSS::Color { palette.color(ColorRole::InactiveWindowBorder2), *this };
     case Keyword::LibwebPaletteInactiveWindowTitle:
-        return palette.color(ColorRole::InactiveWindowTitle);
+        return CSS::Color { palette.color(ColorRole::InactiveWindowTitle), *this };
     case Keyword::LibwebPaletteMovingWindowBorder1:
-        return palette.color(ColorRole::MovingWindowBorder1);
+        return CSS::Color { palette.color(ColorRole::MovingWindowBorder1), *this };
     case Keyword::LibwebPaletteMovingWindowBorder2:
-        return palette.color(ColorRole::MovingWindowBorder2);
+        return CSS::Color { palette.color(ColorRole::MovingWindowBorder2), *this };
     case Keyword::LibwebPaletteMovingWindowTitle:
-        return palette.color(ColorRole::MovingWindowTitle);
+        return CSS::Color { palette.color(ColorRole::MovingWindowTitle), *this };
     case Keyword::LibwebPaletteHighlightWindowBorder1:
-        return palette.color(ColorRole::HighlightWindowBorder1);
+        return CSS::Color { palette.color(ColorRole::HighlightWindowBorder1), *this };
     case Keyword::LibwebPaletteHighlightWindowBorder2:
-        return palette.color(ColorRole::HighlightWindowBorder2);
+        return CSS::Color { palette.color(ColorRole::HighlightWindowBorder2), *this };
     case Keyword::LibwebPaletteHighlightWindowTitle:
-        return palette.color(ColorRole::HighlightWindowTitle);
+        return CSS::Color { palette.color(ColorRole::HighlightWindowTitle), *this };
     case Keyword::LibwebPaletteMenuStripe:
-        return palette.color(ColorRole::MenuStripe);
+        return CSS::Color { palette.color(ColorRole::MenuStripe), *this };
     case Keyword::LibwebPaletteMenuBase:
-        return palette.color(ColorRole::MenuBase);
+        return CSS::Color { palette.color(ColorRole::MenuBase), *this };
     case Keyword::LibwebPaletteMenuBaseText:
-        return palette.color(ColorRole::MenuBaseText);
+        return CSS::Color { palette.color(ColorRole::MenuBaseText), *this };
     case Keyword::LibwebPaletteMenuSelection:
-        return palette.color(ColorRole::MenuSelection);
+        return CSS::Color { palette.color(ColorRole::MenuSelection), *this };
     case Keyword::LibwebPaletteMenuSelectionText:
-        return palette.color(ColorRole::MenuSelectionText);
+        return CSS::Color { palette.color(ColorRole::MenuSelectionText), *this };
     case Keyword::LibwebPaletteWindow:
-        return palette.color(ColorRole::Window);
+        return CSS::Color { palette.color(ColorRole::Window), *this };
     case Keyword::LibwebPaletteWindowText:
-        return palette.color(ColorRole::WindowText);
+        return CSS::Color { palette.color(ColorRole::WindowText), *this };
     case Keyword::LibwebPaletteButton:
-        return palette.color(ColorRole::Button);
+        return CSS::Color { palette.color(ColorRole::Button), *this };
     case Keyword::LibwebPaletteButtonText:
-        return palette.color(ColorRole::ButtonText);
+        return CSS::Color { palette.color(ColorRole::ButtonText), *this };
     case Keyword::LibwebPaletteBase:
-        return palette.color(ColorRole::Base);
+        return CSS::Color { palette.color(ColorRole::Base), *this };
     case Keyword::LibwebPaletteBaseText:
-        return palette.color(ColorRole::BaseText);
+        return CSS::Color { palette.color(ColorRole::BaseText), *this };
     case Keyword::LibwebPaletteThreedHighlight:
-        return palette.color(ColorRole::ThreedHighlight);
+        return CSS::Color { palette.color(ColorRole::ThreedHighlight), *this };
     case Keyword::LibwebPaletteThreedShadow1:
-        return palette.color(ColorRole::ThreedShadow1);
+        return CSS::Color { palette.color(ColorRole::ThreedShadow1), *this };
     case Keyword::LibwebPaletteThreedShadow2:
-        return palette.color(ColorRole::ThreedShadow2);
+        return CSS::Color { palette.color(ColorRole::ThreedShadow2), *this };
     case Keyword::LibwebPaletteHoverHighlight:
-        return palette.color(ColorRole::HoverHighlight);
+        return CSS::Color { palette.color(ColorRole::HoverHighlight), *this };
     case Keyword::LibwebPaletteSelection:
-        return palette.color(ColorRole::Selection);
+        return CSS::Color { palette.color(ColorRole::Selection), *this };
     case Keyword::LibwebPaletteSelectionText:
-        return palette.color(ColorRole::SelectionText);
+        return CSS::Color { palette.color(ColorRole::SelectionText), *this };
     case Keyword::LibwebPaletteInactiveSelection:
-        return palette.color(ColorRole::InactiveSelection);
+        return CSS::Color { palette.color(ColorRole::InactiveSelection), *this };
     case Keyword::LibwebPaletteInactiveSelectionText:
-        return palette.color(ColorRole::InactiveSelectionText);
+        return CSS::Color { palette.color(ColorRole::InactiveSelectionText), *this };
     case Keyword::LibwebPaletteRubberBandFill:
-        return palette.color(ColorRole::RubberBandFill);
+        return CSS::Color { palette.color(ColorRole::RubberBandFill), *this };
     case Keyword::LibwebPaletteRubberBandBorder:
-        return palette.color(ColorRole::RubberBandBorder);
+        return CSS::Color { palette.color(ColorRole::RubberBandBorder), *this };
     case Keyword::LibwebPaletteLink:
-        return palette.color(ColorRole::Link);
+        return CSS::Color { palette.color(ColorRole::Link), *this };
     case Keyword::LibwebPaletteActiveLink:
-        return palette.color(ColorRole::ActiveLink);
+        return CSS::Color { palette.color(ColorRole::ActiveLink), *this };
     case Keyword::LibwebPaletteVisitedLink:
-        return palette.color(ColorRole::VisitedLink);
+        return CSS::Color { palette.color(ColorRole::VisitedLink), *this };
     case Keyword::LibwebPaletteRuler:
-        return palette.color(ColorRole::Ruler);
+        return CSS::Color { palette.color(ColorRole::Ruler), *this };
     case Keyword::LibwebPaletteRulerBorder:
-        return palette.color(ColorRole::RulerBorder);
+        return CSS::Color { palette.color(ColorRole::RulerBorder), *this };
     case Keyword::LibwebPaletteRulerActiveText:
-        return palette.color(ColorRole::RulerActiveText);
+        return CSS::Color { palette.color(ColorRole::RulerActiveText), *this };
     case Keyword::LibwebPaletteRulerInactiveText:
-        return palette.color(ColorRole::RulerInactiveText);
+        return CSS::Color { palette.color(ColorRole::RulerInactiveText), *this };
     case Keyword::LibwebPaletteTextCursor:
-        return palette.color(ColorRole::TextCursor);
+        return CSS::Color { palette.color(ColorRole::TextCursor), *this };
     case Keyword::LibwebPaletteFocusOutline:
-        return palette.color(ColorRole::FocusOutline);
+        return CSS::Color { palette.color(ColorRole::FocusOutline), *this };
     case Keyword::LibwebPaletteSyntaxComment:
-        return palette.color(ColorRole::SyntaxComment);
+        return CSS::Color { palette.color(ColorRole::SyntaxComment), *this };
     case Keyword::LibwebPaletteSyntaxNumber:
-        return palette.color(ColorRole::SyntaxNumber);
+        return CSS::Color { palette.color(ColorRole::SyntaxNumber), *this };
     case Keyword::LibwebPaletteSyntaxString:
-        return palette.color(ColorRole::SyntaxString);
+        return CSS::Color { palette.color(ColorRole::SyntaxString), *this };
     case Keyword::LibwebPaletteSyntaxType:
-        return palette.color(ColorRole::SyntaxType);
+        return CSS::Color { palette.color(ColorRole::SyntaxType), *this };
     case Keyword::LibwebPaletteSyntaxPunctuation:
-        return palette.color(ColorRole::SyntaxPunctuation);
+        return CSS::Color { palette.color(ColorRole::SyntaxPunctuation), *this };
     case Keyword::LibwebPaletteSyntaxOperator:
-        return palette.color(ColorRole::SyntaxOperator);
+        return CSS::Color { palette.color(ColorRole::SyntaxOperator), *this };
     case Keyword::LibwebPaletteSyntaxKeyword:
-        return palette.color(ColorRole::SyntaxKeyword);
+        return CSS::Color { palette.color(ColorRole::SyntaxKeyword), *this };
     case Keyword::LibwebPaletteSyntaxControlKeyword:
-        return palette.color(ColorRole::SyntaxControlKeyword);
+        return CSS::Color { palette.color(ColorRole::SyntaxControlKeyword), *this };
     case Keyword::LibwebPaletteSyntaxIdentifier:
-        return palette.color(ColorRole::SyntaxIdentifier);
+        return CSS::Color { palette.color(ColorRole::SyntaxIdentifier), *this };
     case Keyword::LibwebPaletteSyntaxPreprocessorStatement:
-        return palette.color(ColorRole::SyntaxPreprocessorStatement);
+        return CSS::Color { palette.color(ColorRole::SyntaxPreprocessorStatement), *this };
     case Keyword::LibwebPaletteSyntaxPreprocessorValue:
-        return palette.color(ColorRole::SyntaxPreprocessorValue);
+        return CSS::Color { palette.color(ColorRole::SyntaxPreprocessorValue), *this };
     default:
         return {};
     }

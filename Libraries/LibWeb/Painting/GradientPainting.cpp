@@ -35,7 +35,7 @@ static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& n
 
     resolved_color_stops.ensure_capacity(expanded_size);
     for (auto& stop : color_stop_list) {
-        auto resolved_stop = Gfx::ColorStop { .color = stop.color_stop.color->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(node)).value() };
+        auto resolved_stop = Gfx::ColorStop { .color = stop.color_stop.color->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(node))->resolved() };
         for (int i = 0; i < color_stop_length(stop); i++)
             resolved_color_stops.append(resolved_stop);
     }

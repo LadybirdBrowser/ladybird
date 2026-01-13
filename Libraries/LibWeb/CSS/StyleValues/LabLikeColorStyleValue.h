@@ -50,7 +50,7 @@ protected:
 
 class OKLabColorStyleValue final : public LabLikeColorStyleValue {
 public:
-    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     OKLabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
@@ -61,7 +61,7 @@ public:
 
 class LabColorStyleValue final : public LabLikeColorStyleValue {
 public:
-    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     LabColorStyleValue(Badge<LabLikeColorStyleValue>, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)

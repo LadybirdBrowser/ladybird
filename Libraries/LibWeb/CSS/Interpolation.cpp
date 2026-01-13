@@ -1470,7 +1470,7 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         Gfx::Color interpolated_color = Gfx::Color::Black;
 
         if (from_color.has_value() && to_color.has_value())
-            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
+            interpolated_color = interpolate_color(from_color->resolved(), to_color->resolved(), delta, color_syntax);
 
         auto result_shadow = ShadowStyleValue::create(
             from_shadow.shadow_type(),
@@ -1815,7 +1815,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         Gfx::Color interpolated_color = Gfx::Color::Black;
 
         if (from_color.has_value() && to_color.has_value())
-            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
+            interpolated_color = interpolate_color(from_color->resolved(), to_color->resolved(), delta, color_syntax);
 
         return ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern);
     }
@@ -2274,11 +2274,13 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     auto underlying_color = underlying_shadow.color->to_color(color_resolution_context);
                     auto animated_color = animated_shadow.color->to_color(color_resolution_context);
                     if (underlying_color.has_value() && animated_color.has_value()) {
+                        auto resolved_underlying = underlying_color->resolved();
+                        auto resolved_animated = animated_color->resolved();
                         auto accumulated = Gfx::Color(
-                            min(255, underlying_color->red() + animated_color->red()),
-                            min(255, underlying_color->green() + animated_color->green()),
-                            min(255, underlying_color->blue() + animated_color->blue()),
-                            min(255, underlying_color->alpha() + animated_color->alpha()));
+                            min(255, resolved_underlying.red() + resolved_animated.red()),
+                            min(255, resolved_underlying.green() + resolved_animated.green()),
+                            min(255, resolved_underlying.blue() + resolved_animated.blue()),
+                            min(255, resolved_underlying.alpha() + resolved_animated.alpha()));
                         accumulated_color = ColorStyleValue::create_from_color(accumulated, ColorSyntax::Legacy);
                     }
                 }

@@ -237,7 +237,7 @@ static BorderEdgePaintingInfo make_last_column_right_cell_edge(DevicePixelRect c
 static CSS::BorderData css_border_data_from_device_border_data(DeviceBorderData const& device_border_data)
 {
     return CSS::BorderData {
-        .color = device_border_data.color,
+        .color = CSS::Color { device_border_data.color },
         .line_style = device_border_data.line_style,
         .width = device_border_data.width.value(),
     };
@@ -337,7 +337,7 @@ static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(P
 {
     return DeviceBorderDataWithElementKind {
         .border_data = {
-            .color = border_data_with_element_kind.border_data.color,
+            .color = border_data_with_element_kind.border_data.color.resolved(),
             .line_style = border_data_with_element_kind.border_data.line_style,
             .width = context.rounded_device_pixels(border_data_with_element_kind.border_data.width),
         },

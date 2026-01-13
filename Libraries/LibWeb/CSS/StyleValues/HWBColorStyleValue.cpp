@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-Optional<Gfx::Color> HWBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> HWBColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto h_val = resolve_hue(m_properties.h, color_resolution_context.calculation_resolution_context);
     auto raw_w_value = resolve_with_reference_value(m_properties.w, 100.0, color_resolution_context.calculation_resolution_context);
@@ -30,12 +30,12 @@ Optional<Gfx::Color> HWBColorStyleValue::to_color(ColorResolutionContext color_r
             return round_to<u8>(clamp(value * 255.0f, 0.0f, 255.0f));
         };
         u8 gray = to_byte(w_val / (w_val + b_val));
-        return Gfx::Color(gray, gray, gray, to_byte(alpha_val.value()));
+        return CSS::Color { Gfx::Color(gray, gray, gray, to_byte(alpha_val.value())), *this };
     }
 
     auto value = 1 - b_val;
     auto saturation = 1 - (w_val / value);
-    return Gfx::Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value());
+    return CSS::Color { Gfx::Color::from_hsv(h_val.value(), saturation, value).with_opacity(alpha_val.value()), *this };
 }
 
 bool HWBColorStyleValue::equals(StyleValue const& other) const
@@ -53,7 +53,7 @@ bool HWBColorStyleValue::equals(StyleValue const& other) const
 void HWBColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     if (auto color = to_color({}); color.has_value()) {
-        builder.append(color->serialize_a_srgb_value());
+        builder.append(color->resolved().serialize_a_srgb_value());
         return;
     }
 

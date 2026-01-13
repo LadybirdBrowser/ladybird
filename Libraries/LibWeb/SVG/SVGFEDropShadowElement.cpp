@@ -38,7 +38,7 @@ void SVGFEDropShadowElement::visit_edges(Cell::Visitor& visitor)
 Gfx::Color SVGFEDropShadowElement::flood_color()
 {
     VERIFY(computed_properties());
-    return computed_properties()->color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::flood_color());
+    return computed_properties()->color_or_fallback(CSS::PropertyID::FloodColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::flood_color()).resolved();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty

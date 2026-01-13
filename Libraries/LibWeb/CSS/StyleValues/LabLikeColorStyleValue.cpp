@@ -26,7 +26,7 @@ bool LabLikeColorStyleValue::equals(StyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
-Optional<Gfx::Color> OKLabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> OKLabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto const l_val = resolve_with_reference_value(m_properties.l, 1.0, color_resolution_context.calculation_resolution_context);
     auto const a_val = resolve_with_reference_value(m_properties.a, 0.4, color_resolution_context.calculation_resolution_context);
@@ -36,7 +36,7 @@ Optional<Gfx::Color> OKLabColorStyleValue::to_color(ColorResolutionContext color
     if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
         return {};
 
-    return Gfx::Color::from_oklab(clamp(l_val.value(), 0, 1), a_val.value(), b_val.value(), alpha_val.value());
+    return CSS::Color { Gfx::Color::from_oklab(clamp(l_val.value(), 0, 1), a_val.value(), b_val.value(), alpha_val.value()), *this };
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
@@ -57,7 +57,7 @@ void OKLabColorStyleValue::serialize(StringBuilder& builder, SerializationMode m
     builder.append(')');
 }
 
-Optional<Gfx::Color> LabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> LabColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     auto l_val = resolve_with_reference_value(m_properties.l, 100, color_resolution_context.calculation_resolution_context);
     auto a_val = resolve_with_reference_value(m_properties.a, 125, color_resolution_context.calculation_resolution_context);
@@ -67,7 +67,7 @@ Optional<Gfx::Color> LabColorStyleValue::to_color(ColorResolutionContext color_r
     if (!l_val.has_value() || !a_val.has_value() || !b_val.has_value() || !alpha_val.has_value())
         return {};
 
-    return Gfx::Color::from_lab(clamp(l_val.value(), 0, 100), a_val.value(), b_val.value(), alpha_val.value());
+    return CSS::Color { Gfx::Color::from_lab(clamp(l_val.value(), 0, 100), a_val.value(), b_val.value(), alpha_val.value()), *this };
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-lab-lch

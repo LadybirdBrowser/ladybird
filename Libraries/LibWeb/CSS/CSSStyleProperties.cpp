@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -328,9 +328,12 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
         return KeywordStyleValue::create(Keyword::None);
 
     auto make_shadow_style_value = [shadow_type](ShadowData const& shadow) {
+        auto color_style_value = shadow.color.style_value();
+        if (!color_style_value || color_style_value->is_keyword())
+            color_style_value = ColorStyleValue::create_from_color(shadow.color.resolved(), ColorSyntax::Modern);
         return ShadowStyleValue::create(
             shadow_type,
-            ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Modern),
+            color_style_value,
             style_value_for_length_percentage(shadow.offset_x),
             style_value_for_length_percentage(shadow.offset_y),
             style_value_for_length_percentage(shadow.blur_radius),
@@ -606,17 +609,18 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
     return {};
 }
 
-static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Gfx::Color computed_color)
+static NonnullRefPtr<StyleValue const> resolve_color_style_value(Color const& computed_color)
 {
-    if (style_value.is_color_function())
-        return style_value;
-    if (style_value.is_color()) {
-        auto& color_style_value = static_cast<ColorStyleValue const&>(style_value);
-        if (first_is_one_of(color_style_value.color_type(), ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
-            return style_value;
+    if (auto style_value = computed_color.style_value()) {
+        if (style_value->is_color_function())
+            return *style_value;
+        if (style_value->is_color()) {
+            auto& color_style_value = style_value->as_color();
+            if (first_is_one_of(color_style_value.color_type(), ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
+                return *style_value;
+        }
     }
-
-    return ColorStyleValue::create_from_color(computed_color, ColorSyntax::Modern);
+    return ColorStyleValue::create_from_color(computed_color.resolved(), ColorSyntax::Modern);
 }
 
 RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(Layout::NodeWithStyle const& layout_node, PropertyID property_id) const
@@ -688,25 +692,25 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // -> A resolved value special case property like color defined in another specification
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().background_color());
+        return resolve_color_style_value(layout_node.computed_values().background_color());
     case PropertyID::BorderBottomColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_bottom().color);
+        return resolve_color_style_value(layout_node.computed_values().border_bottom().color);
     case PropertyID::BorderLeftColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_left().color);
+        return resolve_color_style_value(layout_node.computed_values().border_left().color);
     case PropertyID::BorderRightColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_right().color);
+        return resolve_color_style_value(layout_node.computed_values().border_right().color);
     case PropertyID::BorderTopColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().border_top().color);
+        return resolve_color_style_value(layout_node.computed_values().border_top().color);
     case PropertyID::BoxShadow:
         return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, layout_node.computed_values().box_shadow());
     case PropertyID::CaretColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().caret_color());
+        return resolve_color_style_value(layout_node.computed_values().caret_color());
     case PropertyID::Color:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().color());
+        return resolve_color_style_value(layout_node.computed_values().color());
     case PropertyID::OutlineColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().outline_color());
+        return resolve_color_style_value(layout_node.computed_values().outline_color());
     case PropertyID::TextDecorationColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().text_decoration_color());
+        return resolve_color_style_value(layout_node.computed_values().text_decoration_color());
         // NB: text-shadow isn't listed, but is computed the same as box-shadow.
     case PropertyID::TextShadow:
         return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.computed_values().text_shadow());
@@ -962,7 +966,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return get_computed_value(property_id);
     }
     case PropertyID::WebkitTextFillColor:
-        return resolve_color_style_value(get_computed_value(property_id), layout_node.computed_values().webkit_text_fill_color());
+        return resolve_color_style_value(layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::LetterSpacing: {
         // https://drafts.csswg.org/css-text-4/#letter-spacing-property
         // For legacy reasons, a computed letter-spacing of zero yields a resolved value (getComputedStyle() return value) of normal.

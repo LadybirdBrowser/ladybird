@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-Optional<Gfx::Color> LightDarkStyleValue::to_color(ColorResolutionContext color_resolution_context) const
+Optional<CSS::Color> LightDarkStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
     if (color_resolution_context.color_scheme == PreferredColorScheme::Dark)
         return m_properties.dark->to_color(color_resolution_context);

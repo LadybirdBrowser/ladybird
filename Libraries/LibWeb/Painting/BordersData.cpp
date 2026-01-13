@@ -13,19 +13,19 @@ BordersDataDevicePixels BordersData::to_device_pixels(DisplayListRecordingContex
 {
     return BordersDataDevicePixels {
         BorderDataDevicePixels {
-            top.color,
+            top.color.resolved(),
             top.line_style,
             context.enclosing_device_pixels(top.width).value() },
         BorderDataDevicePixels {
-            right.color,
+            right.color.resolved(),
             right.line_style,
             context.enclosing_device_pixels(right.width).value() },
         BorderDataDevicePixels {
-            bottom.color,
+            bottom.color.resolved(),
             bottom.line_style,
             context.enclosing_device_pixels(bottom.width).value() },
         BorderDataDevicePixels {
-            left.color,
+            left.color.resolved(),
             left.line_style,
             context.enclosing_device_pixels(left.width).value() }
     };

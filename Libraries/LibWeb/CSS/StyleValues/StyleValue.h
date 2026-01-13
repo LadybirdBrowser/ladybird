@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -23,6 +23,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
+#include <LibWeb/CSS/Color.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -102,7 +103,7 @@ namespace Web::CSS {
 
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
-    Optional<Gfx::Color> current_color;
+    Optional<CSS::Color> current_color;
     GC::Ptr<DOM::Document const> document;
     CalculationResolutionContext calculation_resolution_context;
 
@@ -159,7 +160,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    virtual Optional<Gfx::Color> to_color(ColorResolutionContext) const { return {}; }
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
 
     String to_string(SerializationMode) const;

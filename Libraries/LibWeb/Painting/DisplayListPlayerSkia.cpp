@@ -900,7 +900,7 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     canvas.drawRect(gutter_rect, gutter_fill_paint);
 
     auto thumb_fill_color = command.thumb_color;
-    if (command.gutter_rect.is_empty() && thumb_fill_color == CSS::InitialValues::scrollbar_color().thumb_color)
+    if (command.gutter_rect.is_empty() && thumb_fill_color == CSS::InitialValues::scrollbar_color().thumb_color.resolved())
         thumb_fill_color = thumb_fill_color.with_alpha(128);
 
     SkPaint thumb_fill_paint;

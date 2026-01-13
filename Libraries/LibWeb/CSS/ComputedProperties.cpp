@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -348,7 +348,7 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
     };
 }
 
-Gfx::Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContext color_resolution_context, Gfx::Color fallback) const
+CSS::Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContext color_resolution_context, CSS::Color fallback) const
 {
     auto const& value = property(id);
     if (!value.has_color())
@@ -904,7 +904,7 @@ TransformStyle ComputedProperties::transform_style() const
     return keyword_to_transform_style(value.to_keyword()).release_value();
 }
 
-Optional<Gfx::Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
+Optional<CSS::Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
 {
     auto const& value = property(PropertyID::AccentColor);
     if (value.has_color())
@@ -1193,7 +1193,7 @@ Float ComputedProperties::float_() const
     return keyword_to_float(value.to_keyword()).release_value();
 }
 
-Gfx::Color ComputedProperties::caret_color(Layout::NodeWithStyle const& node) const
+CSS::Color ComputedProperties::caret_color(Layout::NodeWithStyle const& node) const
 {
     auto const& value = property(PropertyID::CaretColor);
     if (value.is_keyword() && value.to_keyword() == Keyword::Auto)

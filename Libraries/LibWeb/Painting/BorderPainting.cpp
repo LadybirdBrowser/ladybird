@@ -665,7 +665,7 @@ void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& bord
     }
 }
 
-Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
+Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, CSS::Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
 {
     CSS::LineStyle line_style;
     if (outline_style == CSS::OutlineStyle::Auto) {
@@ -677,7 +677,7 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
         line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);
     }
 
-    if (outline_color.alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)
+    if (outline_color.resolved().alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)
         return {};
 
     CSS::BorderData border_data {
