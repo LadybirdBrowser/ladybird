@@ -447,11 +447,11 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
         return combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
     }
 
-    // 5. If ns2 - ns1 < 0, let sign be -1; else let sign be 1.
-    double sign = nanoseconds2 < nanoseconds1 ? -1 : 1;
+    // 5. If ns2 - ns1 < 0, let sign be 1; else let sign be -1.
+    double sign = nanoseconds2 < nanoseconds1 ? 1 : -1;
 
-    // 6. If sign = 1, let maxDayCorrection be 2; else let maxDayCorrection be 1.
-    double max_day_correction = sign == 1 ? 2 : 1;
+    // 6. If sign = -1, let maxDayCorrection be 2; else let maxDayCorrection be 1.
+    double max_day_correction = sign == -1 ? 2 : 1;
 
     // 7. Let dayCorrection be 0.
     double day_correction = 0;
@@ -459,8 +459,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
     // 8. Let timeDuration be DifferenceTime(startDateTime.[[Time]], endDateTime.[[Time]]).
     auto time_duration = difference_time(start_date_time.time, end_date_time.time);
 
-    // 9. If TimeDurationSign(timeDuration) = -sign, set dayCorrection to dayCorrection + 1.
-    if (time_duration_sign(time_duration) == -sign)
+    // 9. If TimeDurationSign(timeDuration) = sign, set dayCorrection to dayCorrection + 1.
+    if (time_duration_sign(time_duration) == sign)
         ++day_correction;
 
     // 10. Let success be false.
@@ -470,8 +470,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
 
     // 11. Repeat, while dayCorrection ≤ maxDayCorrection and success is false,
     while (day_correction <= max_day_correction && !success) {
-        // a. Let intermediateDate be AddDaysToISODate(endDateTime.[[ISODate]], dayCorrection × -sign).
-        auto intermediate_date = add_days_to_iso_date(end_date_time.iso_date, day_correction * -sign);
+        // a. Let intermediateDate be AddDaysToISODate(endDateTime.[[ISODate]], dayCorrection × sign).
+        auto intermediate_date = add_days_to_iso_date(end_date_time.iso_date, day_correction * sign);
 
         // b. Let intermediateDateTime be CombineISODateAndTimeRecord(intermediateDate, startDateTime.[[Time]]).
         intermediate_date_time = combine_iso_date_and_time_record(intermediate_date, start_date_time.time);
@@ -485,8 +485,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
         // e. Let timeSign be TimeDurationSign(timeDuration).
         auto time_sign = time_duration_sign(time_duration);
 
-        // f. If sign ≠ -timeSign, then
-        if (sign != -time_sign) {
+        // f. If sign ≠ timeSign, then
+        if (sign != time_sign) {
             // i. Set success to true.
             success = true;
         }
