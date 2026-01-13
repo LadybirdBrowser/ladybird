@@ -171,6 +171,7 @@ private:
     virtual void page_did_finish_test(String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;
+    virtual void page_did_receive_test_variant_metadata(JsonValue) override;
     virtual void page_did_set_browser_zoom(double factor) override;
     virtual void page_did_change_theme_color(Gfx::Color color) override;
     virtual void page_did_insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation const&, StringView presentation_style) override;

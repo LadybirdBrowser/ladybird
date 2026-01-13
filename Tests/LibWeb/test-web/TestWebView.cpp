@@ -55,9 +55,6 @@ void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::
 
 void TestWebView::on_test_complete(TestCompletion completion)
 {
-    completion.test.actual_screenshot.clear();
-    completion.test.expectation_screenshot.clear();
-
     m_pending_screenshot.clear();
     m_pending_dialog = Web::Page::PendingDialog::None;
     m_pending_prompt_text.clear();

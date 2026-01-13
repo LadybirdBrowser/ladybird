@@ -28,6 +28,7 @@ public:
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
 
     TestPromise& test_promise() { return *m_test_promise; }
+    void reset_test_promise() { m_test_promise = TestPromise::construct(); }
     void on_test_complete(TestCompletion);
 
 private:

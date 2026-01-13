@@ -9,6 +9,7 @@ interface Internals {
     undefined signalTestIsDone(DOMString text);
     undefined setTestTimeout(double milliseconds);
     undefined loadReferenceTestMetadata();
+    undefined loadTestVariants();
 
     DOMString setTimeZone(DOMString timeZone);
 
