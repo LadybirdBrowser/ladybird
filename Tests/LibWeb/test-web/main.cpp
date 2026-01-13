@@ -216,6 +216,8 @@ static void setup_output_capture_for_view(TestWebView& view)
             auto nread = read(fd, buffer, sizeof(buffer));
             if (nread > 0)
                 capture.stdout_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+            else
+                capture.stdout_notifier->set_enabled(false);
         };
     }
 
@@ -227,6 +229,8 @@ static void setup_output_capture_for_view(TestWebView& view)
             auto nread = read(fd, buffer, sizeof(buffer));
             if (nread > 0)
                 capture.stderr_buffer.append(StringView { buffer, static_cast<size_t>(nread) });
+            else
+                capture.stderr_notifier->set_enabled(false);
         };
     }
 
