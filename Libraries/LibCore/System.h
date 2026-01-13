@@ -35,9 +35,9 @@
 #    include <io.h>
 
 #    define O_CLOEXEC O_NOINHERIT
-#    define STDIN_FILENO _get_osfhandle(_fileno(stdin))
-#    define STDOUT_FILENO _get_osfhandle(_fileno(stdout))
-#    define STDERR_FILENO _get_osfhandle(_fileno(stderr))
+#    define STDIN_FILENO to_fd(reinterpret_cast<void*>(_get_osfhandle(_fileno(stdin))))
+#    define STDOUT_FILENO to_fd(reinterpret_cast<void*>(_get_osfhandle(_fileno(stdout))))
+#    define STDERR_FILENO to_fd(reinterpret_cast<void*>(_get_osfhandle(_fileno(stderr))))
 #    define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
 #    define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
 
