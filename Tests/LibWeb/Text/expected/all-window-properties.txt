@@ -42,6 +42,7 @@ CSSCounterStyleRule
 CSSFontFaceDescriptors
 CSSFontFaceRule
 CSSFontFeatureValuesMap
+CSSFontFeatureValuesRule
 CSSGroupingRule
 CSSImageValue
 CSSImportRule

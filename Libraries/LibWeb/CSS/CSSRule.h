@@ -36,6 +36,7 @@ public:
         Namespace = 10,
         CounterStyle = 11,
         Supports = 12,
+        FontFeatureValues = 14,
         // AD-HOC: These are not included in the spec, but we need them internally. So, their numbers are arbitrary.
         LayerBlock = 100,
         LayerStatement = 101,

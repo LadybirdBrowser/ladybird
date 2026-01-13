@@ -26,6 +26,8 @@ public:
 
     void on_map_modified_from_js(Badge<Bindings::CSSFontFeatureValuesMapPrototype>);
 
+    OrderedHashMap<FlyString, Vector<u32>> to_ordered_hash_map() const;
+
 private:
     CSSFontFeatureValuesMap(JS::Realm&, size_t max_value_count);
 

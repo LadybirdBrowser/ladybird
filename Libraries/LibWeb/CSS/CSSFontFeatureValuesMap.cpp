@@ -65,6 +65,28 @@ void CSSFontFeatureValuesMap::on_map_modified_from_js(Badge<Bindings::CSSFontFea
     // TODO: Clear the relevant caches
 }
 
+OrderedHashMap<FlyString, Vector<u32>> CSSFontFeatureValuesMap::to_ordered_hash_map() const
+{
+    OrderedHashMap<FlyString, Vector<u32>> result;
+
+    for (auto const& entry : *m_map_entries) {
+        auto key = MUST(entry.key.to_string(vm()));
+
+        auto const& array = as<JS::Array>(entry.value.as_object());
+        auto array_length = MUST(MUST(array.get(vm().names.length)).to_length(vm()));
+
+        Vector<u32> values;
+        values.ensure_capacity(array_length);
+
+        for (size_t i = 0; i < array_length; ++i)
+            values.append(MUST(array.get_without_side_effects(JS::PropertyKey { i }).to_u32(vm())));
+
+        result.set(key, values);
+    }
+
+    return result;
+}
+
 void CSSFontFeatureValuesMap::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFontFeatureValuesMap);

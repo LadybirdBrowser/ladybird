@@ -1,0 +1,14 @@
+#import <CSS/CSSRule.idl>
+#import <CSS/CSSFontFeatureValuesMap.idl>
+
+[Exposed=Window]
+interface CSSFontFeatureValuesRule : CSSRule {
+    attribute CSSOMString fontFamily;
+    readonly attribute CSSFontFeatureValuesMap annotation;
+    readonly attribute CSSFontFeatureValuesMap ornaments;
+    readonly attribute CSSFontFeatureValuesMap stylistic;
+    readonly attribute CSSFontFeatureValuesMap swash;
+    readonly attribute CSSFontFeatureValuesMap characterVariant;
+    readonly attribute CSSFontFeatureValuesMap styleset;
+    readonly attribute CSSFontFeatureValuesMap historicalForms;
+};
