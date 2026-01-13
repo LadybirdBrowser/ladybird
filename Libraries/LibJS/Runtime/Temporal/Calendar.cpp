@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -430,11 +430,11 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
         // b. Set intermediate to ? RegulateISODate(intermediate.[[Year]], intermediate.[[Month]], isoDate.[[Day]], overflow).
         auto intermediate_date = TRY(regulate_iso_date(vm, intermediate.year, intermediate.month, iso_date.day, overflow));
 
-        // c. Let d be intermediate.[[Day]] + duration.[[Days]] + 7 × duration.[[Weeks]].
-        auto day = intermediate_date.day + duration.days + (7 * duration.weeks);
+        // c. Let days be duration.[[Days]] + 7 × duration.[[Weeks]].
+        auto days = duration.days + (7 * duration.weeks);
 
-        // d. Let result be BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], d).
-        result = balance_iso_date(intermediate_date.year, intermediate_date.month, day);
+        // d. Let result be AddDaysToISODate(intermediate, days).
+        result = add_days_to_iso_date(intermediate_date, days);
     }
     // 2. Else,
     else {
