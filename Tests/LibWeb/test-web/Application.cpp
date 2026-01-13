@@ -31,6 +31,7 @@ Application::~Application()
 void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 {
     args_parser.add_option(test_root_path, "Path containing the tests to run", "test-path", 0, "path");
+    args_parser.add_option(results_directory, "Directory to store test results", "results-dir", 'R', "path");
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
     args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
@@ -96,6 +97,16 @@ ErrorOr<void> Application::launch_test_fixtures()
     }
 
     return {};
+}
+
+bool Application::should_capture_web_content_output() const
+{
+    // Capture when results_directory is set OR when stdout is a TTY (to suppress spam during live display)
+    if (!results_directory.is_empty())
+        return true;
+
+    auto is_tty = Core::System::isatty(STDOUT_FILENO);
+    return !is_tty.is_error() && is_tty.value();
 }
 
 }

@@ -5,6 +5,7 @@
  */
 
 #include "Fuzzy.h"
+#include "TestWeb.h"
 
 #include <AK/Enumerate.h>
 #include <AK/Format.h>
@@ -31,18 +32,18 @@ bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference,
         return true;
     });
     if (!fuzzy_match.has_value()) {
-        warnln("{}: Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", test_url, diff.pixel_error_count, diff.maximum_error);
+        add_deferred_warning(ByteString::formatted("{}: Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", test_url, diff.pixel_error_count, diff.maximum_error));
         return false;
     }
 
     // Apply fuzzy matching.
     auto color_error_matches = fuzzy_match->color_value_error.contains(diff.maximum_error);
     if (!color_error_matches)
-        warnln("{}: Fuzzy mismatch: maximum error {} is outside {}", test_url, diff.maximum_error, fuzzy_match->color_value_error);
+        add_deferred_warning(ByteString::formatted("{}: Fuzzy mismatch: maximum error {} is outside {}", test_url, diff.maximum_error, fuzzy_match->color_value_error));
 
     auto pixel_error_matches = fuzzy_match->pixel_error_count.contains(diff.pixel_error_count);
     if (!pixel_error_matches)
-        warnln("{}: Fuzzy mismatch: pixel error count {} is outside {}", test_url, diff.pixel_error_count, fuzzy_match->pixel_error_count);
+        add_deferred_warning(ByteString::formatted("{}: Fuzzy mismatch: pixel error count {} is outside {}", test_url, diff.pixel_error_count, fuzzy_match->pixel_error_count));
 
     return color_error_matches && pixel_error_matches;
 }

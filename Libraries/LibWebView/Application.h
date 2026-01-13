@@ -73,6 +73,8 @@ public:
 #endif
     Optional<Process&> find_process(pid_t);
 
+    virtual bool should_capture_web_content_output() const { return false; }
+
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
