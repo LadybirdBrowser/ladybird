@@ -71,6 +71,11 @@ static RefPtr<Core::Timer> s_display_timer;
 static size_t s_live_display_lines = 0;
 static size_t s_total_tests = 0;
 static size_t s_completed_tests = 0;
+static size_t s_pass_count = 0;
+static size_t s_fail_count = 0;
+static size_t s_timeout_count = 0;
+static size_t s_crashed_count = 0;
+static size_t s_skipped_count = 0;
 
 // Deferred warning system - buffers warnings during live display mode
 static Vector<ByteString> s_deferred_warnings;
@@ -105,8 +110,8 @@ static void render_live_display()
         output.append("\033[A"sv);
     output.append("\r"sv);
 
-    // Print test status lines (not counting empty line and progress bar)
-    size_t num_view_lines = s_live_display_lines - 2;
+    // Print test status lines (not counting empty lines, status counts, and progress bar)
+    size_t num_view_lines = s_live_display_lines - 4;
     for (size_t i = 0; i < num_view_lines; ++i) {
         output.append("\033[2K"sv); // Clear line
 
@@ -132,10 +137,22 @@ static void render_live_display()
         output.append("\n"sv);
     }
 
-    // Empty line separator
+    // Empty line
     output.append("\033[2K\n"sv);
 
-    // Print progress bar on the last line
+    // Status counts line (bold colored labels, plain numbers)
+    output.append("\033[2K"sv);
+    output.appendff("\033[1;32mPass:\033[0m {}, ", s_pass_count);
+    output.appendff("\033[1;31mFail:\033[0m {}, ", s_fail_count);
+    output.appendff("\033[1;90mSkipped:\033[0m {}, ", s_skipped_count);
+    output.appendff("\033[1;33mTimeout:\033[0m {}, ", s_timeout_count);
+    output.appendff("\033[1;35mCrashed:\033[0m {}", s_crashed_count);
+    output.append("\n"sv);
+
+    // Empty line
+    output.append("\033[2K\n"sv);
+
+    // Print progress bar
     output.append("\033[2K"sv);
     if (s_total_tests > 0) {
         size_t completed = s_completed_tests;
@@ -1043,11 +1060,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         s_display_timer->start();
     }
 
-    size_t pass_count = 0;
-    size_t fail_count = 0;
-    size_t timeout_count = 0;
-    size_t crashed_count = 0;
-    size_t skipped_count = 0;
+    // Reset counters for this run
+    s_pass_count = 0;
+    s_fail_count = 0;
+    s_timeout_count = 0;
+    s_crashed_count = 0;
+    s_skipped_count = 0;
+    s_completed_tests = 0;
 
     // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
     bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION;
@@ -1056,7 +1075,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     // Set up display area for live display
     if (use_live_display) {
-        s_live_display_lines = concurrency + 2; // +1 for empty line, +1 for progress bar
+        s_live_display_lines = concurrency + 4; // +1 empty, +1 status counts, +1 empty, +1 progress bar
         for (size_t i = 0; i < s_live_display_lines; ++i)
             outln();
         (void)fflush(stdout);
@@ -1139,19 +1158,19 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             switch (result.result) {
             case TestResult::Pass:
-                ++pass_count;
+                ++s_pass_count;
                 break;
             case TestResult::Fail:
-                ++fail_count;
+                ++s_fail_count;
                 break;
             case TestResult::Timeout:
-                ++timeout_count;
+                ++s_timeout_count;
                 break;
             case TestResult::Crashed:
-                ++crashed_count;
+                ++s_crashed_count;
                 break;
             case TestResult::Skipped:
-                ++skipped_count;
+                ++s_skipped_count;
                 break;
             }
 
@@ -1195,7 +1214,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         outln("Halted; {} tests not executed.", tests_remaining);
 
     outln("==========================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count, timeout_count, crashed_count);
+    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", s_pass_count, s_fail_count, s_skipped_count, s_timeout_count, s_crashed_count);
     outln("==========================================================");
 
     for (auto const& non_passing_test : non_passing_tests) {
@@ -1237,7 +1256,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     else if (!app.results_directory.is_empty())
         outln("Results: file://{}/index.html", app.results_directory);
 
-    return fail_count + timeout_count + crashed_count + tests_remaining;
+    return s_fail_count + s_timeout_count + s_crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)
