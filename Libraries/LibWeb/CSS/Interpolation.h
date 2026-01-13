@@ -35,6 +35,6 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext
 Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax);
 
 Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& underlying_list, FilterValueListStyleValue const& animated_list);
-RefPtr<StyleValue const> composite_value(StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);
+RefPtr<StyleValue const> composite_value(PropertyID, StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);
 
 }

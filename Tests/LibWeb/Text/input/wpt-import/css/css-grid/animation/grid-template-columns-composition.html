@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>grid-template-columns composition</title>
+    <link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+    <meta name="assert" content="grid-template-columns supports composition.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '50px 10%',
+        addFrom: '100px 100px',
+        addTo: '200px 20%',
+      }, [
+        {at: -0.3, expect: '120px calc(130px + 4%)'},
+        {at: 0, expect: '150px calc(100px + 10%)'},
+        {at: 0.5, expect: '200px calc(50px + 20%)'},
+        {at: 1, expect: '250px 30%'},
+        {at: 1.5, expect: '300px calc(-50px + 40%)'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: '1fr 2fr',
+        addTo: '2fr 1fr',
+      }, [
+        {at: -0.5, expect: '1.5fr 3.5fr'},
+        {at: 0, expect: '2fr 3fr'},
+        {at: 0.5, expect: '2.5fr 2.5fr'},
+        {at: 1, expect: '3fr 2fr'},
+        {at: 1.5, expect: '3.5fr 1.5fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '50px',
+        addFrom: '100px',
+        replaceTo: '200px',
+      }, [
+        {at: -0.3, expect: '135px'},
+        {at: 0, expect: '150px'},
+        {at: 0.5, expect: '175px'},
+        {at: 1, expect: '200px'},
+        {at: 1.5, expect: '225px'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr',
+        addFrom: '1fr',
+        replaceTo: '3fr',
+      }, [
+        {at: -0.5, expect: '1.5fr'},
+        {at: 0, expect: '2fr'},
+        {at: 0.5, expect: '2.5fr'},
+        {at: 1, expect: '3fr'},
+        {at: 1.5, expect: '3.5fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: '1fr 1fr',
+        addTo: '3fr auto',
+      }, [
+        {at: -0.5, expect: '1fr 2fr'},
+        {at: 0, expect: '2fr 2fr'},
+        {at: 0.5, expect: '3fr auto'},
+        {at: 1, expect: '4fr auto'},
+        {at: 1.5, expect: '5fr auto'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: '1fr auto',
+        addTo: '3fr 3fr',
+      }, [
+        {at: -0.5, expect: '1fr auto'},
+        {at: 0, expect: '2fr auto'},
+        {at: 0.5, expect: '3fr 4fr'},
+        {at: 1, expect: '4fr 4fr'},
+        {at: 1.5, expect: '5fr 4fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr auto',
+        addFrom: '1fr 1fr',
+        addTo: '3fr 3fr',
+      }, [
+        {at: -0.5, expect: '1fr 0fr'},
+        {at: 0, expect: '2fr 1fr'},
+        {at: 0.5, expect: '3fr 2fr'},
+        {at: 1, expect: '4fr 3fr'},
+        {at: 1.5, expect: '5fr 4fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '0fr repeat(2, 0fr 10px) 1fr',
+        addFrom: "1fr repeat(2, 1fr 20px) 1fr",
+        addTo: "2fr repeat(2, 3fr 40px) 3fr"
+      }, [
+        {at: -0.3, expect: "0.7fr repeat(2, 0.4fr 24px) 1.4fr"},
+        {at: 0, expect: "1fr repeat(2, 1fr 30px) 2fr"},
+        {at: 0.5, expect: "1.5fr repeat(2, 2fr 40px) 3fr"},
+        {at: 1, expect: "2fr repeat(2, 3fr 50px) 4fr"},
+        {at: 1.5, expect: "2.5fr repeat(2, 4fr 60px) 5fr"}
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: '1fr [a b] 1fr [d]',
+        addTo: '3fr [c] 3fr',
+      }, [
+        {at: -0.5, expect: '1fr [ a b ] 1fr [d]'},
+        {at: 0, expect: '2fr [ a b ] 2fr [d]'},
+        {at: 0.5, expect: '3fr [c] 3fr'},
+        {at: 1, expect: '4fr [c] 4fr'},
+        {at: 1.5, expect: '5fr [c] 5fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: 'fit-content(5px) fit-content(20px)',
+        addFrom: 'fit-content(5px) fit-content(20px)',
+        addTo: 'fit-content(15px) max-content',
+      }, [
+        {at: -0.5, expect: 'fit-content(5px) fit-content(40px)'},
+        {at: 0, expect: 'fit-content(10px) fit-content(40px)'},
+        {at: 0.5, expect: 'fit-content(15px) max-content'},
+        {at: 1, expect: 'fit-content(20px) max-content'},
+        {at: 1.5, expect: 'fit-content(25px) max-content'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: 'minmax(5px, 1fr) minmax(10px, 2fr)',
+        addFrom: 'minmax(5px, 1fr) minmax(10px, 2fr)',
+        addTo: 'minmax(15px, 3fr) minmax(30px, auto)',
+      }, [
+        {at: -0.5, expect: 'minmax(5px, 1fr) minmax(10px, 4fr)'},
+        {at: 0, expect: 'minmax(10px, 2fr) minmax(20px, 4fr)'},
+        {at: 0.5, expect: 'minmax(15px, 3fr) minmax(30px, auto)'},
+        {at: 1, expect: 'minmax(20px, 4fr) minmax(40px, auto)'},
+        {at: 1.5, expect: 'minmax(25px, 5fr) minmax(50px, auto)'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: 'none',
+        addTo: '1fr 1fr',
+      }, [
+        {at: -0.5, expect: 'none'},
+        {at: 0, expect: 'none'},
+        {at: 0.3, expect: 'none'},
+        {at: 0.5, expect: '2fr 2fr'},
+        {at: 0.7, expect: '2fr 2fr'},
+        {at: 1, expect: '2fr 2fr'},
+        {at: 1.5, expect: '2fr 2fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr',
+        addFrom: '1fr 1fr',
+        addTo: 'none',
+      }, [
+        {at: -0.5, expect: '2fr 2fr'},
+        {at: 0, expect: '2fr 2fr'},
+        {at: 0.3, expect: '2fr 2fr'},
+        {at: 0.5, expect: 'none'},
+        {at: 0.7, expect: 'none'},
+        {at: 1, expect: 'none'},
+        {at: 1.5, expect: 'none'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '1fr 1fr 1fr',
+        addFrom: '1fr 1fr 1fr',
+        addTo: '2fr 2fr',
+      }, [
+        {at: -0.5, expect: '2fr 2fr 2fr'},
+        {at: 0, expect: '2fr 2fr 2fr'},
+        {at: 0.3, expect: '2fr 2fr 2fr'},
+        {at: 0.5, expect: '2fr 2fr'},
+        {at: 0.7, expect: '2fr 2fr'},
+        {at: 1, expect: '2fr 2fr'},
+        {at: 1.5, expect: '2fr 2fr'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        underlying: '10px 20px 30px',
+        addFrom: '15px 4px',
+        addTo: '30px 3px',
+      }, [
+        {at: -0.5, expect: '7.5px 4.5px'},
+        {at: 0, expect: '15px 4px'},
+        {at: 0.5, expect: '22.5px 3.5px'},
+        {at: 1, expect: '30px 3px'},
+        {at: 1.5, expect: '37.5px 2.5px'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        addFrom: "repeat(2, 2fr 30px)",
+        addTo: "repeat(3, 3fr 50px)"
+      }, [
+        {at: -0.5, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0.3, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0.5, expect: 'repeat(3, 3fr 50px)'},
+        {at: 0.7, expect: 'repeat(3, 3fr 50px)'},
+        {at: 1, expect: 'repeat(3, 3fr 50px)'},
+        {at: 1.5, expect: 'repeat(3, 3fr 50px)'},
+      ]);
+
+      test_composition({
+        property: 'grid-template-columns',
+        addFrom: "repeat(2, 2fr 30px)",
+        addTo: "repeat(2, 3fr)"
+      }, [
+        {at: -0.5, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0.3, expect: 'repeat(2, 2fr 30px)'},
+        {at: 0.5, expect: 'repeat(2, 3fr)'},
+        {at: 0.7, expect: 'repeat(2, 3fr)'},
+        {at: 1, expect: 'repeat(2, 3fr)'},
+        {at: 1.5, expect: 'repeat(2, 3fr)'},
+      ]);
+
+    </script>
+  </body>
+</html>
