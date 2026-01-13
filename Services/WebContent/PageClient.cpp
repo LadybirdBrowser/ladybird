@@ -354,6 +354,11 @@ void PageClient::page_did_receive_reference_test_metadata(JsonValue metadata)
     client().async_did_receive_reference_test_metadata(m_id, metadata);
 }
 
+void PageClient::page_did_receive_test_variant_metadata(JsonValue metadata)
+{
+    client().async_did_receive_test_variant_metadata(m_id, metadata);
+}
+
 void PageClient::page_did_set_browser_zoom(double factor)
 {
     auto traversable = page().top_level_traversable();

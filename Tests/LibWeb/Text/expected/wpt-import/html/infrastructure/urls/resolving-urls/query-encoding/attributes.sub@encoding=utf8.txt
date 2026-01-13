@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	getComputedStyle <body background>
+Pass	getComputedStyle <table background>
+Pass	getComputedStyle <thead background>
+Pass	getComputedStyle <tbody background>
+Pass	getComputedStyle <tfoot background>
+Pass	getComputedStyle <tr background>
+Pass	getComputedStyle <td background>
+Pass	getComputedStyle <th background>
+Pass	Getting <iframe>.src
+Pass	Getting <a>.href
+Pass	Getting <area>.href
+Pass	Getting <base>.href
+Pass	Getting <link>.href
+Pass	Getting <img>.src
+Pass	Getting <embed>.src
+Pass	Getting <object>.data
+Pass	Getting <track>.src
+Pass	Getting <video>.src
+Pass	Getting <audio>.src
+Pass	Getting <input>.src
+Pass	Getting <form>.action
+Pass	Getting <input>.formAction
+Pass	Getting <button>.formAction
+Pass	Getting <script>.src
+Pass	Getting <a>.ping
+Pass	Getting <area>.ping

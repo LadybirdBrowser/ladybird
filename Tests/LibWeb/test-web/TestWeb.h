@@ -33,6 +33,7 @@ enum class TestResult {
     Skipped,
     Timeout,
     Crashed,
+    Expanded,
 };
 
 enum class RefTestExpectationType {
@@ -46,6 +47,8 @@ struct Test {
     ByteString input_path {};
     ByteString expectation_path {};
     ByteString relative_path {};
+    ByteString safe_relative_path {};
+    Optional<String> variant {};
 
     UnixDateTime start_time {};
     UnixDateTime end_time {};
@@ -54,6 +57,7 @@ struct Test {
     String text {};
     bool did_finish_test { false };
     bool did_finish_loading { false };
+    bool did_check_variants { false };
 
     Optional<RefTestExpectationType> ref_test_expectation_type {};
     Vector<FuzzyMatch> fuzzy_matches {};
@@ -65,7 +69,7 @@ struct Test {
 };
 
 struct TestCompletion {
-    Test& test;
+    size_t test_index;
     TestResult result;
 };
 

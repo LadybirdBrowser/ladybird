@@ -112,6 +112,29 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
     return {};
 }
 
+// https://web-platform-tests.org/writing-tests/testharness.html#variants
+WebIDL::ExceptionOr<void> Internals::load_test_variants()
+{
+    auto& page = this->page();
+
+    auto* document = page.top_level_browsing_context().active_document();
+    if (!document)
+        return vm().throw_completion<JS::InternalError>("No active document available"sv);
+
+    auto variant_nodes = TRY(document->query_selector_all("meta[name=variant]"sv));
+
+    JsonArray variants;
+    for (size_t i = 0; i < variant_nodes->length(); ++i) {
+        auto const* variant_node = variant_nodes->item(i);
+        auto content = as<DOM::Element>(variant_node)->get_attribute_value(HTML::AttributeNames::content);
+        variants.must_append(content);
+    }
+
+    // Always fire callback so test runner knows variant check is complete.
+    page.client().page_did_receive_test_variant_metadata(variants);
+    return {};
+}
+
 void Internals::gc()
 {
     vm().heap().collect_garbage();

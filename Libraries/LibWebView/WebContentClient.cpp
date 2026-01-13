@@ -171,6 +171,14 @@ void WebContentClient::did_receive_reference_test_metadata(u64 page_id, JsonValu
     }
 }
 
+void WebContentClient::did_receive_test_variant_metadata(u64 page_id, JsonValue metadata)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_test_variant_metadata)
+            view->on_test_variant_metadata(metadata);
+    }
+}
+
 void WebContentClient::did_set_browser_zoom(u64 page_id, double factor)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
