@@ -747,7 +747,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
                 return from;
 
             auto from_is_hidden = from->to_keyword() == Keyword::Hidden;
-            auto to_is_hidden = to->to_keyword() == Keyword::Hidden || to->to_keyword() == Keyword::Auto;
+            auto to_is_hidden = to->to_keyword() == Keyword::Hidden;
 
             if (from_is_hidden || to_is_hidden) {
                 auto non_hidden_value = from_is_hidden ? to : from;

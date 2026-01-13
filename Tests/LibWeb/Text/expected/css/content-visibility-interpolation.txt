@@ -1,0 +1,4 @@
+progress 0: visible
+progress 0.4: visible
+progress 0.6: auto
+progress 1: auto
