@@ -416,6 +416,8 @@ void ViewportPaintable::refresh_scroll_state()
     m_scroll_state.for_each_scroll_frame([&](auto& scroll_frame) {
         scroll_frame->set_own_offset(-scroll_frame->paintable_box().scroll_offset());
     });
+
+    m_scroll_state_snapshot = m_scroll_state.snapshot();
 }
 
 static void resolve_paint_only_properties_in_subtree(Paintable& root)
