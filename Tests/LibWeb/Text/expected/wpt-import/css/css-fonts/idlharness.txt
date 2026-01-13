@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 97 tests
 
-48 Pass
-49 Fail
+56 Pass
+41 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -80,14 +80,14 @@ Fail	CSSFontFeatureValuesRule interface: attribute swash
 Fail	CSSFontFeatureValuesRule interface: attribute characterVariant
 Fail	CSSFontFeatureValuesRule interface: attribute styleset
 Fail	CSSFontFeatureValuesRule interface: attribute historicalForms
-Fail	CSSFontFeatureValuesMap interface: existence and properties of interface object
-Fail	CSSFontFeatureValuesMap interface object length
-Fail	CSSFontFeatureValuesMap interface object name
-Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object
-Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's "constructor" property
-Fail	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's @@unscopables property
-Fail	CSSFontFeatureValuesMap interface: maplike<CSSOMString, [object Object]>
-Fail	CSSFontFeatureValuesMap interface: operation set(CSSOMString, (unsigned long or sequence<unsigned long>))
+Pass	CSSFontFeatureValuesMap interface: existence and properties of interface object
+Pass	CSSFontFeatureValuesMap interface object length
+Pass	CSSFontFeatureValuesMap interface object name
+Pass	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object
+Pass	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's "constructor" property
+Pass	CSSFontFeatureValuesMap interface: existence and properties of interface prototype object's @@unscopables property
+Pass	CSSFontFeatureValuesMap interface: maplike<CSSOMString, [object Object]>
+Pass	CSSFontFeatureValuesMap interface: operation set(CSSOMString, (unsigned long or sequence<unsigned long>))
 Fail	CSSFontPaletteValuesRule interface: existence and properties of interface object
 Fail	CSSFontPaletteValuesRule interface object length
 Fail	CSSFontPaletteValuesRule interface object name

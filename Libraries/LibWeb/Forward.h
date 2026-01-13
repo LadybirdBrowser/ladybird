@@ -246,6 +246,7 @@ class CSSCounterStyleRule;
 class CSSDescriptors;
 class CSSFontFaceDescriptors;
 class CSSFontFaceRule;
+class CSSFontFeatureValuesMap;
 class CSSGroupingRule;
 class CSSImageValue;
 class CSSImportRule;

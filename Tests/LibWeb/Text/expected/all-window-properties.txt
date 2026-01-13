@@ -41,6 +41,7 @@ CSSConditionRule
 CSSCounterStyleRule
 CSSFontFaceDescriptors
 CSSFontFaceRule
+CSSFontFeatureValuesMap
 CSSGroupingRule
 CSSImageValue
 CSSImportRule
