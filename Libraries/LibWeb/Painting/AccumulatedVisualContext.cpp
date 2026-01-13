@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 
@@ -67,6 +68,33 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
     }
 
     return point;
+}
+
+void AccumulatedVisualContext::dump(StringBuilder& builder) const
+{
+    m_data.visit(
+        [&](PerspectiveData const&) {
+            builder.append("perspective"sv);
+        },
+        [&](ScrollData const& scroll) {
+            builder.appendff("scroll_frame_id={}", scroll.scroll_frame_id);
+            if (scroll.is_sticky)
+                builder.append(" (sticky)"sv);
+        },
+        [&](TransformData const& transform) {
+            auto const& matrix = transform.matrix.elements();
+            auto const& origin = transform.origin;
+            builder.appendff("transform=[{},{},{},{},{},{}] origin=({},{})", matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], matrix[0][3], matrix[1][3], origin.x().to_float(), origin.y().to_float());
+        },
+        [&](ClipData const& clip) {
+            auto const& rect = clip.rect;
+            builder.appendff("clip=[{},{} {}x{}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float());
+
+            if (clip.corner_radii.has_any_radius()) {
+                auto const& corner_radii = clip.corner_radii;
+                builder.appendff(" radii=({},{},{},{})", corner_radii.top_left.horizontal_radius, corner_radii.top_right.horizontal_radius, corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_left.horizontal_radius);
+            }
+        });
 }
 
 }

@@ -1,10 +1,14 @@
-Save
-  ApplyTransform matrix=[1 0 0 1 0 0]
-  SaveLayer
-    FillRect rect=[8,8 106x22] color=rgb(212, 208, 200)
-    FillPath path_bounding_rect=[8,8 106x22]
-    DrawGlyphRun rect=[13,10 96x18] translation=[13,23.796875] color=rgb(0, 0, 0) scale=1
-    DrawLine from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2
-  Restore
-Restore
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillRect@1 rect=[8,8 106x22] color=rgb(212, 208, 200)
+    FillPath@1 path_bounding_rect=[8,8 106x22]
+    DrawGlyphRun@1 rect=[13,10 96x18] translation=[13,23.796875] color=rgb(0, 0, 0) scale=1
+    DrawLine@1 from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2
+  Restore@0
+Restore@0
 

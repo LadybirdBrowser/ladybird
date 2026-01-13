@@ -92,8 +92,6 @@ public:
     auto const& commands() const { return m_commands; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
-    String dump() const;
-
     template<typename Callback>
     void for_each_command_in_range(size_t start, size_t end, Callback callback)
     {

@@ -1,0 +1,20 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[9,9 100x80]
+      [3] scroll_frame_id=1 (PaintableWithLines(BlockContainer(anonymous)))
+    [4] clip=[131,9 100x80]
+      [5] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillPath@1 path_bounding_rect=[8,8 102x82]
+    FillRect@3 rect=[9,9 150x120] color=rgb(240, 128, 128)
+    FillPath@1 path_bounding_rect=[130,8 102x82]
+    FillRect@5 rect=[131,9 150x120] color=rgb(144, 238, 144)
+    DrawGlyphRun@3 rect=[9,9 110x18] translation=[9,22.796875] color=rgb(0, 0, 0) scale=1
+    DrawGlyphRun@5 rect=[131,9 119x18] translation=[131,22.796875] color=rgb(0, 0, 0) scale=1
+  Restore@0
+Restore@0
+

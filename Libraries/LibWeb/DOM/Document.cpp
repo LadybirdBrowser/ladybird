@@ -159,7 +159,10 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayList.h>
+#include <LibWeb/Painting/DisplayListCommand.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
@@ -6854,10 +6857,78 @@ ElementByIdMap& Document::element_by_id() const
 String Document::dump_display_list()
 {
     update_layout(UpdateLayoutReason::DumpDisplayList);
+
+    auto* viewport_paintable = paintable();
+    if (!viewport_paintable)
+        return "No paintable"_string;
+
     auto display_list = record_display_list(HTML::PaintConfig {});
     if (!display_list)
-        return {};
-    return display_list->dump();
+        return "No display list"_string;
+
+    HashMap<size_t, Painting::PaintableBox const*> context_id_to_paintable;
+    viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto const& paintable_box) {
+        if (auto context = paintable_box.accumulated_visual_context())
+            (void)context_id_to_paintable.try_set(context->id(), &paintable_box);
+        return TraversalDecision::Continue;
+    });
+
+    HashTable<Painting::AccumulatedVisualContext const*> visited;
+    HashMap<Painting::AccumulatedVisualContext const*, Vector<Painting::AccumulatedVisualContext const*>> children;
+    Vector<Painting::AccumulatedVisualContext const*> root_contexts;
+
+    for (auto const& item : display_list->commands()) {
+        if (!item.context)
+            continue;
+        for (auto const* node = item.context.ptr(); node && !visited.contains(node); node = node->parent().ptr()) {
+            visited.set(node);
+            if (auto const* parent = node->parent().ptr())
+                children.ensure(parent).append(node);
+            else if (!root_contexts.contains_slow(node))
+                root_contexts.append(node);
+        }
+    }
+
+    StringBuilder builder;
+    builder.append("AccumulatedVisualContext Tree:\n"sv);
+    Function<void(Painting::AccumulatedVisualContext const*, size_t)> dump_context = [&](auto const* node, size_t indent) {
+        builder.append_repeated(' ', indent * 2);
+        builder.appendff("[{}] ", node->id());
+        node->dump(builder);
+        if (auto it = context_id_to_paintable.find(node->id()); it != context_id_to_paintable.end())
+            builder.appendff(" ({})", it->value->debug_description());
+        builder.append('\n');
+        for (auto const* child : children.get(node).value_or({}))
+            dump_context(child, indent + 1);
+    };
+
+    for (auto const* root : root_contexts)
+        dump_context(root, 1);
+
+    builder.append("\nDisplayList:\n"sv);
+    int indent = 0;
+    for (auto const& item : display_list->commands()) {
+        int nesting_change = item.command.visit([](auto const& cmd) {
+            if constexpr (requires { cmd.nesting_level_change; })
+                return cmd.nesting_level_change;
+            return 0;
+        });
+
+        if (nesting_change < 0)
+            indent = max(0, indent + nesting_change);
+
+        builder.append_repeated(' ', indent * 2);
+        item.command.visit([&](auto const& command) {
+            builder.appendff("{}@{}", command.command_name, item.context ? item.context->id() : 0);
+            command.dump(builder);
+        });
+        builder.append('\n');
+
+        if (nesting_change > 0)
+            indent += nesting_change;
+    }
+
+    return builder.to_string_without_validation();
 }
 
 Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_value(CSS::EnvironmentVariable environment_variable, Span<i64> indices) const

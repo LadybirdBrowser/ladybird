@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        width: 100px;
+        height: 100px;
+        background: blue;
+        transform: translate(50px, 30px);
+    }
+</style>
+<div class="box">Text</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

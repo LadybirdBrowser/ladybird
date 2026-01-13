@@ -67,6 +67,8 @@ public:
     size_t depth() const { return m_depth; }
     size_t id() const { return m_id; }
 
+    void dump(StringBuilder&) const;
+
     Optional<CSSPixelPoint> transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const;
 
 private:

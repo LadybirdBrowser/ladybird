@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .fixed-box {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        width: 300px;
+        height: 200px;
+        background: lightgray;
+        border: 2px solid black;
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+    }
+    .scroll-container {
+        flex: 1;
+        height: 150px;
+        overflow: auto;
+        border: 1px solid blue;
+    }
+    .scroll-content {
+        width: 200px;
+        height: 300px;
+    }
+    .red { background: lightcoral; }
+    .green { background: lightgreen; }
+    .blue { background: lightblue; }
+</style>
+<div class="fixed-box">
+    <div class="scroll-container">
+        <div class="scroll-content red">Scroll A</div>
+    </div>
+    <div class="scroll-container">
+        <div class="scroll-content green">Scroll B</div>
+    </div>
+    <div class="scroll-container">
+        <div class="scroll-content blue">Scroll C</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
