@@ -508,9 +508,9 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         FloatVector3 axis { quaternion[0], quaternion[1], quaternion[2] };
         auto epsilon = 1e-5f;
         auto sin_half_angle = sqrtf(max(0.0f, 1.0f - quaternion[3] * quaternion[3]));
+        auto angle = 2.0f * acosf(clamp(quaternion[3], -1.0f, 1.0f));
         if (sin_half_angle < epsilon)
-            return AxisAngle { axis, quaternion[3] };
-        auto angle = 2.0f * acosf(quaternion[3]);
+            return AxisAngle { axis, angle };
         axis = axis * (1.0f / sin_half_angle);
         return AxisAngle { axis, angle };
     };
