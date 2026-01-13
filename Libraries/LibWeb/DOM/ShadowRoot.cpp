@@ -230,7 +230,7 @@ ElementByIdMap& ShadowRoot::element_by_id() const
     return *m_element_by_id;
 }
 
-// https://drafts.csswg.org/css-shadow-parts/#shadow-root-part-element-map
+// https://drafts.csswg.org/css-shadow-1/#shadow-root-part-element-map
 ShadowRoot::PartElementMap const& ShadowRoot::part_element_map() const
 {
     // FIXME: dom_tree_version() is crude and invalidates more than necessary.
@@ -242,7 +242,7 @@ ShadowRoot::PartElementMap const& ShadowRoot::part_element_map() const
     return m_part_element_map;
 }
 
-// https://drafts.csswg.org/css-shadow-parts/#calculate-the-part-element-map
+// https://drafts.csswg.org/css-shadow-1/#calculate-the-part-element-map
 void ShadowRoot::calculate_part_element_map()
 {
     // To calculate the part element map of a shadow root, outerRoot:

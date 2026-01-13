@@ -1024,7 +1024,7 @@ GC::Ref<DOMTokenList> Element::class_list()
     return *m_class_list;
 }
 
-// https://drafts.csswg.org/css-shadow-parts/#dom-element-part
+// https://drafts.csswg.org/css-shadow-1/#dom-element-part
 GC::Ref<DOMTokenList> Element::part_list()
 {
     // The part attribute’s getter must return a DOMTokenList object whose associated element is the context object and

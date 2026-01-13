@@ -77,7 +77,7 @@
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
   },
   "part": {
-    "spec": "https://drafts.csswg.org/css-shadow-parts/#selectordef-part",
+    "spec": "https://drafts.csswg.org/css-shadow-1/#selectordef-part",
     "type": "function",
     "function-syntax": "<ident>+"
   },
@@ -116,7 +116,7 @@
     "spec": "https://drafts.csswg.org/css-forms-1/#selectordef-slider-track"
   },
   "slotted": {
-    "spec": "https://drafts.csswg.org/css-scoping/#slotted-pseudo",
+    "spec": "https://drafts.csswg.org/css-shadow-1/#slotted-pseudo",
     "type": "function",
     "function-syntax": "<compound-selector>"
   },
