@@ -10,6 +10,7 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
@@ -241,6 +242,11 @@ public:
     void set_enclosing_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_enclosing_clip_frame = clip_frame; }
     void set_own_clip_frame(RefPtr<ClipFrame const> const& clip_frame) { m_own_clip_frame = clip_frame; }
 
+    void set_accumulated_visual_context(auto state) { m_accumulated_visual_context = move(state); }
+    [[nodiscard]] auto accumulated_visual_context() const { return m_accumulated_visual_context; }
+    void set_accumulated_visual_context_for_descendants(auto state) { m_accumulated_visual_context_for_descendants = move(state); }
+    [[nodiscard]] auto accumulated_visual_context_for_descendants() const { return m_accumulated_visual_context_for_descendants; }
+
     [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
     [[nodiscard]] Optional<int> scroll_frame_id() const;
     [[nodiscard]] CSSPixelPoint cumulative_offset_of_enclosing_scroll_frame() const;
@@ -331,6 +337,8 @@ private:
     RefPtr<ScrollFrame const> m_own_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;
     RefPtr<ClipFrame const> m_own_clip_frame;
+    RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context;
+    RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context_for_descendants;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
