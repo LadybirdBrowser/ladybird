@@ -101,8 +101,15 @@ protected:
         }
         if (!fragment.has_value())
             return {};
-        if (auto node = document().get_element_by_id(*fragment); node && is<T>(*node))
-            return static_cast<T&>(*node);
+        if (auto node = as_if<T>(document().get_element_by_id(*fragment).ptr()))
+            return *node;
+
+        auto containing_shadow = containing_shadow_root();
+        if (containing_shadow) {
+            if (auto node = as_if<T>(containing_shadow->get_element_by_id(*fragment).ptr()))
+                return *node;
+        }
+
         return {};
     }
 
