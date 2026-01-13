@@ -1,0 +1,28 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[10,10 400x200] (PaintableWithLines(BlockContainer<DIV>.branch))
+      [3] clip=[11,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
+        [4] transform=[0.9961947,-0.08715574,0.08715574,0.9961947,0,0] origin=(91,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-a))
+        [5] transform=[0.9,0,0,0.9,0,0] origin=(91,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-b))
+      [6] clip=[216,11 193x198] (PaintableWithLines(BlockContainer(anonymous)))
+        [7] transform=[1,0,0,1,10,0] origin=(296,56) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-c))
+        [8] transform=[1,0,0,1,0,10] origin=(296,141) (PaintableWithLines(BlockContainer<DIV>.leaf.leaf-d))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillPath@1 path_bounding_rect=[8,8 404x204]
+    FillPath@2 path_bounding_rect=[10,10 195x200]
+    FillPath@2 path_bounding_rect=[215,10 195x200]
+    FillRect@4 rect=[16,16 150x80] color=rgb(255, 0, 0)
+    DrawGlyphRun@4 rect=[16,16 15x18] translation=[16,29.796875] color=rgb(0, 0, 0) scale=1
+    FillRect@5 rect=[16,101 150x80] color=rgb(0, 128, 0)
+    DrawGlyphRun@5 rect=[16,101 10x18] translation=[16,114.796875] color=rgb(0, 0, 0) scale=1
+    FillRect@7 rect=[221,16 150x80] color=rgb(0, 0, 255)
+    DrawGlyphRun@7 rect=[221,16 11x18] translation=[221,29.796875] color=rgb(0, 0, 0) scale=1
+    FillRect@8 rect=[221,101 150x80] color=rgb(255, 165, 0)
+    DrawGlyphRun@8 rect=[221,101 12x18] translation=[221,114.796875] color=rgb(0, 0, 0) scale=1
+  Restore@0
+Restore@0
+

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .fixed-box {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 200px;
+        height: 150px;
+        background: lightgray;
+        border: 2px solid black;
+    }
+    .scroll-container {
+        width: 180px;
+        height: 100px;
+        margin: 10px;
+        overflow: auto;
+        border: 1px solid blue;
+    }
+    .scroll-content {
+        width: 300px;
+        height: 200px;
+        background: lightcoral;
+    }
+</style>
+<div class="fixed-box">
+    <div class="scroll-container">
+        <div class="scroll-content">Scrollable inside fixed</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

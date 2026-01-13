@@ -15,35 +15,6 @@ void DisplayList::append(DisplayListCommand&& command, RefPtr<AccumulatedVisualC
     m_commands.append({ move(context), move(command) });
 }
 
-String DisplayList::dump() const
-{
-    StringBuilder builder;
-    int indentation = 0;
-    for (auto const& command_list_item : m_commands) {
-        auto const& command = command_list_item.command;
-
-        command.visit([&indentation](auto const& command) {
-            if constexpr (requires { command.nesting_level_change; }) {
-                if (command.nesting_level_change < 0 && indentation >= -command.nesting_level_change)
-                    indentation += command.nesting_level_change;
-            }
-        });
-
-        if (indentation > 0)
-            builder.append(MUST(String::repeated("  "_string, indentation)));
-        command.visit([&builder](auto const& cmd) { cmd.dump(builder); });
-        builder.append('\n');
-
-        command.visit([&indentation](auto const& command) {
-            if constexpr (requires { command.nesting_level_change; }) {
-                if (command.nesting_level_change > 0)
-                    indentation += command.nesting_level_change;
-            }
-        });
-    }
-    return builder.to_string_without_validation();
-}
-
 static Optional<Gfx::IntRect> command_bounding_rectangle(DisplayListCommand const& command)
 {
     return command.visit(

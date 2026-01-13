@@ -27,173 +27,166 @@ Gfx::IntRect PaintInnerBoxShadow::bounding_rect() const
 
 void DrawGlyphRun::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawGlyphRun rect={} translation={} color={} scale={}", rect, translation, color, scale);
+    builder.appendff(" rect={} translation={} color={} scale={}", rect, translation, color, scale);
 }
 
 void FillRect::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillRect rect={} color={}", rect, color);
+    builder.appendff(" rect={} color={}", rect, color);
 }
 
 void DrawPaintingSurface::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawPaintingSurface dst_rect={} src_rect={}", dst_rect, src_rect);
+    builder.appendff(" dst_rect={} src_rect={}", dst_rect, src_rect);
 }
 
 void DrawScaledImmutableBitmap::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawScaledImmutableBitmap dst_rect={} clip_rect={}", dst_rect, clip_rect);
+    builder.appendff(" dst_rect={} clip_rect={}", dst_rect, clip_rect);
 }
 
 void DrawRepeatedImmutableBitmap::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawRepeatedImmutableBitmap dst_rect={} clip_rect={}", dst_rect, clip_rect);
+    builder.appendff(" dst_rect={} clip_rect={}", dst_rect, clip_rect);
 }
 
-void Save::dump(StringBuilder& builder) const
+void Save::dump(StringBuilder&) const
 {
-    builder.appendff("Save");
 }
 
-void SaveLayer::dump(StringBuilder& builder) const
+void SaveLayer::dump(StringBuilder&) const
 {
-    builder.appendff("SaveLayer");
 }
 
-void Restore::dump(StringBuilder& builder) const
+void Restore::dump(StringBuilder&) const
 {
-    builder.appendff("Restore");
 }
 
 void Translate::dump(StringBuilder& builder) const
 {
-    builder.appendff("Translate delta={}", delta);
+    builder.appendff(" delta={}", delta);
 }
 
 void AddClipRect::dump(StringBuilder& builder) const
 {
-    builder.appendff("AddClipRect rect={}", rect);
+    builder.appendff(" rect={}", rect);
 }
 
 void AddClipPath::dump(StringBuilder& builder) const
 {
-    builder.appendff("AddClipPath bounding_rect={}", bounding_rectangle);
+    builder.appendff(" bounding_rect={}", bounding_rectangle);
 }
 
 void PushStackingContext::dump(StringBuilder& builder) const
 {
-    builder.appendff("PushStackingContext opacity={} isolate={} has_clip_path={} bounding_rect={}", opacity, isolate, clip_path.has_value(), bounding_rect);
+    builder.appendff(" opacity={} isolate={} has_clip_path={} bounding_rect={}", opacity, isolate, clip_path.has_value(), bounding_rect);
 }
 
-void PopStackingContext::dump(StringBuilder& builder) const
+void PopStackingContext::dump(StringBuilder&) const
 {
-    builder.appendff("PopStackingContext");
 }
 
 void PaintLinearGradient::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintLinearGradient rect={}", gradient_rect);
+    builder.appendff(" rect={}", gradient_rect);
 }
 
 void PaintRadialGradient::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintRadialGradient rect={} center={} size={}", rect, center, size);
+    builder.appendff(" rect={} center={} size={}", rect, center, size);
 }
 
 void PaintConicGradient::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintConicGradient rect={} position={} angle={}", rect, position, conic_gradient_data.start_angle);
+    builder.appendff(" rect={} position={} angle={}", rect, position, conic_gradient_data.start_angle);
 }
 
 void PaintOuterBoxShadow::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintOuterBoxShadow content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
+    builder.appendff(" content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
 }
 
 void PaintInnerBoxShadow::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintInnerBoxShadow content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
+    builder.appendff(" content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
 }
 
 void PaintTextShadow::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintTextShadow shadow_rect={} text_rect={} draw_location={} blur_radius={} color={} scale={}", shadow_bounding_rect, text_rect, draw_location, blur_radius, color, glyph_run_scale);
+    builder.appendff(" shadow_rect={} text_rect={} draw_location={} blur_radius={} color={} scale={}", shadow_bounding_rect, text_rect, draw_location, blur_radius, color, glyph_run_scale);
 }
 
 void FillRectWithRoundedCorners::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillRectWithRoundedCorners rect={} color={}", rect, color);
+    builder.appendff(" rect={} color={}", rect, color);
 }
 
 void FillPath::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillPath path_bounding_rect={}", path_bounding_rect);
+    builder.appendff(" path_bounding_rect={}", path_bounding_rect);
 }
 
-void StrokePath::dump(StringBuilder& builder) const
+void StrokePath::dump(StringBuilder&) const
 {
-    builder.appendff("StrokePath");
 }
 
 void DrawEllipse::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawEllipse rect={} color={} thickness={}", rect, color, thickness);
+    builder.appendff(" rect={} color={} thickness={}", rect, color, thickness);
 }
 
 void FillEllipse::dump(StringBuilder& builder) const
 {
-    builder.appendff("FillEllipse rect={} color={}", rect, color);
+    builder.appendff(" rect={} color={}", rect, color);
 }
 
 void DrawLine::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawLine from={} to={} color={} thickness={}", from, to, color, thickness);
+    builder.appendff(" from={} to={} color={} thickness={}", from, to, color, thickness);
 }
 
 void ApplyBackdropFilter::dump(StringBuilder& builder) const
 {
-    builder.appendff("ApplyBackdropFilter backdrop_region={}", backdrop_region);
+    builder.appendff(" backdrop_region={}", backdrop_region);
 }
 
 void DrawRect::dump(StringBuilder& builder) const
 {
-    builder.appendff("DrawRect rect={} color={} rough={}", rect, color, rough);
+    builder.appendff(" rect={} color={} rough={}", rect, color, rough);
 }
 
 void AddRoundedRectClip::dump(StringBuilder& builder) const
 {
-    builder.appendff("AddRoundedRectClip rect={}", border_rect);
+    builder.appendff(" rect={}", border_rect);
 }
 
 void AddMask::dump(StringBuilder& builder) const
 {
-    builder.appendff("AddMask rect={}", rect);
+    builder.appendff(" rect={}", rect);
 }
 
 void PaintNestedDisplayList::dump(StringBuilder& builder) const
 {
-    builder.appendff("PaintNestedDisplayList rect={}", rect);
+    builder.appendff(" rect={}", rect);
 }
 
-void PaintScrollBar::dump(StringBuilder& builder) const
+void PaintScrollBar::dump(StringBuilder&) const
 {
-    builder.appendff("PaintScrollBar");
 }
 
 void ApplyEffects::dump(StringBuilder& builder) const
 {
-    builder.appendff("ApplyEffects opacity={} has_filter={}", opacity, filter.has_value());
+    builder.appendff(" opacity={} has_filter={}", opacity, filter.has_value());
 }
 
 void ApplyTransform::dump(StringBuilder& builder) const
 {
     auto affine_transform = extract_2d_affine_transform(matrix);
-    builder.appendff("ApplyTransform matrix={}", affine_transform);
+    builder.appendff(" matrix={}", affine_transform);
 }
 
-void ApplyMaskBitmap::dump(StringBuilder& builder) const
+void ApplyMaskBitmap::dump(StringBuilder&) const
 {
-    builder.appendff("ApplyMaskBitmap");
 }
 
 }

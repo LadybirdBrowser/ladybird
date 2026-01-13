@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .parent {
+        display: flex;
+        gap: 10px;
+    }
+    .transformed {
+        width: 100px;
+        height: 100px;
+        background: coral;
+        transform: translate(5px, 5px);
+    }
+    .clipped {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+        border: 1px solid blue;
+    }
+    .inner {
+        width: 150px;
+        height: 150px;
+        background: lightblue;
+    }
+</style>
+<div class="parent">
+    <div class="transformed">Transform</div>
+    <div class="clipped">
+        <div class="inner">Clipped</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

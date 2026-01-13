@@ -1,0 +1,15 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[8,8 200x200]
+      [3] transform=[1,0,0,1,20,20] origin=(8,8) (SVGPathPaintable(SVGGeometryBox<rect>))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    ApplyEffects@2 opacity=0.5 has_filter=false
+      FillPath@3 path_bounding_rect=[8,8 100x100]
+    Restore@3
+  Restore@0
+Restore@0
+

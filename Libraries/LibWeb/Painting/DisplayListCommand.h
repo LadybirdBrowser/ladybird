@@ -37,6 +37,8 @@ namespace Web::Painting {
 class DisplayList;
 
 struct DrawGlyphRun {
+    static constexpr StringView command_name = "DrawGlyphRun"sv;
+
     NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
     double scale { 1 };
     Gfx::IntRect rect;
@@ -50,6 +52,8 @@ struct DrawGlyphRun {
 };
 
 struct FillRect {
+    static constexpr StringView command_name = "FillRect"sv;
+
     Gfx::IntRect rect;
     Color color;
 
@@ -58,6 +62,8 @@ struct FillRect {
 };
 
 struct DrawPaintingSurface {
+    static constexpr StringView command_name = "DrawPaintingSurface"sv;
+
     Gfx::IntRect dst_rect;
     NonnullRefPtr<Gfx::PaintingSurface const> surface;
     Gfx::IntRect src_rect;
@@ -68,6 +74,8 @@ struct DrawPaintingSurface {
 };
 
 struct DrawScaledImmutableBitmap {
+    static constexpr StringView command_name = "DrawScaledImmutableBitmap"sv;
+
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
     NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
@@ -78,6 +86,8 @@ struct DrawScaledImmutableBitmap {
 };
 
 struct DrawRepeatedImmutableBitmap {
+    static constexpr StringView command_name = "DrawRepeatedImmutableBitmap"sv;
+
     struct Repeat {
         bool x { false };
         bool y { false };
@@ -93,30 +103,37 @@ struct DrawRepeatedImmutableBitmap {
 };
 
 struct Save {
+    static constexpr StringView command_name = "Save"sv;
     static constexpr int nesting_level_change = 1;
 
     void dump(StringBuilder&) const;
 };
 
 struct SaveLayer {
+    static constexpr StringView command_name = "SaveLayer"sv;
     static constexpr int nesting_level_change = 1;
 
     void dump(StringBuilder&) const;
 };
 
 struct Restore {
+    static constexpr StringView command_name = "Restore"sv;
     static constexpr int nesting_level_change = -1;
 
     void dump(StringBuilder&) const;
 };
 
 struct Translate {
+    static constexpr StringView command_name = "Translate"sv;
+
     Gfx::IntPoint delta;
 
     void dump(StringBuilder&) const;
 };
 
 struct AddClipRect {
+    static constexpr StringView command_name = "AddClipRect"sv;
+
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
@@ -125,6 +142,8 @@ struct AddClipRect {
 };
 
 struct AddClipPath {
+    static constexpr StringView command_name = "AddClipPath"sv;
+
     Gfx::Path path;
     Gfx::IntRect bounding_rectangle;
 
@@ -134,6 +153,7 @@ struct AddClipPath {
 };
 
 struct PushStackingContext {
+    static constexpr StringView command_name = "PushStackingContext"sv;
     static constexpr int nesting_level_change = 1;
 
     float opacity;
@@ -149,12 +169,15 @@ struct PushStackingContext {
 };
 
 struct PopStackingContext {
+    static constexpr StringView command_name = "PopStackingContext"sv;
     static constexpr int nesting_level_change = -1;
 
     void dump(StringBuilder&) const;
 };
 
 struct PaintLinearGradient {
+    static constexpr StringView command_name = "PaintLinearGradient"sv;
+
     Gfx::IntRect gradient_rect;
     LinearGradientData linear_gradient_data;
 
@@ -164,6 +187,8 @@ struct PaintLinearGradient {
 };
 
 struct PaintOuterBoxShadow {
+    static constexpr StringView command_name = "PaintOuterBoxShadow"sv;
+
     PaintBoxShadowParams box_shadow_params;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
@@ -171,6 +196,8 @@ struct PaintOuterBoxShadow {
 };
 
 struct PaintInnerBoxShadow {
+    static constexpr StringView command_name = "PaintInnerBoxShadow"sv;
+
     PaintBoxShadowParams box_shadow_params;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
@@ -178,6 +205,8 @@ struct PaintInnerBoxShadow {
 };
 
 struct PaintTextShadow {
+    static constexpr StringView command_name = "PaintTextShadow"sv;
+
     NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
     double glyph_run_scale { 1 };
     Gfx::IntRect shadow_bounding_rect;
@@ -191,6 +220,8 @@ struct PaintTextShadow {
 };
 
 struct FillRectWithRoundedCorners {
+    static constexpr StringView command_name = "FillRectWithRoundedCorners"sv;
+
     Gfx::IntRect rect;
     Color color;
     CornerRadii corner_radii;
@@ -200,6 +231,8 @@ struct FillRectWithRoundedCorners {
 };
 
 struct FillPath {
+    static constexpr StringView command_name = "FillPath"sv;
+
     Gfx::IntRect path_bounding_rect;
     Gfx::Path path;
     float opacity { 1.0f };
@@ -213,6 +246,8 @@ struct FillPath {
 };
 
 struct StrokePath {
+    static constexpr StringView command_name = "StrokePath"sv;
+
     Gfx::Path::CapStyle cap_style;
     Gfx::Path::JoinStyle join_style;
     float miter_limit;
@@ -231,6 +266,8 @@ struct StrokePath {
 };
 
 struct DrawEllipse {
+    static constexpr StringView command_name = "DrawEllipse"sv;
+
     Gfx::IntRect rect;
     Color color;
     int thickness;
@@ -241,6 +278,8 @@ struct DrawEllipse {
 };
 
 struct FillEllipse {
+    static constexpr StringView command_name = "FillEllipse"sv;
+
     Gfx::IntRect rect;
     Color color;
 
@@ -250,6 +289,8 @@ struct FillEllipse {
 };
 
 struct DrawLine {
+    static constexpr StringView command_name = "DrawLine"sv;
+
     Color color;
     Gfx::IntPoint from;
     Gfx::IntPoint to;
@@ -261,6 +302,8 @@ struct DrawLine {
 };
 
 struct ApplyBackdropFilter {
+    static constexpr StringView command_name = "ApplyBackdropFilter"sv;
+
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
     Optional<Gfx::Filter> backdrop_filter;
@@ -271,6 +314,8 @@ struct ApplyBackdropFilter {
 };
 
 struct DrawRect {
+    static constexpr StringView command_name = "DrawRect"sv;
+
     Gfx::IntRect rect;
     Color color;
     bool rough;
@@ -281,6 +326,8 @@ struct DrawRect {
 };
 
 struct PaintRadialGradient {
+    static constexpr StringView command_name = "PaintRadialGradient"sv;
+
     Gfx::IntRect rect;
     RadialGradientData radial_gradient_data;
     Gfx::IntPoint center;
@@ -292,6 +339,8 @@ struct PaintRadialGradient {
 };
 
 struct PaintConicGradient {
+    static constexpr StringView command_name = "PaintConicGradient"sv;
+
     Gfx::IntRect rect;
     ConicGradientData conic_gradient_data;
     Gfx::IntPoint position;
@@ -302,6 +351,8 @@ struct PaintConicGradient {
 };
 
 struct AddRoundedRectClip {
+    static constexpr StringView command_name = "AddRoundedRectClip"sv;
+
     CornerRadii corner_radii;
     Gfx::IntRect border_rect;
     CornerClip corner_clip;
@@ -313,6 +364,8 @@ struct AddRoundedRectClip {
 };
 
 struct AddMask {
+    static constexpr StringView command_name = "AddMask"sv;
+
     RefPtr<DisplayList> display_list;
     Gfx::IntRect rect;
 
@@ -323,6 +376,8 @@ struct AddMask {
 };
 
 struct PaintNestedDisplayList {
+    static constexpr StringView command_name = "PaintNestedDisplayList"sv;
+
     RefPtr<DisplayList> display_list;
     Gfx::IntRect rect;
 
@@ -332,6 +387,8 @@ struct PaintNestedDisplayList {
 };
 
 struct PaintScrollBar {
+    static constexpr StringView command_name = "PaintScrollBar"sv;
+
     int scroll_frame_id { 0 };
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
@@ -344,6 +401,7 @@ struct PaintScrollBar {
 };
 
 struct ApplyEffects {
+    static constexpr StringView command_name = "ApplyEffects"sv;
     static constexpr int nesting_level_change = 1;
 
     float opacity { 1.0f };
@@ -354,6 +412,8 @@ struct ApplyEffects {
 };
 
 struct ApplyTransform {
+    static constexpr StringView command_name = "ApplyTransform"sv;
+
     Gfx::FloatPoint origin;
     Gfx::FloatMatrix4x4 matrix;
 
@@ -361,6 +421,8 @@ struct ApplyTransform {
 };
 
 struct ApplyMaskBitmap {
+    static constexpr StringView command_name = "ApplyMaskBitmap"sv;
+
     Gfx::IntPoint origin;
     NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
     Gfx::MaskKind kind;

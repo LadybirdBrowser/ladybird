@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .root {
+        display: flex;
+        gap: 10px;
+        overflow: hidden;
+        width: 400px;
+        height: 200px;
+        border: 2px solid black;
+    }
+    .branch {
+        flex: 1;
+        overflow: hidden;
+        border: 1px solid gray;
+    }
+    .leaf {
+        width: 150px;
+        height: 80px;
+        margin: 5px;
+    }
+    .leaf-a { background: red; transform: rotate(5deg); }
+    .leaf-b { background: green; transform: scale(0.9); }
+    .leaf-c { background: blue; transform: translateX(10px); }
+    .leaf-d { background: orange; transform: translateY(10px); }
+</style>
+<div class="root">
+    <div class="branch">
+        <div class="leaf leaf-a">A</div>
+        <div class="leaf leaf-b">B</div>
+    </div>
+    <div class="branch">
+        <div class="leaf leaf-c">C</div>
+        <div class="leaf leaf-d">D</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .transformed-ancestor {
+        transform: translate(10px, 10px);
+        width: 200px;
+        height: 200px;
+        background: lightgray;
+    }
+    .intermediate {
+        padding: 20px;
+        background: lightblue;
+    }
+    .positioned {
+        position: relative;
+        top: 5px;
+        left: 5px;
+        width: 100px;
+        height: 50px;
+        background: coral;
+    }
+</style>
+<div class="transformed-ancestor">
+    <div class="intermediate">
+        <div class="positioned">Positioned</div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

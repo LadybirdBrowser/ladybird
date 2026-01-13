@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        display: flex;
+        gap: 5px;
+    }
+    .box {
+        width: 60px;
+        height: 60px;
+    }
+    .a { background: red; transform: rotate(15deg); }
+    .b { background: green; transform: scale(1.1); }
+    .c { background: blue; transform: skewX(10deg); }
+</style>
+<div class="container">
+    <div class="box a">1</div>
+    <div class="box b">2</div>
+    <div class="box c">3</div>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
