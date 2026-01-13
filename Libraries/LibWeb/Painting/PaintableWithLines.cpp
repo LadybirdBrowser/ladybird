@@ -20,6 +20,7 @@
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/TextPaintable.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
@@ -69,9 +70,6 @@ void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordin
 
 TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
-        return TraversalDecision::Continue;
-
     if (computed_values().visibility() != CSS::Visibility::Visible)
         return TraversalDecision::Continue;
 
@@ -94,9 +92,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!layout_node().children_are_inline())
         return PaintableBox::hit_test(position, type, callback);
 
-    auto const offset_position_adjusted_by_scroll_offset = adjust_position_for_cumulative_scroll_offset(position);
-
-    if (hit_test_chrome(offset_position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
+    if (hit_test_chrome(position, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
     if (hit_test_children(position, type, callback) == TraversalDecision::Break)
@@ -105,14 +101,25 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
 
+    auto const& viewport_paintable = *document().paintable();
+    auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+    Optional<CSSPixelPoint> local_position;
+    if (auto state = accumulated_visual_context())
+        local_position = state->transform_point_for_hit_test(position, scroll_state);
+    else
+        local_position = position;
+
+    if (!local_position.has_value())
+        return TraversalDecision::Continue;
+
     for (auto const& fragment : fragments()) {
         if (fragment.paintable().has_stacking_context() || !fragment.paintable().visible_for_hit_testing())
             continue;
         auto fragment_absolute_rect = fragment.absolute_rect();
-        if (fragment_absolute_rect.contains(offset_position_adjusted_by_scroll_offset)) {
+        if (fragment_absolute_rect.contains(local_position.value())) {
             if (fragment.paintable().hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(offset_position_adjusted_by_scroll_offset), 0, 0 };
+            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(local_position.value()), 0, 0 };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         } else if (type == HitTestType::TextCursor) {
@@ -135,30 +142,30 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                 // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
                 // the cursor. If we could not find one, then find for the closest vertically above the cursor.
                 // If we knew the direction of selection, we would look above if selecting upward.
-                if (fragment_absolute_rect.bottom() - 1 <= offset_position_adjusted_by_scroll_offset.y()) { // fully below the fragment
+                if (fragment_absolute_rect.bottom() - 1 <= local_position.value().y()) { // fully below the fragment
                     HitTestResult hit_test_result {
                         .paintable = const_cast<Paintable&>(fragment.paintable()),
                         .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
-                        .vertical_distance = offset_position_adjusted_by_scroll_offset.y() - fragment_absolute_rect.bottom(),
+                        .vertical_distance = local_position.value().y() - fragment_absolute_rect.bottom(),
                     };
                     if (callback(hit_test_result) == TraversalDecision::Break)
                         return TraversalDecision::Break;
-                } else if (fragment_absolute_rect.top() <= offset_position_adjusted_by_scroll_offset.y()) { // vertically within the fragment
-                    if (offset_position_adjusted_by_scroll_offset.x() < fragment_absolute_rect.left()) {
+                } else if (fragment_absolute_rect.top() <= local_position.value().y()) { // vertically within the fragment
+                    if (local_position.value().x() < fragment_absolute_rect.left()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset(),
                             .vertical_distance = 0,
-                            .horizontal_distance = fragment_absolute_rect.left() - offset_position_adjusted_by_scroll_offset.x(),
+                            .horizontal_distance = fragment_absolute_rect.left() - local_position.value().x(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
-                    } else if (offset_position_adjusted_by_scroll_offset.x() > fragment_absolute_rect.right()) {
+                    } else if (local_position.value().x() > fragment_absolute_rect.right()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
                             .vertical_distance = 0,
-                            .horizontal_distance = offset_position_adjusted_by_scroll_offset.x() - fragment_absolute_rect.right(),
+                            .horizontal_distance = local_position.value().x() - fragment_absolute_rect.right(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
@@ -169,7 +176,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     }
 
     if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || is_positioned())
-        && absolute_border_box_rect().contains(offset_position_adjusted_by_scroll_offset)) {
+        && absolute_border_box_rect().contains(local_position.value())) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
@@ -235,6 +242,8 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
         return;
 
     PaintableBox::paint(context, phase);
+
+    context.display_list_recorder().set_accumulated_visual_context(accumulated_visual_context_for_descendants());
 
     // Text shadows
     // This is yet another loop, but done here because all shadows should appear under all text.

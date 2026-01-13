@@ -288,7 +288,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
 
         Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(layer.blend_mode);
         if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
-            display_list_recorder.apply_compositing_and_blending_operator(compositing_and_blending_operator);
+            display_list_recorder.apply_effects(1.0f, compositing_and_blending_operator);
         }
 
         if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {

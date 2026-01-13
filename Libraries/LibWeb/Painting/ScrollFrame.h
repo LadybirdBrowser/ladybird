@@ -40,6 +40,8 @@ public:
         m_own_offset = offset;
     }
 
+    RefPtr<ScrollFrame const> parent() const { return m_parent; }
+
 private:
     GC::Weak<PaintableBox> m_paintable_box;
     size_t m_id { 0 };
