@@ -21,7 +21,6 @@ public:
     virtual ~WindowEnvironmentSettingsObject() override;
 
     virtual GC::Ptr<DOM::Document> responsible_document() override;
-    virtual String api_url_character_encoding() const override;
     virtual URL::URL api_base_url() const override;
     virtual URL::Origin origin() const override;
     virtual bool has_cross_site_ancestor() const override;
