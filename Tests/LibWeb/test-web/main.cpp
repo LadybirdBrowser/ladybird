@@ -471,14 +471,16 @@ static ErrorOr<void> generate_result_files(Vector<TestCompletion> const& non_pas
     js.append("\n  ]\n};\n"sv);
 
     auto js_path = LexicalPath::join(app.results_directory, "results.js"sv).string();
-    auto js_file = TRY(Core::File::open(js_path, Core::File::OpenMode::Write));
+    auto js_file = TRY(Core::File::open(js_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
     TRY(js_file->write_until_depleted(js.string_view().bytes()));
 
     // Copy index.html from source tree
     auto source_html_path = LexicalPath::join(app.test_root_path, "test-web/results-index.html"sv).string();
     auto dest_html_path = LexicalPath::join(app.results_directory, "index.html"sv).string();
-    (void)FileSystem::remove(dest_html_path, FileSystem::RecursionMode::Disallowed);
-    TRY(FileSystem::copy_file_or_directory(dest_html_path, source_html_path));
+    auto source_html = TRY(Core::File::open(source_html_path, Core::File::OpenMode::Read));
+    auto html_contents = TRY(source_html->read_until_eof());
+    auto dest_html = TRY(Core::File::open(dest_html_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+    TRY(dest_html->write_until_depleted(html_contents));
 
     return {};
 }
