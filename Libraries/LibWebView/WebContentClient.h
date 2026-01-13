@@ -51,7 +51,7 @@ public:
 
     void web_ui_disconnected(Badge<WebUI>);
 
-    Function<void()> on_web_content_process_crash;
+    void notify_all_views_of_crash();
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }

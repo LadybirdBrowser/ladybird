@@ -572,15 +572,6 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
 
-    m_client_state.client->on_web_content_process_crash = [this] {
-        Core::deferred_invoke([this] {
-            handle_web_content_process_crash();
-
-            if (on_web_content_crashed)
-                on_web_content_crashed();
-        });
-    };
-
     m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);

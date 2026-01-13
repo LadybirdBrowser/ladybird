@@ -64,15 +64,35 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 void WebContentClient::unregister_view(u64 page_id)
 {
     m_views.remove(page_id);
-    if (m_views.is_empty()) {
-        on_web_content_process_crash = nullptr;
+    if (m_views.is_empty())
         async_close_server();
-    }
 }
 
 void WebContentClient::web_ui_disconnected(Badge<WebUI>)
 {
     m_web_ui.clear();
+}
+
+void WebContentClient::notify_all_views_of_crash()
+{
+    // Collect view IDs first, then use deferred_invoke to handle crashes safely
+    // (avoids signal handler deadlock and allows views to be looked up by ID
+    // in case they're destroyed before the deferred_invoke runs).
+    Vector<u64> view_ids;
+    view_ids.ensure_capacity(m_views.size());
+    for (auto& [page_id, view] : m_views)
+        view_ids.append(view->view_id());
+
+    for (auto view_id : view_ids) {
+        Core::deferred_invoke([view_id] {
+            auto view = ViewImplementation::find_view_by_id(view_id);
+            if (!view.has_value())
+                return;
+            view->handle_web_content_process_crash();
+            if (view->on_web_content_crashed)
+                view->on_web_content_crashed();
+        });
+    }
 }
 
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)

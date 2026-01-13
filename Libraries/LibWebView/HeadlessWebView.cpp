@@ -38,6 +38,13 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
             ? HeadlessWebView::create_child(*this, *page_index)
             : HeadlessWebView::create(m_theme, m_viewport_size);
 
+        // Propagate crashes from child views to parent, so parent tests don't hang
+        // waiting for a child that crashed.
+        web_view->on_web_content_crashed = [this]() {
+            if (on_web_content_crashed)
+                on_web_content_crashed();
+        };
+
         m_child_web_views.append(move(web_view));
         return m_child_web_views.last()->handle();
     };

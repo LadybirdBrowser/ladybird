@@ -608,11 +608,8 @@ void Application::process_did_exit(Process&& process)
         }
         break;
     case ProcessType::WebContent:
-        if (auto client = process.client<WebContentClient>(); client.has_value()) {
-            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart WebContent process");
-            if (auto on_web_content_process_crash = move(client->on_web_content_process_crash))
-                on_web_content_process_crash();
-        }
+        if (auto client = process.client<WebContentClient>(); client.has_value())
+            client->notify_all_views_of_crash();
         break;
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
