@@ -472,11 +472,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     // 4. Normalize method.
     auto normalized_method = HTTP::normalize_method(method);
 
-    // 5. Let parsedURL be the result of parsing url with this’s relevant settings object’s API base URL and this’s relevant settings object’s API URL character encoding.
+    // 5. Let parsedURL be the result of encoding-parsing a URL url, relative to this’s relevant settings object.
     auto& relevant_settings_object = HTML::relevant_settings_object(*this);
-    auto api_base_url = relevant_settings_object.api_base_url();
-    auto api_url_character_encoding = relevant_settings_object.api_url_character_encoding();
-    auto parsed_url = DOMURL::parse(url, api_base_url, api_url_character_encoding);
+    auto parsed_url = relevant_settings_object.encoding_parse_url(url);
 
     // 6. If parsedURL is failure, then throw a "SyntaxError" DOMException.
     if (!parsed_url.has_value())
