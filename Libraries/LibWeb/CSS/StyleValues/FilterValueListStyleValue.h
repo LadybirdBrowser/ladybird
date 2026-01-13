@@ -73,6 +73,8 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
+
     virtual ~FilterValueListStyleValue() override = default;
 
     bool properties_equal(FilterValueListStyleValue const& other) const { return m_filter_value_list == other.m_filter_value_list; }
