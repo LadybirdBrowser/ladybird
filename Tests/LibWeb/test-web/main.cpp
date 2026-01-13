@@ -958,8 +958,14 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
     };
 
     view.on_web_content_crashed = [&view]() {
-        if (auto test = s_test_by_view.get(&view); test.has_value())
+        // Re-setup output capture for the respawned WebContent process
+        // (handle_web_content_process_crash already ran and respawned it)
+        s_output_captures.remove(&view);
+        setup_output_capture_for_view(view);
+
+        if (auto test = s_test_by_view.get(&view); test.has_value()) {
             view.on_test_complete({ *test.value(), TestResult::Crashed });
+        }
     };
 }
 
@@ -1138,6 +1144,9 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             view->on_test_finish = {};
             view->on_reference_test_metadata = {};
             view->on_set_test_timeout = {};
+
+            // Disconnect child crash handlers so old child crashes don't affect the next test
+            view->disconnect_child_crash_handlers();
 
             // Don't try to reset zoom if WebContent crashed - it's gone
             if (result.result != TestResult::Crashed)
