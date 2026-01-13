@@ -872,10 +872,10 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         }
 
         auto const& underlying_value = computed_properties.property(it.key);
-        if (auto composited_start_value = composite_value(underlying_value, start, start_composite_operation))
+        if (auto composited_start_value = composite_value(it.key, underlying_value, start, start_composite_operation))
             start = *composited_start_value;
 
-        if (auto composited_end_value = composite_value(underlying_value, end, end_composite_operation))
+        if (auto composited_end_value = composite_value(it.key, underlying_value, end, end_composite_operation))
             end = *composited_end_value;
 
         if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe, AllowDiscrete::Yes)) {

@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -531,6 +532,49 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         { interpolated_x_axis, interpolated_y_axis, interpolated_z_axis, interpolated_angle });
 }
 
+struct ExpandedGridTracksAndLines {
+    Vector<ExplicitGridTrack> tracks;
+    Vector<Optional<GridLineNames>> line_names;
+};
+
+static ExpandedGridTracksAndLines expand_grid_tracks_and_lines(GridTrackSizeList const& list)
+{
+    ExpandedGridTracksAndLines result;
+    Optional<ExplicitGridTrack> current_track;
+    Optional<GridLineNames> current_line_names;
+    auto append_result = [&] {
+        result.tracks.append(*current_track);
+        result.line_names.append(move(current_line_names));
+        current_track.clear();
+        current_line_names.clear();
+    };
+
+    for (auto const& component : list.list()) {
+        if (auto const* grid_line_names = component.get_pointer<GridLineNames>()) {
+            VERIFY(!current_line_names.has_value());
+            current_line_names = *grid_line_names;
+        } else if (auto const* grid_track = component.get_pointer<ExplicitGridTrack>()) {
+            if (current_track.has_value())
+                append_result();
+
+            current_track = *grid_track;
+        }
+        if (current_track.has_value() && current_line_names.has_value())
+            append_result();
+    }
+    if (current_track.has_value())
+        append_result();
+
+    return result;
+}
+
+static void append_grid_track_with_line_names(GridTrackSizeList& list, ExplicitGridTrack track, Optional<GridLineNames> line_names)
+{
+    list.append(move(track));
+    if (line_names.has_value())
+        list.append(line_names.release_value());
+}
+
 static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationContext const& calculation_context, GridTrackSizeList const& from, GridTrackSizeList const& to, float delta)
 {
     auto interpolate_css_size = [&](Size const& from_size, Size const& to_size) -> Size {
@@ -571,54 +615,13 @@ static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationC
         return delta < 0.5f ? from_grid_size : to_grid_size;
     };
 
-    struct ExpandedTracksAndLines {
-        Vector<ExplicitGridTrack> tracks;
-        Vector<Optional<GridLineNames>> line_names;
-    };
-
-    auto expand_tracks_and_lines = [](GridTrackSizeList const& list) -> ExpandedTracksAndLines {
-        ExpandedTracksAndLines result;
-        Optional<ExplicitGridTrack> current_track;
-        Optional<GridLineNames> current_line_names;
-        auto append_result = [&] {
-            result.tracks.append(*current_track);
-            result.line_names.append(move(current_line_names));
-            current_track.clear();
-            current_line_names.clear();
-        };
-
-        for (auto const& component : list.list()) {
-            if (auto const* grid_line_names = component.get_pointer<GridLineNames>()) {
-                VERIFY(!current_line_names.has_value());
-                current_line_names = *grid_line_names;
-            } else if (auto const* grid_track = component.get_pointer<ExplicitGridTrack>()) {
-                if (current_track.has_value())
-                    append_result();
-
-                current_track = *grid_track;
-            }
-            if (current_track.has_value() && current_line_names.has_value())
-                append_result();
-        }
-        if (current_track.has_value())
-            append_result();
-
-        return result;
-    };
-
-    auto expanded_from = expand_tracks_and_lines(from);
-    auto expanded_to = expand_tracks_and_lines(to);
+    auto expanded_from = expand_grid_tracks_and_lines(from);
+    auto expanded_to = expand_grid_tracks_and_lines(to);
 
     if (expanded_from.tracks.size() != expanded_to.tracks.size())
         return {};
 
-    GridTrackSizeList interpolated_grid_track_size_list;
-    auto add_interpolated_grid_track = [&](ExplicitGridTrack track, Optional<GridLineNames> line_names) {
-        interpolated_grid_track_size_list.append(move(track));
-        if (line_names.has_value())
-            interpolated_grid_track_size_list.append(line_names.release_value());
-    };
-
+    GridTrackSizeList result;
     for (size_t i = 0; i < expanded_from.tracks.size(); ++i) {
         auto& from_track = expanded_from.tracks[i];
         auto& to_track = expanded_to.tracks[i];
@@ -641,26 +644,26 @@ static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationC
                 return {};
 
             ExplicitGridTrack interpolated_grid_track { GridRepeat { from_repeat.type(), move(*interpolated_repeat_grid_tracks), from_repeat.repeat_count() } };
-            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+            append_grid_track_with_line_names(result, move(interpolated_grid_track), move(interpolated_line_names));
         } else if (from_track.is_minmax() && to_track.is_minmax()) {
             auto from_minmax = from_track.minmax();
             auto to_minmax = to_track.minmax();
             auto interpolated_min = interpolate_grid_size(from_minmax.min_grid_size(), to_minmax.min_grid_size());
             auto interpolated_max = interpolate_grid_size(from_minmax.max_grid_size(), to_minmax.max_grid_size());
             ExplicitGridTrack interpolated_grid_track { GridMinMax { interpolated_min, interpolated_max } };
-            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+            append_grid_track_with_line_names(result, move(interpolated_grid_track), move(interpolated_line_names));
         } else if (from_track.is_default() && to_track.is_default()) {
             auto const& from_grid_size = from_track.grid_size();
             auto const& to_grid_size = to_track.grid_size();
             auto interpolated_grid_size = interpolate_grid_size(from_grid_size, to_grid_size);
             ExplicitGridTrack interpolated_grid_track { move(interpolated_grid_size) };
-            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+            append_grid_track_with_line_names(result, move(interpolated_grid_track), move(interpolated_line_names));
         } else {
             auto interpolated_grid_track = delta < 0.5f ? move(from_track) : move(to_track);
-            add_interpolated_grid_track(move(interpolated_grid_track), move(interpolated_line_names));
+            append_grid_track_with_line_names(result, move(interpolated_grid_track), move(interpolated_line_names));
         }
     }
-    return interpolated_grid_track_size_list;
+    return result;
 }
 
 ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, StyleValue const& a_from, StyleValue const& a_to, float delta, AllowDiscrete allow_discrete)
@@ -2247,7 +2250,10 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     VERIFY_NOT_REACHED();
                 }
 
-                return FilterOperation::Color { .operation = underlying_color.operation, .amount = NumberPercentage { Number { Number::Type::Number, accumulated } } };
+                return FilterOperation::Color {
+                    .operation = underlying_color.operation,
+                    .amount = NumberPercentage { Number { Number::Type::Number, accumulated } }
+                };
             },
             [&](FilterOperation::DropShadow const& underlying_shadow) -> Optional<FilterValue> {
                 if (!animated.has<FilterOperation::DropShadow>())
@@ -2345,8 +2351,131 @@ static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
     return underlying_raw_value + animated_raw_value;
 }
 
-RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
+static Optional<LengthPercentage> add_length_percentages(CalculationContext const& calculation_context, LengthPercentage const& a, LengthPercentage const& b)
 {
+    if (a.is_length() && b.is_length() && a.length().unit() == b.length().unit()) {
+        return LengthPercentage { Length { a.length().raw_value() + b.length().raw_value(), a.length().unit() } };
+    }
+
+    if (a.is_percentage() && b.is_percentage()) {
+        return LengthPercentage { Percentage { a.percentage().value() + b.percentage().value() } };
+    }
+
+    auto a_style_value = length_percentage_or_auto_to_style_value(a);
+    auto b_style_value = length_percentage_or_auto_to_style_value(b);
+
+    auto a_node = CalculationNode::from_style_value(a_style_value, calculation_context);
+    auto b_node = CalculationNode::from_style_value(b_style_value, calculation_context);
+
+    auto sum = SumCalculationNode::create({ a_node, b_node });
+    auto simplified = simplify_a_calculation_tree(sum, calculation_context, {});
+    auto result_type = a_node->numeric_type()->added_to(*b_node->numeric_type());
+    if (!result_type.has_value())
+        return {};
+
+    auto calculated = CalculatedStyleValue::create(simplified, *result_type, calculation_context);
+    return LengthPercentage::from_style_value(calculated);
+}
+
+static Optional<GridTrackSizeList> composite_grid_track_size_list(CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated)
+{
+    auto composite_css_size = [&calculation_context](Size const& underlying_size, Size const& animated_size) -> Optional<Size> {
+        if (underlying_size.is_length_percentage() && animated_size.is_length_percentage()) {
+            auto composited = add_length_percentages(calculation_context, underlying_size.length_percentage(), animated_size.length_percentage());
+            if (!composited.has_value())
+                return {};
+            return Size::make_length_percentage(*composited);
+        }
+
+        if (underlying_size.is_fit_content() && animated_size.is_fit_content()) {
+            if (!underlying_size.fit_content_available_space().has_value() || !animated_size.fit_content_available_space().has_value())
+                return {};
+            auto composited = add_length_percentages(calculation_context, *underlying_size.fit_content_available_space(), *animated_size.fit_content_available_space());
+            if (!composited.has_value())
+                return {};
+            return Size::make_fit_content(*composited);
+        }
+
+        return {};
+    };
+
+    auto composite_grid_size = [&](GridSize const& underlying_grid_size, GridSize const& animated_grid_size) -> Optional<GridSize> {
+        if (underlying_grid_size.is_flexible_length() && animated_grid_size.is_flexible_length()) {
+            auto composited_flex = underlying_grid_size.flex_factor() + animated_grid_size.flex_factor();
+            return GridSize { Flex::make_fr(composited_flex) };
+        }
+
+        if (!underlying_grid_size.is_flexible_length() && !animated_grid_size.is_flexible_length()) {
+            auto composited_size = composite_css_size(underlying_grid_size.css_size(), animated_grid_size.css_size());
+            if (composited_size.has_value())
+                return GridSize { move(*composited_size) };
+        }
+
+        return {};
+    };
+
+    auto expanded_underlying = expand_grid_tracks_and_lines(underlying);
+    auto expanded_animated = expand_grid_tracks_and_lines(animated);
+
+    if (expanded_underlying.tracks.size() != expanded_animated.tracks.size())
+        return {};
+
+    GridTrackSizeList result;
+    for (size_t i = 0; i < expanded_underlying.tracks.size(); ++i) {
+        auto& underlying_track = expanded_underlying.tracks[i];
+        auto& animated_track = expanded_animated.tracks[i];
+        auto composited_line_names = move(expanded_animated.line_names[i]);
+
+        if (underlying_track.is_repeat() || animated_track.is_repeat()) {
+            if (!underlying_track.is_repeat() || !animated_track.is_repeat())
+                return {};
+
+            auto underlying_repeat = underlying_track.repeat();
+            auto animated_repeat = animated_track.repeat();
+            if (!underlying_repeat.is_fixed() || !animated_repeat.is_fixed())
+                return {};
+            if (underlying_repeat.repeat_count() != animated_repeat.repeat_count() || underlying_repeat.grid_track_size_list().track_list().size() != animated_repeat.grid_track_size_list().track_list().size())
+                return {};
+
+            auto composited_repeat_grid_tracks = composite_grid_track_size_list(calculation_context, underlying_repeat.grid_track_size_list(), animated_repeat.grid_track_size_list());
+            if (!composited_repeat_grid_tracks.has_value())
+                return {};
+
+            ExplicitGridTrack composited_grid_track { GridRepeat { underlying_repeat.type(), move(*composited_repeat_grid_tracks), underlying_repeat.repeat_count() } };
+            append_grid_track_with_line_names(result, move(composited_grid_track), move(composited_line_names));
+            continue;
+        }
+
+        if (underlying_track.is_minmax() && animated_track.is_minmax()) {
+            auto underlying_minmax = underlying_track.minmax();
+            auto animated_minmax = animated_track.minmax();
+            auto composited_min = composite_grid_size(underlying_minmax.min_grid_size(), animated_minmax.min_grid_size());
+            auto composited_max = composite_grid_size(underlying_minmax.max_grid_size(), animated_minmax.max_grid_size());
+            ExplicitGridTrack composited_grid_track { GridMinMax {
+                composited_min.value_or(animated_minmax.min_grid_size()),
+                composited_max.value_or(animated_minmax.max_grid_size()) } };
+            append_grid_track_with_line_names(result, move(composited_grid_track), move(composited_line_names));
+            continue;
+        }
+        if (underlying_track.is_default() && animated_track.is_default()) {
+            auto const& underlying_grid_size = underlying_track.grid_size();
+            auto const& animated_grid_size = animated_track.grid_size();
+            auto composited_grid_size_result = composite_grid_size(underlying_grid_size, animated_grid_size);
+            if (composited_grid_size_result.has_value()) {
+                ExplicitGridTrack composited_grid_track { move(*composited_grid_size_result) };
+                append_grid_track_with_line_names(result, move(composited_grid_track), move(composited_line_names));
+                continue;
+            }
+        }
+        append_grid_track_with_line_names(result, animated_track, move(composited_line_names));
+    }
+    return result;
+}
+
+RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue const& underlying_value, StyleValue const& animated_value, Bindings::CompositeOperation composite_operation)
+{
+    auto calculation_context = CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
+
     auto composite_dimension_value = [](StyleValue const& underlying_value, StyleValue const& animated_value) -> Optional<double> {
         auto const& underlying_dimension = as<DimensionStyleValue>(underlying_value);
         auto const& animated_dimension = as<DimensionStyleValue>(animated_value);
@@ -2378,11 +2507,11 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         return underlying_basic_shape.basic_shape().visit(
             [&](Inset const& underlying_inset) -> RefPtr<StyleValue const> {
                 auto const& animated_inset = animated_basic_shape.basic_shape().get<Inset>();
-                auto composited_top = composite_value(underlying_inset.top, animated_inset.top, composite_operation);
-                auto composited_right = composite_value(underlying_inset.right, animated_inset.right, composite_operation);
-                auto composited_bottom = composite_value(underlying_inset.bottom, animated_inset.bottom, composite_operation);
-                auto composited_left = composite_value(underlying_inset.left, animated_inset.left, composite_operation);
-                auto composited_border_radius = composite_value(underlying_inset.border_radius, animated_inset.border_radius, composite_operation);
+                auto composited_top = composite_value(property_id, underlying_inset.top, animated_inset.top, composite_operation);
+                auto composited_right = composite_value(property_id, underlying_inset.right, animated_inset.right, composite_operation);
+                auto composited_bottom = composite_value(property_id, underlying_inset.bottom, animated_inset.bottom, composite_operation);
+                auto composited_left = composite_value(property_id, underlying_inset.left, animated_inset.left, composite_operation);
+                auto composited_border_radius = composite_value(property_id, underlying_inset.border_radius, animated_inset.border_radius, composite_operation);
                 if (!composited_top || !composited_right || !composited_bottom || !composited_left || !composited_border_radius)
                     return {};
 
@@ -2390,7 +2519,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             },
             [&](Circle const& underlying_circle) -> RefPtr<StyleValue const> {
                 auto const& animated_circle = animated_basic_shape.basic_shape().get<Circle>();
-                auto composited_radius = composite_value(underlying_circle.radius, animated_circle.radius, composite_operation);
+                auto composited_radius = composite_value(property_id, underlying_circle.radius, animated_circle.radius, composite_operation);
                 if (!composited_radius)
                     return {};
 
@@ -2399,7 +2528,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
                     auto const& underlying_position_with_default = underlying_circle.position ? ValueComparingNonnullRefPtr<StyleValue const> { *underlying_circle.position } : PositionStyleValue::create_computed_center();
                     auto const& animated_position_with_default = animated_circle.position ? ValueComparingNonnullRefPtr<StyleValue const> { *animated_circle.position } : PositionStyleValue::create_computed_center();
 
-                    composited_position = composite_value(underlying_position_with_default, animated_position_with_default, composite_operation);
+                    composited_position = composite_value(property_id, underlying_position_with_default, animated_position_with_default, composite_operation);
 
                     if (!composited_position)
                         return {};
@@ -2409,7 +2538,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             },
             [&](Ellipse const& underlying_ellipse) -> RefPtr<StyleValue const> {
                 auto const& animated_ellipse = animated_basic_shape.basic_shape().get<Ellipse>();
-                auto composited_radius = composite_value(underlying_ellipse.radius, animated_ellipse.radius, composite_operation);
+                auto composited_radius = composite_value(property_id, underlying_ellipse.radius, animated_ellipse.radius, composite_operation);
                 if (!composited_radius)
                     return {};
 
@@ -2418,7 +2547,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
                     auto const& underlying_position_with_default = underlying_ellipse.position ? ValueComparingNonnullRefPtr<StyleValue const> { *underlying_ellipse.position } : PositionStyleValue::create_computed_center();
                     auto const& animated_position_with_default = animated_ellipse.position ? ValueComparingNonnullRefPtr<StyleValue const> { *animated_ellipse.position } : PositionStyleValue::create_computed_center();
 
-                    composited_position = composite_value(underlying_position_with_default, animated_position_with_default, composite_operation);
+                    composited_position = composite_value(property_id, underlying_position_with_default, animated_position_with_default, composite_operation);
 
                     if (!composited_position)
                         return {};
@@ -2439,8 +2568,8 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
                 for (size_t i = 0; i < underlying_polygon.points.size(); i++) {
                     auto const& underlying_point = underlying_polygon.points[i];
                     auto const& animated_point = animated_polygon.points[i];
-                    auto composited_point_x = composite_value(underlying_point.x, animated_point.x, composite_operation);
-                    auto composited_point_y = composite_value(underlying_point.y, animated_point.y, composite_operation);
+                    auto composited_point_x = composite_value(property_id, underlying_point.x, animated_point.x, composite_operation);
+                    auto composited_point_y = composite_value(property_id, underlying_point.y, animated_point.y, composite_operation);
                     if (!composited_point_x || !composited_point_y)
                         return {};
                     composited_points.unchecked_append(Polygon::Point { *composited_point_x, *composited_point_y });
@@ -2466,17 +2595,17 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto& animated_border_image_slice_value = animated_value.as_border_image_slice();
         if (underlying_border_image_slice_value.fill() != animated_border_image_slice_value.fill())
             return {};
-        auto composited_top = composite_value(underlying_border_image_slice_value.top(), animated_border_image_slice_value.top(), composite_operation);
-        auto composited_right = composite_value(underlying_border_image_slice_value.right(), animated_border_image_slice_value.right(), composite_operation);
-        auto composited_bottom = composite_value(underlying_border_image_slice_value.bottom(), animated_border_image_slice_value.bottom(), composite_operation);
-        auto composited_left = composite_value(underlying_border_image_slice_value.left(), animated_border_image_slice_value.left(), composite_operation);
+        auto composited_top = composite_value(property_id, underlying_border_image_slice_value.top(), animated_border_image_slice_value.top(), composite_operation);
+        auto composited_right = composite_value(property_id, underlying_border_image_slice_value.right(), animated_border_image_slice_value.right(), composite_operation);
+        auto composited_bottom = composite_value(property_id, underlying_border_image_slice_value.bottom(), animated_border_image_slice_value.bottom(), composite_operation);
+        auto composited_left = composite_value(property_id, underlying_border_image_slice_value.left(), animated_border_image_slice_value.left(), composite_operation);
         if (!composited_top || !composited_right || !composited_bottom || !composited_left)
             return {};
         return BorderImageSliceStyleValue::create(composited_top.release_nonnull(), composited_right.release_nonnull(), composited_bottom.release_nonnull(), composited_left.release_nonnull(), underlying_border_image_slice_value.fill());
     }
     case StyleValue::Type::BorderRadius: {
-        auto composited_horizontal_radius = composite_value(underlying_value.as_border_radius().horizontal_radius(), animated_value.as_border_radius().horizontal_radius(), composite_operation);
-        auto composited_vertical_radius = composite_value(underlying_value.as_border_radius().vertical_radius(), animated_value.as_border_radius().vertical_radius(), composite_operation);
+        auto composited_horizontal_radius = composite_value(property_id, underlying_value.as_border_radius().horizontal_radius(), animated_value.as_border_radius().horizontal_radius(), composite_operation);
+        auto composited_vertical_radius = composite_value(property_id, underlying_value.as_border_radius().vertical_radius(), animated_value.as_border_radius().vertical_radius(), composite_operation);
         if (!composited_horizontal_radius || !composited_vertical_radius)
             return {};
         return BorderRadiusStyleValue::create(composited_horizontal_radius.release_nonnull(), composited_vertical_radius.release_nonnull());
@@ -2493,10 +2622,10 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto const& underlying_bottom_left = underlying_value.as_border_radius_rect().bottom_left();
         auto const& animated_bottom_left = animated_value.as_border_radius_rect().bottom_left();
 
-        auto composited_top_left = composite_value(underlying_top_left, animated_top_left, composite_operation);
-        auto composited_top_right = composite_value(underlying_top_right, animated_top_right, composite_operation);
-        auto composited_bottom_right = composite_value(underlying_bottom_right, animated_bottom_right, composite_operation);
-        auto composited_bottom_left = composite_value(underlying_bottom_left, animated_bottom_left, composite_operation);
+        auto composited_top_left = composite_value(property_id, underlying_top_left, animated_top_left, composite_operation);
+        auto composited_top_right = composite_value(property_id, underlying_top_right, animated_top_right, composite_operation);
+        auto composited_bottom_right = composite_value(property_id, underlying_bottom_right, animated_bottom_right, composite_operation);
+        auto composited_bottom_left = composite_value(property_id, underlying_bottom_left, animated_bottom_left, composite_operation);
 
         if (!composited_top_left || !composited_top_right || !composited_bottom_right || !composited_bottom_left)
             return {};
@@ -2507,10 +2636,18 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto const& underlying_offset = underlying_value.as_edge().offset();
         auto const& animated_offset = animated_value.as_edge().offset();
 
-        if (auto composited_value = composite_value(underlying_offset, animated_offset, composite_operation))
+        if (auto composited_value = composite_value(property_id, underlying_offset, animated_offset, composite_operation))
             return EdgeStyleValue::create({}, composited_value);
 
         return {};
+    }
+    case StyleValue::Type::GridTrackSizeList: {
+        auto underlying_list = underlying_value.as_grid_track_size_list().grid_track_size_list();
+        auto animated_list = animated_value.as_grid_track_size_list().grid_track_size_list();
+        auto composited_list = composite_grid_track_size_list(calculation_context, underlying_list, animated_list);
+        if (!composited_list.has_value())
+            return {};
+        return GridTrackSizeListStyleValue::create(composited_list.release_value());
     }
     case StyleValue::Type::Integer: {
         auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());
@@ -2532,7 +2669,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         auto& animated_open_type_tagged = animated_value.as_open_type_tagged();
         if (underlying_open_type_tagged.tag() != animated_open_type_tagged.tag())
             return {};
-        auto composited_value = composite_value(underlying_open_type_tagged.value(), animated_open_type_tagged.value(), composite_operation);
+        auto composited_value = composite_value(property_id, underlying_open_type_tagged.value(), animated_open_type_tagged.value(), composite_operation);
         if (!composited_value)
             return {};
         return OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, underlying_open_type_tagged.tag(), composited_value.release_nonnull());
@@ -2544,8 +2681,8 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
     case StyleValue::Type::Position: {
         auto& underlying_position = underlying_value.as_position();
         auto& animated_position = animated_value.as_position();
-        auto composited_edge_x = composite_value(underlying_position.edge_x(), animated_position.edge_x(), composite_operation);
-        auto composited_edge_y = composite_value(underlying_position.edge_y(), animated_position.edge_y(), composite_operation);
+        auto composited_edge_x = composite_value(property_id, underlying_position.edge_x(), animated_position.edge_x(), composite_operation);
+        auto composited_edge_y = composite_value(property_id, underlying_position.edge_y(), animated_position.edge_y(), composite_operation);
         if (!composited_edge_x || !composited_edge_y)
             return {};
 
@@ -2568,7 +2705,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             auto const& underlying_component = underlying_components[0].get<NonnullRefPtr<StyleValue const>>();
             auto const& animated_component = animated_components[0].get<NonnullRefPtr<StyleValue const>>();
 
-            auto interpolated_value = composite_value(underlying_component, animated_component, composite_operation);
+            auto interpolated_value = composite_value(property_id, underlying_component, animated_component, composite_operation);
             if (!interpolated_value)
                 return {};
 
@@ -2580,8 +2717,8 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
 
         auto const& animated_horizontal_component = animated_components[0].get<NonnullRefPtr<StyleValue const>>();
         auto const& animated_vertical_component = animated_components.size() > 1 ? animated_components[1].get<NonnullRefPtr<StyleValue const>>() : animated_horizontal_component;
-        auto composited_horizontal = composite_value(underlying_horizontal_component, animated_horizontal_component, composite_operation);
-        auto composited_vertical = composite_value(underlying_vertical_component, animated_vertical_component, composite_operation);
+        auto composited_horizontal = composite_value(property_id, underlying_horizontal_component, animated_horizontal_component, composite_operation);
+        auto composited_vertical = composite_value(property_id, underlying_vertical_component, animated_vertical_component, composite_operation);
 
         if (!composited_horizontal || !composited_vertical)
             return {};
@@ -2601,7 +2738,7 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         StyleValueVector values;
         values.ensure_capacity(underlying_list.size());
         for (size_t i = 0; i < underlying_list.size(); ++i) {
-            auto composited_value = composite_value(underlying_list.values()[i], animated_list.values()[i], composite_operation);
+            auto composited_value = composite_value(property_id, underlying_list.values()[i], animated_list.values()[i], composite_operation);
             if (!composited_value)
                 return {};
             values.unchecked_append(*composited_value);
