@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -212,8 +212,8 @@ ISODateTime balance_iso_date_time(double year, double month, double day, double 
     // 1. Let balancedTime be BalanceTime(hour, minute, second, millisecond, microsecond, nanosecond).
     auto balanced_time = balance_time(hour, minute, second, millisecond, microsecond, nanosecond);
 
-    // 2. Let balancedDate be BalanceISODate(year, month, day + balancedTime.[[Days]]).
-    auto balanced_date = balance_iso_date(year, month, day + balanced_time.days);
+    // 2. Let balancedDate be AddDaysToISODate(CreateISODateRecord(year, month, day), balancedTime.[[Days]]).
+    auto balanced_date = add_days_to_iso_date(create_iso_date_record(year, month, day), balanced_time.days);
 
     // 3. Return CombineISODateAndTimeRecord(balancedDate, balancedTime).
     return combine_iso_date_and_time_record(balanced_date, balanced_time);
@@ -292,8 +292,8 @@ ISODateTime round_iso_date_time(ISODateTime const& iso_date_time, u64 increment,
     // 2. Let roundedTime be RoundTime(isoDateTime.[[Time]], increment, unit, roundingMode).
     auto rounded_time = round_time(iso_date_time.time, increment, unit, rounding_mode);
 
-    // 3. Let balanceResult be BalanceISODate(isoDateTime.[[ISODate]].[[Year]], isoDateTime.[[ISODate]].[[Month]], isoDateTime.[[ISODate]].[[Day]] + roundedTime.[[Days]]).
-    auto balance_result = balance_iso_date(iso_date_time.iso_date.year, iso_date_time.iso_date.month, iso_date_time.iso_date.day + rounded_time.days);
+    // 3. Let balanceResult be AddDaysToISODate(isoDateTime.[[ISODate]], roundedTime.[[Days]]).
+    auto balance_result = add_days_to_iso_date(iso_date_time.iso_date, rounded_time.days);
 
     // 4. Return CombineISODateAndTimeRecord(balanceResult, roundedTime).
     return combine_iso_date_and_time_record(balance_result, rounded_time);
@@ -322,8 +322,8 @@ InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_ti
 
     // 7. If timeSign = dateSign, then
     if (time_sign == date_sign) {
-        // a. Set adjustedDate to BalanceISODate(adjustedDate.[[Year]], adjustedDate.[[Month]], adjustedDate.[[Day]] + timeSign).
-        adjusted_date = balance_iso_date(adjusted_date.year, adjusted_date.month, static_cast<double>(adjusted_date.day) + time_sign);
+        // a. Set adjustedDate to AddDaysToISODate(adjustedDate, timeSign).
+        adjusted_date = add_days_to_iso_date(adjusted_date, time_sign);
 
         // b. Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, -timeSign).
         time_duration = MUST(add_24_hour_days_to_time_duration(vm, time_duration, -time_sign));

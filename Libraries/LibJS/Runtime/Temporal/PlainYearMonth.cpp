@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -278,7 +278,7 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     return result;
 }
 
-// 9.5.8 AddDurationToYearMonth ( operation, yearMonth, temporalDurationLike, options )
+// 9.5.8 AddDurationToYearMonth ( operation, yearMonth, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoyearmonth
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, ArithmeticOperation operation, PlainYearMonth const& year_month, Value temporal_duration_like, Value options)
 {
     // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
@@ -319,8 +319,8 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, Ar
         // b. Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, CONSTRAIN).
         auto next_month = TRY(calendar_date_add(vm, calendar, intermediate_date, one_month_duration, Overflow::Constrain));
 
-        // c. Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
-        date = balance_iso_date(next_month.year, next_month.month, next_month.day - 1);
+        // c. Let date be AddDaysToISODate(nextMonth, -1).
+        date = add_days_to_iso_date(next_month, -1);
 
         // d. Assert: ISODateWithinLimits(date) is true.
         VERIFY(iso_date_within_limits(date));

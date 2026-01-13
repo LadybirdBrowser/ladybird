@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -907,8 +907,8 @@ ThrowCompletionOr<NudgeWindow> compute_nudge_window(VM& vm, i8 sign, InternalDur
         // b. Let weeksStart be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], yearsMonths, CONSTRAIN).
         auto weeks_start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, years_months, Overflow::Constrain));
 
-        // c. Let weeksEnd be BalanceISODate(weeksStart.[[Year]], weeksStart.[[Month]], weeksStart.[[Day]] + duration.[[Date]].[[Days]]).
-        auto weeks_end = balance_iso_date(weeks_start.year, weeks_start.month, static_cast<double>(weeks_start.day) + duration.date.days);
+        // c. Let weeksEnd be AddDaysToISODate(weeksStart, duration.[[Date]].[[Days]]).
+        auto weeks_end = add_days_to_iso_date(weeks_start, duration.date.days);
 
         // d. Let untilResult be CalendarDateUntil(calendar, weeksStart, weeksEnd, WEEK).
         auto until_result = calendar_date_until(vm, calendar, weeks_start, weeks_end, Unit::Week);
@@ -1163,8 +1163,8 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
     // 2. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
     auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
 
-    // 3. Let endDate be BalanceISODate(start.[[Year]], start.[[Month]], start.[[Day]] + sign).
-    auto end_date = balance_iso_date(start.year, start.month, static_cast<double>(start.day) + sign);
+    // 3. Let endDate be AddDaysToISODate(start, sign).
+    auto end_date = add_days_to_iso_date(start, sign);
 
     // 4. Let endDateTime be CombineISODateAndTimeRecord(endDate, isoDateTime.[[Time]]).
     auto end_date_time = combine_iso_date_and_time_record(end_date, iso_date_time.time);

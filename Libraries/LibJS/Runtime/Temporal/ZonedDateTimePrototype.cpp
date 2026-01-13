@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -323,8 +323,8 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::hours_in_day_getter)
     // 5. Let today be isoDateTime.[[ISODate]].
     auto today = iso_date_time.iso_date;
 
-    // 6. Let tomorrow be BalanceISODate(today.[[Year]], today.[[Month]], today.[[Day]] + 1).
-    auto tomorrow = balance_iso_date(today.year, today.month, today.day + 1);
+    // 6. Let tomorrow be AddDaysToISODate(today, 1).
+    auto tomorrow = add_days_to_iso_date(today, 1);
 
     // 7. Let todayNs be ? GetStartOfDay(timeZone, today).
     auto today_nanoseconds = TRY(get_start_of_day(vm, time_zone, today));
@@ -682,8 +682,8 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         // a. Let dateStart be isoDateTime.[[ISODate]].
         auto date_start = iso_date_time.iso_date;
 
-        // b. Let dateEnd be BalanceISODate(dateStart.[[Year]], dateStart.[[Month]], dateStart.[[Day]] + 1).
-        auto date_end = balance_iso_date(date_start.year, date_start.month, static_cast<double>(date_start.day) + 1);
+        // b. Let dateEnd be AddDaysToISODate(dateStart, 1).
+        auto date_end = add_days_to_iso_date(date_start, 1);
 
         // c. Let startNs be ? GetStartOfDay(timeZone, dateStart).
         auto start_nanoseconds = TRY(get_start_of_day(vm, time_zone, date_start));

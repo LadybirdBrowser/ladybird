@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -181,8 +181,8 @@ bool iso_date_surpasses(VM& vm, i8 sign, ISODate base_date, ISODate iso_date2, d
         // a. Let regulatedDate be ! RegulateISODate(yearMonth.[[Year]], yearMonth.[[Month]], baseDate.[[Day]], CONSTRAIN).
         auto regulated_date = MUST(regulate_iso_date(vm, year_month.year, year_month.month, base_date.day, Overflow::Constrain));
 
-        // b. Let balancedDate be BalanceISODate(regulatedDate.[[Year]], regulatedDate.[[Month]], regulatedDate.[[Day]] + 7 * weeks + days).
-        auto balanced_date = balance_iso_date(regulated_date.year, regulated_date.month, static_cast<double>(regulated_date.day) + (7 * weeks) + days);
+        // b. Let balancedDate be AddDaysToISODate(regulatedDate, 7 × weeks + days).
+        auto balanced_date = add_days_to_iso_date(regulated_date, (7 * weeks) + days);
 
         // c. Let y1 be balancedDate.[[Year]].
         year1 = balanced_date.year;
@@ -290,11 +290,11 @@ bool is_valid_iso_date(double year, double month, double day)
     return true;
 }
 
-// 3.5.8 BalanceISODate ( year, month, day ), https://tc39.es/proposal-temporal/#sec-temporal-balanceisodate
-ISODate balance_iso_date(double year, double month, double day)
+// 3.5.8 AddDaysToISODate ( isoDate, days ), https://tc39.es/proposal-temporal/#sec-temporal-adddaystoisodate
+ISODate add_days_to_iso_date(ISODate iso_date, double days)
 {
-    // 1. Let epochDays be ISODateToEpochDays(year, month - 1, day).
-    auto epoch_days = iso_date_to_epoch_days(year, month - 1, day);
+    // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]) + days.
+    auto epoch_days = iso_date_to_epoch_days(iso_date.year, iso_date.month - 1, iso_date.day) + days;
 
     // 2. Let ms be EpochDaysToEpochMs(epochDays, 0).
     auto ms = epoch_days_to_epoch_ms(epoch_days, 0);
