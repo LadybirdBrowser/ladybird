@@ -174,7 +174,7 @@ endif()
 if (HAS_VULKAN)
     target_link_libraries(LibCore PUBLIC Vulkan::Vulkan Vulkan::Headers)
 
-    if ((LINUX AND NOT ANDROID) OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    if (USE_VULKAN_IMAGES)
         pkg_check_modules(LibDRM REQUIRED libdrm)
         target_include_directories(LibGfx PUBLIC ${LibDRM_INCLUDE_DIRS})
     endif()
