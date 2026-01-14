@@ -418,7 +418,7 @@ Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_z
 {
     // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
-    auto seconds = epoch_nanoseconds.divided_by(Temporal::NANOSECONDS_PER_SECOND).quotient;
+    auto seconds = big_floor(epoch_nanoseconds, Temporal::NANOSECONDS_PER_SECOND);
     auto time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(seconds));
 
     auto offset = Unicode::time_zone_offset(time_zone_identifier, time);
