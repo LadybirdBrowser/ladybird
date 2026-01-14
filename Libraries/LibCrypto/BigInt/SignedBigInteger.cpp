@@ -144,6 +144,11 @@ ErrorOr<String> SignedBigInteger::to_base(u16 N) const
     return StringView(buffer.bytes().slice(0, written - 1)).to_ascii_lowercase_string();
 }
 
+i64 SignedBigInteger::to_i64() const
+{
+    return mp_get_i64(&m_mp);
+}
+
 u64 SignedBigInteger::to_u64() const
 {
     return mp_get_u64(&m_mp);
