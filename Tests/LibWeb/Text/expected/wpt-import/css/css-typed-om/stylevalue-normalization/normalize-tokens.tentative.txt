@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 16 tests
 
-3 Pass
-13 Fail
+4 Pass
+12 Fail
 Fail	Normalizing "var(--A)" on a CSS property returns correct CSSUnparsedValue
 Fail	Normalizing "var(--A)" on a shorthand returns correct CSSUnparsedValue
 Fail	Normalizing "var(--A)" on a list-valued property returns correct CSSUnparsedValue
@@ -17,6 +17,6 @@ Fail	Normalizing "var(--A, var(--B))" on a shorthand returns correct CSSUnparsed
 Fail	Normalizing "var(--A, var(--B))" on a list-valued property returns correct CSSUnparsedValue
 Fail	Normalizing "var(--A, var(--B))" on a custom property returns correct CSSUnparsedValue
 Pass	Normalizing "calc(42px + var(--foo, 15em) + var(--bar, var(--far) + 15px))" on a CSS property returns correct CSSUnparsedValue
-Fail	Normalizing "calc(42px + var(--foo, 15em) + var(--bar, var(--far) + 15px))" on a shorthand returns correct CSSUnparsedValue
+Pass	Normalizing "calc(42px + var(--foo, 15em) + var(--bar, var(--far) + 15px))" on a shorthand returns correct CSSUnparsedValue
 Pass	Normalizing "calc(42px + var(--foo, 15em) + var(--bar, var(--far) + 15px))" on a list-valued property returns correct CSSUnparsedValue
 Pass	Normalizing "calc(42px + var(--foo, 15em) + var(--bar, var(--far) + 15px))" on a custom property returns correct CSSUnparsedValue

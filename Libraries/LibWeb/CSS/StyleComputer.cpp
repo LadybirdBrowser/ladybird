@@ -403,7 +403,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
         set_longhand_property(property_id, value);
-        auto pending_substitution_value = PendingSubstitutionStyleValue::create();
+        auto pending_substitution_value = PendingSubstitutionStyleValue::create(value);
         for (auto longhand_id : longhands_for_shorthand(property_id)) {
             for_each_property_expanding_shorthands(longhand_id, pending_substitution_value, set_longhand_property);
         }

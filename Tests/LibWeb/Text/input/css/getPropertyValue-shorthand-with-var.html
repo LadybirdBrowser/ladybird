@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+div {
+    transition: var(--foo);
+    animation: var(--bar);
+}
+</style>
+<script>
+    test(() => {
+        const declaration = document.styleSheets[0].cssRules[0].style;
+        println(declaration.getPropertyValue("transition"));
+        println(declaration.getPropertyValue("animation"));
+    });
+</script>

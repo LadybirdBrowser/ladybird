@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	Shorthand serialization with shorthand and longhands mixed.
 Pass	Shorthand serialization with just longhands.
-Fail	Shorthand serialization with variable and variable from other shorthand.
+Pass	Shorthand serialization with variable and variable from other shorthand.
 Pass	Shorthand serialization after setting
 Pass	Shorthand serialization with 'initial' value.
 Pass	Shorthand serialization with 'initial' value, one longhand with important flag.
