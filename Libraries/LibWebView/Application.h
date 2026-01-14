@@ -193,6 +193,8 @@ private:
     virtual void request_console_messages(DevTools::TabDescription const&, i32) const override;
     virtual void listen_for_network_events(DevTools::TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkRequestFinished) const override;
     virtual void stop_listening_for_network_events(DevTools::TabDescription const&) const override;
+    virtual void listen_for_navigation_events(DevTools::TabDescription const&, OnNavigationStarted, OnNavigationFinished) const override;
+    virtual void stop_listening_for_navigation_events(DevTools::TabDescription const&) const override;
 
     static Application* s_the;
 
@@ -258,6 +260,8 @@ private:
 #endif
 
     OwnPtr<DevTools::DevToolsServer> m_devtools;
+
+    mutable HashMap<u64, u64> m_navigation_listener_ids;
 } SWIFT_IMMORTAL_REFERENCE;
 
 }

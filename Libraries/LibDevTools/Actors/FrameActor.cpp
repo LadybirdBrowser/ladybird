@@ -69,6 +69,17 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
                 if (auto self = weak_self.strong_ref())
                     self->on_network_request_finished(move(data));
             });
+
+        devtools.delegate().listen_for_navigation_events(
+            tab->description(),
+            [weak_self = make_weak_ptr<FrameActor>()](String url) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_navigation_started(move(url));
+            },
+            [weak_self = make_weak_ptr<FrameActor>()](String url, String title) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_navigation_finished(move(url), move(title));
+            });
     }
 }
 
@@ -77,6 +88,7 @@ FrameActor::~FrameActor()
     if (auto tab = m_tab.strong_ref()) {
         devtools().delegate().stop_listening_for_console_messages(tab->description());
         devtools().delegate().stop_listening_for_network_events(tab->description());
+        devtools().delegate().stop_listening_for_navigation_events(tab->description());
     }
 }
 
@@ -489,6 +501,63 @@ void FrameActor::on_network_request_finished(DevToolsDelegate::NetworkRequestCom
     message.set("type"sv, "resources-updated-array"sv);
     message.set("array"sv, move(array));
     send_message(move(message));
+}
+
+void FrameActor::on_navigation_started(String url)
+{
+    // Clear our internal tracking of network events
+    m_network_events.clear();
+
+    // Send will-navigate document event to trigger network panel clear
+    JsonObject document_event;
+    document_event.set("resourceType"sv, "document-event"sv);
+    document_event.set("name"sv, "will-navigate"sv);
+    document_event.set("time"sv, UnixDateTime::now().milliseconds_since_epoch());
+    document_event.set("newURI"sv, url);
+    document_event.set("isFrameSwitching"sv, false);
+
+    JsonArray events;
+    events.must_append(move(document_event));
+
+    JsonArray document_event_array;
+    document_event_array.must_append("document-event"sv);
+    document_event_array.must_append(move(events));
+
+    JsonArray array;
+    array.must_append(move(document_event_array));
+
+    JsonObject resources_message;
+    resources_message.set("type"sv, "resources-available-array"sv);
+    resources_message.set("array"sv, move(array));
+    send_message(move(resources_message));
+
+    // Also send tabNavigated for backwards compatibility
+    JsonObject message;
+    message.set("type"sv, "tabNavigated"sv);
+    message.set("url"sv, move(url));
+    message.set("state"sv, "start"sv);
+    message.set("isFrameSwitching"sv, false);
+    send_message(move(message));
+}
+
+void FrameActor::on_navigation_finished(String url, String title)
+{
+    // Update the tab description with the new URL and title
+    if (auto tab = m_tab.strong_ref()) {
+        tab->set_url(url);
+        tab->set_title(title);
+    }
+
+    JsonObject message;
+    message.set("type"sv, "tabNavigated"sv);
+    message.set("url"sv, move(url));
+    message.set("title"sv, move(title));
+    message.set("state"sv, "stop"sv);
+    message.set("isFrameSwitching"sv, false);
+    send_message(move(message));
+
+    // Also send a frameUpdate message to update the frame info
+    send_frame_update_message();
 }
 
 }

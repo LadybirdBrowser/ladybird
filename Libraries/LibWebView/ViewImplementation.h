@@ -179,6 +179,14 @@ public:
     Function<void(URL::URL const&)> on_url_change;
     Function<void(URL::URL const&, bool)> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
+
+    struct NavigationListener {
+        Function<void(URL::URL const&, bool)> on_load_start;
+        Function<void(URL::URL const&)> on_load_finish;
+    };
+    u64 add_navigation_listener(NavigationListener);
+    void remove_navigation_listener(u64 listener_id);
+
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
     Function<void(Gfx::Cursor const&)> on_cursor_change;
@@ -358,6 +366,9 @@ protected:
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
+
+    HashMap<u64, NavigationListener> m_navigation_listeners;
+    u64 m_next_navigation_listener_id { 1 };
 };
 
 }

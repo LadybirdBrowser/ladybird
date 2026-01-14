@@ -29,6 +29,9 @@ public:
     TabDescription const& description() const { return m_description; }
     JsonObject serialize_description() const;
 
+    void set_url(String url) { m_description.url = move(url); }
+    void set_title(String title) { m_description.title = move(title); }
+
     void reset_selected_node();
 
 private:

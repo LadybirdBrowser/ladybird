@@ -44,6 +44,9 @@ private:
     void on_network_response_headers_received(DevToolsDelegate::NetworkResponseData);
     void on_network_request_finished(DevToolsDelegate::NetworkRequestCompleteData);
 
+    void on_navigation_started(String url);
+    void on_navigation_finished(String url, String title);
+
     WeakPtr<TabActor> m_tab;
 
     WeakPtr<CSSPropertiesActor> m_css_properties;

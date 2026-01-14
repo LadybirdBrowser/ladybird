@@ -109,6 +109,11 @@ public:
     using OnNetworkRequestFinished = Function<void(NetworkRequestCompleteData)>;
     virtual void listen_for_network_events(TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkRequestFinished) const { }
     virtual void stop_listening_for_network_events(TabDescription const&) const { }
+
+    using OnNavigationStarted = Function<void(String url)>;
+    using OnNavigationFinished = Function<void(String url, String title)>;
+    virtual void listen_for_navigation_events(TabDescription const&, OnNavigationStarted, OnNavigationFinished) const { }
+    virtual void stop_listening_for_navigation_events(TabDescription const&) const { }
 };
 
 }
