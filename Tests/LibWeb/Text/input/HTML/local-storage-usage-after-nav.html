@@ -2,11 +2,14 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
+        const key = `foo_${crypto.randomUUID()}`;
+
         window.onmessage = () => {
            try {
-                println(localStorage.getItem("foo"));
-                localStorage.setItem("foo", "bar");
-                println(localStorage.getItem("foo"));
+                println(localStorage.getItem(key));
+                localStorage.setItem(key, "bar");
+                println(localStorage.getItem(key));
+                localStorage.removeItem(key);
             } catch (e) {
                 println(e);
             }
@@ -15,7 +18,7 @@
         };
 
         const frame = document.createElement("iframe");
-        frame.src = "../../data/local-storage-iframe.html";
+        frame.src = `../../data/local-storage-iframe.html?key=${key}`;
         document.body.appendChild(frame);
     });
 </script>
