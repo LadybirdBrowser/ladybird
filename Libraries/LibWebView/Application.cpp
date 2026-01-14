@@ -1295,18 +1295,22 @@ void Application::stop_listening_for_console_messages(DevTools::TabDescription c
     view->on_console_message = nullptr;
 }
 
-void Application::listen_for_network_events(DevTools::TabDescription const& description, OnNetworkRequestStarted on_request_started, OnNetworkResponseHeadersReceived on_response_headers, OnNetworkRequestFinished on_request_finished) const
+void Application::listen_for_network_events(DevTools::TabDescription const& description, OnNetworkRequestStarted on_request_started, OnNetworkResponseHeadersReceived on_response_headers, OnNetworkResponseBodyReceived on_response_body, OnNetworkRequestFinished on_request_finished) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return;
 
-    view->on_network_request_started = [on_request_started = move(on_request_started)](u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& headers) {
-        on_request_started({ request_id, url.to_string(), MUST(String::from_byte_string(method)), UnixDateTime::now(), headers });
+    view->on_network_request_started = [on_request_started = move(on_request_started)](u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& headers, ByteBuffer request_body) {
+        on_request_started({ request_id, url.to_string(), MUST(String::from_byte_string(method)), UnixDateTime::now(), headers, move(request_body) });
     };
 
     view->on_network_response_headers_received = [on_response_headers = move(on_response_headers)](u64 request_id, u32 status_code, Optional<String> const& reason_phrase, Vector<HTTP::Header> const& headers) {
         on_response_headers({ request_id, status_code, reason_phrase, headers });
+    };
+
+    view->on_network_response_body_received = [on_response_body = move(on_response_body)](u64 request_id, ByteBuffer data) {
+        on_response_body(request_id, move(data));
     };
 
     view->on_network_request_finished = [on_request_finished = move(on_request_finished)](u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
@@ -1322,6 +1326,7 @@ void Application::stop_listening_for_network_events(DevTools::TabDescription con
 
     view->on_network_request_started = nullptr;
     view->on_network_response_headers_received = nullptr;
+    view->on_network_response_body_received = nullptr;
     view->on_network_request_finished = nullptr;
 }
 

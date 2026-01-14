@@ -40,6 +40,7 @@ private:
 
     void on_network_request_started(DevToolsDelegate::NetworkRequestData);
     void on_network_response_headers_received(DevToolsDelegate::NetworkResponseData);
+    void on_network_response_body_received(u64 request_id, ByteBuffer data);
     void on_network_request_finished(DevToolsDelegate::NetworkRequestCompleteData);
 
     void on_navigation_started(String url);

@@ -436,11 +436,11 @@ void WebContentClient::did_output_js_console_message(u64 page_id, ConsoleOutput 
     }
 }
 
-void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers)
+void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_network_request_started)
-            view->on_network_request_started(request_id, url, method, request_headers);
+            view->on_network_request_started(request_id, url, method, request_headers, move(request_body));
     }
 }
 
@@ -449,6 +449,14 @@ void WebContentClient::did_receive_network_response_headers(u64 page_id, u64 req
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_network_response_headers_received)
             view->on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers);
+    }
+}
+
+void WebContentClient::did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_network_response_body_received)
+            view->on_network_response_body_received(request_id, move(data));
     }
 }
 
