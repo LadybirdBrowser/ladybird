@@ -126,7 +126,6 @@ public:
 
     void run_javascript(String const&);
     void js_console_input(String const&);
-    void js_console_request_messages(i32 start_index);
 
     void alert_closed();
     void confirm_closed(bool accepted);
@@ -210,8 +209,7 @@ public:
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(JsonValue)> on_received_js_console_result;
-    Function<void(i32 message_id)> on_console_message_available;
-    Function<void(i32 start_index, Vector<ConsoleOutput>)> on_received_console_messages;
+    Function<void(ConsoleOutput)> on_console_message;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&)> on_network_request_started;
     Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&)> on_network_response_headers_received;
     Function<void(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&)> on_network_request_finished;

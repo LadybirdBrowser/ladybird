@@ -1255,12 +1255,6 @@ void ConnectionFromClient::run_javascript(u64 page_id, String js_source)
         page->run_javascript(js_source);
 }
 
-void ConnectionFromClient::js_console_request_messages(u64 page_id, i32 start_index)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->js_console_request_messages(start_index);
-}
-
 void ConnectionFromClient::alert_closed(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

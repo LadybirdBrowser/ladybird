@@ -126,7 +126,7 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
             trace.unchecked_append(move(stack_frame));
     }
 
-    WebView::ConsoleOutput console_output {
+    send_console_output({
         .timestamp = UnixDateTime::now(),
         .output = WebView::ConsoleError {
             .name = name.to_string_without_side_effects(),
@@ -134,23 +134,12 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
             .trace = move(trace),
             .inside_promise = in_promise,
         },
-    };
-
-    m_console_output.append(move(console_output));
-    m_client->did_output_js_console_message(m_console_output.size() - 1);
+    });
 }
 
-void DevToolsConsoleClient::send_messages(i32 start_index)
+void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_output)
 {
-    if (m_console_output.size() - start_index < 1) {
-        // When the console is first created, it requests any messages that happened before then, by requesting with
-        // start_index=0. If we don't have any messages at all, that is still a valid request, and we can just ignore it.
-        if (start_index != 0)
-            m_client->console_peer_did_misbehave("Requested non-existent console message index");
-        return;
-    }
-
-    m_client->did_get_js_console_messages(start_index, m_console_output.span().slice(start_index));
+    m_client->did_output_js_console_message(move(console_output));
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
@@ -171,16 +160,13 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
     for (auto value : argument_values)
         serialized_arguments.unchecked_append(serialize_js_value(m_console->realm(), value));
 
-    WebView::ConsoleOutput console_output {
+    send_console_output({
         .timestamp = UnixDateTime::now(),
         .output = WebView::ConsoleLog {
             .level = log_level,
             .arguments = move(serialized_arguments),
         },
-    };
-
-    m_console_output.append(move(console_output));
-    m_client->did_output_js_console_message(m_console_output.size() - 1);
+    });
 
     return JS::js_undefined();
 }

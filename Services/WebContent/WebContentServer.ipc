@@ -56,7 +56,6 @@ endpoint WebContentServer
     get_hovered_node_id(u64 page_id) =|
 
     js_console_input(u64 page_id, String js_source) =|
-    js_console_request_messages(u64 page_id, i32 start_index) =|
     run_javascript(u64 page_id, String js_source) =|
 
     list_style_sheets(u64 page_id) =|

@@ -816,25 +816,14 @@ void PageClient::run_javascript(StringView js_source)
         dbgln("Exception :(");
 }
 
-void PageClient::js_console_request_messages(i32 start_index)
+void PageClient::did_output_js_console_message(WebView::ConsoleOutput console_output)
 {
-    if (m_top_level_document_console_client)
-        m_top_level_document_console_client->send_messages(start_index);
-}
-
-void PageClient::did_output_js_console_message(i32 message_index)
-{
-    client().async_did_output_js_console_message(m_id, message_index);
+    client().async_did_output_js_console_message(m_id, move(console_output));
 }
 
 void PageClient::console_peer_did_misbehave(char const* reason)
 {
     client().did_misbehave(reason);
-}
-
-void PageClient::did_get_js_console_messages(i32 start_index, ReadonlySpan<WebView::ConsoleOutput> console_output)
-{
-    client().async_did_get_js_console_messages(m_id, start_index, console_output);
 }
 
 static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)

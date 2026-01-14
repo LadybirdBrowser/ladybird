@@ -1277,15 +1277,13 @@ void Application::evaluate_javascript(DevTools::TabDescription const& descriptio
     view->js_console_input(script);
 }
 
-void Application::listen_for_console_messages(DevTools::TabDescription const& description, OnConsoleMessageAvailable on_console_message_available, OnReceivedConsoleMessages on_received_console_output) const
+void Application::listen_for_console_messages(DevTools::TabDescription const& description, OnConsoleMessage on_console_message) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return;
 
-    view->on_console_message_available = move(on_console_message_available);
-    view->on_received_console_messages = move(on_received_console_output);
-    view->js_console_request_messages(0);
+    view->on_console_message = move(on_console_message);
 }
 
 void Application::stop_listening_for_console_messages(DevTools::TabDescription const& description) const
@@ -1294,17 +1292,7 @@ void Application::stop_listening_for_console_messages(DevTools::TabDescription c
     if (!view.has_value())
         return;
 
-    view->on_console_message_available = nullptr;
-    view->on_received_console_messages = nullptr;
-}
-
-void Application::request_console_messages(DevTools::TabDescription const& description, i32 start_index) const
-{
-    auto view = ViewImplementation::find_view_by_id(description.id);
-    if (!view.has_value())
-        return;
-
-    view->js_console_request_messages(start_index);
+    view->on_console_message = nullptr;
 }
 
 void Application::listen_for_network_events(DevTools::TabDescription const& description, OnNetworkRequestStarted on_request_started, OnNetworkResponseHeadersReceived on_response_headers, OnNetworkRequestFinished on_request_finished) const

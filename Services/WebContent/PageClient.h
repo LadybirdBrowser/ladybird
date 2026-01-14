@@ -84,10 +84,8 @@ public:
     void js_console_input(StringView js_source);
     void did_execute_js_console_input(JsonValue const&);
     void run_javascript(StringView js_source);
-    void js_console_request_messages(i32 start_index);
-    void did_output_js_console_message(i32 message_index);
+    void did_output_js_console_message(WebView::ConsoleOutput);
     void console_peer_did_misbehave(char const* reason);
-    void did_get_js_console_messages(i32 start_index, ReadonlySpan<WebView::ConsoleOutput> console_output);
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
 

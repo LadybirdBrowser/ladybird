@@ -33,10 +33,9 @@ private:
     virtual void end_group() override { }
     virtual void clear() override { }
 
-    virtual void send_messages(i32 start_index) override;
     virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel, PrinterArguments) override;
 
-    Vector<WebView::ConsoleOutput> m_console_output;
+    void send_console_output(WebView::ConsoleOutput);
 };
 
 }
