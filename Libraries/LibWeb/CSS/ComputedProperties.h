@@ -249,6 +249,7 @@ public:
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
+    MathStyle math_style() const;
     int math_depth() const;
     [[nodiscard]] CSSPixels line_height() const;
     [[nodiscard]] CSSPixels font_size() const;
