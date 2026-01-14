@@ -428,19 +428,11 @@ void WebContentClient::did_execute_js_console_input(u64 page_id, JsonValue resul
     }
 }
 
-void WebContentClient::did_output_js_console_message(u64 page_id, i32 message_index)
+void WebContentClient::did_output_js_console_message(u64 page_id, ConsoleOutput console_output)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_console_message_available)
-            view->on_console_message_available(message_index);
-    }
-}
-
-void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ConsoleOutput> console_output)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_received_console_messages)
-            view->on_received_console_messages(start_index, move(console_output));
+        if (view->on_console_message)
+            view->on_console_message(move(console_output));
     }
 }
 

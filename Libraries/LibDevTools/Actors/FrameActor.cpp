@@ -40,13 +40,9 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_console_messages(
             tab->description(),
-            [weak_self = make_weak_ptr<FrameActor>()](i32 message_index) {
+            [weak_self = make_weak_ptr<FrameActor>()](WebView::ConsoleOutput console_output) {
                 if (auto self = weak_self.strong_ref())
-                    self->console_message_available(message_index);
-            },
-            [weak_self = make_weak_ptr<FrameActor>()](i32 start_index, Vector<WebView::ConsoleOutput> console_output) {
-                if (auto self = weak_self.strong_ref())
-                    self->console_messages_received(start_index, move(console_output));
+                    self->on_console_message(move(console_output));
             });
 
         // FIXME: We should adopt WebContent to inform us when style sheets are available or removed.
@@ -242,102 +238,77 @@ void FrameActor::style_sheets_available(JsonObject& response, Vector<Web::CSS::S
     style_sheets_actor->set_style_sheets(move(style_sheets));
 }
 
-void FrameActor::console_message_available(i32 message_index)
+void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 {
-    if (message_index <= m_highest_received_message_index) {
-        dbgln("Notified about console message we already have");
-        return;
-    }
-    if (message_index <= m_highest_notified_message_index) {
-        dbgln("Notified about console message we're already aware of");
-        return;
-    }
-
-    m_highest_notified_message_index = message_index;
-
-    if (!m_waiting_for_messages)
-        request_console_messages();
-}
-
-void FrameActor::console_messages_received(i32 start_index, Vector<WebView::ConsoleOutput> console_output)
-{
-    auto end_index = start_index + static_cast<i32>(console_output.size()) - 1;
-    if (end_index <= m_highest_received_message_index) {
-        dbgln("Received old console messages");
-        return;
-    }
-
     JsonArray console_messages;
     JsonArray error_messages;
 
-    for (auto& output : console_output) {
-        JsonObject message;
+    JsonObject message;
 
-        output.output.visit(
-            [&](WebView::ConsoleLog& log) {
-                switch (log.level) {
-                case JS::Console::LogLevel::Debug:
-                    message.set("level"sv, "debug"sv);
-                    break;
-                case JS::Console::LogLevel::Error:
-                    message.set("level"sv, "error"sv);
-                    break;
-                case JS::Console::LogLevel::Info:
-                    message.set("level"sv, "info"sv);
-                    break;
-                case JS::Console::LogLevel::Log:
-                    message.set("level"sv, "log"sv);
-                    break;
-                case JS::Console::LogLevel::Warn:
-                    message.set("level"sv, "warn"sv);
-                    break;
-                default:
-                    // FIXME: Implement remaining console levels.
-                    return;
-                }
+    console_output.output.visit(
+        [&](WebView::ConsoleLog& log) {
+            switch (log.level) {
+            case JS::Console::LogLevel::Debug:
+                message.set("level"sv, "debug"sv);
+                break;
+            case JS::Console::LogLevel::Error:
+                message.set("level"sv, "error"sv);
+                break;
+            case JS::Console::LogLevel::Info:
+                message.set("level"sv, "info"sv);
+                break;
+            case JS::Console::LogLevel::Log:
+                message.set("level"sv, "log"sv);
+                break;
+            case JS::Console::LogLevel::Warn:
+                message.set("level"sv, "warn"sv);
+                break;
+            default:
+                // FIXME: Implement remaining console levels.
+                return;
+            }
 
-                message.set("filename"sv, "<eval>"sv);
-                message.set("lineNumber"sv, 1);
-                message.set("columnNumber"sv, 1);
-                message.set("timeStamp"sv, output.timestamp.milliseconds_since_epoch());
-                message.set("arguments"sv, JsonArray { move(log.arguments) });
+            message.set("filename"sv, "<eval>"sv);
+            message.set("lineNumber"sv, 1);
+            message.set("columnNumber"sv, 1);
+            message.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
+            message.set("arguments"sv, JsonArray { move(log.arguments) });
 
-                console_messages.must_append(move(message));
-            },
-            [&](WebView::ConsoleError const& error) {
-                StringBuilder stack;
+            console_messages.must_append(move(message));
+        },
+        [&](WebView::ConsoleError const& error) {
+            StringBuilder stack;
 
-                for (auto const& frame : error.trace) {
-                    if (frame.function.has_value())
-                        stack.append(*frame.function);
-                    stack.append('@');
-                    stack.append(frame.file.map([](auto const& file) -> StringView { return file; }).value_or("unknown"sv));
-                    stack.appendff(":{}:{}\n", frame.line.value_or(0), frame.column.value_or(0));
-                }
+            for (auto const& frame : error.trace) {
+                if (frame.function.has_value())
+                    stack.append(*frame.function);
+                stack.append('@');
+                stack.append(frame.file.map([](auto const& file) -> StringView { return file; }).value_or("unknown"sv));
+                stack.appendff(":{}:{}\n", frame.line.value_or(0), frame.column.value_or(0));
+            }
 
-                JsonObject preview;
-                preview.set("kind"sv, "Error"sv);
-                preview.set("message"sv, error.message);
-                preview.set("name"sv, error.name);
-                if (!stack.is_empty())
-                    preview.set("stack"sv, MUST(stack.to_string()));
+            JsonObject preview;
+            preview.set("kind"sv, "Error"sv);
+            preview.set("message"sv, error.message);
+            preview.set("name"sv, error.name);
+            if (!stack.is_empty())
+                preview.set("stack"sv, MUST(stack.to_string()));
 
-                JsonObject exception;
-                exception.set("class"sv, error.name);
-                exception.set("isError"sv, true);
-                exception.set("preview"sv, move(preview));
+            JsonObject exception;
+            exception.set("class"sv, error.name);
+            exception.set("isError"sv, true);
+            exception.set("preview"sv, move(preview));
 
-                JsonObject page_error;
-                page_error.set("error"sv, true);
-                page_error.set("exception"sv, move(exception));
-                page_error.set("hasException"sv, !error.trace.is_empty());
-                page_error.set("isPromiseRejection"sv, error.inside_promise);
-                page_error.set("timeStamp"sv, output.timestamp.milliseconds_since_epoch());
+            JsonObject page_error;
+            page_error.set("error"sv, true);
+            page_error.set("exception"sv, move(exception));
+            page_error.set("hasException"sv, !error.trace.is_empty());
+            page_error.set("isPromiseRejection"sv, error.inside_promise);
+            page_error.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
 
-                message.set("pageError"sv, move(page_error));
-                error_messages.must_append(move(message));
-            });
-    }
+            message.set("pageError"sv, move(page_error));
+            error_messages.must_append(move(message));
+        });
 
     JsonArray array;
 
@@ -356,26 +327,13 @@ void FrameActor::console_messages_received(i32 start_index, Vector<WebView::Cons
         array.must_append(move(error_message));
     }
 
-    JsonObject message;
-    message.set("type"sv, "resources-available-array"sv);
-    message.set("array"sv, move(array));
-    send_message(move(message));
+    if (array.is_empty())
+        return;
 
-    m_highest_received_message_index = end_index;
-    m_waiting_for_messages = false;
-
-    if (m_highest_received_message_index < m_highest_notified_message_index)
-        request_console_messages();
-}
-
-void FrameActor::request_console_messages()
-{
-    VERIFY(!m_waiting_for_messages);
-
-    if (auto tab = m_tab.strong_ref()) {
-        devtools().delegate().request_console_messages(m_tab->description(), m_highest_received_message_index + 1);
-        m_waiting_for_messages = true;
-    }
+    JsonObject resources_message;
+    resources_message.set("type"sv, "resources-available-array"sv);
+    resources_message.set("array"sv, move(array));
+    send_message(move(resources_message));
 }
 
 void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)

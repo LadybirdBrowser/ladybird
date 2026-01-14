@@ -126,7 +126,6 @@ private:
 
     virtual void js_console_input(u64 page_id, String) override;
     virtual void run_javascript(u64 page_id, String) override;
-    virtual void js_console_request_messages(u64 page_id, i32) override;
 
     virtual void alert_closed(u64 page_id) override;
     virtual void confirm_closed(u64 page_id, bool accepted) override;

@@ -113,8 +113,7 @@ endpoint WebContentClient
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
 
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
-    did_output_js_console_message(u64 page_id, i32 message_index) =|
-    did_get_js_console_messages(u64 page_id, i32 start_index, Vector<WebView::ConsoleOutput> console_output) =|
+    did_output_js_console_message(u64 page_id, WebView::ConsoleOutput console_output) =|
 
     did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers) =|
     did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers) =|

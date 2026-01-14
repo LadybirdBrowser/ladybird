@@ -36,9 +36,7 @@ private:
 
     virtual void handle_message(Message const&) override;
 
-    void console_message_available(i32 message_index);
-    void console_messages_received(i32 start_index, Vector<WebView::ConsoleOutput>);
-    void request_console_messages();
+    void on_console_message(WebView::ConsoleOutput);
 
     void on_network_request_started(DevToolsDelegate::NetworkRequestData);
     void on_network_response_headers_received(DevToolsDelegate::NetworkResponseData);
@@ -55,10 +53,6 @@ private:
     WeakPtr<StyleSheetsActor> m_style_sheets;
     WeakPtr<ThreadActor> m_thread;
     WeakPtr<AccessibilityActor> m_accessibility;
-
-    i32 m_highest_notified_message_index { -1 };
-    i32 m_highest_received_message_index { -1 };
-    bool m_waiting_for_messages { false };
 
     HashMap<u64, NonnullRefPtr<NetworkEventActor>> m_network_events;
 };

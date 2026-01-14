@@ -27,7 +27,6 @@ public:
     void handle_input(StringView js_source);
 
     virtual void handle_result(JS::Value) = 0;
-    virtual void send_messages(i32 start_index) = 0;
 
 protected:
     WebContentConsoleClient(JS::Realm&, JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);

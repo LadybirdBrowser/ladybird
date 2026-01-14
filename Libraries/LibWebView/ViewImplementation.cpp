@@ -420,11 +420,6 @@ void ViewImplementation::js_console_input(String const& js_source)
     client().async_js_console_input(page_id(), js_source);
 }
 
-void ViewImplementation::js_console_request_messages(i32 start_index)
-{
-    client().async_js_console_request_messages(page_id(), start_index);
-}
-
 void ViewImplementation::alert_closed()
 {
     client().async_alert_closed(page_id());
