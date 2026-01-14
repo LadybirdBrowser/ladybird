@@ -40,6 +40,7 @@ flatpak_runtime_libs = [
     "harfbuzz",
     "libjpeg-turbo",
     "libproxy",
+    "nghttp2",  # FIXME: This can be removed when the vcpkg overlay is no longer needed.
     "qtbase",
     "qtmultimedia",
     "sqlite3",
