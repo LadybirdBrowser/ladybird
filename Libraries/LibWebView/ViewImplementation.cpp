@@ -1029,4 +1029,16 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>,
         m_media_context_menu->on_activation(to_widget_position(content_position));
 }
 
+u64 ViewImplementation::add_navigation_listener(NavigationListener listener)
+{
+    auto id = m_next_navigation_listener_id++;
+    m_navigation_listeners.set(id, move(listener));
+    return id;
+}
+
+void ViewImplementation::remove_navigation_listener(u64 listener_id)
+{
+    m_navigation_listeners.remove(listener_id);
+}
+
 }

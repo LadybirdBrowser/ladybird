@@ -117,6 +117,11 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 
         if (view->on_load_start)
             view->on_load_start(url, is_redirect);
+
+        for (auto const& [id, listener] : view->m_navigation_listeners) {
+            if (listener.on_load_start)
+                listener.on_load_start(url, is_redirect);
+        }
     }
 }
 
@@ -134,6 +139,11 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 
         if (view->on_load_finish)
             view->on_load_finish(url);
+
+        for (auto const& [id, listener] : view->m_navigation_listeners) {
+            if (listener.on_load_finish)
+                listener.on_load_finish(url);
+        }
     }
 }
 

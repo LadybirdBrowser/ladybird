@@ -133,7 +133,7 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("css-change"sv, false);
     resources.set("css-message"sv, false);
     resources.set("css-registered-properties"sv, false);
-    resources.set("document-event"sv, false);
+    resources.set("document-event"sv, true);
     resources.set("error-message"sv, false);
     resources.set("extension-storage"sv, false);
     resources.set("indexed-db"sv, false);
