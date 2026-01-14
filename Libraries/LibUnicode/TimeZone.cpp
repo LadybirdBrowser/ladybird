@@ -219,4 +219,55 @@ Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, Uni
     return offsets;
 }
 
+Optional<TimeZoneTransition> get_time_zone_transition(StringView time_zone, UnixDateTime time, TimeZoneTransition::Options options)
+{
+    auto time_zone_data = TimeZoneData::for_time_zone(time_zone);
+    if (!time_zone_data.has_value())
+        return OptionalNone {};
+
+    auto& basic_time_zone = as<icu::BasicTimeZone>(time_zone_data->time_zone());
+
+    auto current_icu_time = to_icu_time(time);
+    bool include_current_time = options.include_given_time == TimeZoneTransition::Options::IncludeGivenTime::Yes;
+
+    icu::TimeZoneTransition result;
+    auto found_transition = [&] {
+        if (options.direction == TimeZoneTransition::Options::Direction::Previous)
+            return basic_time_zone.getPreviousTransition(current_icu_time, include_current_time, result);
+
+        return basic_time_zone.getNextTransition(current_icu_time, include_current_time, result);
+    };
+
+    while (found_transition()) {
+        auto time_result = result.getTime();
+
+        switch (options.transition_rule) {
+        case TimeZoneTransition::Options::TransitionRule::AnyTransition: {
+            return TimeZoneTransition {
+                .transition = AK::Duration::from_milliseconds(time_result),
+            };
+        }
+        case TimeZoneTransition::Options::TransitionRule::TransitionWhereUTCOffsetChanges: {
+            auto const* from_rule = result.getFrom();
+            auto const* to_rule = result.getTo();
+
+            i32 from_utc_offset = from_rule->getRawOffset() + from_rule->getDSTSavings();
+            i32 to_utc_offset = to_rule->getRawOffset() + to_rule->getDSTSavings();
+
+            if (from_utc_offset != to_utc_offset) {
+                return TimeZoneTransition {
+                    .transition = AK::Duration::from_milliseconds(time_result),
+                };
+            }
+
+            current_icu_time = time_result;
+            include_current_time = false;
+            break;
+        }
+        }
+    }
+
+    return OptionalNone {};
+}
+
 }
