@@ -805,6 +805,9 @@ public:
     void set_needs_to_resolve_paint_only_properties() { m_needs_to_resolve_paint_only_properties = true; }
     void set_needs_animated_style_update() { m_needs_animated_style_update = true; }
 
+    void set_needs_accumulated_visual_contexts_update(bool value) { m_needs_accumulated_visual_contexts_update = value; }
+    bool needs_accumulated_visual_contexts_update() const { return m_needs_accumulated_visual_contexts_update; }
+
     virtual JS::Value named_item_value(FlyString const& name) const override;
     virtual Vector<FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
@@ -1279,6 +1282,7 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_to_resolve_paint_only_properties { true };
+    bool m_needs_accumulated_visual_contexts_update { false };
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 

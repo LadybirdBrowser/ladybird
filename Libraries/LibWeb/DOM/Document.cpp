@@ -1617,6 +1617,10 @@ void Document::update_style()
     auto invalidation = update_style_recursively(*this, style_computer(), false, false);
     if (!invalidation.is_none())
         invalidate_display_list();
+
+    if (invalidation.rebuild_accumulated_visual_contexts)
+        set_needs_accumulated_visual_contexts_update(true);
+
     if (invalidation.rebuild_stacking_context_tree)
         invalidate_stacking_context_tree();
     m_needs_full_style_update = false;
@@ -6628,6 +6632,11 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     context.set_should_paint_overlay(config.paint_overlay);
 
     update_paint_and_hit_testing_properties_if_needed();
+
+    if (m_needs_accumulated_visual_contexts_update) {
+        paintable()->assign_accumulated_visual_contexts();
+        m_needs_accumulated_visual_contexts_update = false;
+    }
 
     auto& viewport_paintable = *paintable();
 
