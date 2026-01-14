@@ -14,6 +14,7 @@
 
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
@@ -105,6 +106,9 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
             if (at_rule.name.equals_ignoring_ascii_case("font-face"sv))
                 return convert_to_font_face_rule(at_rule);
+
+            if (at_rule.name.equals_ignoring_ascii_case("font-feature-values"sv))
+                return convert_to_font_feature_values_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("import"sv))
                 return convert_to_import_rule(at_rule);
@@ -958,6 +962,160 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     });
 
     return CSSFontFaceRule::create(realm(), CSSFontFaceDescriptors::create(realm(), descriptors.release_descriptors()));
+}
+
+Optional<Vector<FlyString>> Parser::parse_comma_separated_family_name_list(TokenStream<ComponentValue>& tokens)
+{
+    Vector<FlyString> family_names;
+    auto comma_separated_families = parse_a_comma_separated_list_of_component_values(tokens);
+
+    if (comma_separated_families.is_empty()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@font-feature-values"_fly_string,
+            .prelude = tokens.dump_string(),
+            .description = "Empty family name list."_string,
+        });
+        return {};
+    }
+
+    for (auto const& family_component_values : comma_separated_families) {
+        TokenStream family_stream { family_component_values };
+        auto family_name = parse_family_name_value(family_stream);
+
+        if (!family_name || family_stream.has_next_token()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@font-feature-values"_fly_string,
+                .prelude = family_stream.dump_string(),
+                .description = "Invalid family name."_string,
+            });
+            return {};
+        }
+
+        family_names.append(string_from_style_value(family_name.release_nonnull()));
+    }
+
+    return family_names;
+}
+
+GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(AtRule const& rule)
+{
+    // https://drafts.csswg.org/css-fonts-4/#font-feature-values-syntax
+    // @font-feature-values = @font-feature-values <family-name># { <declaration-rule-list> }
+    auto prelude_stream = TokenStream { rule.prelude };
+    if (!rule.is_block_rule) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@font-feature-values"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
+        return nullptr;
+    }
+
+    auto family_names = parse_comma_separated_family_name_list(prelude_stream);
+
+    if (!family_names.has_value())
+        return nullptr;
+
+    auto font_feature_values_rule = CSSFontFeatureValuesRule::create(realm(), family_names.release_value());
+
+    rule.for_each_as_declaration_rule_list(
+        [&](AtRule const& at_rule) {
+            // <font-feature-value-type> = <@stylistic> | <@historical-forms> | <@styleset> | <@character-variant> | <@swash> | <@ornaments> | <@annotation>
+            // @stylistic = @stylistic { <declaration-list> }
+            // @historical-forms = @historical-forms { <declaration-list> }
+            // @styleset = @styleset { <declaration-list> }
+            // @character-variant = @character-variant { <declaration-list> }
+            // @swash = @swash { <declaration-list> }
+            // @ornaments = @ornaments { <declaration-list> }
+            // @annotation = @annotation { <declaration-list> }
+
+            GC::Ptr<CSSFontFeatureValuesMap> feature_values_map;
+            size_t max_value_count = 1;
+
+            if (at_rule.name.equals_ignoring_ascii_case("stylistic"sv)) {
+                feature_values_map = font_feature_values_rule->stylistic();
+            } else if (at_rule.name.equals_ignoring_ascii_case("historical-forms"sv)) {
+                feature_values_map = font_feature_values_rule->historical_forms();
+            } else if (at_rule.name.equals_ignoring_ascii_case("styleset"sv)) {
+                feature_values_map = font_feature_values_rule->styleset();
+                max_value_count = NumericLimits<size_t>::max();
+            } else if (at_rule.name.equals_ignoring_ascii_case("character-variant"sv)) {
+                feature_values_map = font_feature_values_rule->character_variant();
+                max_value_count = 2;
+            } else if (at_rule.name.equals_ignoring_ascii_case("swash"sv)) {
+                feature_values_map = font_feature_values_rule->swash();
+            } else if (at_rule.name.equals_ignoring_ascii_case("ornaments"sv)) {
+                feature_values_map = font_feature_values_rule->ornaments();
+            } else if (at_rule.name.equals_ignoring_ascii_case("annotation"sv)) {
+                feature_values_map = font_feature_values_rule->annotation();
+            } else {
+                // NB: Other at-rules are disallowed in this context and should have already been dropped
+                VERIFY_NOT_REACHED();
+            }
+
+            at_rule.for_each_as_declaration_list([&](Declaration const& declaration) {
+                auto value_stream = TokenStream { declaration.value };
+
+                if (declaration.important == Important::Yes) {
+                    ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .prelude = value_stream.dump_string(),
+                        .description = "Declarations in @font-feature-values rules cannot be marked !important."_string,
+                    });
+                    return;
+                }
+
+                value_stream.discard_whitespace();
+
+                if (!value_stream.has_next_token()) {
+                    ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .prelude = value_stream.dump_string(),
+                        .description = "Empty feature value."_string,
+                    });
+                    return;
+                }
+
+                Vector<u32> values;
+
+                while (value_stream.has_next_token()) {
+                    auto token = value_stream.consume_a_token();
+
+                    // FIXME: Support calc()
+                    if (!token.is(Token::Type::Number) || !token.token().number().is_integer() || token.token().number().value() < 0) {
+                        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                            .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                            .prelude = value_stream.dump_string(),
+                            .description = "Feature value entry must be a non-negative integer."_string,
+                        });
+
+                        return;
+                    }
+
+                    values.append(token.token().number().integer_value());
+
+                    value_stream.discard_whitespace();
+                }
+
+                if (values.size() > max_value_count) {
+                    ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                        .rule_name = MUST(String::formatted("@{}", at_rule.name)),
+                        .prelude = value_stream.dump_string(),
+                        .description = MUST(String::formatted("Too many feature values provided (maximum {})."_string, max_value_count)),
+                    });
+
+                    return;
+                }
+
+                MUST(feature_values_map->set(declaration.name.to_string(), move(values)));
+            });
+        },
+        [&](Declaration const&) {
+            // FIXME: Handle the `font-display` descriptor here, see
+            //        https://drafts.csswg.org/css-fonts-4/#font-display-font-feature-values
+        });
+
+    return font_feature_values_rule;
 }
 
 GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)

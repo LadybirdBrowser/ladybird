@@ -20,6 +20,11 @@ GC::Ref<CSSFontFeatureValuesRule> CSSFontFeatureValuesRule::create(JS::Realm& re
     return realm.create<CSSFontFeatureValuesRule>(realm, move(font_families));
 }
 
+bool CSSFontFeatureValuesRule::is_font_feature_value_type_at_keyword(FlyString const& keyword)
+{
+    return first_is_one_of(keyword, "stylistic", "historical-forms", "styleset", "character-variant", "swash", "ornaments", "annotation");
+}
+
 CSSFontFeatureValuesRule::CSSFontFeatureValuesRule(JS::Realm& realm, Vector<FlyString> font_families)
     : CSSRule(realm, CSSRule::Type::FontFeatureValues)
     , m_font_families(move(font_families))

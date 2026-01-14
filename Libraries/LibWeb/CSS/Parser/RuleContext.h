@@ -17,6 +17,8 @@ enum class RuleContext : u8 {
     AtCounterStyle,
     AtMedia,
     AtFontFace,
+    AtFontFeatureValues,
+    FontFeatureValue,
     AtKeyframes,
     Keyframe,
     AtSupports,

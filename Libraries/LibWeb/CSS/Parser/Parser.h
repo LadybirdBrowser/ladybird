@@ -278,6 +278,7 @@ private:
         Yes,
     };
     Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
+    Optional<Vector<FlyString>> parse_comma_separated_family_name_list(TokenStream<ComponentValue>&);
 
     bool is_valid_in_the_current_context(Declaration const&) const;
     bool is_valid_in_the_current_context(AtRule const&) const;
@@ -286,6 +287,7 @@ private:
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
     GC::Ptr<CSSCounterStyleRule> convert_to_counter_style_rule(AtRule const&);
     GC::Ptr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
+    GC::Ptr<CSSFontFeatureValuesRule> convert_to_font_feature_values_rule(AtRule const&);
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
     GC::Ptr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
