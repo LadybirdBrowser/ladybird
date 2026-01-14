@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibUnicode/TimeZone.h>
 
 namespace JS::Temporal {
 
@@ -78,21 +79,54 @@ ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanos
 // 11.1.3 GetNamedTimeZoneNextTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezonenexttransition
 Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
-    // FIXME: Implement this AO.
-    (void)time_zone;
-    (void)epoch_nanoseconds;
+    auto epoch_milliseconds = big_floor(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
+    auto time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(epoch_milliseconds));
 
-    return {};
+    auto options = Unicode::TimeZoneTransition::Options {
+        .direction = Unicode::TimeZoneTransition::Options::Direction::Next,
+        .include_given_time = Unicode::TimeZoneTransition::Options::IncludeGivenTime::No,
+        .transition_rule = Unicode::TimeZoneTransition::Options::TransitionRule::TransitionWhereUTCOffsetChanges,
+    };
+    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone, time, options);
+
+    if (!time_zone_transition.has_value())
+        return {};
+
+    auto result_nanoseconds = Crypto::SignedBigInteger { time_zone_transition->transition.to_milliseconds() }.multiplied_by(NANOSECONDS_PER_MILLISECOND);
+    if (result_nanoseconds > NANOSECONDS_MAX_INSTANT)
+        return {};
+
+    return result_nanoseconds;
 }
 
 // 11.1.4 GetNamedTimeZonePreviousTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezoneprevioustransition
 Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
-    // FIXME: Implement this AO.
-    (void)time_zone;
-    (void)epoch_nanoseconds;
+    auto epoch_milliseconds = big_floor(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
+    auto time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(epoch_milliseconds));
 
-    return {};
+    // Assume there's a hypothetical time zone with 10000ms as a time zone transition and arbitrary transitions before that time.
+    // If there's sub-millisecond precision, for example 10000.1ms, it will be floored to 10000ms.
+    // If we then don't include the given time, we will go on to find a transition before 10000ms, which is incorrect because it should find
+    // the 10000ms transition when going backwards from 10000.1ms.
+    auto remainder = modulo(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
+    bool has_sub_millisecond_precision = !remainder.is_zero();
+
+    auto options = Unicode::TimeZoneTransition::Options {
+        .direction = Unicode::TimeZoneTransition::Options::Direction::Previous,
+        .include_given_time = has_sub_millisecond_precision ? Unicode::TimeZoneTransition::Options::IncludeGivenTime::Yes : Unicode::TimeZoneTransition::Options::IncludeGivenTime::No,
+        .transition_rule = Unicode::TimeZoneTransition::Options::TransitionRule::TransitionWhereUTCOffsetChanges,
+    };
+    auto time_zone_transition = Unicode::get_time_zone_transition(time_zone, time, options);
+
+    if (!time_zone_transition.has_value())
+        return {};
+
+    auto result_nanoseconds = Crypto::SignedBigInteger { time_zone_transition->transition.to_milliseconds() }.multiplied_by(NANOSECONDS_PER_MILLISECOND);
+    if (result_nanoseconds < NANOSECONDS_MIN_INSTANT)
+        return {};
+
+    return result_nanoseconds;
 }
 
 // 11.1.5 FormatOffsetTimeZoneIdentifier ( offsetMinutes [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier

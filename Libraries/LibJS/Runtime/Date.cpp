@@ -363,7 +363,7 @@ Crypto::SignedBigInteger get_utc_epoch_nanoseconds(Temporal::ISODateTime const& 
     return result;
 }
 
-static i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value)
+i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value)
 {
     static Crypto::SignedBigInteger const min_bigint { NumericLimits<i64>::min() };
     static Crypto::SignedBigInteger const max_bigint { NumericLimits<i64>::max() };
@@ -379,7 +379,7 @@ static i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value)
     return value.to_i64();
 }
 
-static i64 clip_double_to_sane_time(double value)
+i64 clip_double_to_sane_time(double value)
 {
     static constexpr auto min_double = static_cast<double>(NumericLimits<i64>::min());
     static constexpr auto max_double = static_cast<double>(NumericLimits<i64>::max());

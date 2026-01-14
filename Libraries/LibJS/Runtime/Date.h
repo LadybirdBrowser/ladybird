@@ -80,6 +80,8 @@ JS_API u8 min_from_time(double);
 JS_API u8 sec_from_time(double);
 JS_API u16 ms_from_time(double);
 Crypto::SignedBigInteger get_utc_epoch_nanoseconds(Temporal::ISODateTime const&);
+i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value);
+i64 clip_double_to_sane_time(double value);
 Vector<Crypto::SignedBigInteger> get_named_time_zone_epoch_nanoseconds(StringView time_zone_identifier, Temporal::ISODateTime const&);
 Unicode::TimeZoneOffset get_named_time_zone_offset_nanoseconds(StringView time_zone_identifier, Crypto::SignedBigInteger const& epoch_nanoseconds);
 Unicode::TimeZoneOffset get_named_time_zone_offset_milliseconds(StringView time_zone_identifier, double epoch_milliseconds);
