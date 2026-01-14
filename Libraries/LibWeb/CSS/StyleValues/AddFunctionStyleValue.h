@@ -19,6 +19,7 @@ public:
     }
 
     NonnullRefPtr<StyleValue const> value() const { return m_value; }
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
     bool properties_equal(AddFunctionStyleValue const& other) const { return m_value == other.m_value; }

@@ -2734,6 +2734,11 @@ ValueComparingNonnullRefPtr<Gfx::Font const> ComputedProperties::first_available
     return *m_cached_first_available_computed_font;
 }
 
+MathStyle ComputedProperties::math_style() const
+{
+    return keyword_to_math_style(property(PropertyID::MathStyle).to_keyword()).value();
+}
+
 int ComputedProperties::math_depth() const
 {
     return property(PropertyID::MathDepth).as_integer().integer();

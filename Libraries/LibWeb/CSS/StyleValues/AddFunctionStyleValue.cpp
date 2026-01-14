@@ -9,6 +9,16 @@
 
 namespace Web::CSS {
 
+ValueComparingNonnullRefPtr<StyleValue const> AddFunctionStyleValue::absolutized(ComputationContext const& context) const
+{
+    auto absolutized_value = m_value->absolutized(context);
+
+    if (absolutized_value == m_value)
+        return *this;
+
+    return AddFunctionStyleValue::create(m_value->absolutized(context));
+}
+
 void AddFunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     builder.append("add("sv);
