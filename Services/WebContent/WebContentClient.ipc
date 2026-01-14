@@ -115,8 +115,9 @@ endpoint WebContentClient
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
     did_output_js_console_message(u64 page_id, WebView::ConsoleOutput console_output) =|
 
-    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers) =|
+    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body) =|
     did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers) =|
+    did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data) =|
     did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
 
     did_finish_test(u64 page_id, String text) =|

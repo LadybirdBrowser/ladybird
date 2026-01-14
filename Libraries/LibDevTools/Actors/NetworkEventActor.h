@@ -25,9 +25,10 @@ public:
 
     u64 request_id() const { return m_request_id; }
 
-    void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers);
+    void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
+    void append_response_body(ByteBuffer data);
     void set_request_complete(u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error);
 
     JsonObject serialize_initial_event() const;
@@ -51,15 +52,19 @@ private:
     String m_method;
     UnixDateTime m_start_time;
     Vector<HTTP::Header> m_request_headers;
+    ByteBuffer m_request_body;
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;
     Vector<HTTP::Header> m_response_headers;
 
+    ByteBuffer m_response_body;
     u64 m_body_size { 0 };
     Requests::RequestTimingInfo m_timing_info {};
     Optional<Requests::NetworkError> m_network_error;
     bool m_complete { false };
+
+    static constexpr size_t MAX_RESPONSE_BODY_SIZE = 10 * MiB;
 };
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/NetworkEventActor.h>
@@ -24,12 +25,13 @@ NetworkEventActor::NetworkEventActor(DevToolsServer& devtools, String name, u64 
 
 NetworkEventActor::~NetworkEventActor() = default;
 
-void NetworkEventActor::set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers)
+void NetworkEventActor::set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body)
 {
     m_url = move(url);
     m_method = move(method);
     m_start_time = start_time;
     m_request_headers = move(request_headers);
+    m_request_body = move(request_body);
 }
 
 void NetworkEventActor::set_response_start(u32 status_code, Optional<String> reason_phrase)
@@ -41,6 +43,19 @@ void NetworkEventActor::set_response_start(u32 status_code, Optional<String> rea
 void NetworkEventActor::set_response_headers(Vector<HTTP::Header> response_headers)
 {
     m_response_headers = move(response_headers);
+}
+
+void NetworkEventActor::append_response_body(ByteBuffer data)
+{
+    // Limit response body size to prevent memory issues
+    if (m_response_body.size() >= MAX_RESPONSE_BODY_SIZE)
+        return;
+
+    auto remaining_capacity = MAX_RESPONSE_BODY_SIZE - m_response_body.size();
+    auto bytes_to_append = min(data.size(), remaining_capacity);
+
+    if (bytes_to_append > 0)
+        m_response_body.append(data.bytes().slice(0, bytes_to_append));
 }
 
 void NetworkEventActor::set_request_complete(u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error)
@@ -166,7 +181,7 @@ void NetworkEventActor::get_request_cookies(Message const& message)
 void NetworkEventActor::get_request_post_data(Message const& message)
 {
     JsonObject post_data;
-    post_data.set("text"sv, String {});
+    post_data.set("text"sv, MUST(String::from_utf8(m_request_body)));
 
     JsonObject response;
     response.set("postData"sv, move(post_data));
@@ -203,16 +218,46 @@ void NetworkEventActor::get_response_cookies(Message const& message)
 
 void NetworkEventActor::get_response_content(Message const& message)
 {
-    // FIXME: Store and return actual response body content
+    // Get MIME type from Content-Type header
+    String mime_type = "application/octet-stream"_string;
+    for (auto const& header : m_response_headers) {
+        if (header.name.equals_ignoring_ascii_case("content-type"sv)) {
+            auto content_type = StringView { header.value };
+            // Extract just the MIME type, ignoring charset etc.
+            if (auto semicolon = content_type.find(';'); semicolon.has_value())
+                content_type = content_type.substring_view(0, *semicolon);
+            mime_type = MUST(String::from_utf8(content_type.trim_whitespace()));
+            break;
+        }
+    }
+
+    bool content_discarded = m_response_body.size() >= MAX_RESPONSE_BODY_SIZE;
+
+    // Check if content is text-based (can be displayed as UTF-8)
+    bool is_text = mime_type.starts_with_bytes("text/"sv)
+        || mime_type == "application/json"sv
+        || mime_type == "application/javascript"sv
+        || mime_type == "application/xml"sv
+        || mime_type.ends_with_bytes("+xml"sv)
+        || mime_type.ends_with_bytes("+json"sv);
+
     JsonObject content;
-    content.set("text"sv, String {});
-    // FIXME: Get actual MIME type from response headers
-    content.set("mimeType"sv, "text/html"sv);
+    if (is_text) {
+        // Try to interpret as UTF-8, fall back to empty if invalid
+        auto text_or_error = String::from_utf8(m_response_body);
+        content.set("text"sv, text_or_error.is_error() ? String {} : text_or_error.release_value());
+        content.set("encoding"sv, JsonValue {});
+    } else {
+        // Base64 encode binary content
+        content.set("text"sv, MUST(encode_base64(m_response_body)));
+        content.set("encoding"sv, "base64"sv);
+    }
+    content.set("mimeType"sv, mime_type);
     content.set("size"sv, static_cast<i64>(m_body_size));
 
     JsonObject response;
     response.set("content"sv, move(content));
-    response.set("contentDiscarded"sv, true);
+    response.set("contentDiscarded"sv, content_discarded);
     send_response(message, move(response));
 }
 

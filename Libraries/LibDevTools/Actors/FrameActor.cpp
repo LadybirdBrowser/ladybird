@@ -61,6 +61,10 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
                 if (auto self = weak_self.strong_ref())
                     self->on_network_response_headers_received(move(data));
             },
+            [weak_self = make_weak_ptr<FrameActor>()](u64 request_id, ByteBuffer data) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_network_response_body_received(request_id, move(data));
+            },
             [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkRequestCompleteData data) {
                 if (auto self = weak_self.strong_ref())
                     self->on_network_request_finished(move(data));
@@ -339,7 +343,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)
 {
     auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
-    actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers));
+    actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body));
     m_network_events.set(data.request_id, actor);
 
     JsonArray events;
@@ -415,6 +419,15 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
     message.set("type"sv, "resources-updated-array"sv);
     message.set("array"sv, move(array));
     send_message(move(message));
+}
+
+void FrameActor::on_network_response_body_received(u64 request_id, ByteBuffer data)
+{
+    auto it = m_network_events.find(request_id);
+    if (it == m_network_events.end())
+        return;
+
+    it->value->append_response_body(move(data));
 }
 
 void FrameActor::on_network_request_finished(DevToolsDelegate::NetworkRequestCompleteData data)

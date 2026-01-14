@@ -426,7 +426,9 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
         on_headers_received->function()(response_headers, move(status_code), reason_phrase);
     };
 
-    auto protocol_data_received = [on_data_received = move(on_data_received)](auto data) {
+    auto protocol_data_received = [on_data_received = move(on_data_received), request, request_id = protocol_request->id()](auto data) {
+        if (auto page = request.page())
+            page->client().page_did_receive_network_response_body(request_id, data);
         on_data_received->function()(data);
     };
 
@@ -472,7 +474,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     };
 
     if (auto page = request.page())
-        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers());
+        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body());
 
     ++m_pending_loads;
     if (on_load_counter_change)

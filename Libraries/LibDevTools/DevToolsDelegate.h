@@ -86,6 +86,7 @@ public:
         String method;
         UnixDateTime start_time;
         Vector<HTTP::Header> request_headers;
+        ByteBuffer request_body;
     };
 
     struct NetworkResponseData {
@@ -104,8 +105,9 @@ public:
 
     using OnNetworkRequestStarted = Function<void(NetworkRequestData)>;
     using OnNetworkResponseHeadersReceived = Function<void(NetworkResponseData)>;
+    using OnNetworkResponseBodyReceived = Function<void(u64 request_id, ByteBuffer data)>;
     using OnNetworkRequestFinished = Function<void(NetworkRequestCompleteData)>;
-    virtual void listen_for_network_events(TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkRequestFinished) const { }
+    virtual void listen_for_network_events(TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkResponseBodyReceived, OnNetworkRequestFinished) const { }
     virtual void stop_listening_for_network_events(TabDescription const&) const { }
 
     using OnNavigationStarted = Function<void(String url)>;
