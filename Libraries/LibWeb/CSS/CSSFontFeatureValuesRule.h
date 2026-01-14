@@ -21,6 +21,8 @@ class CSSFontFeatureValuesRule final : public CSSRule {
 public:
     static GC::Ref<CSSFontFeatureValuesRule> create(JS::Realm&, Vector<FlyString> font_families);
 
+    static bool is_font_feature_value_type_at_keyword(FlyString const&);
+
     FlyString font_family() const;
     void set_font_family(FlyString const&);
     GC::Ref<CSSFontFeatureValuesMap> annotation() const { return m_annotation; }
