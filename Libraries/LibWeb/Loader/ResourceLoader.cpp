@@ -417,8 +417,12 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
         return;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request](auto const& response_headers, auto status_code, auto const& reason_phrase) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, request_id = protocol_request->id()](auto const& response_headers, auto status_code, auto const& reason_phrase) {
         handle_network_response_headers(request, response_headers);
+
+        if (auto page = request.page())
+            page->client().page_did_receive_network_response_headers(request_id, status_code.value_or(0), reason_phrase, response_headers->headers());
+
         on_headers_received->function()(response_headers, move(status_code), reason_phrase);
     };
 
@@ -426,8 +430,11 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<OnHeadersReceived> on_h
         on_data_received->function()(data);
     };
 
-    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
+    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64 total_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error) {
         finish_network_request(protocol_request);
+
+        if (auto page = request.page())
+            page->client().page_did_finish_network_request(protocol_request.id(), total_size, timing_info, network_error);
 
         if (!network_error.has_value()) {
             log_success(request);
@@ -463,6 +470,9 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     protocol_request->on_certificate_requested = []() -> Requests::Request::CertificateAndKey {
         return {};
     };
+
+    if (auto page = request.page())
+        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers());
 
     ++m_pending_loads;
     if (on_load_counter_change)

@@ -30,6 +30,7 @@ private:
     WeakPtr<Actor> m_target;
     WeakPtr<TargetConfigurationActor> m_target_configuration;
     WeakPtr<ThreadConfigurationActor> m_thread_configuration;
+    WeakPtr<NetworkParentActor> m_network_parent;
 };
 
 }

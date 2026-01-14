@@ -191,6 +191,8 @@ private:
     virtual void listen_for_console_messages(DevTools::TabDescription const&, OnConsoleMessageAvailable, OnReceivedConsoleMessages) const override;
     virtual void stop_listening_for_console_messages(DevTools::TabDescription const&) const override;
     virtual void request_console_messages(DevTools::TabDescription const&, i32) const override;
+    virtual void listen_for_network_events(DevTools::TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkRequestFinished) const override;
+    virtual void stop_listening_for_network_events(DevTools::TabDescription const&) const override;
 
     static Application* s_the;
 

@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibDevTools/Actor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/Forward.h>
@@ -38,6 +40,10 @@ private:
     void console_messages_received(i32 start_index, Vector<WebView::ConsoleOutput>);
     void request_console_messages();
 
+    void on_network_request_started(DevToolsDelegate::NetworkRequestData);
+    void on_network_response_headers_received(DevToolsDelegate::NetworkResponseData);
+    void on_network_request_finished(DevToolsDelegate::NetworkRequestCompleteData);
+
     WeakPtr<TabActor> m_tab;
 
     WeakPtr<CSSPropertiesActor> m_css_properties;
@@ -50,6 +56,8 @@ private:
     i32 m_highest_notified_message_index { -1 };
     i32 m_highest_received_message_index { -1 };
     bool m_waiting_for_messages { false };
+
+    HashMap<u64, NonnullRefPtr<NetworkEventActor>> m_network_events;
 };
 
 }

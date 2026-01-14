@@ -10,6 +10,8 @@ set(SOURCES
     Actors/HighlighterActor.cpp
     Actors/InspectorActor.cpp
     Actors/LayoutInspectorActor.cpp
+    Actors/NetworkEventActor.cpp
+    Actors/NetworkParentActor.cpp
     Actors/NodeActor.cpp
     Actors/PageStyleActor.cpp
     Actors/ParentAccessibilityActor.cpp

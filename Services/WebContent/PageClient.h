@@ -181,6 +181,9 @@ private:
     virtual void page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id) override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(String const& name, JS::Value data) override;
+    virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&) override;
+    virtual void page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String>, Vector<HTTP::Header> const&) override;
+    virtual void page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&) override;
 
     void setup_palette();
     ConnectionFromClient& client() const;
