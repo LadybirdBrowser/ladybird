@@ -7,8 +7,8 @@ if (NOT APPLE)
         set(HAS_VULKAN ON CACHE BOOL "" FORCE)
         add_cxx_compile_definitions(USE_VULKAN=1)
 
-        # Sharable Vulkan images are currently only implemented on Linux and FreeBSD
-        if ((LINUX AND NOT ANDROID) OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+        # Sharable Vulkan images are currently only implemented on Linux and BSDs
+        if ((LINUX AND NOT ANDROID) OR BSD)
             set(USE_VULKAN_IMAGES ON CACHE BOOL "" FORCE)
             add_cxx_compile_definitions(USE_VULKAN_IMAGES=1)
         endif()
