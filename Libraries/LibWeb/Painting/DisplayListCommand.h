@@ -152,29 +152,6 @@ struct AddClipPath {
     void dump(StringBuilder&) const;
 };
 
-struct PushStackingContext {
-    static constexpr StringView command_name = "PushStackingContext"sv;
-    static constexpr int nesting_level_change = 1;
-
-    float opacity;
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
-    bool isolate;
-    Optional<Gfx::Path> clip_path = {};
-
-    size_t matching_pop_index { 0 };
-    bool can_aggregate_children_bounds { false };
-    Optional<Gfx::IntRect> bounding_rect {};
-
-    void dump(StringBuilder&) const;
-};
-
-struct PopStackingContext {
-    static constexpr StringView command_name = "PopStackingContext"sv;
-    static constexpr int nesting_level_change = -1;
-
-    void dump(StringBuilder&) const;
-};
-
 struct PaintLinearGradient {
     static constexpr StringView command_name = "PaintLinearGradient"sv;
 
@@ -442,8 +419,6 @@ using DisplayListCommand = Variant<
     Translate,
     AddClipRect,
     AddClipPath,
-    PushStackingContext,
-    PopStackingContext,
     PaintLinearGradient,
     PaintRadialGradient,
     PaintConicGradient,

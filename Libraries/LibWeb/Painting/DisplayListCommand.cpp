@@ -77,15 +77,6 @@ void AddClipPath::dump(StringBuilder& builder) const
     builder.appendff(" bounding_rect={}", bounding_rectangle);
 }
 
-void PushStackingContext::dump(StringBuilder& builder) const
-{
-    builder.appendff(" opacity={} isolate={} has_clip_path={} bounding_rect={}", opacity, isolate, clip_path.has_value(), bounding_rect);
-}
-
-void PopStackingContext::dump(StringBuilder&) const
-{
-}
-
 void PaintLinearGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", gradient_rect);

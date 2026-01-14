@@ -34,8 +34,6 @@ private:
     void save_layer(SaveLayer const&) override;
     void restore(Restore const&) override;
     void translate(Translate const&) override;
-    void push_stacking_context(PushStackingContext const&) override;
-    void pop_stacking_context(PopStackingContext const&) override;
     void paint_linear_gradient(PaintLinearGradient const&) override;
     void paint_outer_box_shadow(PaintOuterBoxShadow const&) override;
     void paint_inner_box_shadow(PaintInnerBoxShadow const&) override;
