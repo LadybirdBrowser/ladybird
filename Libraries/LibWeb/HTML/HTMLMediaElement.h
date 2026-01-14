@@ -192,15 +192,24 @@ private:
     virtual bool is_html_media_element() const final { return true; }
 
     struct EntireResource { };
-    using ByteRange = Variant<EntireResource>; // FIXME: This will need to include "until end" and an actual byte range.
+    struct UntilEnd {
+        u64 first;
+    };
+    using ByteRange = Variant<EntireResource, UntilEnd>;
 
     Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     WebIDL::ExceptionOr<void> load_element();
-    WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
-    static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
 
-    WebIDL::ExceptionOr<void> set_up_playback_manager(Function<void(String)> failure_callback);
+    void fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
+    struct FetchData;
+    void fetch_resource(NonnullRefPtr<FetchData> const&, ByteRange const&);
+
+    Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
+
+    void restart_fetch_at_offset(NonnullRefPtr<FetchData> const&, u64 offset);
+
+    void set_up_playback_manager(NonnullRefPtr<FetchData> const&);
     enum class FetchingStatus {
         Ongoing,
         Complete,
@@ -329,9 +338,6 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-texttracks
     GC::Ptr<TextTrackList> m_text_tracks;
 
-    // https://html.spec.whatwg.org/multipage/media.html#media-data
-    RefPtr<Media::IncrementallyPopulatedStream> m_media_data;
-
     // https://html.spec.whatwg.org/multipage/media.html#can-autoplay-flag
     bool m_can_autoplay { true };
 
@@ -346,6 +352,7 @@ private:
     GC::Ptr<SourceElementSelector> m_source_element_selector;
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    u32 m_current_fetch_generation { 0 };
 
     RefPtr<Media::PlaybackManager> m_playback_manager;
     GC::Ptr<VideoTrack> m_selected_video_track;
