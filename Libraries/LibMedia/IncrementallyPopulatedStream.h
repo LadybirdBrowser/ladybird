@@ -19,6 +19,7 @@ namespace Media {
 class MEDIA_API IncrementallyPopulatedStream : public AtomicRefCounted<IncrementallyPopulatedStream> {
 public:
     static NonnullRefPtr<IncrementallyPopulatedStream> create_empty();
+    static NonnullRefPtr<IncrementallyPopulatedStream> create_from_data(ReadonlyBytes);
     static NonnullRefPtr<IncrementallyPopulatedStream> create_from_buffer(ByteBuffer&&);
 
     void append(ByteBuffer&&);

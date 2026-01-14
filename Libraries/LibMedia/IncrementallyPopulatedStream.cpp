@@ -14,6 +14,11 @@ NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create
     return adopt_ref(*new IncrementallyPopulatedStream({}, false));
 }
 
+NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create_from_data(ReadonlyBytes data)
+{
+    return adopt_ref(*new IncrementallyPopulatedStream(MUST(ByteBuffer::copy(data)), true));
+}
+
 NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create_from_buffer(ByteBuffer&& buffer)
 {
     return adopt_ref(*new IncrementallyPopulatedStream(move(buffer), true));
