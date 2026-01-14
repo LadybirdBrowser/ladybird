@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	grid-row-gap is a legacy name alias for row-gap
 Pass	grid-column-gap is a legacy name alias for column-gap
-Fail	grid-gap is a legacy name alias for gap
+Pass	grid-gap is a legacy name alias for gap

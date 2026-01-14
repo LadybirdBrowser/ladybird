@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	target1 margin
+Pass	target1 margin-left
+Pass	target1 margin-top
+Pass	target1 margin-right
+Pass	target1 margin-bottom
+Pass	target2 margin
+Pass	target2 margin-left
+Pass	target2 margin-top
+Pass	target2 margin-right
+Pass	target2 margin-bottom
+Pass	target3 margin
+Pass	target3 margin-left
+Pass	target3 margin-top
+Pass	target3 margin-right
+Pass	target3 margin-bottom
+Pass	target4 background

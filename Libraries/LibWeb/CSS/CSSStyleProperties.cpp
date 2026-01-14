@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -485,6 +486,30 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
                     return {};
                 last_important_flag = declaration->important;
             }
+
+            // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+            // If all of the component longhand properties for a given shorthand are pending-substitution values from
+            // the same original shorthand value, the shorthand property must serialize to that original
+            // (arbitrary substitution function-containing) value.
+            // Otherwise, if any of the component longhand properties for a given shorthand are pending-substitution
+            // values, or contain arbitrary substitution functions of their own that have not yet been substituted, the
+            // shorthand property must serialize to the empty string.
+            if (list.first()->is_pending_substitution()) {
+                auto const& original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
+                auto all_from_same_original = all_of(list, [&](auto const& value) {
+                    return value->is_pending_substitution()
+                        && &value->as_pending_substitution().original_shorthand_value() == &original_shorthand_value;
+                });
+                if (all_from_same_original) {
+                    return StyleProperty {
+                        .important = last_important_flag.value(),
+                        .property_id = property.id(),
+                        .value = original_shorthand_value,
+                    };
+                }
+            }
+            if (any_of(list, [](auto const& value) { return value->is_pending_substitution() || value->is_unresolved(); }))
+                return {};
 
             // 3. If important flags of all declarations in list are same, then return the serialization of list.
             // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
