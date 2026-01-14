@@ -800,6 +800,10 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (invalidation.repaint) {
             if (target->paintable())
                 target->paintable()->set_needs_paint_only_properties_update(true);
+
+            if (invalidation.rebuild_accumulated_visual_contexts)
+                element.document().set_needs_accumulated_visual_contexts_update(true);
+
             element.document().set_needs_display();
         }
         if (invalidation.rebuild_stacking_context_tree)
