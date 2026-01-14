@@ -260,10 +260,16 @@ void NetworkEventActor::get_response_content(Message const& message)
 
     JsonObject content;
     if (is_text) {
-        // Try to interpret as UTF-8, fall back to empty if invalid
+        // Try to interpret as UTF-8, fall back to base64 if invalid
         auto text_or_error = String::from_utf8(m_response_body);
-        content.set("text"sv, text_or_error.is_error() ? String {} : text_or_error.release_value());
-        content.set("encoding"sv, JsonValue {});
+        if (!text_or_error.is_error()) {
+            content.set("text"sv, text_or_error.release_value());
+            content.set("encoding"sv, JsonValue {});
+        } else {
+            // Content claims to be text but isn't valid UTF-8, base64 encode it
+            content.set("text"sv, MUST(encode_base64(m_response_body)));
+            content.set("encoding"sv, "base64"sv);
+        }
     } else {
         // Base64 encode binary content
         content.set("text"sv, MUST(encode_base64(m_response_body)));
