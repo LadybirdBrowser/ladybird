@@ -281,47 +281,6 @@ void DisplayListRecorder::restore()
     APPEND(Restore {});
 }
 
-void DisplayListRecorder::push_stacking_context(PushStackingContextParams params)
-{
-    APPEND(PushStackingContext {
-        .opacity = params.opacity,
-        .compositing_and_blending_operator = params.compositing_and_blending_operator,
-        .isolate = params.isolate,
-        .clip_path = params.clip_path,
-        .bounding_rect = params.bounding_rect });
-    m_push_sc_index_stack.append(m_display_list.commands().size() - 1);
-}
-
-static bool command_has_bounding_rectangle(DisplayListCommand const& command)
-{
-    return command.visit(
-        [&](auto const& command) {
-            if constexpr (requires { command.bounding_rect(); })
-                return true;
-            return false;
-        });
-}
-
-void DisplayListRecorder::pop_stacking_context()
-{
-    APPEND(PopStackingContext {});
-    auto pop_index = m_display_list.commands().size() - 1;
-    auto push_index = m_push_sc_index_stack.take_last();
-    auto& push_stacking_context = m_display_list.commands({})[push_index].command.get<PushStackingContext>();
-    push_stacking_context.matching_pop_index = m_display_list.commands().size() - 1;
-
-    if (!push_stacking_context.bounding_rect.has_value()) {
-        push_stacking_context.can_aggregate_children_bounds = true;
-        m_display_list.for_each_command_in_range(push_index + 1, pop_index, [&](auto const& command, auto) {
-            if (!command_has_bounding_rectangle(command)) {
-                push_stacking_context.can_aggregate_children_bounds = false;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-    }
-}
-
 void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Gfx::Filter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())

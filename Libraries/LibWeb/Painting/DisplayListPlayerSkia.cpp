@@ -231,40 +231,6 @@ void DisplayListPlayerSkia::translate(Translate const& command)
     canvas.translate(command.delta.x(), command.delta.y());
 }
 
-void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& command)
-{
-    auto& canvas = surface().canvas();
-
-    surface().canvas().save();
-    if (command.clip_path.has_value())
-        canvas.clipPath(to_skia_path(command.clip_path.value()), true);
-
-    if (command.opacity < 1 || command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || command.isolate) {
-        SkPaint paint;
-        paint.setAlphaf(command.opacity);
-        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-
-        if (command.bounding_rect.has_value()) {
-            auto bounds = to_skia_rect(command.bounding_rect.value());
-            // NOTE: saveLayer() is invoked after transform matrix application because bounding rect is computed
-            //       in stacking context's coordinate space.
-            canvas.saveLayer(bounds, &paint);
-        } else {
-            canvas.saveLayer(nullptr, &paint);
-        }
-    } else {
-        canvas.save();
-    }
-}
-
-void DisplayListPlayerSkia::pop_stacking_context(PopStackingContext const&)
-{
-    // Restore corresponding for save() for transform and clip path application
-    surface().canvas().restore();
-    // Restore corresponding for saveLayer() required for opacity/blending/isolate
-    surface().canvas().restore();
-}
-
 static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopList const& color_stop_list)
 {
     ColorStopList stops_with_replaced_transition_hints;

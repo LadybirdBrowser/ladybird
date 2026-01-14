@@ -199,8 +199,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(SaveLayer, save_layer)
         else HANDLE_COMMAND(Restore, restore)
         else HANDLE_COMMAND(Translate, translate)
-        else HANDLE_COMMAND(PushStackingContext, push_stacking_context)
-        else HANDLE_COMMAND(PopStackingContext, pop_stacking_context)
         else HANDLE_COMMAND(PaintLinearGradient, paint_linear_gradient)
         else HANDLE_COMMAND(PaintRadialGradient, paint_radial_gradient)
         else HANDLE_COMMAND(PaintConicGradient, paint_conic_gradient)

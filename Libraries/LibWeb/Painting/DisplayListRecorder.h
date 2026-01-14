@@ -94,16 +94,6 @@ public:
     void save_layer();
     void restore();
 
-    struct PushStackingContextParams {
-        float opacity;
-        Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
-        bool isolate;
-        Optional<Gfx::Path> clip_path = {};
-        Optional<Gfx::IntRect> bounding_rect {};
-    };
-    void push_stacking_context(PushStackingContextParams params);
-    void pop_stacking_context();
-
     void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
     void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
