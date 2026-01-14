@@ -1,0 +1,901 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1760.375 0+0+0] [BFC] children: not-inline
+    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+      TextNode <#text> (not painted)
+    BlockContainer <body> at [0,10] [0+0+0 831.75 0+0+-31.75] [0+0+0 1740.375 0+0+10] children: not-inline
+      BlockContainer <(anonymous)> at [0,10] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,12] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,12] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,16] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 25, rect: [6,16 199.703125x16] baseline: 12.796875
+              "Test 1: Plain nested divs"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,36] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,38] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,40] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            BlockContainer <div.plain> at [8,42] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
+              BlockContainer <div.plain> at [10,44] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,46] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,46] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,46] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 29, rect: [12,46 239.796875x16] baseline: 12.796875
+                        "Plain nesting works correctly"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,62] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,72] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,84] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,86] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,86] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,90] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 39, rect: [6,90 326.875x16] baseline: 12.796875
+              "Test 2: min-width on intermediate boxes"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,110] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,112] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.with-min-width> at [6,114] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            BlockContainer <div.plain> at [8,116] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
+              BlockContainer <div.with-min-width> at [10,118] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,120] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,120] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.short-content> at [12,120] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 2, rect: [12,120 16.796875x16] baseline: 12.796875
+                        "Hi"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,136] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,146] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,158] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,160] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,160] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,164] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 39, rect: [6,164 332.03125x16] baseline: 12.796875
+              "Test 3: max-width on intermediate boxes"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,184] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,186] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.with-max-width> at [6,188] [0+0+2 300 2+0+519.75] [0+0+2 28 2+0+0] children: not-inline
+            BlockContainer <div.plain> at [8,190] [0+0+2 296 2+0+0] [0+0+2 24 2+0+0] children: not-inline
+              BlockContainer <div.plain> at [10,192] [0+0+2 292 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,194] [0+0+2 288 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,194] [0+0+0 288 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,194] [0+0+0 288 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 69, rect: [12,194 585.390625x16] baseline: 12.796875
+                        "This text is longer than 300px and should be constrained by max-width"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,210] [0+0+0 288 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,220] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,232] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,234] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,234] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,238] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 51, rect: [6,238 412.484375x16] baseline: 12.796875
+              "Test 4: overflow:hidden (creates BFC) in the middle"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,258] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,260] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,262] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            BlockContainer <div.creates-bfc> at [8,264] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [BFC] children: not-inline
+              BlockContainer <div.plain> at [10,266] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,268] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,268] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,268] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 28, rect: [12,268 229.75x16] baseline: 12.796875
+                        "BFC in the middle of nesting"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,284] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,294] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,306] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,308] [0+2+0 827.75 0+2+0] [10+2+0 84 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,308] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,312] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 25, rect: [6,312 191.703125x16] baseline: 12.796875
+              "Test 5: Multiple siblings"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,332] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,334] [0+0+2 823.75 2+0+0] [0+0+2 56 2+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [4,334] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.plain> at [6,336] [0+0+2 819.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [6,336] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            BlockContainer <div.content> at [6,336] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from TextNode start: 0, length: 13, rect: [6,336 99.484375x16] baseline: 12.796875
+                  "First sibling"
+              TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [6,352] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            BlockContainer <div.content> at [6,352] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from TextNode start: 0, length: 35, rect: [6,352 281.109375x16] baseline: 12.796875
+                  "Second sibling is longer than first"
+              TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [6,368] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [4,370] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.plain> at [6,372] [0+0+2 819.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [6,372] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            BlockContainer <div.content> at [6,372] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from TextNode start: 0, length: 14, rect: [6,372 131.375x16] baseline: 12.796875
+                  "Another branch"
+              TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [6,388] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [4,390] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,392] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,404] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,406] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,406] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,410] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 36, rect: [6,410 294.203125x16] baseline: 12.796875
+              "Test 6: Flex container in the middle"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,430] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,432] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,434] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            Box <div.flex-container> at [8,436] flex-container(row) [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [FFC] children: not-inline
+              BlockContainer <div.plain> at [10,438] flex-item [0+0+2 203.9375 2+0+0] [0+0+2 20 2+0+0] [BFC] children: not-inline
+                BlockContainer <div.plain> at [12,440] [0+0+2 199.9375 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,440] [0+0+0 199.9375 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,440] [0+0+0 199.9375 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 23, rect: [12,440 199.9375x16] baseline: 12.796875
+                        "Flex container ancestor"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,456] [0+0+0 199.9375 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,466] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,478] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,480] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,480] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,484] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 36, rect: [6,484 293.46875x16] baseline: 12.796875
+              "Test 7: Grid container in the middle"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,504] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,506] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,508] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            Box <div.grid-container> at [8,510] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [GFC] children: not-inline
+              BlockContainer <div.plain> at [10,512] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] [BFC] children: not-inline
+                BlockContainer <div.plain> at [12,514] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,514] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,514] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 23, rect: [12,514 199.21875x16] baseline: 12.796875
+                        "Grid container ancestor"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,530] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,540] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,552] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,554] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,554] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,558] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 34, rect: [6,558 263.421875x16] baseline: 12.796875
+              "Test 8: inline-block in the middle"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,578] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,580] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,582] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [8,584 176.40625x24] baseline: 14.796875
+            BlockContainer <div.inline-block> at [8,584] inline-block [0+0+2 176.40625 2+0+0] [0+0+2 24 2+0+0] [BFC] children: not-inline
+              BlockContainer <div.plain> at [10,586] [0+0+2 172.40625 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,588] [0+0+2 168.40625 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,588] [0+0+0 168.40625 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,588] [0+0+0 168.40625 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 21, rect: [12,588 168.40625x16] baseline: 12.796875
+                        "inline-block ancestor"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,604] [0+0+0 168.40625 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,614] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,626] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section.clearfix> at [2,628] [0+2+0 827.75 0+2+0] [10+2+0 52 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,628] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,632] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 37, rect: [6,632 306.796875x16] baseline: 12.796875
+              "Test 9: Float inside nested structure"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,652] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,654] [0+0+2 823.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,656] [0+0+2 819.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+            BlockContainer <div.plain> at [8,658] [0+0+2 815.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [8,658] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+                BlockContainer <div.floated> at [10,660] floating [0+0+2 128.828125 2+0+0] [0+0+2 16 2+0+0] [BFC] children: not-inline
+                  BlockContainer <div.content> at [10,660] [0+0+0 128.828125 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 15, rect: [10,660 128.828125x16] baseline: 12.796875
+                        "Floated content"
+                    TextNode <#text> (not painted)
+                TextNode <#text> (not painted)
+              BlockContainer <div.content> at [8,658] [0+0+0 815.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                frag 0 from TextNode start: 0, length: 19, rect: [140.828125,658 147.890625x16] baseline: 12.796875
+                    "Non-floated sibling"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [8,674] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,680] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,680] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,692] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,694] [0+2+0 827.75 0+2+0] [10+2+0 70 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,694] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,698] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 41, rect: [6,698 344.28125x16] baseline: 12.796875
+              "Test 10: Borders and padding accumulating"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,718] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.with-border> at [5,721] [0+3+0 821.75 0+3+0] [0+3+0 40 0+3+0] children: not-inline
+          BlockContainer <div.with-border> at [8,724] [0+3+0 815.75 0+3+0] [0+3+0 34 0+3+0] children: not-inline
+            BlockContainer <div.with-border> at [11,727] [0+3+0 809.75 0+3+0] [0+3+0 28 0+3+0] children: not-inline
+              BlockContainer <div.with-border> at [14,730] [0+3+0 803.75 0+3+0] [0+3+0 22 0+3+0] children: not-inline
+                BlockContainer <div.with-border> at [17,733] [0+3+0 797.75 0+3+0] [0+3+0 16 0+3+0] children: not-inline
+                  BlockContainer <(anonymous)> at [17,733] [0+0+0 797.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [17,733] [0+0+0 797.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 19, rect: [17,733 172.203125x16] baseline: 12.796875
+                        "Accumulated borders"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [17,749] [0+0+0 797.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,764] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,776] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,778] [0+2+0 827.75 0+2+0] [10+2+0 62 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,778] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,782] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 28, rect: [6,782 226.078125x16] baseline: 12.796875
+              "Test 11: Mixed nesting types"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,802] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,804] [0+0+2 823.75 2+0+0] [0+0+2 34 2+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [4,804] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+          BlockContainer <div.with-min-width> at [6,806] [0+0+2 819.75 2+0+0] [0+0+2 30 2+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [6,806] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+            BlockContainer <div.creates-bfc> at [8,808] [0+0+2 815.75 2+0+0] [0+0+2 26 2+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [8,808] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <div.plain> at [10,810] [0+0+2 811.75 2+0+0] [0+0+2 22 2+0+0] children: not-inline
+                BlockContainer <(anonymous)> at [10,810] [0+0+0 811.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                  TextNode <#text> (not painted)
+                BlockContainer <div.with-border> at [13,813] [0+3+0 805.75 0+3+0] [0+3+0 16 0+3+0] children: not-inline
+                  BlockContainer <(anonymous)> at [13,813] [0+0+0 805.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [13,813] [0+0+0 805.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 21, rect: [13,813 180.265625x16] baseline: 12.796875
+                        "Complex mixed nesting"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [13,829] [0+0+0 805.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                BlockContainer <(anonymous)> at [10,832] [0+0+0 811.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                  TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [8,834] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [6,836] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [4,838] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,840] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,852] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,854] [0+2+0 297.71875 0+2+530.03125] [10+2+0 60 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,854] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,858] [0+0+4 289.71875 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 27, rect: [6,858 217.953125x16] baseline: 12.796875
+              "Test 12: min-content sizing"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,878] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,880] [0+0+2 293.71875 2+0+0] [0+0+2 32 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [6,882] [0+0+2 289.71875 2+0+0] [0+0+2 28 2+0+0] children: not-inline
+            BlockContainer <div.plain> at [8,884] [0+0+2 285.71875 2+0+0] [0+0+2 24 2+0+0] children: not-inline
+              BlockContainer <div.plain> at [10,886] [0+0+2 281.71875 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+                BlockContainer <div.plain> at [12,888] [0+0+2 277.71875 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                  BlockContainer <(anonymous)> at [12,888] [0+0+0 277.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+                  BlockContainer <div.content> at [12,888] [0+0+0 277.71875 0+0+0] [0+0+0 16 0+0+0] children: inline
+                    frag 0 from TextNode start: 0, length: 32, rect: [12,888 277.71875x16] baseline: 12.796875
+                        "min-content test with some words"
+                    TextNode <#text> (not painted)
+                  BlockContainer <(anonymous)> at [12,904] [0+0+0 277.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
+                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,914] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,926] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,928] [0+2+0 827.75 0+2+0] [10+2+0 58 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,928] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,932] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 42, rect: [6,932 349.140625x16] baseline: 12.796875
+              "Test 13: Auto margins in intrinsic context"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,952] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,954] [0+0+2 823.75 2+0+0] [0+0+2 30 2+0+0] children: not-inline
+          BlockContainer <div.with-margin> at [4,959] [0+0+0 823.75 0+0+0] [5+0+0 20 0+0+5] children: not-inline
+            BlockContainer <div.plain> at [6,961] [0+0+2 819.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [6,961] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <div.content> at [6,961] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                frag 0 from TextNode start: 0, length: 12, rect: [6,961 110.703125x16] baseline: 12.796875
+                    "Auto margins"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [6,977] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,986] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,998] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,1000] [0+2+0 827.75 0+2+0] [10+2+0 134.375 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,1000] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,1004] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 27, rect: [6,1004 224.09375x16] baseline: 12.796875
+              "Test 14: Percentage padding"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,1024] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.plain> at [4,1026] [0+0+2 823.75 2+0+0] [0+0+2 106.375 2+0+0] children: not-inline
+          BlockContainer <div.plain> at [45.1875,1067.1875] [0+0+41.1875 741.375 41.1875+0+0] [0+0+41.1875 24 41.1875+0+0] children: not-inline
+            BlockContainer <div.plain> at [47.1875,1069.1875] [0+0+2 737.375 2+0+0] [0+0+2 20 2+0+0] children: not-inline
+              BlockContainer <div.plain> at [49.1875,1071.1875] [0+0+2 733.375 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                BlockContainer <(anonymous)> at [49.1875,1071.1875] [0+0+0 733.375 0+0+0] [0+0+0 0 0+0+0] children: inline
+                  TextNode <#text> (not painted)
+                BlockContainer <div.content> at [49.1875,1071.1875] [0+0+0 733.375 0+0+0] [0+0+0 16 0+0+0] children: inline
+                  frag 0 from TextNode start: 0, length: 18, rect: [49.1875,1071.1875 153x16] baseline: 12.796875
+                      "Percentage padding"
+                  TextNode <#text> (not painted)
+                BlockContainer <(anonymous)> at [49.1875,1087.1875] [0+0+0 733.375 0+0+0] [0+0+0 0 0+0+0] children: inline
+                  TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,1134.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,1146.375] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.section> at [2,1148.375] [0+2+0 827.75 0+2+0] [10+2+0 600 0+2+10] children: not-inline
+        BlockContainer <(anonymous)> at [2,1148.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.section-title> at [6,1152.375] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 44, rect: [6,1152.375 353.5625x16] baseline: 12.796875
+              "Test 15: Deep generated nesting (100 levels)"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,1172.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div#deep-container> at [2,1172.375] [0+0+0 827.75 0+0+0] [0+0+0 576 0+0+0] children: not-inline
+          BlockContainer <div.plain> at [4,1174.375] [0+0+2 823.75 2+0+0] [0+0+2 572 2+0+0] children: not-inline
+            BlockContainer <div.with-border> at [7,1177.375] [0+3+0 817.75 0+3+0] [0+3+0 566 0+3+0] children: not-inline
+              BlockContainer <div.plain> at [9,1179.375] [0+0+2 813.75 2+0+0] [0+0+2 562 2+0+0] children: not-inline
+                BlockContainer <div.with-margin> at [14,1184.375] [5+0+0 803.75 0+0+5] [5+0+0 552 0+0+5] children: not-inline
+                  BlockContainer <div.plain> at [16,1186.375] [0+0+2 799.75 2+0+0] [0+0+2 548 2+0+0] children: not-inline
+                    BlockContainer <div.plain> at [18,1188.375] [0+0+2 795.75 2+0+0] [0+0+2 544 2+0+0] children: not-inline
+                      BlockContainer <div.with-border> at [21,1191.375] [0+3+0 789.75 0+3+0] [0+3+0 538 0+3+0] children: not-inline
+                        BlockContainer <div.plain> at [23,1193.375] [0+0+2 785.75 2+0+0] [0+0+2 534 2+0+0] children: not-inline
+                          BlockContainer <div.with-margin> at [28,1198.375] [5+0+0 775.75 0+0+5] [5+0+0 524 0+0+5] children: not-inline
+                            BlockContainer <div.plain> at [30,1200.375] [0+0+2 771.75 2+0+0] [0+0+2 520 2+0+0] children: not-inline
+                              BlockContainer <div.plain> at [32,1202.375] [0+0+2 767.75 2+0+0] [0+0+2 516 2+0+0] children: not-inline
+                                BlockContainer <div.with-border> at [35,1205.375] [0+3+0 761.75 0+3+0] [0+3+0 510 0+3+0] children: not-inline
+                                  BlockContainer <div.plain> at [37,1207.375] [0+0+2 757.75 2+0+0] [0+0+2 506 2+0+0] children: not-inline
+                                    BlockContainer <div.with-margin> at [42,1212.375] [5+0+0 747.75 0+0+5] [5+0+0 496 0+0+5] children: not-inline
+                                      BlockContainer <div.plain> at [44,1214.375] [0+0+2 743.75 2+0+0] [0+0+2 492 2+0+0] children: not-inline
+                                        BlockContainer <div.plain> at [46,1216.375] [0+0+2 739.75 2+0+0] [0+0+2 488 2+0+0] children: not-inline
+                                          BlockContainer <div.with-border> at [49,1219.375] [0+3+0 733.75 0+3+0] [0+3+0 482 0+3+0] children: not-inline
+                                            BlockContainer <div.plain> at [51,1221.375] [0+0+2 729.75 2+0+0] [0+0+2 478 2+0+0] children: not-inline
+                                              BlockContainer <div.with-margin> at [56,1226.375] [5+0+0 719.75 0+0+5] [5+0+0 468 0+0+5] children: not-inline
+                                                BlockContainer <div.plain> at [58,1228.375] [0+0+2 715.75 2+0+0] [0+0+2 464 2+0+0] children: not-inline
+                                                  BlockContainer <div.plain> at [60,1230.375] [0+0+2 711.75 2+0+0] [0+0+2 460 2+0+0] children: not-inline
+                                                    BlockContainer <div.with-border> at [63,1233.375] [0+3+0 705.75 0+3+0] [0+3+0 454 0+3+0] children: not-inline
+                                                      BlockContainer <div.plain> at [65,1235.375] [0+0+2 701.75 2+0+0] [0+0+2 450 2+0+0] children: not-inline
+                                                        BlockContainer <div.with-margin> at [70,1240.375] [5+0+0 691.75 0+0+5] [5+0+0 440 0+0+5] children: not-inline
+                                                          BlockContainer <div.plain> at [72,1242.375] [0+0+2 687.75 2+0+0] [0+0+2 436 2+0+0] children: not-inline
+                                                            BlockContainer <div.plain> at [74,1244.375] [0+0+2 683.75 2+0+0] [0+0+2 432 2+0+0] children: not-inline
+                                                              BlockContainer <div.with-border> at [77,1247.375] [0+3+0 677.75 0+3+0] [0+3+0 426 0+3+0] children: not-inline
+                                                                BlockContainer <div.plain> at [79,1249.375] [0+0+2 673.75 2+0+0] [0+0+2 422 2+0+0] children: not-inline
+                                                                  BlockContainer <div.with-margin> at [84,1254.375] [5+0+0 663.75 0+0+5] [5+0+0 412 0+0+5] children: not-inline
+                                                                    BlockContainer <div.plain> at [86,1256.375] [0+0+2 659.75 2+0+0] [0+0+2 408 2+0+0] children: not-inline
+                                                                      BlockContainer <div.plain> at [88,1258.375] [0+0+2 655.75 2+0+0] [0+0+2 404 2+0+0] children: not-inline
+                                                                        BlockContainer <div.with-border> at [91,1261.375] [0+3+0 649.75 0+3+0] [0+3+0 398 0+3+0] children: not-inline
+                                                                          BlockContainer <div.plain> at [93,1263.375] [0+0+2 645.75 2+0+0] [0+0+2 394 2+0+0] children: not-inline
+                                                                            BlockContainer <div.with-margin> at [98,1268.375] [5+0+0 635.75 0+0+5] [5+0+0 384 0+0+5] children: not-inline
+                                                                              BlockContainer <div.plain> at [100,1270.375] [0+0+2 631.75 2+0+0] [0+0+2 380 2+0+0] children: not-inline
+                                                                                BlockContainer <div.plain> at [102,1272.375] [0+0+2 627.75 2+0+0] [0+0+2 376 2+0+0] children: not-inline
+                                                                                  BlockContainer <div.with-border> at [105,1275.375] [0+3+0 621.75 0+3+0] [0+3+0 370 0+3+0] children: not-inline
+                                                                                    BlockContainer <div.plain> at [107,1277.375] [0+0+2 617.75 2+0+0] [0+0+2 366 2+0+0] children: not-inline
+                                                                                      BlockContainer <div.with-margin> at [112,1282.375] [5+0+0 607.75 0+0+5] [5+0+0 356 0+0+5] children: not-inline
+                                                                                        BlockContainer <div.plain> at [114,1284.375] [0+0+2 603.75 2+0+0] [0+0+2 352 2+0+0] children: not-inline
+                                                                                          BlockContainer <div.plain> at [116,1286.375] [0+0+2 599.75 2+0+0] [0+0+2 348 2+0+0] children: not-inline
+                                                                                            BlockContainer <div.with-border> at [119,1289.375] [0+3+0 593.75 0+3+0] [0+3+0 342 0+3+0] children: not-inline
+                                                                                              BlockContainer <div.plain> at [121,1291.375] [0+0+2 589.75 2+0+0] [0+0+2 338 2+0+0] children: not-inline
+                                                                                                BlockContainer <div.with-margin> at [126,1296.375] [5+0+0 579.75 0+0+5] [5+0+0 328 0+0+5] children: not-inline
+                                                                                                  BlockContainer <div.plain> at [128,1298.375] [0+0+2 575.75 2+0+0] [0+0+2 324 2+0+0] children: not-inline
+                                                                                                    BlockContainer <div.plain> at [130,1300.375] [0+0+2 571.75 2+0+0] [0+0+2 320 2+0+0] children: not-inline
+                                                                                                      BlockContainer <div.with-border> at [133,1303.375] [0+3+0 565.75 0+3+0] [0+3+0 314 0+3+0] children: not-inline
+                                                                                                        BlockContainer <div.plain> at [135,1305.375] [0+0+2 561.75 2+0+0] [0+0+2 310 2+0+0] children: not-inline
+                                                                                                          BlockContainer <div.with-margin> at [140,1310.375] [5+0+0 551.75 0+0+5] [5+0+0 300 0+0+5] children: not-inline
+                                                                                                            BlockContainer <div.plain> at [142,1312.375] [0+0+2 547.75 2+0+0] [0+0+2 296 2+0+0] children: not-inline
+                                                                                                              BlockContainer <div.plain> at [144,1314.375] [0+0+2 543.75 2+0+0] [0+0+2 292 2+0+0] children: not-inline
+                                                                                                                BlockContainer <div.with-border> at [147,1317.375] [0+3+0 537.75 0+3+0] [0+3+0 286 0+3+0] children: not-inline
+                                                                                                                  BlockContainer <div.plain> at [149,1319.375] [0+0+2 533.75 2+0+0] [0+0+2 282 2+0+0] children: not-inline
+                                                                                                                    BlockContainer <div.with-margin> at [154,1324.375] [5+0+0 523.75 0+0+5] [5+0+0 272 0+0+5] children: not-inline
+                                                                                                                      BlockContainer <div.plain> at [156,1326.375] [0+0+2 519.75 2+0+0] [0+0+2 268 2+0+0] children: not-inline
+                                                                                                                        BlockContainer <div.plain> at [158,1328.375] [0+0+2 515.75 2+0+0] [0+0+2 264 2+0+0] children: not-inline
+                                                                                                                          BlockContainer <div.with-border> at [161,1331.375] [0+3+0 509.75 0+3+0] [0+3+0 258 0+3+0] children: not-inline
+                                                                                                                            BlockContainer <div.plain> at [163,1333.375] [0+0+2 505.75 2+0+0] [0+0+2 254 2+0+0] children: not-inline
+                                                                                                                              BlockContainer <div.with-margin> at [168,1338.375] [5+0+0 495.75 0+0+5] [5+0+0 244 0+0+5] children: not-inline
+                                                                                                                                BlockContainer <div.plain> at [170,1340.375] [0+0+2 491.75 2+0+0] [0+0+2 240 2+0+0] children: not-inline
+                                                                                                                                  BlockContainer <div.plain> at [172,1342.375] [0+0+2 487.75 2+0+0] [0+0+2 236 2+0+0] children: not-inline
+                                                                                                                                    BlockContainer <div.with-border> at [175,1345.375] [0+3+0 481.75 0+3+0] [0+3+0 230 0+3+0] children: not-inline
+                                                                                                                                      BlockContainer <div.plain> at [177,1347.375] [0+0+2 477.75 2+0+0] [0+0+2 226 2+0+0] children: not-inline
+                                                                                                                                        BlockContainer <div.with-margin> at [182,1352.375] [5+0+0 467.75 0+0+5] [5+0+0 216 0+0+5] children: not-inline
+                                                                                                                                          BlockContainer <div.plain> at [184,1354.375] [0+0+2 463.75 2+0+0] [0+0+2 212 2+0+0] children: not-inline
+                                                                                                                                            BlockContainer <div.plain> at [186,1356.375] [0+0+2 459.75 2+0+0] [0+0+2 208 2+0+0] children: not-inline
+                                                                                                                                              BlockContainer <div.with-border> at [189,1359.375] [0+3+0 453.75 0+3+0] [0+3+0 202 0+3+0] children: not-inline
+                                                                                                                                                BlockContainer <div.plain> at [191,1361.375] [0+0+2 449.75 2+0+0] [0+0+2 198 2+0+0] children: not-inline
+                                                                                                                                                  BlockContainer <div.with-margin> at [196,1366.375] [5+0+0 439.75 0+0+5] [5+0+0 188 0+0+5] children: not-inline
+                                                                                                                                                    BlockContainer <div.plain> at [198,1368.375] [0+0+2 435.75 2+0+0] [0+0+2 184 2+0+0] children: not-inline
+                                                                                                                                                      BlockContainer <div.plain> at [200,1370.375] [0+0+2 431.75 2+0+0] [0+0+2 180 2+0+0] children: not-inline
+                                                                                                                                                        BlockContainer <div.with-border> at [203,1373.375] [0+3+0 425.75 0+3+0] [0+3+0 174 0+3+0] children: not-inline
+                                                                                                                                                          BlockContainer <div.plain> at [205,1375.375] [0+0+2 421.75 2+0+0] [0+0+2 170 2+0+0] children: not-inline
+                                                                                                                                                            BlockContainer <div.with-margin> at [210,1380.375] [5+0+0 411.75 0+0+5] [5+0+0 160 0+0+5] children: not-inline
+                                                                                                                                                              BlockContainer <div.plain> at [212,1382.375] [0+0+2 407.75 2+0+0] [0+0+2 156 2+0+0] children: not-inline
+                                                                                                                                                                BlockContainer <div.plain> at [214,1384.375] [0+0+2 403.75 2+0+0] [0+0+2 152 2+0+0] children: not-inline
+                                                                                                                                                                  BlockContainer <div.with-border> at [217,1387.375] [0+3+0 397.75 0+3+0] [0+3+0 146 0+3+0] children: not-inline
+                                                                                                                                                                    BlockContainer <div.plain> at [219,1389.375] [0+0+2 393.75 2+0+0] [0+0+2 142 2+0+0] children: not-inline
+                                                                                                                                                                      BlockContainer <div.with-margin> at [224,1394.375] [5+0+0 383.75 0+0+5] [5+0+0 132 0+0+5] children: not-inline
+                                                                                                                                                                        BlockContainer <div.plain> at [226,1396.375] [0+0+2 379.75 2+0+0] [0+0+2 128 2+0+0] children: not-inline
+                                                                                                                                                                          BlockContainer <div.plain> at [228,1398.375] [0+0+2 375.75 2+0+0] [0+0+2 124 2+0+0] children: not-inline
+                                                                                                                                                                            BlockContainer <div.with-border> at [231,1401.375] [0+3+0 369.75 0+3+0] [0+3+0 118 0+3+0] children: not-inline
+                                                                                                                                                                              BlockContainer <div.plain> at [233,1403.375] [0+0+2 365.75 2+0+0] [0+0+2 114 2+0+0] children: not-inline
+                                                                                                                                                                                BlockContainer <div.with-margin> at [238,1408.375] [5+0+0 355.75 0+0+5] [5+0+0 104 0+0+5] children: not-inline
+                                                                                                                                                                                  BlockContainer <div.plain> at [240,1410.375] [0+0+2 351.75 2+0+0] [0+0+2 100 2+0+0] children: not-inline
+                                                                                                                                                                                    BlockContainer <div.plain> at [242,1412.375] [0+0+2 347.75 2+0+0] [0+0+2 96 2+0+0] children: not-inline
+                                                                                                                                                                                      BlockContainer <div.with-border> at [245,1415.375] [0+3+0 341.75 0+3+0] [0+3+0 90 0+3+0] children: not-inline
+                                                                                                                                                                                        BlockContainer <div.plain> at [247,1417.375] [0+0+2 337.75 2+0+0] [0+0+2 86 2+0+0] children: not-inline
+                                                                                                                                                                                          BlockContainer <div.with-margin> at [252,1422.375] [5+0+0 327.75 0+0+5] [5+0+0 76 0+0+5] children: not-inline
+                                                                                                                                                                                            BlockContainer <div.plain> at [254,1424.375] [0+0+2 323.75 2+0+0] [0+0+2 72 2+0+0] children: not-inline
+                                                                                                                                                                                              BlockContainer <div.plain> at [256,1426.375] [0+0+2 319.75 2+0+0] [0+0+2 68 2+0+0] children: not-inline
+                                                                                                                                                                                                BlockContainer <div.with-border> at [259,1429.375] [0+3+0 313.75 0+3+0] [0+3+0 62 0+3+0] children: not-inline
+                                                                                                                                                                                                  BlockContainer <div.plain> at [261,1431.375] [0+0+2 309.75 2+0+0] [0+0+2 58 2+0+0] children: not-inline
+                                                                                                                                                                                                    BlockContainer <div.with-margin> at [266,1436.375] [5+0+0 299.75 0+0+5] [5+0+0 48 0+0+5] children: not-inline
+                                                                                                                                                                                                      BlockContainer <div.plain> at [268,1438.375] [0+0+2 295.75 2+0+0] [0+0+2 44 2+0+0] children: not-inline
+                                                                                                                                                                                                        BlockContainer <div.plain> at [270,1440.375] [0+0+2 291.75 2+0+0] [0+0+2 40 2+0+0] children: not-inline
+                                                                                                                                                                                                          BlockContainer <div.with-border> at [273,1443.375] [0+3+0 285.75 0+3+0] [0+3+0 34 0+3+0] children: not-inline
+                                                                                                                                                                                                            BlockContainer <div.plain> at [275,1445.375] [0+0+2 281.75 2+0+0] [0+0+2 30 2+0+0] children: not-inline
+                                                                                                                                                                                                              BlockContainer <div.with-margin> at [280,1450.375] [5+0+0 271.75 0+0+5] [5+0+0 20 0+0+5] children: not-inline
+                                                                                                                                                                                                                BlockContainer <div.plain> at [282,1452.375] [0+0+2 267.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
+                                                                                                                                                                                                                  BlockContainer <div.content> at [282,1452.375] [0+0+0 267.75 0+0+0] [0+0+0 16 0+0+0] children: inline
+                                                                                                                                                                                                                    frag 0 from TextNode start: 0, length: 32, rect: [282,1452.375 267.75x16] baseline: 12.796875
+                                                                                                                                                                                                                        "Deep generated nesting complete!"
+                                                                                                                                                                                                                    TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [2,1748.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,1760.375] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 831.75x1760.375]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x1760.375] overflow: [0,0 831.75x1760.375]
+    PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
+    PaintableWithLines (BlockContainer<BODY>) [0,10 831.75x1740.375]
+      PaintableWithLines (BlockContainer(anonymous)) [0,10 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,10 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,12 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,12 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,36 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,36 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,38 823.75x32]
+            PaintableWithLines (BlockContainer<DIV>.plain) [6,40 819.75x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,42 815.75x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,44 811.75x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,46 807.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,46 807.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,62 807.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,72 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,84 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,84 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,86 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,86 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,110 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,110 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.with-min-width) [4,112 823.75x32]
+            PaintableWithLines (BlockContainer<DIV>.plain) [6,114 819.75x28]
+              PaintableWithLines (BlockContainer<DIV>.with-min-width) [8,116 815.75x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,118 811.75x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,120 807.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.short-content) [12,120 807.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,136 807.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,146 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,158 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,158 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,160 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,160 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,184 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,184 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.with-max-width) [4,186 304x32] overflow: [4,186 593.390625x34]
+            PaintableWithLines (BlockContainer<DIV>.plain) [6,188 300x28] overflow: [6,188 591.390625x30]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,190 296x24] overflow: [8,190 589.390625x26]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,192 292x20] overflow: [10,192 587.390625x22]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,194 288x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,194 288x16] overflow: [12,194 585.390625x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,210 288x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,220 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,232 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,232 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,234 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,234 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,258 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,258 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,260 823.75x32]
+            PaintableWithLines (BlockContainer<DIV>.creates-bfc) [6,262 819.75x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,264 815.75x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,266 811.75x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,268 807.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,268 807.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,284 807.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,294 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,306 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,306 831.75x88]
+        PaintableWithLines (BlockContainer(anonymous)) [2,308 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,308 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,332 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,332 827.75x60]
+          PaintableWithLines (BlockContainer(anonymous)) [4,334 823.75x0]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,334 823.75x36]
+            PaintableWithLines (BlockContainer(anonymous)) [6,336 819.75x0]
+            PaintableWithLines (BlockContainer<DIV>.content) [6,336 819.75x16]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [6,352 819.75x0]
+            PaintableWithLines (BlockContainer<DIV>.content) [6,352 819.75x16]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [6,368 819.75x0]
+          PaintableWithLines (BlockContainer(anonymous)) [4,370 823.75x0]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,370 823.75x20]
+            PaintableWithLines (BlockContainer(anonymous)) [6,372 819.75x0]
+            PaintableWithLines (BlockContainer<DIV>.content) [6,372 819.75x16]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer(anonymous)) [6,388 819.75x0]
+          PaintableWithLines (BlockContainer(anonymous)) [4,390 823.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,392 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,404 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,404 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,406 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,406 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,430 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,430 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,432 823.75x32]
+            PaintableBox (Box<DIV>.flex-container) [6,434 819.75x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,436 207.9375x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,438 203.9375x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,440 199.9375x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,440 199.9375x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,456 199.9375x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,466 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,478 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,478 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,480 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,480 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,504 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,504 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,506 823.75x32]
+            PaintableBox (Box<DIV>.grid-container) [6,508 819.75x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,510 815.75x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,512 811.75x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,514 807.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,514 807.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,530 807.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,540 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,552 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,552 831.75x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,554 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,554 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,578 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,578 827.75x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,580 823.75x32]
+            PaintableWithLines (BlockContainer<DIV>.inline-block) [6,582 180.40625x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,584 176.40625x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,586 172.40625x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,588 168.40625x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,588 168.40625x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,604 168.40625x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,614 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,626 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section.clearfix) [0,626 831.75x56]
+        PaintableWithLines (BlockContainer(anonymous)) [2,628 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,628 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,652 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,652 827.75x28]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,654 823.75x24]
+            PaintableWithLines (BlockContainer<DIV>.plain) [6,656 819.75x20]
+              PaintableWithLines (BlockContainer(anonymous)) [8,658 815.75x0] overflow: [8,658 132.828125x20]
+                PaintableWithLines (BlockContainer<DIV>.floated) [8,658 132.828125x20]
+                  PaintableWithLines (BlockContainer<DIV>.content) [10,660 128.828125x16]
+                    TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer<DIV>.content) [8,658 815.75x16]
+                TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer(anonymous)) [8,674 815.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,680 827.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,680 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,692 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,692 831.75x74]
+        PaintableWithLines (BlockContainer(anonymous)) [2,694 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,694 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,718 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.with-border) [2,718 827.75x46]
+          PaintableWithLines (BlockContainer<DIV>.with-border) [5,721 821.75x40]
+            PaintableWithLines (BlockContainer<DIV>.with-border) [8,724 815.75x34]
+              PaintableWithLines (BlockContainer<DIV>.with-border) [11,727 809.75x28]
+                PaintableWithLines (BlockContainer<DIV>.with-border) [14,730 803.75x22]
+                  PaintableWithLines (BlockContainer(anonymous)) [17,733 797.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [17,733 797.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [17,749 797.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,764 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,776 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,776 831.75x66]
+        PaintableWithLines (BlockContainer(anonymous)) [2,778 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,778 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,802 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,802 827.75x38]
+          PaintableWithLines (BlockContainer(anonymous)) [4,804 823.75x0]
+          PaintableWithLines (BlockContainer<DIV>.with-min-width) [4,804 823.75x34]
+            PaintableWithLines (BlockContainer(anonymous)) [6,806 819.75x0]
+            PaintableWithLines (BlockContainer<DIV>.creates-bfc) [6,806 819.75x30]
+              PaintableWithLines (BlockContainer(anonymous)) [8,808 815.75x0]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,808 815.75x26]
+                PaintableWithLines (BlockContainer(anonymous)) [10,810 811.75x0]
+                PaintableWithLines (BlockContainer<DIV>.with-border) [10,810 811.75x22]
+                  PaintableWithLines (BlockContainer(anonymous)) [13,813 805.75x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [13,813 805.75x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [13,829 805.75x0]
+                PaintableWithLines (BlockContainer(anonymous)) [10,832 811.75x0]
+              PaintableWithLines (BlockContainer(anonymous)) [8,834 815.75x0]
+            PaintableWithLines (BlockContainer(anonymous)) [6,836 819.75x0]
+          PaintableWithLines (BlockContainer(anonymous)) [4,838 823.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,840 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,852 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,852 301.71875x64]
+        PaintableWithLines (BlockContainer(anonymous)) [2,854 297.71875x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,854 297.71875x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,878 297.71875x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,878 297.71875x36]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,880 293.71875x32]
+            PaintableWithLines (BlockContainer<DIV>.plain) [6,882 289.71875x28]
+              PaintableWithLines (BlockContainer<DIV>.plain) [8,884 285.71875x24]
+                PaintableWithLines (BlockContainer<DIV>.plain) [10,886 281.71875x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [12,888 277.71875x0]
+                  PaintableWithLines (BlockContainer<DIV>.content) [12,888 277.71875x16]
+                    TextPaintable (TextNode<#text>)
+                  PaintableWithLines (BlockContainer(anonymous)) [12,904 277.71875x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,914 297.71875x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,926 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,926 831.75x62]
+        PaintableWithLines (BlockContainer(anonymous)) [2,928 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,928 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,952 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,952 827.75x34]
+          PaintableWithLines (BlockContainer<DIV>.with-margin) [4,959 823.75x20]
+            PaintableWithLines (BlockContainer<DIV>.plain) [4,959 823.75x20]
+              PaintableWithLines (BlockContainer(anonymous)) [6,961 819.75x0]
+              PaintableWithLines (BlockContainer<DIV>.content) [6,961 819.75x16]
+                TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer(anonymous)) [6,977 819.75x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,986 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,998 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,998 831.75x138.375]
+        PaintableWithLines (BlockContainer(anonymous)) [2,1000 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,1000 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,1024 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.plain) [2,1024 827.75x110.375]
+          PaintableWithLines (BlockContainer<DIV>.plain) [4,1026 823.75x106.375]
+            PaintableWithLines (BlockContainer<DIV>.plain) [45.1875,1067.1875 741.375x24]
+              PaintableWithLines (BlockContainer<DIV>.plain) [47.1875,1069.1875 737.375x20]
+                PaintableWithLines (BlockContainer(anonymous)) [49.1875,1071.1875 733.375x0]
+                PaintableWithLines (BlockContainer<DIV>.content) [49.1875,1071.1875 733.375x16]
+                  TextPaintable (TextNode<#text>)
+                PaintableWithLines (BlockContainer(anonymous)) [49.1875,1087.1875 733.375x0]
+        PaintableWithLines (BlockContainer(anonymous)) [2,1134.375 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,1146.375 831.75x0]
+      PaintableWithLines (BlockContainer<DIV>.section) [0,1146.375 831.75x604]
+        PaintableWithLines (BlockContainer(anonymous)) [2,1148.375 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>.section-title) [2,1148.375 827.75x24]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,1172.375 827.75x0]
+        PaintableWithLines (BlockContainer<DIV>#deep-container) [2,1172.375 827.75x576]
+          PaintableWithLines (BlockContainer<DIV>.plain) [2,1172.375 827.75x576]
+            PaintableWithLines (BlockContainer<DIV>.with-border) [4,1174.375 823.75x572]
+              PaintableWithLines (BlockContainer<DIV>.plain) [7,1177.375 817.75x566]
+                PaintableWithLines (BlockContainer<DIV>.with-margin) [14,1184.375 803.75x552]
+                  PaintableWithLines (BlockContainer<DIV>.plain) [14,1184.375 803.75x552]
+                    PaintableWithLines (BlockContainer<DIV>.plain) [16,1186.375 799.75x548]
+                      PaintableWithLines (BlockContainer<DIV>.with-border) [18,1188.375 795.75x544]
+                        PaintableWithLines (BlockContainer<DIV>.plain) [21,1191.375 789.75x538]
+                          PaintableWithLines (BlockContainer<DIV>.with-margin) [28,1198.375 775.75x524]
+                            PaintableWithLines (BlockContainer<DIV>.plain) [28,1198.375 775.75x524]
+                              PaintableWithLines (BlockContainer<DIV>.plain) [30,1200.375 771.75x520]
+                                PaintableWithLines (BlockContainer<DIV>.with-border) [32,1202.375 767.75x516]
+                                  PaintableWithLines (BlockContainer<DIV>.plain) [35,1205.375 761.75x510]
+                                    PaintableWithLines (BlockContainer<DIV>.with-margin) [42,1212.375 747.75x496]
+                                      PaintableWithLines (BlockContainer<DIV>.plain) [42,1212.375 747.75x496]
+                                        PaintableWithLines (BlockContainer<DIV>.plain) [44,1214.375 743.75x492]
+                                          PaintableWithLines (BlockContainer<DIV>.with-border) [46,1216.375 739.75x488]
+                                            PaintableWithLines (BlockContainer<DIV>.plain) [49,1219.375 733.75x482]
+                                              PaintableWithLines (BlockContainer<DIV>.with-margin) [56,1226.375 719.75x468]
+                                                PaintableWithLines (BlockContainer<DIV>.plain) [56,1226.375 719.75x468]
+                                                  PaintableWithLines (BlockContainer<DIV>.plain) [58,1228.375 715.75x464]
+                                                    PaintableWithLines (BlockContainer<DIV>.with-border) [60,1230.375 711.75x460]
+                                                      PaintableWithLines (BlockContainer<DIV>.plain) [63,1233.375 705.75x454]
+                                                        PaintableWithLines (BlockContainer<DIV>.with-margin) [70,1240.375 691.75x440]
+                                                          PaintableWithLines (BlockContainer<DIV>.plain) [70,1240.375 691.75x440]
+                                                            PaintableWithLines (BlockContainer<DIV>.plain) [72,1242.375 687.75x436]
+                                                              PaintableWithLines (BlockContainer<DIV>.with-border) [74,1244.375 683.75x432]
+                                                                PaintableWithLines (BlockContainer<DIV>.plain) [77,1247.375 677.75x426]
+                                                                  PaintableWithLines (BlockContainer<DIV>.with-margin) [84,1254.375 663.75x412]
+                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [84,1254.375 663.75x412]
+                                                                      PaintableWithLines (BlockContainer<DIV>.plain) [86,1256.375 659.75x408]
+                                                                        PaintableWithLines (BlockContainer<DIV>.with-border) [88,1258.375 655.75x404]
+                                                                          PaintableWithLines (BlockContainer<DIV>.plain) [91,1261.375 649.75x398]
+                                                                            PaintableWithLines (BlockContainer<DIV>.with-margin) [98,1268.375 635.75x384]
+                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [98,1268.375 635.75x384]
+                                                                                PaintableWithLines (BlockContainer<DIV>.plain) [100,1270.375 631.75x380]
+                                                                                  PaintableWithLines (BlockContainer<DIV>.with-border) [102,1272.375 627.75x376]
+                                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [105,1275.375 621.75x370]
+                                                                                      PaintableWithLines (BlockContainer<DIV>.with-margin) [112,1282.375 607.75x356]
+                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [112,1282.375 607.75x356]
+                                                                                          PaintableWithLines (BlockContainer<DIV>.plain) [114,1284.375 603.75x352]
+                                                                                            PaintableWithLines (BlockContainer<DIV>.with-border) [116,1286.375 599.75x348]
+                                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [119,1289.375 593.75x342]
+                                                                                                PaintableWithLines (BlockContainer<DIV>.with-margin) [126,1296.375 579.75x328]
+                                                                                                  PaintableWithLines (BlockContainer<DIV>.plain) [126,1296.375 579.75x328]
+                                                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [128,1298.375 575.75x324]
+                                                                                                      PaintableWithLines (BlockContainer<DIV>.with-border) [130,1300.375 571.75x320]
+                                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [133,1303.375 565.75x314]
+                                                                                                          PaintableWithLines (BlockContainer<DIV>.with-margin) [140,1310.375 551.75x300]
+                                                                                                            PaintableWithLines (BlockContainer<DIV>.plain) [140,1310.375 551.75x300]
+                                                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [142,1312.375 547.75x296]
+                                                                                                                PaintableWithLines (BlockContainer<DIV>.with-border) [144,1314.375 543.75x292]
+                                                                                                                  PaintableWithLines (BlockContainer<DIV>.plain) [147,1317.375 537.75x286]
+                                                                                                                    PaintableWithLines (BlockContainer<DIV>.with-margin) [154,1324.375 523.75x272]
+                                                                                                                      PaintableWithLines (BlockContainer<DIV>.plain) [154,1324.375 523.75x272]
+                                                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [156,1326.375 519.75x268]
+                                                                                                                          PaintableWithLines (BlockContainer<DIV>.with-border) [158,1328.375 515.75x264]
+                                                                                                                            PaintableWithLines (BlockContainer<DIV>.plain) [161,1331.375 509.75x258]
+                                                                                                                              PaintableWithLines (BlockContainer<DIV>.with-margin) [168,1338.375 495.75x244]
+                                                                                                                                PaintableWithLines (BlockContainer<DIV>.plain) [168,1338.375 495.75x244]
+                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.plain) [170,1340.375 491.75x240]
+                                                                                                                                    PaintableWithLines (BlockContainer<DIV>.with-border) [172,1342.375 487.75x236]
+                                                                                                                                      PaintableWithLines (BlockContainer<DIV>.plain) [175,1345.375 481.75x230]
+                                                                                                                                        PaintableWithLines (BlockContainer<DIV>.with-margin) [182,1352.375 467.75x216]
+                                                                                                                                          PaintableWithLines (BlockContainer<DIV>.plain) [182,1352.375 467.75x216]
+                                                                                                                                            PaintableWithLines (BlockContainer<DIV>.plain) [184,1354.375 463.75x212]
+                                                                                                                                              PaintableWithLines (BlockContainer<DIV>.with-border) [186,1356.375 459.75x208]
+                                                                                                                                                PaintableWithLines (BlockContainer<DIV>.plain) [189,1359.375 453.75x202]
+                                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.with-margin) [196,1366.375 439.75x188]
+                                                                                                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [196,1366.375 439.75x188]
+                                                                                                                                                      PaintableWithLines (BlockContainer<DIV>.plain) [198,1368.375 435.75x184]
+                                                                                                                                                        PaintableWithLines (BlockContainer<DIV>.with-border) [200,1370.375 431.75x180]
+                                                                                                                                                          PaintableWithLines (BlockContainer<DIV>.plain) [203,1373.375 425.75x174]
+                                                                                                                                                            PaintableWithLines (BlockContainer<DIV>.with-margin) [210,1380.375 411.75x160]
+                                                                                                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [210,1380.375 411.75x160]
+                                                                                                                                                                PaintableWithLines (BlockContainer<DIV>.plain) [212,1382.375 407.75x156]
+                                                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.with-border) [214,1384.375 403.75x152]
+                                                                                                                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [217,1387.375 397.75x146]
+                                                                                                                                                                      PaintableWithLines (BlockContainer<DIV>.with-margin) [224,1394.375 383.75x132]
+                                                                                                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [224,1394.375 383.75x132]
+                                                                                                                                                                          PaintableWithLines (BlockContainer<DIV>.plain) [226,1396.375 379.75x128]
+                                                                                                                                                                            PaintableWithLines (BlockContainer<DIV>.with-border) [228,1398.375 375.75x124]
+                                                                                                                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [231,1401.375 369.75x118]
+                                                                                                                                                                                PaintableWithLines (BlockContainer<DIV>.with-margin) [238,1408.375 355.75x104]
+                                                                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.plain) [238,1408.375 355.75x104]
+                                                                                                                                                                                    PaintableWithLines (BlockContainer<DIV>.plain) [240,1410.375 351.75x100]
+                                                                                                                                                                                      PaintableWithLines (BlockContainer<DIV>.with-border) [242,1412.375 347.75x96]
+                                                                                                                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [245,1415.375 341.75x90]
+                                                                                                                                                                                          PaintableWithLines (BlockContainer<DIV>.with-margin) [252,1422.375 327.75x76]
+                                                                                                                                                                                            PaintableWithLines (BlockContainer<DIV>.plain) [252,1422.375 327.75x76]
+                                                                                                                                                                                              PaintableWithLines (BlockContainer<DIV>.plain) [254,1424.375 323.75x72]
+                                                                                                                                                                                                PaintableWithLines (BlockContainer<DIV>.with-border) [256,1426.375 319.75x68]
+                                                                                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.plain) [259,1429.375 313.75x62]
+                                                                                                                                                                                                    PaintableWithLines (BlockContainer<DIV>.with-margin) [266,1436.375 299.75x48]
+                                                                                                                                                                                                      PaintableWithLines (BlockContainer<DIV>.plain) [266,1436.375 299.75x48]
+                                                                                                                                                                                                        PaintableWithLines (BlockContainer<DIV>.plain) [268,1438.375 295.75x44]
+                                                                                                                                                                                                          PaintableWithLines (BlockContainer<DIV>.with-border) [270,1440.375 291.75x40]
+                                                                                                                                                                                                            PaintableWithLines (BlockContainer<DIV>.plain) [273,1443.375 285.75x34]
+                                                                                                                                                                                                              PaintableWithLines (BlockContainer<DIV>.with-margin) [280,1450.375 271.75x20]
+                                                                                                                                                                                                                PaintableWithLines (BlockContainer<DIV>.plain) [280,1450.375 271.75x20]
+                                                                                                                                                                                                                  PaintableWithLines (BlockContainer<DIV>.content) [282,1452.375 267.75x16]
+                                                                                                                                                                                                                    TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [2,1748.375 827.75x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,1760.375 831.75x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1760.375] [children: 0] (z-index: auto)

@@ -290,9 +290,11 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                         width = zero_value;
                     }
                 } else if (available_space.width.is_min_content()) {
-                    width = CSS::Length::make_px(calculate_min_content_width(box));
+                    if (formatting_context_type_created_by_box(box).has_value())
+                        width = CSS::Length::make_px(calculate_min_content_width(box));
                 } else if (available_space.width.is_max_content()) {
-                    width = CSS::Length::make_px(calculate_max_content_width(box));
+                    if (formatting_context_type_created_by_box(box).has_value())
+                        width = CSS::Length::make_px(calculate_max_content_width(box));
                 } else {
                     VERIFY_NOT_REACHED();
                 }
