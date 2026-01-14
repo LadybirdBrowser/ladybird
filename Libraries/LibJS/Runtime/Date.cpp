@@ -376,8 +376,7 @@ static i64 clip_bigint_to_sane_time(Crypto::SignedBigInteger const& value)
     if (value > max_bigint)
         return NumericLimits<i64>::max();
 
-    // FIXME: Can we do this without string conversion?
-    return MUST(value.to_base(10)).to_number<i64>().value();
+    return value.to_i64();
 }
 
 static i64 clip_double_to_sane_time(double value)
