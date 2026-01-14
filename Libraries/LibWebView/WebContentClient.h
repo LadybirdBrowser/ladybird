@@ -96,7 +96,7 @@ private:
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;
     virtual void did_output_js_console_message(u64 page_id, ConsoleOutput) override;
-    virtual void did_start_network_request(u64 page_id, u64 request_id, URL::URL, ByteString method, Vector<HTTP::Header>, ByteBuffer request_body) override;
+    virtual void did_start_network_request(u64 page_id, u64 request_id, URL::URL, ByteString method, Vector<HTTP::Header>, ByteBuffer request_body, Optional<String> initiator_type) override;
     virtual void did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header>) override;
     virtual void did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data) override;
     virtual void did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo, Optional<Requests::NetworkError>) override;

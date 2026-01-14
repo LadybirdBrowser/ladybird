@@ -343,7 +343,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)
 {
     auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
-    actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body));
+    actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body), move(data.initiator_type));
     m_network_events.set(data.request_id, actor);
 
     JsonArray events;

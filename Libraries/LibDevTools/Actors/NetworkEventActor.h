@@ -25,7 +25,7 @@ public:
 
     u64 request_id() const { return m_request_id; }
 
-    void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body);
+    void set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type);
     void set_response_start(u32 status_code, Optional<String> reason_phrase);
     void set_response_headers(Vector<HTTP::Header> response_headers);
     void append_response_body(ByteBuffer data);
@@ -53,6 +53,7 @@ private:
     UnixDateTime m_start_time;
     Vector<HTTP::Header> m_request_headers;
     ByteBuffer m_request_body;
+    Optional<String> m_initiator_type;
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;

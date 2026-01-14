@@ -16,6 +16,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
@@ -473,8 +474,12 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return {};
     };
 
-    if (auto page = request.page())
-        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body());
+    if (auto page = request.page()) {
+        Optional<String> initiator_type_string;
+        if (request.initiator_type().has_value())
+            initiator_type_string = Fetch::Infrastructure::initiator_type_to_string(request.initiator_type().value()).to_string();
+        page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body(), move(initiator_type_string));
+    }
 
     ++m_pending_loads;
     if (on_load_counter_change)
