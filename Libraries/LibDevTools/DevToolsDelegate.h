@@ -87,6 +87,7 @@ public:
         UnixDateTime start_time;
         Vector<HTTP::Header> request_headers;
         ByteBuffer request_body;
+        Optional<String> initiator_type;
     };
 
     struct NetworkResponseData {

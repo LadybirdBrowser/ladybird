@@ -25,13 +25,14 @@ NetworkEventActor::NetworkEventActor(DevToolsServer& devtools, String name, u64 
 
 NetworkEventActor::~NetworkEventActor() = default;
 
-void NetworkEventActor::set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body)
+void NetworkEventActor::set_request_info(String url, String method, UnixDateTime start_time, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type)
 {
     m_url = move(url);
     m_method = move(method);
     m_start_time = start_time;
     m_request_headers = move(request_headers);
     m_request_body = move(request_body);
+    m_initiator_type = move(initiator_type);
 }
 
 void NetworkEventActor::set_response_start(u32 status_code, Optional<String> reason_phrase)
@@ -68,9 +69,26 @@ void NetworkEventActor::set_request_complete(u64 body_size, Requests::RequestTim
 
 JsonObject NetworkEventActor::serialize_initial_event() const
 {
-    // FIXME: Detect actual cause type (xhr, fetch, script, stylesheet, image, etc.)
+    // Determine if this is an XHR/fetch request (Firefox groups both under "XHR" filter)
+    bool is_xhr = m_initiator_type.has_value()
+        && (m_initiator_type.value() == "xmlhttprequest"sv || m_initiator_type.value() == "fetch"sv);
+
+    // Map initiator type to Firefox DevTools cause type
+    StringView cause_type = "document"sv;
+    if (m_initiator_type.has_value()) {
+        auto const& type = m_initiator_type.value();
+        if (type == "xmlhttprequest"sv)
+            cause_type = "xhr"sv;
+        else if (type == "css"sv)
+            cause_type = "stylesheet"sv;
+        else if (type == "img"sv || type == "image"sv)
+            cause_type = "image"sv;
+        else
+            cause_type = type;
+    }
+
     JsonObject cause;
-    cause.set("type"sv, "document"sv);
+    cause.set("type"sv, cause_type);
 
     JsonObject event;
     event.set("resourceType"sv, "network-event"sv);
@@ -80,8 +98,7 @@ JsonObject NetworkEventActor::serialize_initial_event() const
     event.set("timeStamp"sv, m_start_time.milliseconds_since_epoch());
     event.set("url"sv, m_url);
     event.set("method"sv, m_method);
-    // FIXME: Detect if request is XHR/fetch
-    event.set("isXHR"sv, false);
+    event.set("isXHR"sv, is_xhr);
     event.set("cause"sv, move(cause));
     event.set("private"sv, false);
     // FIXME: Detect if response is from cache
