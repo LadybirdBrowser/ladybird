@@ -24,6 +24,8 @@ class FrameActor;
 class HighlighterActor;
 class InspectorActor;
 class LayoutInspectorActor;
+class NetworkEventActor;
+class NetworkParentActor;
 class NodeActor;
 class PageStyleActor;
 class ParentAccessibilityActor;

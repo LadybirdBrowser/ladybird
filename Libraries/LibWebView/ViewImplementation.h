@@ -18,6 +18,9 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
+#include <LibHTTP/Header.h>
+#include <LibRequests/Forward.h>
+#include <LibRequests/NetworkError.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -201,6 +204,9 @@ public:
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(i32 message_id)> on_console_message_available;
     Function<void(i32 start_index, Vector<ConsoleOutput>)> on_received_console_messages;
+    Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&)> on_network_request_started;
+    Function<void(u64 request_id, u32 status_code, Optional<String> const&, Vector<HTTP::Header> const&)> on_network_response_headers_received;
+    Function<void(u64 request_id, u64 body_size, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&)> on_network_request_finished;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
     Function<void(Gfx::IntPoint)> on_reposition_window;

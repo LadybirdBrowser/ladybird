@@ -12,6 +12,7 @@
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
+#include <LibDevTools/Actors/NetworkParentActor.h>
 #include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/TargetConfigurationActor.h>
@@ -38,6 +39,15 @@ WatcherActor::~WatcherActor() = default;
 void WatcherActor::handle_message(Message const& message)
 {
     JsonObject response;
+
+    if (message.type == "getNetworkParentActor"sv) {
+        if (!m_network_parent)
+            m_network_parent = devtools().register_actor<NetworkParentActor>();
+
+        response.set("network"sv, m_network_parent->name());
+        send_response(message, move(response));
+        return;
+    }
 
     if (message.type == "getParentBrowsingContextID"sv) {
         auto browsing_context_id = get_required_parameter<u64>(message, "browsingContextID"sv);
@@ -66,7 +76,6 @@ void WatcherActor::handle_message(Message const& message)
         send_response(message, move(response));
         return;
     }
-
     if (message.type == "watchResources"sv) {
         auto resource_types = get_required_parameter<JsonArray>(message, "resourceTypes"sv);
         if (!resource_types.has_value())
@@ -132,7 +141,7 @@ JsonObject WatcherActor::serialize_description() const
     resources.set("jstracer-trace"sv, false);
     resources.set("last-private-context-exit"sv, false);
     resources.set("local-storage"sv, false);
-    resources.set("network-event"sv, false);
+    resources.set("network-event"sv, true);
     resources.set("network-event-stacktrace"sv, false);
     resources.set("platform-message"sv, false);
     resources.set("reflow"sv, false);

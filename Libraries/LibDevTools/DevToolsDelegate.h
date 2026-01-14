@@ -9,11 +9,15 @@
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/JsonValue.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/PageStyleActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Forward.h>
+#include <LibHTTP/Header.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
@@ -77,6 +81,34 @@ public:
     virtual void listen_for_console_messages(TabDescription const&, OnConsoleMessageAvailable, OnReceivedConsoleMessages) const { }
     virtual void stop_listening_for_console_messages(TabDescription const&) const { }
     virtual void request_console_messages(TabDescription const&, i32) const { }
+
+    struct NetworkRequestData {
+        u64 request_id { 0 };
+        String url;
+        String method;
+        UnixDateTime start_time;
+        Vector<HTTP::Header> request_headers;
+    };
+
+    struct NetworkResponseData {
+        u64 request_id { 0 };
+        u32 status_code { 0 };
+        Optional<String> reason_phrase;
+        Vector<HTTP::Header> response_headers;
+    };
+
+    struct NetworkRequestCompleteData {
+        u64 request_id { 0 };
+        u64 body_size { 0 };
+        Requests::RequestTimingInfo timing_info;
+        Optional<Requests::NetworkError> network_error;
+    };
+
+    using OnNetworkRequestStarted = Function<void(NetworkRequestData)>;
+    using OnNetworkResponseHeadersReceived = Function<void(NetworkResponseData)>;
+    using OnNetworkRequestFinished = Function<void(NetworkRequestCompleteData)>;
+    virtual void listen_for_network_events(TabDescription const&, OnNetworkRequestStarted, OnNetworkResponseHeadersReceived, OnNetworkRequestFinished) const { }
+    virtual void stop_listening_for_network_events(TabDescription const&) const { }
 };
 
 }

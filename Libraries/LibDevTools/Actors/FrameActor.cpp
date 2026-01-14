@@ -12,6 +12,7 @@
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/FrameActor.h>
 #include <LibDevTools/Actors/InspectorActor.h>
+#include <LibDevTools/Actors/NetworkEventActor.h>
 #include <LibDevTools/Actors/StyleSheetsActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/ThreadActor.h>
@@ -53,13 +54,30 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
             async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
                 self.style_sheets_available(response, move(style_sheets));
             }));
+
+        devtools.delegate().listen_for_network_events(
+            tab->description(),
+            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkRequestData data) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_network_request_started(move(data));
+            },
+            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkResponseData data) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_network_response_headers_received(move(data));
+            },
+            [weak_self = make_weak_ptr<FrameActor>()](DevToolsDelegate::NetworkRequestCompleteData data) {
+                if (auto self = weak_self.strong_ref())
+                    self->on_network_request_finished(move(data));
+            });
     }
 }
 
 FrameActor::~FrameActor()
 {
-    if (auto tab = m_tab.strong_ref())
+    if (auto tab = m_tab.strong_ref()) {
         devtools().delegate().stop_listening_for_console_messages(tab->description());
+        devtools().delegate().stop_listening_for_network_events(tab->description());
+    }
 }
 
 void FrameActor::handle_message(Message const& message)
@@ -346,6 +364,131 @@ void FrameActor::request_console_messages()
         devtools().delegate().request_console_messages(m_tab->description(), m_highest_received_message_index + 1);
         m_waiting_for_messages = true;
     }
+}
+
+void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)
+{
+    auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
+    actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers));
+    m_network_events.set(data.request_id, actor);
+
+    JsonArray events;
+    events.must_append(actor.serialize_initial_event());
+
+    JsonArray network_event;
+    network_event.must_append("network-event"sv);
+    network_event.must_append(move(events));
+
+    JsonArray array;
+    array.must_append(move(network_event));
+
+    JsonObject message;
+    message.set("type"sv, "resources-available-array"sv);
+    message.set("array"sv, move(array));
+    send_message(move(message));
+}
+
+void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkResponseData data)
+{
+    auto it = m_network_events.find(data.request_id);
+    if (it == m_network_events.end())
+        return;
+
+    auto& actor = *it->value;
+    actor.set_response_start(data.status_code, data.reason_phrase);
+
+    // Extract Content-Type before moving headers
+    String mime_type;
+    i64 headers_size = 0;
+    for (auto const& header : data.response_headers) {
+        headers_size += static_cast<i64>(header.name.bytes().size() + header.value.bytes().size() + 4);
+        if (header.name.equals_ignoring_ascii_case("content-type"sv))
+            mime_type = MUST(String::from_byte_string(header.value));
+    }
+
+    actor.set_response_headers(move(data.response_headers));
+
+    // Build resource updates object
+    JsonObject resource_updates;
+    resource_updates.set("status"sv, String::number(data.status_code));
+    resource_updates.set("statusText"sv, data.reason_phrase.value_or(String {}));
+    resource_updates.set("headersSize"sv, headers_size);
+    resource_updates.set("mimeType"sv, mime_type);
+    // FIXME: Get actual HTTP version from response
+    resource_updates.set("httpVersion"sv, "HTTP/1.1"sv);
+    // FIXME: Get actual remote address and port from connection
+    resource_updates.set("remoteAddress"sv, String {});
+    resource_updates.set("remotePort"sv, 0);
+    // FIXME: Calculate actual waiting time (time between request sent and first byte received)
+    resource_updates.set("waitingTime"sv, 0);
+    // Mark headers as available
+    resource_updates.set("responseHeadersAvailable"sv, true);
+
+    JsonObject update_entry;
+    update_entry.set("resourceId"sv, static_cast<i64>(data.request_id));
+    update_entry.set("resourceType"sv, "network-event"sv);
+    update_entry.set("resourceUpdates"sv, move(resource_updates));
+    update_entry.set("browsingContextID"sv, 1);
+    update_entry.set("innerWindowId"sv, 1);
+
+    JsonArray updates;
+    updates.must_append(move(update_entry));
+
+    JsonArray network_event_updates;
+    network_event_updates.must_append("network-event"sv);
+    network_event_updates.must_append(move(updates));
+
+    JsonArray array;
+    array.must_append(move(network_event_updates));
+
+    JsonObject message;
+    message.set("type"sv, "resources-updated-array"sv);
+    message.set("array"sv, move(array));
+    send_message(move(message));
+}
+
+void FrameActor::on_network_request_finished(DevToolsDelegate::NetworkRequestCompleteData data)
+{
+    auto it = m_network_events.find(data.request_id);
+    if (it == m_network_events.end())
+        return;
+
+    auto& actor = *it->value;
+    actor.set_request_complete(data.body_size, data.timing_info, data.network_error);
+
+    // Calculate total time in milliseconds
+    auto total_time = (data.timing_info.response_end_microseconds - data.timing_info.request_start_microseconds) / 1000;
+
+    // Build resource updates object with content and timing info
+    JsonObject resource_updates;
+    resource_updates.set("contentSize"sv, static_cast<i64>(data.body_size));
+    resource_updates.set("transferredSize"sv, static_cast<i64>(data.body_size));
+    resource_updates.set("totalTime"sv, total_time);
+    // Mark as complete
+    resource_updates.set("responseContentAvailable"sv, true);
+    resource_updates.set("eventTimingsAvailable"sv, true);
+
+    JsonObject update_entry;
+    update_entry.set("resourceId"sv, static_cast<i64>(data.request_id));
+    update_entry.set("resourceType"sv, "network-event"sv);
+    update_entry.set("resourceUpdates"sv, move(resource_updates));
+    update_entry.set("browsingContextID"sv, 1);
+    update_entry.set("innerWindowId"sv, 1);
+
+    JsonArray updates;
+    updates.must_append(move(update_entry));
+
+    JsonArray network_event_updates;
+    network_event_updates.must_append("network-event"sv);
+    network_event_updates.must_append(move(updates));
+
+    JsonArray array;
+    array.must_append(move(network_event_updates));
+
+    JsonObject message;
+    message.set("type"sv, "resources-updated-array"sv);
+    message.set("array"sv, move(array));
+    send_message(move(message));
 }
 
 }

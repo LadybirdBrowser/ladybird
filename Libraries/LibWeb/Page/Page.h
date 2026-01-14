@@ -18,7 +18,10 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
+#include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -415,6 +418,10 @@ public:
     virtual void page_did_request_clipboard_entries([[maybe_unused]] u64 request_id) { }
 
     virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
+
+    virtual void page_did_start_network_request([[maybe_unused]] u64 request_id, [[maybe_unused]] URL::URL const& url, [[maybe_unused]] ByteString const& method, [[maybe_unused]] Vector<HTTP::Header> const& request_headers) { }
+    virtual void page_did_receive_network_response_headers([[maybe_unused]] u64 request_id, [[maybe_unused]] u32 status_code, [[maybe_unused]] Optional<String> reason_phrase, [[maybe_unused]] Vector<HTTP::Header> const& response_headers) { }
+    virtual void page_did_finish_network_request([[maybe_unused]] u64 request_id, [[maybe_unused]] u64 body_size, [[maybe_unused]] Requests::RequestTimingInfo const& timing_info, [[maybe_unused]] Optional<Requests::NetworkError> const& network_error) { }
 
     virtual IPC::File request_worker_agent([[maybe_unused]] Web::Bindings::AgentType worker_type) { return IPC::File {}; }
 

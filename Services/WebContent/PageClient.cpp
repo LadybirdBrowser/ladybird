@@ -751,6 +751,21 @@ void PageClient::received_message_from_web_ui(String const& name, JS::Value data
         m_web_ui->received_message_from_web_ui(name, data);
 }
 
+void PageClient::page_did_start_network_request(u64 request_id, URL::URL const& url, ByteString const& method, Vector<HTTP::Header> const& request_headers)
+{
+    client().async_did_start_network_request(m_id, request_id, url, method, request_headers);
+}
+
+void PageClient::page_did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> const& response_headers)
+{
+    client().async_did_receive_network_response_headers(m_id, request_id, status_code, move(reason_phrase), response_headers);
+}
+
+void PageClient::page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error)
+{
+    client().async_did_finish_network_request(m_id, request_id, body_size, timing_info, network_error);
+}
+
 void PageClient::initialize_js_console(Web::DOM::Document& document)
 {
     if (document.is_temporary_document_for_fragment_parsing())

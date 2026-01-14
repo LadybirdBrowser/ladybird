@@ -25,7 +25,7 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name
     traits.set("sources"sv, false);
     traits.set("highlightable"sv, true);
     traits.set("customHighlighters"sv, true);
-    traits.set("networkMonitor"sv, false);
+    traits.set("networkMonitor"sv, true);
 
     JsonObject message;
     message.set("applicationType"sv, "browser"sv);

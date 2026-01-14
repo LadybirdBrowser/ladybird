@@ -2,6 +2,9 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibHTTP/Header.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
@@ -112,6 +115,10 @@ endpoint WebContentClient
     did_execute_js_console_input(u64 page_id, JsonValue result) =|
     did_output_js_console_message(u64 page_id, i32 message_index) =|
     did_get_js_console_messages(u64 page_id, i32 start_index, Vector<WebView::ConsoleOutput> console_output) =|
+
+    did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers) =|
+    did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers) =|
+    did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
 
     did_finish_test(u64 page_id, String text) =|
     did_set_test_timeout(u64 page_id, double milliseconds) =|

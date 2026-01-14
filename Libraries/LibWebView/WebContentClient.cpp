@@ -434,6 +434,30 @@ void WebContentClient::did_get_js_console_messages(u64 page_id, i32 start_index,
     }
 }
 
+void WebContentClient::did_start_network_request(u64 page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_network_request_started)
+            view->on_network_request_started(request_id, url, method, request_headers);
+    }
+}
+
+void WebContentClient::did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_network_response_headers_received)
+            view->on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers);
+    }
+}
+
+void WebContentClient::did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_network_request_finished)
+            view->on_network_request_finished(request_id, body_size, timing_info, network_error);
+    }
+}
+
 void WebContentClient::did_request_alert(u64 page_id, String message)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
