@@ -49,8 +49,15 @@ void Internals::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void Internals::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_gamepads);
+}
+
 void Internals::signal_test_is_done(String const& text)
 {
+    perform_per_test_cleanup();
     page().client().page_did_finish_test(text);
 }
 
@@ -407,7 +414,23 @@ void Internals::handle_sdl_input_events()
 GC::Ref<InternalGamepad> Internals::connect_virtual_gamepad()
 {
     auto& realm = this->realm();
-    return realm.create<InternalGamepad>(realm);
+    auto gamepad = realm.create<InternalGamepad>(realm, *this);
+    m_gamepads.append(gamepad);
+    return gamepad;
+}
+
+void Internals::disconnect_virtual_gamepad(GC::Ref<InternalGamepad> gamepad)
+{
+    if (auto index = m_gamepads.find_first_index(gamepad); index.has_value())
+        m_gamepads.remove(index.value());
+}
+
+void Internals::perform_per_test_cleanup()
+{
+    // Detach any virtual gamepads
+    for (auto gamepad : m_gamepads)
+        gamepad->disconnect();
+    m_gamepads.clear();
 }
 
 }

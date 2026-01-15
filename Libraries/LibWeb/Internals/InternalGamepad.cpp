@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/InternalGamepadPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/InternalGamepad.h>
+#include <LibWeb/Internals/Internals.h>
 
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_joystick.h>
@@ -61,8 +62,9 @@ static SDLCALL bool rumble_triggers(void* user_data, u16 left_rumble, u16 right_
     return true;
 }
 
-InternalGamepad::InternalGamepad(JS::Realm& realm)
+InternalGamepad::InternalGamepad(JS::Realm& realm, GC::Ref<Internals> internals)
     : Bindings::PlatformObject(realm)
+    , m_internals(internals)
 {
     SDL_VirtualJoystickDesc virtual_joystick_desc {};
     SDL_INIT_INTERFACE(&virtual_joystick_desc);
@@ -108,6 +110,7 @@ void InternalGamepad::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_received_rumble_effects);
     visitor.visit(m_received_rumble_trigger_effects);
+    visitor.visit(m_internals);
 }
 
 void InternalGamepad::finalize()
@@ -174,6 +177,7 @@ void InternalGamepad::received_rumble_triggers(u16 left_rumble, u16 right_rumble
 
 void InternalGamepad::disconnect()
 {
+    m_internals->disconnect_virtual_gamepad(*this);
     SDL_CloseJoystick(m_sdl_joystick);
     SDL_DetachVirtualJoystick(m_sdl_joystick_id);
 }

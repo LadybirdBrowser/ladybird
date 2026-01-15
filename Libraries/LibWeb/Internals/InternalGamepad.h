@@ -38,7 +38,7 @@ public:
     void disconnect();
 
 private:
-    InternalGamepad(JS::Realm&);
+    InternalGamepad(JS::Realm&, GC::Ref<Internals>);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
@@ -47,6 +47,7 @@ private:
     SDL_Joystick* m_sdl_joystick;
     Vector<GC::Ref<JS::Object>> m_received_rumble_effects;
     Vector<GC::Ref<JS::Object>> m_received_rumble_trigger_effects;
+    GC::Ref<Internals> m_internals;
 };
 
 }
