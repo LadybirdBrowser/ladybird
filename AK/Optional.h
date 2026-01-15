@@ -363,6 +363,18 @@ public:
         return released_value;
     }
 
+    [[nodiscard]] ALWAYS_INLINE constexpr T& unchecked_value() &
+    {
+        ASSERT(m_has_value);
+        return m_storage;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE constexpr T const& unchecked_value() const&
+    {
+        ASSERT(m_has_value);
+        return m_storage;
+    }
+
 private:
     ALWAYS_INLINE constexpr void construct_null_if_necessary(bool should_construct = is_constant_evaluated())
     {
