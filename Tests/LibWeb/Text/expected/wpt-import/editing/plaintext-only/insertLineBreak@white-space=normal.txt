@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 105 tests
 
-42 Pass
-63 Fail
+84 Pass
+21 Fail
 Pass	execCommand("insertLineBreak") when A[]B
 Pass	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph
@@ -67,45 +67,45 @@ Fail	Pressing Shift+Enter when <h1>A[]B</h1> should cause "insertLineBreak" and 
 Pass	execCommand("insertLineBreak") when <h1>AB[]</h1>
 Pass	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <p style="white-space:normal">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <p style="white-space:normal">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <p style="white-space:pre">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <p style="white-space:pre">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <p style="white-space:pre-line">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <p style="white-space:pre-line">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <p style="white-space:pre-wrap">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <p style="white-space:pre-wrap">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <ul><li>[]AB</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <ul><li>[]AB</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dt>[]AB</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dt>[]AB</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dd>[]AB</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dd>[]AB</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <table><tbody><tr><td>[]AB</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <table><tbody><tr><td>[]AB</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <h1>[]AB</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <h1>[]AB</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
-Fail	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
-Fail	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <p style="white-space:normal">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <p style="white-space:normal">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <p style="white-space:pre">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <p style="white-space:pre">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <p style="white-space:pre-line">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <p style="white-space:pre-line">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <p style="white-space:pre-wrap">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <p style="white-space:pre-wrap">A[]B</p> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <ul><li>[]AB</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <ul><li>[]AB</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dt>[]AB</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dt>[]AB</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dd>[]AB</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dd>[]AB</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <table><tbody><tr><td>[]AB</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <table><tbody><tr><td>[]AB</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <h1>[]AB</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <h1>[]AB</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML
+Pass	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
+Pass	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph: editingHost.innerHTML

@@ -1435,8 +1435,10 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
         }
 
-        if (key == UIEvents::KeyCode::Key_Return && (modifiers == UIEvents::Mod_None || modifiers == UIEvents::Mod_Shift)) {
-            auto input_type = modifiers == UIEvents::Mod_Shift ? UIEvents::InputTypes::insertLineBreak : UIEvents::InputTypes::insertParagraph;
+        // Ignore Mod_Keypad when determining behavior - it only indicates key location (numpad vs standard).
+        auto const significant_modifiers = modifiers & ~UIEvents::Mod_Keypad;
+        if (key == UIEvents::KeyCode::Key_Return && (significant_modifiers == UIEvents::Mod_None || significant_modifiers == UIEvents::Mod_Shift)) {
+            auto input_type = significant_modifiers == UIEvents::Mod_Shift ? UIEvents::InputTypes::insertLineBreak : UIEvents::InputTypes::insertParagraph;
 
             // If the editing host is contenteditable="plaintext-only", we force a line break.
             // NB: We check the selection's editing host rather than focused_area because with nested

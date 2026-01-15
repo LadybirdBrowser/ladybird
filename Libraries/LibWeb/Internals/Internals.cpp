@@ -175,13 +175,64 @@ JS::Object* Internals::hit_test(double x, double y)
     return nullptr;
 }
 
+struct WebDriverKeyData {
+    UIEvents::KeyCode key_code;
+    u32 additional_modifiers;
+    u32 code_point_to_send;
+};
+
+// Maps WebDriver-style key codes (0xE000-0xE05D) to KeyCode and modifiers.
+// https://w3c.github.io/webdriver/#keyboard-actions
+static constexpr Optional<WebDriverKeyData> webdriver_key_to_key_code(u32 code_point)
+{
+    switch (code_point) {
+    case 0xE003: // Backspace
+        return WebDriverKeyData { UIEvents::Key_Backspace, 0, '\b' };
+    case 0xE004: // Tab
+        return WebDriverKeyData { UIEvents::Key_Tab, 0, '\t' };
+    case 0xE006: // Return (main keyboard)
+        return WebDriverKeyData { UIEvents::Key_Return, 0, '\n' };
+    case 0xE007: // Enter (numpad)
+        return WebDriverKeyData { UIEvents::Key_Return, UIEvents::Mod_Keypad, '\n' };
+    case 0xE008: // Shift
+        return WebDriverKeyData { UIEvents::Key_LeftShift, UIEvents::Mod_Shift, 0 };
+    case 0xE009: // Control
+        return WebDriverKeyData { UIEvents::Key_LeftControl, UIEvents::Mod_Ctrl, 0 };
+    case 0xE00A: // Alt
+        return WebDriverKeyData { UIEvents::Key_LeftAlt, UIEvents::Mod_Alt, 0 };
+    case 0xE00D: // Space
+        return WebDriverKeyData { UIEvents::Key_Space, 0, ' ' };
+    case 0xE010: // End
+        return WebDriverKeyData { UIEvents::Key_End, 0, 0 };
+    case 0xE011: // Home
+        return WebDriverKeyData { UIEvents::Key_Home, 0, 0 };
+    case 0xE012: // Left Arrow
+        return WebDriverKeyData { UIEvents::Key_Left, 0, 0 };
+    case 0xE013: // Up Arrow
+        return WebDriverKeyData { UIEvents::Key_Up, 0, 0 };
+    case 0xE014: // Right Arrow
+        return WebDriverKeyData { UIEvents::Key_Right, 0, 0 };
+    case 0xE015: // Down Arrow
+        return WebDriverKeyData { UIEvents::Key_Down, 0, 0 };
+    case 0xE017: // Delete
+        return WebDriverKeyData { UIEvents::Key_Delete, 0, 0 };
+    case 0xE03D: // Meta
+        return WebDriverKeyData { UIEvents::Key_LeftSuper, UIEvents::Mod_Super, 0 };
+    }
+    return {};
+}
+
 void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL::UnsignedShort modifiers)
 {
     auto& page = this->page();
     target.focus();
 
-    for (auto code_point : text.code_points())
-        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
+    for (auto code_point : text.code_points()) {
+        if (auto data = webdriver_key_to_key_code(code_point); data.has_value())
+            page.handle_keydown(data->key_code, modifiers | data->additional_modifiers, data->code_point_to_send, false);
+        else
+            page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
+    }
 }
 
 void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebIDL::UnsignedShort modifiers)
