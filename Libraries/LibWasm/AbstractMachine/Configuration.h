@@ -15,6 +15,7 @@ namespace Wasm {
 enum class SourceAddressMix {
     AllRegisters,
     AllCallRecords,
+    AllStack,
     Any,
 };
 
@@ -170,6 +171,9 @@ public:
         } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
             m_call_record_base[to_underlying(destination) - Dispatch::RegisterOrStack::CallRecord] = value;
             return;
+        } else if constexpr (mix == SourceAddressMix::AllStack) {
+            value_stack().unchecked_append(value);
+            return;
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(destination & ~(Dispatch::Stack - 1))) [[likely]] {
                 regs.data()[to_underlying(destination)] = value;
@@ -200,6 +204,8 @@ public:
             return regs.data()[to_underlying(source)];
         } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
             return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
+        } else if constexpr (mix == SourceAddressMix::AllStack) {
+            return value_stack().unsafe_last();
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
                 return regs.data()[to_underlying(source)];
@@ -223,6 +229,8 @@ public:
             return regs.data()[to_underlying(source)];
         } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
             return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
+        } else if constexpr (mix == SourceAddressMix::AllStack) {
+            return value_stack().unsafe_take_last();
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
                 return regs.data()[to_underlying(source)];

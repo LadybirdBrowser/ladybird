@@ -71,8 +71,8 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
     void interpret_impl(Configuration&, Expression const&);
 
     template<bool NeedsStackAdjustment>
-    InstructionPointer branch_to_label(Configuration&, LabelIndex);
-    template<typename ReadT, typename PushT>
+    InstructionPointer branch_to_label(Configuration&, LabelIndex, InstructionPointer current_ip, bool actually_branching = true);
+    template<typename ReadT, typename PushT, SourceAddressMix>
     bool load_and_push(Configuration&, Instruction const&, SourcesAndDestination const&);
     template<typename PopT, typename StoreT>
     bool pop_and_store(Configuration&, Instruction const&, SourcesAndDestination const&);
