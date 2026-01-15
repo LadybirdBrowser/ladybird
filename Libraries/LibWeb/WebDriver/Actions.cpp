@@ -790,6 +790,8 @@ struct KeyCodeData {
 };
 
 // https://w3c.github.io/webdriver/#dfn-code
+// NOTE: The normalised key values (0xE000-0xE05D) are defined in the keyboard actions table:
+//       https://w3c.github.io/webdriver/#keyboard-actions
 static KeyCodeData key_code_data(u32 code_point)
 {
     // The code for key is the value in the last column of the following table on the row with key in either the first
