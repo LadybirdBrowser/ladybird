@@ -184,13 +184,6 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
-
-    void* addr = ::mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED) {
-        auto saved_errno = errno;
-        TRY(close(fd));
-        return Error::from_errno(saved_errno);
-    }
 #endif
     if (fd < 0)
         return Error::from_errno(errno);
