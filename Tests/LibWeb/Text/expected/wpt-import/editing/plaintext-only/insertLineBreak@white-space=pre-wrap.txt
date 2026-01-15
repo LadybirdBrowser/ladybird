@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 105 tests
 
-36 Pass
-69 Fail
+42 Pass
+63 Fail
 Pass	execCommand("insertLineBreak") when A[]B
 Pass	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <p>{}<br></p>
+Pass	execCommand("insertLineBreak") when <p>{}<br></p>
 Pass	Pressing Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <p>{}<br></p> should cause "insertLineBreak" and shouldn't insert new paragraph
 Pass	execCommand("insertLineBreak") when <p style="white-space:normal">A[]B</p>
@@ -28,7 +28,7 @@ Fail	Pressing Shift+Enter when <ul><li>[]AB</li></ul> should cause "insertLineBr
 Pass	execCommand("insertLineBreak") when <ul><li>A[]B</li></ul>
 Pass	Pressing Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <ul><li>A[]B</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <ul><li>AB[]</li></ul>
+Pass	execCommand("insertLineBreak") when <ul><li>AB[]</li></ul>
 Pass	Pressing Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <ul><li>AB[]</li></ul> should cause "insertLineBreak" and shouldn't insert new paragraph
 Pass	execCommand("insertLineBreak") when <dl><dt>[]AB</dt></dl>
@@ -37,7 +37,7 @@ Fail	Pressing Shift+Enter when <dl><dt>[]AB</dt></dl> should cause "insertLineBr
 Pass	execCommand("insertLineBreak") when <dl><dt>A[]B</dt></dl>
 Pass	Pressing Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <dl><dt>A[]B</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <dl><dt>AB[]</dt></dl>
+Pass	execCommand("insertLineBreak") when <dl><dt>AB[]</dt></dl>
 Pass	Pressing Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <dl><dt>AB[]</dt></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Pass	execCommand("insertLineBreak") when <dl><dd>[]AB</dd></dl>
@@ -46,7 +46,7 @@ Fail	Pressing Shift+Enter when <dl><dd>[]AB</dd></dl> should cause "insertLineBr
 Pass	execCommand("insertLineBreak") when <dl><dd>A[]B</dd></dl>
 Pass	Pressing Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <dl><dd>A[]B</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <dl><dd>AB[]</dd></dl>
+Pass	execCommand("insertLineBreak") when <dl><dd>AB[]</dd></dl>
 Pass	Pressing Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <dl><dd>AB[]</dd></dl> should cause "insertLineBreak" and shouldn't insert new paragraph
 Pass	execCommand("insertLineBreak") when <table><tbody><tr><td>[]AB</td></tr></tbody></table>
@@ -55,7 +55,7 @@ Fail	Pressing Shift+Enter when <table><tbody><tr><td>[]AB</td></tr></tbody></tab
 Pass	execCommand("insertLineBreak") when <table><tbody><tr><td>A[]B</td></tr></tbody></table>
 Pass	Pressing Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <table><tbody><tr><td>A[]B</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <table><tbody><tr><td>AB[]</td></tr></tbody></table>
+Pass	execCommand("insertLineBreak") when <table><tbody><tr><td>AB[]</td></tr></tbody></table>
 Pass	Pressing Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <table><tbody><tr><td>AB[]</td></tr></tbody></table> should cause "insertLineBreak" and shouldn't insert new paragraph
 Pass	execCommand("insertLineBreak") when <h1>[]AB</h1>
@@ -64,7 +64,7 @@ Fail	Pressing Shift+Enter when <h1>[]AB</h1> should cause "insertLineBreak" and 
 Pass	execCommand("insertLineBreak") when <h1>A[]B</h1>
 Pass	Pressing Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <h1>A[]B</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
-Fail	execCommand("insertLineBreak") when <h1>AB[]</h1>
+Pass	execCommand("insertLineBreak") when <h1>AB[]</h1>
 Pass	Pressing Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Shift+Enter when <h1>AB[]</h1> should cause "insertLineBreak" and shouldn't insert new paragraph
 Fail	Pressing Enter when A[]B should cause "insertLineBreak" and shouldn't insert new paragraph: beforeinput
