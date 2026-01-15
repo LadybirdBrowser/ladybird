@@ -688,6 +688,9 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
     auto metrics = TextMetrics::create(realm());
     // FIXME: Use the font that was used to create the glyphs in prepared_text.
     auto const& font = font_cascade_list()->first();
+    auto const& font_pixel_metrics = font.pixel_metrics();
+    auto const ascent = font_pixel_metrics.ascent;
+    auto const descent = font_pixel_metrics.descent;
 
     // width attribute: The width of that inline box, in CSS pixels. (The text's advance width.)
     metrics->set_width(prepared_text.bounding_box.width());
@@ -696,23 +699,23 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
     // actualBoundingBoxRight attribute: The distance parallel to the baseline from the alignment point given by the textAlign attribute to the right side of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going right from the given alignment point.
     metrics->set_actual_bounding_box_right(prepared_text.bounding_box.right());
     // fontBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the ascent metric of the first available font, in CSS pixels; positive numbers indicating a distance going up from the given baseline.
-    metrics->set_font_bounding_box_ascent(font.baseline());
+    metrics->set_font_bounding_box_ascent(ascent);
     // fontBoundingBoxDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the descent metric of the first available font, in CSS pixels; positive numbers indicating a distance going down from the given baseline.
-    metrics->set_font_bounding_box_descent(prepared_text.bounding_box.height() - font.baseline());
+    metrics->set_font_bounding_box_descent(descent);
     // actualBoundingBoxAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the top of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going up from the given baseline.
-    metrics->set_actual_bounding_box_ascent(font.baseline());
+    metrics->set_actual_bounding_box_ascent(ascent);
     // actualBoundingBoxDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the bottom of the bounding rectangle of the given text, in CSS pixels; positive numbers indicating a distance going down from the given baseline.
-    metrics->set_actual_bounding_box_descent(prepared_text.bounding_box.height() - font.baseline());
+    metrics->set_actual_bounding_box_descent(descent);
     // emHeightAscent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the highest top of the em squares in the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the top of that em square (so this value will usually be positive). Zero if the given baseline is the top of that em square; half the font size if the given baseline is the middle of that em square.
-    metrics->set_em_height_ascent(font.baseline());
+    metrics->set_em_height_ascent(ascent);
     // emHeightDescent attribute: The distance from the horizontal line indicated by the textBaseline attribute to the lowest bottom of the em squares in the inline box, in CSS pixels; positive numbers indicating that the given baseline is above the bottom of that em square. (Zero if the given baseline is the bottom of that em square.)
-    metrics->set_em_height_descent(prepared_text.bounding_box.height() - font.baseline());
+    metrics->set_em_height_descent(descent);
     // hangingBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the hanging baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the hanging baseline. (Zero if the given baseline is the hanging baseline.)
-    metrics->set_hanging_baseline(font.baseline());
+    metrics->set_hanging_baseline(ascent * 0.8f);
     // alphabeticBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the alphabetic baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the alphabetic baseline. (Zero if the given baseline is the alphabetic baseline.)
-    metrics->set_font_bounding_box_ascent(0);
+    metrics->set_alphabetic_baseline(0);
     // ideographicBaseline attribute: The distance from the horizontal line indicated by the textBaseline attribute to the ideographic-under baseline of the inline box, in CSS pixels; positive numbers indicating that the given baseline is below the ideographic-under baseline. (Zero if the given baseline is the ideographic-under baseline.)
-    metrics->set_font_bounding_box_ascent(0);
+    metrics->set_ideographic_baseline(-descent);
 
     return metrics;
 }
