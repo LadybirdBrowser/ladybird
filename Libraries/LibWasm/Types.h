@@ -480,8 +480,8 @@ public:
         Optional<InstructionPointer> else_ip;
 
         struct Meta {
-            size_t arity;
-            size_t parameter_count;
+            u32 arity;
+            u32 parameter_count;
         };
         mutable Optional<Meta> meta {};
     };
