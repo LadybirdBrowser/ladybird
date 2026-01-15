@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<meta name="variant" content="?white-space=normal">
+<meta name="variant" content="?white-space=pre">
+<meta name="variant" content="?white-space=pre-line">
+<meta name="variant" content="?white-space=pre-wrap">
+<title>Inserting a line break in plaintext-only</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const whiteSpace = searchParams.get("white-space");
+const useBR = whiteSpace == "normal";
+const collapseWhiteSpaces = whiteSpace == "normal" || whiteSpace == "pre-line";
+const isSafari = navigator.platform.includes("Mac") &&
+    navigator.userAgent.includes("Safari") &&
+    !navigator.userAgent.includes("Chrome");
+
+addEventListener("load", () => {
+  const editingHost = document.createElement("div");
+  editingHost.style.whiteSpace = whiteSpace;
+  editingHost.setAttribute("contenteditable", "plaintext-only");
+  document.body.appendChild(editingHost);
+  editingHost.focus();
+  editingHost.getBoundingClientRect();
+  const utils = new EditorTestUtils(editingHost);
+
+  let lastBeforeInputEvent;
+  editingHost.addEventListener("beforeinput", event => lastBeforeInputEvent = event);
+
+  // When a preformatted linefeed is preferred, it should be used instead of <br> for making the
+  // content can be retrieved with `.textContent`.  However, padding line breaks which is required
+  // for empty block or empty last line should be <br> because it won't appear in `.textContent`.
+  // So, it helps to make the `.textContent` result better.
+  for (const data of [
+    {
+      initialInnerHTML: "A[]B",
+      expected: useBR ? "A<br>B" : "A\nB",
+    },
+    {
+      initialInnerHTML: "<p>{}<br></p>",
+      expected: useBR ? "<p><br><br></p>" : "<p>\n<br></p>",
+    },
+    {
+      initialInnerHTML: `<p style="white-space:normal">A[]B</p>`,
+      expected: `<p style="white-space:normal">A<br>B</p>`,
+    },
+    {
+      initialInnerHTML: `<p style="white-space:pre">A[]B</p>`,
+      expected: [`<p style="white-space:pre">A<br>B</p>`, `<p style="white-space:pre">A\nB</p>`],
+    },
+    {
+      initialInnerHTML: `<p style="white-space:pre-line">A[]B</p>`,
+      expected: [`<p style="white-space:pre-line">A<br>B</p>`, `<p style="white-space:pre-line">A\nB</p>`],
+    },
+    {
+      initialInnerHTML: `<p style="white-space:pre-wrap">A[]B</p>`,
+      expected: [`<p style="white-space:pre-wrap">A<br>B</p>`, `<p style="white-space:pre-wrap">A\nB</p>`],
+    },
+    {
+      initialInnerHTML: "<ul><li>[]AB</li></ul>",
+      expected: useBR ? "<ul><li><br>AB</li></ul>" : "<ul><li>\nAB</li></ul>",
+    },
+    {
+      initialInnerHTML: "<ul><li>A[]B</li></ul>",
+      expected: useBR ? "<ul><li>A<br>B</li></ul>" : "<ul><li>A\nB</li></ul>",
+    },
+    {
+      initialInnerHTML: "<ul><li>AB[]</li></ul>",
+      expected: useBR
+        ? "<ul><li>AB<br><br></li></ul>"
+        : "<ul><li>AB\n<br></li></ul>",
+    },
+    {
+      initialInnerHTML: "<dl><dt>[]AB</dt></dl>",
+      expected: useBR ? "<dl><dt><br>AB</dt></dl>" : "<dl><dt>\nAB</dt></dl>",
+    },
+    {
+      initialInnerHTML: "<dl><dt>A[]B</dt></dl>",
+      expected: useBR ? "<dl><dt>A<br>B</dt></dl>" : "<dl><dt>A\nB</dt></dl>",
+    },
+    {
+      initialInnerHTML: "<dl><dt>AB[]</dt></dl>",
+      expected: useBR
+        ? "<dl><dt>AB<br><br></dt></dl>"
+        : "<dl><dt>AB\n<br></dt></dl>",
+    },
+    {
+      initialInnerHTML: "<dl><dd>[]AB</dd></dl>",
+      expected: useBR ? "<dl><dd><br>AB</dd></dl>" : "<dl><dd>\nAB</dd></dl>",
+    },
+    {
+      initialInnerHTML: "<dl><dd>A[]B</dd></dl>",
+      expected: useBR ? "<dl><dd>A<br>B</dd></dl>" : "<dl><dd>A\nB</dd></dl>",
+    },
+    {
+      initialInnerHTML: "<dl><dd>AB[]</dd></dl>",
+      expected: useBR
+        ? "<dl><dd>AB<br><br></dd></dl>"
+        : "<dl><dd>AB\n<br></dd></dl>",
+    },
+    {
+      initialInnerHTML: "<table><tbody><tr><td>[]AB</td></tr></tbody></table>",
+      expected: useBR
+        ? "<table><tbody><tr><td><br>AB</td></tr></tbody></table>"
+        : "<table><tbody><tr><td>\nAB</td></tr></tbody></table>",
+    },
+    {
+      initialInnerHTML: "<table><tbody><tr><td>A[]B</td></tr></tbody></table>",
+      expected: useBR
+        ? "<table><tbody><tr><td>A<br>B</td></tr></tbody></table>"
+        : "<table><tbody><tr><td>A\nB</td></tr></tbody></table>",
+    },
+    {
+      initialInnerHTML: "<table><tbody><tr><td>AB[]</td></tr></tbody></table>",
+      expected: useBR
+        ? "<table><tbody><tr><td>AB<br><br></td></tr></tbody></table>"
+        : "<table><tbody><tr><td>AB\n<br></td></tr></tbody></table>",
+    },
+    {
+      initialInnerHTML: "<h1>[]AB</h1>",
+      expected: useBR ? "<h1><br>AB</h1>" : "<h1>\nAB</h1>",
+    },
+    {
+      initialInnerHTML: "<h1>A[]B</h1>",
+      expected: useBR ? "<h1>A<br>B</h1>" : "<h1>A\nB</h1>",
+    },
+    {
+      initialInnerHTML: "<h1>AB[]</h1>",
+      expected: useBR ? "<h1>AB<br><br></h1>" : "<h1>AB\n<br></h1>",
+    },
+  ]) {
+    test(() => {
+      utils.setupEditingHost(data.initialInnerHTML);
+      document.execCommand("insertLineBreak");
+      if (Array.isArray(data.expected)) {
+        assert_in_array(editingHost.innerHTML, data.expected);
+      } else {
+        assert_equals(editingHost.innerHTML, data.expected);
+      }
+    }, `execCommand("insertLineBreak") when ${data.initialInnerHTML}`);
+    promise_test(async t => {
+      utils.setupEditingHost(data.initialInnerHTML);
+      lastBeforeInputEvent = undefined;
+      await utils.sendEnterKey();
+      test(() => {
+        assert_equals(
+          lastBeforeInputEvent?.inputType,
+          "insertLineBreak",
+          `inputType should be "insertLineBreak"`
+        );
+      }, `${t.name}: beforeinput`);
+      test(() => {
+        if (Array.isArray(data.expected)) {
+          assert_in_array(editingHost.innerHTML, data.expected);
+        } else {
+          assert_equals(editingHost.innerHTML, data.expected);
+        }
+      }, `${t.name}: editingHost.innerHTML`);
+    }, `Pressing Enter when ${
+      data.initialInnerHTML
+    } should cause "insertLineBreak" and shouldn't insert new paragraph`);
+    promise_test(async t => {
+      utils.setupEditingHost(data.initialInnerHTML);
+      lastBeforeInputEvent = undefined;
+      await utils.sendEnterKey(isSafari ? utils.kControl : utils.kShift);
+      test(() => {
+        assert_equals(
+          lastBeforeInputEvent?.inputType,
+          "insertLineBreak",
+          `inputType should be "insertLineBreak"`
+        );
+      }, `${t.name}: beforeinput`);
+      test(() => {
+        if (Array.isArray(data.expected)) {
+          assert_in_array(editingHost.innerHTML, data.expected);
+        } else {
+          assert_equals(editingHost.innerHTML, data.expected);
+        }
+      }, `${t.name}: editingHost.innerHTML`);
+    }, `Pressing ${isSafari ? "Ctrl" : "Shift"}+Enter when ${
+      data.initialInnerHTML
+    } should cause "insertLineBreak" and shouldn't insert new paragraph`);
+  }
+}, {once: true});
+</script>
+</head>
+<body></body>
+</html>
