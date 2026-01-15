@@ -659,7 +659,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         auto open_expectation_file = [&](auto mode) {
             auto expectation_file_or_error = Core::File::open(test.expectation_path, mode);
             if (expectation_file_or_error.is_error())
-                warnln("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error());
+                add_deferred_warning(ByteString::formatted("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error()));
 
             return expectation_file_or_error;
         };
@@ -674,8 +674,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
 
             if (result_trimmed == expectation_trimmed)
                 return TestResult::Pass;
-        } else if (!Application::the().rebaseline) {
-            return expectation_file.release_error();
         }
 
         if (Application::the().rebaseline) {
