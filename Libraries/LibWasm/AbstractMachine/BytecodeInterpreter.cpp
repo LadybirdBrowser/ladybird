@@ -4543,13 +4543,13 @@ InstructionPointer BytecodeInterpreter::branch_to_label(Configuration& configura
     return label.continuation().value() - 1;
 }
 
-template<typename ReadType, typename PushType>
+template<typename ReadType, typename PushType, SourceAddressMix mix>
 bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
     auto& arg = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
     auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
     auto memory = configuration.store().unsafe_get(address);
-    auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
+    auto& entry = configuration.source_value<mix>(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.template to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
@@ -5931,7 +5931,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     if constexpr (should_try_to_use_direct_threading) {
         constexpr auto all_sources_are_registers = [](SourcesAndDestination const& addrs, ssize_t expected_source_count, ssize_t expected_dest_count) -> bool {
-            if (expected_source_count < 0 || expected_dest_count > 1 || expected_dest_count < 0)
+            if (expected_source_count < 0 || expected_dest_count > 1)
                 return false;
             for (ssize_t i = 0; i < expected_source_count; ++i) {
                 if (addrs.sources[i] >= Dispatch::Stack)
@@ -5944,7 +5944,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             return true;
         };
         constexpr auto all_sources_are_callrec = [](SourcesAndDestination const& addrs, ssize_t expected_source_count, ssize_t expected_dest_count) -> bool {
-            if (expected_source_count < 0 || expected_dest_count > 1 || expected_dest_count < 0)
+            if (expected_source_count < 0 || expected_dest_count > 1)
                 return false;
             for (ssize_t i = 0; i < expected_source_count; ++i) {
                 if (addrs.sources[i] < Dispatch::CallRecord)
@@ -5952,6 +5952,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             }
             if (expected_dest_count == 1 && addrs.destination < Dispatch::CallRecord)
                 return false;
+            return true;
+        };
+        constexpr auto all_sources_are_stack = [](SourcesAndDestination const& addrs, ssize_t expected_source_count, ssize_t expected_dest_count) -> bool {
+            if (expected_source_count < 0 || expected_dest_count > 1)
+                return false;
+            for (ssize_t i = 0; i < expected_source_count; ++i) {
+                if (addrs.sources[i] != Dispatch::Stack)
+                    return false;
+            }
+
+            if (expected_dest_count == 1 && addrs.destination != Dispatch::Stack)
+                return false;
+
             return true;
         };
 
@@ -5965,6 +5978,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllRegisters>);   \
         else if (all_sources_are_callrec(addrs, inputs, outputs))                                                                                                              \
             dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllCallRecords>); \
+        else if (all_sources_are_stack(addrs, inputs, outputs))                                                                                                                \
+            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllStack>);       \
         else                                                                                                                                                                   \
             dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::Any>);            \
         break;
