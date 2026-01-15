@@ -6,19 +6,18 @@
 
 #pragma once
 
+#include <LibWeb/HTML/Canvas/AbstractCanvasRenderingContext2DBase.h>
 #include <LibWeb/HTML/ImageData.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasimagesmoothing
-class CanvasImageSmoothing {
+class CanvasImageSmoothing : virtual public AbstractCanvasRenderingContext2DBase {
 public:
-    virtual ~CanvasImageSmoothing() = default;
-
-    virtual bool image_smoothing_enabled() const = 0;
-    virtual void set_image_smoothing_enabled(bool) = 0;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const = 0;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) = 0;
+    bool image_smoothing_enabled() const;
+    void set_image_smoothing_enabled(bool);
+    Bindings::ImageSmoothingQuality image_smoothing_quality() const;
+    void set_image_smoothing_quality(Bindings::ImageSmoothingQuality);
 
 protected:
     CanvasImageSmoothing() = default;

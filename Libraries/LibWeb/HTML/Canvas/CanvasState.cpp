@@ -11,6 +11,16 @@
 
 namespace Web::HTML {
 
+Gfx::Painter* CanvasState::painter_for_canvas_state()
+{
+    return this->painter();
+}
+
+Gfx::Path& CanvasState::path_for_canvas_state()
+{
+    return this->path();
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-save
 void CanvasState::save()
 {
@@ -47,7 +57,7 @@ bool CanvasState::is_context_lost()
     return m_context_lost;
 }
 
-NonnullRefPtr<Gfx::PaintStyle> CanvasState::FillOrStrokeStyle::to_gfx_paint_style()
+NonnullRefPtr<Gfx::PaintStyle> FillOrStrokeStyle::to_gfx_paint_style()
 {
     return m_fill_or_stroke_style.visit(
         [&](Gfx::Color color) -> NonnullRefPtr<Gfx::PaintStyle> {
@@ -60,16 +70,24 @@ NonnullRefPtr<Gfx::PaintStyle> CanvasState::FillOrStrokeStyle::to_gfx_paint_styl
         });
 }
 
-Gfx::Color CanvasState::FillOrStrokeStyle::to_color_but_fixme_should_accept_any_paint_style() const
+Gfx::Color FillOrStrokeStyle::to_color_but_fixme_should_accept_any_paint_style() const
 {
     return as_color().value_or(Gfx::Color::Black);
 }
 
-Optional<Gfx::Color> CanvasState::FillOrStrokeStyle::as_color() const
+Optional<Gfx::Color> FillOrStrokeStyle::as_color() const
 {
     if (auto* color = m_fill_or_stroke_style.get_pointer<Gfx::Color>())
         return *color;
     return {};
+}
+
+void CanvasState::visit_edges(GC::Cell::Visitor& visitor)
+{
+    m_drawing_state.visit_edges(visitor);
+    for (auto& state : m_drawing_state_stack) {
+        state.visit_edges(visitor);
+    }
 }
 
 }
