@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<style>
+    .wrapper {
+        position: relative;
+        width: 400px;
+        height: 200px;
+        border: 5px solid red;
+    }
+
+    .scrollable-container {
+        width: 100%;
+        height: 100%;
+        overflow-y: scroll;
+    }
+
+    .outer-sticky {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 350px;
+        height: 150px;
+        background: #3498db;
+        z-index: 1;
+    }
+
+    .middle-sticky {
+        position: absolute;
+        top: 20px;
+        left: 0px;
+        width: 280px;
+        height: 100px;
+        background: #27ae60;
+    }
+
+    .inner-sticky {
+        position: absolute;
+        top: 20px; /* 40px from scrollport - 20px from middle = 20px within middle */
+        left: 0px;
+        width: 200px;
+        height: 40px;
+        background: #e74c3c;
+    }
+
+    .orange-content {
+        position: absolute;
+        top: 150px;
+        left: 0px;
+        width: 385px;
+        height: 50px;
+        background-color: orange;
+    }
+
+    .spacer {
+        height: 400px;
+        background-color: orange;
+    }
+
+    .fill-space {
+        height: 150px;
+    }
+</style>
+
+<div class="wrapper">
+    <div class="scrollable-container" id="container">
+        <div class="spacer"></div>
+        <div class="fill-space"></div>
+        <div class="spacer"></div>
+    </div>
+    <div class="outer-sticky">
+        <div class="middle-sticky">
+            <div class="inner-sticky"></div>
+        </div>
+    </div>
+    <div class="orange-content"></div>
+</div>
+
+<script>
+    document.getElementById("container").scrollTop = 420;
+</script>

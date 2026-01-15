@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/position-sticky-nested-partial-ref.html" />
+<style>
+    .scrollable-container {
+        width: 400px;
+        height: 200px;
+        overflow-y: scroll;
+        border: 5px solid red;
+    }
+
+    .outer-sticky {
+        position: sticky;
+        top: 0px;
+        width: 350px;
+        height: 100px;
+        background: #3498db;
+    }
+
+    /* Inner sticky has top: 80px, which means it won't stick
+       until we scroll 80px past the outer sticky's natural position.
+       With scrollTop=310, outer is stuck but inner should NOT be stuck yet. */
+    .inner-sticky {
+        position: sticky;
+        top: 80px;
+        width: 200px;
+        height: 40px;
+        background: #e74c3c;
+    }
+
+    .spacer {
+        height: 300px;
+        background-color: orange;
+    }
+</style>
+
+<div class="scrollable-container" id="container">
+    <div class="spacer"></div>
+    <div class="outer-sticky">
+        <div class="inner-sticky"></div>
+    </div>
+    <div class="spacer"></div>
+</div>
+
+<script>
+    // At scrollTop=310:
+    // - Outer sticky's natural position is 300px, so it's scrolled past threshold and stuck at top: 0
+    // - Inner sticky's threshold would be at 300px + 80px = 380px from content top (top: 80px)
+    //   With scrollTop=310, we haven't scrolled past 380px yet, so inner sticky is NOT stuck
+    // - Inner sticky should be at its natural position: top of outer sticky (y=0 within outer)
+    document.getElementById("container").scrollTop = 310;
+</script>
