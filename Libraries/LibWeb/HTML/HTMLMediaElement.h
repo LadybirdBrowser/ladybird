@@ -200,7 +200,7 @@ private:
     WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
     static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
 
-    WebIDL::ExceptionOr<void> setup_playback_manager(Function<void(String)> failure_callback);
+    WebIDL::ExceptionOr<void> set_up_playback_manager(Function<void(String)> failure_callback);
     enum class FetchingStatus {
         Ongoing,
         Complete,

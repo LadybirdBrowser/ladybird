@@ -1061,7 +1061,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             if (auto length = response->header_list()->extract_length(); length.template has<u64>())
                 m_media_data->set_expected_size(length.template get<u64>());
 
-            MUST(setup_playback_manager(move(failure_callback)));
+            MUST(set_up_playback_manager(move(failure_callback)));
 
             // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
             //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
@@ -1374,7 +1374,7 @@ void HTMLMediaElement::on_metadata_parsed()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-WebIDL::ExceptionOr<void> HTMLMediaElement::setup_playback_manager(Function<void(String)> failure_callback)
+WebIDL::ExceptionOr<void> HTMLMediaElement::set_up_playback_manager(Function<void(String)> failure_callback)
 {
     m_playback_manager = Media::PlaybackManager::create();
 
