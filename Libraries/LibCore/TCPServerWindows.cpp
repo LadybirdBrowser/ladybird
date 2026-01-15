@@ -23,7 +23,7 @@ ErrorOr<NonnullRefPtr<TCPServer>> TCPServer::try_create()
     } };
 
     int option = 1;
-    TRY(Core::System::ioctl(fd, FIONBIO, option));
+    TRY(Core::System::ioctl(fd, FIONBIO, &option));
     TRY(Core::System::setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &option, sizeof(option)));
     if (SetHandleInformation(to_handle(fd), HANDLE_FLAG_INHERIT, 0) == 0)
         return Error::from_windows_error();
@@ -72,7 +72,8 @@ ErrorOr<void> TCPServer::set_blocking(bool const blocking)
     // NOTE: Blocking does not seem to be supported. Error code returned is WSAEINVAL
     if (!blocking)
         return Error::from_string_literal("Core::TCPServer: WinSock2 does not support blocking");
-    TRY(Core::System::ioctl(m_fd, FIONBIO, 1));
+    int option = 1;
+    TRY(Core::System::ioctl(m_fd, FIONBIO, &option));
     return {};
 }
 

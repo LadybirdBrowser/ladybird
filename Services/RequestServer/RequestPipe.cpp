@@ -47,8 +47,8 @@ ErrorOr<RequestPipe> RequestPipe::create()
     int socket_fds[2] {};
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
     int option = 1;
-    TRY(Core::System::ioctl(socket_fds[0], FIONBIO, option));
-    TRY(Core::System::ioctl(socket_fds[1], FIONBIO, option));
+    TRY(Core::System::ioctl(socket_fds[0], FIONBIO, &option));
+    TRY(Core::System::ioctl(socket_fds[1], FIONBIO, &option));
     return RequestPipe(socket_fds[0], socket_fds[1]);
 #else
     auto fds = TRY(Core::System::pipe2(O_NONBLOCK));
