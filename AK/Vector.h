@@ -947,6 +947,17 @@ public:
         update_metadata(); // We have *some* space, as new_size can't be zero here.
     }
 
+    void unsafe_shrink(size_t new_size)
+    requires(want_fast_last_access)
+    {
+        if constexpr (!IsTriviallyDestructible<StorageType>) {
+            for (size_t i = new_size; i < size(); ++i)
+                at(i).~StorageType();
+        }
+        m_size = new_size;
+        update_metadata(); // We have at least an allocation, as we are not freeing anything.
+    }
+
     void resize(size_t new_size, bool keep_capacity = false)
     requires(!contains_reference)
     {
