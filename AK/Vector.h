@@ -352,7 +352,7 @@ public:
     ALWAYS_INLINE void unchecked_append(U&& value)
     requires(CanBePlacedInsideVector<U>)
     {
-        VERIFY(m_size < capacity());
+        ASSERT(m_size < capacity());
         if constexpr (want_fast_last_access) {
             ++m_metadata.last_slot;
             ++m_size;
