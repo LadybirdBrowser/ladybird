@@ -14,6 +14,15 @@
 
 namespace Web::CSS {
 
+enum class FontFeatureValueType : u8 {
+    Stylistic,
+    Styleset,
+    CharacterVariant,
+    Swash,
+    Ornaments,
+    Annotation,
+};
+
 struct FontVariantAlternates {
     bool historical_forms = false;
 

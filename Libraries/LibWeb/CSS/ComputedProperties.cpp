@@ -1493,13 +1493,31 @@ FontFeatureData ComputedProperties::font_feature_data() const
 Optional<FontVariantAlternates> ComputedProperties::font_variant_alternates() const
 {
     auto const& value = property(PropertyID::FontVariantAlternates);
-    switch (keyword_to_font_variant_alternates(value.to_keyword()).value()) {
-    case FontVariantAlternates::Normal:
+
+    // normal
+    if (value.is_keyword()) {
+        VERIFY(value.to_keyword() == Keyword::Normal);
         return {};
-    case FontVariantAlternates::HistoricalForms:
-        return FontVariantAlternates { .historical_forms = true };
     }
-    VERIFY_NOT_REACHED();
+
+    FontVariantAlternates alternates;
+
+    for (auto const& value : value.as_value_list().values()) {
+        // historical-forms
+        if (value->is_keyword() && value->to_keyword() == Keyword::HistoricalForms) {
+            alternates.historical_forms = true;
+            continue;
+        }
+
+        if (value->is_font_variant_alternates_function()) {
+            // FIXME: Support this
+            continue;
+        }
+
+        VERIFY_NOT_REACHED();
+    }
+
+    return alternates;
 }
 
 FontVariantCaps ComputedProperties::font_variant_caps() const
