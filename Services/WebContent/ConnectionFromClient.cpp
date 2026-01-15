@@ -657,6 +657,21 @@ void ConnectionFromClient::set_listen_for_dom_mutations(u64 page_id, bool listen
     page->page().set_listen_for_dom_mutations(listen_for_dom_mutations);
 }
 
+void ConnectionFromClient::did_connect_devtools_client(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_connect_devtools_client();
+}
+
+void ConnectionFromClient::did_disconnect_devtools_client(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->did_disconnect_devtools_client();
+}
+
 void ConnectionFromClient::get_dom_node_inner_html(u64 page_id, Web::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);

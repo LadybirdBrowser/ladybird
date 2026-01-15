@@ -115,6 +115,9 @@ public:
     using OnNavigationFinished = Function<void(String url, String title)>;
     virtual void listen_for_navigation_events(TabDescription const&, OnNavigationStarted, OnNavigationFinished) const { }
     virtual void stop_listening_for_navigation_events(TabDescription const&) const { }
+
+    virtual void did_connect_devtools_client(TabDescription const&) const { }
+    virtual void did_disconnect_devtools_client(TabDescription const&) const { }
 };
 
 }

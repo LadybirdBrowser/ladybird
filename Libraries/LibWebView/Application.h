@@ -194,6 +194,8 @@ private:
     virtual void stop_listening_for_network_events(DevTools::TabDescription const&) const override;
     virtual void listen_for_navigation_events(DevTools::TabDescription const&, OnNavigationStarted, OnNavigationFinished) const override;
     virtual void stop_listening_for_navigation_events(DevTools::TabDescription const&) const override;
+    virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override;
+    virtual void did_disconnect_devtools_client(DevTools::TabDescription const&) const override;
 
     static Application* s_the;
 

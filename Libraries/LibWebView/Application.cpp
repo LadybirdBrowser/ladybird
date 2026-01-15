@@ -1363,4 +1363,22 @@ void Application::stop_listening_for_navigation_events(DevTools::TabDescription 
     }
 }
 
+void Application::did_connect_devtools_client(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->did_connect_devtools_client();
+}
+
+void Application::did_disconnect_devtools_client(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->did_disconnect_devtools_client();
+}
+
 }
