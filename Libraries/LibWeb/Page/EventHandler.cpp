@@ -1439,10 +1439,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             auto input_type = modifiers == UIEvents::Mod_Shift ? UIEvents::InputTypes::insertLineBreak : UIEvents::InputTypes::insertParagraph;
 
             // If the editing host is contenteditable="plaintext-only", we force a line break.
-            if (focused_area) {
-                if (auto editing_host = focused_area->editing_host(); editing_host
-                    && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly)
+            // NB: We check the selection's editing host rather than focused_area because with nested
+            //     contenteditable elements, the focused element may differ from where the selection is.
+            if (auto selection = document->get_selection(); selection && selection->range()) {
+                if (auto editing_host = selection->range()->start_container()->editing_host(); editing_host
+                    && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
                     input_type = UIEvents::InputTypes::insertLineBreak;
+                }
             }
 
             FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));

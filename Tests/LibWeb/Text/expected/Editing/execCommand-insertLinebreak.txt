@@ -5,7 +5,6 @@ After: "<p style="white-space: pre">foo
 bar</p>"
 Before: "<p style="white-space: pre">foobar</p>"
 After: "<p style="white-space: pre">foobar
-
-</p>"
+<br></p>"
 Before: "foo"
 After: "foo<br><br>"

@@ -1348,8 +1348,11 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16String const&
     delete_the_selection(selection, true, false);
 
     // 2. If the active range's start node is neither editable nor an editing host, return true.
-    auto& active_range = *selection.range();
-    auto start_node = active_range.start_container();
+    // NB: We keep a reference to the range here to preserve the original boundary points even after collapse operations
+    //     in steps 5 and 6. This is intentional behavior that affects where the <br> is inserted in step 8.
+    auto& range = *selection.range();
+    auto start_node = range.start_container();
+    auto start_offset = range.start_offset();
     if (!start_node->is_editable_or_editing_host())
         return true;
 
@@ -1365,30 +1368,37 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16String const&
     // 5. If the active range's start node is a Text node and its start offset is zero, call collapse() on the context
     //    object's selection, with first argument equal to the active range's start node's parent and second argument
     //    equal to the active range's start node's index.
-    if (is<DOM::Text>(*start_node) && active_range.start_offset() == 0)
+    if (is<DOM::Text>(*start_node) && start_offset == 0)
         MUST(selection.collapse(start_node->parent(), start_node->index()));
 
     // 6. If the active range's start node is a Text node and its start offset is the length of its start node, call
     //    collapse() on the context object's selection, with first argument equal to the active range's start node's
     //    parent and second argument equal to one plus the active range's start node's index.
-    if (is<DOM::Text>(*start_node) && active_range.start_offset() == start_node->length())
+    if (is<DOM::Text>(*start_node) && start_offset == start_node->length())
         MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
 
-    // AD-HOC: If the active range's start node is a Text node and its resolved value for "white-space-collapse" is one of
-    //         "preserve" or "preserve-breaks":
-    //         * Insert a newline (\n) character at the active range's start offset;
-    //         * Collapse the selection with active range's start node as the first argument and one plus active range's
-    //           start offset as the second argument
-    //         * Insert another newline (\n) character if the active range's start offset is equal to the length of the
-    //           active range's start node.
-    //         * Return true.
-    if (auto* text_node = as_if<DOM::Text>(*start_node); text_node) {
-        auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
-        if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)) {
-            MUST(text_node->insert_data(active_range.start_offset(), "\n"_utf16));
-            MUST(selection.collapse(start_node, active_range.start_offset() + 1));
-            if (selection.range()->start_offset() == start_node->length())
-                MUST(text_node->insert_data(active_range.start_offset(), "\n"_utf16));
+    // AD-HOC: In preformatted white-space contexts, use newlines instead of <br> for line breaks. This matches
+    //         Chrome behavior and WPT expectations. The white-space: pre, pre-wrap, and pre-line styles all preserve
+    //         newlines, so inserting a literal newline character is more appropriate than a <br> element.
+    //         However, padding line breaks (needed for empty last lines) should still be <br> because they won't
+    //         appear in .textContent, making the content easier to work with programmatically.
+    auto resolved_white_space_collapse = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpaceCollapse);
+    if (resolved_white_space_collapse.has_value() && first_is_one_of(resolved_white_space_collapse.value(), CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks)) {
+        if (auto* text_node = as_if<DOM::Text>(*start_node)) {
+            MUST(text_node->insert_data(start_offset, "\n"_utf16));
+            MUST(selection.collapse(start_node, start_offset + 1));
+            if (active_range(document)->start_offset() == text_node->length()) {
+                MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
+                auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+                MUST(active_range(document)->insert_node(br));
+            }
+            return true;
+        }
+        if (auto editing_host = start_node->editing_host(); is<HTML::HTMLElement>(editing_host.ptr())
+            && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
+            auto text = document.create_text_node("\n"_utf16);
+            MUST(active_range(document)->insert_node(text));
+            MUST(selection.collapse(text, 1));
             return true;
         }
     }
@@ -1397,7 +1407,8 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16String const&
     auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
 
     // 8. Call insertNode(br) on the active range.
-    MUST(active_range.insert_node(br));
+    // NB: We use range from step 2 here; see the comment there for why.
+    MUST(range.insert_node(br));
 
     // 9. Call collapse() on the context object's selection, with br's parent as the first argument and one plus br's
     //    index as the second argument.
@@ -1407,7 +1418,7 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16String const&
     //     result, then call insertNode(extra br) on the active range.
     if (is_collapsed_line_break(br)) {
         auto extra_br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-        MUST(active_range.insert_node(extra_br));
+        MUST(range.insert_node(extra_br));
     }
 
     // 11. Return true.
