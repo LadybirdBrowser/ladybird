@@ -62,6 +62,8 @@ endpoint WebContentServer
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
 
     set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|
+    did_connect_devtools_client(u64 page_id) =|
+    did_disconnect_devtools_client(u64 page_id) =|
     get_dom_node_inner_html(u64 page_id, Web::UniqueNodeID node_id) =|
     get_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id) =|
     set_dom_node_outer_html(u64 page_id, Web::UniqueNodeID node_id, String html) =|

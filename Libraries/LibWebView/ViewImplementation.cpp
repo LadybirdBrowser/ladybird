@@ -335,6 +335,18 @@ void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutati
     client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
 }
 
+void ViewImplementation::did_connect_devtools_client()
+{
+    m_devtools_connected = true;
+    client().async_did_connect_devtools_client(page_id());
+}
+
+void ViewImplementation::did_disconnect_devtools_client()
+{
+    m_devtools_connected = false;
+    client().async_did_disconnect_devtools_client(page_id());
+}
+
 void ViewImplementation::get_dom_node_inner_html(Web::UniqueNodeID node_id)
 {
     client().async_get_dom_node_inner_html(page_id(), node_id);
@@ -583,6 +595,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     languages_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
+
+    // If DevTools is connected, notify the new WebContent process.
+    if (m_devtools_connected)
+        client().async_did_connect_devtools_client(page_id());
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)

@@ -106,6 +106,8 @@ public:
     void clear_highlighted_dom_node();
 
     void set_listen_for_dom_mutations(bool);
+    void did_connect_devtools_client();
+    void did_disconnect_devtools_client();
     void get_dom_node_inner_html(Web::UniqueNodeID node_id);
     void get_dom_node_outer_html(Web::UniqueNodeID node_id);
     void set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html);
@@ -368,6 +370,8 @@ protected:
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };
+
+    bool m_devtools_connected { false };
 };
 
 }

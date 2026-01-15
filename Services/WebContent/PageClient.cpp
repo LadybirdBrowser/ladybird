@@ -763,7 +763,20 @@ void PageClient::page_did_receive_network_response_headers(u64 request_id, u32 s
 
 void PageClient::page_did_receive_network_response_body(u64 request_id, ReadonlyBytes data)
 {
+    if (!has_devtools_client())
+        return;
     client().async_did_receive_network_response_body(m_id, request_id, data);
+}
+
+void PageClient::did_connect_devtools_client()
+{
+    ++m_devtools_client_count;
+}
+
+void PageClient::did_disconnect_devtools_client()
+{
+    VERIFY(m_devtools_client_count > 0);
+    --m_devtools_client_count;
 }
 
 void PageClient::page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error)

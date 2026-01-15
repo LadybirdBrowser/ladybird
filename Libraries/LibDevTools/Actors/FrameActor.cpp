@@ -38,6 +38,11 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
     , m_accessibility(move(accessibility))
 {
     if (auto tab = m_tab.strong_ref()) {
+        // NB: We must notify WebContent that DevTools is connected before setting up listeners,
+        //     so that WebContent knows to start sending network response bodies over IPC.
+        //     IPC messages are processed in order, so this is guaranteed to arrive first.
+        devtools.delegate().did_connect_devtools_client(tab->description());
+
         devtools.delegate().listen_for_console_messages(
             tab->description(),
             [weak_self = make_weak_ptr<FrameActor>()](WebView::ConsoleOutput console_output) {
@@ -89,6 +94,7 @@ FrameActor::~FrameActor()
         devtools().delegate().stop_listening_for_console_messages(tab->description());
         devtools().delegate().stop_listening_for_network_events(tab->description());
         devtools().delegate().stop_listening_for_navigation_events(tab->description());
+        devtools().delegate().did_disconnect_devtools_client(tab->description());
     }
 }
 

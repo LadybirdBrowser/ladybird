@@ -77,6 +77,9 @@ public:
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     void set_user_style(String source);
+    void did_connect_devtools_client();
+    void did_disconnect_devtools_client();
+    bool has_devtools_client() const { return m_devtools_client_count > 0; }
 
     void ready_to_paint();
 
@@ -209,6 +212,8 @@ private:
     GC::Root<JS::GlobalObject> m_console_global_object;
 
     RefPtr<Core::Timer> m_paint_refresh_timer;
+
+    u64 m_devtools_client_count { 0 };
 };
 
 }
