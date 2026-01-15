@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/position-absolute-outside-sticky-bounds-ref.html" />
+<style>
+    * { scrollbar-width: none; }
+
+    .scrollable {
+        width: 400px;
+        height: 200px;
+        overflow-y: scroll;
+        border: 5px solid red;
+    }
+
+    .sticky {
+        position: sticky;
+        top: 30px;
+        width: 200px;
+        height: 60px;
+        background: #3498db;
+    }
+
+    /* This absolute child extends ABOVE the sticky (negative top) */
+    .absolute-above {
+        position: absolute;
+        top: -20px;
+        left: 20px;
+        width: 80px;
+        height: 30px;
+        background: #e74c3c;
+    }
+
+    /* This absolute child extends BELOW the sticky */
+    .absolute-below {
+        position: absolute;
+        bottom: -25px;
+        right: 20px;
+        width: 80px;
+        height: 30px;
+        background: #27ae60;
+    }
+
+    .spacer {
+        height: 400px;
+        background: orange;
+    }
+</style>
+
+<div class="scrollable" id="container">
+    <div class="spacer"></div>
+    <div class="sticky">
+        <div class="absolute-above"></div>
+        <div class="absolute-below"></div>
+    </div>
+    <div class="spacer"></div>
+</div>
+
+<script>
+    document.getElementById("container").scrollTop = 500;
+</script>

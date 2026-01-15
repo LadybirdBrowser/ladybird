@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    * { scrollbar-width: none; }
+
+    .scrollable {
+        width: 400px;
+        height: 200px;
+        overflow: hidden;
+        border: 5px solid red;
+        position: relative;
+    }
+
+    .bg {
+        background-color: orange;
+        width: 100%;
+        height: 100%;
+    }
+
+    .sticky-simulated {
+        position: absolute;
+        top: 30px;
+        width: 200px;
+        height: 60px;
+        background: #3498db;
+    }
+
+    .absolute-above {
+        position: absolute;
+        top: -20px;
+        left: 20px;
+        width: 80px;
+        height: 30px;
+        background: #e74c3c;
+    }
+
+    .absolute-below {
+        position: absolute;
+        bottom: -25px;
+        right: 20px;
+        width: 80px;
+        height: 30px;
+        background: #27ae60;
+    }
+</style>
+
+<div class="scrollable">
+    <div class="sticky-simulated">
+        <div class="absolute-above"></div>
+        <div class="absolute-below"></div>
+    </div>
+    <div class="bg"></div>
+</div>
