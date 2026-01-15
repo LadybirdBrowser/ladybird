@@ -1538,8 +1538,9 @@ HANDLE_INSTRUCTION(block)
 {
     LOG_INSN;
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    auto& meta = args.meta.value();
-    configuration.label_stack().unchecked_append(Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count));
+    auto& meta = args.meta.unchecked_value();
+    auto label = Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count);
+    configuration.label_stack().unchecked_append(move(label));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
