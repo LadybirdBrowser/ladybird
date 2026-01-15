@@ -80,14 +80,20 @@ public:
     void handle_sdl_input_events();
 
     GC::Ref<InternalGamepad> connect_virtual_gamepad();
+    void disconnect_virtual_gamepad(GC::Ref<InternalGamepad>);
+
+    void perform_per_test_cleanup();
 
 private:
     explicit Internals(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
     void click(double x, double y, UIEvents::MouseButton);
     void mouse_down(double x, double y, UIEvents::MouseButton);
+
+    Vector<GC::Ref<InternalGamepad>> m_gamepads;
 };
 
 }
