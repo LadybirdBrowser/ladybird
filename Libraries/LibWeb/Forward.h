@@ -312,6 +312,7 @@ class FontFace;
 class FontFaceSet;
 class FontSourceStyleValue;
 class FontStyleStyleValue;
+class FontVariantAlternatesFunctionStyleValue;
 class Frequency;
 class FrequencyOrCalculated;
 class FrequencyPercentage;
@@ -410,6 +411,7 @@ class URLStyleValue;
 class ViewFunctionStyleValue;
 class VisualViewport;
 
+enum class FontFeatureValueType : u8;
 enum class Keyword : u16;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
