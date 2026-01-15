@@ -20,9 +20,38 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6.0.1
+
+      - name: Extended filesystem diagnostics
+        run: |
+          echo "=== Overlay module parameters ==="
+          cat /sys/module/overlay/parameters/metacopy 2>/dev/null || echo "not accessible"
+          cat /sys/module/overlay/parameters/redirect_dir 2>/dev/null || echo "not accessible"
+          
+          echo ""
+          echo "=== Root filesystem mount info ==="
+          cat /proc/mounts | grep -E "^overlay| / "
+          
+          echo ""
+          echo "=== Full mount table ==="
+          cat /proc/mounts
+          
+          echo ""
+          echo "=== Kernel version ==="
+          uname -r
+          
+          echo ""
+          echo "=== Testing cross-layer hardlink ==="
+          touch /tmp/testfile
+          ln /tmp/testfile /home/runner/testlink 2>&1 || echo "Hardlink failed"
+          
+          echo ""
+          echo "=== Findmnt style output ==="
+          cat /proc/self/mountinfo
+
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: Ladybird.flatpak
           manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
           arch: ${{ inputs.arch }}
+          cache: false
           # Note: default cache key is 'flatpak-builder-${arch}-${sha256(manifestPath)}'
