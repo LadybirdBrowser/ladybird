@@ -25,6 +25,9 @@ class WeakImpl;
 template<typename T>
 class Function;
 
+template<typename T>
+class HeapHashTable;
+
 template<class T>
 class Root;
 
