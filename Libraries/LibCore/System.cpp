@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Matthias Zimmerman <matthias291999@gmail.com>
+ * Copyright (c) 2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -286,11 +287,7 @@ ErrorOr<void> ioctl(int fd, unsigned request, ...)
 {
     va_list ap;
     va_start(ap, request);
-#ifdef AK_OS_HAIKU
     void* arg = va_arg(ap, void*);
-#else
-    FlatPtr arg = va_arg(ap, FlatPtr);
-#endif
     va_end(ap);
     if (::ioctl(fd, request, arg) < 0)
         return Error::from_syscall("ioctl"sv, errno);
