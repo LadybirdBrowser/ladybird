@@ -122,7 +122,7 @@ static void render_live_display()
         if (i < s_view_display_states.size()) {
             auto const& state = s_view_display_states[i];
             if (state.active && state.pid > 0) {
-                auto duration = (now - state.start_time).to_seconds();
+                auto duration = (now - state.start_time).to_truncated_seconds();
                 // Format: ⏺ pid (Xs): name
                 auto prefix = ByteString::formatted("\033[33m⏺\033[0m {} ({}s): ", state.pid, duration);
                 // Note: prefix contains ANSI codes, so visible length is different
