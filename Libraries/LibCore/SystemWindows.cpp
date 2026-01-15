@@ -6,6 +6,7 @@
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
  * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
  * Copyright (c) 2025, ayeteadoe <ayeteadoe@gmail.com>
+ * Copyright (c) 2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -99,9 +100,9 @@ ErrorOr<void> ioctl(int fd, unsigned request, ...)
 {
     va_list ap;
     va_start(ap, request);
-    u_long arg = va_arg(ap, FlatPtr);
+    u_long* arg = va_arg(ap, u_long*);
     va_end(ap);
-    if (::ioctlsocket(fd, request, &arg) == SOCKET_ERROR)
+    if (::ioctlsocket(fd, request, arg) == SOCKET_ERROR)
         return Error::from_windows_error();
     return {};
 }
