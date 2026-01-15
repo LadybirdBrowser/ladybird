@@ -8,11 +8,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CanvasFillStrokeStyles.h"
 #include <AK/String.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Canvas/CanvasFillStrokeStyles.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -138,13 +138,13 @@ Variant<HTMLCanvasElement*, OffscreenCanvas*> CanvasFillStrokeStyles<IncludingCl
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
+DrawingState& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state()
 {
     return static_cast<IncludingClass&>(*this).drawing_state();
 }
 
 template<typename IncludingClass>
-CanvasState::DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
+DrawingState const& CanvasFillStrokeStyles<IncludingClass>::my_drawing_state() const
 {
     return static_cast<IncludingClass const&>(*this).drawing_state();
 }

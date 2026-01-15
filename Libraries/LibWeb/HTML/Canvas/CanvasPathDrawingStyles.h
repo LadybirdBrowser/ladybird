@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/HTML/Canvas/CanvasState.h>
+#include <LibWeb/HTML/Canvas/DrawingState.h>
 
 namespace Web::HTML {
 
@@ -116,8 +116,8 @@ protected:
     CanvasPathDrawingStyles() = default;
 
 private:
-    CanvasState::DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
-    CanvasState::DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
+    Web::HTML::DrawingState& my_drawing_state() { return static_cast<IncludingClass&>(*this).drawing_state(); }
+    Web::HTML::DrawingState const& my_drawing_state() const { return static_cast<IncludingClass const&>(*this).drawing_state(); }
 };
 
 }

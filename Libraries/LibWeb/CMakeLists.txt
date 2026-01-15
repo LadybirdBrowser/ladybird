@@ -447,13 +447,22 @@ set(SOURCES
     HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
+    HTML/Canvas/CanvasCompositing.cpp
     HTML/Canvas/CanvasDrawImage.cpp
+    HTML/Canvas/CanvasDrawPath.cpp
     HTML/Canvas/CanvasFillStrokeStyles.cpp
+    HTML/Canvas/CanvasFilters.cpp
+    HTML/Canvas/CanvasImageData.cpp
+    HTML/Canvas/CanvasImageSmoothing.cpp
     HTML/Canvas/CanvasPath.cpp
+    HTML/Canvas/CanvasRect.cpp
     HTML/Canvas/CanvasSettings.cpp
+    HTML/Canvas/CanvasShadowStyles.cpp
     HTML/Canvas/CanvasState.cpp
+    HTML/Canvas/CanvasText.cpp
     HTML/Canvas/CanvasTextDrawingStyles.cpp
     HTML/Canvas/SerializeBitmap.cpp
+    HTML/AbstractCanvasRenderingContext2D.cpp
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp
     HTML/CanvasRenderingContext2D.cpp
