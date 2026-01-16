@@ -147,14 +147,14 @@ def check_vcpkg_vs_flatpak_versioning():
                         # Get the tag
                         # Replace '-' with '.': 76-1 vs 76.1
                         tag = str(source["tag"]).replace("-", ".")
-                        mismatch_found = match_and_update(name, tag)
+                        mismatch_found |= match_and_update(name, tag)
 
                         break
                     elif "branch" in source:
                         # Get the branch
                         # Strip '_' postfix, replace '/' with '_': chromium/7258_13 vs chromium_7258
                         branch = str(source["branch"]).split("_")[0].replace("/", "_")
-                        mismatch_found = match_and_update(name, branch)
+                        mismatch_found |= match_and_update(name, branch)
 
                         break
             else:
