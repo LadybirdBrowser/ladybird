@@ -70,6 +70,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             RequestServer::g_resource_substitution_map = map.release_value();
     }
 
+#if !defined(AK_OS_WINDOWS)
+    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
+#endif
+
     Core::EventLoop event_loop;
     Core::EventLoop::register_signal(SIGINT, handle_signal);
     Core::EventLoop::register_signal(SIGTERM, handle_signal);
