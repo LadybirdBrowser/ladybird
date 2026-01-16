@@ -55,9 +55,16 @@ public:
         String label;
     };
 
+    struct TraceFrame {
+        String function_name;
+        Optional<String> source_file;
+        Optional<size_t> line;
+        Optional<size_t> column;
+    };
+
     struct Trace {
         String label;
-        Vector<String> stack;
+        Vector<TraceFrame> stack;
     };
 
     void set_client(ConsoleClient& client) { m_client = &client; }

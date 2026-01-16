@@ -33,6 +33,20 @@ public:
     {
     }
 
+    SourceRange const& realize_source_range()
+    {
+        static SourceRange dummy_source_range { SourceCode::create({}, {}), {}, {} };
+
+        if (auto* unrealized = source_range.get_pointer<UnrealizedSourceRange>()) {
+            if (unrealized->source_code) {
+                source_range = unrealized->realize();
+            } else {
+                source_range = dummy_source_range;
+            }
+        }
+        return source_range.get<SourceRange>();
+    }
+
     size_t program_counter { 0 };
     Variant<UnrealizedSourceRange, SourceRange> source_range;
 };

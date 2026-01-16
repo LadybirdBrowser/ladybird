@@ -46,8 +46,8 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
         if (!trace.label.is_empty())
             builder.appendff("{}\033[36;1m{}\033[0m\n", indent, trace.label);
 
-        for (auto& function_name : trace.stack)
-            builder.appendff("{}-> {}\n", indent, function_name);
+        for (auto& frame : trace.stack)
+            builder.appendff("{}-> {}\n", indent, frame.function_name);
 
         dbgln("{}", builder.string_view());
         return JS::js_undefined();

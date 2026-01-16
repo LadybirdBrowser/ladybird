@@ -36,9 +36,14 @@ struct WEBVIEW_API ConsoleError {
     bool inside_promise { false };
 };
 
+struct WEBVIEW_API ConsoleTrace {
+    String label;
+    Vector<StackFrame> stack;
+};
+
 struct WEBVIEW_API ConsoleOutput {
     UnixDateTime timestamp;
-    Variant<ConsoleLog, ConsoleError> output;
+    Variant<ConsoleLog, ConsoleError, ConsoleTrace> output;
 };
 
 }
@@ -62,6 +67,12 @@ ErrorOr<void> encode(Encoder&, WebView::ConsoleError const&);
 
 template<>
 ErrorOr<WebView::ConsoleError> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, WebView::ConsoleTrace const&);
+
+template<>
+ErrorOr<WebView::ConsoleTrace> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
