@@ -50,7 +50,7 @@ public:
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
-    LexicalPath const& cache_directory() { return m_cache_directory; }
+    LexicalPath const& cache_directory() const { return m_cache_directory; }
 
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
 
