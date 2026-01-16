@@ -6,7 +6,6 @@
  */
 
 #include "ShorthandStyleValue.h"
-#include <LibGfx/Font/FontWeight.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
