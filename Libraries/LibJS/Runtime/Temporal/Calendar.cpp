@@ -461,35 +461,39 @@ DateDuration non_iso_date_until(VM& vm, StringView calendar, ISODate one, ISODat
 // 12.3.9 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
 DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
-    // 1. If calendar is "iso8601", then
+    // 1. Let sign be CompareISODate(one, two).
+    auto sign = compare_iso_date(one, two);
+
+    // 2. If sign is 0, then
+    if (sign == 0) {
+        // a. Return ZeroDateDuration().
+        return zero_date_duration(vm);
+    }
+
+    // 3. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
-        // a. Let sign be -CompareISODate(one, two).
-        auto sign = compare_iso_date(one, two);
+        // a. Set sign to -sign.
         sign *= -1;
 
-        // b. If sign = 0, return ZeroDateDuration().
-        if (sign == 0)
-            return zero_date_duration(vm);
-
-        // c. Let years be 0.
+        // b. Let years be 0.
         double years = 0;
 
-        // e. Let months be 0.
+        // d. Let months be 0.
         double months = 0;
 
         // OPTIMIZATION: If the largestUnit is MONTH, we want to skip ahead to the correct year. If implemented in exact
         //               accordance with the spec, we could enter the second ISODateSurpasses loop below with a very large
         //               number of months to traverse.
 
-        // d. If largestUnit is YEAR, then
-        // f. If largestUnit is YEAR or largestUnit is MONTH, then
+        // c. If largestUnit is YEAR, then
+        // e. If largestUnit is YEAR or largestUnit is MONTH, then
         if (largest_unit == Unit::Year || largest_unit == Unit::Month) {
-            // d.i. Let candidateYears be sign.
+            // c.i. Let candidateYears be sign.
             auto candidate_years = two.year - one.year;
             if (candidate_years != 0)
                 candidate_years -= sign;
 
-            // d.ii. Repeat, while ISODateSurpasses(sign, one, two, candidateYears, 0, 0, 0) is false,
+            // c.ii. Repeat, while ISODateSurpasses(sign, one, two, candidateYears, 0, 0, 0) is false,
             while (!iso_date_surpasses(vm, sign, one, two, candidate_years, 0, 0, 0)) {
                 // 1. Set years to candidateYears.
                 years = candidate_years;
@@ -498,10 +502,10 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
                 candidate_years += sign;
             }
 
-            // f.i. Let candidateMonths be sign.
+            // e.i. Let candidateMonths be sign.
             double candidate_months = sign;
 
-            // f.ii. Repeat, while ISODateSurpasses(sign, one, two, years, candidateMonths, 0, 0) is false,
+            // e.ii. Repeat, while ISODateSurpasses(sign, one, two, years, candidateMonths, 0, 0) is false,
             while (!iso_date_surpasses(vm, sign, one, two, years, candidate_months, 0, 0)) {
                 // 1. Set months to candidateMonths.
                 months = candidate_months;
@@ -516,7 +520,7 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
             }
         }
 
-        // g. Let weeks be 0.
+        // f. Let weeks be 0.
         double weeks = 0;
 
         // OPTIMIZATION: If the largestUnit is DAY, we do not want to enter an ISODateSurpasses loop. The loop would have
@@ -533,11 +537,11 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODa
             days = fmod(days, 7.0);
         }
 
-        // l. Return ! CreateDateDurationRecord(years, months, weeks, days).
+        // k. Return ! CreateDateDurationRecord(years, months, weeks, days).
         return MUST(create_date_duration_record(vm, years, months, weeks, days));
     }
 
-    // 2. Return NonISODateUntil(calendar, one, two, largestUnit).
+    // 4. Return NonISODateUntil(calendar, one, two, largestUnit).
     return non_iso_date_until(vm, calendar, one, two, largest_unit);
 }
 
