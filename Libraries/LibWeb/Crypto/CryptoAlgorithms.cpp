@@ -25,6 +25,7 @@
 #include <LibCrypto/Hash/PBKDF2.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/Hash/SHAKE.h>
 #include <LibCrypto/PK/MLDSA.h>
 #include <LibCrypto/PK/MLKEM.h>
 #include <LibCrypto/PK/RSA.h>
@@ -631,6 +632,19 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Ed448Params::from_value(JS
     return adopt_own<AlgorithmParams>(*new Ed448Params { maybe_context });
 }
 
+static inline JS::ThrowCompletionOr<Optional<ByteBuffer>> get_optional_buffer_source(JS::VM& vm, JS::Object const& object, JS::PropertyKey const& name)
+{
+    if (!TRY(object.has_property(name)))
+        return OptionalNone {};
+
+    auto value = TRY(object.get(name));
+
+    if (!WebIDL::is_buffer_source_type(value))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+
+    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(value.as_object()));
+}
+
 Argon2Params::~Argon2Params() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(JS::VM& vm, JS::Value value)
@@ -664,21 +678,32 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> Argon2Params::from_value(J
         maybe_version = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, version_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
-    auto const extract_optional_buffer_source_value = [&](auto const& name) -> JS::ThrowCompletionOr<Optional<ByteBuffer>> {
-        auto maybe_buffer = Optional<ByteBuffer> {};
-        if (MUST(object.has_property(name))) {
-            auto key_value = TRY(object.get(name));
-            if (!key_value.is_object() || !(is<JS::TypedArrayBase>(key_value.as_object()) || is<JS::ArrayBuffer>(key_value.as_object()) || is<JS::DataView>(key_value.as_object())))
-                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
-            maybe_buffer = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(key_value.as_object()));
-        }
-        return maybe_buffer;
-    };
-
-    auto const secret_value = TRY(extract_optional_buffer_source_value("secretValue"_utf16_fly_string));
-    auto const associated_data = TRY(extract_optional_buffer_source_value("associatedData"_utf16_fly_string));
+    auto const secret_value = TRY(get_optional_buffer_source(vm, object, "secretValue"_utf16_fly_string));
+    auto const associated_data = TRY(get_optional_buffer_source(vm, object, "associatedData"_utf16_fly_string));
 
     return adopt_own<AlgorithmParams>(*new Argon2Params { nonce, parallelism, memory, passes, maybe_version, secret_value, associated_data });
+}
+
+CShakeParams::~CShakeParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(JS::VM& vm, JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+
+    if (!MUST(object.has_property("length"_utf16_fly_string))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "length");
+    }
+
+    auto const length_value = TRY(object.get("length"_utf16_fly_string));
+
+    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
+
+    auto const function_name = TRY(get_optional_buffer_source(vm, object, "functionName"_utf16_fly_string));
+
+    auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
+
+    return adopt_own<AlgorithmParams>(*new CShakeParams { length, function_name, customization });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
@@ -9632,6 +9657,49 @@ WebIDL::ExceptionOr<JS::Value> Argon2::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> CShake::digest(AlgorithmParams const& params, ByteBuffer const& data)
+{
+    auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
+
+    // 1. Let length be the length member of normalizedAlgorithm.
+    auto const& length = normalized_algorithm.length;
+
+    // 2. Let functionName be the functionName member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto const& function_name = normalized_algorithm.function_name;
+
+    // 3. Let customization be the customization member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto const& customization = normalized_algorithm.customization;
+
+    auto const algorithm = [&]() {
+        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE128":
+        if (normalized_algorithm.name == "cSHAKE128"sv)
+            return ::Crypto::Hash::SHAKE(::Crypto::Hash::SHAKEKind::CSHAKE128);
+        // 4. If the name member of normalizedAlgorithm is a case-sensitive string match for "cSHAKE256":
+        if (normalized_algorithm.name == "cSHAKE256"sv)
+            return ::Crypto::Hash::SHAKE(::Crypto::Hash::SHAKEKind::CSHAKE256);
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 4. Let result be the result of performing the cSHAKE128/cSHAKE256 function defined in Section 3 of [NIST-SP800-185]
+    // using message as the X input parameter,
+    // length as the L input parameter,
+    // functionName as the N input parameter,
+    // and customization as the S input parameter.
+    auto maybe_result = algorithm.digest(
+        data,
+        length,
+        customization.map([](auto const& value) { return value.span(); }),
+        function_name.map([](auto const& value) { return value.span(); }));
+
+    // 5. If performing the operation results in an error, then throw an OperationError.
+    if (maybe_result.is_error())
+        return WebIDL::OperationError::create(m_realm, Utf16String::formatted("Hash function failed: {}", maybe_result.error()));
+
+    // 6. Return result.
+    return JS::ArrayBuffer::create(m_realm, maybe_result.release_value());
 }
 
 }

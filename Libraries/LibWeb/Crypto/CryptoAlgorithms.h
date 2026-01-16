@@ -739,6 +739,18 @@ private:
     }
 };
 
+class CShake : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> digest(AlgorithmParams const&, ByteBuffer const&) override;
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new CShake(realm)); }
+
+private:
+    explicit CShake(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
@@ -804,6 +816,25 @@ struct Argon2Params : public AlgorithmParams {
     Optional<u8> version;
     Optional<ByteBuffer> secret_value;
     Optional<ByteBuffer> associated_data;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
+// https://wicg.github.io/webcrypto-modern-algos/#cshake-params
+struct CShakeParams : public AlgorithmParams {
+    virtual ~CShakeParams() override;
+
+    CShakeParams(u32 length, Optional<ByteBuffer> function_name, Optional<ByteBuffer> customization)
+        : length(length)
+        , function_name(move(function_name))
+        , customization(move(customization))
+
+    {
+    }
+
+    u32 length;
+    Optional<ByteBuffer> function_name;
+    Optional<ByteBuffer> customization;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
