@@ -254,20 +254,16 @@ void initialize_main_thread_vm(AgentType type)
             // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]].
             auto& entry = *finalization_registry.cleanup_callback().callback().realm();
 
-            // 2. Check if we can run script with entry. If this returns "do not run", then return.
-            if (HTML::can_run_script(entry) == HTML::RunScriptDecision::DoNotRun)
-                return;
-
-            // 3. Prepare to run script with entry.
+            // 2. Prepare to run script with entry.
             HTML::prepare_to_run_script(entry);
 
-            // 4. Let result be the result of performing CleanupFinalizationRegistry(finalizationRegistry).
+            // 3. Let result be the result of performing CleanupFinalizationRegistry(finalizationRegistry).
             auto result = finalization_registry.cleanup();
 
-            // 5. Clean up after running script with entry.
+            // 4. Clean up after running script with entry.
             HTML::clean_up_after_running_script(entry);
 
-            // 6. If result is an abrupt completion, then report the exception given by result.[[Value]].
+            // 5. If result is an abrupt completion, then report the exception given by result.[[Value]].
             if (result.is_error())
                 HTML::report_exception(result, entry);
         }));
@@ -294,11 +290,7 @@ void initialize_main_thread_vm(AgentType type)
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
             if (realm) {
-                // 1. If realm is not null, then check if we can run script with realm. If this returns "do not run" then return.
-                if (HTML::can_run_script(*realm) == HTML::RunScriptDecision::DoNotRun)
-                    return;
-
-                // 2. If realm is not null, then prepare to run script with realm.
+                // 1. If realm is not null, then prepare to run script with realm.
                 HTML::prepare_to_run_script(*realm);
 
                 // IMPLEMENTATION DEFINED: Additionally to preparing to run a script, we also prepare to run a callback here. This matches WebIDL's
@@ -318,10 +310,10 @@ void initialize_main_thread_vm(AgentType type)
                 vm.push_execution_context(*dummy_execution_context);
             }
 
-            // 3. Let result be job().
+            // 2. Let result be job().
             auto result = job->function()();
 
-            // 4. If realm is not null, then clean up after running script with job settings.
+            // 3. If realm is not null, then clean up after running script with job settings.
             if (realm) {
                 // IMPLEMENTATION DEFINED: Disassociate the realm execution context from the script or module.
                 HTML::execution_context_of_realm(*realm).script_or_module = Empty {};
@@ -335,7 +327,7 @@ void initialize_main_thread_vm(AgentType type)
                 vm.pop_execution_context();
             }
 
-            // 5. If result is an abrupt completion, then report the exception given by result.[[Value]].
+            // 4. If result is an abrupt completion, then report the exception given by result.[[Value]].
             if (result.is_error())
                 HTML::report_exception(result, *realm);
         }));
