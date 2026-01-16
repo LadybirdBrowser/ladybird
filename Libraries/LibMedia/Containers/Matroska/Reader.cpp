@@ -95,7 +95,7 @@ constexpr u32 CUE_RELATIVE_POSITION_ID = 0xF0;
 constexpr u32 CUE_CODEC_STATE_ID = 0xEA;
 constexpr u32 CUE_REFERENCE_ID = 0xDB;
 
-DecoderErrorOr<Reader> Reader::from_stream(IncrementallyPopulatedStream::Cursor& stream_cursor)
+DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
 {
     Reader reader;
     Streamer streamer { stream_cursor };
@@ -199,7 +199,7 @@ static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer, ElementI
     return header;
 }
 
-bool Reader::is_matroska_or_webm(IncrementallyPopulatedStream::Cursor& stream_cursor)
+bool Reader::is_matroska_or_webm(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
 {
     auto header = [&] -> DecoderErrorOr<EBMLHeader> {
         Streamer streamer { stream_cursor };
