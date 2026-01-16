@@ -286,6 +286,39 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 
             console_messages.must_append(move(message));
         },
+        [&](WebView::ConsoleTrace const& trace) {
+            message.set("level"sv, "trace"sv);
+            message.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
+
+            JsonArray arguments;
+            if (!trace.label.is_empty())
+                arguments.must_append(trace.label);
+            message.set("arguments"sv, move(arguments));
+
+            JsonArray stack_array;
+            for (auto const& frame : trace.stack) {
+                JsonObject frame_object;
+                frame_object.set("functionName"sv, frame.function.value_or("<anonymous>"_string));
+                frame_object.set("filename"sv, frame.file.value_or("unknown"_string));
+                frame_object.set("lineNumber"sv, static_cast<i64>(frame.line.value_or(0)));
+                frame_object.set("columnNumber"sv, static_cast<i64>(frame.column.value_or(0)));
+                stack_array.must_append(move(frame_object));
+            }
+            message.set("stacktrace"sv, move(stack_array));
+
+            if (trace.stack.is_empty()) {
+                message.set("filename"sv, "unknown"sv);
+                message.set("lineNumber"sv, 0);
+                message.set("columnNumber"sv, 0);
+            } else {
+                auto const& first_frame = trace.stack.first();
+                message.set("filename"sv, first_frame.file.value_or("unknown"_string));
+                message.set("lineNumber"sv, static_cast<i64>(first_frame.line.value_or(0)));
+                message.set("columnNumber"sv, static_cast<i64>(first_frame.column.value_or(0)));
+            }
+
+            console_messages.must_append(move(message));
+        },
         [&](WebView::ConsoleError const& error) {
             StringBuilder stack;
 
