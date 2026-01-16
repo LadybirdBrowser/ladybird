@@ -1,6 +1,6 @@
 include_guard()
 
-if (NOT APPLE)
+if (NOT APPLE AND NOT WIN32)
     find_package(VulkanHeaders CONFIG QUIET)
     find_package(Vulkan QUIET)
     if (VulkanHeaders_FOUND AND Vulkan_FOUND)
