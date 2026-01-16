@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+#circle {
+    width: 200px;
+    height: 200px;
+    background-color: green;
+    clip-path: circle(50px at 50px 50px);
+}
+</style>
+<div id="circle"></div>
+<script>
+test(() => {
+    const circle = document.getElementById('circle');
+    const rect = circle.getBoundingClientRect();
+
+    // Hit test inside the circle (center of circle at 50px, 50px from element origin)
+    const insideHit = document.elementFromPoint(rect.left + 50, rect.top + 50);
+    println("Inside circle: " + (insideHit && insideHit.id === 'circle' ? 'PASS' : 'FAIL'));
+
+    // Hit test outside the circle but inside bounding box (bottom-right corner)
+    const outsideHit = document.elementFromPoint(rect.left + 180, rect.top + 180);
+    println("Outside circle (in bbox): " + (outsideHit && outsideHit.id !== 'circle' ? 'PASS' : 'FAIL'));
+
+    // Hit test just inside the circle edge
+    const edgeHit = document.elementFromPoint(rect.left + 20, rect.top + 20);
+    println("Inside circle edge: " + (edgeHit && edgeHit.id === 'circle' ? 'PASS' : 'FAIL'));
+});
+</script>
