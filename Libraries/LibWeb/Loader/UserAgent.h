@@ -9,6 +9,7 @@
 
 #include <AK/Platform.h>
 #include <AK/StringView.h>
+#include <LibWeb/Loader/NavigatorCompatibilityMode.h>
 
 namespace Web {
 
@@ -57,12 +58,6 @@ namespace Web {
 #else
 #    error Unknown OS
 #endif
-
-enum class NavigatorCompatibilityMode {
-    Chrome,
-    Gecko,
-    WebKit
-};
 
 #define BROWSER_NAME "Ladybird"
 #define BROWSER_VERSION "1.0"
