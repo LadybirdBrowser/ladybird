@@ -17,7 +17,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWeb/Loader/NavigatorCompatibilityMode.h>
 
 namespace Web {
 
