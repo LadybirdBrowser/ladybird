@@ -1193,8 +1193,14 @@ void PaintableBox::resolve_paint_properties()
     CSSPixelRect background_rect;
     Color background_color = computed_values.background_color();
     auto const* background_layers = &computed_values.background_layers();
-    if (layout_node_with_style_and_box_metrics().is_root_element()) {
-        background_rect = navigable()->viewport_rect();
+
+    // https://drafts.csswg.org/css-backgrounds/#root-background
+    // The background of the root element becomes the canvas background and its background painting area extends to
+    // cover the entire canvas. However, any images are sized and positioned relative to the root element’s box as if
+    // they were painted for that element alone.
+    auto is_root = layout_node_with_style_and_box_metrics().is_root_element();
+    if (is_root) {
+        background_rect = absolute_border_box_rect();
 
         // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
         // user agents must instead propagate the computed values of the background properties from that element’s first HTML BODY child element.
@@ -1215,6 +1221,14 @@ void PaintableBox::resolve_paint_properties()
     m_resolved_background.layers.clear();
     if (background_layers)
         m_resolved_background = resolve_background_layers(*background_layers, *this, background_color, computed_values.background_color_clip(), background_rect, normalized_border_radii_data());
+
+    if (is_root) {
+        auto canvas_rect = navigable()->viewport_rect();
+        if (auto overflow_rect = scrollable_overflow_rect(); overflow_rect.has_value())
+            canvas_rect.unite(overflow_rect.value());
+        m_resolved_background.background_rect.unite(canvas_rect);
+        m_resolved_background.color_box.rect.unite(canvas_rect);
+    }
 
     if (auto mask_image = computed_values.mask_image()) {
         mask_image->resolve_for_size(layout_node_with_style_and_box_metrics(), absolute_padding_box_rect().size());
