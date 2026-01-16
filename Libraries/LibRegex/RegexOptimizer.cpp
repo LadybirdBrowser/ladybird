@@ -1592,12 +1592,19 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
         return;
 
     // Find sequences of single-character compares
+    struct StaticCaptureGroup {
+        size_t id;
+        size_t length;
+        ssize_t start_in_string;
+    };
     struct StringSequence {
         size_t start_ip;
         size_t end_ip;
         Vector<u32> characters;
+        Vector<StaticCaptureGroup> static_capture_groups;
     };
     Vector<StringSequence> sequences;
+    Vector<StaticCaptureGroup> static_capture_groups_in_sequence;
 
     for (auto const& block : basic_blocks) {
         auto state = MatchState::only_for_enumeration();
@@ -1621,6 +1628,17 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
                     is_single_char = true;
                     character = flat_compares[0].value;
                 }
+            } else if (opcode.opcode_id() == OpCodeId::SaveStaticCaptureGroup) {
+                auto& capture = to<OpCode_SaveStaticCaptureGroup>(opcode);
+                if (in_sequence) {
+                    static_capture_groups_in_sequence.append({
+                        capture.id(),
+                        capture.length(),
+                        (ssize_t)current_chars.size() - (ssize_t)capture.offset(),
+                    });
+                }
+                state.instruction_position += opcode.size();
+                continue;
             }
 
             if (is_single_char) {
@@ -1632,7 +1650,12 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
                 current_chars.append(character);
             } else {
                 if (in_sequence && current_chars.size() >= 2) {
-                    sequences.append({ sequence_start, current_ip, move(current_chars) });
+                    sequences.append({
+                        .start_ip = sequence_start,
+                        .end_ip = current_ip,
+                        .characters = move(current_chars),
+                        .static_capture_groups = move(static_capture_groups_in_sequence),
+                    });
                     current_chars.clear();
                 }
                 in_sequence = false;
@@ -1642,7 +1665,12 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
         }
 
         if (in_sequence && current_chars.size() >= 2) {
-            sequences.append({ sequence_start, state.instruction_position, move(current_chars) });
+            sequences.append({
+                .start_ip = sequence_start,
+                .end_ip = state.instruction_position,
+                .characters = move(current_chars),
+                .static_capture_groups = move(static_capture_groups_in_sequence),
+            });
         }
     }
 
@@ -1658,6 +1686,15 @@ void Regex<Parser>::attempt_rewrite_adjacent_compares_as_string_compare(BasicBlo
             string_builder.append_code_point(ch);
         ByteCode replacement;
         replacement.insert_bytecode_compare_string(string_builder.to_utf16_string());
+        for (auto const& capture : seq.static_capture_groups) {
+            // FIXME: Figure out how this interacts with unicode
+            //        Currently the SaveStaticCaptureGroup opcode is only generated outside of unicode mode.
+            auto offset = string_builder.length() - capture.start_in_string;
+            replacement.empend((ByteCodeValueType)OpCodeId::SaveStaticCaptureGroup);
+            replacement.empend((ByteCodeValueType)capture.id);
+            replacement.empend((ByteCodeValueType)offset);
+            replacement.empend((ByteCodeValueType)capture.length);
+        }
         replacements.append(move(replacement));
     }
 
