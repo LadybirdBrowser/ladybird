@@ -55,7 +55,7 @@ constexpr float text_shaping_resolution = 64;
 
 class Font : public RefCounted<Font> {
 public:
-    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x = DEFAULT_DPI, unsigned dpi_y = DEFAULT_DPI, FontVariationSettings const variations = {});
+    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations);
     ScaledFontMetrics metrics() const;
     ~Font();
 
