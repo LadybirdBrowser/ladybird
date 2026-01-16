@@ -719,7 +719,10 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, simdjson::ondemand:
         return parse_simdjson_array(vm, value);
     case simdjson::ondemand::json_type::object:
         return parse_simdjson_object(vm, value);
+    case simdjson::ondemand::json_type::unknown:
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
+
     VERIFY_NOT_REACHED();
 }
 
@@ -760,7 +763,10 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, simdjson::ondema
         return parse_simdjson_array(vm, document);
     case simdjson::ondemand::json_type::object:
         return parse_simdjson_object(vm, document);
+    case simdjson::ondemand::json_type::unknown:
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
     }
+
     VERIFY_NOT_REACHED();
 }
 
@@ -861,7 +867,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     simdjson::ondemand::json_type type;
-    if (doc.type().get(type))
+    if (doc.type().get(type) || type == simdjson::ondemand::json_type::unknown)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     if (type == simdjson::ondemand::json_type::object || type == simdjson::ondemand::json_type::array)
