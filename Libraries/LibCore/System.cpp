@@ -148,22 +148,8 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
     // FIXME: Support more options on Linux.
     auto linux_options = ((options & O_CLOEXEC) > 0) ? MFD_CLOEXEC : 0;
     fd = memfd_create("", linux_options);
-    if (fd < 0)
-        return Error::from_errno(errno);
-    if (::ftruncate(fd, size) < 0) {
-        auto saved_errno = errno;
-        TRY(close(fd));
-        return Error::from_errno(saved_errno);
-    }
 #elif defined(SHM_ANON)
     fd = shm_open(SHM_ANON, O_RDWR | O_CREAT | options, 0600);
-    if (fd < 0)
-        return Error::from_errno(errno);
-    if (::ftruncate(fd, size) < 0) {
-        auto saved_errno = errno;
-        TRY(close(fd));
-        return Error::from_errno(saved_errno);
-    }
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     static size_t shared_memory_id = 0;
 
@@ -175,7 +161,7 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
-
+#endif
     if (fd < 0)
         return Error::from_errno(errno);
 
@@ -184,9 +170,7 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
-#endif
-    if (fd < 0)
-        return Error::from_errno(errno);
+
     return fd;
 }
 
