@@ -1,0 +1,16 @@
+<!doctype HTML>
+<title>Backgrounds on the root element of an iframe should extend to cover the entire canvas of the iframe in the presence of margin</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#root-background">
+<link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/background-margin-iframe-root-ref.html">
+<meta name=fuzzy content="0-1;0-750">
+<iframe srcdoc="
+<!doctype HTML>
+<style>
+  html {
+    background: linear-gradient(lightblue, yellow);
+    height: 300px;
+    margin: 50px;
+    overflow: hidden;
+  }
+</style>"></iframe>

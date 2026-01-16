@@ -1,0 +1,15 @@
+<!doctype HTML>
+<title>Background-attachment: scroll should be positioned relative to the root element and should extend to cover the entire canvas in the presence of fixed backgrounds</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-backgrounds-3/#root-background">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#the-background-attachment">
+<link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/background-attachment-margin-root-001-ref.html">
+<style>
+  html {
+    background: linear-gradient(rgba(0,255,0,0.5), rgba(0,0,255,0.5)), linear-gradient(rgba(0,0,0,1), rgba(0,0,0,1));
+    background-attachment: scroll, fixed;
+    background-size: 100px 100px, 100px 100px;
+    height: 300px;
+    margin: 50px;
+  }
+</style>
