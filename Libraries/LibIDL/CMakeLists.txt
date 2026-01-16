@@ -5,4 +5,4 @@ set(SOURCES
 )
 
 ladybird_lib(LibIDL idl)
-target_link_libraries(LibIDL PRIVATE LibCoreMinimal LibFileSystem)
+target_link_libraries(LibIDL PRIVATE LibCore LibFileSystem)

@@ -1,52 +1,17 @@
-# These are the minimal set of sources needed to build the code generators. We separate them to allow
-# LibCore to depend on generated sources.
 set(SOURCES
     AddressInfoVector.cpp
     ArgsParser.cpp
+    ConfigFile.cpp
+    DirIterator.cpp
     Directory.cpp
     DirectoryEntry.cpp
-    DirIterator.cpp
-    Environment.cpp
-    File.cpp
-    MappedFile.cpp
-    SocketAddress.cpp
-    StandardPaths.cpp
-    Version.cpp
-)
-
-if (WIN32)
-    list(APPEND SOURCES
-        ProcessWindows.cpp
-        SocketpairWindows.cpp
-        SystemWindows.cpp)
-else()
-    list(APPEND SOURCES
-        Process.cpp
-        System.cpp)
-endif()
-
-ladybird_lib(LibCoreMinimal coreminimal)
-
-if (WIN32)
-    find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
-    target_include_directories(LibCoreMinimal PRIVATE ${DIRENT_INCLUDE_DIR})
-endif()
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
-    # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
-    target_link_libraries(LibCoreMinimal PRIVATE rt)
-endif()
-
-if (LAGOM_TOOLS_ONLY)
-    return()
-endif()
-
-set(SOURCES
-    ConfigFile.cpp
     ElapsedTimer.cpp
+    Environment.cpp
     EventLoop.cpp
     EventLoopImplementation.cpp
     EventReceiver.cpp
+    File.cpp
+    MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
     ReportTime.cpp
@@ -54,31 +19,37 @@ set(SOURCES
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
     SharedVersion.cpp
+    SocketAddress.cpp
+    StandardPaths.cpp
     SystemServerTakeover.cpp
     ThreadEventQueue.cpp
     Timer.cpp
+    Version.cpp
 )
 
 if (WIN32)
     list(APPEND SOURCES
-        SocketWindows.cpp
         AnonymousBufferWindows.cpp
         EventLoopImplementationWindows.cpp
+        LocalServerWindows.cpp
+        ProcessWindows.cpp
+        SocketWindows.cpp
+        SocketpairWindows.cpp
+        SystemWindows.cpp
+        TCPServerWindows.cpp
         UDPServerWindows.cpp
-        TCPServerWindows.cpp)
+    )
 else()
     list(APPEND SOURCES
-        Socket.cpp
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp
+        LocalServer.cpp
+        Process.cpp
+        Socket.cpp
+        System.cpp
+        TCPServer.cpp
         UDPServer.cpp
-        TCPServer.cpp)
-endif()
-
-if (NOT WIN32)
-    list(APPEND SOURCES LocalServer.cpp)
-else()
-    list(APPEND SOURCES LocalServerWindows.cpp)
+    )
 endif()
 
 include(CheckIncludeFile)
@@ -120,7 +91,6 @@ endif()
 
 ladybird_lib(LibCore core)
 target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads)
-target_link_libraries(LibCore PUBLIC LibCoreMinimal)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
@@ -144,6 +114,8 @@ endif()
 
 if (WIN32)
     target_link_libraries(LibCore PRIVATE ntdll.dll)
+    find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
+    target_include_directories(LibCore PRIVATE ${DIRENT_INCLUDE_DIR})
 endif()
 
 if (ANDROID)

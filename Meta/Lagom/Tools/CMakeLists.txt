@@ -3,7 +3,7 @@ function(lagom_tool tool)
     add_executable(${tool} ${SOURCES} ${LAGOM_TOOL_SOURCES})
     # alias for parity with exports
     add_executable(Lagom::${tool} ALIAS ${tool})
-    target_link_libraries(${tool} AK LibCoreMinimal LibFileSystem GenericClangPlugin ${LAGOM_TOOL_LIBS})
+    target_link_libraries(${tool} AK LibCore LibFileSystem GenericClangPlugin ${LAGOM_TOOL_LIBS})
     if (NOT LAGOM_TOOL_INSTALL)
         set(LAGOM_TOOL_INSTALL ${INSTALL_LAGOM_TOOLS})
     endif()
