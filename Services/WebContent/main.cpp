@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <AK/MainThreadAssertions.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -61,6 +62,7 @@ static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_s
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    AK::initialize_main_thread();
     AK::set_rich_debug_enabled(true);
 
 #if defined(AK_OS_WINDOWS)
