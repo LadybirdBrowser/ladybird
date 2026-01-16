@@ -16,7 +16,7 @@ void Configuration::unwind_impl()
     auto last_frame = m_frame_stack.take_last();
     m_depth--;
     m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().locals().data();
-    release_arguments_allocation(last_frame.locals());
+    release_arguments_allocation(last_frame.locals(), m_locals_base != nullptr);
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value, ArgumentsStaticSize>& arguments)
