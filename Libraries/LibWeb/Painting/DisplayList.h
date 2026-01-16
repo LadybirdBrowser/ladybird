@@ -45,7 +45,6 @@ private:
     virtual void restore(Restore const&) = 0;
     virtual void translate(Translate const&) = 0;
     virtual void add_clip_rect(AddClipRect const&) = 0;
-    virtual void add_clip_path(AddClipPath const&) = 0;
     virtual void paint_linear_gradient(PaintLinearGradient const&) = 0;
     virtual void paint_radial_gradient(PaintRadialGradient const&) = 0;
     virtual void paint_conic_gradient(PaintConicGradient const&) = 0;
@@ -68,6 +67,8 @@ private:
     virtual void apply_transform(ApplyTransform const&) = 0;
     virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
+
+    virtual void add_clip_path(Gfx::Path const&) = 0;
 
     Vector<NonnullRefPtr<Gfx::PaintingSurface>, 1> m_surfaces;
 };

@@ -311,24 +311,11 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode());
     bool isolate = computed_values.isolation() == CSS::Isolation::Isolate;
 
-    Optional<Gfx::Path> clip_path;
-    Gfx::IntRect clip_path_bounding_rect;
-    if (auto cp = computed_values.clip_path(); cp.has_value() && cp->is_basic_shape()) {
-        auto const& masking_area = paintable_box().get_masking_area();
-        auto const& basic_shape = cp->basic_shape();
-        auto path = basic_shape.to_path(*masking_area, paintable_box().layout_node());
-        auto device_pixel_scale = context.device_pixels_per_css_pixel();
-        auto source_paintable_rect = context.enclosing_device_rect(paintable_box().absolute_paint_rect()).to_type<int>();
-        clip_path = path.copy_transformed(Gfx::AffineTransform {}.set_scale(device_pixel_scale, device_pixel_scale).set_translation(source_paintable_rect.location().to_type<float>()));
-        clip_path_bounding_rect = source_paintable_rect;
-    }
-
     auto mask_image = computed_values.mask_image();
     Optional<Gfx::Filter> resolved_filter;
     if (computed_values.filter().has_filters())
         resolved_filter = paintable_box().resolve_filter(context, computed_values.filter());
 
-    bool needs_clip_path = clip_path.has_value();
     bool needs_opacity_layer = opacity != 1.0f || isolate;
     bool needs_blend_layer = compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal;
     bool needs_stacking_layer = needs_opacity_layer || needs_blend_layer;
@@ -341,18 +328,12 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     context.display_list_recorder().set_accumulated_visual_context(stacking_state);
 
-    if (needs_clip_path) {
-        context.display_list_recorder().save();
-        context.display_list_recorder().add_clip_path(*clip_path, clip_path_bounding_rect);
-        restore_count++;
-    }
-
     if (needs_stacking_layer || resolved_filter.has_value()) {
         context.display_list_recorder().apply_effects(opacity, compositing_and_blending_operator, resolved_filter);
         restore_count++;
     }
 
-    if (needs_to_save_state && !needs_stacking_layer && !needs_clip_path && !resolved_filter.has_value()) {
+    if (needs_to_save_state && !needs_stacking_layer && !resolved_filter.has_value()) {
         context.display_list_recorder().save();
         restore_count++;
     }

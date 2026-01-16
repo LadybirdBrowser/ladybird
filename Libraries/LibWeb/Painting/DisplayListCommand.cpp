@@ -72,11 +72,6 @@ void AddClipRect::dump(StringBuilder& builder) const
     builder.appendff(" rect={}", rect);
 }
 
-void AddClipPath::dump(StringBuilder& builder) const
-{
-    builder.appendff(" bounding_rect={}", bounding_rectangle);
-}
-
 void PaintLinearGradient::dump(StringBuilder& builder) const
 {
     builder.appendff(" rect={}", gradient_rect);

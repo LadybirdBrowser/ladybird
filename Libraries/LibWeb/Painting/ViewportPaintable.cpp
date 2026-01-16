@@ -182,6 +182,20 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
             own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
 
+        if (auto const& clip_path = paintable_box.computed_values().clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
+            if (auto masking_area = paintable_box.get_masking_area(); masking_area.has_value()) {
+                auto reference_box = CSSPixelRect { {}, masking_area->size() };
+                auto const& basic_shape = clip_path->basic_shape();
+                auto path = basic_shape.to_path(reference_box, paintable_box.layout_node());
+                path.offset(masking_area->top_left().template to_type<float>());
+                auto fill_rule = basic_shape.basic_shape().visit(
+                    [](CSS::Polygon const& polygon) { return polygon.fill_rule; },
+                    [](CSS::Path const& path) { return path.fill_rule; },
+                    [](auto const&) { return Gfx::WindingRule::Nonzero; });
+                own_state = append_node(own_state, ClipPathData { move(path), *masking_area, fill_rule });
+            }
+        }
+
         paintable_box.set_accumulated_visual_context(own_state);
 
         // Build state for descendants: own state + perspective + clip + scroll.
