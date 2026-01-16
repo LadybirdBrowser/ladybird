@@ -7,6 +7,7 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/MainThreadAssertions.h>
 #include <AK/MemoryStream.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -151,6 +152,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
 
 void MessagePort::disentangle()
 {
+    VERIFY_ON_MAIN_THREAD();
     if (auto remote_port = m_remote_port) {
         // Set the pointers to null before disentangling the remote port to prevent infinite recursion here.
         m_remote_port->m_remote_port = nullptr;
@@ -328,6 +330,7 @@ void MessagePort::read_from_transport()
 
 void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_with_transfer_result)
 {
+    VERIFY_ON_MAIN_THREAD();
     VERIFY(m_enabled);
 
     // 1. Let finalTargetPort be the MessagePort in whose port message queue the task now finds itself.
