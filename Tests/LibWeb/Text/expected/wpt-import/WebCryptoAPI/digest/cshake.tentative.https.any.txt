@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 48 tests
+
+48 Pass
+Pass	cSHAKE128 with 0 bit output and empty source data
+Pass	cSHAKE128 with 0 bit output and empty source data and altered buffer after call
+Pass	cSHAKE128 with 0 bit output and short source data
+Pass	cSHAKE128 with 0 bit output and short source data and altered buffer after call
+Pass	cSHAKE128 with 0 bit output and medium source data
+Pass	cSHAKE128 with 0 bit output and medium source data and altered buffer after call
+Pass	cSHAKE128 with 256 bit output and empty source data
+Pass	cSHAKE128 with 256 bit output and empty source data and altered buffer after call
+Pass	cSHAKE128 with 256 bit output and short source data
+Pass	cSHAKE128 with 256 bit output and short source data and altered buffer after call
+Pass	cSHAKE128 with 256 bit output and medium source data
+Pass	cSHAKE128 with 256 bit output and medium source data and altered buffer after call
+Pass	cSHAKE128 with 384 bit output and empty source data
+Pass	cSHAKE128 with 384 bit output and empty source data and altered buffer after call
+Pass	cSHAKE128 with 384 bit output and short source data
+Pass	cSHAKE128 with 384 bit output and short source data and altered buffer after call
+Pass	cSHAKE128 with 384 bit output and medium source data
+Pass	cSHAKE128 with 384 bit output and medium source data and altered buffer after call
+Pass	cSHAKE128 with 512 bit output and empty source data
+Pass	cSHAKE128 with 512 bit output and empty source data and altered buffer after call
+Pass	cSHAKE128 with 512 bit output and short source data
+Pass	cSHAKE128 with 512 bit output and short source data and altered buffer after call
+Pass	cSHAKE128 with 512 bit output and medium source data
+Pass	cSHAKE128 with 512 bit output and medium source data and altered buffer after call
+Pass	cSHAKE256 with 0 bit output and empty source data
+Pass	cSHAKE256 with 0 bit output and empty source data and altered buffer after call
+Pass	cSHAKE256 with 0 bit output and short source data
+Pass	cSHAKE256 with 0 bit output and short source data and altered buffer after call
+Pass	cSHAKE256 with 0 bit output and medium source data
+Pass	cSHAKE256 with 0 bit output and medium source data and altered buffer after call
+Pass	cSHAKE256 with 256 bit output and empty source data
+Pass	cSHAKE256 with 256 bit output and empty source data and altered buffer after call
+Pass	cSHAKE256 with 256 bit output and short source data
+Pass	cSHAKE256 with 256 bit output and short source data and altered buffer after call
+Pass	cSHAKE256 with 256 bit output and medium source data
+Pass	cSHAKE256 with 256 bit output and medium source data and altered buffer after call
+Pass	cSHAKE256 with 384 bit output and empty source data
+Pass	cSHAKE256 with 384 bit output and empty source data and altered buffer after call
+Pass	cSHAKE256 with 384 bit output and short source data
+Pass	cSHAKE256 with 384 bit output and short source data and altered buffer after call
+Pass	cSHAKE256 with 384 bit output and medium source data
+Pass	cSHAKE256 with 384 bit output and medium source data and altered buffer after call
+Pass	cSHAKE256 with 512 bit output and empty source data
+Pass	cSHAKE256 with 512 bit output and empty source data and altered buffer after call
+Pass	cSHAKE256 with 512 bit output and short source data
+Pass	cSHAKE256 with 512 bit output and short source data and altered buffer after call
+Pass	cSHAKE256 with 512 bit output and medium source data
+Pass	cSHAKE256 with 512 bit output and medium source data and altered buffer after call
