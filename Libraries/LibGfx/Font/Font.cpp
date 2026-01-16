@@ -76,6 +76,8 @@ NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
         return *const_cast<Font*>(this);
+
+    // FIXME: Should we be discarding m_font_variation_settings here?
     return m_typeface->font(point_size);
 }
 

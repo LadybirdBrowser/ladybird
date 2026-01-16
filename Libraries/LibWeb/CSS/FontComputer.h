@@ -59,7 +59,7 @@ public:
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
 
-    RefPtr<Gfx::Font const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations = {});
+    RefPtr<Gfx::Font const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations);
     void start_loading_next_url();
 
     bool is_loading() const;
