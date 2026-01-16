@@ -125,6 +125,10 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                     add_rounded_rect_clip({ .corner_radii = corner_radii, .border_rect = device_rect, .corner_clip = CornerClip::Outside });
                 else
                     add_clip_rect({ .rect = device_rect });
+            },
+            [&](ClipPathData const& clip_path) {
+                auto transformed_path = clip_path.path.copy_transformed(Gfx::AffineTransform {}.set_scale(static_cast<float>(device_pixels_per_css_pixel), static_cast<float>(device_pixels_per_css_pixel)));
+                add_clip_path(transformed_path);
             });
     };
 
@@ -194,7 +198,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
         else HANDLE_COMMAND(DrawRepeatedImmutableBitmap, draw_repeated_immutable_bitmap)
         else HANDLE_COMMAND(AddClipRect, add_clip_rect)
-        else HANDLE_COMMAND(AddClipPath, add_clip_path)
         else HANDLE_COMMAND(Save, save)
         else HANDLE_COMMAND(SaveLayer, save_layer)
         else HANDLE_COMMAND(Restore, restore)

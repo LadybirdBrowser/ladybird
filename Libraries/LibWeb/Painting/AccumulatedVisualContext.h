@@ -9,6 +9,8 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Variant.h>
 #include <LibGfx/Matrix4x4.h>
+#include <LibGfx/Path.h>
+#include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -50,7 +52,13 @@ struct PerspectiveData {
     Gfx::FloatMatrix4x4 matrix;
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData>;
+struct ClipPathData {
+    Gfx::Path path;
+    CSSPixelRect bounding_rect;
+    Gfx::WindingRule fill_rule;
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData>;
 
 class AccumulatedVisualContext : public AtomicRefCounted<AccumulatedVisualContext> {
 public:
@@ -63,6 +71,7 @@ public:
     bool is_clip() const { return m_data.has<ClipData>(); }
     bool is_transform() const { return m_data.has<TransformData>(); }
     bool is_perspective() const { return m_data.has<PerspectiveData>(); }
+    bool is_clip_path() const { return m_data.has<ClipPathData>(); }
 
     size_t depth() const { return m_depth; }
     size_t id() const { return m_id; }

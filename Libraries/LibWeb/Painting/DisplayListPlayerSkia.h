@@ -29,7 +29,6 @@ private:
     void draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const&) override;
     void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) override;
     void add_clip_rect(AddClipRect const&) override;
-    void add_clip_path(AddClipPath const&) override;
     void save(Save const&) override;
     void save_layer(SaveLayer const&) override;
     void restore(Restore const&) override;
@@ -55,6 +54,8 @@ private:
     void apply_effects(ApplyEffects const&) override;
     void apply_transform(ApplyTransform const&) override;
     void apply_mask_bitmap(ApplyMaskBitmap const&) override;
+
+    void add_clip_path(Gfx::Path const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 

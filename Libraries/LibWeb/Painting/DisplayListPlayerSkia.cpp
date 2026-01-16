@@ -201,12 +201,6 @@ void DisplayListPlayerSkia::add_clip_rect(AddClipRect const& command)
     canvas.clipRect(to_skia_rect(rect), true);
 }
 
-void DisplayListPlayerSkia::add_clip_path(AddClipPath const& command)
-{
-    auto& canvas = surface().canvas();
-    canvas.clipPath(to_skia_path(command.path), true);
-}
-
 void DisplayListPlayerSkia::save(Save const&)
 {
     auto& canvas = surface().canvas();
@@ -1014,6 +1008,12 @@ void DisplayListPlayerSkia::apply_mask_bitmap(ApplyMaskBitmap const& command)
     SkRuntimeShaderBuilder builder(effect);
     builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
     canvas.clipShader(builder.makeShader());
+}
+
+void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path)
+{
+    auto& canvas = surface().canvas();
+    canvas.clipPath(to_skia_path(path), true);
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const

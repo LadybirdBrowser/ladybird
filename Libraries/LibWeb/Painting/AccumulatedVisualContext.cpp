@@ -61,6 +61,14 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
                 if (!clip.rect.contains(point_in_document))
                     return {};
                 return point;
+            },
+            [&](ClipPathData const& clip_path) -> Optional<CSSPixelPoint> {
+                auto point_in_document = current_to_document.map(point.to_type<float>()).to_type<CSSPixels>();
+                if (!clip_path.bounding_rect.contains(point_in_document))
+                    return {};
+                if (!clip_path.path.contains(point_in_document.to_type<float>(), clip_path.fill_rule))
+                    return {};
+                return point;
             });
 
         if (!result.has_value())
@@ -94,6 +102,10 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
                 auto const& corner_radii = clip.corner_radii;
                 builder.appendff(" radii=({},{},{},{})", corner_radii.top_left.horizontal_radius, corner_radii.top_right.horizontal_radius, corner_radii.bottom_right.horizontal_radius, corner_radii.bottom_left.horizontal_radius);
             }
+        },
+        [&](ClipPathData const& clip_path) {
+            auto const& rect = clip_path.bounding_rect;
+            builder.appendff("clip_path=[bounds: {},{} {}x{}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float());
         });
 }
 

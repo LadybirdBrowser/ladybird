@@ -141,17 +141,6 @@ struct AddClipRect {
     void dump(StringBuilder&) const;
 };
 
-struct AddClipPath {
-    static constexpr StringView command_name = "AddClipPath"sv;
-
-    Gfx::Path path;
-    Gfx::IntRect bounding_rectangle;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return bounding_rectangle; }
-    bool is_clip_or_mask() const { return true; }
-    void dump(StringBuilder&) const;
-};
-
 struct PaintLinearGradient {
     static constexpr StringView command_name = "PaintLinearGradient"sv;
 
@@ -418,7 +407,6 @@ using DisplayListCommand = Variant<
     Restore,
     Translate,
     AddClipRect,
-    AddClipPath,
     PaintLinearGradient,
     PaintRadialGradient,
     PaintConicGradient,

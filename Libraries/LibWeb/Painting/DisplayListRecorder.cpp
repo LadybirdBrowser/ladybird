@@ -256,11 +256,6 @@ void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
     APPEND(AddClipRect { rect });
 }
 
-void DisplayListRecorder::add_clip_path(Gfx::Path const& path, Gfx::IntRect bounding_rect)
-{
-    APPEND(AddClipPath { .path = path, .bounding_rectangle = bounding_rect });
-}
-
 void DisplayListRecorder::translate(Gfx::IntPoint delta)
 {
     APPEND(Translate { delta });
