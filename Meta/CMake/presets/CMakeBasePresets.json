@@ -1,0 +1,152 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "base",
+      "displayName": "Default Config",
+      "generator": "Ninja",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/release",
+      "cacheVariables": {
+        "LADYBIRD_CACHE_DIR": "$env{LADYBIRD_SOURCE_DIR}/Build/caches",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALL_OPTIONS": "--no-print-usage"
+      },
+      "environment": {
+        "LADYBIRD_SOURCE_DIR": "${fileDir}/../../..",
+        "VCPKG_ROOT": "$env{LADYBIRD_SOURCE_DIR}/Build/vcpkg",
+        "VCPKG_BINARY_SOURCES": "clear;files,$env{LADYBIRD_SOURCE_DIR}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
+        "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Default"
+        }
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Release_base",
+      "inherits": "base",
+      "displayName": "Release Config",
+      "description": "Release build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Debug_base",
+      "inherits": "base",
+      "displayName": "Debug Config",
+      "description": "Debug build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/debug-triplets"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Sanitizer_base",
+      "inherits": "base",
+      "displayName": "Sanitizer Config",
+      "description": "Sanitizer build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/sanitizers",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ENABLE_UNDEFINED_SANITIZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/sanitizer-triplets"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "All_Debug_base",
+      "inherits": "base",
+      "displayName": "All Debug Config",
+      "description": "All Debug build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/alldebug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/debug-triplets",
+        "ENABLE_ALL_THE_DEBUG_MACROS": "ON"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Distribution_base",
+      "inherits": "base",
+      "displayName": "Distribution Config",
+      "description": "Distribution build with static libraries",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/distribution",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/distribution-triplets"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Fuzzers_base",
+      "inherits": "base",
+      "displayName": "Fuzzers Config",
+      "description": "Fuzzers build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/fuzzers",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ENABLE_QT": "OFF",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/distribution-triplets",
+        "ENABLE_FUZZERS_LIBFUZZER": "ON",
+        "ENABLE_ADDRESS_SANITIZER": "ON"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "Swift_Release_base",
+      "inherits": "base",
+      "displayName": "Swift Release Config",
+      "description": "Swift-enabled release build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/swift",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets",
+        "ENABLE_SWIFT": "ON",
+        "CMAKE_C_COMPILER": "MustBeSetManually",
+        "CMAKE_CXX_COMPILER": "MustBeSetManually++"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Swift"
+        }
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "hidden": true,
+      "name": "base",
+      "targets": [
+        "all"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "hidden": true,
+      "name": "base",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      },
+      "environment": {
+        "LADYBIRD_SOURCE_DIR": "${fileDir}/../../.."
+      }
+    }
+  ]
+}

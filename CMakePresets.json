@@ -1,365 +1,63 @@
 {
-  "version": 6,
+  "version": 9,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 25,
+    "minor": 30,
     "patch": 0
   },
-  "configurePresets": [
-    {
-      "hidden": true,
-      "name": "base",
-      "displayName": "Default Config",
-      "generator": "Ninja",
-      "binaryDir": "${fileDir}/Build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "LADYBIRD_CACHE_DIR": "${fileDir}/Build/caches",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
-      },
-      "environment": {
-        "LADYBIRD_SOURCE_DIR": "${fileDir}",
-        "VCPKG_ROOT": "${fileDir}/Build/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
-        "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
-      },
-      "vendor": {
-        "jetbrains.com/clion": {
-          "toolchain": "Default"
-        }
-      }
-    },
-    {
-      "hidden": true,
-      "name": "unix_base",
-      "inherits": "base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "hidden": true,
-      "name": "windows_base",
-      "inherits": "base",
-      "description": "Visual Studio via Clang/LLVM Toolchain",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-cl",
-        "CMAKE_CXX_COMPILER": "clang-cl"
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "intelliSenseMode": "windows-clang-x64"
-        }
-      },
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "name": "Release",
-      "inherits": "unix_base",
-      "displayName": "Release Config",
-      "description": "Release Unix build"
-    },
-    {
-      "name": "Debug",
-      "inherits": "unix_base",
-      "displayName": "Debug Config",
-      "description": "Debug Unix build",
-      "binaryDir": "${fileDir}/Build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
-      }
-    },
-    {
-      "name": "All_Debug",
-      "inherits": "unix_base",
-      "displayName": "All Debug Config",
-      "description": "All Debug Unix build",
-      "binaryDir": "${fileDir}/Build/alldebug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets",
-        "ENABLE_ALL_THE_DEBUG_MACROS": "ON"
-      }
-    },
-    {
-      "name": "Windows_Experimental_Release",
-      "inherits": "windows_base",
-      "displayName": "Windows Experimental Release Config",
-      "description": "Experimental Windows Release build. Not all targets in this preset are built and there is minimal runtime support"
-    },
-    {
-      "name": "Windows_Experimental_Debug",
-      "inherits": "windows_base",
-      "displayName": "Windows Experimental Debug Config",
-      "description": "Experimental Windows Debug build. Not all targets in this preset are built and there is minimal runtime support",
-      "binaryDir": "${fileDir}/Build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
-      }
-    },
-    {
-      "name": "Distribution",
-      "inherits": "unix_base",
-      "displayName": "Distribution Config",
-      "description": "Distribution build with static libraries",
-      "binaryDir": "${fileDir}/Build/distribution",
-      "cacheVariables": {
-        "BUILD_SHARED_LIBS": "OFF",
-        "CMAKE_BUILD_TYPE": "Release",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets"
-      }
-    },
-    {
-      "name": "Sanitizer",
-      "inherits": [
-        "unix_base",
-        "Release"
-      ],
-      "displayName": "Sanitizer Config",
-      "description": "Sanitizer Unix build",
-      "binaryDir": "${fileDir}/Build/sanitizers",
-      "cacheVariables": {
-        "ENABLE_UNDEFINED_SANITIZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
-      }
-    },
-    {
-      "name": "Windows_Experimental_Sanitizer",
-      "inherits": "windows_base",
-      "displayName": "Windows Experimental Sanitizer Config",
-      "description": "Experimental Windows Sanitizer build. Not all targets in this preset are built and there is minimal runtime support",
-      "binaryDir": "${fileDir}/Build/sanitizers",
-      "cacheVariables": {
-        "ENABLE_UNDEFINED_SANITIZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON",
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/sanitizer-triplets"
-      }
-    },
-    {
-      "name": "Fuzzers",
-      "inherits": "unix_base",
-      "displayName": "Fuzzers Config",
-      "description": "Fuzzers Unix build",
-      "binaryDir": "${fileDir}/Build/fuzzers",
-      "cacheVariables": {
-        "BUILD_SHARED_LIBS": "OFF",
-        "ENABLE_QT": "OFF",
-        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets",
-        "ENABLE_FUZZERS_LIBFUZZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON"
-      }
-    },
-    {
-      "name": "Swift_Release",
-      "inherits": "unix_base",
-      "displayName": "Swift Release Config",
-      "description": "Swift-enabled Unix release build",
-      "binaryDir": "${fileDir}/Build/swift",
-      "cacheVariables": {
-        "ENABLE_SWIFT": "ON",
-        "CMAKE_C_COMPILER": "MustBeSetManually",
-        "CMAKE_CXX_COMPILER": "MustBeSetManually++"
-      },
-      "vendor": {
-        "jetbrains.com/clion": {
-          "toolchain": "Swift"
-        }
-      }
-    }
+  "include": [
+    "Meta/CMake/presets/CMake${hostSystemName}Presets.json"
   ],
   "buildPresets": [
     {
-      "hidden": true,
-      "name": "base",
-      "targets": [
-        "all"
-      ]
-    },
-    {
-      "hidden": true,
-      "name": "unix_base",
-      "inherits": "base",
-      "configurePreset": "unix_base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "hidden": true,
-      "name": "windows_base",
-      "inherits": "base",
-      "configurePreset": "windows_base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
       "name": "Release",
-      "inherits": "unix_base",
+      "inherits": "base",
       "configurePreset": "Release",
       "displayName": "Release Build",
-      "description": "Build the project in release on Unix"
+      "description": "Build the project in release"
     },
     {
       "name": "Debug",
-      "inherits": "unix_base",
+      "inherits": "base",
       "configurePreset": "Debug",
       "displayName": "Debug Build",
-      "description": "Build the project in debug on Unix"
-    },
-    {
-      "name": "Windows_Experimental_Release",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental_Release",
-      "displayName": "Windows Experimental Release Build",
-      "description": "Build the project in release on Windows. Not all targets in this preset are built and there is minimal runtime support"
-    },
-    {
-      "name": "Windows_Experimental_Debug",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental_Debug",
-      "displayName": "Windows Experimental Debug Build",
-      "description": "Build the project in debug on Windows. Not all targets in this preset are built and there is minimal runtime support"
-    },
-    {
-      "name": "Distribution",
-      "inherits": "unix_base",
-      "configurePreset": "Distribution",
-      "displayName": "Distribution Build",
-      "description": "Build the project for distribution on Unix"
+      "description": "Build the project in debug"
     },
     {
       "name": "Sanitizer",
-      "inherits": "unix_base",
+      "inherits": "base",
       "configurePreset": "Sanitizer",
       "displayName": "Sanitizer Build",
       "description": "Build the project with Sanitizers on Unix"
-    },
-    {
-      "name": "Windows_Experimental_Sanitizer",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental_Sanitizer",
-      "displayName": "Windows Experimental Sanitizer Build",
-      "description": "Build the project with Sanitizers on Windows. Not all targets in this preset are built and there is minimal runtime support"
-    },
-    {
-      "name": "Swift_Release",
-      "inherits": "unix_base",
-      "configurePreset": "Swift_Release",
-      "displayName": "Swift Release Build",
-      "description": "Build the project for Swift release on Unix"
     }
   ],
   "testPresets": [
     {
       "hidden": true,
-      "name": "base",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error",
-        "stopOnFailure": true
-      },
+      "name": "root_base",
+      "inherits": "base",
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}"
       }
     },
     {
-      "hidden": true,
-      "name": "windows_base",
-      "configurePreset": "windows_base",
-      "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "hidden": true,
-      "name": "unix_base",
-      "configurePreset": "unix_base",
-      "inherits": "base",
-      "condition": {
-        "type": "notEquals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "hidden": true,
-      "name": "sanitizer_base",
-      "environment": {
-        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
-        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
-      }
-    },
-    {
       "name": "Release",
-      "inherits": "unix_base",
+      "inherits": "root_base",
       "configurePreset": "Release"
     },
     {
       "name": "Debug",
-      "inherits": "unix_base",
+      "inherits": "root_base",
       "configurePreset": "Debug"
     },
     {
-      "name": "Windows_Experimental_Release",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental_Release"
-    },
-    {
-      "name": "Windows_Experimental_Debug",
-      "inherits": "windows_base",
-      "configurePreset": "Windows_Experimental_Debug"
-    },
-    {
-      "name": "Distribution",
-      "inherits": "unix_base",
-      "configurePreset": "Distribution"
-    },
-    {
       "name": "Sanitizer",
-      "inherits": [
-        "unix_base",
-        "sanitizer_base"
-      ],
-      "configurePreset": "Sanitizer"
-    },
-    {
-      "name": "Windows_Experimental_Sanitizer",
-      "inherits":  [
-        "windows_base",
-        "sanitizer_base"
-      ],
-      "configurePreset": "Windows_Experimental_Sanitizer"
-    },
-    {
-      "name": "Swift_Release",
-      "inherits": "unix_base",
-      "configurePreset": "Swift_Release"
+      "inherits": "root_base",
+      "configurePreset": "Sanitizer",
+      "environment": {
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
+      }
     }
   ]
 }

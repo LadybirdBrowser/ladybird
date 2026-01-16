@@ -6,7 +6,7 @@ In case of an error, you might find an answer of how to deal with it here.
 
 ### CMake fails to configure the build because it's outdated
 
-Ensure your CMake version is >= 3.25 with `cmake --version`. If your system doesn't provide a suitable
+Ensure your CMake version is >= 3.30 with `cmake --version`. If your system doesn't provide a suitable
 version of CMake, you can download a binary release from the [CMake website](https://cmake.org/download).
 
 ### GCC is missing or is outdated
