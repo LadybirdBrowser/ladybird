@@ -37,9 +37,7 @@ def main():
     preset_parser.add_argument(
         "--preset",
         required=False,
-        default=os.environ.get(
-            "BUILD_PRESET", "Windows_Experimental_Release" if platform.host_system == HostSystem.Windows else "Release"
-        ),
+        default=os.environ.get("BUILD_PRESET", "Release"),
     )
 
     compiler_parser = argparse.ArgumentParser(add_help=False)
@@ -276,9 +274,6 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
         "Swift_Release": build_root_dir / "swift",
-        "Windows_Experimental_Debug": build_root_dir / "debug",
-        "Windows_Experimental_Release": build_root_dir / "release",
-        "Windows_Experimental_Sanitizer": build_root_dir / "sanitizers",
     }
 
     build_preset_dir = known_presets.get(preset, None)
@@ -300,8 +295,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
 
 
 def validate_cmake_version():
-    # FIXME: This 3.25+ CMake version check may not be needed anymore due to vcpkg downloading a newer version
-    cmake_install_message = "Please install CMake version 3.25 or newer."
+    cmake_install_message = "Please install CMake version 3.30 or newer."
 
     cmake_version_output = run_command(["cmake", "--version"], return_output=True, exit_on_failure=True)
     assert cmake_version_output
@@ -315,7 +309,7 @@ def validate_cmake_version():
     minor = int(version_match.group(2))
     patch = int(version_match.group(3))
 
-    if major < 3 or (major == 3 and minor < 25):
+    if major < 3 or (major == 3 and minor < 30):
         print(f"CMake version {major}.{minor}.{patch} is too old. {cmake_install_message}", file=sys.stderr)
         sys.exit(1)
 

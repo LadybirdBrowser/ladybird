@@ -7,7 +7,7 @@ Qt6 development packages, nasm, additional build tools, and a C++23 capable comp
 We currently use gcc-14 and clang-20 in our CI pipeline. If these versions are not available on your system, see
 [`Meta/find_compiler.py`](../Meta/find_compiler.py) for the minimum compatible version.
 
-CMake 3.25 or newer must be available in $PATH.
+CMake 3.30 or newer must be available in $PATH.
 
 ---
 
@@ -18,9 +18,9 @@ CMake 3.25 or newer must be available in $PATH.
 sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libdrm-dev libgl1-mesa-dev libtool nasm ninja-build pkg-config python3-venv qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
-#### CMake 3.25 or newer:
+#### CMake 3.30 or newer:
 
-- Recommendation: Install `CMake 3.25` or newer from [Kitware's apt repository](https://apt.kitware.com/):
+- Recommendation: Install `CMake 3.30` or newer from [Kitware's apt repository](https://apt.kitware.com/):
 
 > [!NOTE]
 > This repository is Ubuntu-only

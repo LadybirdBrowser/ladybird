@@ -193,7 +193,7 @@ jobs:
       # === TEST ===
 
       - name: Test
-        if: ${{ contains(inputs.build_preset, 'Sanitizer') }}
+        if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
         env:
@@ -203,7 +203,7 @@ jobs:
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && !contains(inputs.build_preset, 'Sanitizer') }}
+        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --test-dir Build --timeout 1800
         env:
@@ -219,7 +219,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Sanitizer Output
-        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ !cancelled() && inputs.os_name != 'Windows' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
           log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
