@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/MainThreadAssertions.h>
 #include <AK/Platform.h>
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
@@ -264,6 +265,7 @@ AK::JsonObject Heap::dump_graph()
 
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
+    ASSERT_ON_MAIN_THREAD();
     VERIFY(!m_collecting_garbage);
 
     {

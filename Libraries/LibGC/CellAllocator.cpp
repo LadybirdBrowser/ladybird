@@ -5,6 +5,7 @@
  */
 
 #include <AK/Badge.h>
+#include <AK/MainThreadAssertions.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
@@ -22,6 +23,7 @@ CellAllocator::CellAllocator(size_t cell_size, StringView class_name, bool overr
 
 Cell* CellAllocator::allocate_cell(Heap& heap)
 {
+    ASSERT_ON_MAIN_THREAD();
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);
 
