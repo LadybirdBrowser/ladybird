@@ -1,0 +1,3 @@
+Inside circle: PASS
+Outside circle (in bbox): FAIL
+Inside circle edge: PASS
