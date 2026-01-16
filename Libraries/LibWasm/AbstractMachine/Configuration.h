@@ -129,10 +129,10 @@ public:
         arguments.ensure_capacity(max(max_size, frame().module().cached_minimum_call_record_allocation_size));
     }
 
-    void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments)
+    void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments, bool expect_frame = true)
     {
         arguments.clear_with_capacity(); // Clear to avoid copying, but keep capacity for reuse.
-        auto size = frame().expression().compiled_instructions.max_call_rec_size;
+        auto size = expect_frame ? frame().expression().compiled_instructions.max_call_rec_size : 0;
 
         if (size > 0) {
             // If we need a call record, keep this as the current one.
