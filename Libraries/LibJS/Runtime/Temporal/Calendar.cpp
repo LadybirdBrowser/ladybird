@@ -655,9 +655,8 @@ ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView cal
     // 2. Let result be ? CalendarMonthDayToISOReferenceDate(calendar, fields, overflow).
     auto result = TRY(calendar_month_day_to_iso_reference_date(vm, calendar, fields, overflow));
 
-    // 3. If ISODateWithinLimits(result) is false, throw a RangeError exception.
-    if (!iso_date_within_limits(result))
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
+    // 3. Assert: ISODateWithinLimits(result) is true.
+    VERIFY(iso_date_within_limits(result));
 
     // 4. Return result.
     return result;
