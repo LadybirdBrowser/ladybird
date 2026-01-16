@@ -22,6 +22,7 @@
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/Serial/Serial.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
+#include <LibWeb/WebGPU/GPU.h>
 
 namespace Web::HTML {
 
@@ -62,6 +63,7 @@ public:
     [[nodiscard]] GC::Ref<PluginArray> plugins();
     [[nodiscard]] GC::Ref<Clipboard::Clipboard> clipboard();
     [[nodiscard]] GC::Ref<Geolocation::Geolocation> geolocation();
+    [[nodiscard]] GC::Ref<WebGPU::GPU> gpu();
     [[nodiscard]] GC::Ref<Serial::Serial> serial();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
@@ -95,6 +97,9 @@ private:
 
     // https://w3c.github.io/geolocation/#navigator_interface
     GC::Ptr<Geolocation::Geolocation> m_geolocation;
+
+    // https://gpuweb.github.io/gpuweb/#navigator-gpu
+    GC::Ptr<WebGPU::GPU> m_gpu;
 
     // https://wicg.github.io/serial/#extensions-to-the-navigator-interface
     GC::Ptr<Serial::Serial> m_serial;

@@ -18,9 +18,14 @@ if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     endif()
 endif()
 
+include("Meta/CMake/webgpu_backend.cmake")
+
 # Pass additional information to vcpkg toolchain files if we are using vcpkg.
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
+    if (LADYBIRD_WEBGPU_BACKEND STREQUAL "Dawn")
+        set(VCPKG_MANIFEST_FEATURES "webgpu-dawn")
+    endif()
 endif()
 
 if (APPLE AND NOT CMAKE_OSX_SYSROOT)

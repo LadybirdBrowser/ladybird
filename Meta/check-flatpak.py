@@ -47,10 +47,7 @@ flatpak_runtime_libs = [
 ]
 
 # List of libraries that are in vcpkg but not needed for the Linux platform
-vcpkg_not_linux = [
-    "dirent",
-    "mman",
-]
+vcpkg_not_linux = ["dirent", "mman", "dawn"]
 
 
 class DepMatch(Enum):
