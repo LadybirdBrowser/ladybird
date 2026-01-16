@@ -12,6 +12,7 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibTextCodec/Export.h>
 #include <LibTextCodec/Forward.h>
 
 namespace TextCodec {
