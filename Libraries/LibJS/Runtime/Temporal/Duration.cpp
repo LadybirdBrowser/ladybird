@@ -472,9 +472,8 @@ bool is_valid_duration(double years, double months, double weeks, double days, d
 
     // 2. For each value v of « years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds », do
     for (auto value : { years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds }) {
-        // a. If 𝔽(v) is not finite, return false.
-        if (!isfinite(value))
-            return false;
+        // a. Assert: 𝔽(v) is finite.
+        VERIFY(isfinite(value));
 
         // b. If v < 0, then
         if (value < 0) {
