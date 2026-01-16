@@ -451,6 +451,9 @@ void Request::handle_connect_state()
     };
 
     set_option(CURLOPT_PRIVATE, this);
+
+    set_option(CURLOPT_NOSIGNAL, 1L);
+
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
@@ -484,6 +487,8 @@ void Request::handle_fetch_state()
     };
 
     set_option(CURLOPT_PRIVATE, this);
+
+    set_option(CURLOPT_NOSIGNAL, 1L);
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
