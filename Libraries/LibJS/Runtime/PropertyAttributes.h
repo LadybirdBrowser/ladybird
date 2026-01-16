@@ -27,17 +27,17 @@ struct Attribute {
 // 6.1.7.1 Property Attributes, https://tc39.es/ecma262/#sec-property-attributes
 class PropertyAttributes {
 public:
-    PropertyAttributes(u8 bits = 0)
+    constexpr PropertyAttributes(u8 bits = 0)
         : m_bits(bits)
     {
     }
 
-    [[nodiscard]] bool is_writable() const { return m_bits & Attribute::Writable; }
-    [[nodiscard]] bool is_enumerable() const { return m_bits & Attribute::Enumerable; }
-    [[nodiscard]] bool is_configurable() const { return m_bits & Attribute::Configurable; }
-    [[nodiscard]] bool is_unimplemented() const { return m_bits & Attribute::Unimplemented; }
+    [[nodiscard]] constexpr bool is_writable() const { return m_bits & Attribute::Writable; }
+    [[nodiscard]] constexpr bool is_enumerable() const { return m_bits & Attribute::Enumerable; }
+    [[nodiscard]] constexpr bool is_configurable() const { return m_bits & Attribute::Configurable; }
+    [[nodiscard]] constexpr bool is_unimplemented() const { return m_bits & Attribute::Unimplemented; }
 
-    void set_writable(bool writable = true)
+    constexpr void set_writable(bool writable = true)
     {
         if (writable)
             m_bits |= Attribute::Writable;
@@ -45,7 +45,7 @@ public:
             m_bits &= ~Attribute::Writable;
     }
 
-    void set_enumerable(bool enumerable = true)
+    constexpr void set_enumerable(bool enumerable = true)
     {
         if (enumerable)
             m_bits |= Attribute::Enumerable;
@@ -53,7 +53,7 @@ public:
             m_bits &= ~Attribute::Enumerable;
     }
 
-    void set_configurable(bool configurable = true)
+    constexpr void set_configurable(bool configurable = true)
     {
         if (configurable)
             m_bits |= Attribute::Configurable;
@@ -61,15 +61,15 @@ public:
             m_bits &= ~Attribute::Configurable;
     }
 
-    bool operator==(PropertyAttributes const& other) const { return m_bits == other.m_bits; }
+    constexpr bool operator==(PropertyAttributes const& other) const { return m_bits == other.m_bits; }
 
-    [[nodiscard]] u8 bits() const { return m_bits; }
+    [[nodiscard]] constexpr u8 bits() const { return m_bits; }
 
 private:
     u8 m_bits;
 };
 
-PropertyAttributes const default_attributes = Attribute::Configurable | Attribute::Writable | Attribute::Enumerable;
+static constexpr PropertyAttributes default_attributes = Attribute::Configurable | Attribute::Writable | Attribute::Enumerable;
 
 }
 
