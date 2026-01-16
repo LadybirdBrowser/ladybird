@@ -66,7 +66,7 @@ if (ENABLE_LAGOM_CCACHE)
 endif()
 
 if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
-	set(ENABLE_FUZZERS ON)
+    set(ENABLE_FUZZERS ON)
 endif()
 
 # We need to make sure not to build code generators for Fuzzer builds, as they already have their own main.cpp
@@ -117,7 +117,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         message(FATAL_ERROR
             "Fuzzer Sanitizer (-fsanitize=fuzzer) is only supported for Fuzzer targets with LLVM. "
             "Reconfigure CMake with -DCMAKE_C_COMPILER and -DCMAKE_CXX_COMPILER pointing to a clang-based toolchain "
-	    "or build binaries without built-in fuzzing support by setting -DENABLE_FUZZERS instead."
+     "or build binaries without built-in fuzzing support by setting -DENABLE_FUZZERS instead."
         )
     endif()
 endif()
@@ -195,7 +195,7 @@ install(TARGETS NoCoverage EXPORT LagomTargets)
 # AK
 add_ladybird_subdirectory(AK)
 
-# LibCoreMinimal
+# LibCore
 add_ladybird_subdirectory(Libraries/LibCore)
 
 # LibMain
