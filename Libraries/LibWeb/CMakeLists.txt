@@ -367,8 +367,9 @@ set(SOURCES
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoderCommon.cpp
     Encoding/TextDecoder.cpp
-    Encoding/TextEncoder.cpp
+    Encoding/TextDecoderStream.cpp
     Encoding/TextEncoderCommon.cpp
+    Encoding/TextEncoder.cpp
     Encoding/TextEncoderStream.cpp
     EncryptedMediaExtensions/Algorithms.cpp
     EncryptedMediaExtensions/MediaKeySystemAccess.cpp
