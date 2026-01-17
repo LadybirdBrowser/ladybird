@@ -734,8 +734,13 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             timing_info->set_server_timing_headers(server_timing_headers.release_value());
     }
 
-    // 3. Let processResponseEndOfBody be the following steps:
-    auto process_response_end_of_body = [&vm, &response, &fetch_params, timing_info] {
+    // AD-HOC: We extract steps 1-3 of processResponseEndOfBody into a separate lambda so we can also call it from
+    //         the error path. The fetch spec only runs processResponseEndOfBody on successful body read (via the
+    //         transform stream's flush algorithm). However, processResponseConsumeBody is called for both success
+    //         and failure, and specs like HTML's preload algorithm expect to be able to call reportTiming from
+    //         within processResponseConsumeBody. So we ensure report_timing_steps is set on error too, which allows
+    //         reportTiming to work without asserting, and still produces useful timing data for failed fetches.
+    auto setup_report_timing_steps = [&vm, &response, &fetch_params, timing_info] {
         // 1. Let unsafeEndTime be the unsafe shared current time.
         auto unsafe_end_time = HighResolutionTime::unsafe_shared_current_time();
 
@@ -794,6 +799,12 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                 ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, fetch_params.request()->url().to_string(), Infrastructure::initiator_type_to_string(fetch_params.request()->initiator_type().value()), global, cache_state, body_info, response_status);
             }
         });
+    };
+
+    // 3. Let processResponseEndOfBody be the following steps:
+    auto process_response_end_of_body = [&vm, &fetch_params, &response, setup_report_timing_steps] {
+        // 1-3. (See setup_report_timing_steps above)
+        setup_report_timing_steps();
 
         // 4. Let processResponseEndOfBodyTask be the following steps:
         auto process_response_end_of_body_task = GC::create_function(vm.heap(), [&fetch_params, &response] {
@@ -870,7 +881,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
         //    failure.
-        auto process_body_error = GC::create_function(vm.heap(), [&fetch_params, &response](JS::Value) {
+        auto process_body_error = GC::create_function(vm.heap(), [&fetch_params, &response, setup_report_timing_steps](JS::Value) {
+            // AD-HOC: See comment on setup_report_timing_steps above.
+            setup_report_timing_steps();
             (fetch_params.algorithms()->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
         });
 
