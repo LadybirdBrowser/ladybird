@@ -693,11 +693,11 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::EarlyHint);
 
     // 9. Let controller be null.
-    m_fetch_controller = nullptr;
+    auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create(vm);
 
     // 10. Let reportTiming given a Document document be to report timing for controller given document's relevant global object.
-    auto report_timing = GC::Function<void(DOM::Document const&)>::create(realm.heap(), [this](DOM::Document const& document) {
-        m_fetch_controller->report_timing(relevant_global_object(document));
+    auto report_timing = GC::Function<void(DOM::Document const&)>::create(realm.heap(), [controller_holder](DOM::Document const& document) {
+        controller_holder->controller()->report_timing(relevant_global_object(document));
     });
 
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
@@ -734,6 +734,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+    controller_holder->set_controller(*m_fetch_controller);
 
     // 12. Let commit be the following steps given a Document document:
     auto commit = GC::Function<void(DOM::Document&)>::create(realm.heap(), [entry, report_timing](DOM::Document& document) {
