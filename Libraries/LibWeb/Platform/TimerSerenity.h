@@ -7,12 +7,14 @@
 #pragma once
 
 #include <LibCore/Forward.h>
+#include <LibGC/CellAllocator.h>
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::Platform {
 
 class TimerSerenity final : public Timer {
     GC_CELL(TimerSerenity, Timer);
+    GC_DECLARE_ALLOCATOR(TimerSerenity);
 
 public:
     static GC::Ref<TimerSerenity> create(GC::Heap&);

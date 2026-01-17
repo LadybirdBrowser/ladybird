@@ -30,6 +30,8 @@
 
 namespace Web::Painting {
 
+GC_DEFINE_ALLOCATOR(PaintableBox);
+
 static bool g_paint_viewport_scrollbars = true;
 
 namespace {

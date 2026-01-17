@@ -11,6 +11,8 @@
 
 namespace Web::Platform {
 
+GC_DEFINE_ALLOCATOR(TimerSerenity);
+
 GC::Ref<TimerSerenity> TimerSerenity::create(GC::Heap& heap)
 {
     return heap.allocate<TimerSerenity>();
