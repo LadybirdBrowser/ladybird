@@ -50,10 +50,8 @@ WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm&
 // https://encoding.spec.whatwg.org/#dom-textdecoder
 TextDecoder::TextDecoder(JS::Realm& realm, TextCodec::Decoder& decoder, FlyString encoding, bool fatal, bool ignore_bom)
     : PlatformObject(realm)
+    , TextDecoderCommonMixin(move(encoding), fatal, ignore_bom)
     , m_decoder(decoder)
-    , m_encoding(move(encoding))
-    , m_fatal(fatal)
-    , m_ignore_bom(ignore_bom)
 {
 }
 

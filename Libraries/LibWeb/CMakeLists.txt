@@ -365,6 +365,7 @@ set(SOURCES
     Editing/Commands.cpp
     Editing/ExecCommand.cpp
     Editing/Internal/Algorithms.cpp
+    Encoding/TextDecoderCommon.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
     Encoding/TextEncoderCommon.cpp
