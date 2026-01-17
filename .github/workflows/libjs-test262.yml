@@ -53,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
+          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 cmake jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
 
           WASM_TOOLS_VERSION=1.243.0
           test -e /opt/wasm-tools-${WASM_TOOLS_VERSION} || (
