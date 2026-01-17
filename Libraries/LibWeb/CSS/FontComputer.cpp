@@ -293,7 +293,7 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_desce
 
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
+RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations) const
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
@@ -329,9 +329,6 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
     // If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
     // are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
     // in descending order, followed by weights greater than 500, until a match is found.
-
-    Gfx::FontVariationSettings variations;
-    variations.set_weight(weight);
 
     if (weight >= 400 && weight <= 500) {
         auto it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
@@ -390,6 +387,19 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
 
+    Gfx::FontVariationSettings variation;
+    variation.set_weight(font_weight);
+
+    for (auto const& [tag_string, value] : font_variation_settings) {
+        auto string_view = tag_string.bytes_as_string_view();
+        if (string_view.length() != 4)
+            continue;
+
+        auto tag = Gfx::FourCC(string_view.characters_without_null_termination());
+
+        variation.axes.set(tag, value);
+    }
+
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 
     float const font_size_in_pt = font_size * 0.75f;
@@ -404,19 +414,6 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
             auto const& loaders = it->value;
 
-            Gfx::FontVariationSettings variation;
-            variation.set_weight(font_weight);
-
-            for (auto const& [tag_string, value] : font_variation_settings) {
-                auto string_view = tag_string.bytes_as_string_view();
-                if (string_view.length() != 4)
-                    continue;
-
-                auto tag = Gfx::FourCC(string_view.characters_without_null_termination());
-
-                variation.axes.set(tag, value);
-            }
-
             for (auto const& loader : loaders) {
                 if (auto found_font = loader->font_with_point_size(font_size_in_pt, variation))
                     result->add(*found_font, loader->unicode_ranges());
@@ -425,7 +422,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
             return result;
         }
 
-        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt); found_font && !found_font->is_empty()) {
+        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt, variation); found_font && !found_font->is_empty()) {
             return found_font;
         }
 
