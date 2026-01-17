@@ -16,6 +16,7 @@ namespace Web::Painting {
 class SVGGraphicsPaintable : public SVGPaintable
     , public SVGMaskable {
     GC_CELL(SVGGraphicsPaintable, SVGPaintable);
+    GC_DECLARE_ALLOCATOR(SVGGraphicsPaintable);
 
 public:
     class ComputedTransforms {

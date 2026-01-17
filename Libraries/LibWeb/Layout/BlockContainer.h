@@ -14,6 +14,7 @@ namespace Web::Layout {
 // https://www.w3.org/TR/css-display/#block-container
 class BlockContainer : public Box {
     GC_CELL(BlockContainer, Box);
+    GC_DECLARE_ALLOCATOR(BlockContainer);
 
 public:
     BlockContainer(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);

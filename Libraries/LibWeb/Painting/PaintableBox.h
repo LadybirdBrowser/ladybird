@@ -23,6 +23,7 @@ WEB_API void set_paint_viewport_scrollbars(bool enabled);
 
 class WEB_API PaintableBox : public Paintable {
     GC_CELL(PaintableBox, Paintable);
+    GC_DECLARE_ALLOCATOR(PaintableBox);
 
 public:
     static GC::Ref<PaintableBox> create(Layout::Box const&);
