@@ -288,7 +288,9 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
     pa_buffer_attr buffer_attributes;
     buffer_attributes.maxlength = -1;
     buffer_attributes.prebuf = -1;
-    buffer_attributes.tlength = target_latency_ms * sample_specification.rate / 1000;
+    u64 const target_latency_frames = target_latency_ms * sample_specification.rate / 1000u;
+    u64 const target_latency_bytes = target_latency_frames * pa_frame_size(&sample_specification);
+    buffer_attributes.tlength = static_cast<u32>(min<u64>(target_latency_bytes, NumericLimits<u32>::max()));
     buffer_attributes.minreq = buffer_attributes.tlength / 4;
     buffer_attributes.fragsize = buffer_attributes.minreq;
     auto flags = static_cast<pa_stream_flags>(PA_STREAM_AUTO_TIMING_UPDATE | PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_ADJUST_LATENCY | PA_STREAM_RELATIVE_VOLUME);
