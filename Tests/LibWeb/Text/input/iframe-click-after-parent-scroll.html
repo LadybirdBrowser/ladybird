@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; height: 2000px; }
+    iframe {
+        position: absolute;
+        top: 100px;
+        left: 50px;
+        width: 200px;
+        height: 200px;
+        border: none;
+    }
+</style>
+<iframe srcdoc="
+    <!DOCTYPE html>
+    <style>body { margin: 0; }</style>
+    <div style='width: 100px; height: 100px'
+         onclick='parent.reportClick(event.clientX, event.clientY)'></div>
+"></iframe>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        window.reportClick = function(x, y) {
+            println(`click at (${x}, ${y})`);
+            done();
+        };
+        document.querySelector("iframe").onload = () => {
+            window.scrollTo(0, 50);
+            internals.click(60, 60);
+        };
+    });
+</script>
