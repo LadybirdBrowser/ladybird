@@ -1787,7 +1787,11 @@ void HTMLMediaElement::pause_element()
         });
 
         // 4. Set the official playback position to the current playback position.
-        m_official_playback_position = m_current_playback_position;
+        // AD-HOC: If the seeking attribute is set, we don't want to overwrite the official playback position, since that
+        //         means it is temporarily set to the seeking target position instead of the current playback position.
+        //         See: https://github.com/whatwg/html/issues/11773 and https://github.com/whatwg/html/pull/11792
+        if (!seeking())
+            m_official_playback_position = m_current_playback_position;
     }
 }
 
