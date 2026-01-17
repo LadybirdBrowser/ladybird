@@ -32,6 +32,7 @@
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -227,6 +228,12 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
 
     // and terminate these steps.
     return offset;
+}
+
+static CSSPixelPoint compute_position_in_nested_navigable(Painting::NavigableContainerViewportPaintable const& paintable, CSSPixelPoint viewport_position)
+{
+    auto local_position = paintable.transform_to_local_coordinates(viewport_position);
+    return local_position - paintable.absolute_rect().location();
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select
@@ -440,8 +447,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
         if (node) {
             if (auto* navigable_container = as_if<HTML::NavigableContainer>(*node)) {
-                auto position_in_navigable_container = viewport_position.translated(compute_mouse_event_offset({}, *paintable));
-                auto result = navigable_container->content_navigable()->event_handler().handle_mousewheel(position_in_navigable_container, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
+                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+                auto result = navigable_container->content_navigable()->event_handler().handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
                 if (result == EventResult::Handled)
                     return EventResult::Handled;
             }
@@ -511,9 +518,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         auto node = dom_node_for_event_dispatch(*paintable);
 
         if (node) {
-            if (is<HTML::HTMLIFrameElement>(*node)) {
-                if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                    return content_navigable->event_handler().handle_mouseup(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers);
+            if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+                if (auto content_navigable = iframe_element->content_navigable()) {
+                    auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+                    return content_navigable->event_handler().handle_mouseup(position, screen_position, button, buttons, modifiers);
+                }
                 return EventResult::Dropped;
             }
 
@@ -666,9 +675,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         if (!node)
             return EventResult::Dropped;
 
-        if (is<HTML::HTMLIFrameElement>(*node)) {
-            if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                return content_navigable->event_handler().handle_mousedown(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers);
+        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+            if (auto content_navigable = iframe_element->content_navigable()) {
+                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+                return content_navigable->event_handler().handle_mousedown(position, screen_position, button, buttons, modifiers);
+            }
             return EventResult::Dropped;
         }
 
@@ -855,9 +866,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
         node = dom_node_for_event_dispatch(*paintable);
 
-        if (node && is<HTML::HTMLIFrameElement>(*node)) {
-            if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                return content_navigable->event_handler().handle_mousemove(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, buttons, modifiers);
+        if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(node.ptr())) {
+            if (auto content_navigable = iframe_element->content_navigable()) {
+                auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+                return content_navigable->event_handler().handle_mousemove(position, screen_position, buttons, modifiers);
+            }
             return EventResult::Dropped;
         }
 
@@ -1004,9 +1017,11 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
     if (!node)
         return EventResult::Dropped;
 
-    if (is<HTML::HTMLIFrameElement>(*node)) {
-        if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-            return content_navigable->event_handler().handle_doubleclick(viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers);
+    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+        if (auto content_navigable = iframe_element->content_navigable()) {
+            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+            return content_navigable->event_handler().handle_doubleclick(position, screen_position, button, buttons, modifiers);
+        }
         return EventResult::Dropped;
     }
 
@@ -1085,9 +1100,11 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!node)
         return EventResult::Dropped;
 
-    if (is<HTML::HTMLIFrameElement>(*node)) {
-        if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-            return content_navigable->event_handler().handle_drag_and_drop_event(type, viewport_position.translated(compute_mouse_event_offset({}, *paintable)), screen_position, button, buttons, modifiers, move(files));
+    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+        if (auto content_navigable = iframe_element->content_navigable()) {
+            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+            return content_navigable->event_handler().handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
+        }
         return EventResult::Dropped;
     }
 
