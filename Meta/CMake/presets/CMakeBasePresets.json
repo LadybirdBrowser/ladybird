@@ -6,7 +6,6 @@
       "name": "base",
       "displayName": "Default Config",
       "generator": "Ninja",
-      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/release",
       "cacheVariables": {
         "LADYBIRD_CACHE_DIR": "$env{LADYBIRD_SOURCE_DIR}/Build/caches",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
@@ -27,9 +26,9 @@
     {
       "hidden": true,
       "name": "Release_base",
-      "inherits": "base",
       "displayName": "Release Config",
       "description": "Release build",
+      "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets"
@@ -38,7 +37,6 @@
     {
       "hidden": true,
       "name": "Debug_base",
-      "inherits": "base",
       "displayName": "Debug Config",
       "description": "Debug build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/debug",
@@ -50,7 +48,6 @@
     {
       "hidden": true,
       "name": "Sanitizer_base",
-      "inherits": "base",
       "displayName": "Sanitizer Config",
       "description": "Sanitizer build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/sanitizers",
@@ -64,7 +61,6 @@
     {
       "hidden": true,
       "name": "All_Debug_base",
-      "inherits": "base",
       "displayName": "All Debug Config",
       "description": "All Debug build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/alldebug",
@@ -77,7 +73,6 @@
     {
       "hidden": true,
       "name": "Distribution_base",
-      "inherits": "base",
       "displayName": "Distribution Config",
       "description": "Distribution build with static libraries",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/distribution",
@@ -90,7 +85,6 @@
     {
       "hidden": true,
       "name": "Fuzzers_base",
-      "inherits": "base",
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/fuzzers",
@@ -106,7 +100,6 @@
     {
       "hidden": true,
       "name": "Swift_Release_base",
-      "inherits": "base",
       "displayName": "Swift Release Config",
       "description": "Swift-enabled release build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/swift",
