@@ -65,8 +65,8 @@
       "description": "All Debug build",
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/alldebug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/debug-triplets",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets",
         "ENABLE_ALL_THE_DEBUG_MACROS": "ON"
       }
     },
