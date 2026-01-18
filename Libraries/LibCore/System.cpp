@@ -845,6 +845,16 @@ ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_
     if (sent < 0)
         return Error::from_syscall("sendfile"sv, errno);
     return sent;
+#elif defined(AK_OS_MACOS)
+    auto sent_length = static_cast<off_t>(source_length);
+    if (sent_length == 0)
+        return 0;
+    auto result = ::sendfile(source_fd, target_fd, static_cast<off_t>(source_offset), &sent_length, nullptr, 0);
+    if (result != 0) {
+        if ((errno != EAGAIN && errno != EINTR) || sent_length == 0)
+            return Error::from_syscall("sendfile"sv, errno);
+    }
+    return sent_length;
 #else
     static auto page_size = PAGE_SIZE;
 
