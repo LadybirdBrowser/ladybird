@@ -204,6 +204,7 @@
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
+#include <LibWeb/WebAudio/BackgroundAudioDecoder.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -640,6 +641,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_svg_roots_needing_relayout);
 
     visitor.visit(m_shared_resource_requests);
+
+    if (m_background_audio_decoder)
+        m_background_audio_decoder->visit_edges(visitor);
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_list_of_available_images);
@@ -6002,6 +6006,13 @@ void Document::set_latest_entry(RefPtr<HTML::SessionHistoryEntry> entry)
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
+}
+
+WebAudio::BackgroundAudioDecoder& Document::background_audio_decoder()
+{
+    if (!m_background_audio_decoder)
+        m_background_audio_decoder = make<WebAudio::BackgroundAudioDecoder>(*this);
+    return *m_background_audio_decoder;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function makePcm16MonoWav(sampleRate, samples) {
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const bytesPerSample = bitsPerSample / 8;
+        const dataSize = samples.length * numChannels * bytesPerSample;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        function writeFourCC(offset, fourcc) {
+            for (let i = 0; i < 4; ++i) view.setUint8(offset + i, fourcc.charCodeAt(i));
+        }
+
+        writeFourCC(0, "RIFF");
+        view.setUint32(4, 36 + dataSize, true);
+        writeFourCC(8, "WAVE");
+
+        writeFourCC(12, "fmt ");
+        view.setUint32(16, 16, true); // PCM
+        view.setUint16(20, 1, true); // audio format = PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+        view.setUint16(32, numChannels * bytesPerSample, true);
+        view.setUint16(34, bitsPerSample, true);
+
+        writeFourCC(36, "data");
+        view.setUint32(40, dataSize, true);
+
+        let writeOffset = 44;
+        for (const sample of samples) {
+            view.setInt16(writeOffset, sample, true);
+            writeOffset += 2;
+        }
+
+        return buffer;
+    }
+
+    function floatToFixed(value) {
+        // Keep test output stable.
+        return value.toFixed(6);
+    }
+
+    promiseTest(async () => {
+        const sampleRate = 8000;
+        const samples = [-32768, -16384, 0, 16384, 32767, 8192, -8192, 1];
+        const wavBytes = makePcm16MonoWav(sampleRate, samples);
+
+        const context = new OfflineAudioContext(1, samples.length, sampleRate);
+        const audioBuffer = await context.decodeAudioData(wavBytes);
+
+        println(`channels: ${audioBuffer.numberOfChannels}`);
+        println(`length: ${audioBuffer.length}`);
+        println(`sampleRate: ${audioBuffer.sampleRate}`);
+
+        const channel0 = audioBuffer.getChannelData(0);
+        println(`channel0.length: ${channel0.length}`);
+
+        const count = Math.min(samples.length, channel0.length);
+        for (let i = 0; i < count; ++i)
+            println(`sample[${i}]: ${floatToFixed(channel0[i])}`);
+    });
+</script>

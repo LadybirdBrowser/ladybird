@@ -43,6 +43,12 @@
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::WebAudio {
+
+class BackgroundAudioDecoder;
+
+}
+
 namespace Web::DOM {
 
 enum class QuirksMode {
@@ -791,6 +797,7 @@ public:
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
 
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
+    WebAudio::BackgroundAudioDecoder& background_audio_decoder();
 
     GC::Ref<Animations::DocumentTimeline> timeline();
     auto const& last_animation_frame_timestamp() const { return m_last_animation_frame_timestamp; }
@@ -1388,6 +1395,8 @@ private:
     RefPtr<HTML::SessionHistoryEntry> m_latest_entry;
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
+
+    OwnPtr<WebAudio::BackgroundAudioDecoder> m_background_audio_decoder;
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;

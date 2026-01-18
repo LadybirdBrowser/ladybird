@@ -4,6 +4,7 @@ include(ffmpeg)
 
 set(SOURCES
     Audio/AudioDevices.cpp
+    Audio/AudioDecoding.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     IncrementallyPopulatedStream.cpp

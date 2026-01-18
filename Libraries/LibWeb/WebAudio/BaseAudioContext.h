@@ -29,6 +29,7 @@ namespace Web::WebAudio {
 
 class AudioDestinationNode;
 class ControlMessageQueue;
+class BackgroundAudioDecoder;
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 class BaseAudioContext : public DOM::EventTarget {
@@ -88,7 +89,9 @@ public:
         WebIDL::UnsignedLong number_of_output_channels);
     WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create_stereo_panner();
 
-    GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource> const&, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+
+    bool take_pending_promise(GC::Ref<WebIDL::Promise> const&);
 
     void queue_control_message(ControlMessage);
 
@@ -109,7 +112,7 @@ private:
     // https://webaudio.github.io/web-audio-api/#render-quantum-size
     static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
 
-    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+    friend class BackgroundAudioDecoder;
 
     u64 m_next_node_id { 0 };
 
@@ -121,7 +124,7 @@ private:
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
 
-    HTML::UniqueTaskSource m_media_element_event_task_source {};
+    HTML::UniqueTaskSource m_media_element_event_task_source;
 
     NonnullOwnPtr<ControlMessageQueue> m_control_message_queue;
 };
