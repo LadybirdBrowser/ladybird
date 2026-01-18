@@ -1040,11 +1040,6 @@ void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_dis
     document().set_needs_display(absolute_rect(), should_invalidate_display_list);
 }
 
-RefPtr<Gfx::ImmutableBitmap> PaintableBox::calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const
-{
-    return {};
-}
-
 // https://www.w3.org/TR/css-transforms-1/#reference-box
 CSSPixelRect PaintableBox::transform_reference_box() const
 {

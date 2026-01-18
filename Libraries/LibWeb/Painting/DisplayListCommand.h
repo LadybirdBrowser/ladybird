@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -336,6 +336,7 @@ struct AddMask {
 
     RefPtr<DisplayList> display_list;
     Gfx::IntRect rect;
+    Gfx::MaskKind kind;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     bool is_clip_or_mask() const { return true; }
@@ -388,17 +389,6 @@ struct ApplyTransform {
     void dump(StringBuilder&) const;
 };
 
-struct ApplyMaskBitmap {
-    static constexpr StringView command_name = "ApplyMaskBitmap"sv;
-
-    Gfx::IntPoint origin;
-    NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
-    Gfx::MaskKind kind;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return { origin, bitmap->size() }; }
-    void dump(StringBuilder&) const;
-};
-
 using DisplayListCommand = Variant<
     DrawGlyphRun,
     FillRect,
@@ -429,7 +419,6 @@ using DisplayListCommand = Variant<
     PaintNestedDisplayList,
     PaintScrollBar,
     ApplyEffects,
-    ApplyTransform,
-    ApplyMaskBitmap>;
+    ApplyTransform>;
 
 }

@@ -172,25 +172,6 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::clone() const
     return new_bitmap;
 }
 
-void Bitmap::apply_mask(Gfx::Bitmap const& mask, MaskKind mask_kind)
-{
-    VERIFY(size() == mask.size());
-
-    for (int y = 0; y < height(); y++) {
-        for (int x = 0; x < width(); x++) {
-            auto color = get_pixel(x, y);
-            auto mask_color = mask.get_pixel(x, y);
-            if (mask_kind == MaskKind::Luminance) {
-                color = color.with_alpha(color.alpha() * mask_color.alpha() * mask_color.luminosity() / (255 * 255));
-            } else {
-                VERIFY(mask_kind == MaskKind::Alpha);
-                color = color.with_alpha(color.alpha() * mask_color.alpha() / 255);
-            }
-            set_pixel(x, y, color);
-        }
-    }
-}
-
 ErrorOr<NonnullRefPtr<Gfx::Bitmap>> Bitmap::cropped(Gfx::IntRect crop, Gfx::Color outside_color) const
 {
     // OPTIMIZATION: Skip slow manual copying for NO-OP crops

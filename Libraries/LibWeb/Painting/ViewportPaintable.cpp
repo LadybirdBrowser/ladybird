@@ -197,6 +197,7 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
             own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
 
+        // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
         if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
             auto masking_area = paintable_box.absolute_border_box_rect();
             auto reference_box = CSSPixelRect { {}, masking_area.size() };

@@ -98,7 +98,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
         display_list_recorder.save();
         auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
-        display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
+        display_list_recorder.add_mask(move(display_list), rect.to_type<int>(), Gfx::MaskKind::Alpha);
     }
 
     BackgroundBox border_box {

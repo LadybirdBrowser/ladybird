@@ -171,8 +171,4 @@ void ApplyTransform::dump(StringBuilder& builder) const
     builder.appendff(" matrix={}", affine_transform);
 }
 
-void ApplyMaskBitmap::dump(StringBuilder&) const
-{
-}
-
 }
