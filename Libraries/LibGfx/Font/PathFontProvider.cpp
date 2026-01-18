@@ -52,7 +52,7 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
     });
 }
 
-RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings)
+RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
     auto const compute_default_font_variation_settings = [&](unsigned weight, unsigned width) {
         FontVariationSettings default_font_variation_settings;
@@ -93,13 +93,23 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
         return default_font_variation_settings;
     };
 
+    auto const compute_default_shape_features = [&]() {
+        // NB: These shape features match those applied when all CSS properties are initial values
+        Gfx::ShapeFeatures shape_features;
+        shape_features.append({ { 'c', 'l', 'i', 'g' }, 1 });
+        shape_features.append({ { 'k', 'e', 'r', 'n' }, 1 });
+        shape_features.append({ { 'l', 'i', 'g', 'a' }, 1 });
+        return shape_features;
+    };
+
     auto it = m_typeface_by_family.find(family);
     if (it == m_typeface_by_family.end())
         return nullptr;
     for (auto const& typeface : it->value) {
         if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
-            return typeface->font(point_size, font_variation_settings.value_or_lazy_evaluated([&] { return compute_default_font_variation_settings(weight, width); }));
+            return typeface->font(point_size, font_variation_settings.value_or_lazy_evaluated([&] { return compute_default_font_variation_settings(weight, width); }), shape_features.value_or_lazy_evaluated([&] { return compute_default_shape_features(); }));
     }
+
     return nullptr;
 }
 

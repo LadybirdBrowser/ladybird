@@ -10,7 +10,6 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
-#include <LibGfx/Font/FontVariant.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibWeb/CSS/CalculatedOr.h>
@@ -151,7 +150,6 @@ public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
     static double font_weight() { return 400; }
-    static Gfx::ShapeFeatures font_features() { return {}; }
     static CSSPixels line_height() { return 0; }
     static Float float_() { return Float::None; }
     static Length border_spacing() { return Length::make_px(0); }
@@ -675,7 +673,6 @@ public:
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
     double font_weight() const { return m_inherited.font_weight; }
-    Gfx::ShapeFeatures font_features() const { return m_inherited.font_features; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
     HashMap<FlyString, double> font_variation_settings() const { return m_inherited.font_variation_settings; }
     CSSPixels line_height() const { return m_inherited.line_height; }
@@ -712,7 +709,6 @@ protected:
         CSSPixels font_size { InitialValues::font_size() };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         double font_weight { InitialValues::font_weight() };
-        Gfx::ShapeFeatures font_features { InitialValues::font_features() };
         Optional<FlyString> font_language_override;
         HashMap<FlyString, double> font_variation_settings;
         CSSPixels line_height { InitialValues::line_height() };
@@ -932,7 +928,6 @@ public:
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
     void set_font_weight(double font_weight) { m_inherited.font_weight = font_weight; }
-    void set_font_features(Gfx::ShapeFeatures font_features) { m_inherited.font_features = move(font_features); }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = move(font_language_override); }
     void set_font_variation_settings(HashMap<FlyString, double> value) { m_inherited.font_variation_settings = move(value); }
     void set_line_height(CSSPixels line_height) { m_inherited.line_height = line_height; }
