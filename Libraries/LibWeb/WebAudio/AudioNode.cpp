@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
+ * Copyright (c) 2025-2026, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,7 @@ AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL
     : DOM::EventTarget(realm)
     , m_context(context)
     , m_channel_count(channel_count)
+    , m_node_id(context->next_node_id({}))
 
 {
 }

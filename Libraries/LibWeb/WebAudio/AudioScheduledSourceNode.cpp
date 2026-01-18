@@ -51,9 +51,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     set_source_started(true);
 
     // 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
-    // FIXME: Include a stable source id so the rendering thread can route this message to the correct AudioScheduledSourceNode
-    // once render-thread scheduling is implemented.
-    context()->queue_control_message(StartSource { .when = when });
+    context()->queue_control_message(StartSource { .node_id = node_id(), .when = when });
 
     // FIXME: 5. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
 
@@ -73,9 +71,7 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
 
     // 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
-    // FIXME: Include a stable source id so the rendering thread can route this message to the correct AudioScheduledSourceNode
-    // once render-thread scheduling is implemented.
-    context()->queue_control_message(StopSource { .when = when });
+    context()->queue_control_message(StopSource { .node_id = node_id(), .when = when });
 
     return {};
 }

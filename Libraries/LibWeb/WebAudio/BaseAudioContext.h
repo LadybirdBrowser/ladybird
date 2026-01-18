@@ -22,6 +22,7 @@
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebAudio/ScriptProcessorNode.h>
 #include <LibWeb/WebAudio/StereoPannerNode.h>
+#include <LibWeb/WebAudio/Types.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -89,6 +90,8 @@ public:
 
     void queue_control_message(ControlMessage);
 
+    NodeID next_node_id(Badge<AudioNode>) { return ++m_next_node_id; }
+
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
@@ -105,6 +108,8 @@ private:
     static constexpr WebIDL::UnsignedLong s_render_quantum_size { 128 };
 
     void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
+
+    u64 m_next_node_id { 0 };
 
     float m_sample_rate { 0 };
     double m_current_time { 0 };

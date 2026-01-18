@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
+ * Copyright (c) 2025-2026, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/AudioNodePrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/Types.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -86,6 +87,8 @@ public:
 
     WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
+    NodeID node_id() const { return m_node_id; }
+
 protected:
     AudioNode(JS::Realm&, GC::Ref<BaseAudioContext>, WebIDL::UnsignedLong channel_count = 2);
 
@@ -103,6 +106,7 @@ private:
     Vector<AudioNodeConnection> m_output_connections;
     // Connections from this node's outputs into AudioParams.
     Vector<AudioParamConnection> m_param_connections;
+    NodeID const m_node_id;
 };
 
 }
