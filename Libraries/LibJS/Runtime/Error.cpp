@@ -61,6 +61,7 @@ Error::Error(Object& prototype)
 void Error::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_cached_string);
     for (auto& frame : m_traceback)
         visitor.visit(frame.cached_source_range);
 }
