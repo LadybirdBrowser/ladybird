@@ -4,6 +4,7 @@ import("//Meta/gn/build/libs/pulse/enable.gni")
 shared_library("LibMedia") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
+    "Audio/AudioDecoding.cpp",
     "Audio/PlaybackStream.cpp",
     "Audio/SampleFormats.cpp",
     "Color/ColorConverter.cpp",
@@ -30,7 +31,9 @@ shared_library("LibMedia") {
     sources += [
       "FFmpeg/FFmpegAudioConverter.cpp",
       "FFmpeg/FFmpegAudioDecoder.cpp",
+      "FFmpeg/FFmpegDemuxer.cpp",
       "FFmpeg/FFmpegHelpers.cpp",
+      "FFmpeg/FFmpegIOContext.cpp",
       "FFmpeg/FFmpegVideoDecoder.cpp",
     ]
   } else {
