@@ -57,6 +57,15 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
+    },
+    {
+      "name": "All_Debug",
+      "inherits": [
+        "windows_base",
+        "Debug_base"
+      ],
+      "displayName": "Windows Experimental All Debug Config",
+      "description": "Experimental Windows All Debug build. Not all targets in this preset are built and there is minimal runtime support"
     }
   ]
 }
