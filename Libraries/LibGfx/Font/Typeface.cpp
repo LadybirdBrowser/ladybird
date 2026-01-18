@@ -48,9 +48,9 @@ Typeface::~Typeface()
         hb_blob_destroy(m_harfbuzz_blob);
 }
 
-NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations) const
+NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
 {
-    FontCacheKey key { point_size, variations.to_sorted_list() };
+    FontCacheKey key { point_size, variations.to_sorted_list(), shape_features };
 
     if (auto it = m_fonts.find(key); it != m_fonts.end())
         return *it->value;
@@ -68,7 +68,7 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
                 used_typeface = move(derived);
     }
 
-    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, DEFAULT_DPI, DEFAULT_DPI, variations));
+    auto font = adopt_ref(*new Font(*used_typeface, point_size, point_size, DEFAULT_DPI, DEFAULT_DPI, variations, shape_features));
     m_fonts.set(key, font);
     return font;
 }

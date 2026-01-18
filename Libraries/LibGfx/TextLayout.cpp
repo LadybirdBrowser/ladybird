@@ -93,7 +93,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     FloatPoint last_position = baseline_start;
 
     auto add_run = [&runs, &last_position](Utf16View const& string, Font const& font) {
-        auto run = shape_text(last_position, 0, string, font, GlyphRun::TextType::Common, {});
+        auto run = shape_text(last_position, 0, string, font, GlyphRun::TextType::Common);
         last_position.translate_by(run->width(), 0);
         runs.append(*run);
     };
@@ -119,7 +119,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     return runs;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, ShapeFeatures const& features, GlyphRun::TextType text_type)
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
 
@@ -145,9 +145,9 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     auto* hb_font = font.harfbuzz_font();
     hb_feature_t const* hb_features_data = nullptr;
     Vector<hb_feature_t, 4> hb_features;
-    if (!features.is_empty()) {
-        hb_features.ensure_capacity(features.size());
-        for (auto const& feature : features) {
+    if (!font.features().is_empty()) {
+        hb_features.ensure_capacity(font.features().size());
+        for (auto const& feature : font.features()) {
             hb_features.unchecked_append({
                 .tag = HB_TAG(feature.tag[0], feature.tag[1], feature.tag[2], feature.tag[3]),
                 .value = feature.value,
@@ -158,21 +158,15 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
         hb_features_data = hb_features.data();
     }
 
-    hb_shape(hb_font, buffer, hb_features_data, features.size());
+    hb_shape(hb_font, buffer, hb_features_data, font.features().size());
 
     return buffer;
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, ShapeFeatures const& features)
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
 {
     auto const& metrics = font.pixel_metrics();
     auto& shaping_cache = font.shaping_cache();
-
-    // NOTE: We only cache shaping results for a specific set of features. If the features change, we clear the cache.
-    if (shaping_cache.features != features) {
-        shaping_cache.clear();
-        shaping_cache.features = features;
-    }
 
     // FIXME: The cache currently grows unbounded. We should have some limit and LRU mechanism.
     auto get_or_create_buffer = [&] -> hb_buffer_t* {
@@ -181,7 +175,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             if (code_unit < 128) {
                 auto*& cache_slot = shaping_cache.single_ascii_character_map[code_unit];
                 if (!cache_slot) {
-                    cache_slot = setup_text_shaping(string, font, features, text_type);
+                    cache_slot = setup_text_shaping(string, font, text_type);
                 }
                 return cache_slot;
             }
@@ -191,7 +185,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
             it != shaping_cache.map.end()) {
             return it->value;
         }
-        auto* buffer = setup_text_shaping(string, font, features, text_type);
+        auto* buffer = setup_text_shaping(string, font, text_type);
         shaping_cache.map.set(Utf16String::from_utf16(string), buffer);
         return buffer;
     };
@@ -244,9 +238,9 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
-float measure_text_width(Utf16View const& string, Font const& font, ShapeFeatures const& features)
+float measure_text_width(Utf16View const& string, Font const& font)
 {
-    auto* buffer = setup_text_shaping(string, font, features, GlyphRun::TextType::Common);
+    auto* buffer = setup_text_shaping(string, font, GlyphRun::TextType::Common);
 
     u32 glyph_count;
     auto const* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);

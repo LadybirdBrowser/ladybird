@@ -614,7 +614,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
-    computed_values.set_font_features(computed_style.font_features());
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
 
     auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> Optional<CSS::BorderRadiusData> {
