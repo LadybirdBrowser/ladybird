@@ -142,17 +142,17 @@ void FontLoader::visit_edges(Visitor& visitor)
 
 bool FontLoader::is_loading() const
 {
-    return m_fetch_controller && !m_vector_font;
+    return m_fetch_controller && !m_typeface;
 }
 
 RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations)
 {
-    if (!m_vector_font) {
+    if (!m_typeface) {
         if (!m_fetch_controller)
             start_loading_next_url();
         return nullptr;
     }
-    return m_vector_font->font(point_size, variations);
+    return m_typeface->font(point_size, variations);
 }
 
 void FontLoader::start_loading_next_url()
@@ -199,10 +199,10 @@ void FontLoader::start_loading_next_url()
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
 {
     if (typeface) {
-        m_vector_font = typeface.release_nonnull();
+        m_typeface = typeface.release_nonnull();
         m_font_computer->did_load_font(m_family_name);
         if (m_on_load)
-            m_on_load->function()(m_vector_font);
+            m_on_load->function()(m_typeface);
     } else {
         if (m_on_load)
             m_on_load->function()(nullptr);
