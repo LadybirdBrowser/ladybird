@@ -105,7 +105,7 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
         },
         [&](ClipPathData const& clip_path) {
             auto const& rect = clip_path.bounding_rect;
-            builder.appendff("clip_path=[bounds: {},{} {}x{}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float());
+            builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float(), clip_path.path.to_svg_string());
         });
 }
 
