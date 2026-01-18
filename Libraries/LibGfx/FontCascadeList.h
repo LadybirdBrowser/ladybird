@@ -41,6 +41,8 @@ public:
 
     bool equals(FontCascadeList const& other) const;
 
+    u32 password_mask_character() const;
+
     struct Entry {
         NonnullRefPtr<Font const> font;
         struct RangeData {
@@ -67,6 +69,7 @@ private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
     SystemFontFallbackCallback m_system_font_fallback_callback;
+    mutable Optional<u32> m_cached_password_mask_character;
 };
 
 }
