@@ -354,6 +354,15 @@ public:
 #endif
     }
 
+    template<typename... Ts>
+    [[nodiscard]] static constexpr bool addition_would_overflow(Ts... values)
+    requires(sizeof...(Ts) > 2)
+    {
+        Checked<T> result;
+        ((result += values), ...);
+        return result.has_overflow();
+    }
+
     template<typename U, typename V>
     [[nodiscard]] static constexpr bool subtraction_would_overflow(U u, V v)
     {
