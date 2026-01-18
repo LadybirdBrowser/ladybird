@@ -387,9 +387,6 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
 NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
-    auto width = round_to<int>(font_width.value());
-
-    // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
 
     Gfx::FontVariationSettings variation;
@@ -411,15 +408,16 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     float const font_size_in_pt = font_size * 0.75f;
 
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
+        // OPTIMIZATION: Look for an exact match in loaded fonts first.
+        // FIXME: Respect the other font-* descriptors
         FontFaceKey key {
             .family_name = family,
             .weight = weight,
             .slope = slope,
         };
-        auto result = Gfx::FontCascadeList::create();
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
+            auto result = Gfx::FontCascadeList::create();
             auto const& loaders = it->value;
-
             for (auto const& loader : loaders) {
                 if (auto found_font = loader->font_with_point_size(font_size_in_pt, variation))
                     result->add(*found_font, loader->unicode_ranges());
@@ -428,14 +426,8 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
             return result;
         }
 
-        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt, variation); found_font && !found_font->is_empty()) {
+        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt, variation); found_font && !found_font->is_empty())
             return found_font;
-        }
-
-        if (auto found_font = Gfx::FontDatabase::the().get(family, font_size_in_pt, weight, width, slope)) {
-            result->add(*found_font);
-            return result;
-        }
 
         return {};
     };
