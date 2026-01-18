@@ -58,7 +58,6 @@ public:
     virtual ~FontLoader();
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
-    RefPtr<Gfx::Typeface const> vector_font() const { return m_vector_font; }
 
     RefPtr<Gfx::Font const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations = {});
     void start_loading_next_url();
@@ -76,7 +75,7 @@ private:
     RuleOrDeclaration m_rule_or_declaration;
     FlyString m_family_name;
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
-    RefPtr<Gfx::Typeface const> m_vector_font;
+    RefPtr<Gfx::Typeface const> m_typeface;
     Vector<URL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> m_on_load;
