@@ -384,9 +384,14 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 )~~~");
 
-    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, Optional<LegacyConstructor> const& legacy_constructor, Optional<ByteString const&> legacy_alias_name) {
-        gen.set("interface_name", name);
-        gen.set("prototype_class", prototype_class);
+    auto add_interface = [class_name](SourceGenerator& gen, IDL::Interface const& interface) {
+        auto legacy_constructor = lookup_legacy_constructor(interface);
+        Optional<ByteString const&> legacy_alias_name;
+        if (class_name == "Window"sv)
+            legacy_alias_name = interface.extended_attributes.get("LegacyWindowAlias"sv);
+
+        gen.set("interface_name", interface.namespaced_name);
+        gen.set("prototype_class", interface.prototype_class);
 
         gen.append(R"~~~(
     global.define_intrinsic_accessor("@interface_name@"_utf16_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
@@ -431,11 +436,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
             if (interface.extended_attributes.contains("LegacyNoInterfaceObject")) {
                 continue;
             }
-            if (class_name == "Window") {
-                add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), interface.extended_attributes.get("LegacyWindowAlias"sv));
-            } else {
-                add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), {});
-            }
+            add_interface(gen, interface);
         }
     }
 
