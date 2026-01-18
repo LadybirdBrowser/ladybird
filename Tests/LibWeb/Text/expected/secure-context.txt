@@ -1,0 +1,5 @@
+{
+  "SubtleCrypto": false,
+  "Clipboard": false,
+  "CookieChangeEvent": true
+}

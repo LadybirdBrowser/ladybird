@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("GET", "/secure-context-idl", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/html",
+            },
+            body: `
+                <script>
+                    // HTTP is not a secure context.
+                    internals.setEnvironmentsTopLevelURL('http://ladybird.org');
+
+                    parent.postMessage({
+                        SubtleCrypto: !!crypto?.subtle,
+                        Clipboard: typeof navigator.clipboard === "object",
+                        CookieChangeEvent: typeof CookieChangeEvent === "function",
+                    }, "*");
+                <\/script>`,
+        });
+
+        const frame = document.createElement('iframe');
+        frame.src = url;
+
+        addEventListener("message", (event) => {
+            println(JSON.stringify(event.data, null, 2));
+            done();
+        }, false);
+
+        document.body.appendChild(frame);
+    });
+</script>

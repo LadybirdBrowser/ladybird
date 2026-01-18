@@ -79,6 +79,8 @@ interface Internals {
 
     undefined handleSDLInputEvents();
 
+    undefined setEnvironmentsTopLevelURL(USVString url);
+
     InternalGamepad connectVirtualGamepad();
 
     undefined setHighlightedNode(Node? node);
