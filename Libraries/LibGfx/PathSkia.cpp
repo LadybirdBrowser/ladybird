@@ -20,6 +20,7 @@
 #include <core/SkPathMeasure.h>
 #include <core/SkTextBlob.h>
 #include <pathops/SkPathOps.h>
+#include <utils/SkParsePath.h>
 #include <utils/SkTextUtils.h>
 
 namespace Gfx {
@@ -252,6 +253,12 @@ NonnullOwnPtr<PathImpl> PathImplSkia::copy_transformed(Gfx::AffineTransform cons
         0, 0, 1);
     new_path->sk_path().transform(matrix);
     return new_path;
+}
+
+String PathImplSkia::to_svg_string() const
+{
+    auto svg_string = SkParsePath::ToSVGString(*m_path);
+    return MUST(String::from_utf8(StringView { svg_string.c_str(), svg_string.size() }));
 }
 
 }

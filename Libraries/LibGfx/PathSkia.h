@@ -45,6 +45,8 @@ public:
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&) const override;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&) const override;
 
+    virtual String to_svg_string() const override;
+
     SkPath const& sk_path() const { return *m_path; }
     SkPath& sk_path() { return *m_path; }
 
