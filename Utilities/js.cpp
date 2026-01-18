@@ -44,6 +44,7 @@ GC::Root<JS::Value> g_last_value = GC::make_root(JS::js_undefined());
 
 class ReplObject final : public JS::GlobalObject {
     JS_OBJECT(ReplObject, JS::GlobalObject);
+    GC_DECLARE_ALLOCATOR(ReplObject);
 
 public:
     ReplObject(JS::Realm& realm)
@@ -63,8 +64,11 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(print);
 };
 
+GC_DEFINE_ALLOCATOR(ReplObject);
+
 class ScriptObject final : public JS::GlobalObject {
     JS_OBJECT(ScriptObject, JS::GlobalObject);
+    GC_DECLARE_ALLOCATOR(ScriptObject);
 
 public:
     ScriptObject(JS::Realm& realm)
@@ -79,6 +83,8 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(load_json);
     JS_DECLARE_NATIVE_FUNCTION(print);
 };
+
+GC_DEFINE_ALLOCATOR(ScriptObject);
 
 static bool s_dump_ast = false;
 static bool s_as_module = false;

@@ -20,6 +20,8 @@
 
 namespace Web::SVG {
 
+GC_DEFINE_ALLOCATOR(SVGImageElement);
+
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {

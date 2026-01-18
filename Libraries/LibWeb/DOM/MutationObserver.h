@@ -68,6 +68,7 @@ private:
 // https://dom.spec.whatwg.org/#registered-observer
 class RegisteredObserver : public JS::Cell {
     GC_CELL(RegisteredObserver, JS::Cell);
+    GC_DECLARE_ALLOCATOR(RegisteredObserver);
 
 public:
     static GC::Ref<RegisteredObserver> create(MutationObserver&, MutationObserverInit const&);

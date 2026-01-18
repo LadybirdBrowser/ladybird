@@ -168,6 +168,7 @@ protected:
 
 class TestRunnerGlobalObject final : public JS::GlobalObject {
     JS_OBJECT(TestRunnerGlobalObject, JS::GlobalObject);
+    GC_DECLARE_ALLOCATOR(TestRunnerGlobalObject);
 
 public:
     TestRunnerGlobalObject(JS::Realm& realm)
