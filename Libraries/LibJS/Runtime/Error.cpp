@@ -107,12 +107,12 @@ void Error::populate_stack()
     }
 }
 
-String Error::stack_string(CompactTraceback compact) const
+Utf16String Error::stack_string(CompactTraceback compact) const
 {
     if (m_traceback.is_empty())
         return {};
 
-    StringBuilder stack_string_builder;
+    StringBuilder stack_string_builder(StringBuilder::Mode::UTF16);
 
     // Note: We roughly follow V8's formatting
     auto append_frame = [&](TracebackFrame const& frame) {
@@ -168,7 +168,7 @@ String Error::stack_string(CompactTraceback compact) const
     for (size_t j = 0; j < repetitions; j++)
         append_frame(m_traceback[used_frames - 1]);
 
-    return MUST(stack_string_builder.to_string());
+    return stack_string_builder.to_utf16_string();
 }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
