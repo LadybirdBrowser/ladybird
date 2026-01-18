@@ -105,6 +105,7 @@ public:
     void set_highlighted_node(GC::Ptr<DOM::Node> node);
 
     void clear_element(HTML::HTMLElement&);
+    void set_environments_top_level_url(StringView url);
 
 private:
     explicit Internals(JS::Realm&);

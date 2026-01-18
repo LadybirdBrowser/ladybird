@@ -120,6 +120,7 @@ static ErrorOr<void> generate_intrinsic_definitions_implementation(StringView ou
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
@@ -182,6 +183,27 @@ void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
 )~~~");
     };
 
+    generator.append(R"~~~(
+static bool is_secure_context_interface(InterfaceName name)
+{
+    switch (name) {
+)~~~");
+    for (auto const& interface : interface_sets.intrinsics) {
+        if (!interface.extended_attributes.contains("SecureContext"))
+            continue;
+
+        generator.set("secure_context_interface_name", interface.name);
+        generator.append(R"~~~(
+    case InterfaceName::@secure_context_interface_name@:)~~~");
+    }
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+)~~~");
+
     auto generate_global_exposed = [&generator](StringView global_name, Vector<IDL::Interface&> const& interface_set) {
         generator.set("global_name", global_name);
         generator.append(R"~~~(
@@ -235,8 +257,11 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
         TODO(); // FIXME: ServiceWorkerGlobalScope and WorkletGlobalScope.
     }
 
-    // FIXME: 2. If realm’s settings object is not a secure context, and construct is conditionally exposed on
-    //           [SecureContext], then return false.
+    // 2. If realm’s settings object is not a secure context, and construct is conditionally exposed on
+    //    [SecureContext], then return false.
+    if (is_secure_context_interface(name) && HTML::is_non_secure_context(principal_host_defined_environment_settings_object(realm)))
+        return false;
+
     // FIXME: 3. If realm’s settings object’s cross-origin isolated capability is false, and construct is
     //           conditionally exposed on [CrossOriginIsolated], then return false.
 
@@ -352,6 +377,7 @@ static ErrorOr<void> generate_exposed_interface_implementation(StringView class_
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/@global_object_name@ExposedInterfaces.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 )~~~");
     for (auto& interface : exposed_interfaces) {
         auto gen = generator.fork();
@@ -382,6 +408,7 @@ namespace Web::Bindings {
 void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
 {
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
+    [[maybe_unused]] bool is_secure_context = HTML::is_secure_context(HTML::relevant_principal_settings_object(global));
 )~~~");
 
     auto add_interface = [class_name](SourceGenerator& gen, IDL::Interface const& interface) {
@@ -392,6 +419,11 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
 
         gen.set("interface_name", interface.namespaced_name);
         gen.set("prototype_class", interface.prototype_class);
+
+        if (interface.extended_attributes.contains("SecureContext")) {
+            gen.append(R"~~~(
+    if (is_secure_context) {)~~~");
+        }
 
         gen.append(R"~~~(
     global.define_intrinsic_accessor("@interface_name@"_utf16_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@interface_name@"_fly_string); });)~~~");
@@ -416,6 +448,11 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
             gen.set("legacy_interface_name", legacy_constructor->name);
             gen.append(R"~~~(
     global.define_intrinsic_accessor("@legacy_interface_name@"_utf16_fly_string, attr, [](auto& realm) -> JS::Value { return &ensure_web_constructor<@prototype_class@>(realm, "@legacy_interface_name@"_fly_string); });)~~~");
+        }
+
+        if (interface.extended_attributes.contains("SecureContext")) {
+            gen.append(R"~~~(
+    })~~~");
         }
     };
 

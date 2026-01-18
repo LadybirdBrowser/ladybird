@@ -3731,11 +3731,21 @@ void @class_name@::initialize(JS::Realm& realm)
             continue;
 
         auto attribute_generator = generator_for_member(attribute.name, attribute.extended_attributes);
+
+        if (attribute.extended_attributes.contains("SecureContext")) {
+            attribute_generator.append(R"~~~(
+    if (HTML::is_secure_context(Bindings::principal_host_defined_environment_settings_object(realm))) {)~~~");
+        }
+
         if (attribute.extended_attributes.contains("FIXME")) {
             attribute_generator.set("attribute.name", attribute.name);
             attribute_generator.append(R"~~~(
     @define_direct_property@("@attribute.name@"_utf16_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
+            if (attribute.extended_attributes.contains("SecureContext")) {
+                attribute_generator.append(R"~~~(
+    })~~~");
+            }
             continue;
         }
 
@@ -3778,6 +3788,11 @@ void @class_name@::initialize(JS::Realm& realm)
         attribute_generator.append(R"~~~(
     @define_direct_accessor@("@attribute.name@"_utf16_fly_string, native_@attribute.getter_callback@, native_@attribute.setter_callback@, default_attributes);
 )~~~");
+
+        if (attribute.extended_attributes.contains("SecureContext")) {
+            attribute_generator.append(R"~~~(
+    })~~~");
+        }
     }
 
     for (auto& function : interface.functions) {
@@ -3823,6 +3838,11 @@ void @class_name@::initialize(JS::Realm& realm)
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(overload_set.value)));
 
+        if (function.extended_attributes.contains("SecureContext")) {
+            function_generator.append(R"~~~(
+    if (HTML::is_secure_context(Bindings::principal_host_defined_environment_settings_object(realm))) {)~~~");
+        }
+
         if (any_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); })) {
             VERIFY(all_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); }));
             function_generator.append(R"~~~(
@@ -3833,6 +3853,11 @@ void @class_name@::initialize(JS::Realm& realm)
         function_generator.append(R"~~~(
     @define_native_function@(realm, "@function.name@"_utf16_fly_string, @function.name:snakecase@, @function.length@, default_attributes);
 )~~~");
+
+        if (function.extended_attributes.contains("SecureContext")) {
+            function_generator.append(R"~~~(
+    })~~~");
+        }
     }
 
     bool should_generate_stringifier = true;
@@ -5548,6 +5573,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/@prototype_class@.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
@@ -5969,6 +5995,7 @@ void generate_global_mixin_implementation(IDL::Interface const& interface, Strin
 #include <LibWeb/Bindings/@prototype_name@.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
