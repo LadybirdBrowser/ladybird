@@ -234,6 +234,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
         arguments.append(server.value());
     }
 
+    if (request_server_options.resource_substitution_map_path.has_value())
+        arguments.append(ByteString::formatted("--resource-map={}", *request_server_options.resource_substitution_map_path));
+
     auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
 
     WebView::Application::settings().dns_settings().visit(

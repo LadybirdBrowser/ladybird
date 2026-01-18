@@ -120,6 +120,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_filter = false;
+    Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
@@ -182,6 +183,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(validate_dnssec_locally, "Validate DNSSEC locally", "dnssec");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
+    args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
@@ -265,6 +267,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     m_request_server_options = {
         .certificates = move(certificates),
         .http_disk_cache_mode = disable_http_disk_cache ? HTTPDiskCacheMode::Disabled : HTTPDiskCacheMode::Enabled,
+        .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
     };
 
     m_web_content_options = {

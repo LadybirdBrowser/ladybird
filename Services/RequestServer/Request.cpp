@@ -6,16 +6,22 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibCore/File.h>
+#include <LibCore/MimeData.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibHTTP/Status.h>
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
+#include <RequestServer/ResourceSubstitutionMap.h>
 
 namespace RequestServer {
+
+extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
 
@@ -194,6 +200,9 @@ void Request::process()
     case State::WaitForCache:
         // Do nothing; we are waiting for the disk cache to notify us to proceed.
         break;
+    case State::ServeSubstitution:
+        handle_serve_substitution_state();
+        break;
     case State::DNSLookup:
         handle_dns_lookup_state();
         break;
@@ -214,6 +223,14 @@ void Request::process()
 
 void Request::handle_initial_state()
 {
+    // Check for resource substitution before anything else.
+    if (g_resource_substitution_map) {
+        if (g_resource_substitution_map->lookup(m_url).has_value()) {
+            transition_to_state(State::ServeSubstitution);
+            return;
+        }
+    }
+
     if (m_disk_cache.has_value()) {
         auto open_mode = m_type == Type::BackgroundRevalidation
             ? HTTP::DiskCache::OpenMode::Revalidate
@@ -292,6 +309,60 @@ void Request::handle_read_cache_state()
 
             transition_to_state(State::Error);
         });
+}
+
+void Request::handle_serve_substitution_state()
+{
+    auto substitution = g_resource_substitution_map->lookup(m_url);
+    VERIFY(substitution.has_value());
+
+    dbgln("Request: Substituting '{}' with local file '{}'", m_url.serialize(), substitution->file_path);
+
+    auto file = Core::File::open(substitution->file_path, Core::File::OpenMode::Read);
+    if (file.is_error()) {
+        dbgln("Request::handle_serve_substitution_state: Failed to open file '{}': {}", substitution->file_path, file.error());
+        m_network_error = Requests::NetworkError::Unknown;
+        transition_to_state(State::Error);
+        return;
+    }
+
+    auto content = file.value()->read_until_eof();
+    if (content.is_error()) {
+        dbgln("Request::handle_serve_substitution_state: Failed to read file '{}': {}", substitution->file_path, content.error());
+        m_network_error = Requests::NetworkError::Unknown;
+        transition_to_state(State::Error);
+        return;
+    }
+
+    m_status_code = substitution->status_code;
+    m_reason_phrase = MUST(String::from_utf8(HTTP::reason_phrase_for_code(m_status_code)));
+
+    // Determine content type: use override if provided, otherwise guess from filename.
+    StringView content_type;
+    if (substitution->content_type.has_value())
+        content_type = *substitution->content_type;
+    else
+        content_type = Core::guess_mime_type_based_on_filename(substitution->file_path);
+
+    m_response_headers->append({ "Content-Type"sv, ByteString { content_type } });
+    m_response_headers->append({ "Content-Length"sv, ByteString::number(content.value().size()) });
+
+    if (inform_client_request_started().is_error())
+        return;
+    transfer_headers_to_client_if_needed();
+
+    auto write_result = m_response_buffer.write_some(content.value());
+    if (write_result.is_error()) {
+        dbgln("Request::handle_serve_substitution_state: Failed to write content to response buffer: {}", write_result.error());
+        m_network_error = Requests::NetworkError::Unknown;
+        transition_to_state(State::Error);
+        return;
+    }
+
+    m_curl_result_code = CURLE_OK;
+
+    if (write_queued_bytes_without_blocking().is_error())
+        transition_to_state(State::Error);
 }
 
 void Request::handle_dns_lookup_state()
@@ -601,10 +672,13 @@ void Request::transfer_headers_to_client_if_needed()
     if (exchange(m_sent_response_headers_to_client, true))
         return;
 
-    if (m_cache_entry_reader.has_value())
-        m_status_code = m_cache_entry_reader->status_code();
-    else
-        m_status_code = acquire_status_code();
+    // m_status_code may already be set (e.g. from a resource substitution).
+    if (m_status_code == 0) {
+        if (m_cache_entry_reader.has_value())
+            m_status_code = m_cache_entry_reader->status_code();
+        else
+            m_status_code = acquire_status_code();
+    }
 
     if (m_cache_entry_writer.has_value()) {
         if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_response_headers).is_error()) {
@@ -721,6 +795,9 @@ ErrorOr<void> Request::revalidation_failed()
 
 u32 Request::acquire_status_code() const
 {
+    if (!m_curl_easy_handle)
+        return 0;
+
     long http_status_code = 0;
     auto result = curl_easy_getinfo(m_curl_easy_handle, CURLINFO_RESPONSE_CODE, &http_status_code);
     VERIFY(result == CURLE_OK);
@@ -744,6 +821,10 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
 
     // FIXME: Implement timing info for cache hits.
     if (m_cache_entry_reader.has_value())
+        return {};
+
+    // No timing info available for resource substitutions (no curl handle).
+    if (!m_curl_easy_handle)
         return {};
 
     auto get_timing_info = [&](auto option) {
