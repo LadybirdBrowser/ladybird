@@ -697,7 +697,7 @@ public:
     ScrollbarColorData scrollbar_color() const { return m_inherited.scrollbar_color; }
     ScrollbarWidth scrollbar_width() const { return m_noninherited.scrollbar_width; }
     Resize resize() const { return m_noninherited.resize; }
-    WillChange will_change() const { return m_noninherited.will_change; }
+    WillChange const& will_change() const { return m_noninherited.will_change; }
 
     NonnullOwnPtr<ComputedValues> clone_inherited_values() const
     {
