@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/String.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -48,6 +49,8 @@ public:
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const = 0;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&) const = 0;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&) const = 0;
+
+    virtual String to_svg_string() const = 0;
 };
 
 class Path {
@@ -111,6 +114,8 @@ public:
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
     Gfx::Path place_text_along(Utf8View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
     Gfx::Path place_text_along(Utf16View const& text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
+
+    String to_svg_string() const { return impl().to_svg_string(); }
 
     void transform(Gfx::AffineTransform const& transform) { m_impl = impl().copy_transformed(transform); }
 
