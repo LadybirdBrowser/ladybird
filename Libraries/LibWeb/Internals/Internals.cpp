@@ -9,6 +9,7 @@
 #include <LibGfx/Cursor.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibURL/Parser.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -431,6 +432,12 @@ void Internals::perform_per_test_cleanup()
     for (auto gamepad : m_gamepads)
         gamepad->disconnect();
     m_gamepads.clear();
+}
+
+void Internals::set_environments_top_level_url(StringView url)
+{
+    auto& realm = *vm().current_realm();
+    HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
 }
 
 }

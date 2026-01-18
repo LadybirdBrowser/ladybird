@@ -2,7 +2,7 @@
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
