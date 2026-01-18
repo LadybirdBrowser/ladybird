@@ -83,6 +83,12 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_getter)
 
     auto& error = static_cast<Error&>(*this_object);
 
+    // OPTIMIZATION: Avoid recomputing the stack string if we already have it cached.
+    //               At least one major engine does this as well, so it's not expected that changing
+    //               the name or message properties updates the stack string.
+    if (error.cached_string())
+        return error.cached_string();
+
     // 4. Return ? GetStackString(error).
     // NOTE: These steps are not implemented based on the proposal, but to roughly follow behavior of other browsers.
 
@@ -100,7 +106,9 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_getter)
         ? move(name)
         : MUST(String::formatted("{}: {}", name, message));
 
-    return PrimitiveString::create(vm, MUST(String::formatted("{}\n{}", header, error.stack_string())));
+    auto string = PrimitiveString::create(vm, MUST(String::formatted("{}\n{}", header, error.stack_string())));
+    error.set_cached_string(string);
+    return string;
 }
 
 // B.1.2 set Error.prototype.stack ( value ), https://tc39.es/proposal-error-stacks/#sec-set-error.prototype-stack
