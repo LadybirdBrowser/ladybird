@@ -389,6 +389,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
 
     Gfx::FontVariationSettings variation;
     variation.set_weight(font_weight);
+    variation.set_width(font_width.value());
 
     for (auto const& [tag_string, value] : font_variation_settings) {
         auto string_view = tag_string.bytes_as_string_view();

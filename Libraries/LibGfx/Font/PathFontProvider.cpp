@@ -62,6 +62,38 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
             FontVariationSettings font_variation_settings;
             font_variation_settings.set_weight(static_cast<float>(weight));
 
+            switch (width) {
+            case FontWidth::UltraCondensed:
+                font_variation_settings.set_width(50);
+                break;
+            case FontWidth::ExtraCondensed:
+                font_variation_settings.set_width(62.5);
+                break;
+            case FontWidth::Condensed:
+                font_variation_settings.set_width(75);
+                break;
+            case FontWidth::SemiCondensed:
+                font_variation_settings.set_width(87.5);
+                break;
+            case FontWidth::Normal:
+                font_variation_settings.set_width(100);
+                break;
+            case FontWidth::SemiExpanded:
+                font_variation_settings.set_width(112.5);
+                break;
+            case FontWidth::Expanded:
+                font_variation_settings.set_width(125);
+                break;
+            case FontWidth::ExtraExpanded:
+                font_variation_settings.set_width(150);
+                break;
+            case FontWidth::UltraExpanded:
+                font_variation_settings.set_width(200);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+
             return typeface->font(point_size, font_variation_settings);
         }
     }
