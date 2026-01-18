@@ -289,86 +289,86 @@ void CacheEntryReader::revalidation_failed()
     close_and_destroy_cache_entry();
 }
 
-void CacheEntryReader::pipe_to(int pipe_fd, Function<void(u64)> on_complete, Function<void(u64)> on_error)
+void CacheEntryReader::send_to(int socket_fd, Function<void(u64)> on_complete, Function<void(u64)> on_error)
 {
-    VERIFY(m_pipe_fd == -1);
-    m_pipe_fd = pipe_fd;
+    VERIFY(m_socket_fd == -1);
+    m_socket_fd = socket_fd;
 
-    m_on_pipe_complete = move(on_complete);
-    m_on_pipe_error = move(on_error);
+    m_on_send_complete = move(on_complete);
+    m_on_send_error = move(on_error);
 
     if (m_marked_for_deletion) {
-        pipe_error(Error::from_string_literal("Cache entry has been deleted"));
+        send_error(Error::from_string_literal("Cache entry has been deleted"));
         return;
     }
 
-    m_pipe_write_notifier = Core::Notifier::construct(m_pipe_fd, Core::NotificationType::Write);
-    m_pipe_write_notifier->set_enabled(false);
+    m_socket_write_notifier = Core::Notifier::construct(m_socket_fd, Core::NotificationType::Write);
+    m_socket_write_notifier->set_enabled(false);
 
-    m_pipe_write_notifier->on_activation = [this]() {
-        m_pipe_write_notifier->set_enabled(false);
-        pipe_without_blocking();
+    m_socket_write_notifier->on_activation = [this]() {
+        m_socket_write_notifier->set_enabled(false);
+        send_without_blocking();
     };
 
-    pipe_without_blocking();
+    send_without_blocking();
 }
 
-void CacheEntryReader::pipe_without_blocking()
+void CacheEntryReader::send_without_blocking()
 {
     if (m_marked_for_deletion) {
-        pipe_error(Error::from_string_literal("Cache entry has been deleted"));
+        send_error(Error::from_string_literal("Cache entry has been deleted"));
         return;
     }
 
-    auto result = Core::System::transfer_file_through_pipe(m_fd, m_pipe_fd, m_data_offset + m_bytes_piped, m_data_size - m_bytes_piped);
+    auto result = Core::System::transfer_file_through_socket(m_fd, m_socket_fd, m_data_offset + m_bytes_sent, m_data_size - m_bytes_sent);
 
     if (result.is_error()) {
         if (result.error().code() != EAGAIN && result.error().code() != EWOULDBLOCK)
-            pipe_error(result.release_error());
+            send_error(result.release_error());
         else
-            m_pipe_write_notifier->set_enabled(true);
+            m_socket_write_notifier->set_enabled(true);
 
         return;
     }
 
-    m_bytes_piped += result.value();
+    m_bytes_sent += result.value();
 
-    if (m_bytes_piped == m_data_size) {
-        pipe_complete();
+    if (m_bytes_sent == m_data_size) {
+        send_complete();
         return;
     }
 
-    pipe_without_blocking();
+    send_without_blocking();
 }
 
-void CacheEntryReader::pipe_complete()
+void CacheEntryReader::send_complete()
 {
     if (auto result = read_and_validate_footer(); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mError validating cache entry for\033[0m {}: {}", m_url, result.error());
         remove();
 
-        if (m_on_pipe_error)
-            m_on_pipe_error(m_bytes_piped);
+        if (m_on_send_error)
+            m_on_send_error(m_bytes_sent);
     } else {
         m_index.update_last_access_time(m_cache_key);
 
-        if (m_on_pipe_complete)
-            m_on_pipe_complete(m_bytes_piped);
+        if (m_on_send_complete)
+            m_on_send_complete(m_bytes_sent);
     }
 
     close_and_destroy_cache_entry();
 }
 
-void CacheEntryReader::pipe_error(Error error)
+void CacheEntryReader::send_error(Error error)
 {
-    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mError transferring cache to pipe for\033[0m {}: {}", m_url, error);
+    dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mError transferring cache to socket for\033[0m {}: {}", m_url, error);
 
     // FIXME: We may not want to actually remove the cache file for all errors. For now, let's assume the file is not
     //        useable at this point and remove it.
     remove();
 
-    if (m_on_pipe_error)
-        m_on_pipe_error(m_bytes_piped);
+    if (m_on_send_error)
+        m_on_send_error(m_bytes_sent);
 
     close_and_destroy_cache_entry();
 }

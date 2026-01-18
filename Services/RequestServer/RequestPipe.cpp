@@ -43,26 +43,17 @@ RequestPipe::~RequestPipe()
 
 ErrorOr<RequestPipe> RequestPipe::create()
 {
-#if defined(AK_OS_WINDOWS)
     int socket_fds[2] {};
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
     int option = 1;
     TRY(Core::System::ioctl(socket_fds[0], FIONBIO, &option));
     TRY(Core::System::ioctl(socket_fds[1], FIONBIO, &option));
     return RequestPipe(socket_fds[0], socket_fds[1]);
-#else
-    auto fds = TRY(Core::System::pipe2(O_NONBLOCK));
-    return RequestPipe(fds[0], fds[1]);
-#endif
 }
 
 ErrorOr<size_t> RequestPipe::write(ReadonlyBytes bytes)
 {
-#if defined(AK_OS_WINDOWS)
-    return Core::System::send(m_writer_fd, bytes, 0);
-#else
-    return Core::System::write(m_writer_fd, bytes);
-#endif
+    return Core::System::send(m_writer_fd, bytes, MSG_NOSIGNAL);
 }
 
 }

@@ -418,7 +418,7 @@ ErrorOr<void> kill(pid_t pid, int signal)
     return {};
 }
 
-ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length)
+ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length)
 {
     // FIXME: We could use TransmitFile (https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile)
     //        here. But in order to transmit a subset of the file, we have to use overlapped IO.

@@ -278,7 +278,7 @@ void Request::handle_read_cache_state()
         return;
     transfer_headers_to_client_if_needed();
 
-    m_cache_entry_reader->pipe_to(
+    m_cache_entry_reader->send_to(
         m_client_request_pipe->writer_fd(),
         [this](auto bytes_sent) {
             m_bytes_transferred_to_client = bytes_sent;
