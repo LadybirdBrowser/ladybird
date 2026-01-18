@@ -116,8 +116,8 @@ String Error::stack_string(CompactTraceback compact) const
 
     // Note: We roughly follow V8's formatting
     auto append_frame = [&](TracebackFrame const& frame) {
-        auto function_name = frame.function_name;
-        auto source_range = frame.source_range();
+        auto const& function_name = frame.function_name;
+        auto const& source_range = frame.source_range();
         // Note: Since we don't know whether we have a valid SourceRange here we just check for some default values.
         if (!source_range.filename().is_empty() || source_range.start.offset != 0 || source_range.end.offset != 0) {
 
@@ -132,8 +132,8 @@ String Error::stack_string(CompactTraceback compact) const
 
     auto is_same_frame = [](TracebackFrame const& a, TracebackFrame const& b) {
         if (a.function_name.is_empty() && b.function_name.is_empty()) {
-            auto source_range_a = a.source_range();
-            auto source_range_b = b.source_range();
+            auto const& source_range_a = a.source_range();
+            auto const& source_range_b = b.source_range();
             return source_range_a.filename() == source_range_b.filename() && source_range_a.start.line == source_range_b.start.line;
         }
         return a.function_name == b.function_name;
