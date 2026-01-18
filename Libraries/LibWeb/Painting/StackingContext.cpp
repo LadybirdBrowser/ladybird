@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -309,7 +309,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto mask_image = computed_values.mask_image();
 
     // Mask handling stays at paint time with its own save/restore.
-    bool needs_to_save_state = mask_image || paintable_box().get_masking_area().has_value();
+    bool needs_to_save_state = mask_image || paintable_box().get_mask_area().has_value() || paintable_box().get_clip_area().has_value();
 
     auto effective_state = paintable_box().accumulated_visual_context();
     context.display_list_recorder().set_accumulated_visual_context(effective_state);
@@ -331,14 +331,23 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         auto mask_painting_context = context.clone(display_list_recorder);
         auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
         mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
-        context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>());
+        context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>(), Gfx::MaskKind::Alpha);
     }
 
-    if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
-        auto mask_bitmap = paintable_box().calculate_mask(context, *masking_area);
-        if (mask_bitmap) {
-            auto masking_area_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
-            context.display_list_recorder().apply_mask_bitmap(masking_area_rect.location(), mask_bitmap.release_nonnull(), *paintable_box().get_mask_type());
+    // Apply <mask> if present
+    if (auto mask_area = paintable_box().get_mask_area(); mask_area.has_value()) {
+        if (auto mask_display_list = paintable_box().calculate_mask(context, *mask_area)) {
+            auto rect = context.enclosing_device_rect(*mask_area).to_type<int>();
+            auto kind = paintable_box().get_mask_type().value_or(Gfx::MaskKind::Alpha);
+            context.display_list_recorder().add_mask(mask_display_list, rect, kind);
+        }
+    }
+
+    // Apply <clipPath> if present
+    if (auto clip_area = paintable_box().get_clip_area(); clip_area.has_value()) {
+        if (auto clip_display_list = paintable_box().calculate_clip(context, *clip_area)) {
+            auto rect = context.enclosing_device_rect(*clip_area).to_type<int>();
+            context.display_list_recorder().add_mask(clip_display_list, rect, Gfx::MaskKind::Alpha);
         }
     }
 

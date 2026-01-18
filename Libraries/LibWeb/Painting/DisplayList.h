@@ -65,7 +65,6 @@ private:
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
     virtual void apply_effects(ApplyEffects const&) = 0;
     virtual void apply_transform(ApplyTransform const&) = 0;
-    virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
     virtual void add_clip_path(Gfx::Path const&) = 0;

@@ -52,9 +52,11 @@ public:
     static GC::Ref<SVGGraphicsPaintable> create(Layout::SVGGraphicsBox const&);
 
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
-    virtual Optional<CSSPixelRect> get_masking_area() const override { return get_masking_area_of_svg(); }
-    virtual Optional<Gfx::MaskKind> get_mask_type() const override { return get_mask_type_of_svg(); }
-    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext& paint_context, CSSPixelRect const& masking_area) const override { return calculate_mask_of_svg(paint_context, masking_area); }
+    virtual Optional<CSSPixelRect> get_mask_area() const override { return get_svg_mask_area(); }
+    virtual Optional<Gfx::MaskKind> get_mask_type() const override { return get_svg_mask_type(); }
+    virtual RefPtr<DisplayList> calculate_mask(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const override { return calculate_svg_mask_display_list(context, mask_area); }
+    virtual Optional<CSSPixelRect> get_clip_area() const override { return get_svg_clip_area(); }
+    virtual RefPtr<DisplayList> calculate_clip(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const override { return calculate_svg_clip_display_list(context, clip_area); }
 
     void set_computed_transforms(ComputedTransforms computed_transforms)
     {

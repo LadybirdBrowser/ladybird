@@ -9,11 +9,13 @@
 
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
@@ -40,9 +42,12 @@ public:
     void set_stacking_context(GC::Ref<StackingContext>);
     void invalidate_stacking_context();
 
-    virtual Optional<CSSPixelRect> get_masking_area() const { return {}; }
+    virtual Optional<CSSPixelRect> get_mask_area() const { return {}; }
     virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }
-    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const;
+    virtual RefPtr<DisplayList> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
+
+    virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
+    virtual RefPtr<DisplayList> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return as<Layout::NodeWithStyleAndBoxModelMetrics const>(layout_node()); }
 

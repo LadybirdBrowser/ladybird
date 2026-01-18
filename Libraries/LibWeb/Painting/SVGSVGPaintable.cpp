@@ -33,30 +33,44 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
         context.display_list_recorder().fill_rect_transparent(device_rect);
     }
 
-    auto masking_area = svg_box.get_masking_area();
-    if (masking_area.has_value()) {
+    auto mask_area = svg_box.get_mask_area();
+    auto clip_area = svg_box.get_clip_area();
+    auto needs_to_save_state = mask_area.has_value() || clip_area.has_value();
+
+    if (needs_to_save_state) {
         context.display_list_recorder().save();
+    }
 
-        bool skip_painting = false;
-        if (masking_area->is_empty()) {
+    bool skip_painting = false;
+
+    // Apply <mask> if present
+    if (mask_area.has_value()) {
+        if (mask_area->is_empty()) {
             skip_painting = true;
-        } else {
-            auto mask_bitmap = svg_box.calculate_mask(context, *masking_area);
-            if (mask_bitmap) {
-                auto source_paintable_rect = context.enclosing_device_rect(*masking_area).template to_type<int>();
-                context.display_list_recorder().apply_mask_bitmap(source_paintable_rect.location(), mask_bitmap.release_nonnull(), *svg_box.get_mask_type());
-            }
+        } else if (auto mask_display_list = svg_box.calculate_mask(context, *mask_area)) {
+            auto rect = context.enclosing_device_rect(*mask_area).to_type<int>();
+            auto kind = svg_box.get_mask_type().value_or(Gfx::MaskKind::Alpha);
+            context.display_list_recorder().add_mask(mask_display_list, rect, kind);
         }
+    }
 
-        if (!skip_painting) {
-            svg_box.paint(context, PaintPhase::Foreground);
-            paint_descendants(context, svg_box, phase);
+    // Apply <clipPath> if present
+    if (clip_area.has_value()) {
+        if (clip_area->is_empty()) {
+            skip_painting = true;
+        } else if (auto clip_display_list = svg_box.calculate_clip(context, *clip_area)) {
+            auto rect = context.enclosing_device_rect(*clip_area).to_type<int>();
+            context.display_list_recorder().add_mask(clip_display_list, rect, Gfx::MaskKind::Alpha);
         }
+    }
 
-        context.display_list_recorder().restore();
-    } else {
+    if (!skip_painting) {
         svg_box.paint(context, PaintPhase::Foreground);
         paint_descendants(context, svg_box, phase);
+    }
+
+    if (needs_to_save_state) {
+        context.display_list_recorder().restore();
     }
 }
 

@@ -867,6 +867,18 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
     canvas.clipRRect(rounded_rect, clip_op, true);
 }
 
+struct DisplayListPlayerSkia::CachedRuntimeEffects {
+    sk_sp<SkRuntimeEffect> luminance_mask;
+    sk_sp<SkRuntimeEffect> alpha_mask;
+};
+
+DisplayListPlayerSkia::CachedRuntimeEffects& DisplayListPlayerSkia::cached_runtime_effects()
+{
+    if (!m_cached_runtime_effects)
+        m_cached_runtime_effects = make<DisplayListPlayerSkia::CachedRuntimeEffects>();
+    return *m_cached_runtime_effects;
+}
+
 void DisplayListPlayerSkia::add_mask(AddMask const& command)
 {
     auto const& rect = command.rect;
@@ -880,8 +892,49 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
     SkMatrix mask_matrix;
     mask_matrix.setTranslate(rect.x(), rect.y());
     auto image = mask_surface->sk_surface().makeImageSnapshot();
-    auto shader = image->makeShader(SkSamplingOptions(), mask_matrix);
-    surface().canvas().clipShader(shader);
+
+    auto compile_effect = [](char const* sksl_shader) {
+        auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
+        if (!effect) {
+            dbgln("SkSL error: {}", error.c_str());
+            VERIFY_NOT_REACHED();
+        }
+        return effect;
+    };
+
+    auto& cached_runtime_effects = this->cached_runtime_effects();
+
+    sk_sp<SkRuntimeEffect> effect;
+    if (command.kind == Gfx::MaskKind::Luminance) {
+        char const* sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
+                    return half4(0.0, 0.0, 0.0, color.a * luminance);
+                }
+            )";
+        if (!cached_runtime_effects.luminance_mask) {
+            cached_runtime_effects.luminance_mask = compile_effect(sksl_shader);
+        }
+        effect = cached_runtime_effects.luminance_mask;
+    } else {
+        char const* sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    return half4(0.0, 0.0, 0.0, color.a);
+                }
+            )";
+        if (!cached_runtime_effects.alpha_mask) {
+            cached_runtime_effects.alpha_mask = compile_effect(sksl_shader);
+        }
+        effect = cached_runtime_effects.alpha_mask;
+    }
+
+    SkRuntimeShaderBuilder builder(effect);
+    builder.child("mask_image") = image->makeShader(SkSamplingOptions(), mask_matrix);
+    surface().canvas().clipShader(builder.makeShader());
 }
 
 void DisplayListPlayerSkia::paint_nested_display_list(PaintNestedDisplayList const& command)
@@ -948,74 +1001,6 @@ void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
     new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.origin.x(), -command.origin.y(), 0));
     auto matrix = to_skia_matrix4x4(new_transform);
     surface().canvas().concat(matrix);
-}
-
-struct DisplayListPlayerSkia::CachedRuntimeEffects {
-    sk_sp<SkRuntimeEffect> luminance_mask;
-    sk_sp<SkRuntimeEffect> alpha_mask;
-};
-
-DisplayListPlayerSkia::CachedRuntimeEffects& DisplayListPlayerSkia::cached_runtime_effects()
-{
-    if (!m_cached_runtime_effects)
-        m_cached_runtime_effects = make<DisplayListPlayerSkia::CachedRuntimeEffects>();
-    return *m_cached_runtime_effects;
-}
-
-void DisplayListPlayerSkia::apply_mask_bitmap(ApplyMaskBitmap const& command)
-{
-    auto& canvas = surface().canvas();
-
-    auto const* mask_image = command.bitmap->sk_image();
-
-    auto compile_effect = [](char const* sksl_shader) {
-        auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
-        if (!effect) {
-            dbgln("SkSL error: {}", error.c_str());
-            VERIFY_NOT_REACHED();
-        }
-        return effect;
-    };
-
-    auto& cached_runtime_effects = this->cached_runtime_effects();
-
-    sk_sp<SkRuntimeEffect> effect;
-    if (command.kind == Gfx::MaskKind::Luminance) {
-        char const* sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
-                    return half4(0.0, 0.0, 0.0, color.a * luminance);
-                }
-            )";
-        if (!cached_runtime_effects.luminance_mask) {
-            cached_runtime_effects.luminance_mask = compile_effect(sksl_shader);
-        }
-        effect = cached_runtime_effects.luminance_mask;
-    } else if (command.kind == Gfx::MaskKind::Alpha) {
-        char const* sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    return half4(0.0, 0.0, 0.0, color.a);
-                }
-            )";
-        if (!cached_runtime_effects.alpha_mask) {
-            cached_runtime_effects.alpha_mask = compile_effect(sksl_shader);
-        }
-        effect = cached_runtime_effects.alpha_mask;
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
-    SkMatrix mask_matrix;
-    auto mask_position = command.origin;
-    mask_matrix.setTranslate(mask_position.x(), mask_position.y());
-
-    SkRuntimeShaderBuilder builder(effect);
-    builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
-    canvas.clipShader(builder.makeShader());
 }
 
 void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path)

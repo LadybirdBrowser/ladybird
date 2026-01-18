@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -53,7 +53,6 @@ private:
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
     void apply_effects(ApplyEffects const&) override;
     void apply_transform(ApplyTransform const&) override;
-    void apply_mask_bitmap(ApplyMaskBitmap const&) override;
 
     void add_clip_path(Gfx::Path const&) override;
 

@@ -51,11 +51,11 @@ void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::I
     APPEND(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
 
-void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
+void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect, Gfx::MaskKind kind)
 {
     if (rect.is_empty())
         return;
-    APPEND(AddMask { move(display_list), rect });
+    APPEND(AddMask { move(display_list), rect, kind });
 }
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
@@ -369,15 +369,6 @@ void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatr
     APPEND(ApplyTransform {
         .origin = origin,
         .matrix = matrix,
-    });
-}
-
-void DisplayListRecorder::apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const& bitmap, Gfx::MaskKind kind)
-{
-    APPEND(ApplyMaskBitmap {
-        .origin = origin,
-        .bitmap = bitmap,
-        .kind = kind,
     });
 }
 
