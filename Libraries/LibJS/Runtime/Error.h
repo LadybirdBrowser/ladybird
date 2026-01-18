@@ -40,7 +40,7 @@ public:
 
     virtual ~Error() override = default;
 
-    [[nodiscard]] String stack_string(CompactTraceback compact = CompactTraceback::No) const;
+    [[nodiscard]] Utf16String stack_string(CompactTraceback compact = CompactTraceback::No) const;
 
     ThrowCompletionOr<void> install_error_cause(Value options);
 

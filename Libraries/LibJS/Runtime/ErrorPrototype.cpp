@@ -106,7 +106,7 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_getter)
         ? move(name)
         : MUST(String::formatted("{}: {}", name, message));
 
-    auto string = PrimitiveString::create(vm, MUST(String::formatted("{}\n{}", header, error.stack_string())));
+    auto string = PrimitiveString::create(vm, Utf16String::formatted("{}\n{}", header, error.stack_string()));
     error.set_cached_string(string);
     return string;
 }
