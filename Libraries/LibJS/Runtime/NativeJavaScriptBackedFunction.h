@@ -22,7 +22,7 @@ public:
 
     virtual void visit_edges(Visitor&) override;
 
-    virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count) override;
+    virtual ThrowCompletionOr<void> get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count) override;
 
     virtual ThrowCompletionOr<Value> call() override;
 

@@ -149,7 +149,7 @@ ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
     // 1. Let moduleContext be a new ECMAScript code execution context.
     // 2. Set the Function of moduleContext to null.
     ExecutionContext* module_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, 0, 0);
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, 0, 0, 0);
 
     // 3. Set the Realm of moduleContext to module.[[Realm]].
     module_context->realm = &realm;

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <LibJS/AST.h>
@@ -308,7 +309,9 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
     auto number_of_registers = generator.m_next_register;
     auto number_of_constants = generator.m_constants.size();
-    auto number_of_locals = shared_function_instance_data ? shared_function_instance_data->m_local_variables_names.size() : 0;
+    auto number_of_locals = local_variable_names.size();
+
+    u32 max_argument_index = 0;
 
     // Pass: Rewrite the bytecode to use the correct register and constant indices.
     for (auto& block : generator.m_root_basic_blocks) {
@@ -316,18 +319,20 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
         while (!it.at_end()) {
             auto& instruction = const_cast<Instruction&>(*it);
 
-            instruction.visit_operands([number_of_registers, number_of_constants, number_of_locals](Operand& operand) {
+            // NB: The layout in ExecutionContext is: [registers | locals | constants | arguments]
+            instruction.visit_operands([number_of_registers, number_of_constants, number_of_locals, &max_argument_index](Operand& operand) {
                 switch (operand.type()) {
                 case Operand::Type::Register:
                     break;
                 case Operand::Type::Local:
-                    operand.offset_index_by(number_of_registers + number_of_constants);
-                    break;
-                case Operand::Type::Constant:
                     operand.offset_index_by(number_of_registers);
                     break;
+                case Operand::Type::Constant:
+                    operand.offset_index_by(number_of_registers + number_of_locals);
+                    break;
                 case Operand::Type::Argument:
-                    operand.offset_index_by(number_of_registers + number_of_constants + number_of_locals);
+                    max_argument_index = max(max_argument_index, operand.index());
+                    operand.offset_index_by(number_of_registers + number_of_locals + number_of_constants);
                     break;
                 default:
                     VERIFY_NOT_REACHED();
@@ -340,7 +345,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
     // Also rewrite the `undefined` constant if we have one for inserting End.
     if (undefined_constant.has_value())
-        undefined_constant.value().operand().offset_index_by(number_of_registers);
+        undefined_constant.value().operand().offset_index_by(number_of_registers + number_of_locals);
 
     for (auto& block : generator.m_root_basic_blocks) {
         basic_block_start_offsets.append(bytecode.size());
@@ -488,11 +493,28 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     executable->basic_block_start_offsets = move(basic_block_start_offsets);
     executable->source_map = move(source_map);
     executable->local_variable_names = move(local_variable_names);
-    executable->local_index_base = number_of_registers + number_of_constants;
-    executable->argument_index_base = number_of_registers + number_of_constants + number_of_locals;
+    // NB: Layout is [registers | locals | constants | arguments]
+    executable->local_index_base = number_of_registers;
+
+    VERIFY(!Checked<u32>::addition_would_overflow(number_of_registers, number_of_locals, number_of_constants));
+    executable->argument_index_base = number_of_registers + number_of_locals + number_of_constants;
+
+    // NB: Operand indices are stored in 29 bits, so the max operand index must fit.
+    VERIFY(!Checked<u32>::addition_would_overflow(executable->argument_index_base, max_argument_index));
+    VERIFY(executable->argument_index_base + max_argument_index <= 0x1FFFFFFFu);
+
     executable->length_identifier = generator.m_length_identifier;
 
-    executable->registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+    VERIFY(!Checked<u32>::addition_would_overflow(executable->number_of_registers, executable->local_variable_names.size()));
+    executable->registers_and_locals_count = executable->number_of_registers + executable->local_variable_names.size();
+
+    VERIFY(!Checked<u32>::addition_would_overflow(executable->registers_and_locals_count, executable->constants.size()));
+    executable->registers_and_locals_and_constants_count = executable->registers_and_locals_count + executable->constants.size();
+
+    // Sanity check: ensure offset computation values match Executable values.
+    VERIFY(number_of_registers == executable->number_of_registers);
+    VERIFY(number_of_locals == executable->local_variable_names.size());
+    VERIFY(number_of_constants == executable->constants.size());
 
     generator.m_finished = true;
 

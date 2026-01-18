@@ -61,10 +61,11 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
     // 3. Return ? F.[[Call]](V, argumentsList).
     ExecutionContext* callee_context = nullptr;
     auto& function_object = function.as_function();
-    size_t registers_and_constants_and_locals_count = 0;
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function_object.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+    TRY(function_object.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
@@ -83,10 +84,11 @@ ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_val
 
     // 3. Return ? F.[[Call]](V, argumentsList).
     ExecutionContext* callee_context = nullptr;
-    size_t registers_and_constants_and_locals_count = 0;
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
@@ -107,10 +109,11 @@ ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function,
 
     // 3. Return ? F.[[Construct]](argumentsList, newTarget).
     ExecutionContext* callee_context = nullptr;
-    size_t registers_and_constants_and_locals_count = 0;
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
     size_t argument_count = arguments_list.size();
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_constants_and_locals_count, argument_count);
+    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(callee_context, registers_and_locals_count, constants_count, argument_count);
 
     auto* argument_values = callee_context->arguments.data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
@@ -734,7 +737,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // 22. Let evalContext be a new ECMAScript code execution context.
     ExecutionContext* eval_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(eval_context, executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size(), 0);
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(eval_context, executable->registers_and_locals_count, executable->constants.size(), 0);
 
     // 23. Set evalContext's Function to null.
     // NOTE: This was done in the construction of eval_context.
