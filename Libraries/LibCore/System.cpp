@@ -37,6 +37,10 @@ static int memfd_create(char const* name, unsigned int flags)
 }
 #endif
 
+#if defined(AK_OS_LINUX)
+#    include <sys/sendfile.h>
+#endif
+
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <mach-o/dyld.h>
 #    include <sys/mman.h>
@@ -834,12 +838,12 @@ ErrorOr<void> set_close_on_exec(int fd, bool enabled)
     return {};
 }
 
-ErrorOr<size_t> transfer_file_through_pipe(int source_fd, int target_fd, size_t source_offset, size_t source_length)
+ErrorOr<size_t> transfer_file_through_socket(int source_fd, int target_fd, size_t source_offset, size_t source_length)
 {
 #if defined(AK_OS_LINUX)
-    auto sent = ::splice(source_fd, reinterpret_cast<off_t*>(&source_offset), target_fd, nullptr, source_length, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
+    auto sent = ::sendfile(target_fd, source_fd, reinterpret_cast<off_t*>(&source_offset), source_length);
     if (sent < 0)
-        return Error::from_syscall("send_file_to_pipe"sv, errno);
+        return Error::from_syscall("sendfile"sv, errno);
     return sent;
 #else
     static auto page_size = PAGE_SIZE;
