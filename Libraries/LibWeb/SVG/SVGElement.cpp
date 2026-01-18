@@ -23,6 +23,8 @@
 
 namespace Web::SVG {
 
+GC_DEFINE_ALLOCATOR(SVGElement);
+
 SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {

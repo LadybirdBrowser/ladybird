@@ -18,6 +18,7 @@ class SVGImageElement final
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
+    GC_DECLARE_ALLOCATOR(SVGImageElement);
 
 public:
     ~SVGImageElement();

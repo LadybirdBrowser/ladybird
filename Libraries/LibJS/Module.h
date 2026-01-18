@@ -65,6 +65,7 @@ struct GraphLoadingState : public Cell {
 public:
     struct HostDefined : Cell {
         GC_CELL(HostDefined, Cell);
+        GC_DECLARE_ALLOCATOR(HostDefined);
 
     public:
         virtual ~HostDefined() = default;

@@ -4189,6 +4189,7 @@ void Document::make_unsalvageable([[maybe_unused]] String reason)
 
 struct DocumentDestructionState : public GC::Cell {
     GC_CELL(DocumentDestructionState, GC::Cell);
+    GC_DECLARE_ALLOCATOR(DocumentDestructionState);
 
     static constexpr int TIMEOUT_MS = 15000;
 
@@ -4230,6 +4231,8 @@ struct DocumentDestructionState : public GC::Cell {
     GC::Ptr<GC::Function<void()>> after_all;
     GC::Ref<Platform::Timer> timeout;
 };
+
+GC_DEFINE_ALLOCATOR(DocumentDestructionState);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
 void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void()>> after_all_destruction)

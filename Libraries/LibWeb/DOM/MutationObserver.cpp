@@ -14,6 +14,7 @@
 namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(MutationObserver);
+GC_DEFINE_ALLOCATOR(RegisteredObserver);
 GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
 WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)

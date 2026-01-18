@@ -19,6 +19,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(Module);
 GC_DEFINE_ALLOCATOR(GraphLoadingState);
+GC_DEFINE_ALLOCATOR(GraphLoadingState::HostDefined);
 
 Module::Module(Realm& realm, ByteString filename, Script::HostDefined* host_defined)
     : m_realm(realm)

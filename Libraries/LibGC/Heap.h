@@ -98,8 +98,18 @@ private:
     void dump_allocators();
 
     template<typename T>
+    static consteval bool has_own_gc_allocator_marker()
+    {
+        if constexpr (requires { typename T::gc_allocator_marker; })
+            return IsSame<typename T::gc_allocator_marker, T>;
+        return false;
+    }
+
+    template<typename T>
     Cell* allocate_cell()
     {
+        static_assert(has_own_gc_allocator_marker<T>(), "Cell type must declare its own allocator with either GC_DECLARE_ALLOCATOR (for type-isolated allocation) or GC_DECLARE_SIZE_BASED_ALLOCATOR (for size-based allocation)");
+
         will_allocate(sizeof(T));
         if constexpr (requires { T::cell_allocator.allocator.get().allocate_cell(*this); }) {
             if constexpr (IsSame<T, typename decltype(T::cell_allocator)::CellType>) {

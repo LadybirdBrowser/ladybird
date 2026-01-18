@@ -15,6 +15,7 @@ namespace Web::Layout {
 
 class WEB_API SVGGraphicsBox : public SVGBox {
     GC_CELL(SVGGraphicsBox, SVGBox);
+    GC_DECLARE_ALLOCATOR(SVGGraphicsBox);
 
 public:
     SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, GC::Ref<CSS::ComputedProperties>);

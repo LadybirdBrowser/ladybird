@@ -12,6 +12,8 @@
 
 namespace Web::ServiceWorker {
 
+GC_DEFINE_ALLOCATOR(ServiceWorker);
+
 ServiceWorker::ServiceWorker(JS::Realm& realm, ServiceWorkerRecord* service_worker_record)
     : DOM::EventTarget(realm)
     , m_service_worker_record(service_worker_record)

@@ -148,6 +148,7 @@ static void register_(JS::VM& vm, GC::Ref<Job> job)
 // Used to share internal Update algorithm state b/w fetch callbacks
 class UpdateAlgorithmState : JS::Cell {
     GC_CELL(UpdateAlgorithmState, JS::Cell);
+    GC_DECLARE_ALLOCATOR(UpdateAlgorithmState);
 
 public:
     static GC::Ref<UpdateAlgorithmState> create(JS::VM& vm)
@@ -171,6 +172,8 @@ private:
     OrderedHashMap<URL::URL, GC::Ref<Fetch::Infrastructure::Response>> m_map;
     bool m_has_updated_resources { false };
 };
+
+GC_DEFINE_ALLOCATOR(UpdateAlgorithmState);
 
 // https://w3c.github.io/ServiceWorker/#update-algorithm
 static void update(JS::VM& vm, GC::Ref<Job> job)

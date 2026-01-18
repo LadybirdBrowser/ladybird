@@ -118,6 +118,7 @@ class WEB_API Element
     , public ARIA::ARIAMixin
     , public Animations::Animatable {
     WEB_PLATFORM_OBJECT(Element, ParentNode);
+    GC_DECLARE_ALLOCATOR(Element);
 
 public:
     virtual ~Element() override;

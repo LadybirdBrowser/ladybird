@@ -27,6 +27,8 @@
 
 namespace Web::HTML {
 
+GC_DEFINE_ALLOCATOR(Environment);
+
 Environment::~Environment() = default;
 
 void Environment::visit_edges(Cell::Visitor& visitor)

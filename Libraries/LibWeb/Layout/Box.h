@@ -27,6 +27,7 @@ struct IntrinsicSizes {
 
 class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
     GC_CELL(Box, NodeWithStyleAndBoxModelMetrics);
+    GC_DECLARE_ALLOCATOR(Box);
 
 public:
     Painting::PaintableBox const* paintable_box() const;

@@ -19,6 +19,7 @@ class WEB_API SVGElement
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGElement<SVGElement> {
     WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
+    GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:
     virtual bool requires_svg_container() const override { return true; }

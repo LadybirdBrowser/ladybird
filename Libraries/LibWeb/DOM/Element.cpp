@@ -105,6 +105,8 @@
 
 namespace Web::DOM {
 
+GC_DEFINE_ALLOCATOR(Element);
+
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
     , m_qualified_name(move(qualified_name))

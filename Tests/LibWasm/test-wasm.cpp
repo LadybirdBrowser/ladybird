@@ -42,6 +42,7 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
 
 class WebAssemblyModule final : public JS::Object {
     JS_OBJECT(WebAssemblyModule, JS::Object);
+    GC_DECLARE_ALLOCATOR(WebAssemblyModule);
 
 public:
     explicit WebAssemblyModule(JS::Object& prototype)
@@ -152,6 +153,8 @@ private:
     RefPtr<Wasm::Module> m_module;
     OwnPtr<Wasm::ModuleInstance> m_module_instance;
 };
+
+GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 
 Wasm::AbstractMachine WebAssemblyModule::m_machine;
 HashMap<Wasm::Linker::Name, Wasm::ExternValue> WebAssemblyModule::s_spec_test_namespace;

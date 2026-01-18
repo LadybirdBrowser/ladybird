@@ -124,6 +124,7 @@ extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard)
 
 class TestRunnerGlobalObject final : public JS::GlobalObject {
     JS_OBJECT(TestRunnerGlobalObject, JS::GlobalObject);
+    GC_DECLARE_ALLOCATOR(TestRunnerGlobalObject);
 
 public:
     TestRunnerGlobalObject(JS::Realm&);
@@ -133,6 +134,8 @@ public:
 private:
     JS_DECLARE_NATIVE_FUNCTION(fuzzilli);
 };
+
+GC_DEFINE_ALLOCATOR(TestRunnerGlobalObject);
 
 TestRunnerGlobalObject::TestRunnerGlobalObject(JS::Realm& realm)
     : GlobalObject(realm)

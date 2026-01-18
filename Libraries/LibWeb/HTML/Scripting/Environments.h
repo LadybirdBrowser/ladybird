@@ -24,6 +24,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/webappapis.html#environment
 struct WEB_API Environment : public JS::Cell {
     GC_CELL(Environment, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Environment);
 
 public:
     virtual ~Environment() override;
