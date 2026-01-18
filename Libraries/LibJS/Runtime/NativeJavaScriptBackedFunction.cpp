@@ -73,10 +73,11 @@ void NativeJavaScriptBackedFunction::visit_edges(Visitor& visitor)
     visitor.visit(m_shared_function_instance_data);
 }
 
-ThrowCompletionOr<void> NativeJavaScriptBackedFunction::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
+ThrowCompletionOr<void> NativeJavaScriptBackedFunction::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
 {
     auto& bytecode_executable = this->bytecode_executable();
-    registers_and_constants_and_locals_count = bytecode_executable.number_of_registers + bytecode_executable.constants.size() + bytecode_executable.local_variable_names.size();
+    registers_and_locals_count = bytecode_executable.registers_and_locals_count;
+    constants_count = bytecode_executable.constants.size();
     argument_count = max(argument_count, m_shared_function_instance_data->m_function_length);
     return {};
 }

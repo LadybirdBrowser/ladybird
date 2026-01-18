@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Checked.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
@@ -56,7 +57,7 @@ private:
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct JS_API ExecutionContext {
-    static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_constants_and_locals_count, u32 arguments_count);
+    static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 
     ~ExecutionContext() = default;
@@ -67,13 +68,17 @@ private:
     friend class ExecutionContextAllocator;
 
 public:
-    ALWAYS_INLINE ExecutionContext(u32 registers_and_constants_and_locals_count, u32 arguments_count)
+    // NB: The layout is: [registers | locals | constants | arguments]
+    //     We only initialize registers and locals to empty, since constants are copied in right after.
+    ALWAYS_INLINE ExecutionContext(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count)
     {
-        registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_count + arguments_count;
-        auto* registers_and_constants_and_locals_and_arguments = this->registers_and_constants_and_locals_and_arguments();
-        for (size_t i = 0; i < registers_and_constants_and_locals_count; ++i)
-            registers_and_constants_and_locals_and_arguments[i] = js_special_empty_value();
-        arguments = { registers_and_constants_and_locals_and_arguments + registers_and_constants_and_locals_count, arguments_count };
+        VERIFY(!Checked<u32>::addition_would_overflow(registers_and_locals_count, constants_count, arguments_count));
+        registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants_count + arguments_count;
+        auto registers_and_locals_and_constants_count = registers_and_locals_count + constants_count;
+        auto* values = registers_and_constants_and_locals_and_arguments();
+        for (size_t i = 0; i < registers_and_locals_count; ++i)
+            values[i] = js_special_empty_value();
+        arguments = { values + registers_and_locals_and_constants_count, arguments_count };
     }
 
     GC::Ptr<ExecutionContextRareData> rare_data() const { return m_rare_data; }
@@ -143,25 +148,26 @@ private:
 static_assert(IsTriviallyDestructible<ExecutionContext>);
 
 #define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context, \
-    registers_and_constants_and_locals_count,                                               \
+    registers_and_locals_count,                                                             \
+    constants_count,                                                                        \
     arguments_count)                                                                        \
     auto execution_context_size = sizeof(JS::ExecutionContext)                              \
-        + (((registers_and_constants_and_locals_count) + (arguments_count))                 \
+        + (((registers_and_locals_count) + (constants_count) + (arguments_count))           \
             * sizeof(JS::Value));                                                           \
                                                                                             \
     void* execution_context_memory = alloca(execution_context_size);                        \
                                                                                             \
     execution_context = new (execution_context_memory)                                      \
-        JS::ExecutionContext((registers_and_constants_and_locals_count), (arguments_count));
+        JS::ExecutionContext((registers_and_locals_count), (constants_count), (arguments_count));
 
-#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context, registers_and_constants_and_locals_count, \
-    arguments_count)                                                                                            \
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,                         \
-        registers_and_constants_and_locals_count, arguments_count);                                             \
-    do {                                                                                                        \
-        for (size_t i = 0; i < execution_context->arguments.size(); i++) {                                      \
-            execution_context->arguments[i] = JS::js_undefined();                                               \
-        }                                                                                                       \
+#define ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(execution_context, registers_and_locals_count, \
+    constants_count, arguments_count)                                                             \
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(execution_context,           \
+        registers_and_locals_count, constants_count, arguments_count);                            \
+    do {                                                                                          \
+        for (size_t i = 0; i < execution_context->arguments.size(); i++) {                        \
+            execution_context->arguments[i] = JS::js_undefined();                                 \
+        }                                                                                         \
     } while (0)
 
 struct StackTraceElement {

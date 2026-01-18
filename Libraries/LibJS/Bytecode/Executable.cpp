@@ -127,13 +127,14 @@ UnrealizedSourceRange Executable::source_range_at(size_t offset) const
 
 Operand Executable::original_operand_from_raw(u32 raw) const
 {
+    // NB: Layout is [registers | locals | constants | arguments]
     if (raw < number_of_registers)
         return Operand { Operand::Type::Register, raw };
-    if (raw < local_index_base)
-        return Operand { Operand::Type::Constant, raw - static_cast<u32>(number_of_registers) };
+    if (raw < registers_and_locals_count)
+        return Operand { Operand::Type::Local, raw - local_index_base };
     if (raw < argument_index_base)
-        return Operand { Operand::Type::Local, raw - static_cast<u32>(local_index_base) };
-    return Operand { Operand::Type::Argument, raw - static_cast<u32>(argument_index_base) };
+        return Operand { Operand::Type::Constant, raw - registers_and_locals_count };
+    return Operand { Operand::Type::Argument, raw - argument_index_base };
 }
 
 }

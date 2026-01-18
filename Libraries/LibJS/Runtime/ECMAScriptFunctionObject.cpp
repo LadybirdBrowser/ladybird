@@ -252,7 +252,7 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
     }
 }
 
-ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& registers_and_constants_and_locals_count, size_t& argument_count)
+ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& registers_and_locals_count, size_t& constants_count, size_t& argument_count)
 {
     auto& executable = shared_data().m_executable;
     if (!executable) {
@@ -262,7 +262,8 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::get_stack_frame_size(size_t& r
             executable = TRY(Bytecode::compile(vm(), shared_data(), Bytecode::BuiltinAbstractOperationsEnabled::No));
         }
     }
-    registers_and_constants_and_locals_count = executable->registers_and_constants_and_locals_count;
+    registers_and_locals_count = executable->registers_and_locals_count;
+    constants_count = executable->constants.size();
     argument_count = max(argument_count, formal_parameters().size());
     return {};
 }

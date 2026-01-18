@@ -127,10 +127,11 @@ public:
     Vector<Value> constants;
 
     NonnullRefPtr<SourceCode const> source_code;
-    size_t number_of_registers { 0 };
+    u32 number_of_registers { 0 };
     bool is_strict_mode { false };
 
-    size_t registers_and_constants_and_locals_count { 0 };
+    u32 registers_and_locals_count { 0 };
+    u32 registers_and_locals_and_constants_count { 0 };
 
     struct ExceptionHandlers {
         size_t start_offset;
@@ -145,8 +146,8 @@ public:
     HashMap<size_t, SourceRecord> source_map;
 
     Vector<LocalVariable> local_variable_names;
-    size_t local_index_base { 0 };
-    size_t argument_index_base { 0 };
+    u32 local_index_base { 0 };
+    u32 argument_index_base { 0 };
 
     Optional<PropertyKeyTableIndex> length_identifier;
 

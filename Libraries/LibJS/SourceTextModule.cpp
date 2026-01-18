@@ -110,7 +110,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     RefPtr<ExportStatement const> default_export)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
     , m_ecmascript_code(move(body))
-    , m_execution_context(ExecutionContext::create(0, 0))
+    , m_execution_context(ExecutionContext::create(0, 0, 0))
     , m_import_entries(move(import_entries))
     , m_local_export_entries(move(local_export_entries))
     , m_indirect_export_entries(move(indirect_export_entries))
@@ -700,14 +700,16 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
             return result.release_error();
     }
 
-    u32 registers_and_constants_and_locals_count = 0;
+    u32 registers_and_locals_count = 0;
+    u32 constants_count = 0;
     if (executable) {
-        registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+        registers_and_locals_count = executable->registers_and_locals_count;
+        constants_count = executable->constants.size();
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
     ExecutionContext* module_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, registers_and_constants_and_locals_count, 0);
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(module_context, registers_and_locals_count, constants_count, 0);
 
     // 2. Set the Function of moduleContext to null.
 

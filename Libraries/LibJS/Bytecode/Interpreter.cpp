@@ -145,14 +145,16 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
         }
     }
 
-    u32 registers_and_constants_and_locals_count = 0;
+    u32 registers_and_locals_count = 0;
+    u32 constants_count = 0;
     if (executable) {
-        registers_and_constants_and_locals_count = executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size();
+        registers_and_locals_count = executable->registers_and_locals_count;
+        constants_count = executable->constants.size();
     }
 
     // 2. Let scriptContext be a new ECMAScript code execution context.
     ExecutionContext* script_context = nullptr;
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(script_context, registers_and_constants_and_locals_count, 0);
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(script_context, registers_and_locals_count, constants_count, 0);
 
     // 3. Set the Function of scriptContext to null.
     // NOTE: This was done during execution context construction.
@@ -655,7 +657,8 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     context.identifier_table = executable.identifier_table->identifiers().data();
     context.property_key_table = executable.property_key_table->property_keys().data();
 
-    ASSERT(executable.registers_and_constants_and_locals_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
+    VERIFY(executable.registers_and_locals_count + executable.constants.size() == executable.registers_and_locals_and_constants_count);
+    VERIFY(executable.registers_and_locals_and_constants_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
 
     // NOTE: We only copy the `this` value from ExecutionContext if it's not already set.
     //       If we are re-entering an async/generator context, the `this` value
@@ -664,9 +667,10 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     if (reg(Register::this_value()).is_special_empty_value())
         reg(Register::this_value()) = context.this_value.value_or(js_special_empty_value());
 
-    auto* registers_and_constants_and_locals_and_arguments = context.registers_and_constants_and_locals_and_arguments();
+    // NB: Layout is [registers | locals | constants | arguments], so constants start after registers+locals.
+    auto* values = context.registers_and_constants_and_locals_and_arguments();
     for (size_t i = 0; i < executable.constants.size(); ++i) {
-        registers_and_constants_and_locals_and_arguments[executable.number_of_registers + i] = executable.constants.data()[i];
+        values[executable.registers_and_locals_count + i] = executable.constants.data()[i];
     }
 
     run_bytecode(entry_point.value_or(0));
@@ -676,10 +680,10 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     if constexpr (JS_BYTECODE_DEBUG) {
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
             String value_string;
-            if (registers_and_constants_and_locals_and_arguments[i].is_special_empty_value())
+            if (values[i].is_special_empty_value())
                 value_string = "(empty)"_string;
             else
-                value_string = registers_and_constants_and_locals_and_arguments[i].to_string_without_side_effects();
+                value_string = values[i].to_string_without_side_effects();
             dbgln("[{:3}] {}", i, value_string);
         }
     }
@@ -2624,10 +2628,11 @@ static ThrowCompletionOr<void> execute_call(
     auto& function = callee.as_function();
 
     ExecutionContext* callee_context = nullptr;
-    size_t registers_and_constants_and_locals_count = 0;
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
     size_t argument_count = arguments.size();
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_constants_and_locals_count, max(arguments.size(), argument_count));
+    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(arguments.size(), argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();
     auto const callee_context_argument_count = callee_context->arguments.size();
@@ -2697,9 +2702,10 @@ static ThrowCompletionOr<void> call_with_argument_array(
 
     ExecutionContext* callee_context = nullptr;
     size_t argument_count = argument_array_length;
-    size_t registers_and_constants_and_locals_count = 0;
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_constants_and_locals_count, max(argument_array_length, argument_count));
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
+    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();
     auto const callee_context_argument_count = callee_context->arguments.size();
@@ -2777,9 +2783,10 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
     ExecutionContext* callee_context = nullptr;
     size_t argument_count = argument_array_length;
-    size_t registers_and_constants_and_locals_count = 0;
-    TRY(function.get_stack_frame_size(registers_and_constants_and_locals_count, argument_count));
-    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_constants_and_locals_count, max(argument_array_length, argument_count));
+    size_t registers_and_locals_count = 0;
+    size_t constants_count = 0;
+    TRY(function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count));
+    ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK_WITHOUT_CLEARING_ARGS(callee_context, registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
 
     auto* callee_context_argument_values = callee_context->arguments.data();
     auto const callee_context_argument_count = callee_context->arguments.size();
