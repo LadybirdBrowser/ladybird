@@ -17,6 +17,7 @@
 #include <LibMain/Main.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
+#include <RequestServer/ResourceSubstitutionMap.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibCore/Platform/ProcessStatisticsMach.h>
@@ -25,6 +26,7 @@
 namespace RequestServer {
 
 extern Optional<HTTP::DiskCache> g_disk_cache;
+OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 }
 
@@ -35,12 +37,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Vector<ByteString> certificates;
     StringView mach_server_name;
     StringView http_disk_cache_mode;
+    StringView resource_map_path;
     bool wait_for_debugger = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(http_disk_cache_mode, "HTTP disk cache mode", "http-disk-cache-mode", 0, "mode");
+    args_parser.add_option(resource_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.parse(arguments);
 
@@ -50,6 +54,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // FIXME: Update RequestServer to support multiple custom root certificates.
     if (!certificates.is_empty())
         RequestServer::set_default_certificate_path(certificates.first());
+
+    if (!resource_map_path.is_empty()) {
+        auto map = RequestServer::ResourceSubstitutionMap::load_from_file(resource_map_path);
+        if (map.is_error())
+            warnln("Unable to load resource substitution map from '{}': {}", resource_map_path, map.error());
+        else
+            RequestServer::g_resource_substitution_map = map.release_value();
+    }
 
     Core::EventLoop event_loop;
 

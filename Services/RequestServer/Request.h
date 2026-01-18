@@ -78,14 +78,15 @@ public:
 
 private:
     enum class State : u8 {
-        Init,         // Decide whether to service this request from cache or the network.
-        ReadCache,    // Read the cached response from disk.
-        WaitForCache, // Wait for an existing cache entry to complete before proceeding.
-        DNSLookup,    // Resolve the URL's host.
-        Connect,      // Issue a network request to connect to the URL.
-        Fetch,        // Issue a network request to fetch the URL.
-        Complete,     // Finalize the request with the client.
-        Error,        // Any error occured during the request's lifetime.
+        Init,              // Decide whether to service this request from cache or the network.
+        ReadCache,         // Read the cached response from disk.
+        WaitForCache,      // Wait for an existing cache entry to complete before proceeding.
+        ServeSubstitution, // Serve content from a local file substitution.
+        DNSLookup,         // Resolve the URL's host.
+        Connect,           // Issue a network request to connect to the URL.
+        Fetch,             // Issue a network request to fetch the URL.
+        Complete,          // Finalize the request with the client.
+        Error,             // Any error occured during the request's lifetime.
     };
 
     static constexpr StringView state_name(State state)
@@ -97,6 +98,8 @@ private:
             return "ReadCache"sv;
         case State::WaitForCache:
             return "WaitForCache"sv;
+        case State::ServeSubstitution:
+            return "ServeSubstitution"sv;
         case State::DNSLookup:
             return "DNSLookup"sv;
         case State::Connect:
@@ -137,6 +140,7 @@ private:
 
     void handle_initial_state();
     void handle_read_cache_state();
+    void handle_serve_substitution_state();
     void handle_dns_lookup_state();
     void handle_connect_state();
     void handle_fetch_state();
