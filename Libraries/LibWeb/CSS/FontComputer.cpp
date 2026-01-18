@@ -311,6 +311,10 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
             },
             &typeface);
     });
+
+    if (matching_family_fonts.is_empty())
+        return {};
+
     quick_sort(matching_family_fonts, [](auto const& a, auto const& b) {
         return a.key.weight < b.key.weight;
     });
@@ -360,7 +364,8 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
         if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, variations, false))
             return found_font;
     }
-    return {};
+
+    VERIFY_NOT_REACHED();
 }
 
 NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings) const
