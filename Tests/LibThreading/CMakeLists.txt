@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestBackgroundAction.cpp
     TestThread.cpp
 )
 
