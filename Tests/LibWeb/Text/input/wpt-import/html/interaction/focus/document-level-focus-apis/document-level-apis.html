@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: focus - document-level APIs</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#document-level-focus-apis">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<input id="test">
+<script>
+
+test(function () {
+  assert_equals(document.activeElement, document.body, "The active element should be the body element.");
+}, "The body element must be the active element if no element is focused");
+
+test(function () {
+  document.getElementById("test").focus();
+  assert_equals(document.activeElement, document.getElementById("test"), "The active element should be the input element.");
+}, "The element must be the active element if it is focused");
+
+function frame_load () {
+  test(function () {
+    document.getElementById("fr").contentDocument.getElementById("ipt").focus();
+    assert_equals(document.activeElement, document.getElementById("fr"), "The active element should be the iframe element.");
+  }, "When a child browsing context is focused, its browsing context container is also focused");
+}
+
+test(function () {
+  var doc = document.implementation.createHTMLDocument("test");
+  assert_false(doc.hasFocus(), "The hasFocus() method should return false.");
+}, "The hasFocus() method must return false if the Document has no browsing context");
+
+</script>
+<iframe id="fr" src="support/test.html" onload="frame_load()"></iframe>
