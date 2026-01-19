@@ -42,6 +42,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     void update_metadata(Optional<String> const& old_name = {});
+    void update_referrer_policy();
 
     // ^DOM::Element
     virtual void inserted() override;
