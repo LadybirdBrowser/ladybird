@@ -2090,8 +2090,12 @@ CSSPixels FlexFormattingContext::calculate_width_to_use_when_determining_intrins
     auto computed_width = box.computed_values().width();
     auto const& computed_min_width = box.computed_values().min_width();
     auto const& computed_max_width = box.computed_values().max_width();
-    auto clamp_min = (!computed_min_width.is_auto() && (!computed_min_width.contains_percentage())) ? get_pixel_width(item, computed_min_width) : 0;
-    auto clamp_max = (!should_treat_max_width_as_none(box, m_available_space_for_items->space.width) && (!computed_max_width.contains_percentage())) ? get_pixel_width(item, computed_max_width) : CSSPixels::max();
+
+    // We can resolve percentage min/max-width if the available width is definite.
+    bool can_resolve_percentages = m_available_space_for_items->space.width.is_definite();
+
+    auto clamp_min = (!computed_min_width.is_auto() && (!computed_min_width.contains_percentage() || can_resolve_percentages)) ? get_pixel_width(item, computed_min_width) : 0;
+    auto clamp_max = (!should_treat_max_width_as_none(box, m_available_space_for_items->space.width) && (!computed_max_width.contains_percentage() || can_resolve_percentages)) ? get_pixel_width(item, computed_max_width) : CSSPixels::max();
 
     CSSPixels width;
     if (should_treat_width_as_auto(box, m_available_space_for_items->space) || computed_width.is_fit_content())
