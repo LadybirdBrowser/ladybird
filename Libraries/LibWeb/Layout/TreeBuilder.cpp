@@ -349,8 +349,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Ps
     insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, mode);
     pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
 
-    DOM::AbstractElement pseudo_element_reference { element, pseudo_element };
-    CSS::resolve_counters(pseudo_element_reference);
+    CSS::resolve_counters(element_reference);
     // Now that we have counters, we can compute the content for real. Which is silly.
     if (pseudo_element_content.type == CSS::ContentData::Type::List) {
         auto [new_content, _] = pseudo_element_style->content(element_reference, initial_quote_nesting_level);
