@@ -734,7 +734,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         };
     } else if (test.mode == TestMode::Text) {
         // Set up variant detection callback.
-        view.on_test_variant_metadata = [&view, &context, test_index](JsonValue metadata) {
+        view.on_test_variant_metadata = [&view, &context, test_index, on_test_complete](JsonValue metadata) {
             // Verify this IPC response is for the current test on this view (use index to avoid dangling pointer issues)
             auto current_index = s_current_test_index_by_view.get(&view);
             if (!current_index.has_value() || *current_index != test_index)
@@ -760,7 +760,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             auto& test_after_check = context.tests[test_index];
             test_after_check.did_check_variants = true;
             if (test_after_check.did_finish_test)
-                view.on_test_complete({ test_index, TestResult::Pass });
+                on_test_complete();
         };
 
         view.on_load_finish = [&view, &context, test_index, on_test_complete, url](auto const& loaded_url) {
