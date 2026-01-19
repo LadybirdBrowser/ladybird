@@ -15,7 +15,7 @@ Restore@0
 After clip change:
 AccumulatedVisualContext Tree:
   [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
-    [2] clip=[8,13 100x100] (PaintableWithLines(BlockContainer<DIV>#box.box))
+    [2] clip=[18,23 80x80] (PaintableWithLines(BlockContainer<DIV>#box.box))
 
 DisplayList:
 Save@0

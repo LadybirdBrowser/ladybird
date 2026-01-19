@@ -72,7 +72,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     }
     invalidation.repaint = true;
 
-    // Transform, perspective, and clip-path properties require rebuilding AccumulatedVisualContext tree.
+    // Transform, perspective, clip, and clip-path properties require rebuilding AccumulatedVisualContext tree.
     if (AK::first_is_one_of(property_id,
             CSS::PropertyID::Transform,
             CSS::PropertyID::Rotate,
@@ -81,6 +81,7 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
             CSS::PropertyID::Perspective,
             CSS::PropertyID::TransformOrigin,
             CSS::PropertyID::PerspectiveOrigin,
+            CSS::PropertyID::Clip,
             CSS::PropertyID::ClipPath)) {
         invalidation.rebuild_accumulated_visual_contexts = true;
     }
