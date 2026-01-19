@@ -19,7 +19,9 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(animationend)             \
     __ENUMERATE_HTML_EVENT(animationiteration)       \
     __ENUMERATE_HTML_EVENT(animationstart)           \
+    __ENUMERATE_HTML_EVENT(audioend)                 \
     __ENUMERATE_HTML_EVENT(audioprocess)             \
+    __ENUMERATE_HTML_EVENT(audiostart)               \
     __ENUMERATE_HTML_EVENT(beforeinput)              \
     __ENUMERATE_HTML_EVENT(beforematch)              \
     __ENUMERATE_HTML_EVENT(beforeprint)              \
@@ -27,6 +29,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(beforeunload)             \
     __ENUMERATE_HTML_EVENT(blocked)                  \
     __ENUMERATE_HTML_EVENT(blur)                     \
+    __ENUMERATE_HTML_EVENT(boundary)                 \
     __ENUMERATE_HTML_EVENT(cancel)                   \
     __ENUMERATE_HTML_EVENT(canplay)                  \
     __ENUMERATE_HTML_EVENT(canplaythrough)           \
@@ -56,6 +59,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(drop)                     \
     __ENUMERATE_HTML_EVENT(durationchange)           \
     __ENUMERATE_HTML_EVENT(emptied)                  \
+    __ENUMERATE_HTML_EVENT(end)                      \
     __ENUMERATE_HTML_EVENT(ended)                    \
     __ENUMERATE_HTML_EVENT(enter)                    \
     __ENUMERATE_HTML_EVENT(error)                    \
@@ -78,11 +82,13 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(loadingdone)              \
     __ENUMERATE_HTML_EVENT(loadingerror)             \
     __ENUMERATE_HTML_EVENT(loadstart)                \
+    __ENUMERATE_HTML_EVENT(mark)                     \
     __ENUMERATE_HTML_EVENT(message)                  \
     __ENUMERATE_HTML_EVENT(messageerror)             \
     __ENUMERATE_HTML_EVENT(navigate)                 \
     __ENUMERATE_HTML_EVENT(navigateerror)            \
     __ENUMERATE_HTML_EVENT(navigatesuccess)          \
+    __ENUMERATE_HTML_EVENT(nomatch)                  \
     __ENUMERATE_HTML_EVENT(offline)                  \
     __ENUMERATE_HTML_EVENT(online)                   \
     __ENUMERATE_HTML_EVENT(open)                     \
@@ -103,6 +109,8 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(removetrack)              \
     __ENUMERATE_HTML_EVENT(reset)                    \
     __ENUMERATE_HTML_EVENT(resize)                   \
+    __ENUMERATE_HTML_EVENT(result)                   \
+    __ENUMERATE_HTML_EVENT(resume)                   \
     __ENUMERATE_HTML_EVENT(scroll)                   \
     __ENUMERATE_HTML_EVENT(scrollend)                \
     __ENUMERATE_HTML_EVENT(securitypolicyviolation)  \
@@ -111,7 +119,12 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(select)                   \
     __ENUMERATE_HTML_EVENT(selectionchange)          \
     __ENUMERATE_HTML_EVENT(slotchange)               \
+    __ENUMERATE_HTML_EVENT(soundend)                 \
+    __ENUMERATE_HTML_EVENT(soundstart)               \
+    __ENUMERATE_HTML_EVENT(speechend)                \
+    __ENUMERATE_HTML_EVENT(speechstart)              \
     __ENUMERATE_HTML_EVENT(stalled)                  \
+    __ENUMERATE_HTML_EVENT(start)                    \
     __ENUMERATE_HTML_EVENT(statechange)              \
     __ENUMERATE_HTML_EVENT(storage)                  \
     __ENUMERATE_HTML_EVENT(submit)                   \
@@ -128,6 +141,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(upgradeneeded)            \
     __ENUMERATE_HTML_EVENT(versionchange)            \
     __ENUMERATE_HTML_EVENT(visibilitychange)         \
+    __ENUMERATE_HTML_EVENT(voiceschanged)            \
     __ENUMERATE_HTML_EVENT(volumechange)             \
     __ENUMERATE_HTML_EVENT(waiting)                  \
     __ENUMERATE_HTML_EVENT(webkitAnimationEnd)       \

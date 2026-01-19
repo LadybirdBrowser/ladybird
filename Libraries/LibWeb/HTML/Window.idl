@@ -15,6 +15,7 @@
 #import <HTML/WindowOrWorkerGlobalScope.idl>
 #import <HTML/WindowSessionStorage.idl>
 #import <RequestIdleCallback/IdleRequest.idl>
+#import <Speech/SpeechSynthesis.idl>
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window
 [Global=Window, Exposed=Window, LegacyUnenumerableNamedProperties]

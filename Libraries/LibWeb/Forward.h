@@ -1063,6 +1063,22 @@ class ServiceWorkerRegistration;
 
 }
 
+namespace Web::Speech {
+
+class SpeechGrammar;
+class SpeechGrammarList;
+class SpeechRecognition;
+class SpeechRecognitionAlternative;
+class SpeechRecognitionEvent;
+class SpeechRecognitionPhrase;
+class SpeechRecognitionResult;
+class SpeechRecognitionResultList;
+class SpeechSynthesis;
+class SpeechSynthesisUtterance;
+class SpeechSynthesisVoice;
+
+}
+
 namespace Web::Streams {
 
 class ByteLengthQueuingStrategy;

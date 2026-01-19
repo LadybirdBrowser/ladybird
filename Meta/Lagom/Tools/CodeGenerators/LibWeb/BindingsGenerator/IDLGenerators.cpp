@@ -128,6 +128,16 @@ static bool is_platform_object(Type const& type)
         "SVGTransform"sv,
         "ShadowRoot"sv,
         "SourceBuffer"sv,
+        "SpeechGrammar"sv,
+        "SpeechGrammarList"sv,
+        "SpeechRecognition"sv,
+        "SpeechRecognitionAlternative"sv,
+        "SpeechRecognitionPhrase"sv,
+        "SpeechRecognitionResult"sv,
+        "SpeechRecognitionResultList"sv,
+        "SpeechSynthesis"sv,
+        "SpeechSynthesisUtterance"sv,
+        "SpeechSynthesisVoice"sv,
         "Storage"sv,
         "Table"sv,
         "Text"sv,
@@ -4997,6 +5007,7 @@ using namespace Web::ResourceTiming;
 using namespace Web::Selection;
 using namespace Web::Serial;
 using namespace Web::ServiceWorker;
+using namespace Web::Speech;
 using namespace Web::StorageAPI;
 using namespace Web::Streams;
 using namespace Web::SVG;

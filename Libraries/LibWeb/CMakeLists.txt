@@ -877,6 +877,17 @@ set(SOURCES
     ServiceWorker/ServiceWorkerGlobalScope.cpp
     ServiceWorker/ServiceWorkerRecord.cpp
     ServiceWorker/ServiceWorkerRegistration.cpp
+    Speech/SpeechGrammar.cpp
+    Speech/SpeechGrammarList.cpp
+    Speech/SpeechRecognition.cpp
+    Speech/SpeechRecognitionAlternative.cpp
+    Speech/SpeechRecognitionEvent.cpp
+    Speech/SpeechRecognitionPhrase.cpp
+    Speech/SpeechRecognitionResult.cpp
+    Speech/SpeechRecognitionResultList.cpp
+    Speech/SpeechSynthesis.cpp
+    Speech/SpeechSynthesisUtterance.cpp
+    Speech/SpeechSynthesisVoice.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageBottle.cpp
