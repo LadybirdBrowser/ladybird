@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .block-container {
+        display: block;
+        width: 300px;
+        height: 300px;
+        background: lightgray;
+    }
+    .inline-transformed {
+        display: inline;
+        transform: rotate(10deg);
+        perspective: 500px;
+        background: lightblue;
+    }
+    .relative-child {
+        display: inline-block;
+        position: relative;
+        top: 5px;
+        left: 5px;
+        width: 100px;
+        height: 100px;
+        background: coral;
+    }
+</style>
+<div class="block-container">
+    <span class="inline-transformed">
+        <span class="relative-child">Relative</span>
+    </span>
+</div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
