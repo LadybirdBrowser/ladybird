@@ -53,6 +53,14 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
             return entry.font;
         }
     }
+
+    if (m_system_font_fallback_callback) {
+        if (auto fallback = m_system_font_fallback_callback(code_point, first())) {
+            m_fonts.append({ fallback.release_nonnull(), {} });
+            return *m_fonts.last().font;
+        }
+    }
+
     return *m_last_resort_font;
 }
 

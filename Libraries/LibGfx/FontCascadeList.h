@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
@@ -13,6 +14,8 @@ namespace Gfx {
 
 class FontCascadeList : public RefCounted<FontCascadeList> {
 public:
+    using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, Font const&)>;
+
     static NonnullRefPtr<FontCascadeList> create()
     {
         return adopt_ref(*new FontCascadeList());
@@ -50,6 +53,7 @@ public:
     };
 
     void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
+    void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
 
     Font const& first_text_face() const
     {
@@ -61,7 +65,8 @@ public:
 
 private:
     RefPtr<Font const> m_last_resort_font;
-    Vector<Entry> m_fonts;
+    mutable Vector<Entry> m_fonts;
+    SystemFontFallbackCallback m_system_font_fallback_callback;
 };
 
 }

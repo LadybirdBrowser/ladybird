@@ -37,6 +37,8 @@ public:
 
     virtual FlyString generic_font_name(GenericFont) = 0;
     virtual Vector<FlyString> symbol_font_names() = 0;
+
+    virtual bool is_layout_test_mode() const = 0;
 };
 
 }

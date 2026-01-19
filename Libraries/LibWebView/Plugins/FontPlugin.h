@@ -23,6 +23,7 @@ public:
     virtual Gfx::Font& default_fixed_width_font() override;
     virtual FlyString generic_font_name(Web::Platform::GenericFont) override;
     virtual Vector<FlyString> symbol_font_names() override;
+    virtual bool is_layout_test_mode() const override { return m_is_layout_test_mode; }
 
     void update_generic_fonts();
 
