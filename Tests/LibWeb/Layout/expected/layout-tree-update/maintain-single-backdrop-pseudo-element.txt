@@ -1,0 +1,27 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+      TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <dialog#d> at [299,289] positioned [280+3+16 202 16+3+280] [270+3+16 22 16+3+270] [BFC] children: inline
+    frag 0 from BlockContainer start: 0, length: 0, rect: [300,290 200x20] baseline: 14.796875
+    BlockContainer <input> at [300,290] inline-block [0+1+0 200 0+1+0] [0+1+0 20 0+1+0] [BFC] children: not-inline
+      Box <div> at [302,291] flex-container(row) [0+0+2 196 2+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [302,291] flex-item [0+0+0 196 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 0, rect: [302,291 0x18] baseline: 13.796875
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
+  PaintableWithLines (BlockContainer(anonymous)) [0,0 800x600]
+  PaintableWithLines (BlockContainer<DIALOG>#d) [280,270 240x60]
+    PaintableWithLines (BlockContainer<INPUT>) [299,289 202x22]
+      PaintableBox (Box<DIV>) [300,290 200x20]
+        PaintableWithLines (BlockContainer<DIV>) [302,291 196x18]
+          TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 3] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x16] [children: 0] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] [children: 0] (z-index: auto)
+ SC for BlockContainer<DIALOG>#d [299,289 202x22] [children: 0] (z-index: auto)
