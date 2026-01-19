@@ -79,6 +79,7 @@ public:
     void dump(StringBuilder&) const;
 
     Optional<CSSPixelPoint> transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const;
+    CSSPixelRect transform_rect_to_viewport(CSSPixelRect const&, ScrollStateSnapshot const&) const;
 
 private:
     AccumulatedVisualContext(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent)

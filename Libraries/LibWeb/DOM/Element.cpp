@@ -91,6 +91,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -1413,28 +1414,19 @@ Vector<CSSPixelRect> Element::get_client_rects() const
     // NOTE: Make sure CSS transforms are resolved before it is used to calculate the rect position.
     const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
-    Gfx::AffineTransform transform;
-    CSSPixelPoint scroll_offset;
-    auto const* paintable = this->paintable();
-
     Vector<CSSPixelRect> rects;
     if (auto const* paintable_box = this->paintable_box()) {
-        transform = Gfx::extract_2d_affine_transform(paintable_box->transform());
-        for (auto const* containing_block = paintable->containing_block(); !containing_block->is_viewport_paintable(); containing_block = containing_block->containing_block()) {
-            transform = Gfx::extract_2d_affine_transform(containing_block->transform()).multiply(transform);
-        }
-
-        if (auto enclosing_scroll_offset = paintable_box->enclosing_scroll_frame(); enclosing_scroll_offset) {
-            scroll_offset.translate_by(-enclosing_scroll_offset->cumulative_offset());
-        }
-
         auto absolute_rect = paintable_box->absolute_border_box_rect();
-        auto transformed_rect = transform.map(absolute_rect.translated(-paintable_box->transform_origin()).to_type<float>())
-                                    .to_type<CSSPixels>()
-                                    .translated(paintable_box->transform_origin())
-                                    .translated(-scroll_offset);
-        rects.append(transformed_rect);
-    } else if (paintable) {
+
+        if (auto const& accumulated_visual_context = paintable_box->accumulated_visual_context()) {
+            auto const& viewport_paintable = *document().paintable();
+            auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+            auto transformed_rect = accumulated_visual_context->transform_rect_to_viewport(absolute_rect, scroll_state);
+            rects.append(transformed_rect);
+        } else {
+            rects.append(absolute_rect);
+        }
+    } else if (paintable()) {
         dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
     }
 
