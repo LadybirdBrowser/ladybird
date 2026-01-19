@@ -91,7 +91,7 @@ jobs:
           mkdir -p old-libjs-data
           cp -R libjs-data/test262 libjs-data/wasm old-libjs-data
 
-      - name: Build test262-runner, test-js and test-wasm
+      - name: Build test262-runner, test-js, test-wasm and test-js-bytecode
         run: |
           # FIXME: Why does vcpkg need this?
           #        Running as a normal user would make this a non-issue though
@@ -105,7 +105,7 @@ jobs:
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
               -DINCLUDE_WASM_SPEC_TESTS=ON \
               -DENABLE_GUI_TARGETS=OFF
-          ninja -C libjs-test262/Build test262-runner test-js test-wasm
+          ninja -C libjs-test262/Build test262-runner test-js test-wasm test-js-bytecode
 
       - name: Run test262 and test262-parser-tests
         working-directory: libjs-test262
