@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+dialog::backdrop {
+ background: rgba(0,0,0,0.5)
+}
+</style><dialog id="d"><input><div id="x"></div></dialog><script>
+    d.showModal();
+    
+    for (let i = 0; i < 5; ++i) {
+        x.hidden = !x.hidden;
+        document.body.offsetWidth; // force layout
+    }
+</script>
