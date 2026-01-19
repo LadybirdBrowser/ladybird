@@ -102,14 +102,16 @@ public:
         outln(m_file, " | {:20}", builder.to_byte_string());
 
         if (is<OpCode_CheckSavedPosition>(opcode)) {
-            auto formatted_result = String::formatted("saved: {}", input.saved_positions.last());
-            ByteString saved = formatted_result.value().to_byte_string();
-            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", saved, "");
+            auto last_saved = input.saved_positions.is_empty()
+                ? "saved: <empty>"_string
+                : MUST(String::formatted("saved: {}", input.saved_positions.last()));
+            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", last_saved, "");
         }
         if (is<OpCode_CheckStepBack>(opcode) || is<OpCode_IncStepBack>(opcode)) {
-            auto formatted_result = String::formatted("step: {}", state.step_backs.last());
-            ByteString stepString = formatted_result.value().to_byte_string();
-            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", stepString, "");
+            auto last_step_back = state.step_backs.is_empty()
+                ? "step: <empty>"_string
+                : MUST(String::formatted("step: {}", state.step_backs.last()));
+            outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", last_step_back, "");
         }
 
         if (is<OpCode_Compare>(opcode)) {
