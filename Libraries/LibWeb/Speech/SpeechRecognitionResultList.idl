@@ -1,0 +1,8 @@
+#import <Speech/SpeechRecognitionResult.idl>
+
+// https://wicg.github.io/speech-api/#speechrecognitionresultlist
+[Exposed=Window]
+interface SpeechRecognitionResultList {
+    readonly attribute unsigned long length;
+    getter SpeechRecognitionResult item(unsigned long index);
+};

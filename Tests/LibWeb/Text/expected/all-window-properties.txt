@@ -455,6 +455,17 @@ SharedArrayBuffer
 SharedWorker
 SourceBuffer
 SourceBufferList
+SpeechGrammar
+SpeechGrammarList
+SpeechRecognition
+SpeechRecognitionAlternative
+SpeechRecognitionEvent
+SpeechRecognitionPhrase
+SpeechRecognitionResult
+SpeechRecognitionResultList
+SpeechSynthesis
+SpeechSynthesisUtterance
+SpeechSynthesisVoice
 StaticRange
 StereoPannerNode
 Storage

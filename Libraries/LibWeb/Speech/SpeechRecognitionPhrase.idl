@@ -1,0 +1,7 @@
+// https://wicg.github.io/speech-api/#speechrecognitionphrase
+[Exposed=Window]
+interface SpeechRecognitionPhrase {
+    constructor(DOMString phrase, optional float boost = 1.0);
+    readonly attribute DOMString phrase;
+    readonly attribute float boost;
+};

@@ -1,0 +1,23 @@
+#import <DOM/EventTarget.idl>
+#import <Speech/SpeechSynthesisVoice.idl>
+
+// https://wicg.github.io/speech-api/#speechsynthesisutterance
+[Exposed=Window]
+interface SpeechSynthesisUtterance : EventTarget {
+    constructor(optional DOMString text = "");
+
+    attribute DOMString text;
+    attribute DOMString lang;
+    attribute SpeechSynthesisVoice? voice;
+    attribute float volume;
+    attribute float rate;
+    attribute float pitch;
+
+    attribute EventHandler onstart;
+    attribute EventHandler onend;
+    attribute EventHandler onerror;
+    attribute EventHandler onpause;
+    attribute EventHandler onresume;
+    attribute EventHandler onmark;
+    attribute EventHandler onboundary;
+};
