@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Font/FontData.h>
 #include <LibGfx/Font/Typeface.h>
 
 namespace Gfx {
@@ -15,6 +16,8 @@ class TypefaceSkia : public Gfx::Typeface {
 
 public:
     static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, int index = 0);
+    static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope);
+
     RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
 
     virtual u32 glyph_count() const override;
@@ -39,6 +42,7 @@ private:
 
     virtual bool is_skia() const override { return true; }
 
+    OwnPtr<FontData> m_font_data;
     ReadonlyBytes m_buffer;
     unsigned m_ttc_index { 0 };
 

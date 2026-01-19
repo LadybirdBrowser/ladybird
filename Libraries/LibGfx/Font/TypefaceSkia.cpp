@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2026, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -33,7 +34,7 @@ struct TypefaceSkia::Impl {
     sk_sp<SkTypeface> skia_typeface;
 };
 
-ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, int ttc_index)
+static SkFontMgr& font_manager()
 {
     if (!s_font_manager) {
 #ifdef AK_OS_MACOS
@@ -51,15 +52,70 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         }
 #endif
     }
+    VERIFY(s_font_manager);
+    return *s_font_manager;
+}
 
+static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
+{
+    switch (slope) {
+    case 1:
+        return SkFontStyle::kItalic_Slant;
+    case 2:
+        return SkFontStyle::kOblique_Slant;
+    default:
+        return SkFontStyle::kUpright_Slant;
+    }
+}
+
+ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, int ttc_index)
+{
     auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
-    auto skia_typeface = s_font_manager->makeFromData(data, ttc_index);
+    auto skia_typeface = font_manager().makeFromData(data, ttc_index);
 
     if (!skia_typeface) {
         return Error::from_string_literal("Failed to load typeface from buffer");
     }
 
     return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+}
+
+ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope)
+{
+    SkFontStyle style(weight, width, slope_to_skia_slant(slope));
+
+    auto skia_typeface = font_manager().matchFamilyStyleCharacter(
+        nullptr, style, nullptr, 0, code_point);
+
+    if (!skia_typeface)
+        return RefPtr<TypefaceSkia> {};
+
+    int ttc_index = 0;
+    auto stream = skia_typeface->openStream(&ttc_index);
+
+    if (stream && stream->getMemoryBase()) {
+        auto buffer = TRY(ByteBuffer::copy({ static_cast<u8 const*>(stream->getMemoryBase()),
+            stream->getLength() }));
+        auto font_data = FontData::create_from_byte_buffer(move(buffer));
+        auto bytes = font_data->bytes();
+
+        auto result = adopt_ref(*new TypefaceSkia {
+            make<TypefaceSkia::Impl>(skia_typeface),
+            bytes,
+            ttc_index });
+        result->m_font_data = move(font_data);
+        return result;
+    }
+
+    auto data = skia_typeface->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
+    if (!data)
+        return Error::from_string_literal("Failed to get font data from typeface");
+
+    auto buffer = TRY(ByteBuffer::copy({ data->data(), data->size() }));
+    auto font_data = FontData::create_from_byte_buffer(move(buffer));
+    auto result = TRY(load_from_buffer(font_data->bytes(), ttc_index));
+    result->m_font_data = move(font_data);
+    return result;
 }
 
 RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
@@ -83,7 +139,7 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
 
     auto data = SkData::MakeWithoutCopy(m_buffer.data(), m_buffer.size());
     auto stream = std::make_unique<SkMemoryStream>(data);
-    auto skia_typeface = s_font_manager->makeFromStream(std::move(stream), font_args);
+    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
 
     if (!skia_typeface)
         return {};

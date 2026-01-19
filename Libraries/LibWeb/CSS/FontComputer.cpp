@@ -505,6 +505,17 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     // the requested code point, there is still a font available to provide a fallback glyph.
     font_list->set_last_resort_font(*default_font);
 
+    if (!Platform::FontPlugin::the().is_layout_test_mode()) {
+        font_list->set_system_font_fallback_callback([](u32 code_point, Gfx::Font const& reference_font) -> RefPtr<Gfx::Font const> {
+            return Gfx::FontDatabase::the().get_font_for_code_point(
+                code_point,
+                reference_font.point_size(),
+                reference_font.weight(),
+                reference_font.typeface().width(),
+                reference_font.slope());
+        });
+    }
+
     return font_list;
 }
 
