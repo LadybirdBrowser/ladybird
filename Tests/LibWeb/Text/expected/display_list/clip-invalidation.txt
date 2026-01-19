@@ -1,0 +1,28 @@
+Before clip change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[8,13 100x100] (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillRect@2 rect=[8,13 100x100] color=rgb(173, 216, 230)
+    DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0) scale=1
+  Restore@0
+Restore@0
+
+After clip change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[8,13 100x100] (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillRect@2 rect=[8,13 100x100] color=rgb(173, 216, 230)
+    DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0) scale=1
+  Restore@0
+Restore@0
+
