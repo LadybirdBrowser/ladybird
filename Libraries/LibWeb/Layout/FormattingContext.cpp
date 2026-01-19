@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/FlexFormattingContext.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/GridFormattingContext.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
@@ -1203,11 +1204,123 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
     VERIFY_NOT_REACHED();
 }
 
+// FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
+//
+//        The CSS specification defines the containing block as a *rectangle*, not a box. For most cases,
+//        this rectangle is derived from the padding box of the nearest positioned ancestor Box. However,
+//        when the positioned ancestor is an *inline* element (e.g., a <span> with position: relative),
+//        the containing block rectangle should be the bounding box of that inline's fragments.
+//
+//        Currently, Layout::Node::m_containing_block is typed as Layout::Box*, which cannot represent
+//        inline elements. The proper fix would be to:
+//        1. Separate the concept of "the node that establishes the containing block" from "the containing
+//           block rectangle".
+//        2. Store a reference to the establishing node (which could be InlineNode or Box).
+//        3. Compute the containing block rectangle on demand based on the establishing node's type.
+//
+//        For now, we use a surgical workaround: when laying out an absolutely positioned element, we check
+//        if there's an inline element with position:relative (or other containing-block-establishing
+//        properties) between the abspos element and its current containing_block(). If found, we compute
+//        the inline's fragment bounding box and use that for sizing and positioning, then adjust the final
+//        offset to be relative to the containing_block() Box that the rest of the system expects.
+
+// Computes the bounding box rectangle of an inline node's fragments.
+// The rectangle is in the coordinate space of the inline's nearest block container ancestor.
+// Returns the padding box rect (since containing blocks are formed by padding edges).
+static Optional<CSSPixelRect> compute_inline_containing_block_rect(InlineNode const& inline_node, Box const& abspos_containing_block, LayoutState const& state)
+{
+    // Find the block container that holds this inline's fragments.
+    Box const* block_container = nullptr;
+    for (auto const* ancestor = inline_node.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->is_block_container() || ancestor->display().is_flex_inside() || ancestor->display().is_grid_inside()) {
+            block_container = static_cast<Box const*>(ancestor);
+            break;
+        }
+    }
+
+    if (!block_container)
+        return {};
+
+    auto const* block_container_used_values = state.used_values_per_layout_node.get(*block_container).value_or(nullptr);
+    if (!block_container_used_values)
+        return {};
+
+    // Iterate through all line boxes and their fragments to find those belonging to this inline.
+    // A fragment belongs to an inline if the inline is an ancestor of the fragment's layout node.
+    Optional<CSSPixelRect> bounding_rect;
+
+    for (auto const& line_box : block_container_used_values->line_boxes) {
+        for (auto const& fragment : line_box.fragments()) {
+            auto const& fragment_node = fragment.layout_node();
+
+            // Check if this fragment belongs to the inline node (inline is ancestor of fragment's node).
+            bool belongs_to_inline = false;
+            for (auto const* node = &fragment_node; node && node != block_container; node = node->parent()) {
+                if (node == &inline_node) {
+                    belongs_to_inline = true;
+                    break;
+                }
+            }
+
+            if (!belongs_to_inline)
+                continue;
+
+            CSSPixelRect fragment_rect { fragment.offset(), fragment.size() };
+            if (bounding_rect.has_value())
+                bounding_rect = bounding_rect->united(fragment_rect);
+            else
+                bounding_rect = fragment_rect;
+        }
+    }
+
+    if (!bounding_rect.has_value())
+        return {};
+
+    // Expand the bounding rect by the inline's padding to get the padding box.
+    // Per CSS, the containing block is formed by the padding edge.
+    auto const* inline_used_values = state.used_values_per_layout_node.get(inline_node).value_or(nullptr);
+    if (inline_used_values) {
+        bounding_rect->set_x(bounding_rect->x() - inline_used_values->padding_left);
+        bounding_rect->set_y(bounding_rect->y() - inline_used_values->padding_top);
+        bounding_rect->set_width(bounding_rect->width() + inline_used_values->padding_left + inline_used_values->padding_right);
+        bounding_rect->set_height(bounding_rect->height() + inline_used_values->padding_top + inline_used_values->padding_bottom);
+    }
+
+    // The fragment offsets are relative to block_container. We need to translate the rect
+    // to be in the coordinate system of the abspos element's containing_block.
+    // Walk from block_container up to abspos_containing_block, accumulating offsets.
+    CSSPixelPoint offset_to_containing_block;
+    for (Node const* ancestor = block_container; ancestor && ancestor != &abspos_containing_block; ancestor = ancestor->parent()) {
+        if (auto const* ancestor_used_values = state.used_values_per_layout_node.get(*ancestor).value_or(nullptr)) {
+            offset_to_containing_block.translate_by(ancestor_used_values->offset);
+        }
+    }
+    bounding_rect->translate_by(offset_to_containing_block);
+
+    return bounding_rect;
+}
+
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
 {
     if (box.is_svg_box()) {
         dbgln("FIXME: Implement support for absolutely positioned SVG elements.");
         return;
+    }
+
+    // Check if there's an inline element that should be the real containing block.
+    // See the large FIXME comment above for context on why this workaround is needed.
+    auto inline_containing_block = box.inline_containing_block_if_applicable();
+    Optional<CSSPixelRect> inline_containing_block_rect;
+    if (inline_containing_block && box.containing_block())
+        inline_containing_block_rect = compute_inline_containing_block_rect(*inline_containing_block, *box.containing_block(), m_state);
+
+    // Determine the effective available space for this abspos element.
+    // If we have an inline containing block, use its dimensions; otherwise use the passed-in available_space.
+    auto effective_available_space = available_space;
+    if (inline_containing_block_rect.has_value()) {
+        effective_available_space = AvailableSpace(
+            AvailableSize::make_definite(inline_containing_block_rect->width()),
+            AvailableSize::make_definite(inline_containing_block_rect->height()));
     }
 
     auto& containing_block_state = m_state.get_mutable(*box.containing_block());
@@ -1226,18 +1339,18 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     box_state.border_top = box.computed_values().border_top().width;
     box_state.border_bottom = box.computed_values().border_bottom().width;
 
-    auto const containing_block_width = available_space.width.to_px_or_zero();
+    auto const containing_block_width = effective_available_space.width.to_px_or_zero();
     box_state.padding_left = box.computed_values().padding().left().to_px_or_zero(box, containing_block_width);
     box_state.padding_right = box.computed_values().padding().right().to_px_or_zero(box, containing_block_width);
     box_state.padding_top = box.computed_values().padding().top().to_px_or_zero(box, containing_block_width);
     box_state.padding_bottom = box.computed_values().padding().bottom().to_px_or_zero(box, containing_block_width);
 
-    compute_width_for_absolutely_positioned_element(box, available_space);
+    compute_width_for_absolutely_positioned_element(box, effective_available_space);
 
     // NOTE: We compute height before *and* after doing inside layout.
     //       This is done so that inside layout can resolve percentage heights.
     //       In some situations, e.g with non-auto top & bottom values, the height can be determined early.
-    compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::Before);
+    compute_height_for_absolutely_positioned_element(box, effective_available_space, BeforeOrAfterInsideLayout::Before);
 
     // If the box width and/or height is fixed and/or or resolved from inset properties,
     // mark the size as being definite (since layout was not required to resolve it, per CSS-SIZING-3).
@@ -1262,10 +1375,10 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
         box_state.set_has_definite_height(true);
     }
 
-    auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(available_space));
+    auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(effective_available_space));
 
     if (box.computed_values().height().is_auto()) {
-        compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
+        compute_height_for_absolutely_positioned_element(box, effective_available_space, BeforeOrAfterInsideLayout::After);
     }
 
     CSSPixelPoint used_offset;
@@ -1274,23 +1387,45 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box);
     static_position += offset_to_static_parent.location();
 
+    // Track whether we used static position for each axis. When using static position, the coordinates
+    // are already in the Box containing_block's coordinate space and don't need inline CB translation.
+    bool used_static_position_x = false;
+    bool used_static_position_y = false;
+
     if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
         used_offset.set_y(static_position.y());
+        used_static_position_y = true;
     } else {
         used_offset.set_y(box_state.inset_top);
         // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-        used_offset.translate_by(0, -containing_block_state.padding_top);
+        // When using an inline containing block, the rect already represents the padding box, so no adjustment needed.
+        if (!inline_containing_block_rect.has_value())
+            used_offset.translate_by(0, -containing_block_state.padding_top);
     }
 
     if (box.computed_values().inset().left().is_auto() && box.computed_values().inset().right().is_auto()) {
         used_offset.set_x(static_position.x());
+        used_static_position_x = true;
     } else {
         used_offset.set_x(box_state.inset_left);
         // NOTE: Absolutely positioned boxes are relative to the *padding edge* of the containing block.
-        used_offset.translate_by(-containing_block_state.padding_left, 0);
+        // When using an inline containing block, the rect already represents the padding box, so no adjustment needed.
+        if (!inline_containing_block_rect.has_value())
+            used_offset.translate_by(-containing_block_state.padding_left, 0);
     }
 
     used_offset.translate_by(box_state.margin_box_left(), box_state.margin_box_top());
+
+    // If we have an inline containing block, the offset we've computed so far (when using inset values)
+    // is relative to the inline's bounding box. We need to translate it to be relative to the Box
+    // containing_block() that the rest of the system expects.
+    // NOTE: We only apply this translation for dimensions where we used inset values. Static position
+    // is already computed in the Box containing_block's coordinate space.
+    if (inline_containing_block_rect.has_value()) {
+        CSSPixels translate_x = used_static_position_x ? 0 : inline_containing_block_rect->x();
+        CSSPixels translate_y = used_static_position_y ? 0 : inline_containing_block_rect->y();
+        used_offset.translate_by(translate_x, translate_y);
+    }
 
     box_state.set_content_offset(used_offset);
 

@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 0 from TextNode start: 0, length: 8, rect: [8,8 74.125x18] baseline: 13.796875
             "Features"
         TextNode <#text> (not painted)
-      BlockContainer <span.span2> at [285,143] positioned [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] [BFC] children: not-inline
+      BlockContainer <span.span2> at [85.625,16.09375] positioned [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
@@ -13,7 +13,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 300x300]
       PaintableWithLines (InlineNode<SPAN>.span1) [8,8 90.125x18]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<SPAN>.span2) [285,143 8x8]
+      PaintableWithLines (BlockContainer<SPAN>.span2) [85.625,16.09375 8x8]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x0] [children: 0] (z-index: auto)
