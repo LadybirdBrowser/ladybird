@@ -43,6 +43,8 @@ struct ClipData {
         , corner_radii(radii)
     {
     }
+
+    bool contains(CSSPixelPoint point) const;
 };
 
 struct TransformData {

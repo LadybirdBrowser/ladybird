@@ -1,5 +1,5 @@
 Corner (5,5):
-<DIV id="target">
+<HTML>
 Near corner (25,25):
 <DIV id="target">
 Center (100,100):
