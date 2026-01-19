@@ -24,6 +24,13 @@ GC::Ptr<Element> calculate_active_element(T& self)
     // 1. Let candidate be this's node document's focused area's DOM anchor.
     Node* candidate = self.document().focused_area();
 
+    // AD-HOC: null focused_area indicates "viewport focus".
+    // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
+    // If the focusable area is the viewport of a Document that has a non-null browsing context and is not inert then
+    // the DOM anchor is the document for which the viewport was created.
+    if (!candidate && self.document().browsing_context() && !self.document().is_inert())
+        candidate = &self.document();
+
     // 2. Set candidate to the result of retargeting candidate against this.
     candidate = as<Node>(retarget(candidate, &self));
 

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<div id="content">Test content</div>
+<script>
+    test(() => {
+        // When nothing is explicitly focused, activeElement should return the body element
+        println("document.activeElement === document.body: " + (document.activeElement === document.body));
+        println("document.activeElement is null: " + (document.activeElement === null));
+        println("document.activeElement tagName: " + (document.activeElement ? document.activeElement.tagName : "null"));
+    });
+</script>
+</body>

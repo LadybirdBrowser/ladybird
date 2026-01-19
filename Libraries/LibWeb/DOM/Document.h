@@ -466,7 +466,7 @@ public:
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
-    Element const* active_element() const { return m_active_element.ptr(); }
+    Element const* active_element() const { return m_active_element ? m_active_element.ptr() : body(); }
     void set_active_element(GC::Ptr<Element>);
 
     Element const* target_element() const { return m_target_element.ptr(); }
