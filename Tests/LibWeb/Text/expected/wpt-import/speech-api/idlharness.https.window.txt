@@ -1,0 +1,256 @@
+Harness status: OK
+
+Found 250 tests
+
+11 Pass
+239 Fail
+Fail	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Window: original interface defined
+Pass	Partial interface Window: member names are unique
+Pass	Partial interface Window[2]: member names are unique
+Pass	Partial interface Window[3]: member names are unique
+Pass	Window includes GlobalEventHandlers: member names are unique
+Pass	Window includes WindowEventHandlers: member names are unique
+Pass	Window includes WindowOrWorkerGlobalScope: member names are unique
+Pass	Window includes AnimationFrameProvider: member names are unique
+Pass	Window includes WindowSessionStorage: member names are unique
+Pass	Window includes WindowLocalStorage: member names are unique
+Fail	SpeechRecognition interface: existence and properties of interface object
+Fail	SpeechRecognition interface object length
+Fail	SpeechRecognition interface object name
+Fail	SpeechRecognition interface: existence and properties of interface prototype object
+Fail	SpeechRecognition interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognition interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognition interface: attribute grammars
+Fail	SpeechRecognition interface: attribute lang
+Fail	SpeechRecognition interface: attribute continuous
+Fail	SpeechRecognition interface: attribute interimResults
+Fail	SpeechRecognition interface: attribute maxAlternatives
+Fail	SpeechRecognition interface: attribute processLocally
+Fail	SpeechRecognition interface: attribute phrases
+Fail	SpeechRecognition interface: operation start()
+Fail	SpeechRecognition interface: operation start(MediaStreamTrack)
+Fail	SpeechRecognition interface: operation stop()
+Fail	SpeechRecognition interface: operation abort()
+Fail	SpeechRecognition interface: operation available(SpeechRecognitionOptions)
+Fail	SpeechRecognition interface: operation install(SpeechRecognitionOptions)
+Fail	SpeechRecognition interface: attribute onaudiostart
+Fail	SpeechRecognition interface: attribute onsoundstart
+Fail	SpeechRecognition interface: attribute onspeechstart
+Fail	SpeechRecognition interface: attribute onspeechend
+Fail	SpeechRecognition interface: attribute onsoundend
+Fail	SpeechRecognition interface: attribute onaudioend
+Fail	SpeechRecognition interface: attribute onresult
+Fail	SpeechRecognition interface: attribute onnomatch
+Fail	SpeechRecognition interface: attribute onerror
+Fail	SpeechRecognition interface: attribute onstart
+Fail	SpeechRecognition interface: attribute onend
+Fail	SpeechRecognition must be primary interface of new SpeechRecognition()
+Fail	Stringification of new SpeechRecognition()
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "grammars" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "lang" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "continuous" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "interimResults" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "maxAlternatives" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "processLocally" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "phrases" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "start()" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "start(MediaStreamTrack)" with the proper type
+Fail	SpeechRecognition interface: calling start(MediaStreamTrack) on new SpeechRecognition() with too few arguments must throw TypeError
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "stop()" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "abort()" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "available(SpeechRecognitionOptions)" with the proper type
+Fail	SpeechRecognition interface: calling available(SpeechRecognitionOptions) on new SpeechRecognition() with too few arguments must throw TypeError
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "install(SpeechRecognitionOptions)" with the proper type
+Fail	SpeechRecognition interface: calling install(SpeechRecognitionOptions) on new SpeechRecognition() with too few arguments must throw TypeError
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onaudiostart" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onsoundstart" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onspeechstart" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onspeechend" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onsoundend" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onaudioend" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onresult" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onnomatch" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onerror" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onstart" with the proper type
+Fail	SpeechRecognition interface: new SpeechRecognition() must inherit property "onend" with the proper type
+Fail	SpeechRecognitionErrorEvent interface: existence and properties of interface object
+Fail	SpeechRecognitionErrorEvent interface object length
+Fail	SpeechRecognitionErrorEvent interface object name
+Fail	SpeechRecognitionErrorEvent interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionErrorEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionErrorEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionErrorEvent interface: attribute error
+Fail	SpeechRecognitionErrorEvent interface: attribute message
+Fail	SpeechRecognitionAlternative interface: existence and properties of interface object
+Fail	SpeechRecognitionAlternative interface object length
+Fail	SpeechRecognitionAlternative interface object name
+Fail	SpeechRecognitionAlternative interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionAlternative interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionAlternative interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionAlternative interface: attribute transcript
+Fail	SpeechRecognitionAlternative interface: attribute confidence
+Fail	SpeechRecognitionResult interface: existence and properties of interface object
+Fail	SpeechRecognitionResult interface object length
+Fail	SpeechRecognitionResult interface object name
+Fail	SpeechRecognitionResult interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionResult interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionResult interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionResult interface: attribute length
+Fail	SpeechRecognitionResult interface: operation item(unsigned long)
+Fail	SpeechRecognitionResult interface: attribute isFinal
+Fail	SpeechRecognitionResultList interface: existence and properties of interface object
+Fail	SpeechRecognitionResultList interface object length
+Fail	SpeechRecognitionResultList interface object name
+Fail	SpeechRecognitionResultList interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionResultList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionResultList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionResultList interface: attribute length
+Fail	SpeechRecognitionResultList interface: operation item(unsigned long)
+Fail	SpeechRecognitionEvent interface: existence and properties of interface object
+Fail	SpeechRecognitionEvent interface object length
+Fail	SpeechRecognitionEvent interface object name
+Fail	SpeechRecognitionEvent interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionEvent interface: attribute resultIndex
+Fail	SpeechRecognitionEvent interface: attribute results
+Fail	SpeechGrammar interface: existence and properties of interface object
+Fail	SpeechGrammar interface object length
+Fail	SpeechGrammar interface object name
+Fail	SpeechGrammar interface: existence and properties of interface prototype object
+Fail	SpeechGrammar interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechGrammar interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechGrammar interface: attribute src
+Fail	SpeechGrammar interface: attribute weight
+Fail	SpeechGrammar must be primary interface of new SpeechGrammar()
+Fail	Stringification of new SpeechGrammar()
+Fail	SpeechGrammar interface: new SpeechGrammar() must inherit property "src" with the proper type
+Fail	SpeechGrammar interface: new SpeechGrammar() must inherit property "weight" with the proper type
+Fail	SpeechGrammarList interface: existence and properties of interface object
+Fail	SpeechGrammarList interface object length
+Fail	SpeechGrammarList interface object name
+Fail	SpeechGrammarList interface: existence and properties of interface prototype object
+Fail	SpeechGrammarList interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechGrammarList interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechGrammarList interface: attribute length
+Fail	SpeechGrammarList interface: operation item(unsigned long)
+Fail	SpeechGrammarList interface: operation addFromURI(DOMString, optional float)
+Fail	SpeechGrammarList interface: operation addFromString(DOMString, optional float)
+Fail	SpeechGrammarList must be primary interface of new SpeechGrammarList()
+Fail	Stringification of new SpeechGrammarList()
+Fail	SpeechGrammarList interface: new SpeechGrammarList() must inherit property "length" with the proper type
+Fail	SpeechGrammarList interface: new SpeechGrammarList() must inherit property "item(unsigned long)" with the proper type
+Fail	SpeechGrammarList interface: calling item(unsigned long) on new SpeechGrammarList() with too few arguments must throw TypeError
+Fail	SpeechGrammarList interface: new SpeechGrammarList() must inherit property "addFromURI(DOMString, optional float)" with the proper type
+Fail	SpeechGrammarList interface: calling addFromURI(DOMString, optional float) on new SpeechGrammarList() with too few arguments must throw TypeError
+Fail	SpeechGrammarList interface: new SpeechGrammarList() must inherit property "addFromString(DOMString, optional float)" with the proper type
+Fail	SpeechGrammarList interface: calling addFromString(DOMString, optional float) on new SpeechGrammarList() with too few arguments must throw TypeError
+Fail	SpeechRecognitionPhrase interface: existence and properties of interface object
+Fail	SpeechRecognitionPhrase interface object length
+Fail	SpeechRecognitionPhrase interface object name
+Fail	SpeechRecognitionPhrase interface: existence and properties of interface prototype object
+Fail	SpeechRecognitionPhrase interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechRecognitionPhrase interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechRecognitionPhrase interface: attribute phrase
+Fail	SpeechRecognitionPhrase interface: attribute boost
+Fail	SpeechSynthesis interface: existence and properties of interface object
+Fail	SpeechSynthesis interface object length
+Fail	SpeechSynthesis interface object name
+Fail	SpeechSynthesis interface: existence and properties of interface prototype object
+Fail	SpeechSynthesis interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechSynthesis interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechSynthesis interface: attribute pending
+Fail	SpeechSynthesis interface: attribute speaking
+Fail	SpeechSynthesis interface: attribute paused
+Fail	SpeechSynthesis interface: attribute onvoiceschanged
+Fail	SpeechSynthesis interface: operation speak(SpeechSynthesisUtterance)
+Fail	SpeechSynthesis interface: operation cancel()
+Fail	SpeechSynthesis interface: operation pause()
+Fail	SpeechSynthesis interface: operation resume()
+Fail	SpeechSynthesis interface: operation getVoices()
+Fail	SpeechSynthesis must be primary interface of speechSynthesis
+Fail	Stringification of speechSynthesis
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "pending" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "speaking" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "paused" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "onvoiceschanged" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "speak(SpeechSynthesisUtterance)" with the proper type
+Fail	SpeechSynthesis interface: calling speak(SpeechSynthesisUtterance) on speechSynthesis with too few arguments must throw TypeError
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "cancel()" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "pause()" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "resume()" with the proper type
+Fail	SpeechSynthesis interface: speechSynthesis must inherit property "getVoices()" with the proper type
+Fail	SpeechSynthesisUtterance interface: existence and properties of interface object
+Fail	SpeechSynthesisUtterance interface object length
+Fail	SpeechSynthesisUtterance interface object name
+Fail	SpeechSynthesisUtterance interface: existence and properties of interface prototype object
+Fail	SpeechSynthesisUtterance interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechSynthesisUtterance interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechSynthesisUtterance interface: attribute text
+Fail	SpeechSynthesisUtterance interface: attribute lang
+Fail	SpeechSynthesisUtterance interface: attribute voice
+Fail	SpeechSynthesisUtterance interface: attribute volume
+Fail	SpeechSynthesisUtterance interface: attribute rate
+Fail	SpeechSynthesisUtterance interface: attribute pitch
+Fail	SpeechSynthesisUtterance interface: attribute onstart
+Fail	SpeechSynthesisUtterance interface: attribute onend
+Fail	SpeechSynthesisUtterance interface: attribute onerror
+Fail	SpeechSynthesisUtterance interface: attribute onpause
+Fail	SpeechSynthesisUtterance interface: attribute onresume
+Fail	SpeechSynthesisUtterance interface: attribute onmark
+Fail	SpeechSynthesisUtterance interface: attribute onboundary
+Fail	SpeechSynthesisUtterance must be primary interface of new SpeechSynthesisUtterance()
+Fail	Stringification of new SpeechSynthesisUtterance()
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "text" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "lang" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "voice" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "volume" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "rate" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "pitch" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onstart" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onend" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onerror" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onpause" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onresume" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onmark" with the proper type
+Fail	SpeechSynthesisUtterance interface: new SpeechSynthesisUtterance() must inherit property "onboundary" with the proper type
+Fail	SpeechSynthesisEvent interface: existence and properties of interface object
+Fail	SpeechSynthesisEvent interface object length
+Fail	SpeechSynthesisEvent interface object name
+Fail	SpeechSynthesisEvent interface: existence and properties of interface prototype object
+Fail	SpeechSynthesisEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechSynthesisEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechSynthesisEvent interface: attribute utterance
+Fail	SpeechSynthesisEvent interface: attribute charIndex
+Fail	SpeechSynthesisEvent interface: attribute charLength
+Fail	SpeechSynthesisEvent interface: attribute elapsedTime
+Fail	SpeechSynthesisEvent interface: attribute name
+Fail	SpeechSynthesisErrorEvent interface: existence and properties of interface object
+Fail	SpeechSynthesisErrorEvent interface object length
+Fail	SpeechSynthesisErrorEvent interface object name
+Fail	SpeechSynthesisErrorEvent interface: existence and properties of interface prototype object
+Fail	SpeechSynthesisErrorEvent interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechSynthesisErrorEvent interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechSynthesisErrorEvent interface: attribute error
+Fail	SpeechSynthesisVoice interface: existence and properties of interface object
+Fail	SpeechSynthesisVoice interface object length
+Fail	SpeechSynthesisVoice interface object name
+Fail	SpeechSynthesisVoice interface: existence and properties of interface prototype object
+Fail	SpeechSynthesisVoice interface: existence and properties of interface prototype object's "constructor" property
+Fail	SpeechSynthesisVoice interface: existence and properties of interface prototype object's @@unscopables property
+Fail	SpeechSynthesisVoice interface: attribute voiceURI
+Fail	SpeechSynthesisVoice interface: attribute name
+Fail	SpeechSynthesisVoice interface: attribute lang
+Fail	SpeechSynthesisVoice interface: attribute localService
+Fail	SpeechSynthesisVoice interface: attribute default
+Fail	SpeechSynthesisVoice must be primary interface of voice
+Fail	Stringification of voice
+Fail	SpeechSynthesisVoice interface: voice must inherit property "voiceURI" with the proper type
+Fail	SpeechSynthesisVoice interface: voice must inherit property "name" with the proper type
+Fail	SpeechSynthesisVoice interface: voice must inherit property "lang" with the proper type
+Fail	SpeechSynthesisVoice interface: voice must inherit property "localService" with the proper type
+Fail	SpeechSynthesisVoice interface: voice must inherit property "default" with the proper type
+Fail	Window interface: attribute speechSynthesis
+Fail	Window interface: self must inherit property "speechSynthesis" with the proper type
