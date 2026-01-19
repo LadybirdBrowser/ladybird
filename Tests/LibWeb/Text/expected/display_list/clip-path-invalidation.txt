@@ -1,0 +1,32 @@
+Before clip-path change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip_path=[bounds: 8,8 100x100, path: M8 8L108 8L108 108L8 108L8 8Z] (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    Save@2
+      FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+      DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
+    Restore@2
+  Restore@0
+Restore@0
+
+After clip-path change:
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip_path=[bounds: 8,8 100x100, path: M8 8L108 8L108 108L8 108L8 8Z] (PaintableWithLines(BlockContainer<DIV>#box.box))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    Save@2
+      FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+      DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
+    Restore@2
+  Restore@0
+Restore@0
+

@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+        clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+    }
+</style>
+<div class="box" id="box">Box</div>
+<script>
+    test(() => {
+        // NOTE: Display lists are captured first and printed later because println() modifies
+        // the DOM tree, causing layout updates that invalidate the accumulated visual context
+        // tree, which would affect the captured display lists.
+        const displayListBefore = internals.dumpDisplayList();
+        document.getElementById("box").style.clipPath = "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)";
+        const displayListAfter = internals.dumpDisplayList();
+
+        println("Before clip-path change:");
+        println(displayListBefore);
+        println("After clip-path change:");
+        println(displayListAfter);
+    });
+</script>
