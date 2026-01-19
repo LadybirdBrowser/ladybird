@@ -80,7 +80,6 @@ public:
     CSSPixelRect absolute_padding_box_rect() const;
     CSSPixelRect absolute_border_box_rect() const;
     CSSPixelRect overflow_clip_edge_rect() const;
-    CSSPixelRect absolute_paint_rect() const;
 
     // These united versions of the above rects take continuation into account.
     CSSPixelRect absolute_united_border_box_rect() const;
@@ -267,7 +266,6 @@ protected:
     virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const override;
 
     virtual CSSPixelRect compute_absolute_rect() const;
-    virtual CSSPixelRect compute_absolute_paint_rect() const;
 
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
@@ -317,7 +315,6 @@ private:
     CSSPixelSize m_content_size;
 
     Optional<CSSPixelRect> mutable m_absolute_rect;
-    Optional<CSSPixelRect> mutable m_absolute_paint_rect;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ScrollFrame const> m_own_scroll_frame;
