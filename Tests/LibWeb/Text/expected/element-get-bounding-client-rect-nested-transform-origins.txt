@@ -1,4 +1,4 @@
-x close to 50: false
-y close to 150: false
+x close to 50: true
+y close to 150: true
 width: 50
 height: 50

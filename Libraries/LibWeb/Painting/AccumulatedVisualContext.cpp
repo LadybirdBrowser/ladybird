@@ -78,6 +78,37 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
     return point;
 }
 
+CSSPixelRect AccumulatedVisualContext::transform_rect_to_viewport(CSSPixelRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
+{
+    Vector<AccumulatedVisualContext const*> chain;
+    for (auto const* node = this; node; node = node->parent().ptr())
+        chain.append(node);
+
+    auto rect = source_rect.to_type<float>();
+    for (auto const* node : chain) {
+        node->data().visit(
+            [&](TransformData const& transform) {
+                auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
+                auto origin = transform.origin.to_type<float>();
+                rect.translate_by(-origin);
+                rect = affine.map(rect);
+                rect.translate_by(origin);
+            },
+            [&](PerspectiveData const& perspective) {
+                auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
+                rect = affine.map(rect);
+            },
+            [&](ScrollData const& scroll) {
+                auto offset = scroll_state.own_offset_for_frame_with_id(scroll.scroll_frame_id);
+                rect.translate_by(offset.to_type<float>());
+            },
+            [&](ClipData const&) { /* clips don't affect rect coordinates */ },
+            [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ });
+    }
+
+    return rect.to_type<CSSPixels>();
+}
+
 void AccumulatedVisualContext::dump(StringBuilder& builder) const
 {
     m_data.visit(
