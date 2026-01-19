@@ -68,10 +68,6 @@ input[type=image] {
     cursor: pointer;
 }
 
-option {
-    display: none;
-}
-
 /* Custom <input type="range"> styles */
 input[type=range] {
     display: inline-block;
@@ -861,6 +857,20 @@ input[type=checkbox][switch]:checked {
 /* https://drafts.csswg.org/css-ui/#propdef-user-select */
 button, meter, progress, select {
     user-select: none;
+}
+
+/* https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
+   FIXME: These styles apply to base appearance. We should differentiate between
+          native, primitive, and base appearance as per the spec. */
+select option {
+    min-inline-size: 24px;
+    min-block-size: max(24px, 1lh);
+    padding-inline: 0.5em;
+    padding-block-end: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    white-space: nowrap;
 }
 
 /* https://drafts.csswg.org/css-view-transitions-1/#ua-styles */
