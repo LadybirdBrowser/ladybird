@@ -820,11 +820,11 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     }
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style, CSS::FontComputer const& font_computer)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
-    if (old_style.cached_computed_font_list() != new_style.cached_computed_font_list())
+    if (old_style.computed_font_list(font_computer) != new_style.computed_font_list(font_computer))
         invalidation.relayout = true;
 
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
@@ -865,7 +865,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     if (m_computed_properties) {
-        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties);
+        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties, document().font_computer());
         had_list_marker = m_computed_properties->display().is_list_item();
     } else {
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
@@ -895,7 +895,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
         // TODO: Can we be smarter about invalidation?
         if (pseudo_element_style && new_pseudo_element_style) {
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style);
+            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer());
         } else if (pseudo_element_style || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
