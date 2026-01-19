@@ -972,8 +972,14 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (!local_position.has_value())
         return TraversalDecision::Continue;
 
-    if (!absolute_border_box_rect().contains(local_position.value()))
+    auto border_box_rect = absolute_border_box_rect();
+    if (!border_box_rect.contains(local_position.value()))
         return TraversalDecision::Continue;
+
+    if (auto radii = border_radii_data(); radii.has_any_radius()) {
+        if (!radii.contains(local_position.value(), border_box_rect))
+            return TraversalDecision::Continue;
+    }
 
     if (hit_test_continuation(callback) == TraversalDecision::Break)
         return TraversalDecision::Break;

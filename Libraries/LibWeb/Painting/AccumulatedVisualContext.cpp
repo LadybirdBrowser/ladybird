@@ -16,6 +16,11 @@ NonnullRefPtr<AccumulatedVisualContext> AccumulatedVisualContext::create(size_t 
     return adopt_ref(*new AccumulatedVisualContext(id, move(data), move(parent)));
 }
 
+bool ClipData::contains(CSSPixelPoint point) const
+{
+    return corner_radii.contains(point, rect);
+}
+
 Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const
 {
     Vector<AccumulatedVisualContext const*> chain;
@@ -54,7 +59,7 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
             [&](ClipData const& clip) -> Optional<CSSPixelPoint> {
                 // NOTE: The clip rect is stored in absolute (layout) coordinates. After inverse-transforming, `point`
                 //       is also in layout coordinates, so we compare them directly without mapping back to screen space.
-                if (!clip.rect.contains(point))
+                if (!clip.contains(point))
                     return {};
                 return point;
             },

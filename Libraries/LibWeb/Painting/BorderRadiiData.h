@@ -65,6 +65,54 @@ struct BorderRadiiData {
         return top_left || top_right || bottom_right || bottom_left;
     }
 
+    bool contains(CSSPixelPoint point, CSSPixelRect const& rect) const
+    {
+        if (!rect.contains(point))
+            return false;
+
+        if (!has_any_radius())
+            return true;
+
+        auto const px = point.x();
+        auto const py = point.y();
+
+        auto outside_ellipse = [&](BorderRadiusData const& r, CSSPixels cx, CSSPixels cy) {
+            auto dx = (px - cx).to_float() / r.horizontal_radius.to_float();
+            auto dy = (py - cy).to_float() / r.vertical_radius.to_float();
+            return dx * dx + dy * dy > 1.0f;
+        };
+
+        if (top_left) {
+            auto cx = rect.left() + top_left.horizontal_radius;
+            auto cy = rect.top() + top_left.vertical_radius;
+            if (px < cx && py < cy && outside_ellipse(top_left, cx, cy))
+                return false;
+        }
+
+        if (top_right) {
+            auto cx = rect.right() - top_right.horizontal_radius;
+            auto cy = rect.top() + top_right.vertical_radius;
+            if (px > cx && py < cy && outside_ellipse(top_right, cx, cy))
+                return false;
+        }
+
+        if (bottom_right) {
+            auto cx = rect.right() - bottom_right.horizontal_radius;
+            auto cy = rect.bottom() - bottom_right.vertical_radius;
+            if (px > cx && py > cy && outside_ellipse(bottom_right, cx, cy))
+                return false;
+        }
+
+        if (bottom_left) {
+            auto cx = rect.left() + bottom_left.horizontal_radius;
+            auto cy = rect.bottom() - bottom_left.vertical_radius;
+            if (px < cx && py > cy && outside_ellipse(bottom_left, cx, cy))
+                return false;
+        }
+
+        return true;
+    }
+
     inline void shrink(CSSPixels top, CSSPixels right, CSSPixels bottom, CSSPixels left)
     {
         top_left.shrink(left, top);
