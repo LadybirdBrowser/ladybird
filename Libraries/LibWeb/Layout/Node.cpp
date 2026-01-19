@@ -83,9 +83,6 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
 
     auto const& computed_values = this->computed_values();
 
-    if (computed_values.position() != CSS::Positioning::Static)
-        return true;
-
     if (is<Viewport>(*this))
         return true;
 
@@ -96,6 +93,11 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
     auto will_change_property = [&](CSS::PropertyID property_id) {
         return computed_values.will_change().has_property(property_id);
     };
+
+    // https://drafts.csswg.org/css-position/#position-property
+    // Values other than static establish an absolute positioning containing block for its descendants
+    if (computed_values.position() != CSS::Positioning::Static || will_change_property(CSS::PropertyID::Position))
+        return true;
 
     // https://drafts.csswg.org/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context
