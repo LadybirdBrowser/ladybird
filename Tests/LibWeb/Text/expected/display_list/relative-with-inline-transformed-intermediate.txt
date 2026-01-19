@@ -1,0 +1,17 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] transform=[0.9848077,-0.17364818,0.17364818,0.9848077,0,0] origin=(58,58) (PaintableWithLines(InlineNode<SPAN>.inline-transformed))
+    [4] perspective
+      [5] transform=[0.9848077,-0.17364818,0.17364818,0.9848077,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<SPAN>.relative-child))
+
+DisplayList:
+Save@0
+  ApplyTransform@0 matrix=[1 0 0 1 0 0]
+  SaveLayer@0
+    FillRect@1 rect=[8,8 300x300] color=rgb(211, 211, 211)
+    FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+    FillRect@5 rect=[13,13 100x100] color=rgb(255, 127, 80)
+    DrawGlyphRun@5 rect=[13,13 65x18] translation=[13,26.796875] color=rgb(0, 0, 0) scale=1
+  Restore@0
+Restore@0
+
