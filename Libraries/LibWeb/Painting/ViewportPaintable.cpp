@@ -142,28 +142,20 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (!visual_parent)
             return TraversalDecision::Continue;
 
-        auto* containing_block = paintable_box.containing_block();
+        RefPtr<AccumulatedVisualContext const> inherited_state;
 
-        auto inherited_state = containing_block->accumulated_visual_context_for_descendants();
-        if (paintable_box.is_fixed_position())
+        if (paintable_box.is_fixed_position()) {
             inherited_state = nullptr;
-
-        // Collect visual ancestors between this element and its containing block.
-        // For normal flow elements, this will be empty (containing block == visual parent).
-        // For positioned elements, we add their transforms (but not scroll/clip).
-        Vector<PaintableBox const*> intermediates;
-        for (Paintable* parent = visual_parent; parent != containing_block; parent = parent->parent()) {
-            if (auto* parent_paintable_box = as_if<PaintableBox>(parent))
-                intermediates.append(parent_paintable_box);
-        }
-
-        // Add intermediate ancestor's perspective and transform as separate nodes.
-        for (size_t i = intermediates.size(); i > 0; --i) {
-            auto const* ancestor = intermediates[i - 1];
-            if (auto perspective = ancestor->perspective_matrix(); perspective.has_value())
-                inherited_state = append_node(inherited_state, PerspectiveData { *perspective });
-            if (ancestor->has_css_transform())
-                inherited_state = append_node(inherited_state, TransformData { ancestor->transform(), ancestor->transform_origin() });
+        } else if (paintable_box.is_absolutely_positioned()) {
+            // For position: absolute, use containing block's state to correctly escape scroll containers.
+            // NOTE: transforms/perspectives can't be in intermediates for abspos because they establish
+            //       containing blocks, so no intermediate walk is needed.
+            inherited_state = paintable_box.containing_block()->accumulated_visual_context_for_descendants();
+        } else {
+            // For position: relative/static, use visual parent's state directly.
+            // This avoids duplicate transform/perspective allocations that would occur with
+            // the containing block + intermediate walk approach.
+            inherited_state = visual_parent->accumulated_visual_context_for_descendants();
         }
 
         // Build this element's own state from inherited state.
