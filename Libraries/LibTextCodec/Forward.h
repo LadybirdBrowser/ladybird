@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <LibTextCodec/Export.h>
-
 namespace TextCodec {
 
 class Decoder;

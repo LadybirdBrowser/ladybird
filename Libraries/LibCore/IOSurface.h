@@ -9,11 +9,12 @@
 #include <AK/Forward.h>
 #include <AK/Noncopyable.h>
 #include <AK/OwnPtr.h>
+#include <LibCore/Export.h>
 #include <LibCore/MachPort.h>
 
 namespace Core {
 
-class IOSurfaceHandle {
+class CORE_API IOSurfaceHandle {
     AK_MAKE_NONCOPYABLE(IOSurfaceHandle);
 
 public:

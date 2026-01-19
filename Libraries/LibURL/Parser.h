@@ -9,7 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
-#include <LibTextCodec/Encoder.h>
+#include <LibTextCodec/Forward.h>
 #include <LibURL/URL.h>
 
 namespace URL {

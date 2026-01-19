@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Time.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
@@ -15,7 +16,7 @@ enum class TimerType {
     Coarse
 };
 
-class ElapsedTimer {
+class CORE_API ElapsedTimer {
 public:
     static ElapsedTimer start_new(TimerType timer_type = TimerType::Coarse);
 
