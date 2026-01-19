@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+#target {
+    width: 200px;
+    height: 200px;
+    background: blue;
+    border-radius: 50px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+}
+</style>
+<div id="target"></div>
+<script>
+test(() => {
+    // Corner at (5,5) - outside due to border-radius
+    let hit1 = internals.hitTest(5, 5);
+    // Inside ellipse curve
+    let hit2 = internals.hitTest(25, 25);
+    // Center
+    let hit3 = internals.hitTest(100, 100);
+
+    println("Corner (5,5):");
+    printElement(hit1.node);
+    println("Near corner (25,25):");
+    printElement(hit2.node);
+    println("Center (100,100):");
+    printElement(hit3.node);
+});
+</script>
