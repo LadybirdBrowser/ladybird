@@ -20,6 +20,8 @@
 
 namespace Web::Layout {
 
+class InlineNode;
+
 enum class LayoutMode {
     // Normal layout. No min-content or max-content constraints applied.
     Normal,
@@ -142,6 +144,13 @@ public:
     [[nodiscard]] GC::Ptr<Box const> containing_block() const { return m_containing_block; }
     [[nodiscard]] GC::Ptr<Box> containing_block() { return m_containing_block; }
 
+    // Returns the inline node that actually establishes the containing block for this absolutely
+    // positioned element, if applicable. This is needed because m_containing_block can only hold
+    // a Box*, but CSS allows inline elements (like a <span> with position:relative) to establish
+    // containing blocks for their absolutely positioned descendants.
+    // See the large FIXME comment in FormattingContext.cpp for full context.
+    [[nodiscard]] GC::Ptr<InlineNode const> inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
+
     void recompute_containing_block(Badge<DOM::Document>);
 
     [[nodiscard]] Box const* static_position_containing_block() const;
@@ -155,6 +164,7 @@ public:
 
     bool establishes_stacking_context() const;
 
+    bool computed_values_establish_absolute_positioning_containing_block() const;
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;
 
@@ -219,6 +229,13 @@ private:
     PaintableList m_paintable;
 
     GC::Ptr<Box> m_containing_block;
+
+    // For absolutely positioned elements, if there's an inline element (like a <span> with
+    // position:relative) that should be the containing block but can't be stored in m_containing_block
+    // (because it's not a Box), we store it here. This happens when a block element is inside an
+    // inline element - the layout tree restructures so the block becomes a sibling of the inline,
+    // but the CSS containing block relationship is based on the DOM structure.
+    GC::Ptr<InlineNode> m_inline_containing_block_if_applicable;
 
     GC::Ptr<DOM::Element> m_pseudo_element_generator;
 

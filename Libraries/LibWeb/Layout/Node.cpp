@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -55,6 +56,7 @@ void Node::visit_edges(Cell::Visitor& visitor)
         visitor.visit(GC::Ptr { &paintable });
     }
     visitor.visit(m_containing_block);
+    visitor.visit(m_inline_containing_block_if_applicable);
     visitor.visit(m_pseudo_element_generator);
     TreeNode::visit_edges(visitor);
 }
@@ -76,17 +78,14 @@ bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
 }
 
 // https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
-bool Node::establishes_an_absolute_positioning_containing_block() const
+// Checks if the computed values of this node would establish an absolute positioning
+// containing block. This is separate from establishes_an_absolute_positioning_containing_block()
+// because that function also checks is<Box>, but we need these checks for inline elements too.
+bool Node::computed_values_establish_absolute_positioning_containing_block() const
 {
-    if (!is<Box>(*this))
-        return false;
-
     auto const& computed_values = this->computed_values();
 
     if (computed_values.position() != CSS::Positioning::Static)
-        return true;
-
-    if (is<Viewport>(*this))
         return true;
 
     // https://drafts.csswg.org/css-will-change/#will-change
@@ -148,6 +147,18 @@ bool Node::establishes_an_absolute_positioning_containing_block() const
     //        positioning containing block for ::view-transition and its descendants.
 
     return false;
+}
+
+// https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
+bool Node::establishes_an_absolute_positioning_containing_block() const
+{
+    if (!is<Box>(*this))
+        return false;
+
+    if (is<Viewport>(*this))
+        return true;
+
+    return computed_values_establish_absolute_positioning_containing_block();
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
@@ -234,6 +245,9 @@ static GC::Ptr<Box> nearest_ancestor_capable_of_forming_a_containing_block(Node&
 
 void Node::recompute_containing_block(Badge<DOM::Document>)
 {
+    // Reset the inline containing block - we'll set it below if applicable.
+    m_inline_containing_block_if_applicable = nullptr;
+
     if (is<TextNode>(*this)) {
         m_containing_block = nearest_ancestor_capable_of_forming_a_containing_block(*this);
         return;
@@ -247,6 +261,58 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
         while (ancestor && !ancestor->establishes_an_absolute_positioning_containing_block())
             ancestor = ancestor->parent();
         m_containing_block = static_cast<Box*>(ancestor);
+
+        // FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
+        //
+        //        The CSS specification defines the containing block as a *rectangle*, not a box. For most cases,
+        //        this rectangle is derived from the padding box of the nearest positioned ancestor Box. However,
+        //        when the positioned ancestor is an *inline* element (e.g., a <span> with position: relative),
+        //        the containing block rectangle should be the bounding box of that inline's fragments.
+        //
+        //        Currently, m_containing_block is typed as Box*, which cannot represent inline elements.
+        //        The proper fix would be to:
+        //        1. Separate the concept of "the node that establishes the containing block" from "the containing
+        //           block rectangle".
+        //        2. Store a reference to the establishing node (which could be InlineNode or Box).
+        //        3. Compute the containing block rectangle on demand based on the establishing node's type.
+        //
+        //        For now, we use a workaround: check if there's an inline element with position:relative (or
+        //        other containing-block-establishing properties) between this node and its containing_block()
+        //        in the DOM tree. If found, store it in m_inline_containing_block_if_applicable.
+        //
+        //        We check the DOM tree here (rather than the layout tree) because when a block element is inside
+        //        an inline element, the layout tree restructures so the block becomes a sibling of the inline.
+        //        But the CSS containing block relationship is based on the DOM structure.
+        if (m_containing_block) {
+            auto const* containing_block_dom_node = m_containing_block->dom_node();
+
+            // For pseudo-elements, we need to start from the generating element itself, since it may
+            // be the inline containing block. For regular elements, start from parent_element().
+            GC::Ptr<DOM::Element const> first_ancestor_to_check;
+            if (is_generated_for_pseudo_element()) {
+                first_ancestor_to_check = m_pseudo_element_generator.ptr();
+            } else if (auto const* this_dom_node = dom_node()) {
+                first_ancestor_to_check = this_dom_node->parent_element();
+            }
+
+            for (auto dom_ancestor = first_ancestor_to_check; dom_ancestor; dom_ancestor = dom_ancestor->parent_element()) {
+                // Stop if we reach the DOM node of the containing block.
+                if (dom_ancestor.ptr() == containing_block_dom_node)
+                    break;
+
+                // Check if this DOM element has an InlineNode in the layout tree.
+                auto layout_node = dom_ancestor->layout_node();
+                if (!layout_node || !is<InlineNode>(*layout_node))
+                    continue;
+
+                // Check if this inline establishes an absolute positioning containing block.
+                if (layout_node->computed_values_establish_absolute_positioning_containing_block()) {
+                    m_inline_containing_block_if_applicable = const_cast<InlineNode*>(static_cast<InlineNode const*>(layout_node.ptr()));
+                    break;
+                }
+            }
+        }
+
         return;
     }
 
