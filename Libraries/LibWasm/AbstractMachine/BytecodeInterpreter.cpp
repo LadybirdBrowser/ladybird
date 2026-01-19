@@ -1845,7 +1845,7 @@ HANDLE_INSTRUCTION(return_call)
     LOAD_ADDRESSES();
     auto index = instruction->arguments().get<FunctionIndex>();
     auto address = configuration.frame().module().functions()[index.value()];
-    configuration.label_stack().shrink(configuration.frame().label_index() + 1, true);
+    configuration.label_stack().shrink(configuration.frame().label_index(), true);
     dbgln_if(WASM_TRACE_DEBUG, "tail call({})", address.value());
     switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::DirectTailCall)) {
     default:
@@ -1910,6 +1910,7 @@ HANDLE_INSTRUCTION(return_call_indirect)
     TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
     TRAP_IN_LOOP_IF_NOT(type_actual.results() == type_expected.results());
 
+    configuration.label_stack().shrink(configuration.frame().label_index(), true);
     dbgln_if(WASM_TRACE_DEBUG, "tail call_indirect({} -> {})", index, address.value());
     switch (auto const outcome = interpreter.call_address(configuration, address, addresses, BytecodeInterpreter::CallAddressSource::IndirectTailCall)) {
     default:

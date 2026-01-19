@@ -64,7 +64,10 @@ Result Configuration::execute(Interpreter& interpreter)
     value_stack().shrink(value_stack().size() - results.size(), true);
     results.reverse();
 
-    label_stack().take_last();
+    // If we reached here from a tailcall -> return, we might not have a label to pop (because the return already popped it)
+    if (!label_stack().is_empty())
+        label_stack().take_last();
+
     return Result { move(results) };
 }
 
