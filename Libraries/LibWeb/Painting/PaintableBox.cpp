@@ -186,27 +186,6 @@ CSSPixelRect PaintableBox::absolute_rect() const
     return *m_absolute_rect;
 }
 
-CSSPixelRect PaintableBox::compute_absolute_paint_rect() const
-{
-    // FIXME: This likely incomplete:
-    auto rect = absolute_border_box_rect();
-    if (has_scrollable_overflow()) {
-        auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-        if (computed_values().overflow_x() == CSS::Overflow::Visible)
-            rect.unite_horizontally(scrollable_overflow_rect);
-        if (computed_values().overflow_y() == CSS::Overflow::Visible)
-            rect.unite_vertically(scrollable_overflow_rect);
-    }
-    for (auto const& shadow : box_shadow_data()) {
-        if (shadow.placement == ShadowPlacement::Inner)
-            continue;
-        auto inflate = shadow.spread_distance + shadow.blur_radius;
-        auto shadow_rect = rect.inflated(inflate, inflate, inflate, inflate).translated(shadow.offset_x, shadow.offset_y);
-        rect.unite(shadow_rect);
-    }
-    return rect;
-}
-
 CSSPixelRect PaintableBox::absolute_padding_box_rect() const
 {
     auto absolute_rect = this->absolute_rect();
@@ -250,13 +229,6 @@ CSSPixelRect PaintableBox::overflow_clip_edge_rect() const
 {
     // FIXME: Apply overflow-clip-margin-* properties
     return absolute_padding_box_rect();
-}
-
-CSSPixelRect PaintableBox::absolute_paint_rect() const
-{
-    if (!m_absolute_paint_rect.has_value())
-        m_absolute_paint_rect = compute_absolute_paint_rect();
-    return *m_absolute_paint_rect;
 }
 
 template<typename Callable>
