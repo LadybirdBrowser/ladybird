@@ -49,20 +49,11 @@ else()
     endif()
 endif()
 
-function(add_cxx_linker_flag_if_supported flag)
-    include(CheckLinkerFlag)
-
-    check_linker_flag(CXX ${flag} LAGOM_LINKER_SUPPORTS_${flag})
-    if (${LAGOM_LINKER_SUPPORTS_${flag}})
-        add_cxx_link_options(${flag})
-    endif()
-endfunction()
-
 if (NOT WIN32)
-    add_cxx_linker_flag_if_supported(LINKER:--gdb-index)
+    add_cxx_link_option_if_supported(LINKER:--gdb-index)
 
     if (NOT ENABLE_FUZZERS)
-        add_cxx_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
+        add_cxx_link_option_if_supported(LINKER:-Bsymbolic-non-weak-functions)
     endif()
 endif()
 
