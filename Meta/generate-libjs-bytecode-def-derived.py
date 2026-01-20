@@ -493,7 +493,7 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
 
         if t == "PropertyKeyTableIndex":
             lines.append(
-                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.property_key_table->get({f.name}).as_string()));'
+                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.property_key_table->get({f.name})));'
             )
             lines.append("")
             continue
