@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
@@ -34,6 +35,9 @@ public:
     ByteBuffer const& body() const { return m_body; }
     void set_body(ByteBuffer body) { m_body = move(body); }
 
+    HTTP::CacheMode cache_mode() const { return m_cache_mode; }
+    void set_cache_mode(HTTP::CacheMode cache_mode) { m_cache_mode = cache_mode; }
+
     bool store_set_cookie_headers() const { return m_store_set_cookie_headers; }
     void set_store_set_cookie_headers(bool store_set_cookie_headers) { m_store_set_cookie_headers = store_set_cookie_headers; }
 
@@ -55,6 +59,7 @@ private:
     ByteBuffer m_body;
     Core::ElapsedTimer m_load_timer;
     GC::Root<Page> m_page;
+    HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
     bool m_store_set_cookie_headers { true };
     Optional<Fetch::Infrastructure::Request::InitiatorType> m_initiator_type;
 };

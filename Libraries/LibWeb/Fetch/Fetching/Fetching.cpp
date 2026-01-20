@@ -126,7 +126,7 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
     if (!g_http_memory_cache_enabled)
         return {};
 
-    auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list());
+    auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list(), request.cache_mode());
     if (!cache_entry.has_value())
         return {};
 
@@ -147,6 +147,8 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
 static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response const& response)
 {
     if (!g_http_memory_cache_enabled)
+        return;
+    if (request.cache_mode() == HTTP::CacheMode::NoStore)
         return;
 
     http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list());
@@ -1817,8 +1819,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     // 10. If response is null, then:
     if (!response) {
         // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
-        if (http_request->cache_mode() == HTTP::CacheMode::OnlyIfCached)
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'only-if-cached' cache mode doesn't have a cached response"_string));
+        // NB: We skip this step in order to allow the disk cache in RequestServer to handle this request. If a disk
+        //     cache entry does not exist, it will return a network error itself.
 
         // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
         //    and isNewConnectionFetch.
@@ -2048,6 +2050,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_url(request->current_url());
     load_request.set_page(page);
     load_request.set_method(request->method());
+    load_request.set_cache_mode(request->cache_mode());
     load_request.set_store_set_cookie_headers(include_credentials == IncludeCredentials::Yes);
     load_request.set_initiator_type(request->initiator_type());
 

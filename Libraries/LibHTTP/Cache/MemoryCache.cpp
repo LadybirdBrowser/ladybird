@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,8 +16,11 @@ NonnullRefPtr<MemoryCache> MemoryCache::create()
 }
 
 // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url, StringView method, HeaderList const& request_headers)
+Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, CacheMode cache_mode)
 {
+    if (cache_mode == CacheMode::Reload || cache_mode == CacheMode::NoCache)
+        return {};
+
     // When presented with a request, a cache MUST NOT reuse a stored response unless:
     // - the presented target URI (Section 7.1 of [HTTP]) and that of the stored response match, and
     // - the request method associated with the stored response allows it to be used for the presented request, and
@@ -53,6 +56,11 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     case CacheLifetimeStatus::Expired:
     case CacheLifetimeStatus::MustRevalidate:
     case CacheLifetimeStatus::StaleWhileRevalidate:
+        if (cache_mode_permits_stale_responses(cache_mode)) {
+            dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), cache_entry->response_body.size());
+            return cache_entry;
+        }
+
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
         m_complete_entries.remove(cache_key);
         return {};

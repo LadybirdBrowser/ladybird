@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -28,6 +28,7 @@ static long s_connect_timeout_seconds = 90L;
 NonnullOwnPtr<Request> Request::fetch(
     u64 request_id,
     Optional<HTTP::DiskCache&> disk_cache,
+    HTTP::CacheMode cache_mode,
     ConnectionFromClient& client,
     void* curl_multi,
     Resolver& resolver,
@@ -38,7 +39,7 @@ NonnullOwnPtr<Request> Request::fetch(
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -79,7 +80,7 @@ NonnullOwnPtr<Request> Request::revalidate(
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -89,6 +90,7 @@ Request::Request(
     u64 request_id,
     Type type,
     Optional<HTTP::DiskCache&> disk_cache,
+    HTTP::CacheMode cache_mode,
     ConnectionFromClient& client,
     void* curl_multi,
     Resolver& resolver,
@@ -101,6 +103,7 @@ Request::Request(
     : m_request_id(request_id)
     , m_type(type)
     , m_disk_cache(disk_cache)
+    , m_cache_mode(cache_mode)
     , m_client(client)
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
@@ -231,12 +234,14 @@ void Request::handle_initial_state()
         }
     }
 
-    if (m_disk_cache.has_value()) {
+    if (m_cache_mode == HTTP::CacheMode::NoStore) {
+        m_cache_status = HTTP::CacheRequest::CacheStatus::NotCached;
+    } else if (m_disk_cache.has_value()) {
         auto open_mode = m_type == Type::BackgroundRevalidation
             ? HTTP::DiskCache::OpenMode::Revalidate
             : HTTP::DiskCache::OpenMode::Read;
 
-        m_disk_cache->open_entry(*this, m_url, m_method, m_request_headers, open_mode)
+        m_disk_cache->open_entry(*this, m_url, m_method, m_request_headers, m_cache_mode, open_mode)
             .visit(
                 [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
                     m_cache_entry_reader = cache_entry_reader;
@@ -262,6 +267,11 @@ void Request::handle_initial_state()
 
         if (m_state != State::Init)
             return;
+
+        if (m_cache_mode == HTTP::CacheMode::OnlyIfCached) {
+            transition_to_state(State::Error);
+            return;
+        }
 
         m_disk_cache->create_entry(*this, m_url, m_method, m_request_headers, m_request_start_time)
             .visit(

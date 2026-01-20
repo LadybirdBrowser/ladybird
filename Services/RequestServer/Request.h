@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <LibCore/Proxy.h>
 #include <LibDNS/Resolver.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/NetworkError.h>
@@ -31,6 +32,7 @@ public:
     static NonnullOwnPtr<Request> fetch(
         u64 request_id,
         Optional<HTTP::DiskCache&> disk_cache,
+        HTTP::CacheMode cache_mode,
         ConnectionFromClient& client,
         void* curl_multi,
         Resolver& resolver,
@@ -118,6 +120,7 @@ private:
         u64 request_id,
         Type type,
         Optional<HTTP::DiskCache&> disk_cache,
+        HTTP::CacheMode cache_mode,
         ConnectionFromClient& client,
         void* curl_multi,
         Resolver& resolver,
@@ -165,6 +168,7 @@ private:
     State m_state { State::Init };
 
     Optional<HTTP::DiskCache&> m_disk_cache;
+    HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
     ConnectionFromClient& m_client;
 
     void* m_curl_multi_handle { nullptr };

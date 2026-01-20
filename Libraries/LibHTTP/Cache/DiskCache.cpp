@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -101,8 +101,10 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
     return Optional<CacheEntryWriter&> { *cache_entry_pointer };
 }
 
-Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::open_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, OpenMode open_mode)
+Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::open_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, CacheMode cache_mode, OpenMode open_mode)
 {
+    if (cache_mode == CacheMode::Reload)
+        return Optional<CacheEntryReader&> {};
     if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryReader&> {};
 
@@ -132,9 +134,21 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     auto freshness_lifetime = calculate_freshness_lifetime(cache_entry.value()->status_code(), response_headers, current_time_offset_for_testing);
     auto current_age = calculate_age(response_headers, index_entry->request_time, index_entry->response_time, current_time_offset_for_testing);
 
+    auto revalidate_cache_entry = [&]() -> ErrorOr<void, CacheHasOpenEntry> {
+        // We will hold an exclusive lock on the cache entry for revalidation requests.
+        if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
+            return CacheHasOpenEntry {};
+
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mMust revalidate cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+        cache_entry.value()->set_revalidation_type(CacheEntryReader::RevalidationType::MustRevalidate);
+        return {};
+    };
+
     switch (cache_lifetime_status(response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
-        if (open_mode == OpenMode::Read) {
+        if (cache_mode == CacheMode::NoCache) {
+            TRY(revalidate_cache_entry());
+        } else if (open_mode == OpenMode::Read) {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         } else {
             // This should be rare, but it's possible for client A to revalidate the request while client B is waiting.
@@ -146,19 +160,22 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         break;
 
     case CacheLifetimeStatus::Expired:
-        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
-        cache_entry.value()->remove();
+        if (cache_mode_permits_stale_responses(cache_mode)) {
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+        } else {
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry expired for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
+            cache_entry.value()->remove();
 
-        return Optional<CacheEntryReader&> {};
+            return Optional<CacheEntryReader&> {};
+        }
+
+        break;
 
     case CacheLifetimeStatus::MustRevalidate:
-        if (open_mode == OpenMode::Read) {
-            // We will hold an exclusive lock on the cache entry for revalidation requests.
-            if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
-                return CacheHasOpenEntry {};
-
-            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mMust revalidate cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
-            cache_entry.value()->set_revalidation_type(CacheEntryReader::RevalidationType::MustRevalidate);
+        if (cache_mode_permits_stale_responses(cache_mode)) {
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+        } else if (open_mode == OpenMode::Read) {
+            TRY(revalidate_cache_entry());
         } else {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for revalidation\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         }
@@ -166,7 +183,9 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         break;
 
     case CacheLifetimeStatus::StaleWhileRevalidate:
-        if (open_mode == OpenMode::Read) {
+        if (cache_mode_permits_stale_responses(cache_mode)) {
+            dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
+        } else if (open_mode == OpenMode::Read) {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[36;1mMust revalidate, but may use, cache entry for\033[0m {} (lifetime={}s age={}s)", url, freshness_lifetime.to_seconds(), current_age.to_seconds());
             cache_entry.value()->set_revalidation_type(CacheEntryReader::RevalidationType::StaleWhileRevalidate);
         } else {
