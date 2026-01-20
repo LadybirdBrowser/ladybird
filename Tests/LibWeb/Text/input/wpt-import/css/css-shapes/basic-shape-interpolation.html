@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset=utf-8>
+<meta name="assert"
+      content="This test checks the inerpolation on basic-shapes is correct" />
+<title>Tests for the output of the interpolation of basic-shapes</title>
+<link rel="help"
+      href="https://drafts.csswg.org/css-shapes/#basic-shape-interpolation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<div id='log'></div>
+<script type='text/javascript'>
+'use strict';
+
+function createDiv(test) {
+  var element = document.createElement('div');
+  document.body.appendChild(element);
+  test.add_cleanup(function() {
+    element.remove();
+  });
+  return element;
+}
+
+test(function(t) {
+  var div = createDiv(t);
+  div.style.shapeOutside = 'circle(25px)';
+  // The radius becomes negative between 60%~61%, so we set the delay to -61s.
+  div.style.transition = 'all 100s cubic-bezier(0, 0, 1, -60) -61s';
+  getComputedStyle(div).shapeOutside;
+
+  div.style.shapeOutside = 'circle(26px)';
+  assert_equals(getComputedStyle(div).shapeOutside, 'circle(0px)',
+                'The radius of circle is clamped to zero at 61%');
+}, 'Test circle with negative easing on shape-outside');
+
+test(function(t) {
+  var div = createDiv(t);
+  div.style.shapeOutside = 'ellipse(25px 25px)';
+  // The radius becomes negative between 60%~61%, so we set the delay to -61s.
+  div.style.transition = 'all 100s cubic-bezier(0, 0, 1, -60) -61s';
+  getComputedStyle(div).shapeOutside;
+
+  div.style.shapeOutside = 'ellipse(26px 26px)';
+  assert_equals(getComputedStyle(div).shapeOutside,
+                'ellipse(0px 0px)',
+                'The radius of ellipse is clamped to zero at 61%');
+}, 'Test ellipse with negative easing on shape-outside');
+
+test(function(t) {
+  var div = createDiv(t);
+  div.style.shapeOutside = 'inset(10% round 25px)';
+  // The radius becomes negative between 60%~61%, so we set the delay to -61s.
+  div.style.transition = 'all 100s cubic-bezier(0, 0, 1, -60) -61s';
+  getComputedStyle(div).shapeOutside;
+
+  div.style.shapeOutside = 'inset(10% round 26px)';
+  assert_equals(getComputedStyle(div).shapeOutside, 'inset(10%)',
+                'The radius of inset is clamped to zero at 61%');
+}, 'Test inset with negative easing on shape-outside');
+
+</script>
+</html>
