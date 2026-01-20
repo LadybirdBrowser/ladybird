@@ -890,6 +890,7 @@ public:
     void invalidate_display_list();
 
     Unicode::Segmenter& grapheme_segmenter() const;
+    Unicode::Segmenter& line_segmenter() const;
     Unicode::Segmenter& word_segmenter() const;
 
     struct StepsToFireBeforeunloadResult {
@@ -1350,6 +1351,7 @@ private:
     RefPtr<Painting::DisplayList> m_cached_display_list;
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
+    mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     GC::Ref<EditingHostManager> m_editing_host_manager;

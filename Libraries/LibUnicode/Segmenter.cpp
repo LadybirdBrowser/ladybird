@@ -21,6 +21,8 @@ SegmenterGranularity segmenter_granularity_from_string(StringView segmenter_gran
 {
     if (segmenter_granularity == "grapheme"sv)
         return SegmenterGranularity::Grapheme;
+    if (segmenter_granularity == "line"sv)
+        return SegmenterGranularity::Line;
     if (segmenter_granularity == "sentence"sv)
         return SegmenterGranularity::Sentence;
     if (segmenter_granularity == "word"sv)
@@ -33,6 +35,8 @@ StringView segmenter_granularity_to_string(SegmenterGranularity segmenter_granul
     switch (segmenter_granularity) {
     case SegmenterGranularity::Grapheme:
         return "grapheme"sv;
+    case SegmenterGranularity::Line:
+        return "line"sv;
     case SegmenterGranularity::Sentence:
         return "sentence"sv;
     case SegmenterGranularity::Word:
@@ -320,6 +324,8 @@ NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranulari
         switch (segmenter_granularity) {
         case SegmenterGranularity::Grapheme:
             return icu::BreakIterator::createCharacterInstance(locale_data->locale(), status);
+        case SegmenterGranularity::Line:
+            return icu::BreakIterator::createLineInstance(locale_data->locale(), status);
         case SegmenterGranularity::Sentence:
             return icu::BreakIterator::createSentenceInstance(locale_data->locale(), status);
         case SegmenterGranularity::Word:

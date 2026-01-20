@@ -129,6 +129,52 @@ TEST_CASE(word_segmentation)
         { 0u, 3u, 4u, 9u, 10u, 11u, 14u, 19u, 22u, 23u, 24u, 27u, 28u, 35u, 36u, 40u, 41u, 45u, 46u, 50u, 51u, 52u, 57u, 58u });
 }
 
+template<size_t N>
+static void test_line_segmentation(StringView string, size_t const (&expected_boundaries)[N])
+{
+    Vector<size_t> boundaries;
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Line);
+
+    segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
+        boundaries.append(boundary);
+        return IterationDecision::Continue;
+    });
+
+    EXPECT_EQ(boundaries, ReadonlySpan<size_t> { expected_boundaries });
+}
+
+TEST_CASE(line_segmentation)
+{
+    auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Line);
+
+    segmenter->for_each_boundary(String {}, [&](auto) {
+        VERIFY_NOT_REACHED();
+        return IterationDecision::Break;
+    });
+
+    // Single characters.
+    test_line_segmentation("a"sv, { 0u, 1u });
+
+    // No break opportunities within a single word.
+    test_line_segmentation("abc"sv, { 0u, 3u });
+
+    // Break opportunity after whitespace.
+    test_line_segmentation("ab cd"sv, { 0u, 3u, 5u });
+    test_line_segmentation("ab  cd"sv, { 0u, 4u, 6u });
+    test_line_segmentation("ab\tcd"sv, { 0u, 3u, 5u });
+
+    // Hard line breaks.
+    test_line_segmentation("ab\ncd"sv, { 0u, 3u, 5u });
+    test_line_segmentation("ab\r\ncd"sv, { 0u, 4u, 6u });
+
+    // CJK ideographs allow break between each character.
+    test_line_segmentation("你好"sv, { 0u, 3u, 6u });
+    test_line_segmentation("你好世界"sv, { 0u, 3u, 6u, 9u, 12u });
+
+    // Mixed ASCII and CJK.
+    test_line_segmentation("ab你好cd"sv, { 0u, 2u, 5u, 8u, 10u });
+}
+
 TEST_CASE(out_of_bounds)
 {
     {
