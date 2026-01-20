@@ -113,6 +113,7 @@ if (MSVC)
     # clang-cl has this off by default unlike other clang versions
     add_cxx_compile_options(-fstrict-aliasing)
     add_cxx_compile_options(/Gw)
+    add_cxx_compile_options(/Gy)
     if (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR "Debug")
         add_cxx_compile_options(-gcodeview-ghash)
         add_cxx_link_options(/DEBUG:GHASH)
