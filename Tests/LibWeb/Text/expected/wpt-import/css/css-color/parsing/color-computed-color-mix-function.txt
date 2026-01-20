@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 888 tests
 
-888 Fail
+2 Pass
+886 Fail
 Fail	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
 Fail	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%))'
 Fail	Property color value 'color-mix(in hsl, 25% hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
@@ -433,8 +434,8 @@ Fail	Property color value 'color-mix(in oklab, transparent, oklab(0.3 0.4 0.5))'
 Fail	Property color value 'color-mix(in oklab, transparent 10%, oklab(0.3 0.4 0.5))'
 Fail	Property color value 'color-mix(in oklab, oklab(0.1 0.2 0.3 / 0), oklab(0.3 0.4 0.5))'
 Fail	Property color value 'color-mix(in oklab, oklab(0.1 0.2 0.3 / 0) 10%, oklab(0.3 0.4 0.5))'
-Fail	Property color value 'color-mix(in oklab, white, blue)'
-Fail	Property color value 'color-mix(in oklab, white 10%, blue)'
+Pass	Property color value 'color-mix(in oklab, white, blue)'
+Pass	Property color value 'color-mix(in oklab, white 10%, blue)'
 Fail	Property color value 'color-mix(in oklab, oklab(none none none), oklab(none none none))'
 Fail	Property color value 'color-mix(in oklab, oklab(none none none), oklab(0.5 0.6 0.7))'
 Fail	Property color value 'color-mix(in oklab, oklab(0.1 0.2 0.3), oklab(none none none))'

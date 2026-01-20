@@ -32,7 +32,7 @@ RefPtr<StyleValue const> interpolate_repeatable_list(DOM::Element&, CalculationC
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 RefPtr<StyleValue const> interpolate_transform(DOM::Element&, CalculationContext const&, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete);
 
-Gfx::Color interpolate_color(Gfx::Color from, Gfx::Color to, float delta, ColorSyntax syntax);
+CSS::Color interpolate_color(CSS::Color from, CSS::Color to, float delta, Optional<ColorSpace> interpolation_space = {});
 
 Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& underlying_list, FilterValueListStyleValue const& animated_list);
 RefPtr<StyleValue const> composite_value(StyleValue const& a_underlying_value, StyleValue const& a_animated_value, Bindings::CompositeOperation);

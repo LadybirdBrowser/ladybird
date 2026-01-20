@@ -198,7 +198,41 @@ Optional<CSS::Color> ColorMixStyleValue::to_color(ColorResolutionContext color_r
     if (!from_color.has_value() || !to_color.has_value())
         return {};
 
-    return CSS::Color { interpolate_color(from_color->resolved(), to_color->resolved(), delta, ColorSyntax::Modern) };
+    auto interpolation_space = [&] -> Optional<ColorSpace> {
+        if (!m_properties.color_interpolation_method.has_value())
+            return {};
+        if (m_properties.color_interpolation_method->color_space == "a98-rgb"sv)
+            return ColorSpace::A98Rgb;
+        if (m_properties.color_interpolation_method->color_space == "display-p3"sv)
+            return ColorSpace::DisplayP3;
+        if (m_properties.color_interpolation_method->color_space == "hsl"sv)
+            return ColorSpace::Hsl;
+        if (m_properties.color_interpolation_method->color_space == "hwb"sv)
+            return ColorSpace::Hwb;
+        if (m_properties.color_interpolation_method->color_space == "lab"sv)
+            return ColorSpace::Lab;
+        if (m_properties.color_interpolation_method->color_space == "lch"sv)
+            return ColorSpace::Lch;
+        if (m_properties.color_interpolation_method->color_space == "oklab"sv)
+            return ColorSpace::Oklab;
+        if (m_properties.color_interpolation_method->color_space == "oklch"sv)
+            return ColorSpace::Oklch;
+        if (m_properties.color_interpolation_method->color_space == "prophoto-rgb"sv)
+            return ColorSpace::ProphotoRgb;
+        if (m_properties.color_interpolation_method->color_space == "rec2020"sv)
+            return ColorSpace::Rec2020;
+        if (m_properties.color_interpolation_method->color_space == "srgb"sv)
+            return ColorSpace::Srgb;
+        if (m_properties.color_interpolation_method->color_space == "srgb-linear"sv)
+            return ColorSpace::SrgbLinear;
+        if (m_properties.color_interpolation_method->color_space == "xyz-d50"sv)
+            return ColorSpace::XyzD50;
+        if (m_properties.color_interpolation_method->color_space == "xyz-d65"sv)
+            return ColorSpace::XyzD65;
+        return {};
+    }();
+
+    return interpolate_color(from_color.value(), to_color.value(), delta, interpolation_space);
 }
 
 }

@@ -1,9 +1,9 @@
 At time 400:
-  accent-color: rgb(78, 88, 99)
+  accent-color: oklab(0.455838 -0.008009 -0.020771)
   align-content: flex-start
   animation-duration: 0s
   aspect-ratio: 1.544154 / 1
-  background-color: rgb(78, 88, 99)
+  background-color: oklab(0.455838 -0.008009 -0.020771)
   background-repeat: repeat-x
   border-radius: 40.000001px 60.000001px 80.000001px 100.000001px
   bottom: auto
@@ -12,11 +12,11 @@ At time 400:
   transform: matrix(1, 0, 0, 1, 40, 40)
 
 At time 750:
-  accent-color: rgb(147, 157, 168)
+  accent-color: oklab(0.691081 -0.007189 -0.018204)
   align-content: space-between
   animation-duration: 0s
   aspect-ratio: 1.36506 / 1
-  background-color: rgb(147, 157, 168)
+  background-color: oklab(0.691081 -0.007189 -0.018204)
   background-repeat: space
   border-radius: 75px 95px 115px 135px
   bottom: 100%

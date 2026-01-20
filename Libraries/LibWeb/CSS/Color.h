@@ -29,4 +29,21 @@ private:
     Gfx::SRGBA01 m_srgba;
 };
 
+enum class ColorSpace : u8 {
+    A98Rgb,
+    DisplayP3,
+    Hsl,
+    Hwb,
+    Lab,
+    Lch,
+    Oklab,
+    Oklch,
+    ProphotoRgb,
+    Rec2020,
+    Srgb,
+    SrgbLinear,
+    XyzD50,
+    XyzD65,
+};
+
 }
