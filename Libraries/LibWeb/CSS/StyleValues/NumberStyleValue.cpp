@@ -18,7 +18,7 @@ namespace Web::CSS {
 
 void NumberStyleValue::serialize(StringBuilder& builder, SerializationMode) const
 {
-    builder.append(serialize_a_number(m_value));
+    serialize_a_number(builder, m_value);
 }
 
 Vector<Parser::ComponentValue> NumberStyleValue::tokenize() const
