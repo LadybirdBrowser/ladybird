@@ -2368,6 +2368,99 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         VERIFY(underlying_value.as_angle().angle().unit() == animated_value.as_angle().angle().unit());
         return AngleStyleValue::create({ *result, underlying_value.as_angle().angle().unit() });
     }
+    case StyleValue::Type::BasicShape: {
+        auto const& underlying_basic_shape = underlying_value.as_basic_shape();
+        auto const& animated_basic_shape = animated_value.as_basic_shape();
+
+        if (underlying_basic_shape.basic_shape().index() != animated_basic_shape.basic_shape().index())
+            return {};
+
+        return underlying_basic_shape.basic_shape().visit(
+            [&](Inset const& underlying_inset) -> RefPtr<StyleValue const> {
+                auto const& animated_inset = animated_basic_shape.basic_shape().get<Inset>();
+                auto composited_top = composite_value(underlying_inset.top, animated_inset.top, composite_operation);
+                auto composited_right = composite_value(underlying_inset.right, animated_inset.right, composite_operation);
+                auto composited_bottom = composite_value(underlying_inset.bottom, animated_inset.bottom, composite_operation);
+                auto composited_left = composite_value(underlying_inset.left, animated_inset.left, composite_operation);
+                auto composited_border_radius = composite_value(underlying_inset.border_radius, animated_inset.border_radius, composite_operation);
+                if (!composited_top || !composited_right || !composited_bottom || !composited_left || !composited_border_radius)
+                    return {};
+
+                return BasicShapeStyleValue::create(Inset { composited_top.release_nonnull(), composited_right.release_nonnull(), composited_bottom.release_nonnull(), composited_left.release_nonnull(), composited_border_radius.release_nonnull() });
+            },
+            [&](Circle const& underlying_circle) -> RefPtr<StyleValue const> {
+                auto const& animated_circle = animated_basic_shape.basic_shape().get<Circle>();
+                auto composited_radius = composite_value(underlying_circle.radius, animated_circle.radius, composite_operation);
+                if (!composited_radius)
+                    return {};
+
+                RefPtr<StyleValue const> composited_position;
+                if (underlying_circle.position || animated_circle.position) {
+                    auto const& underlying_position_with_default = underlying_circle.position ? ValueComparingNonnullRefPtr<StyleValue const> { *underlying_circle.position } : PositionStyleValue::create_computed_center();
+                    auto const& animated_position_with_default = animated_circle.position ? ValueComparingNonnullRefPtr<StyleValue const> { *animated_circle.position } : PositionStyleValue::create_computed_center();
+
+                    composited_position = composite_value(underlying_position_with_default, animated_position_with_default, composite_operation);
+
+                    if (!composited_position)
+                        return {};
+                }
+
+                return BasicShapeStyleValue::create(Circle { composited_radius.release_nonnull(), composited_position });
+            },
+            [&](Ellipse const& underlying_ellipse) -> RefPtr<StyleValue const> {
+                auto const& animated_ellipse = animated_basic_shape.basic_shape().get<Ellipse>();
+                auto composited_radius = composite_value(underlying_ellipse.radius, animated_ellipse.radius, composite_operation);
+                if (!composited_radius)
+                    return {};
+
+                RefPtr<StyleValue const> composited_position;
+                if (underlying_ellipse.position || animated_ellipse.position) {
+                    auto const& underlying_position_with_default = underlying_ellipse.position ? ValueComparingNonnullRefPtr<StyleValue const> { *underlying_ellipse.position } : PositionStyleValue::create_computed_center();
+                    auto const& animated_position_with_default = animated_ellipse.position ? ValueComparingNonnullRefPtr<StyleValue const> { *animated_ellipse.position } : PositionStyleValue::create_computed_center();
+
+                    composited_position = composite_value(underlying_position_with_default, animated_position_with_default, composite_operation);
+
+                    if (!composited_position)
+                        return {};
+                }
+
+                return BasicShapeStyleValue::create(Ellipse { composited_radius.release_nonnull(), composited_position });
+            },
+            [&](Polygon const& underlying_polygon) -> RefPtr<StyleValue const> {
+                auto const& animated_polygon = animated_basic_shape.basic_shape().get<Polygon>();
+                if (underlying_polygon.fill_rule != animated_polygon.fill_rule)
+                    return {};
+
+                if (underlying_polygon.points.size() != animated_polygon.points.size())
+                    return {};
+
+                Vector<Polygon::Point> composited_points;
+                composited_points.ensure_capacity(underlying_polygon.points.size());
+                for (size_t i = 0; i < underlying_polygon.points.size(); i++) {
+                    auto const& underlying_point = underlying_polygon.points[i];
+                    auto const& animated_point = animated_polygon.points[i];
+                    auto composited_point_x = composite_value(underlying_point.x, animated_point.x, composite_operation);
+                    auto composited_point_y = composite_value(underlying_point.y, animated_point.y, composite_operation);
+                    if (!composited_point_x || !composited_point_y)
+                        return {};
+                    composited_points.unchecked_append(Polygon::Point { *composited_point_x, *composited_point_y });
+                }
+
+                return BasicShapeStyleValue::create(Polygon { underlying_polygon.fill_rule, move(composited_points) });
+            },
+            [&](Xywh const&) -> RefPtr<StyleValue const> {
+                // xywh() should have been absolutized into inset() before now
+                VERIFY_NOT_REACHED();
+            },
+            [&](Rect const&) -> RefPtr<StyleValue const> {
+                // rect() should have been absolutized into inset() before now
+                VERIFY_NOT_REACHED();
+            },
+            [&](Path const&) -> RefPtr<StyleValue const> {
+                // FIXME: Implement composition for path()
+                return {};
+            });
+    }
     case StyleValue::Type::BorderImageSlice: {
         auto& underlying_border_image_slice_value = underlying_value.as_border_image_slice();
         auto& animated_border_image_slice_value = animated_value.as_border_image_slice();
@@ -2387,6 +2480,28 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
         if (!composited_horizontal_radius || !composited_vertical_radius)
             return {};
         return BorderRadiusStyleValue::create(composited_horizontal_radius.release_nonnull(), composited_vertical_radius.release_nonnull());
+    }
+    case StyleValue::Type::BorderRadiusRect: {
+        auto const& underlying_top_left = underlying_value.as_border_radius_rect().top_left();
+        auto const& animated_top_left = animated_value.as_border_radius_rect().top_left();
+
+        auto const& underlying_top_right = underlying_value.as_border_radius_rect().top_right();
+        auto const& animated_top_right = animated_value.as_border_radius_rect().top_right();
+        auto const& underlying_bottom_right = underlying_value.as_border_radius_rect().bottom_right();
+        auto const& animated_bottom_right = animated_value.as_border_radius_rect().bottom_right();
+
+        auto const& underlying_bottom_left = underlying_value.as_border_radius_rect().bottom_left();
+        auto const& animated_bottom_left = animated_value.as_border_radius_rect().bottom_left();
+
+        auto composited_top_left = composite_value(underlying_top_left, animated_top_left, composite_operation);
+        auto composited_top_right = composite_value(underlying_top_right, animated_top_right, composite_operation);
+        auto composited_bottom_right = composite_value(underlying_bottom_right, animated_bottom_right, composite_operation);
+        auto composited_bottom_left = composite_value(underlying_bottom_left, animated_bottom_left, composite_operation);
+
+        if (!composited_top_left || !composited_top_right || !composited_bottom_right || !composited_bottom_left)
+            return {};
+
+        return BorderRadiusRectStyleValue::create(composited_top_left.release_nonnull(), composited_top_right.release_nonnull(), composited_bottom_right.release_nonnull(), composited_bottom_left.release_nonnull());
     }
     case StyleValue::Type::Edge: {
         auto const& underlying_offset = underlying_value.as_edge().offset();
@@ -2435,6 +2550,43 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             return {};
 
         return PositionStyleValue::create(composited_edge_x->as_edge(), composited_edge_y->as_edge());
+    }
+    case StyleValue::Type::RadialSize: {
+        auto const& underlying_components = underlying_value.as_radial_size().components();
+        auto const& animated_components = animated_value.as_radial_size().components();
+
+        auto const is_radial_extent = [](auto const& component) { return component.template has<RadialExtent>(); };
+
+        // https://drafts.csswg.org/css-images-4/#interpolating-gradients
+        // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
+        // FIXME: Radial extents should disallow composition for basic-shape values but should be converted into their
+        //        equivalent length-percentage values for radial gradients
+        if (any_of(underlying_components, is_radial_extent) || any_of(animated_components, is_radial_extent))
+            return {};
+
+        if (underlying_components.size() == 1 && animated_components.size() == 1) {
+            auto const& underlying_component = underlying_components[0].get<NonnullRefPtr<StyleValue const>>();
+            auto const& animated_component = animated_components[0].get<NonnullRefPtr<StyleValue const>>();
+
+            auto interpolated_value = composite_value(underlying_component, animated_component, composite_operation);
+            if (!interpolated_value)
+                return {};
+
+            return RadialSizeStyleValue::create({ interpolated_value.release_nonnull() });
+        }
+
+        auto const& underlying_horizontal_component = underlying_components[0].get<NonnullRefPtr<StyleValue const>>();
+        auto const& underlying_vertical_component = underlying_components.size() > 1 ? underlying_components[1].get<NonnullRefPtr<StyleValue const>>() : underlying_horizontal_component;
+
+        auto const& animated_horizontal_component = animated_components[0].get<NonnullRefPtr<StyleValue const>>();
+        auto const& animated_vertical_component = animated_components.size() > 1 ? animated_components[1].get<NonnullRefPtr<StyleValue const>>() : animated_horizontal_component;
+        auto composited_horizontal = composite_value(underlying_horizontal_component, animated_horizontal_component, composite_operation);
+        auto composited_vertical = composite_value(underlying_vertical_component, animated_vertical_component, composite_operation);
+
+        if (!composited_horizontal || !composited_vertical)
+            return {};
+
+        return RadialSizeStyleValue::create({ composited_horizontal.release_nonnull(), composited_vertical.release_nonnull() });
     }
     case StyleValue::Type::Ratio: {
         // https://drafts.csswg.org/css-values/#combine-ratio
