@@ -11,6 +11,7 @@
 #import <HTML/Navigation.idl>
 #import <HTML/Navigator.idl>
 #import <HTML/UniversalGlobalScope.idl>
+#import <HTML/WindowDeprecated.idl>
 #import <HTML/WindowLocalStorage.idl>
 #import <HTML/WindowOrWorkerGlobalScope.idl>
 #import <HTML/WindowSessionStorage.idl>
@@ -117,9 +118,6 @@ interface Window : EventTarget {
 
     // https://w3c.github.io/selection-api/#extensions-to-window-interface
     Selection? getSelection();
-
-    undefined captureEvents();
-    undefined releaseEvents();
 
     // This function is non-standard.
     boolean find(optional DOMString string = "");

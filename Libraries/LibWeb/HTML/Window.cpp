@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/External.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -140,6 +141,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_scrollbars);
     visitor.visit(m_statusbar);
     visitor.visit(m_toolbar);
+    visitor.visit(m_external);
     for (auto& descriptor : m_cross_origin_property_descriptor_map)
         descriptor.value.visit_edges(visitor);
 }
@@ -1782,6 +1784,15 @@ void Window::capture_events()
 void Window::release_events()
 {
     // Do nothing.
+}
+
+// https://html.spec.whatwg.org/multipage/obsolete.html#dom-external
+GC::Ref<External> Window::external()
+{
+    // The external attribute of the Window interface must return an instance of the External interface
+    if (!m_external)
+        m_external = realm().create<External>(realm());
+    return *m_external;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation

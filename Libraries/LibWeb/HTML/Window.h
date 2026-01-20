@@ -250,6 +250,8 @@ public:
     void capture_events();
     void release_events();
 
+    [[nodiscard]] GC::Ref<External> external();
+
     [[nodiscard]] GC::Ref<CustomElementRegistry> custom_elements();
 
     HighResolutionTime::DOMHighResTimeStamp last_activation_timestamp() const { return m_last_activation_timestamp; }
@@ -362,6 +364,9 @@ private:
     GC::Ptr<BarProp const> m_scrollbars;
     GC::Ptr<BarProp const> m_statusbar;
     GC::Ptr<BarProp const> m_toolbar;
+
+    // https://html.spec.whatwg.org/multipage/obsolete.html#dom-external
+    GC::Ptr<External> m_external;
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);
