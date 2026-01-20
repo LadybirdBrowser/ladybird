@@ -101,12 +101,7 @@ ErrorOr<void> Application::launch_test_fixtures()
 
 bool Application::should_capture_web_content_output() const
 {
-    // Capture when results_directory is set OR when stdout is a TTY (to suppress spam during live display)
-    if (!results_directory.is_empty())
-        return true;
-
-    auto is_tty = Core::System::isatty(STDOUT_FILENO);
-    return !is_tty.is_error() && is_tty.value();
+    return verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
 }
 
 }

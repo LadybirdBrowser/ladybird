@@ -252,7 +252,7 @@ static void setup_output_capture_for_view(TestWebView& view)
 static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
 {
     auto& app = Application::the();
-    if (app.results_directory.is_empty())
+    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
         return {};
 
     // Create the directory structure for this test's output
@@ -448,7 +448,7 @@ static ByteString test_mode_to_string(TestMode mode)
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
-    if (app.results_directory.is_empty())
+    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
         return {};
 
     // Count results
@@ -524,7 +524,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer const& expectation)
 {
     auto& app = Application::the();
-    if (app.results_directory.is_empty())
+    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
         return {};
 
     // Create the directory structure
@@ -685,12 +685,10 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             return TestResult::Pass;
         }
 
-        // Write diff to results directory if specified
         TRY(write_test_diff_to_results(test, expectation));
 
-        // Only output to stdout if not using results directory (for CI compatibility)
-        if (Application::the().results_directory.is_empty()) {
-            auto const color_output = TRY(Core::System::isatty(STDOUT_FILENO)) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
+        if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
+            auto const color_output = s_is_tty ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
 
             if (color_output == Diff::ColorOutput::Yes)
                 outln("\n\033[33;1mTest failed\033[0m: {}", url);
@@ -855,8 +853,7 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             return {};
         };
 
-        // Save to results directory if specified
-        if (!app.results_directory.is_empty()) {
+        if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
             auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
             TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
@@ -1191,7 +1188,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     // Initialize live terminal display
     s_is_tty = TRY(Core::System::isatty(STDOUT_FILENO));
-    if (s_is_tty) {
+
+    // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
+    bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
+
+    if (use_live_display) {
         update_terminal_size();
 
 #ifndef AK_OS_WINDOWS
@@ -1218,8 +1219,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     s_skipped_count = 0;
     s_completed_tests = 0;
 
-    // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
-    bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION;
     s_total_tests = tests.size();
     outln("Running {} tests...", tests.size());
 
@@ -1445,10 +1444,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     // Generate result files (JSON data and HTML index)
-    if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
-        warnln("Failed to generate result files: {}", result.error());
-    else if (!app.results_directory.is_empty())
-        outln("Results: file://{}/index.html", app.results_directory);
+    if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
+        if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
+            warnln("Failed to generate result files: {}", result.error());
+        else
+            outln("Results: file://{}/index.html", app.results_directory);
+    }
 
     return s_fail_count + s_timeout_count + s_crashed_count + tests_remaining;
 }
@@ -1510,10 +1511,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!app->test_root_path.is_empty());
 
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
-
-    // Set default results directory if not specified
-    if (app->results_directory.is_empty())
-        app->results_directory = "test-dumps/results"sv;
 
     app->results_directory = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->results_directory);
     TRY(Core::Directory::create(app->results_directory, Core::Directory::CreateDirectories::Yes));

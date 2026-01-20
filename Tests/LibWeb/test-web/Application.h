@@ -25,12 +25,13 @@ public:
     virtual bool should_capture_web_content_output() const override;
     ErrorOr<void> launch_test_fixtures();
 
-    static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_DURATION = 1;
-    static constexpr u8 VERBOSITY_LEVEL_LOG_SLOWEST_TESTS = 2;
-    static constexpr u8 VERBOSITY_LEVEL_LOG_SKIPPED_TESTS = 3;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_OUTPUT = 1;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_DURATION = 2;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_SLOWEST_TESTS = 3;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_SKIPPED_TESTS = 4;
 
     ByteString test_root_path;
-    ByteString results_directory;
+    ByteString results_directory { "test-dumps/results"sv };
     size_t test_concurrency { 1 };
     Vector<ByteString> test_globs;
 
