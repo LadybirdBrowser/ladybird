@@ -25,6 +25,7 @@ public:
     static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
+    virtual void reset_for_relayout() override;
 
 private:
     // ^JS::Cell

@@ -24,6 +24,12 @@ SVGPathPaintable::SVGPathPaintable(Layout::SVGGraphicsBox const& layout_box)
 {
 }
 
+void SVGPathPaintable::reset_for_relayout()
+{
+    SVGGraphicsPaintable::reset_for_relayout();
+    m_computed_path.clear();
+}
+
 TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (!computed_path().has_value())

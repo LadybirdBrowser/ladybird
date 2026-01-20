@@ -31,6 +31,16 @@ ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
 
 ViewportPaintable::~ViewportPaintable() = default;
 
+void ViewportPaintable::reset_for_relayout()
+{
+    PaintableWithLines::reset_for_relayout();
+    m_scroll_state.clear();
+    m_scroll_state_snapshot = {};
+    m_needs_to_refresh_scroll_state = true;
+    m_paintable_boxes_with_auto_content_visibility.clear();
+    m_next_accumulated_visual_context_id = 1;
+}
+
 void ViewportPaintable::build_stacking_context_tree_if_needed()
 {
     if (stacking_context())

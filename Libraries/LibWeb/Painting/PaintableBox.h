@@ -30,6 +30,8 @@ public:
     static GC::Ref<PaintableBox> create(Layout::InlineNode const&);
     virtual ~PaintableBox();
 
+    virtual void reset_for_relayout();
+
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
     StackingContext* stacking_context() { return m_stacking_context; }
