@@ -22,6 +22,8 @@ public:
     static GC::Ref<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
     virtual ~PaintableWithLines() override;
 
+    virtual void reset_for_relayout() override;
+
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
     Vector<PaintableFragment>& fragments() { return m_fragments; }
 

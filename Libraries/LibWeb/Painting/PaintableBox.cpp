@@ -74,6 +74,40 @@ PaintableBox::~PaintableBox()
 {
 }
 
+void PaintableBox::reset_for_relayout()
+{
+    if (parent())
+        remove();
+    while (first_child())
+        first_child()->remove();
+
+    m_containing_block = {};
+
+    m_needs_paint_only_properties_update = true;
+
+    m_offset = {};
+    m_content_size = {};
+
+    m_box_model = {};
+
+    m_overflow_data.clear();
+    m_override_borders_data.clear();
+    m_table_cell_coordinates.clear();
+    m_sticky_insets = nullptr;
+
+    m_absolute_rect.clear();
+
+    m_enclosing_scroll_frame = nullptr;
+    m_own_scroll_frame = nullptr;
+    m_accumulated_visual_context = nullptr;
+    m_accumulated_visual_context_for_descendants = nullptr;
+
+    m_used_values_for_grid_template_columns = nullptr;
+    m_used_values_for_grid_template_rows = nullptr;
+
+    invalidate_stacking_context();
+}
+
 void PaintableBox::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

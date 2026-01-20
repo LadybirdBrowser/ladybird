@@ -57,6 +57,12 @@ PaintableWithLines::~PaintableWithLines()
 {
 }
 
+void PaintableWithLines::reset_for_relayout()
+{
+    PaintableBox::reset_for_relayout();
+    m_fragments.clear();
+}
+
 void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordingContext& context, PaintableFragment const& fragment)
 {
     auto fragment_absolute_rect = fragment.absolute_rect();

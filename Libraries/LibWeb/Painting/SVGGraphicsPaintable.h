@@ -66,6 +66,8 @@ public:
         return m_computed_transforms;
     }
 
+    virtual void reset_for_relayout() override;
+
 protected:
     SVGGraphicsPaintable(Layout::SVGGraphicsBox const&);
 

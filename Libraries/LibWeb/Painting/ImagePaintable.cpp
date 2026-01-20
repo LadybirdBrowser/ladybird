@@ -58,6 +58,19 @@ void ImagePaintable::finalize()
     document().unregister_viewport_client(*this);
 }
 
+void ImagePaintable::reset_for_relayout()
+{
+    PaintableBox::reset_for_relayout();
+
+    if (!m_is_svg_image) {
+        m_renders_as_alt_text = !m_image_provider.is_image_available();
+        if (auto const* image_box = as_if<Layout::ImageBox>(layout_node())) {
+            if (auto element = image_box->dom_node())
+                m_alt_text = element->get_attribute_value(HTML::AttributeNames::alt);
+        }
+    }
+}
+
 void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())

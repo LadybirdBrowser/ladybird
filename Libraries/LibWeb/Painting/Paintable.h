@@ -162,11 +162,12 @@ protected:
     virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const { }
     virtual void visit_edges(Cell::Visitor&) override;
 
+    Optional<GC::Ptr<PaintableBox>> mutable m_containing_block;
+
 private:
     IntrusiveListNode<Paintable> m_list_node;
     GC::Ptr<DOM::Node> m_dom_node;
     GC::Ref<Layout::Node const> m_layout_node;
-    Optional<GC::Ptr<PaintableBox>> mutable m_containing_block;
 
     SelectionState m_selection_state { SelectionState::None };
 
@@ -177,6 +178,8 @@ private:
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };
     bool m_visible_for_hit_testing : 1 { true };
+
+protected:
     bool m_needs_paint_only_properties_update : 1 { true };
 };
 

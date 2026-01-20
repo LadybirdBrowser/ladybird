@@ -7,6 +7,7 @@
  */
 
 #include <AK/Debug.h>
+#include <LibGC/RootHashMap.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/AvailableSpace.h>
 #include <LibWeb/Layout/InlineNode.h>
@@ -215,6 +216,22 @@ static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable =
 
 void LayoutState::commit(Box& root)
 {
+    // Cache existing paintables before clearing.
+    GC::RootHashMap<Node const*, GC::Ptr<Painting::PaintableBox>> paintable_cache(root.document().heap());
+    root.for_each_in_inclusive_subtree([&](Node& node) {
+        if (auto* paintable = node.first_paintable()) {
+            if (auto* paintable_box = as_if<Painting::PaintableBox>(paintable)) {
+                // InlineNodes are excluded because they can span multiple lines, with a separate
+                // InlinePaintable created for each line via create_paintable_for_line_with_index().
+                // This 1:N relationship between layout node and paintables, combined with the
+                // dynamic nature of fragment relocation, makes simple 1:1 caching inapplicable.
+                if (!is<InlineNode>(node))
+                    paintable_cache.set(&node, paintable_box);
+            }
+        }
+        return TraversalDecision::Continue;
+    });
+
     // Go through the layout tree and detach all paintables. The layout tree should only point to the new paintable tree
     // which we're about to build.
     root.for_each_in_inclusive_subtree([](Node& node) {
@@ -273,7 +290,19 @@ void LayoutState::commit(Box& root)
         auto& used_values = *it.value;
         auto& node = used_values.node();
 
-        auto paintable = node.create_paintable();
+        GC::Ptr<Painting::Paintable> paintable;
+
+        // Try to reuse cached paintable for Box nodes
+        if (auto cached = paintable_cache.get(&node); cached.has_value() && cached.value()) {
+            auto cached_paintable = cached.value();
+            cached_paintable->reset_for_relayout();
+            paintable = cached_paintable;
+        }
+
+        // Fall back to creating new if no reusable paintable
+        if (!paintable)
+            paintable = node.create_paintable();
+
         node.add_paintable(paintable);
 
         // For boxes, transfer all the state needed for painting.

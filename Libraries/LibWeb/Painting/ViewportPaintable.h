@@ -21,6 +21,8 @@ public:
     static GC::Ref<ViewportPaintable> create(Layout::Viewport const&);
     virtual ~ViewportPaintable() override;
 
+    virtual void reset_for_relayout() override;
+
     void paint_all_phases(DisplayListRecordingContext&);
     void build_stacking_context_tree_if_needed();
 

@@ -82,6 +82,11 @@ public:
         }
     }
 
+    void clear()
+    {
+        m_scroll_frames.clear();
+    }
+
 private:
     friend class ViewportPaintable;
 

@@ -33,6 +33,8 @@ public:
 
     Optional<Gfx::Path> const& computed_path() const { return m_computed_path; }
 
+    virtual void reset_for_relayout() override;
+
 protected:
     SVGPathPaintable(Layout::SVGGraphicsBox const&);
 
