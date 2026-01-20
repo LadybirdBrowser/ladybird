@@ -30,4 +30,9 @@ enum class CacheMode : u8 {
     OnlyIfCached,
 };
 
+constexpr bool cache_mode_permits_stale_responses(CacheMode cache_mode)
+{
+    return cache_mode == CacheMode::ForceCache || cache_mode == CacheMode::OnlyIfCached;
+}
+
 }

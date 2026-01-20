@@ -1,4 +1,5 @@
 #include <LibCore/Proxy.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Header.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
@@ -16,7 +17,7 @@ endpoint RequestServer
     // Test if a specific protocol is supported, e.g "http"
     is_supported_protocol(ByteString protocol) => (bool supported)
 
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data) =|
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Core::ProxyData proxy_data) =|
     stop_request(u64 request_id) => (bool success)
     set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 

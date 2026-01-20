@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,6 +16,7 @@
 #include <LibDatabase/Database.h>
 #include <LibHTTP/Cache/CacheEntry.h>
 #include <LibHTTP/Cache/CacheIndex.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibURL/Forward.h>
 
 namespace HTTP {
@@ -49,7 +50,7 @@ public:
         Read,
         Revalidate,
     };
-    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, OpenMode);
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
