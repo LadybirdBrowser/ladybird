@@ -203,7 +203,7 @@ void ColorStyleValue::serialize_alpha_component(StringBuilder& builder, Serializ
         return;
     }
 
-    builder.appendff("{}", maybe_resolved_value.value());
+    serialize_a_number(builder, maybe_resolved_value.value());
 }
 
 void ColorStyleValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
