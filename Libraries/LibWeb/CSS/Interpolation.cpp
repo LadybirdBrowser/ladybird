@@ -2388,6 +2388,15 @@ RefPtr<StyleValue const> composite_value(StyleValue const& underlying_value, Sty
             return {};
         return BorderRadiusStyleValue::create(composited_horizontal_radius.release_nonnull(), composited_vertical_radius.release_nonnull());
     }
+    case StyleValue::Type::Edge: {
+        auto const& underlying_offset = underlying_value.as_edge().offset();
+        auto const& animated_offset = animated_value.as_edge().offset();
+
+        if (auto composited_value = composite_value(underlying_offset, animated_offset, composite_operation))
+            return EdgeStyleValue::create({}, composited_value);
+
+        return {};
+    }
     case StyleValue::Type::Integer: {
         auto result = composite_raw_values(underlying_value.as_integer().integer(), animated_value.as_integer().integer());
         return IntegerStyleValue::create(result);
