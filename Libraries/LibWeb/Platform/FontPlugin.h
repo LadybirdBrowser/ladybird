@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Export.h>
 
@@ -32,7 +33,7 @@ public:
 
     virtual ~FontPlugin();
 
-    virtual RefPtr<Gfx::Font> default_font(float point_size) = 0;
+    virtual RefPtr<Gfx::Font> default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings = {}) = 0;
     virtual Gfx::Font& default_fixed_width_font() = 0;
 
     virtual FlyString generic_font_name(GenericFont) = 0;

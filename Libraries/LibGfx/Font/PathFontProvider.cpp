@@ -52,50 +52,53 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
     });
 }
 
-RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope)
+RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings)
 {
+    auto const compute_default_font_variation_settings = [&](unsigned weight, unsigned width) {
+        FontVariationSettings default_font_variation_settings;
+        default_font_variation_settings.set_weight(static_cast<float>(weight));
+
+        switch (width) {
+        case FontWidth::UltraCondensed:
+            default_font_variation_settings.set_width(50);
+            break;
+        case FontWidth::ExtraCondensed:
+            default_font_variation_settings.set_width(62.5);
+            break;
+        case FontWidth::Condensed:
+            default_font_variation_settings.set_width(75);
+            break;
+        case FontWidth::SemiCondensed:
+            default_font_variation_settings.set_width(87.5);
+            break;
+        case FontWidth::Normal:
+            default_font_variation_settings.set_width(100);
+            break;
+        case FontWidth::SemiExpanded:
+            default_font_variation_settings.set_width(112.5);
+            break;
+        case FontWidth::Expanded:
+            default_font_variation_settings.set_width(125);
+            break;
+        case FontWidth::ExtraExpanded:
+            default_font_variation_settings.set_width(150);
+            break;
+        case FontWidth::UltraExpanded:
+            default_font_variation_settings.set_width(200);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        return default_font_variation_settings;
+    };
+
     auto it = m_typeface_by_family.find(family);
     if (it == m_typeface_by_family.end())
         return nullptr;
     for (auto const& typeface : it->value) {
-        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope) {
-            FontVariationSettings font_variation_settings;
-            font_variation_settings.set_weight(static_cast<float>(weight));
-
-            switch (width) {
-            case FontWidth::UltraCondensed:
-                font_variation_settings.set_width(50);
-                break;
-            case FontWidth::ExtraCondensed:
-                font_variation_settings.set_width(62.5);
-                break;
-            case FontWidth::Condensed:
-                font_variation_settings.set_width(75);
-                break;
-            case FontWidth::SemiCondensed:
-                font_variation_settings.set_width(87.5);
-                break;
-            case FontWidth::Normal:
-                font_variation_settings.set_width(100);
-                break;
-            case FontWidth::SemiExpanded:
-                font_variation_settings.set_width(112.5);
-                break;
-            case FontWidth::Expanded:
-                font_variation_settings.set_width(125);
-                break;
-            case FontWidth::ExtraExpanded:
-                font_variation_settings.set_width(150);
-                break;
-            case FontWidth::UltraExpanded:
-                font_variation_settings.set_width(200);
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-
-            return typeface->font(point_size, font_variation_settings);
-        }
+        if (typeface->weight() == weight && typeface->width() == width && typeface->slope() == slope)
+            return typeface->font(point_size, font_variation_settings.value_or_lazy_evaluated([&] { return compute_default_font_variation_settings(weight, width); }));
     }
     return nullptr;
 }
