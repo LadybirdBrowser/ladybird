@@ -196,9 +196,9 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         case StackingContextPaintPhase::Foreground:
             paint_node(child, context, PaintPhase::Foreground);
             paint_descendants(context, child, phase);
+            paint_node(child, context, PaintPhase::Outline);
             break;
         case StackingContextPaintPhase::FocusAndOverlay:
-            paint_node(child, context, PaintPhase::Outline);
             paint_node(child, context, PaintPhase::Overlay);
             paint_descendants(context, child, phase);
             break;
