@@ -6897,6 +6897,13 @@ Unicode::Segmenter& Document::grapheme_segmenter() const
     return *m_grapheme_segmenter;
 }
 
+Unicode::Segmenter& Document::line_segmenter() const
+{
+    if (!m_line_segmenter)
+        m_line_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Line);
+    return *m_line_segmenter;
+}
+
 Unicode::Segmenter& Document::word_segmenter() const
 {
     if (!m_word_segmenter)
