@@ -1151,13 +1151,24 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
 
     auto object = choose_dst(generator, preferred_dst);
 
-    // Determine if this is a simple object literal (all KeyValue with StringLiteral keys)
-    // Simple literals can benefit from shape caching with direct property offset writes.
+    // Determine if this is a simple object literal (all KeyValue with StringLiteral keys
+    // that are not numeric indices). Simple literals can benefit from shape caching with
+    // direct property offset writes. Numeric string keys like "0" are stored in indexed
+    // storage rather than shape-based storage, so they can't use the fast path.
     bool is_simple = !m_properties.is_empty();
     for (auto& property : m_properties) {
         if (property->type() != ObjectProperty::Type::KeyValue || !is<StringLiteral>(property->key())) {
             is_simple = false;
             break;
+        }
+        // Check if the key is a numeric index (would be stored in indexed storage)
+        auto const& key = static_cast<StringLiteral const&>(property->key()).value();
+        if (!key.is_empty() && !(key.code_unit_at(0) == '0' && key.length_in_code_units() > 1)) {
+            auto property_index = key.to_number<u32>(TrimWhitespace::No);
+            if (property_index.has_value() && property_index.value() < NumericLimits<u32>::max()) {
+                is_simple = false;
+                break;
+            }
         }
     }
 
