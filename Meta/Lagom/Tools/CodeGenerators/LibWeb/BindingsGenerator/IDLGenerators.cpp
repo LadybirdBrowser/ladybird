@@ -112,7 +112,6 @@ static bool is_platform_object(Type const& type)
         "PerformanceMark"sv,
         "PerformanceNavigation"sv,
         "PeriodicWave"sv,
-        "PointerEvent"sv,
         "ReadableStreamBYOBReader"sv,
         "ReadableStreamDefaultReader"sv,
         "RadioNodeList"sv,
@@ -122,7 +121,6 @@ static bool is_platform_object(Type const& type)
         "Selection"sv,
         "ServiceWorkerContainer"sv,
         "ServiceWorkerRegistration"sv,
-        "SVGAnimationElement"sv,
         "SVGLength"sv,
         "SVGNumber"sv,
         "SVGTransform"sv,
@@ -255,7 +253,7 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
 
 CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 {
-    if (is_platform_object(type) || type.name() == "WindowProxy"sv)
+    if (is_platform_object(type))
         return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (is_javascript_builtin(type))
