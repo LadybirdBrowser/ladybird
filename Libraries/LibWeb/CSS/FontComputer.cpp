@@ -484,7 +484,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
             font_list->extend(*other_font_list);
     }
 
-    auto default_font = Platform::FontPlugin::the().default_font(font_size_in_pt);
+    auto default_font = Platform::FontPlugin::the().default_font(font_size_in_pt, variation);
     if (font_list->is_empty()) {
         // This is needed to make sure we check default font before reaching to emojis.
         font_list->add(*default_font);
