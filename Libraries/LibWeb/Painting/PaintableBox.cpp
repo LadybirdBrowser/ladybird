@@ -1198,6 +1198,8 @@ void PaintableBox::resolve_paint_properties()
 
         // 4. Translate by the negated computed X and Y values of 'perspective-origin'
         m_perspective_matrix = m_perspective_matrix.value() * Gfx::translation_matrix(Vector3<float>(-computed_x, -computed_y, 0));
+    } else {
+        m_perspective_matrix = {};
     }
 
     // Outlines
