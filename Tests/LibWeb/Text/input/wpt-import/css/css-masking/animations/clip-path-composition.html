@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>clip-path composition</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<meta name="assert" content="clip-path supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_composition({
+  property: 'clip-path',
+  underlying: 'circle(100px at 25px 25%)',
+  addFrom: 'circle(10px at 25px 75%)',
+  addTo: 'circle(50px at 50px center)',
+}, [
+  {at: -0.3, expect: 'circle(98px at 42.5px 107.5%)'},
+  {at: 0, expect: 'circle(110px at 50px 100%)'},
+  {at: 0.3, expect: 'circle(122px at 57.5px 92.5%)'},
+  {at: 0.6, expect: 'circle(134px at 65px 85%)'},
+  {at: 1, expect: 'circle(150px at 75px 75%)'},
+  {at: 1.5, expect: 'circle(170px at 87.5px 62.5%)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'circle(100px at 20px 20%)',
+  addFrom: 'circle(50px at 50px 50%)',
+  replaceTo: 'circle(50% at 150px 150%)',
+}, [
+  {at: -0.3, expect: 'circle(calc(195px + -15%) at 46px 46%)'},
+  {at: 0, expect: 'circle(calc(150px + 0%) at 70px 70%)'},
+  {at: 0.3, expect: 'circle(calc(105px + 15%) at 94px 94%)'},
+  {at: 0.6, expect: 'circle(calc(60px + 30%) at 118px 118%)'},
+  {at: 1, expect: 'circle(50% at 150px 150%)'},
+  {at: 1.5, expect: 'circle(calc(-75px + 75%) at 190px 190%)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'circle(farthest-side at 25px 75%)',
+  addFrom: 'circle(farthest-side at 25px 75%)',
+  addTo: 'circle(farthest-side at 50px center)',
+}, [
+  {at: 0.25, expect: 'circle(farthest-side at 25px 75%)'},
+  {at: 0.75, expect: 'circle(farthest-side at 50px 50%)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'circle(50px at 10px 20px)',
+  addFrom: 'circle(50px at 10px 20px)',
+  addTo: 'circle(farthest-side at 30px 40px)',
+}, [
+  {at: 0.25, expect: 'circle(100px at 20px 40px)'},
+  {at: 0.75, expect: 'circle(farthest-side at 30px 40px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'ellipse(10px 20px at 30px 40px)',
+  addFrom: 'ellipse(40px 30px at 20px 10px)',
+  addTo: 'ellipse(140px 130px at 120px 110px)',
+}, [
+  {at: -0.3, expect: 'ellipse(20px 20px at 20px 20px)'},
+  {at: 0, expect: 'ellipse(50px 50px at 50px 50px)'},
+  {at: 0.3, expect: 'ellipse(80px 80px at 80px 80px)'},
+  {at: 0.6, expect: 'ellipse(110px 110px at 110px 110px)'},
+  {at: 1, expect: 'ellipse(150px 150px at 150px 150px)'},
+  {at: 1.5, expect: 'ellipse(200px 200px at 200px 200px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'ellipse(10px 20px at 30px 40px)',
+  replaceFrom: 'ellipse(40px 30px at 20px 10px)',
+  addTo: 'ellipse(40px 30px at 20px 10px)',
+}, [
+  {at: -0.3, expect: 'ellipse(37px 24px at 11px -2px)'},
+  {at: 0, expect: 'ellipse(40px 30px at 20px 10px)'},
+  {at: 0.3, expect: 'ellipse(43px 36px at 29px 22px)'},
+  {at: 0.6, expect: 'ellipse(46px 42px at 38px 34px)'},
+  {at: 1, expect: 'ellipse(50px 50px at 50px 50px)'},
+  {at: 1.5, expect: 'ellipse(55px 60px at 65px 70px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'ellipse(25px 75%)',
+  addFrom: 'ellipse()',
+  addTo: 'ellipse(closest-side farthest-side)',
+}, [
+  {at: 0.25, expect: 'ellipse()'},
+  {at: 0.75, expect: 'ellipse(closest-side farthest-side)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'inset(20px)',
+  addFrom: 'inset(20px)',
+  addTo: 'inset(40%)',
+}, [
+  {at: -0.3, expect: 'inset(calc(46px + -12%))'},
+  {at: 0, expect: 'inset(calc(40px + 0%))'},
+  {at: 0.3, expect: 'inset(calc(34px + 12%))'},
+  {at: 0.6, expect: 'inset(calc(28px + 24%))'},
+  {at: 1, expect: 'inset(calc(20px + 40%))'},
+  {at: 1.5, expect: 'inset(calc(10px + 60%))'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)',
+  addFrom: 'inset(1px 2px 3px 4px round 10px 20px 30px 40px / 50px 60px 70px 80px)',
+  replaceTo: 'inset(102px 104px 106px 108px round 120px 140px 160px 180px / 200px 220px 240px 260px)',
+}, [
+  {at: -0.3, expect: 'inset(-28px -26px -24px -22px round 0px 10px 30px 50px / 70px 90px 110px 130px)'},
+  {at: 0, expect: 'inset(2px 4px 6px 8px round 20px 40px 60px 80px / 100px 120px 140px 160px)'},
+  {at: 0.25, expect: 'inset(27px 29px 31px 33px round 45px 65px 85px 105px / 125px 145px 165px 185px)'},
+  {at: 0.75, expect: 'inset(77px 79px 81px 83px round 95px 115px 135px 155px / 175px 195px 215px 235px)'},
+  {at: 1, expect: 'inset(102px 104px 106px 108px round 120px 140px 160px 180px / 200px 220px 240px 260px)'},
+  {at: 1.5, expect: 'inset(152px 154px 156px 158px round 170px 190px 210px 230px / 250px 270px 290px 310px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'inset(1px 2px round 100px 200px)',
+  addFrom: 'inset(1px 2px round 100px 200px)',
+  addTo: 'inset(101px 102px 101px 102px)',
+}, [
+  {at: -0.3, expect: 'inset(-28px -26px round 230px 460px)'},
+  {at: 0, expect: 'inset(2px 4px round 200px 400px)'},
+  {at: 0.3, expect: 'inset(32px 34px round 170px 340px)'},
+  {at: 0.6, expect: 'inset(62px 64px round 140px 280px)'},
+  {at: 1, expect: 'inset(102px 104px round 100px 200px)'},
+  {at: 1.5, expect: 'inset(152px 154px round 50px 100px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'polygon(10px 20%, 30px 40%)',
+  addFrom: 'polygon(10px 20%, 30px 40%)',
+  addTo: 'polygon(110px 120%, 130px 140%)',
+}, [
+  {at: -0.3, expect: 'polygon(-10px 10%, 30px 50%)'},
+  {at: 0, expect: 'polygon(20px 40%, 60px 80%)'},
+  {at: 0.3, expect: 'polygon(50px 70%, 90px 110%)'},
+  {at: 0.6, expect: 'polygon(80px 100%, 120px 140%)'},
+  {at: 1, expect: 'polygon(120px 140%, 160px 180%)'},
+  {at: 1.5, expect: 'polygon(170px 190%, 210px 230%)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'polygon(evenodd, 10px 20px)',
+  addFrom: 'polygon(evenodd, 10px 20px)',
+  addTo: 'polygon(evenodd, 110px 120px)',
+}, [
+  {at: -0.3, expect: 'polygon(evenodd, -10px 10px)'},
+  {at: 0, expect: 'polygon(evenodd, 20px 40px)'},
+  {at: 0.3, expect: 'polygon(evenodd, 50px 70px)'},
+  {at: 0.6, expect: 'polygon(evenodd, 80px 100px)'},
+  {at: 1, expect: 'polygon(evenodd, 120px 140px)'},
+  {at: 1.5, expect: 'polygon(evenodd, 170px 190px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'polygon(evenodd, 10px 20px)',
+  addFrom: 'polygon(evenodd, 10px 20px)',
+  addTo: 'polygon(nonzero, 30px 40px)',
+}, [
+  {at: 0.25, expect: 'polygon(evenodd, 20px 40px)'},
+  {at: 0.75, expect: 'polygon(30px 40px)'},
+]);
+
+test_composition({
+  property: 'clip-path',
+  underlying: 'polygon(10px 20px, 30px 40px)',
+  addFrom: 'polygon(10px 20px, 30px 40px)',
+  addTo: 'polygon(30px 40px)',
+}, [
+  {at: 0.25, expect: 'polygon(20px 40px, 60px 80px)'},
+  {at: 0.75, expect: 'polygon(30px 40px)'},
+]);
+</script>
+</body>

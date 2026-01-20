@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>background-position composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#background-position">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<style>
+.target {
+  width: 120px;
+  height: 120px;
+  display: inline-block;
+  background-image: url(), url();
+}
+</style>
+<body>
+<script>
+test_composition({
+  property: 'background-position',
+  underlying: '40px 140px',
+  addFrom: '60px 160px',
+  addTo: '160px 260px',
+}, [
+  {at: -0.25, expect: '75px 275px, 75px 275px'},
+  {at: 0, expect: '100px 300px, 100px 300px'},
+  {at: 0.25, expect: '125px 325px, 125px 325px'},
+  {at: 0.5, expect: '150px 350px, 150px 350px'},
+  {at: 0.75, expect: '175px 375px, 175px 375px'},
+  {at: 1, expect: '200px 400px, 200px 400px'},
+  {at: 1.25, expect: '225px 425px, 225px 425px'},
+]);
+
+test_composition({
+  property: 'background-position',
+  underlying: 'top 20% left 40%',
+  addFrom: 'left 60% top 80%',
+  addTo: 'right 80% bottom 40%',
+}, [
+  {at: -0.25, expect: '110% 105%, 110% 105%'},
+  {at: 0, expect: '100% 100%, 100% 100%'},
+  {at: 0.25, expect: '90% 95%, 90% 95%'},
+  {at: 0.5, expect: '80% 90%, 80% 90%'},
+  {at: 0.75, expect: '70% 85%, 70% 85%'},
+  {at: 1, expect: '60% 80%, 60% 80%'},
+  {at: 1.25, expect: '50% 75%, 50% 75%'},
+]);
+
+test_composition({
+  property: 'background-position',
+  underlying: 'top 20% left 40%',
+  addFrom: 'left 60% top 80%, top 180% left 160%',
+  addTo: 'right 80% bottom 40%',
+}, [
+  {at: -0.25, expect: '110% 105%, 235% 230%'},
+  {at: 0, expect: '100% 100%, 200% 200%'},
+  {at: 0.25, expect: '90% 95%, 165% 170%'},
+  {at: 0.5, expect: '80% 90%, 130% 140%'},
+  {at: 0.75, expect: '70% 85%, 95% 110%'},
+  {at: 1, expect: '60% 80%, 60% 80%'},
+  {at: 1.25, expect: '50% 75%, 25% 50%'},
+]);
+
+test_composition({
+  property: 'background-position',
+  underlying: '40px 140px',
+  replaceFrom: '100px 200px',
+  addTo: '160px 260px',
+}, [
+  {at: -0.25, expect: '75px 150px, 75px 150px'},
+  {at: 0, expect: '100px 200px, 100px 200px'},
+  {at: 0.25, expect: '125px 250px, 125px 250px'},
+  {at: 0.5, expect: '150px 300px, 150px 300px'},
+  {at: 0.75, expect: '175px 350px, 175px 350px'},
+  {at: 1, expect: '200px 400px, 200px 400px'},
+  {at: 1.25, expect: '225px 450px, 225px 450px'},
+]);
+
+test_composition({
+  property: 'background-position',
+  underlying: '40px 140px',
+  addFrom: '60px 160px',
+  replaceTo: '200px 400px',
+}, [
+  {at: -0.25, expect: '75px 275px, 75px 275px'},
+  {at: 0, expect: '100px 300px, 100px 300px'},
+  {at: 0.25, expect: '125px 325px, 125px 325px'},
+  {at: 0.5, expect: '150px 350px, 150px 350px'},
+  {at: 0.75, expect: '175px 375px, 175px 375px'},
+  {at: 1, expect: '200px 400px, 200px 400px'},
+  {at: 1.25, expect: '225px 425px, 225px 425px'},
+]);
+</script>
+</body>
