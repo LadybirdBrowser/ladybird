@@ -489,6 +489,7 @@ set(SOURCES
     HTML/EventLoop/TaskQueue.cpp
     HTML/EventNames.cpp
     HTML/EventSource.cpp
+    HTML/External.cpp
     HTML/FileFilter.cpp
     HTML/Focus.cpp
     HTML/FormAssociatedElement.cpp

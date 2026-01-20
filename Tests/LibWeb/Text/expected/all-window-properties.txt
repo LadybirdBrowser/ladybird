@@ -151,6 +151,7 @@ EvalError
 Event
 EventSource
 EventTarget
+External
 FederatedCredential
 File
 FileList
