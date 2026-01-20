@@ -34,10 +34,13 @@ static float measure_text_width(Layout::TextNode const& text_node, Utf16View con
     if (text.is_empty())
         return 0;
 
-    auto segmenter = text_node.grapheme_segmenter().clone();
-    segmenter->set_segmented_text(text);
+    auto grapheme_segmenter = text_node.grapheme_segmenter().clone();
+    grapheme_segmenter->set_segmented_text(text);
 
-    Layout::TextNode::ChunkIterator iterator { text_node, text, *segmenter, false, false };
+    auto line_segmenter = text_node.line_segmenter().clone();
+    line_segmenter->set_segmented_text(text);
+
+    Layout::TextNode::ChunkIterator iterator { text_node, text, *grapheme_segmenter, *line_segmenter, CSS::WordBreak::Normal, false, false };
     float width = 0;
 
     for (auto chunk = iterator.next(); chunk.has_value(); chunk = iterator.next())
