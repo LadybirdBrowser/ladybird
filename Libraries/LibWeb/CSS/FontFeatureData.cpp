@@ -185,6 +185,8 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
             }
         }
 
+        // FIXME: 6.8 https://drafts.csswg.org/css-fonts/#font-variant-alternates-prop
+
         // 6.10 https://drafts.csswg.org/css-fonts/#font-variant-east-asian-prop
         if (font_variant_east_asian.has_value()) {
             auto east_asian = font_variant_east_asian.value();
@@ -253,18 +255,57 @@ Gfx::ShapeFeatures FontFeatureData::to_shape_features() const
         return features;
     };
 
-    // https://www.w3.org/TR/css-fonts-3/#feature-precedence
+    // https://drafts.csswg.org/css-fonts-4/#feature-variation-precedence
+    // FIXME: 1. Font features enabled by default are applied, including features required for a given script. See § 7.1
+    //           Default features for a description of these.
 
-    // FIXME: 1. Font features enabled by default, including features required for a given script.
+    // FIXME: 2. Font variations as enabled by the font-weight, font-width, and font-style properties are applied.
+    //
+    //           The application of the value enabled by font-style is affected by font selection, because this property
+    //           might select an italic or an oblique font. The value applied is the closest matching value as
+    //           determined by the font matching algorithm. User agents must apply at most one value due to the
+    //           font-style property; both "ital" and "slnt" values must not be set together.
+    //
+    //           If the selected font is defined in an @font-face rule, then the values applied at this step should be
+    //           clamped to the value of the font-weight, font-width, and font-style descriptors in that @font-face
+    //           rule.
+    //
+    //           Then, the values applied in this step should be clamped (possibly again) to the values that are
+    //           supported by the font.
 
-    // FIXME: 2. If the font is defined via an @font-face rule, the font features implied by the font-feature-settings descriptor in the @font-face rule.
+    // FIXME: 3. The language specified by the inherited value of lang/xml:lang is applied.
 
-    // 3. Font features implied by the value of the ‘font-variant’ property, the related ‘font-variant’ subproperties and any other CSS property that uses OpenType features (e.g. the ‘font-kerning’ property).
+    // FIXME: 4. If the font is defined via an @font-face rule, the font language override implied by the
+    //           font-language-override descriptor in the @font-face rule is applied.
+
+    // FIXME: 5. If the font is defined via an @font-face rule, that @font-face rule includes at least one valid
+    //           font-named-instance descriptor with a value other than 'font-named-instance/none', and the loaded font
+    //           resource includes a named instance with that name according to the § 5.1 Localized name matching rules,
+    //           then all the variation values represented by that named instance are applied. These values are clamped
+    //           to the values that are supported by the font.
+
+    // FIXME: 6. If the font is defined via an @font-face rule, the font variations implied by the
+    //           font-variation-settings descriptor in the @font-face rule are applied.
+
+    // FIXME: 7. If the font is defined via an @font-face rule, the font features implied by the font-feature-settings
+    //           descriptor in the @font-face rule are applied.
+
+    // FIXME: 8. The font language override implied by the value of the font-language-override property is applied.
+
+    // FIXME: 9. Font variations implied by the value of the font-optical-sizing property are applied.
+
+    // 10. Font features implied by the value of the font-variant property, the related font-variant subproperties and
+    //     any other CSS property that uses OpenType features (e.g. the font-kerning property) are applied.
     merged_features.update(font_variant_features());
 
-    // FIXME: 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
+    // FIXME: 11. Feature settings determined by properties other than font-variant or font-feature-settings are
+    //            applied. For example, setting a non-default value for the letter-spacing property disables optional
+    //            ligatures.
 
-    // 5. Font features implied by the value of ‘font-feature-settings’ property.
+    // FIXME: 12. Font variations implied by the value of the font-variation-settings property are applied. These values
+    //            should be clamped to the values that are supported by the font.
+
+    // 13. Font features implied by the value of font-feature-settings property are applied.
     for (auto const& [key, value] : font_feature_settings)
         merged_features.set(key.bytes_as_string_view(), value);
 
