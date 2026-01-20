@@ -42,6 +42,7 @@ public:
         CSSPixels margin_start { 0.0f };
         CSSPixels margin_end { 0.0f };
         bool is_collapsible_whitespace { false };
+        bool can_break_before { false };
 
         CSSPixels border_box_width() const
         {
@@ -106,6 +107,8 @@ private:
 
     // Accumulated width tracking for tab calculations during pre-generation.
     CSSPixels m_accumulated_width_for_tabs { 0 };
+
+    bool m_previous_chunk_can_break_after { false };
 };
 
 }

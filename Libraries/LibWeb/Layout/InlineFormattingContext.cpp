@@ -348,6 +348,10 @@ void InlineFormattingContext::generate_line_boxes()
                     line_builder.set_trailing_whitespace_on_previous_line();
                     break;
                 }
+
+                if (item.can_break_before && !is_whitespace)
+                    line_builder.break_if_needed(item.border_box_width());
+
             } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
                 && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
                 // We may need to do an ellipsis if the text is too long for the container

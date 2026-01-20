@@ -539,6 +539,7 @@ public:
     Positioning position() const { return m_noninherited.position; }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
+    WordBreak word_break() const { return m_inherited.word_break; }
     CSSPixels const& word_spacing() const { return m_inherited.word_spacing; }
     CSSPixels letter_spacing() const { return m_inherited.letter_spacing; }
     FlexDirection flex_direction() const { return m_noninherited.flex_direction; }

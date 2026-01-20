@@ -263,6 +263,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
                 m_text_node_context->next_chunk_index = 1;
             } else {
                 m_text_node_context = {};
+                m_previous_chunk_can_break_after = false;
                 skip_to_next();
                 return generate_next_item();
             }
@@ -345,7 +346,10 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             .length_in_node = chunk.length,
             .width = chunk_width,
             .is_collapsible_whitespace = collapse_whitespace && chunk.is_all_whitespace && !is_generated_empty_string,
+            .can_break_before = m_previous_chunk_can_break_after,
         };
+
+        m_previous_chunk_can_break_after = chunk.can_break_after;
 
         add_extra_box_model_metrics_to_item(item, is_first_chunk, is_last_chunk);
         return item;
