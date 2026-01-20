@@ -1898,11 +1898,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (any_of(from_components, is_radial_extent) || any_of(to_components, is_radial_extent))
             return {};
 
+        CalculationContext radial_size_calculation_context {
+            .percentages_resolve_as = ValueType::Length,
+            .accepted_type_ranges = {
+                { ValueType::Length, { 0, AK::NumericLimits<float>::max() } },
+            }
+        };
+
         if (from_components.size() == 1 && to_components.size() == 1) {
             auto const& from_component = from_components[0].get<NonnullRefPtr<StyleValue const>>();
             auto const& to_component = to_components[0].get<NonnullRefPtr<StyleValue const>>();
 
-            auto interpolated_value = interpolate_value(element, calculation_context, from_component, to_component, delta, allow_discrete);
+            auto interpolated_value = interpolate_value(element, radial_size_calculation_context, from_component, to_component, delta, allow_discrete);
 
             if (!interpolated_value)
                 return {};
@@ -1916,8 +1923,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto const& to_horizontal_component = to_components[0].get<NonnullRefPtr<StyleValue const>>();
         auto const& to_vertical_component = to_components.size() > 1 ? to_components[1].get<NonnullRefPtr<StyleValue const>>() : to_horizontal_component;
 
-        auto interpolated_horizontal = interpolate_value(element, calculation_context, from_horizontal_component, to_horizontal_component, delta, allow_discrete);
-        auto interpolated_vertical = interpolate_value(element, calculation_context, from_vertical_component, to_vertical_component, delta, allow_discrete);
+        auto interpolated_horizontal = interpolate_value(element, radial_size_calculation_context, from_horizontal_component, to_horizontal_component, delta, allow_discrete);
+        auto interpolated_vertical = interpolate_value(element, radial_size_calculation_context, from_vertical_component, to_vertical_component, delta, allow_discrete);
 
         if (!interpolated_horizontal || !interpolated_vertical)
             return {};
