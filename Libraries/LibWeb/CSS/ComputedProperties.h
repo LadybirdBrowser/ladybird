@@ -175,7 +175,7 @@ public:
     FontVariantPosition font_variant_position() const;
     FontKerning font_kerning() const;
     Optional<FlyString> font_language_override() const;
-    HashMap<StringView, u8> font_feature_settings() const;
+    HashMap<FlyString, u8> font_feature_settings() const;
     HashMap<FlyString, double> font_variation_settings() const;
     GridTrackSizeList grid_auto_columns() const;
     GridTrackSizeList grid_auto_rows() const;

@@ -1811,7 +1811,8 @@ Gfx::ShapeFeatures ComputedProperties::font_features() const
     // FIXME: 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
 
     // 5. Font features implied by the value of ‘font-feature-settings’ property.
-    merged_features.update(font_feature_settings());
+    for (auto const& [key, value] : font_feature_settings())
+        merged_features.set(key, value);
 
     Gfx::ShapeFeatures shape_features;
     shape_features.ensure_capacity(merged_features.size());
@@ -2021,7 +2022,7 @@ FontVariantPosition ComputedProperties::font_variant_position() const
     return keyword_to_font_variant_position(value.to_keyword()).release_value();
 }
 
-HashMap<StringView, u8> ComputedProperties::font_feature_settings() const
+HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
 {
     auto const& value = property(PropertyID::FontFeatureSettings);
 
@@ -2030,7 +2031,7 @@ HashMap<StringView, u8> ComputedProperties::font_feature_settings() const
 
     if (value.is_value_list()) {
         auto const& feature_tags = value.as_value_list().values();
-        HashMap<StringView, u8> result;
+        HashMap<FlyString, u8> result;
         result.ensure_capacity(feature_tags.size());
         for (auto const& tag_value : feature_tags) {
             auto const& feature_tag = tag_value->as_open_type_tagged();
