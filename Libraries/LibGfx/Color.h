@@ -54,6 +54,13 @@ struct Oklab {
     float b { 0 };
 };
 
+struct SRGBA01 {
+    float red { 0 };
+    float green { 0 };
+    float blue { 0 };
+    float alpha { 0 };
+};
+
 class Color {
 public:
     enum class NamedColor {
