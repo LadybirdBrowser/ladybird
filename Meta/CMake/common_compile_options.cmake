@@ -117,6 +117,8 @@ if (MSVC)
         add_cxx_compile_options(-gcodeview-ghash)
         add_cxx_link_options(/DEBUG:GHASH)
     endif()
+
+    add_cxx_link_option_if_supported(-prefetch-inputs)
 else()
     add_cxx_compile_options(-Wall -Wextra)
     add_cxx_compile_options(-fno-exceptions)
