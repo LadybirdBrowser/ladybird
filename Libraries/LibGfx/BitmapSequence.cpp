@@ -61,7 +61,7 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
     Vector<Optional<Gfx::BitmapMetadata>> metadata;
     metadata.ensure_capacity(bitmaps.size());
 
-    size_t total_buffer_size = 0;
+    Checked<size_t> total_buffer_size = 0;
 
     for (auto const& bitmap_option : bitmaps) {
         Optional<Gfx::BitmapMetadata> data = {};
@@ -74,13 +74,15 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
         metadata.unchecked_append(data);
     }
 
+    VERIFY(!total_buffer_size.has_overflow());
+
     TRY(encoder.encode(metadata));
 
-    TRY(encoder.encode(total_buffer_size));
+    TRY(encoder.encode(total_buffer_size.value()));
 
-    if (total_buffer_size > 0) {
+    if (total_buffer_size.value() > 0) {
         // collate all of the bitmap data into one contiguous buffer
-        auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size));
+        auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size.value()));
 
         Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
         size_t write_offset = 0;
