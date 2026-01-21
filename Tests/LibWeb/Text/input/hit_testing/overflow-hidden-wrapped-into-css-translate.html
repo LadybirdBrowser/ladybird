@@ -1,32 +1,52 @@
-<!DOCTYPE html><style type="text/css">
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
 body {
     width: 500px;
     height: 500px;
     position: relative;
-    border: 1px solid black;
+    margin: 0;
 }
-
 #translation {
     position: absolute;
     top: 50%;
     width: 300px;
     transform: translate(0px, -50%);
 }
-
+#hidden-overflow {
+    overflow: hidden;
+}
 #box {
     width: 300px;
     height: 300px;
     background-color: magenta;
-    cursor: pointer;
 }
-
-#hidden-overflow {
+#combined {
+    position: absolute;
+    top: 0;
+    left: 350px;
+    translate: 50px 50px;
     overflow: hidden;
+    width: 100px;
+    height: 100px;
+    background: cyan;
 }
-</style><div id="translation"><div id="hidden-overflow"><div id="empty-wrapper"><div id="box">
-<script src="../include.js"></script>
+#target {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+</style>
+<div id="translation"><div id="hidden-overflow"><div id="empty-wrapper"><div id="box"></div></div></div></div>
+<div id="combined"><a id="target" href="#">test</a></div>
 <script>
-    test(() => {
-        printElement(internals.hitTest(100, 400).node);
-    });
+test(() => {
+    println("Transform parent, overflow child:");
+    printElement(internals.hitTest(100, 400).node);
+
+    println("Transform and overflow on same element:");
+    const combined = document.getElementById('combined');
+    const rect = combined.getBoundingClientRect();
+    printElement(internals.hitTest(rect.left + 50, rect.top + 50).node);
+});
 </script>
