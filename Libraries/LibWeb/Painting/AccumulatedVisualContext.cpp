@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,7 +23,6 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
         chain.append(node);
 
     auto point = screen_point;
-    Gfx::AffineTransform current_to_document;
     for (size_t i = chain.size(); i > 0; --i) {
         auto const* node = chain[i - 1];
 
@@ -33,7 +33,6 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
                 if (!inverse.has_value())
                     return {};
                 point = inverse->map(point.to_type<float>()).to_type<CSSPixels>();
-                current_to_document = affine.multiply(current_to_document);
                 return point;
             },
             [&](ScrollData const& scroll) -> Optional<CSSPixelPoint> {
@@ -50,23 +49,21 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
                 auto offset_point = point - transform.origin;
                 auto transformed = inverse->map(offset_point.to_type<float>()).to_type<CSSPixels>();
                 point = transformed + transform.origin;
-
-                auto origin_f = transform.origin.to_type<float>();
-                auto transform_around_origin = Gfx::AffineTransform {}.translate(origin_f).multiply(affine).translate(-origin_f);
-                current_to_document = transform_around_origin.multiply(current_to_document);
                 return point;
             },
             [&](ClipData const& clip) -> Optional<CSSPixelPoint> {
-                auto point_in_document = current_to_document.map(point.to_type<float>()).to_type<CSSPixels>();
-                if (!clip.rect.contains(point_in_document))
+                // NOTE: The clip rect is stored in absolute (layout) coordinates. After inverse-transforming, `point`
+                //       is also in layout coordinates, so we compare them directly without mapping back to screen space.
+                if (!clip.rect.contains(point))
                     return {};
                 return point;
             },
             [&](ClipPathData const& clip_path) -> Optional<CSSPixelPoint> {
-                auto point_in_document = current_to_document.map(point.to_type<float>()).to_type<CSSPixels>();
-                if (!clip_path.bounding_rect.contains(point_in_document))
+                // NOTE: The clip path is stored in absolute (layout) coordinates. After inverse-transforming, `point`
+                //       is also in layout coordinates, so we compare them directly without mapping back to screen space.
+                if (!clip_path.bounding_rect.contains(point))
                     return {};
-                if (!clip_path.path.contains(point_in_document.to_type<float>(), clip_path.fill_rule))
+                if (!clip_path.path.contains(point.to_type<float>(), clip_path.fill_rule))
                     return {};
                 return point;
             });
