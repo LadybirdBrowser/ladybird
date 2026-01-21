@@ -9,6 +9,7 @@
 #include <AK/IPv6Address.h>
 #include <AK/JsonValue.h>
 #include <AK/NumericLimits.h>
+#include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Proxy.h>
@@ -20,9 +21,16 @@
 
 namespace IPC {
 
+// Maximum size for decoded containers (strings, buffers, vectors, etc.)
+// This prevents a malicious peer from claiming huge sizes to cause OOM.
+static constexpr size_t MAX_DECODED_SIZE = 64 * MiB;
+
 ErrorOr<size_t> Decoder::decode_size()
 {
-    return static_cast<size_t>(TRY(decode<u32>()));
+    auto size = static_cast<size_t>(TRY(decode<u32>()));
+    if (size > MAX_DECODED_SIZE)
+        return Error::from_string_literal("IPC decode: Size exceeds maximum allowed");
+    return size;
 }
 
 template<>
