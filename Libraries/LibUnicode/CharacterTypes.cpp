@@ -463,4 +463,30 @@ BidiClass bidirectional_class(u32 code_point)
     return char_direction_to_bidi_class(direction);
 }
 
+LineBreakClass line_break_class(u32 code_point)
+{
+    auto icu_code_point = static_cast<UChar32>(code_point);
+    auto icu_line_break = static_cast<ULineBreak>(u_getIntPropertyValue(icu_code_point, UCHAR_LINE_BREAK));
+
+    switch (icu_line_break) {
+    case U_LB_ALPHABETIC:
+    case U_LB_HEBREW_LETTER:
+        return LineBreakClass::Alphabetic;
+    case U_LB_NUMERIC:
+        return LineBreakClass::Numeric;
+    case U_LB_IDEOGRAPHIC:
+    case U_LB_H2:
+    case U_LB_H3:
+        return LineBreakClass::Ideographic;
+    case U_LB_AMBIGUOUS:
+        return LineBreakClass::Ambiguous;
+    case U_LB_COMPLEX_CONTEXT:
+        return LineBreakClass::ComplexContext;
+    case U_LB_COMBINING_MARK:
+        return LineBreakClass::CombiningMark;
+    default:
+        return LineBreakClass::Other;
+    }
+}
+
 }
