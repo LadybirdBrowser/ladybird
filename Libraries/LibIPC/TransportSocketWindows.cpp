@@ -145,7 +145,8 @@ ErrorOr<void> TransportSocketWindows::transfer(ReadonlyBytes bytes_to_write)
                 continue;
             if (result == SOCKET_ERROR)
                 return Error::from_windows_error();
-            VERIFY_NOT_REACHED();
+            dbgln("TransportSocketWindows::transfer: Unexpected WSAPoll result {}", result);
+            return Error::from_string_literal("Unexpected WSAPoll result");
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
@@ -170,7 +171,9 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
                 should_shutdown = ShouldShutdown::Yes;
                 break;
             }
-            VERIFY_NOT_REACHED();
+            dbgln("TransportSocketWindows::read_as_many_messages_as_possible_without_blocking: {}", error);
+            should_shutdown = ShouldShutdown::Yes;
+            break;
         }
 
         auto bytes_read = maybe_bytes_read.release_value();
