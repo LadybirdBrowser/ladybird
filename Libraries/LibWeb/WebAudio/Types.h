@@ -12,7 +12,7 @@
 namespace Web::WebAudio {
 
 // Stable identifier for AudioNode instances within a BaseAudioContext.
-AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, NodeID, CastToUnderlying);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, NodeID, CastToUnderlying, Comparison);
 
 struct AudioBus {
     explicit AudioBus(size_t channel_count, size_t frame_count)

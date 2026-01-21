@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2025, Ben Eidson <b.e.eidson@gmail.com>
+ * Copyright (c) 2025-2026, Ben Eidson <b.e.eidson@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +15,7 @@
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 #include <LibWeb/WebAudio/OfflineAudioContext.h>
+#include <LibWeb/WebAudio/RenderGraphSnapshot.h>
 
 namespace Web::WebAudio {
 
@@ -120,7 +121,13 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_renderi
 void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promise)
 {
     // To begin offline rendering, the following steps MUST happen on a rendering thread that is created for the occasion.
+
     // FIXME: 1: Given the current connections and scheduled changes, start rendering length sample-frames of audio into [[rendered buffer]]
+
+    // NB: The WebAudio DOM objects are GC-managed and must remain on the control thread,
+    //     so we snapshot the relevant graph state into a render-thread-friendly structure.
+    auto graph = Web::WebAudio::snapshot_render_graph(destination(), sample_rate());
+
     // FIXME: 2: For every render quantum, check and suspend rendering if necessary.
     // FIXME: 3: If a suspended context is resumed, continue to render the buffer.
     // 4: Once the rendering is complete, queue a media element task to execute the following steps:
