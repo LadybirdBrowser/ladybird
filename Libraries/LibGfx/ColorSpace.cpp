@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/Types.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -145,14 +146,23 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::ColorSpace const& color_space)
 template<>
 ErrorOr<Gfx::ColorSpace> decode(Decoder& decoder)
 {
+    // Color space profiles shouldn't be larger than 1 MiB
+    static constexpr u64 MAX_COLOR_SPACE_SIZE = 1 * MiB;
+
     auto size = TRY(decoder.decode<u64>());
     if (size == 0)
         return Gfx::ColorSpace {};
+
+    if (size > MAX_COLOR_SPACE_SIZE)
+        return Error::from_string_literal("IPC: Color space size exceeds maximum allowed");
 
     auto buffer = TRY(ByteBuffer::create_uninitialized(size));
     TRY(decoder.decode_into(buffer.bytes()));
 
     auto color_space = SkColorSpace::Deserialize(buffer.data(), buffer.size());
+    if (!color_space)
+        return Error::from_string_literal("IPC: Failed to deserialize color space");
+
     return Gfx::ColorSpace { make<::Gfx::Details::ColorSpaceImpl>(move(color_space)) };
 }
 
