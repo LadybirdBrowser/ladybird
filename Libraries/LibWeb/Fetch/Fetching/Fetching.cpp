@@ -110,9 +110,6 @@ private:
 // https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
 static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructure::Request const& request)
 {
-    if (!g_http_memory_cache_enabled)
-        return nullptr;
-
     // 1. Let key be the result of determining the network partition key given request.
     auto key = Infrastructure::determine_the_network_partition_key(request);
 
@@ -126,6 +123,9 @@ static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructu
 
 static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& realm, HTTP::MemoryCache& http_cache, Infrastructure::Request const& request)
 {
+    if (!g_http_memory_cache_enabled)
+        return {};
+
     auto cache_entry = http_cache.open_entry(request.current_url(), request.method(), request.header_list());
     if (!cache_entry.has_value())
         return {};
@@ -146,6 +146,9 @@ static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& r
 
 static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructure::Request const& request, Infrastructure::Response const& response)
 {
+    if (!g_http_memory_cache_enabled)
+        return;
+
     http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list());
 }
 
