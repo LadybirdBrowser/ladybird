@@ -1122,6 +1122,19 @@ void TableFormattingContext::position_cell_boxes()
         left_column_offset += column.used_width;
     }
 
+    // When a table cell is an anonymous wrapper around a flex or grid container (e.g., a <td> with display:flex is
+    // wrapped in an anonymous table-cell box per CSS Tables 3), the cell should be aligned to the top. This allows
+    // the flex/grid container to fill the cell and handle alignment of its children via its own properties.
+    auto cell_is_anonymous_wrapper_for_flex_or_grid = [](auto const& cell) {
+        if (!cell.box->is_anonymous())
+            return false;
+        auto const* child = cell.box->first_child();
+        if (!child || child->next_sibling())
+            return false;
+        auto const& display = child->computed_values().display();
+        return display.is_flex_inside() || display.is_grid_inside();
+    };
+
     for (auto& cell : m_cells) {
         auto& cell_state = m_state.get_mutable(cell.box);
         auto& row_state = m_state.get(m_rows[cell.row_index].box);
@@ -1131,7 +1144,9 @@ void TableFormattingContext::position_cell_boxes()
         // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
         // https://drafts.csswg.org/css2/#height-layout
         // In the context of tables, values for vertical-align have the following meanings:
-        if (vertical_align.has<CSS::VerticalAlign>()) {
+        if (cell_is_anonymous_wrapper_for_flex_or_grid(cell)) {
+            cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
+        } else if (vertical_align.has<CSS::VerticalAlign>()) {
             switch (vertical_align.get<CSS::VerticalAlign>()) {
             // The center of the cell is aligned with the center of the rows it spans.
             case CSS::VerticalAlign::Middle: {
