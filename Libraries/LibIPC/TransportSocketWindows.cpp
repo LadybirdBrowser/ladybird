@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteReader.h>
+#include <AK/Checked.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/TransportSocketWindows.h>
 
@@ -193,7 +194,9 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
-        if (header.size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
+        Checked<size_t> message_size = header.size;
+        message_size += sizeof(MessageHeader);
+        if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
             break;
         Message message;
         if (message.bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size).is_error()) {
@@ -202,7 +205,15 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
             break;
         }
         callback(move(message));
-        index += header.size + sizeof(MessageHeader);
+        Checked<size_t> new_index = index;
+        new_index += header.size;
+        new_index += sizeof(MessageHeader);
+        if (new_index.has_overflow()) {
+            dbgln("TransportSocketWindows: index would overflow");
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
+        index = new_index.value();
     }
 
     if (index < m_unprocessed_bytes.size()) {
