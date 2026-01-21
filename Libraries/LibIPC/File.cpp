@@ -63,7 +63,7 @@ ErrorOr<void> File::clear_close_on_exec()
 template<>
 ErrorOr<File> decode(Decoder& decoder)
 {
-    auto file = decoder.files().dequeue();
+    auto file = TRY(decoder.files().try_dequeue());
     TRY(Core::System::set_close_on_exec(file.fd(), true));
     return file;
 }
