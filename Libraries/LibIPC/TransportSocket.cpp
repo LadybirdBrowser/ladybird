@@ -212,6 +212,12 @@ static constexpr size_t MAX_MESSAGE_PAYLOAD_SIZE = 64 * MiB;
 // Maximum number of file descriptors per message
 static constexpr size_t MAX_MESSAGE_FD_COUNT = 128;
 
+// Maximum size of accumulated unprocessed bytes before we disconnect the peer
+static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
+
+// Maximum number of accumulated unprocessed file descriptors before we disconnect the peer
+static constexpr size_t MAX_UNPROCESSED_FDS = 512;
+
 struct MessageHeader {
     enum class Type : u8 {
         Payload = 0,
@@ -340,8 +346,18 @@ void TransportSocket::read_incoming_messages()
             break;
         }
 
+        if (m_unprocessed_bytes.size() + bytes_read.size() > MAX_UNPROCESSED_BUFFER_SIZE) {
+            dbgln("TransportSocket: Unprocessed buffer would exceed {} bytes, disconnecting peer", MAX_UNPROCESSED_BUFFER_SIZE);
+            m_peer_eof = true;
+            break;
+        }
         if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
             dbgln("TransportSocket: Failed to append to unprocessed_bytes buffer");
+            m_peer_eof = true;
+            break;
+        }
+        if (m_unprocessed_fds.size() + received_fds.size() > MAX_UNPROCESSED_FDS) {
+            dbgln("TransportSocket: Unprocessed FDs would exceed {}, disconnecting peer", MAX_UNPROCESSED_FDS);
             m_peer_eof = true;
             break;
         }

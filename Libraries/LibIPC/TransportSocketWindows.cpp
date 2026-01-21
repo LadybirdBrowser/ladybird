@@ -110,6 +110,9 @@ ErrorOr<void> TransportSocketWindows::duplicate_handles(Bytes bytes, Vector<size
 // Maximum size of an IPC message payload (64 MiB should be more than enough)
 static constexpr size_t MAX_MESSAGE_SIZE = 64 * MiB;
 
+// Maximum size of accumulated unprocessed bytes before we disconnect the peer
+static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
+
 struct MessageHeader {
     u32 size { 0 };
 };
@@ -187,6 +190,11 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
             break;
         }
 
+        if (m_unprocessed_bytes.size() + bytes_read.size() > MAX_UNPROCESSED_BUFFER_SIZE) {
+            dbgln("TransportSocketWindows: Unprocessed buffer would exceed {} bytes, disconnecting peer", MAX_UNPROCESSED_BUFFER_SIZE);
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
         if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
             dbgln("TransportSocketWindows: Failed to append to unprocessed_bytes buffer");
             should_shutdown = ShouldShutdown::Yes;
