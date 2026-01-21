@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,12 +16,14 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
+#include <AK/ValueComparingRefPtr.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/Color.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
+#include <LibWeb/CSS/Color.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -99,61 +101,9 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)                                           \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ViewFunction, view_function, ViewFunctionStyleValue)
 
-template<typename T>
-struct ValueComparingNonnullRefPtr : public NonnullRefPtr<T> {
-    using NonnullRefPtr<T>::NonnullRefPtr;
-
-    ValueComparingNonnullRefPtr(NonnullRefPtr<T> const& other)
-        : NonnullRefPtr<T>(other)
-    {
-    }
-
-    ValueComparingNonnullRefPtr(NonnullRefPtr<T>&& other)
-        : NonnullRefPtr<T>(move(other))
-    {
-    }
-
-    bool operator==(ValueComparingNonnullRefPtr const& other) const
-    {
-        return this->ptr() == other.ptr() || this->ptr()->equals(*other);
-    }
-
-private:
-    using NonnullRefPtr<T>::operator==;
-};
-
-template<typename T>
-struct ValueComparingRefPtr : public RefPtr<T> {
-    using RefPtr<T>::RefPtr;
-
-    ValueComparingRefPtr(RefPtr<T> const& other)
-        : RefPtr<T>(other)
-    {
-    }
-
-    ValueComparingRefPtr(RefPtr<T>&& other)
-        : RefPtr<T>(move(other))
-    {
-    }
-
-    template<typename U>
-    bool operator==(ValueComparingNonnullRefPtr<U> const& other) const
-    {
-        return this->ptr() == other.ptr() || (this->ptr() && this->ptr()->equals(*other));
-    }
-
-    bool operator==(ValueComparingRefPtr const& other) const
-    {
-        return this->ptr() == other.ptr() || (this->ptr() && other.ptr() && this->ptr()->equals(*other));
-    }
-
-private:
-    using RefPtr<T>::operator==;
-};
-
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
-    Optional<Color> current_color;
+    Optional<CSS::Color> current_color;
     GC::Ptr<DOM::Document const> document;
     CalculationResolutionContext calculation_resolution_context;
 
@@ -210,7 +160,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const { return {}; }
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const { return {}; }
     Keyword to_keyword() const;
 
     String to_string(SerializationMode) const;

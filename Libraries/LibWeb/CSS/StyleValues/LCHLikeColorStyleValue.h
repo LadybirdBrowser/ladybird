@@ -55,7 +55,7 @@ public:
     }
     virtual ~LCHColorStyleValue() override = default;
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 };
@@ -68,7 +68,7 @@ public:
     }
     virtual ~OKLCHColorStyleValue() override = default;
 
-    virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 };

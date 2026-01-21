@@ -225,6 +225,7 @@ class CalculatedStyleValue;
 class CalculationNode;
 class CascadedProperties;
 class Clip;
+class Color;
 class ColorMixStyleValue;
 class ColorSchemeStyleValue;
 class ColorFunctionStyleValue;

@@ -131,8 +131,8 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     auto border_left = paintable_box.computed_values().border_left();
     auto border_right = paintable_box.computed_values().border_right();
 
-    if (border_top.color.alpha() == 255 && border_bottom.color.alpha() == 255
-        && border_left.color.alpha() == 255 && border_right.color.alpha() == 255) {
+    if (border_top.color.resolved().alpha() == 255 && border_bottom.color.resolved().alpha() == 255
+        && border_left.color.resolved().alpha() == 255 && border_right.color.resolved().alpha() == 255) {
         clip_shrink.top = context.rounded_device_pixels(border_top.width);
         clip_shrink.bottom = context.rounded_device_pixels(border_bottom.width);
         clip_shrink.left = context.rounded_device_pixels(border_left.width);

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -94,7 +94,7 @@ public:
     };
     Optional<LengthPercentage> length_percentage(PropertyID, Layout::NodeWithStyle const&, ClampNegativeLengths) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Layout::NodeWithStyle const&, ClampNegativeLengths, LengthPercentageOrAuto const& default_value) const;
-    Color color_or_fallback(PropertyID, ColorResolutionContext, Color fallback) const;
+    CSS::Color color_or_fallback(PropertyID, ColorResolutionContext, CSS::Color fallback) const;
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
     ColorInterpolation color_interpolation() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
@@ -113,7 +113,7 @@ public:
     Clip clip() const;
     Display display() const;
     Float float_() const;
-    Color caret_color(Layout::NodeWithStyle const&) const;
+    CSS::Color caret_color(Layout::NodeWithStyle const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
     struct ContentDataAndQuoteNestingLevel {
@@ -146,7 +146,7 @@ public:
     float flex_grow() const;
     float flex_shrink() const;
     int order() const;
-    Optional<Color> accent_color(Layout::NodeWithStyle const&) const;
+    Optional<CSS::Color> accent_color(Layout::NodeWithStyle const&) const;
     AlignContent align_content() const;
     AlignItems align_items() const;
     AlignSelf align_self() const;

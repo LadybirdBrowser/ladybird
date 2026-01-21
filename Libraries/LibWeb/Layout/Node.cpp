@@ -834,12 +834,12 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
-        computed_values.set_fill(fill.to_color(color_resolution_context).value());
+        computed_values.set_fill(fill.to_color(color_resolution_context).value().resolved());
     else if (fill.is_url())
         computed_values.set_fill(fill.as_url().url());
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
-        computed_values.set_stroke(stroke.to_color(color_resolution_context).value());
+        computed_values.set_stroke(stroke.to_color(color_resolution_context).value().resolved());
     else if (stroke.is_url())
         computed_values.set_stroke(stroke.as_url().url());
 

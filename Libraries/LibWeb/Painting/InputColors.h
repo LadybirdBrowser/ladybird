@@ -33,12 +33,12 @@ struct InputColors {
     }
 };
 
-static InputColors compute_input_colors(CSS::PreferredColorScheme color_scheme, Optional<Color> accent_color)
+static InputColors compute_input_colors(CSS::PreferredColorScheme color_scheme, Optional<CSS::Color> accent_color)
 {
     // These shades have been picked to work well for all themes and have enough variation to paint
     // all input states (disabled, enabled, checked, etc).
     auto base_text_color = CSS::SystemColor::canvas_text(color_scheme);
-    auto accent = accent_color.value_or(CSS::SystemColor::accent_color(color_scheme));
+    auto accent = accent_color.map([](auto const& it) { return it.resolved(); }).value_or(CSS::SystemColor::accent_color(color_scheme));
     auto base = InputColors::get_shade(base_text_color.inverted(), 0.8f, color_scheme);
     auto dark_gray = InputColors::get_shade(base_text_color, 0.3f, color_scheme);
     auto gray = InputColors::get_shade(dark_gray, 0.4f, color_scheme);

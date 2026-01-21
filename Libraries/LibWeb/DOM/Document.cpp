@@ -1130,15 +1130,14 @@ Color Document::background_color() const
 {
     // CSS2 says we should use the HTML element's background color unless it's transparent...
     if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
-        auto color = html_element->layout_node()->computed_values().background_color();
+        auto color = html_element->layout_node()->computed_values().background_color().resolved();
         if (color.alpha())
             return color;
     }
 
     // ...in which case we use the BODY element's background color.
     if (auto* body_element = body(); body_element && body_element->layout_node()) {
-        auto color = body_element->layout_node()->computed_values().background_color();
-        return color;
+        return body_element->layout_node()->computed_values().background_color().resolved();
     }
 
     // By default, the document is transparent.
@@ -1760,7 +1759,7 @@ void Document::obtain_theme_color()
                     color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->layout_node());
                 }
 
-                theme_color = css_value->to_color(color_resolution_context).value();
+                theme_color = css_value->to_color(color_resolution_context)->resolved();
                 return TraversalDecision::Break;
             }
         }

@@ -49,7 +49,7 @@ void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVar
                         color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                 }
 
-                auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
+                auto parsedValue = style_value->to_color(color_resolution_context).map([](auto const& it) { return it.resolved(); }).value_or(Color::Black);
 
                 // 4. Set this's fill style to parsedValue.
                 my_drawing_state().fill_style = parsedValue;
@@ -105,7 +105,7 @@ void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleV
                         color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*context->layout_node());
                 }
 
-                auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
+                auto parsedValue = style_value->to_color(color_resolution_context).map([](auto const& it) { return it.resolved(); }).value_or(Color::Black);
 
                 // 4. Set this's stroke style to parsedValue.
                 my_drawing_state().stroke_style = parsedValue;

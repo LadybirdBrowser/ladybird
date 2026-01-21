@@ -131,7 +131,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         case Parser::Token::Type::BadUrl:
         case Parser::Token::Type::BadString:
             // FIXME: Error highlighting color in palette?
-            highlight(token.start_position().line, token.start_position().column, token.end_position().line, token.end_position().column, { Color(Color::NamedColor::Red), {}, true }, token.type());
+            highlight(token.start_position().line, token.start_position().column, token.end_position().line, token.end_position().column, { Gfx::Color(Gfx::Color::NamedColor::Red), {}, true }, token.type());
             break;
 
         case Parser::Token::Type::EndOfFile:

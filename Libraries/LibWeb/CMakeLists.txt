@@ -103,6 +103,7 @@ set(SOURCES
     CSS/CalculatedOr.cpp
     CSS/CascadedProperties.cpp
     CSS/Clip.cpp
+    CSS/Color.cpp
     CSS/ComputedProperties.cpp
     CSS/CountersSet.cpp
     CSS/CSS.cpp

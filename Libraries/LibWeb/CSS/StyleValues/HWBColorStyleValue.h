@@ -28,7 +28,7 @@ public:
     StyleValue const& b() const { return *m_properties.b; }
     StyleValue const& alpha() const { return *m_properties.alpha; }
 
-    virtual Optional<Color> to_color(ColorResolutionContext color_resolution_context) const override;
+    virtual Optional<CSS::Color> to_color(ColorResolutionContext color_resolution_context) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 

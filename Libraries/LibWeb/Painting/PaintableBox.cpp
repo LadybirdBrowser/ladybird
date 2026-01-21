@@ -525,8 +525,8 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                     context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>(),
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio,
-                    scrollbar_colors.thumb_color,
-                    scrollbar_colors.track_color,
+                    scrollbar_colors.thumb_color.resolved(),
+                    scrollbar_colors.track_color.resolved(),
                     direction == ScrollDirection::Vertical);
             }
         }
@@ -1146,7 +1146,7 @@ void PaintableBox::resolve_paint_properties()
     resolved_box_shadow_data.ensure_capacity(box_shadow_data.size());
     for (auto const& layer : box_shadow_data) {
         resolved_box_shadow_data.empend(
-            layer.color,
+            layer.color.resolved(),
             layer.offset_x.to_px(layout_node),
             layer.offset_y.to_px(layout_node),
             layer.blur_radius.to_px(layout_node),
@@ -1209,7 +1209,7 @@ void PaintableBox::resolve_paint_properties()
     set_outline_offset(outline_offset);
 
     CSSPixelRect background_rect;
-    Color background_color = computed_values.background_color();
+    Color background_color = computed_values.background_color().resolved();
     auto const* background_layers = &computed_values.background_layers();
 
     // https://drafts.csswg.org/css-backgrounds/#root-background
@@ -1315,8 +1315,8 @@ Optional<Gfx::Filter> PaintableBox::resolve_filter(DisplayListRecordingContext& 
                 // and the missing used color is taken from the color property.
                 auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node_with_style_and_box_metrics());
                 auto resolved_color = drop_shadow.color
-                    ? drop_shadow.color->to_color(color_context).value_or(this->computed_values().color())
-                    : this->computed_values().color();
+                    ? drop_shadow.color->to_color(color_context).value_or(computed_values().color()).resolved()
+                    : computed_values().color().resolved();
                 auto new_filter = Gfx::Filter::drop_shadow(to_px(drop_shadow.offset_x),
                     to_px(drop_shadow.offset_y),
                     drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, resolved_color);

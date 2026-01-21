@@ -1110,7 +1110,7 @@ void CanvasRenderingContext2D::set_shadow_color(String color)
             color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*node);
         }
 
-        auto parsedValue = style_value->to_color(color_resolution_context).value_or(Color::Black);
+        auto parsedValue = style_value->to_color(color_resolution_context).map([](auto const& it) { return it.resolved(); }).value_or(Color::Black);
 
         // 4. Set this's shadow color to parsedValue.
         drawing_state().shadow_color = parsedValue;
@@ -1266,7 +1266,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
 
                     auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(*layout_node);
                     auto color = drop_shadow.color
-                        ? drop_shadow.color->to_color(color_context).value_or(Gfx::Color::Black)
+                        ? drop_shadow.color->to_color(color_context).map([](auto const& it) { return it.resolved(); }).value_or(Gfx::Color::Black)
                         : Gfx::Color::Black;
 
                     auto new_filter = Gfx::Filter::drop_shadow(offset_x, offset_y, radius, color);

@@ -230,7 +230,7 @@ void PaintableWithLines::resolve_paint_properties()
             resolved_shadow_data.ensure_capacity(text_shadow.size());
             for (auto const& layer : text_shadow) {
                 resolved_shadow_data.empend(
-                    layer.color,
+                    layer.color.resolved(),
                     layer.offset_x.to_px(layout_node),
                     layer.offset_y.to_px(layout_node),
                     layer.blur_radius.to_px(layout_node),
@@ -293,7 +293,7 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
             fragment_absolute_rect.x().to_float(),
             fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
         } * scale;
-        painter.draw_glyph_run(baseline_start, *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_enclosing_device_rect, scale, fragment.orientation());
+        painter.draw_glyph_run(baseline_start, *glyph_run, paintable.computed_values().webkit_text_fill_color().resolved(), fragment_enclosing_device_rect, scale, fragment.orientation());
 
         paint_text_decoration(context, paintable, fragment);
         paint_cursor_if_needed(context, paintable, fragment);
@@ -331,7 +331,7 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
     if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))
         return;
 
-    auto caret_color = paintable.computed_values().caret_color();
+    auto caret_color = paintable.computed_values().caret_color().resolved();
     if (caret_color.alpha() == 0)
         return;
 
@@ -351,7 +351,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
     auto baseline = fragment.baseline();
 
-    auto line_color = paintable.computed_values().text_decoration_color();
+    auto line_color = paintable.computed_values().text_decoration_color().resolved();
     auto line_style = paintable.computed_values().text_decoration_style();
     auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
     auto text_decoration_lines = paintable.computed_values().text_decoration_line();

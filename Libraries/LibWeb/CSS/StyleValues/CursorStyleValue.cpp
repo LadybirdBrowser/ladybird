@@ -56,7 +56,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
     CacheKey cache_key {
         .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-        .current_color = layout_node.computed_values().color(),
+        .current_color = layout_node.computed_values().color().resolved(),
     };
 
     // Create a bitmap if needed.
@@ -95,7 +95,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         // Clear whatever was in the bitmap before.
         auto& bitmap = *m_cached_bitmap->bitmap();
         auto painter = Gfx::Painter::create(bitmap);
-        painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
+        painter->clear_rect(bitmap.rect().to_type<float>(), Gfx::Color::Transparent);
 
         // Paint the cursor into a bitmap.
         auto display_list = Painting::DisplayList::create(document.page().client().device_pixels_per_css_pixel());

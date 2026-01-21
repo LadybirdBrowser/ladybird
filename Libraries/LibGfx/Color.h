@@ -54,6 +54,40 @@ struct Oklab {
     float b { 0 };
 };
 
+struct SRGBA01 {
+    float red { 0 };
+    float green { 0 };
+    float blue { 0 };
+    float alpha { 0 };
+
+    constexpr Oklab to_premultiplied_oklab() const
+    {
+        // FIXME: This is a modified version of Color::to_premultiplied_oklab() - deduplicate these somehow.
+
+        auto srgb_to_linear = [](float c) {
+            return c >= 0.04045f ? pow((c + 0.055f) / 1.055f, 2.4f) : c / 12.92f;
+        };
+
+        float r = srgb_to_linear(red);
+        float g = srgb_to_linear(green);
+        float b = srgb_to_linear(blue);
+
+        float l = cbrtf(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
+        float m = cbrtf(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
+        float s = cbrtf(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
+
+        float unpremultiplied_L = 0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s;
+        float unpremultiplied_a = 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s;
+        float unpremultiplied_b = 0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s;
+
+        return {
+            unpremultiplied_L * alpha,
+            unpremultiplied_a * alpha,
+            unpremultiplied_b * alpha,
+        };
+    }
+};
+
 class Color {
 public:
     enum class NamedColor {

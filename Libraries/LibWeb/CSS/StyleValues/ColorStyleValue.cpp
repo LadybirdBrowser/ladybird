@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
+ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Gfx::Color color, ColorSyntax color_syntax, Optional<FlyString> name)
 {
     return RGBColorStyleValue::create(
         NumberStyleValue::create(color.red()),
@@ -178,11 +178,7 @@ void ColorStyleValue::serialize_color_component(StringBuilder& builder, Serializ
     if (clamp_max.has_value() && resolved_value > *clamp_max)
         resolved_value = *clamp_max;
 
-    // FIXME: Find a better way to format a decimal with trimmed trailing zeroes
-    auto resolved_string = MUST(String::formatted("{:.2}", resolved_value));
-    if (resolved_string.contains('.'))
-        resolved_string = MUST(resolved_string.trim("0"sv, TrimMode::Right));
-    builder.append(resolved_string);
+    serialize_a_number(builder, resolved_value);
 }
 
 void ColorStyleValue::serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
@@ -203,7 +199,7 @@ void ColorStyleValue::serialize_alpha_component(StringBuilder& builder, Serializ
         return;
     }
 
-    builder.appendff("{}", maybe_resolved_value.value());
+    serialize_a_number(builder, maybe_resolved_value.value());
 }
 
 void ColorStyleValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const

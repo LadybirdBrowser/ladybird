@@ -297,7 +297,7 @@ void OffscreenCanvasRenderingContext2D::set_shadow_color(String color)
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
     auto style_value = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
-        auto parsedValue = style_value->to_color({}).value_or(Color::Black);
+        auto parsedValue = style_value->to_color({}).map([](auto const& it) { return it.resolved(); }).value_or(Color::Black);
 
         // 4. Set this's shadow color to parsedValue.
         drawing_state().shadow_color = parsedValue;

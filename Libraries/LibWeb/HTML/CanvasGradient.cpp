@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, StringVi
     auto const parsed_color = maybe_color->to_color({}).value();
 
     // 4. Place a new stop on the gradient, at offset offset relative to the whole gradient, and with the color parsed color.
-    TRY_OR_THROW_OOM(realm().vm(), m_gradient->add_color_stop(offset, parsed_color));
+    TRY_OR_THROW_OOM(realm().vm(), m_gradient->add_color_stop(offset, parsed_color.resolved()));
 
     // FIXME: If multiple stops are added at the same offset on a gradient, then they must be placed in the order added,
     //        with the first one closest to the start of the gradient, and each subsequent one infinitesimally further along
