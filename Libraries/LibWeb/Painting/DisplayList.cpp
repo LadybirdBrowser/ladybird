@@ -166,12 +166,13 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     };
 
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
-        auto [context, command] = commands[command_index];
+        auto const& [context, command] = commands[command_index];
 
         switch_to_context(context);
 
         if (command.has<PaintScrollBar>()) {
-            auto& paint_scroll_bar = command.get<PaintScrollBar>();
+            auto translated_command = command;
+            auto& paint_scroll_bar = translated_command.get<PaintScrollBar>();
             auto scroll_offset = scroll_state.own_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
             if (paint_scroll_bar.vertical) {
                 auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
@@ -180,6 +181,8 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 auto offset = scroll_offset.x() * paint_scroll_bar.scroll_size;
                 paint_scroll_bar.thumb_rect.translate_by(-offset.to_int() * device_pixels_per_css_pixel, 0);
             }
+            paint_scrollbar(paint_scroll_bar);
+            continue;
         }
 
         auto bounding_rect = command_bounding_rectangle(command);
@@ -228,7 +231,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(DrawRect, draw_rect)
         else HANDLE_COMMAND(AddRoundedRectClip, add_rounded_rect_clip)
         else HANDLE_COMMAND(AddMask, add_mask)
-        else HANDLE_COMMAND(PaintScrollBar, paint_scrollbar)
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
         else HANDLE_COMMAND(ApplyEffects, apply_effects)
         else HANDLE_COMMAND(ApplyTransform, apply_transform)
