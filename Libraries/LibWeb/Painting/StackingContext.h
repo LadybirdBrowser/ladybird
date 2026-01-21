@@ -31,7 +31,6 @@ public:
         Floats,
         BackgroundAndBordersForInlineLevelAndReplaced,
         Foreground,
-        FocusAndOverlay,
     };
 
     static void paint_node_as_stacking_context(Paintable const&, DisplayListRecordingContext&);

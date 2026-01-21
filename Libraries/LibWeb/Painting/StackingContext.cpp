@@ -90,8 +90,6 @@ static PaintPhase to_paint_phase(StackingContext::StackingContextPaintPhase phas
         return PaintPhase::Background;
     case StackingContext::StackingContextPaintPhase::Foreground:
         return PaintPhase::Foreground;
-    case StackingContext::StackingContextPaintPhase::FocusAndOverlay:
-        return PaintPhase::Overlay;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -113,7 +111,6 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
     paint_descendants(context, paintable, StackingContextPaintPhase::Foreground);
     paint_node(paintable, context, PaintPhase::Outline);
     paint_node(paintable, context, PaintPhase::Overlay);
-    paint_descendants(context, paintable, StackingContextPaintPhase::FocusAndOverlay);
 }
 
 void StackingContext::paint_svg(DisplayListRecordingContext& context, PaintableBox const& paintable, PaintPhase phase)
@@ -196,10 +193,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             paint_node(child, context, PaintPhase::Foreground);
             paint_descendants(context, child, phase);
             paint_node(child, context, PaintPhase::Outline);
-            break;
-        case StackingContextPaintPhase::FocusAndOverlay:
             paint_node(child, context, PaintPhase::Overlay);
-            paint_descendants(context, child, phase);
             break;
         }
 
@@ -227,7 +221,6 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
         paint_node(svg_svg_paintable, context, PaintPhase::Outline);
         if (context.should_paint_overlay()) {
             paint_node(svg_svg_paintable, context, PaintPhase::Overlay);
-            paint_descendants(context, svg_svg_paintable, StackingContextPaintPhase::FocusAndOverlay);
         }
         return;
     }
@@ -284,7 +277,6 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 
     if (context.should_paint_overlay()) {
         paint_node(paintable_box(), context, PaintPhase::Overlay);
-        paint_descendants(context, paintable_box(), StackingContextPaintPhase::FocusAndOverlay);
     }
 }
 
