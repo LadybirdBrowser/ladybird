@@ -1668,27 +1668,27 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 16. If httpRequest’s cache mode is "default" and httpRequest’s header list contains `If-Modified-Since`,
         //     `If-None-Match`, `If-Unmodified-Since`, `If-Match`, or `If-Range`, then set httpRequest’s cache mode to
         //     "no-store".
-        if (http_request->cache_mode() == Infrastructure::Request::CacheMode::Default
+        if (http_request->cache_mode() == HTTP::CacheMode::Default
             && (http_request->header_list()->contains("If-Modified-Since"sv)
                 || http_request->header_list()->contains("If-None-Match"sv)
                 || http_request->header_list()->contains("If-Unmodified-Since"sv)
                 || http_request->header_list()->contains("If-Match"sv)
                 || http_request->header_list()->contains("If-Range"sv))) {
-            http_request->set_cache_mode(Infrastructure::Request::CacheMode::NoStore);
+            http_request->set_cache_mode(HTTP::CacheMode::NoStore);
         }
 
         // 17. If httpRequest’s cache mode is "no-cache", httpRequest’s prevent no-cache cache-control header
         //     modification flag is unset, and httpRequest’s header list does not contain `Cache-Control`, then append
         //     (`Cache-Control`, `max-age=0`) to httpRequest’s header list.
-        if (http_request->cache_mode() == Infrastructure::Request::CacheMode::NoCache
+        if (http_request->cache_mode() == HTTP::CacheMode::NoCache
             && !http_request->prevent_no_cache_cache_control_header_modification()
             && !http_request->header_list()->contains("Cache-Control"sv)) {
             http_request->header_list()->append({ "Cache-Control"sv, "max-age=0"sv });
         }
 
         // 18. If httpRequest’s cache mode is "no-store" or "reload", then:
-        if (http_request->cache_mode() == Infrastructure::Request::CacheMode::NoStore
-            || http_request->cache_mode() == Infrastructure::Request::CacheMode::Reload) {
+        if (http_request->cache_mode() == HTTP::CacheMode::NoStore
+            || http_request->cache_mode() == HTTP::CacheMode::Reload) {
             // 1. If httpRequest’s header list does not contain `Pragma`, then append (`Pragma`, `no-cache`) to
             //    httpRequest’s header list.
             if (!http_request->header_list()->contains("Pragma"sv))
@@ -1776,11 +1776,11 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // 24. If httpCache is null, then set httpRequest’s cache mode to "no-store".
         if (!http_cache)
-            http_request->set_cache_mode(Infrastructure::Request::CacheMode::NoStore);
+            http_request->set_cache_mode(HTTP::CacheMode::NoStore);
 
         // 25. If httpRequest’s cache mode is neither "no-store" nor "reload", then:
-        if (http_request->cache_mode() != Infrastructure::Request::CacheMode::NoStore
-            && http_request->cache_mode() != Infrastructure::Request::CacheMode::Reload) {
+        if (http_request->cache_mode() != HTTP::CacheMode::NoStore
+            && http_request->cache_mode() != HTTP::CacheMode::Reload) {
             // 1. Set storedResponse to the result of selecting a response from the httpCache, possibly needing
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
@@ -1817,7 +1817,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     // 10. If response is null, then:
     if (!response) {
         // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
-        if (http_request->cache_mode() == Infrastructure::Request::CacheMode::OnlyIfCached)
+        if (http_request->cache_mode() == HTTP::CacheMode::OnlyIfCached)
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'only-if-cached' cache mode doesn't have a cached response"_string));
 
         // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,

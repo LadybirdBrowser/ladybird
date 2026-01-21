@@ -79,21 +79,21 @@ Infrastructure::Request::CredentialsMode from_bindings_enum(Bindings::RequestCre
     }
 }
 
-Infrastructure::Request::CacheMode from_bindings_enum(Bindings::RequestCache request_cache)
+HTTP::CacheMode from_bindings_enum(Bindings::RequestCache request_cache)
 {
     switch (request_cache) {
     case Bindings::RequestCache::Default:
-        return Infrastructure::Request::CacheMode::Default;
+        return HTTP::CacheMode::Default;
     case Bindings::RequestCache::NoStore:
-        return Infrastructure::Request::CacheMode::NoStore;
+        return HTTP::CacheMode::NoStore;
     case Bindings::RequestCache::Reload:
-        return Infrastructure::Request::CacheMode::Reload;
+        return HTTP::CacheMode::Reload;
     case Bindings::RequestCache::NoCache:
-        return Infrastructure::Request::CacheMode::NoCache;
+        return HTTP::CacheMode::NoCache;
     case Bindings::RequestCache::ForceCache:
-        return Infrastructure::Request::CacheMode::ForceCache;
+        return HTTP::CacheMode::ForceCache;
     case Bindings::RequestCache::OnlyIfCached:
-        return Infrastructure::Request::CacheMode::OnlyIfCached;
+        return HTTP::CacheMode::OnlyIfCached;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -240,20 +240,20 @@ Bindings::RequestCredentials to_bindings_enum(Infrastructure::Request::Credentia
     }
 }
 
-Bindings::RequestCache to_bindings_enum(Infrastructure::Request::CacheMode cache_mode)
+Bindings::RequestCache to_bindings_enum(HTTP::CacheMode cache_mode)
 {
     switch (cache_mode) {
-    case Infrastructure::Request::CacheMode::Default:
+    case HTTP::CacheMode::Default:
         return Bindings::RequestCache::Default;
-    case Infrastructure::Request::CacheMode::NoStore:
+    case HTTP::CacheMode::NoStore:
         return Bindings::RequestCache::NoStore;
-    case Infrastructure::Request::CacheMode::Reload:
+    case HTTP::CacheMode::Reload:
         return Bindings::RequestCache::Reload;
-    case Infrastructure::Request::CacheMode::NoCache:
+    case HTTP::CacheMode::NoCache:
         return Bindings::RequestCache::NoCache;
-    case Infrastructure::Request::CacheMode::ForceCache:
+    case HTTP::CacheMode::ForceCache:
         return Bindings::RequestCache::ForceCache;
-    case Infrastructure::Request::CacheMode::OnlyIfCached:
+    case HTTP::CacheMode::OnlyIfCached:
         return Bindings::RequestCache::OnlyIfCached;
     default:
         VERIFY_NOT_REACHED();
