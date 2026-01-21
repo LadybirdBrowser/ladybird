@@ -10,6 +10,7 @@
 #include <AK/Types.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/TransportSocket.h>
 #include <LibThreading/Thread.h>
 
@@ -205,12 +206,6 @@ void TransportSocket::wait_until_readable()
         m_incoming_cv.wait();
     }
 }
-
-// Maximum size of an IPC message payload (64 MiB should be more than enough)
-static constexpr size_t MAX_MESSAGE_PAYLOAD_SIZE = 64 * MiB;
-
-// Maximum number of file descriptors per message
-static constexpr size_t MAX_MESSAGE_FD_COUNT = 128;
 
 // Maximum size of accumulated unprocessed bytes before we disconnect the peer
 static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;

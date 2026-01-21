@@ -9,6 +9,7 @@
 #include <AK/Checked.h>
 #include <AK/Types.h>
 #include <LibIPC/HandleType.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/TransportSocketWindows.h>
 
 #include <AK/Windows.h>
@@ -107,9 +108,6 @@ ErrorOr<void> TransportSocketWindows::duplicate_handles(Bytes bytes, Vector<size
     return {};
 }
 
-// Maximum size of an IPC message payload (64 MiB should be more than enough)
-static constexpr size_t MAX_MESSAGE_SIZE = 64 * MiB;
-
 // Maximum size of accumulated unprocessed bytes before we disconnect the peer
 static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
 
@@ -206,8 +204,8 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
-        if (header.size > MAX_MESSAGE_SIZE) {
-            dbgln("TransportSocketWindows: Rejecting message with size {} exceeding limit {}", header.size, MAX_MESSAGE_SIZE);
+        if (header.size > MAX_MESSAGE_PAYLOAD_SIZE) {
+            dbgln("TransportSocketWindows: Rejecting message with size {} exceeding limit {}", header.size, MAX_MESSAGE_PAYLOAD_SIZE);
             should_shutdown = ShouldShutdown::Yes;
             break;
         }
