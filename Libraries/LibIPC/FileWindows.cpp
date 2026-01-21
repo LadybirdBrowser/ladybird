@@ -69,9 +69,9 @@ ErrorOr<File> decode(Decoder& decoder)
     if (handle_type == HandleType::Generic) {
         TRY(decoder.decode_into(handle));
     } else if (handle_type == HandleType::Socket) {
-        WSAPROTOCOL_INFO pi = {};
+        WSAPROTOCOL_INFOW pi = {};
         TRY(decoder.decode_into({ reinterpret_cast<u8*>(&pi), sizeof(pi) }));
-        handle = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+        handle = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
         if (handle == -1)
             return Error::from_windows_error();
     } else {

@@ -80,15 +80,15 @@ ErrorOr<void> TransportSocketWindows::duplicate_handles(Bytes bytes, Vector<size
         span = span.slice(sizeof(HandleType));
 
         if (type == HandleType::Socket) {
-            if (span.size() < sizeof(WSAPROTOCOL_INFO))
+            if (span.size() < sizeof(WSAPROTOCOL_INFOW))
                 return Error::from_string_literal("Not enough bytes for socket handle");
 
             // We stashed the bytes of this process's version of the handle at the offset location
             int handle = -1;
             ByteReader::load(span.data(), handle);
 
-            auto* pi = reinterpret_cast<WSAPROTOCOL_INFO*>(span.data());
-            if (WSADuplicateSocket(handle, m_peer_pid, pi))
+            auto* pi = reinterpret_cast<WSAPROTOCOL_INFOW*>(span.data());
+            if (WSADuplicateSocketW(handle, m_peer_pid, pi))
                 return Error::from_windows_error();
         } else {
             if (span.size() < sizeof(int))
