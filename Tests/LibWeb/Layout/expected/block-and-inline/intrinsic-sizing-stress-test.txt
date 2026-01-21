@@ -224,7 +224,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,580] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,582] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [8,584 176.40625x24] baseline: 14.796875
+            frag 0 from BlockContainer start: 0, length: 0, rect: [8,584 176.40625x24] baseline: 18.796875
             BlockContainer <div.inline-block> at [8,584] inline-block [0+0+2 176.40625 2+0+0] [0+0+2 24 2+0+0] [BFC] children: not-inline
               BlockContainer <div.plain> at [10,586] [0+0+2 172.40625 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,588] [0+0+2 168.40625 2+0+0] [0+0+2 16 2+0+0] children: not-inline

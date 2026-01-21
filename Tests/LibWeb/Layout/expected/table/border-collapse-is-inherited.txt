@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       BlockContainer <div.horizontal> at [8,8] [0+0+0 784 0+0+0] [0+0+0 202 0+0+0] children: inline
-        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 161.90625x200] baseline: 25.296875
+        frag 0 from BlockContainer start: 0, length: 0, rect: [9,9 161.90625x200] baseline: 105.296875
         TextNode <#text> (not painted)
         BlockContainer <table> at [9,9] inline-block [0+1+0 161.90625 0+1+0] [0+1+0 200 0+1+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [9,9] [0+0+0 161.90625 0+0+0] [0+0+0 0 0+0+0] children: inline
