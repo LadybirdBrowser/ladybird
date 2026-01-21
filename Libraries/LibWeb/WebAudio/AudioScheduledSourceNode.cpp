@@ -50,6 +50,9 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
     // 3. Set the internal slot [[source started]] on this AudioScheduledSourceNode to true.
     set_source_started(true);
 
+    m_start_when = when;
+    m_stop_when = {};
+
     // 4. Queue a control message to start the AudioScheduledSourceNode, including the parameter values in the message.
     context()->queue_control_message(StartSource { .node_id = node_id(), .when = when });
 
@@ -72,6 +75,9 @@ WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 
     // 3. Queue a control message to stop the AudioScheduledSourceNode, including the parameter values in the message.
     context()->queue_control_message(StopSource { .node_id = node_id(), .when = when });
+
+    if (!m_stop_when.has_value() || when < m_stop_when.value())
+        m_stop_when = when;
 
     return {};
 }

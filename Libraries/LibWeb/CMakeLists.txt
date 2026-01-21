@@ -1075,6 +1075,7 @@ set(SOURCES
     WebAudio/Realtime/OhNoesRenderNode.cpp
     WebAudio/Realtime/RenderGraphImpl.cpp
     WebAudio/RenderGraph.cpp
+    WebAudio/RenderGraphSnapshot.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
