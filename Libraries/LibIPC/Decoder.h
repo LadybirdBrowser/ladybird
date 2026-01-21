@@ -177,7 +177,8 @@ ErrorOr<T> decode(Decoder& decoder)
 {
     T vector;
     auto size = TRY(decoder.decode_size());
-    VERIFY(!Checked<size_t>::multiplication_would_overflow(size, sizeof(typename T::ValueType)));
+    if (Checked<size_t>::multiplication_would_overflow(size, sizeof(typename T::ValueType)))
+        return Error::from_string_literal("IPC decode: Vector size would overflow");
     vector.resize(size);
     TRY(decoder.decode_into({ reinterpret_cast<u8*>(vector.data()), size * sizeof(typename T::ValueType) }));
     return vector;
@@ -230,7 +231,7 @@ ErrorOr<T> decode_variant(Decoder& decoder, size_t index)
 
         return decode_variant<T, Index + 1>(decoder, index);
     } else {
-        VERIFY_NOT_REACHED();
+        return Error::from_string_literal("IPC decode: Invalid variant index");
     }
 }
 
