@@ -839,6 +839,42 @@ struct CShakeParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-AeadParams
+// NOTE: The AeadParams dictionary is identical to the AesGcmParams
+struct AeadParams : public AlgorithmParams {
+    virtual ~AeadParams() override;
+    AeadParams(ByteBuffer iv, Optional<ByteBuffer> additional_data, Optional<u8> tag_length)
+        : iv(move(iv))
+        , additional_data(move(additional_data))
+        , tag_length(tag_length)
+    {
+    }
+
+    ByteBuffer iv;
+    Optional<ByteBuffer> additional_data;
+    Optional<u8> tag_length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
+class ChaCha20Poly1305 : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> encrypt(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> decrypt(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::Object>> export_key(Bindings::KeyFormat, GC::Ref<CryptoKey>) override;
+    virtual WebIDL::ExceptionOr<JS::Value> get_key_length(AlgorithmParams const&) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new ChaCha20Poly1305(realm)); }
+
+private:
+    explicit ChaCha20Poly1305(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
 ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, String const& base64_url_string);
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, String const& base64_url_string);

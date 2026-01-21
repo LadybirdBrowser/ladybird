@@ -1612,6 +1612,14 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<Argon2>("get key length"_string, algorithm);
     }
 
+    // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-registration
+    define_an_algorithm<ChaCha20Poly1305, AeadParams>("encrypt"_string, "ChaCha20-Poly1305"_string);
+    define_an_algorithm<ChaCha20Poly1305, AeadParams>("decrypt"_string, "ChaCha20-Poly1305"_string);
+    define_an_algorithm<ChaCha20Poly1305>("generateKey"_string, "ChaCha20-Poly1305"_string);
+    define_an_algorithm<ChaCha20Poly1305>("importKey"_string, "ChaCha20-Poly1305"_string);
+    define_an_algorithm<ChaCha20Poly1305>("exportKey"_string, "ChaCha20-Poly1305"_string);
+    define_an_algorithm<ChaCha20Poly1305>("get key length"_string, "ChaCha20-Poly1305"_string);
+
     return internal_object;
 }
 
