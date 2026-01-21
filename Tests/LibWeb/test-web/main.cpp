@@ -1060,6 +1060,13 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
     };
 
     view.on_web_content_crashed = [&view]() {
+        if (auto index = s_current_test_index_by_view.get(&view); index.has_value()) {
+            if (s_run_context) {
+                if (auto capture = s_output_captures.get(&view); capture.has_value() && *capture)
+                    (void)write_output_for_test(s_run_context->tests[*index], **capture);
+            }
+        }
+
         // Re-setup output capture for the respawned WebContent process
         // (handle_web_content_process_crash already ran and respawned it)
         s_output_captures.remove(&view);
@@ -1315,9 +1322,12 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 test.end_time = UnixDateTime::now();
 
-                // Write captured stdout/stderr to results directory
-                if (auto capture = s_output_captures.get(view); capture.has_value() && *capture)
-                    (void)write_output_for_test(test, **capture);
+                // Write captured stdout/stderr to results directory.
+                // NOTE: On crashes, we already flushed it in on_web_content_crashed.
+                if (result.result != TestResult::Crashed) {
+                    if (auto capture = s_output_captures.get(view); capture.has_value() && *capture)
+                        (void)write_output_for_test(test, **capture);
+                }
 
                 if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                     auto duration = test.end_time - test.start_time;
