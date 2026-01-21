@@ -63,11 +63,14 @@ RefPtr<Gfx::ImmutableBitmap> canvas_image_source_bitmap(CanvasImageSource const&
                 return Gfx::ImmutableBitmap::create(*canvas->get_bitmap_from_surface());
             return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
         },
-        [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>, GC::Root<HTMLVideoElement>> auto const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](OneOf<GC::Root<ImageBitmap>, GC::Root<OffscreenCanvas>> auto const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto bitmap = source->bitmap();
             if (!bitmap)
                 return {};
             return Gfx::ImmutableBitmap::create(*bitmap);
+        },
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return source->bitmap();
         });
 }
 

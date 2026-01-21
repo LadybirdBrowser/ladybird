@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +15,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/YUVData.h>
 
 class SkImage;
 
@@ -50,8 +52,12 @@ public:
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, AlphaType, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface>);
+    static ErrorOr<NonnullRefPtr<ImmutableBitmap>> create_from_yuv(NonnullOwnPtr<YUVData>);
 
     ~ImmutableBitmap();
+
+    bool is_yuv_backed() const;
+    bool ensure_sk_image(SkiaBackendContext&) const;
 
     int width() const;
     int height() const;
@@ -65,10 +71,13 @@ public:
 
     Color get_pixel(int x, int y) const;
 
-    NonnullRefPtr<Bitmap const> bitmap() const;
+    // Returns nullptr for YUV-backed bitmaps
+    RefPtr<Bitmap const> bitmap() const;
 
 private:
-    NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
+    friend class YUVData;
+
+    mutable NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
 
     explicit ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl> bitmap);
 };

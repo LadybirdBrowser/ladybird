@@ -80,8 +80,7 @@ private:
         template<typename Invokee>
         void invoke_on_main_thread(Invokee);
         void dispatch_frame_end_time(CodedFrame const&);
-        void set_cicp_values(VideoFrame&);
-        void queue_frame(TimedImage&&);
+        void queue_frame(NonnullOwnPtr<VideoFrame> const&);
         bool handle_seek();
         template<typename Callback>
         void process_seek_on_main_thread(u32 seek_id, Callback);

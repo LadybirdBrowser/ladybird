@@ -58,6 +58,7 @@ set(SOURCES
     TextLayout.cpp
     Triangle.cpp
     VectorGraphic.cpp
+    YUVData.cpp
 )
 
 set(SWIFT_EXCLUDE_HEADERS

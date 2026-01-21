@@ -112,7 +112,7 @@ Optional<Gfx::BitmapExportResult> WebGLRenderingContextBase::read_and_pixel_conv
             return Gfx::ImmutableBitmap::create(*source->bitmap());
         },
         [](GC::Root<HTML::HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
+            return source->bitmap();
         },
         [](GC::Root<HTML::ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());
