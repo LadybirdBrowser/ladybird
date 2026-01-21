@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
 #include <LibIPC/Decoder.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/Message.h>
 
 namespace IPC {
-
-using MessageSizeType = u32;
 
 MessageBuffer::MessageBuffer()
 {
@@ -44,10 +42,10 @@ ErrorOr<void> MessageBuffer::extend(MessageBuffer&& buffer)
 
 ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
-    Checked<MessageSizeType> checked_message_size { m_data.size() };
-    if (checked_message_size.has_overflow()) {
-        return Error::from_string_literal("Message is too large for IPC encoding");
-    }
+    // These VERIFYs catch bugs where we try to send messages that exceed IPC limits.
+    // If we hit these, we have a bug in our encoding code.
+    VERIFY(m_data.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
+    VERIFY(m_fds.size() <= MAX_MESSAGE_FD_COUNT);
 
     transport.post_message(m_data, m_fds);
     return {};
