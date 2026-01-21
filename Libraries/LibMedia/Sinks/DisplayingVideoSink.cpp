@@ -76,7 +76,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     return result;
 }
 
-RefPtr<Gfx::Bitmap> DisplayingVideoSink::current_frame()
+RefPtr<Gfx::ImmutableBitmap> DisplayingVideoSink::current_frame()
 {
     return m_current_frame;
 }

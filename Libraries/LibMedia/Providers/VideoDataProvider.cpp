@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
@@ -199,34 +200,9 @@ void VideoDataProvider::ThreadData::dispatch_frame_end_time(CodedFrame const& fr
     });
 }
 
-void VideoDataProvider::ThreadData::set_cicp_values(VideoFrame& frame)
+void VideoDataProvider::ThreadData::queue_frame(NonnullOwnPtr<VideoFrame> const& frame)
 {
-    auto& frame_cicp = frame.cicp();
-    auto const& container_cicp = m_track.video_data().cicp;
-    frame_cicp.adopt_specified_values(container_cicp);
-    frame_cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
-
-    // BT.470 M, B/G, BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
-    // (Chromium, VLC) forgo transfer characteristics conversion. We will emulate that behavior by
-    // handling those as sRGB instead, which causes no transfer function change in the output,
-    // unless display color management is later implemented.
-    switch (frame_cicp.transfer_characteristics()) {
-    case TransferCharacteristics::BT470BG:
-    case TransferCharacteristics::BT470M:
-    case TransferCharacteristics::BT601:
-    case TransferCharacteristics::BT709:
-    case TransferCharacteristics::BT2020BitDepth10:
-    case TransferCharacteristics::BT2020BitDepth12:
-        frame_cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
-        break;
-    default:
-        break;
-    }
-}
-
-void VideoDataProvider::ThreadData::queue_frame(TimedImage&& frame)
-{
-    m_queue.enqueue(move(frame));
+    m_queue.enqueue(TimedImage(frame->timestamp(), frame->immutable_bitmap()));
 }
 
 template<typename Callback>
@@ -252,15 +228,6 @@ void VideoDataProvider::ThreadData::resolve_seek(u32 seek_id, AK::Duration const
 
 bool VideoDataProvider::ThreadData::handle_seek()
 {
-#define CONVERT_AND_QUEUE_A_FRAME(frame)                                              \
-    do {                                                                              \
-        auto __bitmap_result = frame->to_bitmap();                                    \
-        if (__bitmap_result.is_error()) {                                             \
-            handle_error(__bitmap_result.release_error());                            \
-            return true;                                                              \
-        }                                                                             \
-        queue_frame(TimedImage(frame->timestamp(), __bitmap_result.release_value())); \
-    } while (false)
 
     auto seek_id = m_seek_id.load();
     if (m_last_processed_seek_id == seek_id)
@@ -369,12 +336,12 @@ bool VideoDataProvider::ThreadData::handle_seek()
             }
 
             while (new_seek_id == seek_id) {
-                auto frame_result = m_decoder->get_decoded_frame();
+                auto frame_result = m_decoder->get_decoded_frame(m_track.video_data().cicp);
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         auto locker = take_lock();
                         if (last_frame != nullptr)
-                            CONVERT_AND_QUEUE_A_FRAME(last_frame);
+                            queue_frame(last_frame.release_nonnull());
 
                         resolve_seek(seek_id, timestamp);
                         return true;
@@ -388,15 +355,14 @@ bool VideoDataProvider::ThreadData::handle_seek()
                 }
 
                 auto current_frame = frame_result.release_value();
-                set_cicp_values(*current_frame);
                 if (is_desired_decoded_frame(*current_frame)) {
                     auto locker = take_lock();
                     m_queue.clear();
 
                     if (last_frame != nullptr)
-                        CONVERT_AND_QUEUE_A_FRAME(last_frame);
+                        queue_frame(last_frame.release_nonnull());
 
-                    CONVERT_AND_QUEUE_A_FRAME(current_frame);
+                    queue_frame(current_frame);
 
                     resolve_seek(seek_id, resolved_time(*current_frame));
                     return true;
@@ -457,7 +423,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
     }
 
     while (true) {
-        auto frame_result = m_decoder->get_decoded_frame();
+        auto frame_result = m_decoder->get_decoded_frame(m_track.video_data().cicp);
         if (frame_result.is_error()) {
             if (frame_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;
@@ -466,13 +432,6 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         }
 
         auto frame = frame_result.release_value();
-        set_cicp_values(*frame);
-        auto bitmap_result = frame->to_bitmap();
-
-        if (bitmap_result.is_error()) {
-            set_error_and_wait_for_seek(bitmap_result.release_error());
-            return;
-        }
 
         {
             auto queue_size = [&] {
@@ -500,7 +459,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             }
 
             auto locker = take_lock();
-            queue_frame(TimedImage(frame->timestamp(), bitmap_result.release_value()));
+            queue_frame(frame);
         }
     }
 }

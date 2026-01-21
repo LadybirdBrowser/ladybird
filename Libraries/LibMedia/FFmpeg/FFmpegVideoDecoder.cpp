@@ -5,6 +5,8 @@
  */
 
 #include <LibCore/System.h>
+#include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 
 #include "FFmpegHelpers.h"
@@ -142,7 +144,7 @@ void FFmpegVideoDecoder::signal_end_of_stream()
     VERIFY(result == 0 || result == AVERROR_EOF);
 }
 
-DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame()
+DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(CodingIndependentCodePoints const& container_cicp)
 {
     auto result = avcodec_receive_frame(m_codec_context, m_frame);
 
@@ -162,6 +164,26 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
             }
         }();
         auto cicp = CodingIndependentCodePoints { color_primaries, transfer_characteristics, matrix_coefficients, color_range };
+
+        cicp.adopt_specified_values(container_cicp);
+        cicp.default_code_points_if_unspecified({ ColorPrimaries::BT709, TransferCharacteristics::BT709, MatrixCoefficients::BT709, VideoFullRangeFlag::Studio });
+
+        // BT.470 M, B/G, BT.601, BT.709 and BT.2020 have a similar transfer function to sRGB, so other applications
+        // (Chromium, VLC) forgo transfer characteristics conversion. We will emulate that behavior by
+        // handling those as sRGB instead, which causes no transfer function change in the output,
+        // unless display color management is later implemented.
+        switch (cicp.transfer_characteristics()) {
+        case TransferCharacteristics::BT470BG:
+        case TransferCharacteristics::BT470M:
+        case TransferCharacteristics::BT601:
+        case TransferCharacteristics::BT709:
+        case TransferCharacteristics::BT2020BitDepth10:
+        case TransferCharacteristics::BT2020BitDepth12:
+            cicp.set_transfer_characteristics(TransferCharacteristics::SRGB);
+            break;
+        default:
+            break;
+        }
 
         size_t bit_depth = [&] {
             switch (m_frame->format) {
@@ -184,7 +206,6 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
                 VERIFY_NOT_REACHED();
             }
         }();
-        size_t component_size = (bit_depth + 7) / 8;
 
         auto subsampling = [&]() -> Subsampling {
             switch (m_frame->format) {
@@ -209,35 +230,59 @@ DecoderErrorOr<NonnullOwnPtr<VideoFrame>> FFmpegVideoDecoder::get_decoded_frame(
         }();
 
         auto size = Gfx::Size<u32> { m_frame->width, m_frame->height };
+        auto gfx_size = Gfx::IntSize { m_frame->width, m_frame->height };
 
         auto timestamp = AK::Duration::from_microseconds(m_frame->pts);
         auto duration = AK::Duration::from_microseconds(m_frame->duration);
-        auto frame = DECODER_TRY_ALLOC(SubsampledYUVFrame::try_create(timestamp, duration, size, bit_depth, cicp, subsampling));
+
+        auto yuv_data = DECODER_TRY_ALLOC(Gfx::YUVData::create(gfx_size, bit_depth, subsampling, cicp));
+
+        auto y_plane_size = size.to_type<size_t>();
+        auto uv_plane_size = subsampling.subsampled_size(size).to_type<size_t>();
+
+        Bytes buffers[] = { yuv_data->y_data(), yuv_data->u_data(), yuv_data->v_data() };
+        Gfx::Size<size_t> plane_sizes[] = { y_plane_size, uv_plane_size, uv_plane_size };
 
         for (u32 plane = 0; plane < 3; plane++) {
             VERIFY(m_frame->linesize[plane] != 0);
             if (m_frame->linesize[plane] < 0)
                 return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Reversed scanlines are not supported"sv);
 
-            bool const use_subsampling = plane > 0;
-            auto plane_size = (use_subsampling ? subsampling.subsampled_size(size) : size).to_type<size_t>();
-
-            auto output_line_size = plane_size.width() * component_size;
-            VERIFY(output_line_size <= static_cast<size_t>(m_frame->linesize[plane]));
-
+            auto plane_size = plane_sizes[plane];
             auto const* source = m_frame->data[plane];
             VERIFY(source != nullptr);
-            auto* destination = frame->get_raw_plane_data(plane);
-            VERIFY(destination != nullptr);
+            auto destination = buffers[plane];
 
-            for (size_t row = 0; row < plane_size.height(); row++) {
-                memcpy(destination, source, output_line_size);
-                source += m_frame->linesize[plane];
-                destination += output_line_size;
+            if (bit_depth > 8) {
+                // For 10/12-bit content, normalize values to fill the full 16-bit unorm range.
+                // Use bit replication: (value << shift) | (value >> inverse_shift)
+                auto const shift = 16 - bit_depth;
+                auto const inverse_shift = bit_depth - shift;
+                auto samples_per_row = plane_size.width();
+                auto source_stride = m_frame->linesize[plane];
+
+                for (size_t row = 0; row < plane_size.height(); row++) {
+                    auto const* src_row = reinterpret_cast<u16 const*>(source + (row * source_stride));
+                    auto* dest_row = reinterpret_cast<u16*>(destination.data() + (row * samples_per_row * sizeof(u16)));
+                    for (size_t i = 0; i < samples_per_row; i++)
+                        dest_row[i] = static_cast<u16>((src_row[i] << shift) | (src_row[i] >> inverse_shift));
+                }
+            } else {
+                auto output_line_size = plane_size.width();
+                VERIFY(output_line_size <= static_cast<size_t>(m_frame->linesize[plane]));
+
+                auto* dest_ptr = destination.data();
+                for (size_t row = 0; row < plane_size.height(); row++) {
+                    memcpy(dest_ptr, source, output_line_size);
+                    source += m_frame->linesize[plane];
+                    dest_ptr += output_line_size;
+                }
             }
         }
 
-        return frame;
+        auto bitmap = DECODER_TRY_ALLOC(Gfx::ImmutableBitmap::create_from_yuv(move(yuv_data)));
+
+        return DECODER_TRY_ALLOC(try_make<VideoFrame>(timestamp, duration, size, bit_depth, cicp, move(bitmap)));
     }
     case AVERROR(EAGAIN):
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"sv);

@@ -22,7 +22,7 @@ public:
 
     virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data) override;
     virtual void signal_end_of_stream() override;
-    virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame() override;
+    virtual DecoderErrorOr<NonnullOwnPtr<VideoFrame>> get_decoded_frame(CodingIndependentCodePoints const& container_cicp) override;
 
     virtual void flush() override;
 

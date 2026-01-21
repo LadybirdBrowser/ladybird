@@ -187,7 +187,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     return {};
 }
 
-RefPtr<Gfx::Bitmap> HTMLVideoElement::bitmap() const
+RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
 {
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)

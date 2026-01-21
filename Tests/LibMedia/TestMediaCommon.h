@@ -49,7 +49,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
         for (auto const& frame : frames) {
             MUST(decoder->receive_coded_data(block.timestamp(), block.duration().value_or(AK::Duration::zero()), frame));
             while (true) {
-                auto frame_result = decoder->get_decoded_frame();
+                auto frame_result = decoder->get_decoded_frame({});
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == Media::DecoderErrorCategory::NeedsMoreInput)
                         break;

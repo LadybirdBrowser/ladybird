@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibWeb/DOM/Document.h>
@@ -127,10 +128,14 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         return Representation::VideoFrame;
     }();
 
-    auto paint_frame = [&](auto const& frame) {
+    auto paint_immutable_bitmap = [&](auto const& bitmap) {
         auto dst_rect = video_rect.to_type<int>();
-        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect().size(), dst_rect.size());
-        context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, Gfx::ImmutableBitmap::create(*frame), scaling_mode);
+        auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), bitmap->rect().size(), dst_rect.size());
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, *bitmap, scaling_mode);
+    };
+
+    auto paint_bitmap = [&](auto const& bitmap) {
+        paint_immutable_bitmap(Gfx::ImmutableBitmap::create(*bitmap));
     };
 
     auto paint_transparent_black = [&]() {
@@ -151,14 +156,14 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     switch (representation) {
     case Representation::VideoFrame:
         if (current_frame)
-            paint_frame(current_frame);
+            paint_immutable_bitmap(current_frame);
         if (paint_user_agent_controls)
             paint_loaded_video_controls();
         break;
 
     case Representation::PosterFrame:
         VERIFY(poster_frame);
-        paint_frame(poster_frame);
+        paint_bitmap(poster_frame);
         if (paint_user_agent_controls)
             paint_placeholder_video_controls(context, video_rect, mouse_position);
         break;

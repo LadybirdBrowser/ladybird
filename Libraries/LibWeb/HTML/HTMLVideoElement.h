@@ -41,7 +41,7 @@ public:
     RefPtr<Gfx::Bitmap> const& poster_frame() const { return m_poster_frame; }
 
     // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
-    RefPtr<Gfx::Bitmap> bitmap() const;
+    RefPtr<Gfx::ImmutableBitmap> bitmap() const;
 
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);

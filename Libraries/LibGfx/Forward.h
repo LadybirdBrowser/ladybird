@@ -22,6 +22,7 @@ struct FontPixelMetrics;
 class Painter;
 class PaintingSurface;
 class Palette;
+class YUVData;
 class PaletteImpl;
 class Path;
 class ShareableBitmap;
