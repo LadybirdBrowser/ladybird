@@ -1092,7 +1092,7 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
 #if MATROSKA_DEBUG
     size_t inter_frames_count;
 #endif
-    Optional<SampleIterator> last_keyframe;
+    SampleIterator last_keyframe = iterator;
 
     while (true) {
         SampleIterator rewind_iterator = iterator;
@@ -1102,7 +1102,7 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
             break;
 
         if (block.only_keyframes()) {
-            last_keyframe.emplace(rewind_iterator);
+            last_keyframe = rewind_iterator;
 #if MATROSKA_DEBUG
             inter_frames_count = 0;
 #endif
@@ -1113,12 +1113,10 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
 #endif
     }
 
-    if (last_keyframe.has_value()) {
 #if MATROSKA_DEBUG
-        dbgln("Seeked to a keyframe with {} inter frames to skip", inter_frames_count);
+    dbgln("Seeked to a keyframe with {} inter frames to skip", inter_frames_count);
 #endif
-        iterator = last_keyframe.release_value();
-    }
+    iterator = move(last_keyframe);
 
     return {};
 }
