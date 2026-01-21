@@ -17,7 +17,7 @@ namespace Web::Fetch {
 [[nodiscard]] ReferrerPolicy::ReferrerPolicy from_bindings_enum(Bindings::ReferrerPolicy);
 [[nodiscard]] Infrastructure::Request::Mode from_bindings_enum(Bindings::RequestMode);
 [[nodiscard]] WEB_API Infrastructure::Request::CredentialsMode from_bindings_enum(Bindings::RequestCredentials);
-[[nodiscard]] Infrastructure::Request::CacheMode from_bindings_enum(Bindings::RequestCache);
+[[nodiscard]] HTTP::CacheMode from_bindings_enum(Bindings::RequestCache);
 [[nodiscard]] Infrastructure::Request::RedirectMode from_bindings_enum(Bindings::RequestRedirect);
 [[nodiscard]] Infrastructure::Request::Priority from_bindings_enum(Bindings::RequestPriority);
 
@@ -25,7 +25,7 @@ namespace Web::Fetch {
 [[nodiscard]] Bindings::RequestDestination to_bindings_enum(Optional<Infrastructure::Request::Destination> const&);
 [[nodiscard]] Bindings::RequestMode to_bindings_enum(Infrastructure::Request::Mode);
 [[nodiscard]] Bindings::RequestCredentials to_bindings_enum(Infrastructure::Request::CredentialsMode);
-[[nodiscard]] Bindings::RequestCache to_bindings_enum(Infrastructure::Request::CacheMode);
+[[nodiscard]] Bindings::RequestCache to_bindings_enum(HTTP::CacheMode);
 [[nodiscard]] Bindings::RequestRedirect to_bindings_enum(Infrastructure::Request::RedirectMode);
 [[nodiscard]] Bindings::ResponseType to_bindings_enum(Infrastructure::Response::Type);
 

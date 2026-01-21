@@ -229,7 +229,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         if (registration.update_via_cache() != Bindings::ServiceWorkerUpdateViaCache::All
             || job->force_cache_bypass
             || (newest_worker != nullptr && registration.is_stale())) {
-            request->set_cache_mode(Fetch::Infrastructure::Request::CacheMode::NoCache);
+            request->set_cache_mode(HTTP::CacheMode::NoCache);
         }
 
         // 3. Set request’s service-workers mode to "none".

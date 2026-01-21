@@ -17,6 +17,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
@@ -34,15 +35,6 @@ class WEB_API Request final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Request);
 
 public:
-    enum class CacheMode {
-        Default,
-        NoStore,
-        Reload,
-        NoCache,
-        ForceCache,
-        OnlyIfCached,
-    };
-
     enum class CredentialsMode {
         Omit,
         SameOrigin,
@@ -242,8 +234,8 @@ public:
     [[nodiscard]] bool use_url_credentials() const { return m_use_url_credentials; }
     void set_use_url_credentials(bool use_url_credentials) { m_use_url_credentials = use_url_credentials; }
 
-    [[nodiscard]] CacheMode cache_mode() const { return m_cache_mode; }
-    void set_cache_mode(CacheMode cache_mode) { m_cache_mode = cache_mode; }
+    [[nodiscard]] HTTP::CacheMode cache_mode() const { return m_cache_mode; }
+    void set_cache_mode(HTTP::CacheMode cache_mode) { m_cache_mode = cache_mode; }
 
     [[nodiscard]] RedirectMode redirect_mode() const { return m_redirect_mode; }
     void set_redirect_mode(RedirectMode redirect_mode) { m_redirect_mode = redirect_mode; }
@@ -459,7 +451,7 @@ private:
     // https://fetch.spec.whatwg.org/#concept-request-cache-mode
     // A request has an associated cache mode, which is "default", "no-store", "reload", "no-cache", "force-cache", or
     // "only-if-cached". Unless stated otherwise, it is "default".
-    CacheMode m_cache_mode { CacheMode::Default };
+    HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
 
     // https://fetch.spec.whatwg.org/#concept-request-redirect-mode
     // A request has an associated redirect mode, which is "follow", "error", or "manual". Unless stated otherwise, it

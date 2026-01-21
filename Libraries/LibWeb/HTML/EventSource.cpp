@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     request->header_list()->set({ "Accept"sv, "text/event-stream"sv });
 
     // 11. Set request's cache mode to "no-store".
-    request->set_cache_mode(Fetch::Infrastructure::Request::CacheMode::NoStore);
+    request->set_cache_mode(HTTP::CacheMode::NoStore);
 
     // 12. Set request's initiator type to "other".
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
