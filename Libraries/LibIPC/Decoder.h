@@ -179,7 +179,7 @@ ErrorOr<T> decode(Decoder& decoder)
     auto size = TRY(decoder.decode_size());
     if (Checked<size_t>::multiplication_would_overflow(size, sizeof(typename T::ValueType)))
         return Error::from_string_literal("IPC decode: Vector size would overflow");
-    vector.resize(size);
+    TRY(vector.try_resize(size));
     TRY(decoder.decode_into({ reinterpret_cast<u8*>(vector.data()), size * sizeof(typename T::ValueType) }));
     return vector;
 }
