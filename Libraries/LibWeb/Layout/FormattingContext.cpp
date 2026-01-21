@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Dump.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexFormattingContext.h>
@@ -1945,20 +1946,18 @@ Box const* FormattingContext::box_child_to_derive_baseline_from(Box const& box) 
 {
     if (!box.has_children() || box.children_are_inline())
         return nullptr;
-    // To find the baseline of a box, we first look for the last in-flow child with at least one line box.
-    auto const* last_box_child = box.last_child_of_type<Box>();
-    for (Node const* child = last_box_child; child; child = child->previous_sibling()) {
-        if (!child->is_box())
+    // Find the last in-flow child that has a baseline (either directly via line boxes, or via its descendants).
+    for (auto const* child = box.last_child(); child; child = child->previous_sibling()) {
+        auto const* child_box = as_if<Box>(*child);
+        if (!child_box)
             continue;
-        auto& child_box = static_cast<Box const&>(*child);
-        if (!child_box.is_out_of_flow(*this) && !m_state.get(child_box).line_boxes.is_empty()) {
-            return &child_box;
-        }
-        auto box_child_to_derive_baseline_from_candidate = box_child_to_derive_baseline_from(child_box);
-        if (box_child_to_derive_baseline_from_candidate)
-            return box_child_to_derive_baseline_from_candidate;
+        if (child_box->is_out_of_flow(*this))
+            continue;
+        if (!m_state.get(*child_box).line_boxes.is_empty())
+            return child_box;
+        if (box_child_to_derive_baseline_from(*child_box))
+            return child_box;
     }
-    // None of the children has a line box.
     return nullptr;
 }
 
@@ -1966,7 +1965,7 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
 {
     auto const& box_state = m_state.get(box);
 
-    // https://www.w3.org/TR/CSS2/visudet.html#propdef-vertical-align
+    // https://drafts.csswg.org/css2/#propdef-vertical-align
     auto const& vertical_align = box.computed_values().vertical_align();
     if (vertical_align.has<CSS::VerticalAlign>()) {
         switch (vertical_align.get<CSS::VerticalAlign>()) {
@@ -1990,14 +1989,37 @@ CSSPixels FormattingContext::box_baseline(Box const& box) const
         }
     }
 
+    // https://drafts.csswg.org/css2/#propdef-vertical-align
+    // The baseline of an 'inline-block' is the baseline of its last line box in the normal flow, unless it has either
+    // no in-flow line boxes or if its 'overflow' property has a computed value other than 'visible', in which case the
+    // baseline is the bottom margin edge.
+    // NB: This overflow exception only applies to inline-block, not to inline-flex or inline-grid containers, which
+    //     always derive their baselines from their content per CSS Align and the respective Flexbox/Grid specs.
+    auto const& display = box.display();
     auto const& overflow_x = box.computed_values().overflow_x();
     auto const& overflow_y = box.computed_values().overflow_y();
+    bool has_visible_overflow = overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible;
+    bool always_derive_from_content = display.is_flex_inside() || display.is_grid_inside() || has_visible_overflow;
 
-    if (!box_state.line_boxes.is_empty() && overflow_x == CSS::Overflow::Visible && overflow_y == CSS::Overflow::Visible)
-        return box_state.margin_box_top() + box_state.offset.y() + box_state.line_boxes.last().baseline();
-    if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
-        return box_state.margin_box_top() + box_state.offset.y() + box_baseline(*child_box);
+    if (always_derive_from_content && !box_state.line_boxes.is_empty()) {
+        auto const& last_line_box = box_state.line_boxes.last();
+        auto last_line_box_top = last_line_box.bottom() - last_line_box.block_length();
+        return box_state.margin_box_top() + last_line_box_top + last_line_box.baseline();
     }
+
+    // Derive baseline from block children if the box is flex/grid inside or has visible overflow.
+    // AD-HOC: We also derive baseline from children for <input> elements. Per the HTML spec, inputs have
+    //         `overflow: clip !important`, so CSS2 says to use bottom margin edge. However, the internal shadow tree
+    //         baseline should determine the control's baseline for proper alignment with adjacent text.
+    //         https://html.spec.whatwg.org/multipage/rendering.html#form-controls
+    if (auto const* child_box = box_child_to_derive_baseline_from(box)) {
+        if (always_derive_from_content || is<HTML::HTMLInputElement>(box.dom_node())) {
+            auto const& child_box_state = m_state.get(*child_box);
+            auto child_offset_from_margin_edge = child_box_state.offset.y() - child_box_state.margin_box_top();
+            return box_state.margin_box_top() + child_offset_from_margin_edge + box_baseline(*child_box);
+        }
+    }
+
     // If none of the children have a baseline set, the bottom margin edge of the box is used.
     return box_state.margin_box_height();
 }
