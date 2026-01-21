@@ -839,8 +839,8 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         auto& test = context.tests[test_index];
         VERIFY(test.ref_test_expectation_type.has_value());
         auto should_match = test.ref_test_expectation_type == RefTestExpectationType::Match;
-        auto screenshot_matches = fuzzy_screenshot_match(
-            url, view.url(), *test.actual_screenshot, *test.expectation_screenshot, test.fuzzy_matches);
+        auto screenshot_matches = fuzzy_screenshot_match(url, view.url(), *test.actual_screenshot,
+            *test.expectation_screenshot, test.fuzzy_matches, should_match);
         if (should_match == screenshot_matches)
             return TestResult::Pass;
 

@@ -14,8 +14,8 @@
 namespace TestWeb {
 
 // https://web-platform-tests.org/writing-tests/reftests.html#fuzzy-matching
-bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const& bitmap_a, Gfx::Bitmap const& bitmap_b,
-    Vector<FuzzyMatch> const& fuzzy_matches)
+bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference, Gfx::Bitmap const& bitmap_a,
+    Gfx::Bitmap const& bitmap_b, ReadonlySpan<FuzzyMatch> fuzzy_matches, bool should_match)
 {
     if (bitmap_a.width() != bitmap_b.width() || bitmap_a.height() != bitmap_b.height())
         return false;
@@ -32,17 +32,18 @@ bool fuzzy_screenshot_match(URL::URL const& test_url, URL::URL const& reference,
         return true;
     });
     if (!fuzzy_match.has_value()) {
-        add_deferred_warning(ByteString::formatted("{}: Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", test_url, diff.pixel_error_count, diff.maximum_error));
+        if (should_match)
+            add_deferred_warning(ByteString::formatted("{}: Screenshot mismatch: pixel error count {}, with maximum error {}. (No fuzzy config defined)", test_url, diff.pixel_error_count, diff.maximum_error));
         return false;
     }
 
     // Apply fuzzy matching.
     auto color_error_matches = fuzzy_match->color_value_error.contains(diff.maximum_error);
-    if (!color_error_matches)
+    if (!color_error_matches && should_match)
         add_deferred_warning(ByteString::formatted("{}: Fuzzy mismatch: maximum error {} is outside {}", test_url, diff.maximum_error, fuzzy_match->color_value_error));
 
     auto pixel_error_matches = fuzzy_match->pixel_error_count.contains(diff.pixel_error_count);
-    if (!pixel_error_matches)
+    if (!pixel_error_matches && should_match)
         add_deferred_warning(ByteString::formatted("{}: Fuzzy mismatch: pixel error count {} is outside {}", test_url, diff.pixel_error_count, fuzzy_match->pixel_error_count));
 
     return color_error_matches && pixel_error_matches;
