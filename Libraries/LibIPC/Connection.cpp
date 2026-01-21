@@ -45,7 +45,7 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer buffer)
     if (!m_transport->is_open())
         return Error::from_string_literal("Trying to post_message during IPC shutdown");
 
-    MUST(buffer.transfer_message(*m_transport));
+    TRY(buffer.transfer_message(*m_transport));
 
     return {};
 }
