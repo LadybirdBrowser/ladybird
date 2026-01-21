@@ -231,7 +231,8 @@ ErrorOr<T> decode_variant(Decoder& decoder, size_t index)
 
         return decode_variant<T, Index + 1>(decoder, index);
     } else {
-        return Error::from_string_literal("IPC decode: Invalid variant index");
+        // Index was validated before calling decode_variant
+        VERIFY_NOT_REACHED();
     }
 }
 
@@ -241,6 +242,8 @@ template<Concepts::Variant T>
 ErrorOr<T> decode(Decoder& decoder)
 {
     auto index = TRY(decoder.decode<typename T::IndexType>());
+    if (index >= TypeList<T>::size)
+        return Error::from_string_literal("IPC decode: Invalid variant index");
     return Detail::decode_variant<T>(decoder, index);
 }
 
