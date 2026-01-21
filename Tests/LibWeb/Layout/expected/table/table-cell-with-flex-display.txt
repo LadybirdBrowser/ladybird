@@ -1,0 +1,36 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 122 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 106 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 137.15625 0+0+646.84375] [0+0+0 106 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 137.15625 0+0+0] [0+0+0 106 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 133.15625 0+0+0] [0+0+0 102 0+0+0] children: not-inline
+            Box <tr> at [10,10] table-row [0+0+0 133.15625 0+0+0] [0+0+0 102 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 29.15625 0+0+0] [0+0+0 20 82+0+0] [BFC] children: not-inline
+                Box <td.flex> at [11,11] flex-container(row) [0+0+1 27.15625 1+0+0] [0+0+1 18 1+0+0] [FFC] children: not-inline
+                  BlockContainer <(anonymous)> at [11,11] flex-item [0+0+0 27.15625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                    frag 0 from TextNode start: 0, length: 3, rect: [11,11 27.15625x18] baseline: 13.796875
+                        "foo"
+                    TextNode <#text> (not painted)
+              BlockContainer <td> at [42.15625,11] table-cell [0+0+1 100 1+0+0] [0+0+1 100 1+0+0] [BFC] children: not-inline
+                BlockContainer <div.tall> at [42.15625,11] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: inline
+                  frag 0 from TextNode start: 0, length: 3, rect: [42.15625,11 27.640625x18] baseline: 13.796875
+                      "bar"
+                  TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x122]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x106]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 137.15625x106]
+        PaintableBox (Box<TABLE>) [8,8 137.15625x106]
+          PaintableBox (Box<TBODY>) [10,10 133.15625x102]
+            PaintableBox (Box<TR>) [10,10 133.15625x102]
+              PaintableWithLines (BlockContainer(anonymous)) [10,10 29.15625x102]
+                PaintableBox (Box<TD>.flex) [10,10 29.15625x20]
+                  PaintableWithLines (BlockContainer(anonymous)) [11,11 27.15625x18]
+                    TextPaintable (TextNode<#text>)
+              PaintableWithLines (BlockContainer<TD>) [41.15625,10 102x102]
+                PaintableWithLines (BlockContainer<DIV>.tall) [42.15625,11 100x100]
+                  TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x122] [children: 0] (z-index: auto)
