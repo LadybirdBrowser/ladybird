@@ -18,6 +18,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -313,8 +314,8 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     auto mask_image = computed_values.mask_image();
     Optional<Gfx::Filter> resolved_filter;
-    if (computed_values.filter().has_filters())
-        resolved_filter = paintable_box().resolve_filter(context, computed_values.filter());
+    if (paintable_box().filter().has_filters())
+        resolved_filter = to_gfx_filter(paintable_box().filter(), context.device_pixels_per_css_pixel());
 
     bool needs_opacity_layer = opacity != 1.0f || isolate;
     bool needs_blend_layer = compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal;
