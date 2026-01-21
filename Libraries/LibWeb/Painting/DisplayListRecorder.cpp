@@ -65,6 +65,13 @@ void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
     APPEND(FillRect { rect, color });
 }
 
+void DisplayListRecorder::fill_rect_transparent(Gfx::IntRect const& rect)
+{
+    if (rect.is_empty())
+        return;
+    APPEND(FillRect { rect, Color::Transparent });
+}
+
 void DisplayListRecorder::fill_path(FillPathParams params)
 {
     if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)

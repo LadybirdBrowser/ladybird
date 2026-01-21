@@ -8,10 +8,12 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Variant.h>
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
@@ -58,7 +60,22 @@ struct ClipPathData {
     Gfx::WindingRule fill_rule;
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData>;
+struct EffectsData {
+    float opacity { 1.0f };
+    Gfx::CompositingAndBlendingOperator blend_mode { Gfx::CompositingAndBlendingOperator::Normal };
+    ResolvedCSSFilter filter;
+    bool isolate { false };
+
+    bool needs_layer() const
+    {
+        return opacity < 1.0f
+            || blend_mode != Gfx::CompositingAndBlendingOperator::Normal
+            || filter.has_filters()
+            || isolate;
+    }
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData>;
 
 class AccumulatedVisualContext : public AtomicRefCounted<AccumulatedVisualContext> {
 public:

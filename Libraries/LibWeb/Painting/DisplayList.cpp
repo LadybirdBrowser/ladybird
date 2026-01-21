@@ -7,6 +7,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
 #include <LibWeb/Painting/DisplayList.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 
 namespace Web::Painting {
 
@@ -99,14 +100,20 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     };
 
     auto apply_accumulated_visual_context = [&](AccumulatedVisualContext const& node) {
-        save({});
-
         node.data().visit(
+            [&](EffectsData const& effects) {
+                Optional<Gfx::Filter> gfx_filter;
+                if (effects.filter.has_filters())
+                    gfx_filter = to_gfx_filter(effects.filter, device_pixels_per_css_pixel);
+                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = gfx_filter });
+            },
             [&](PerspectiveData const& perspective) {
+                save({});
                 auto matrix = scale_matrix_translation(perspective.matrix, static_cast<float>(device_pixels_per_css_pixel));
                 apply_transform({ .origin = { 0, 0 }, .matrix = matrix });
             },
             [&](ScrollData const& scroll) {
+                save({});
                 auto own_offset = scroll_state.own_offset_for_frame_with_id(scroll.scroll_frame_id);
                 if (!own_offset.is_zero()) {
                     auto scroll_offset = own_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
@@ -114,11 +121,13 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 }
             },
             [&](TransformData const& transform) {
+                save({});
                 auto origin = transform.origin.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<float>();
                 auto matrix = scale_matrix_translation(transform.matrix, static_cast<float>(device_pixels_per_css_pixel));
                 apply_transform({ .origin = { origin.x(), origin.y() }, .matrix = matrix });
             },
             [&](ClipData const& clip) {
+                save({});
                 auto device_rect = device_pixel_converter.rounded_device_rect(clip.rect).to_type<int>();
                 auto corner_radii = clip.corner_radii.as_corners(device_pixel_converter);
                 if (corner_radii.has_any_radius())
@@ -127,6 +136,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                     add_clip_rect({ .rect = device_rect });
             },
             [&](ClipPathData const& clip_path) {
+                save({});
                 auto transformed_path = clip_path.path.copy_transformed(Gfx::AffineTransform {}.set_scale(static_cast<float>(device_pixels_per_css_pixel), static_cast<float>(device_pixels_per_css_pixel)));
                 add_clip_path(transformed_path);
             });

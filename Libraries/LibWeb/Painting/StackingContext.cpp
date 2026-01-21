@@ -14,11 +14,9 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -299,8 +297,7 @@ Gfx::AffineTransform StackingContext::affine_transform_matrix() const
 
 void StackingContext::paint(DisplayListRecordingContext& context) const
 {
-    auto opacity = paintable_box().computed_values().opacity();
-    if (opacity == 0.0f)
+    if (paintable_box().computed_values().opacity() == 0.0f)
         return;
 
     TemporaryChange save_nesting_level(context.display_list_recorder().m_save_nesting_level, 0);
@@ -309,37 +306,24 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     });
 
     auto const& computed_values = paintable_box().computed_values();
-    auto compositing_and_blending_operator = mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode());
-    bool isolate = computed_values.isolation() == CSS::Isolation::Isolate;
-
     auto mask_image = computed_values.mask_image();
-    Optional<Gfx::Filter> resolved_filter;
-    if (paintable_box().filter().has_filters())
-        resolved_filter = to_gfx_filter(paintable_box().filter(), context.device_pixels_per_css_pixel());
 
-    bool needs_opacity_layer = opacity != 1.0f || isolate;
-    bool needs_blend_layer = compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal;
-    bool needs_stacking_layer = needs_opacity_layer || needs_blend_layer;
+    // Mask handling stays at paint time with its own save/restore.
     bool needs_to_save_state = mask_image || paintable_box().get_masking_area().has_value();
 
     auto effective_state = paintable_box().accumulated_visual_context();
-    auto stacking_state = (paintable_box().has_css_transform() && effective_state) ? effective_state->parent() : effective_state;
-
-    int restore_count = 0;
-
-    context.display_list_recorder().set_accumulated_visual_context(stacking_state);
-
-    if (needs_stacking_layer || resolved_filter.has_value()) {
-        context.display_list_recorder().apply_effects(opacity, compositing_and_blending_operator, resolved_filter);
-        restore_count++;
-    }
-
-    if (needs_to_save_state && !needs_stacking_layer && !resolved_filter.has_value()) {
-        context.display_list_recorder().save();
-        restore_count++;
-    }
-
     context.display_list_recorder().set_accumulated_visual_context(effective_state);
+
+    // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
+    // This ensures content-generating filters (feFlood, feImage) work even with empty source.
+    if (auto const& bounds = paintable_box().filter().svg_filter_bounds; bounds.has_value()) {
+        auto device_rect = context.enclosing_device_rect(*bounds).to_type<int>();
+        context.display_list_recorder().fill_rect_transparent(device_rect);
+    }
+
+    if (needs_to_save_state) {
+        context.display_list_recorder().save();
+    }
 
     if (mask_image) {
         auto mask_display_list = DisplayList::create(context.device_pixels_per_css_pixel());
@@ -364,7 +348,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
     context.display_list_recorder().set_accumulated_visual_context(context_before_children);
 
-    for (int i = 0; i < restore_count; i++)
+    if (needs_to_save_state)
         context.display_list_recorder().restore();
 }
 

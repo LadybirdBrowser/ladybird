@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/String.h>
+#include <AK/StringBuilder.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 
 namespace Web::Painting {
@@ -56,6 +58,59 @@ Optional<Gfx::Filter> to_gfx_filter(ResolvedCSSFilter const& css_filter, double 
     }
 
     return resolved_filter;
+}
+
+void ResolvedCSSFilter::dump(StringBuilder& builder) const
+{
+    if (!operations.is_empty()) {
+        builder.append("filters=("sv);
+        bool first = true;
+        for (auto const& op : operations) {
+            if (!first)
+                builder.append(", "sv);
+            first = false;
+            op.visit(
+                [&](Blur const& blur) {
+                    builder.appendff("blur({})", blur.radius.to_float());
+                },
+                [&](DropShadow const& shadow) {
+                    builder.appendff("drop-shadow({} {} {} {})", shadow.offset_x.to_float(), shadow.offset_y.to_float(), shadow.radius.to_float(), shadow.color.to_string());
+                },
+                [&](Color const& color) {
+                    StringView name;
+                    switch (color.operation) {
+                    case Gfx::ColorFilterType::Brightness:
+                        name = "brightness"sv;
+                        break;
+                    case Gfx::ColorFilterType::Contrast:
+                        name = "contrast"sv;
+                        break;
+                    case Gfx::ColorFilterType::Grayscale:
+                        name = "grayscale"sv;
+                        break;
+                    case Gfx::ColorFilterType::Invert:
+                        name = "invert"sv;
+                        break;
+                    case Gfx::ColorFilterType::Opacity:
+                        name = "opacity"sv;
+                        break;
+                    case Gfx::ColorFilterType::Saturate:
+                        name = "saturate"sv;
+                        break;
+                    case Gfx::ColorFilterType::Sepia:
+                        name = "sepia"sv;
+                        break;
+                    }
+                    builder.appendff("{}({})", name, color.amount);
+                },
+                [&](HueRotate const& hue) {
+                    builder.appendff("hue-rotate({}deg)", hue.angle_degrees);
+                });
+        }
+        builder.append(")"sv);
+    }
+    if (svg_filter.has_value())
+        builder.append(" svg_filter"sv);
 }
 
 }

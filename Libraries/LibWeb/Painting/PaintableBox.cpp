@@ -1304,6 +1304,15 @@ void PaintableBox::resolve_paint_properties()
                     if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
                         auto& node = layout_node_with_style_and_box_metrics();
                         result.svg_filter = filter_element->gfx_filter(node);
+                        // Compute bounds for triggering filter application.
+                        // For empty elements (like <use> with no href), use the containing SVG's viewport.
+                        auto bounds = absolute_border_box_rect();
+                        if (bounds.is_empty()) {
+                            if (auto const* svg_ancestor = first_ancestor_of_type<SVGSVGPaintable>())
+                                result.svg_filter_bounds = svg_ancestor->absolute_rect();
+                        }
+                        if (!bounds.is_empty())
+                            result.svg_filter_bounds = bounds;
                     }
                 });
         }
