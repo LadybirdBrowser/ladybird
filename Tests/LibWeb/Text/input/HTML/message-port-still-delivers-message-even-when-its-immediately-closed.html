@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const messageChannel = new MessageChannel();
+        messageChannel.port1.onmessage = (event) => {
+            println(`Port 1 received message: ${event.data}`);
+            done();
+        };
+        messageChannel.port2.postMessage("Hello world!");
+        messageChannel.port2.close();
+    });
+</script>
