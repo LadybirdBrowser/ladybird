@@ -7,6 +7,7 @@
 
 #include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Types.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportSocket.h>
@@ -205,6 +206,12 @@ void TransportSocket::wait_until_readable()
     }
 }
 
+// Maximum size of an IPC message payload (64 MiB should be more than enough)
+static constexpr size_t MAX_MESSAGE_PAYLOAD_SIZE = 64 * MiB;
+
+// Maximum number of file descriptors per message
+static constexpr size_t MAX_MESSAGE_FD_COUNT = 128;
+
 struct MessageHeader {
     enum class Type : u8 {
         Payload = 0,
@@ -350,6 +357,16 @@ void TransportSocket::read_incoming_messages()
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
         if (header.type == MessageHeader::Type::Payload) {
+            if (header.payload_size > MAX_MESSAGE_PAYLOAD_SIZE) {
+                dbgln("TransportSocket: Rejecting message with payload_size {} exceeding limit {}", header.payload_size, MAX_MESSAGE_PAYLOAD_SIZE);
+                m_peer_eof = true;
+                break;
+            }
+            if (header.fd_count > MAX_MESSAGE_FD_COUNT) {
+                dbgln("TransportSocket: Rejecting message with fd_count {} exceeding limit {}", header.fd_count, MAX_MESSAGE_FD_COUNT);
+                m_peer_eof = true;
+                break;
+            }
             Checked<size_t> message_size = header.payload_size;
             message_size += sizeof(MessageHeader);
             if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
