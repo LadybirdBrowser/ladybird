@@ -178,7 +178,12 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
 {
+    auto const& web_content_options = WebView::Application::web_content_options();
+
     Vector<ByteString> arguments;
+
+    if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
+        arguments.append("--enable-http-memory-cache"sv);
 
     auto request_server_socket = TRY(connect_new_request_server_client());
     arguments.append("--request-server-socket"sv);

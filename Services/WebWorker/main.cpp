@@ -13,6 +13,7 @@
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -49,6 +50,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView serenity_resource_root;
     StringView worker_type_string;
     Vector<ByteString> certificates;
+    bool enable_http_memory_cache = false;
     bool wait_for_debugger = false;
 
     Core::ArgsParser args_parser;
@@ -56,6 +58,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
     args_parser.add_option(serenity_resource_root, "Absolute path to directory for serenity resources", "serenity-resource-root", 'r', "serenity-resource-root");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
+    args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
 
@@ -69,6 +72,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop event_loop;
 
     WebView::platform_init();
+
+    if (enable_http_memory_cache)
+        Web::Fetch::Fetching::set_http_memory_cache_enabled(true);
 
     OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
 

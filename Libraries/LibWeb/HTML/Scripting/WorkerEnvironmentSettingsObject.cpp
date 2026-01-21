@@ -35,11 +35,21 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.
-    // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to outside settings's top-level origin.
+
+    // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to
+    //    outside settings's top-level origin.
     if (is<DedicatedWorkerGlobalScope>(worker)) {
         settings_object->top_level_origin = outside_settings.top_level_origin;
     }
-    // FIXME: 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
+    // 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
+    else {
+        // FIXME: We set this to the same top-level origin as DedicatedWorkerGlobalScope objects for now, as this needs
+        //        to be non-null for determining network partition keys. The spec notes:
+        //
+        //        See Client-Side Storage Partitioning for the latest on properly defining this.
+        //        https://privacycg.github.io/storage-partitioning/
+        settings_object->top_level_origin = outside_settings.top_level_origin;
+    }
 
     // 8. Set realm's [[HostDefined]] field to settings object.
     auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
