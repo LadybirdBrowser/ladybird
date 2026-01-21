@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -338,8 +339,8 @@ void TransportSocket::read_incoming_messages()
         }
     }
 
-    u32 received_fd_count = 0;
-    u32 acknowledged_fd_count = 0;
+    Checked<u32> received_fd_count = 0;
+    Checked<u32> acknowledged_fd_count = 0;
     size_t index = 0;
     while (index + sizeof(MessageHeader) <= m_unprocessed_bytes.size()) {
         MessageHeader header;
@@ -351,6 +352,11 @@ void TransportSocket::read_incoming_messages()
                 break;
             auto message = make<Message>();
             received_fd_count += header.fd_count;
+            if (received_fd_count.has_overflow()) {
+                dbgln("TransportSocket: received_fd_count would overflow");
+                m_peer_eof = true;
+                break;
+            }
             for (size_t i = 0; i < header.fd_count; ++i)
                 message->fds.enqueue(m_unprocessed_fds.dequeue());
             message->bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size);
@@ -362,6 +368,11 @@ void TransportSocket::read_incoming_messages()
                 break;
             }
             acknowledged_fd_count += header.fd_count;
+            if (acknowledged_fd_count.has_overflow()) {
+                dbgln("TransportSocket: acknowledged_fd_count would overflow");
+                m_peer_eof = true;
+                break;
+            }
         } else {
             dbgln("TransportSocket: Unknown message header type {}", static_cast<u8>(header.type));
             m_peer_eof = true;
@@ -370,20 +381,25 @@ void TransportSocket::read_incoming_messages()
         index += header.payload_size + sizeof(MessageHeader);
     }
 
-    if (acknowledged_fd_count > 0) {
+    if (acknowledged_fd_count > 0u) {
         Threading::MutexLocker locker(m_fds_retained_until_received_by_peer_mutex);
-        while (acknowledged_fd_count > 0) {
+        while (acknowledged_fd_count > 0u) {
+            if (m_fds_retained_until_received_by_peer.is_empty()) {
+                dbgln("TransportSocket: Peer acknowledged more FDs than we sent");
+                m_peer_eof = true;
+                break;
+            }
             (void)m_fds_retained_until_received_by_peer.dequeue();
             --acknowledged_fd_count;
         }
     }
 
-    if (received_fd_count > 0) {
+    if (received_fd_count > 0u) {
         Vector<u8> message_buffer;
         message_buffer.resize(sizeof(MessageHeader));
         MessageHeader header;
         header.payload_size = 0;
-        header.fd_count = received_fd_count;
+        header.fd_count = received_fd_count.value();
         header.type = MessageHeader::Type::FileDescriptorAcknowledgement;
         memcpy(message_buffer.data(), &header, sizeof(MessageHeader));
         m_send_queue->enqueue_message(move(message_buffer), {});
