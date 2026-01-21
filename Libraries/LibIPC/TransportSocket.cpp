@@ -333,7 +333,11 @@ void TransportSocket::read_incoming_messages()
             break;
         }
 
-        m_unprocessed_bytes.append(bytes_read.data(), bytes_read.size());
+        if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
+            dbgln("TransportSocket: Failed to append to unprocessed_bytes buffer");
+            m_peer_eof = true;
+            break;
+        }
         for (auto const& fd : received_fds) {
             m_unprocessed_fds.enqueue(File::adopt_fd(fd));
         }
@@ -359,7 +363,11 @@ void TransportSocket::read_incoming_messages()
             }
             for (size_t i = 0; i < header.fd_count; ++i)
                 message->fds.enqueue(m_unprocessed_fds.dequeue());
-            message->bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size);
+            if (message->bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size).is_error()) {
+                dbgln("TransportSocket: Failed to allocate message buffer for payload_size {}", header.payload_size);
+                m_peer_eof = true;
+                break;
+            }
             batch.append(move(message));
         } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {
             if (header.payload_size != 0) {
@@ -407,8 +415,13 @@ void TransportSocket::read_incoming_messages()
     }
 
     if (index < m_unprocessed_bytes.size()) {
-        auto remaining_bytes = MUST(ByteBuffer::copy(m_unprocessed_bytes.span().slice(index)));
-        m_unprocessed_bytes = move(remaining_bytes);
+        auto remaining_bytes_or_error = ByteBuffer::copy(m_unprocessed_bytes.span().slice(index));
+        if (remaining_bytes_or_error.is_error()) {
+            dbgln("TransportSocket: Failed to copy remaining bytes");
+            m_peer_eof = true;
+        } else {
+            m_unprocessed_bytes = remaining_bytes_or_error.release_value();
+        }
     } else {
         m_unprocessed_bytes.clear();
     }
