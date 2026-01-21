@@ -67,12 +67,6 @@ public:
     VisualContextData const& data() const { return m_data; }
     RefPtr<AccumulatedVisualContext const> parent() const { return m_parent; }
 
-    bool is_scroll() const { return m_data.has<ScrollData>(); }
-    bool is_clip() const { return m_data.has<ClipData>(); }
-    bool is_transform() const { return m_data.has<TransformData>(); }
-    bool is_perspective() const { return m_data.has<PerspectiveData>(); }
-    bool is_clip_path() const { return m_data.has<ClipPathData>(); }
-
     size_t depth() const { return m_depth; }
     size_t id() const { return m_id; }
 
