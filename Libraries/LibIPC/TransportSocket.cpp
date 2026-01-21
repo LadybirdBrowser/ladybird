@@ -96,7 +96,8 @@ intptr_t TransportSocket::io_thread_loop()
         } while (result.is_error() && result.error().code() == EINTR);
         if (result.is_error()) {
             dbgln("TransportSocket poll error: {}", result.error());
-            VERIFY_NOT_REACHED();
+            m_io_thread_state = IOThreadState::Stopped;
+            break;
         }
 
         if (pollfds[1].revents & POLLIN) {
@@ -114,7 +115,9 @@ intptr_t TransportSocket::io_thread_loop()
         }
 
         if (pollfds[0].revents & (POLLERR | POLLNVAL)) {
-            VERIFY_NOT_REACHED();
+            dbgln("TransportSocket poll: socket error (POLLERR or POLLNVAL)");
+            m_io_thread_state = IOThreadState::Stopped;
+            break;
         }
 
         if (pollfds[0].revents & POLLOUT) {
@@ -288,7 +291,7 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
         }
 
         dbgln("TransportSocket::send_thread: {}", result.error());
-        VERIFY_NOT_REACHED();
+        return TransferState::SocketClosed;
     }
 
     auto written_byte_count = byte_count - bytes.size();
@@ -319,7 +322,8 @@ void TransportSocket::read_incoming_messages()
 
             dbgln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
             warnln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
-            VERIFY_NOT_REACHED();
+            m_peer_eof = true;
+            break;
         }
 
         auto bytes_read = maybe_bytes_read.release_value();
@@ -352,10 +356,16 @@ void TransportSocket::read_incoming_messages()
             message->bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size);
             batch.append(move(message));
         } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {
-            VERIFY(header.payload_size == 0);
+            if (header.payload_size != 0) {
+                dbgln("TransportSocket: FileDescriptorAcknowledgement with non-zero payload_size {}", header.payload_size);
+                m_peer_eof = true;
+                break;
+            }
             acknowledged_fd_count += header.fd_count;
         } else {
-            VERIFY_NOT_REACHED();
+            dbgln("TransportSocket: Unknown message header type {}", static_cast<u8>(header.type));
+            m_peer_eof = true;
+            break;
         }
         index += header.payload_size + sizeof(MessageHeader);
     }

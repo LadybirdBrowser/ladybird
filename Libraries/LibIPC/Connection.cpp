@@ -95,14 +95,20 @@ void ConnectionBase::wait_for_transport_to_become_readable()
 
 ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
 {
+    bool parse_error = false;
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
         if (auto message = try_parse_message(raw_message.bytes, raw_message.fds)) {
             m_unprocessed_messages.append(message.release_nonnull());
         } else {
             dbgln("Failed to parse IPC message {:hex-dump}", raw_message.bytes);
-            VERIFY_NOT_REACHED();
+            parse_error = true;
         }
     });
+
+    if (parse_error) {
+        dbgln("IPC::ConnectionBase ({:p}): Disconnecting misbehaving peer due to malformed message", this);
+        schedule_shutdown = Transport::ShouldShutdown::Yes;
+    }
 
     if (!m_unprocessed_messages.is_empty()) {
         deferred_invoke([this] {
