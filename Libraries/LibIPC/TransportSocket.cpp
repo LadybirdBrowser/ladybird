@@ -350,7 +350,9 @@ void TransportSocket::read_incoming_messages()
         MessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(MessageHeader));
         if (header.type == MessageHeader::Type::Payload) {
-            if (header.payload_size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
+            Checked<size_t> message_size = header.payload_size;
+            message_size += sizeof(MessageHeader);
+            if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
                 break;
             if (header.fd_count > m_unprocessed_fds.size())
                 break;
@@ -386,7 +388,15 @@ void TransportSocket::read_incoming_messages()
             m_peer_eof = true;
             break;
         }
-        index += header.payload_size + sizeof(MessageHeader);
+        Checked<size_t> new_index = index;
+        new_index += header.payload_size;
+        new_index += sizeof(MessageHeader);
+        if (new_index.has_overflow()) {
+            dbgln("TransportSocket: index would overflow");
+            m_peer_eof = true;
+            break;
+        }
+        index = new_index.value();
     }
 
     if (acknowledged_fd_count > 0u) {
