@@ -7,6 +7,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <math.h>
 
 namespace Web {
 
@@ -119,5 +120,9 @@ WEB_API ErrorOr<Web::PinchEvent> IPC::decode(Decoder& decoder)
 {
     auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
     auto scale_delta = TRY(decoder.decode<double>());
+
+    if (isnan(scale_delta) || isinf(scale_delta))
+        return Error::from_string_literal("IPC: Invalid scale_delta value");
+
     return Web::PinchEvent { position, scale_delta };
 }
