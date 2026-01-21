@@ -66,6 +66,10 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
                 if (!clip_path.path.contains(point.to_type<float>(), clip_path.fill_rule))
                     return {};
                 return point;
+            },
+            [&](EffectsData const&) -> Optional<CSSPixelPoint> {
+                // Effects don't affect coordinate transforms
+                return point;
             });
 
         if (!result.has_value())
@@ -100,7 +104,8 @@ CSSPixelRect AccumulatedVisualContext::transform_rect_to_viewport(CSSPixelRect c
                 rect.translate_by(offset.to_type<float>());
             },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
-            [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ });
+            [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
+            [&](EffectsData const&) { /* effects don't affect rect coordinates */ });
     }
 
     return rect.to_type<CSSPixels>();
@@ -134,6 +139,32 @@ void AccumulatedVisualContext::dump(StringBuilder& builder) const
         [&](ClipPathData const& clip_path) {
             auto const& rect = clip_path.bounding_rect;
             builder.appendff("clip_path=[bounds: {},{} {}x{}, path: {}]", rect.x().to_float(), rect.y().to_float(), rect.width().to_float(), rect.height().to_float(), clip_path.path.to_svg_string());
+        },
+        [&](EffectsData const& effects) {
+            builder.append("effects=["sv);
+            bool has_content = false;
+            if (effects.opacity < 1.0f) {
+                builder.appendff("opacity={}", effects.opacity);
+                has_content = true;
+            }
+            if (effects.blend_mode != Gfx::CompositingAndBlendingOperator::Normal) {
+                if (has_content)
+                    builder.append(' ');
+                builder.appendff("blend_mode={}", static_cast<int>(effects.blend_mode));
+                has_content = true;
+            }
+            if (effects.filter.has_filters()) {
+                if (has_content)
+                    builder.append(' ');
+                effects.filter.dump(builder);
+                has_content = true;
+            }
+            if (effects.isolate) {
+                if (has_content)
+                    builder.append(' ');
+                builder.append("isolate"sv);
+            }
+            builder.append("]"sv);
         });
 }
 

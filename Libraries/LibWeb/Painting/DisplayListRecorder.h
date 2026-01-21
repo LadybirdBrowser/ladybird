@@ -36,6 +36,7 @@ class WEB_API DisplayListRecorder {
 
 public:
     void fill_rect(Gfx::IntRect const& rect, Color color);
+    void fill_rect_transparent(Gfx::IntRect const& rect);
 
     struct FillPathParams {
         Gfx::Path path;

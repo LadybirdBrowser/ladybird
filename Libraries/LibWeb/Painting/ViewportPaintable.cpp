@@ -9,6 +9,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -178,13 +179,25 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
                 own_state = append_node(own_state, ScrollData { sticky_frame->id(), true });
         }
 
+        auto const& computed_values = paintable_box.computed_values();
+
+        EffectsData effects {
+            computed_values.opacity(),
+            mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+            paintable_box.filter(),
+            computed_values.isolation() == CSS::Isolation::Isolate
+        };
+
+        if (effects.needs_layer())
+            own_state = append_node(own_state, move(effects));
+
         if (paintable_box.has_css_transform())
             own_state = append_node(own_state, TransformData { paintable_box.transform(), paintable_box.transform_origin() });
 
         if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
             own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
 
-        if (auto const& clip_path = paintable_box.computed_values().clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
+        if (auto const& clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
             if (auto masking_area = paintable_box.get_masking_area(); masking_area.has_value()) {
                 auto reference_box = CSSPixelRect { {}, masking_area->size() };
                 auto const& basic_shape = clip_path->basic_shape();
@@ -206,8 +219,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (auto perspective = paintable_box.perspective_matrix(); perspective.has_value())
             state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective });
 
-        auto overflow_x = paintable_box.computed_values().overflow_x();
-        auto overflow_y = paintable_box.computed_values().overflow_y();
+        auto overflow_x = computed_values.overflow_x();
+        auto overflow_y = computed_values.overflow_y();
         auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
 
         if (has_hidden_overflow || paintable_box.layout_node().has_paint_containment()) {
