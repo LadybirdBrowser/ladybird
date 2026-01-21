@@ -16,6 +16,7 @@
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
+#include <LibWeb/Painting/ResolvedCSSFilter.h>
 
 namespace Web::Painting {
 
@@ -202,6 +203,12 @@ public:
     void set_outline_offset(CSSPixels outline_offset) { m_outline_offset = outline_offset; }
     CSSPixels outline_offset() const { return m_outline_offset; }
 
+    void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
+    ResolvedCSSFilter const& filter() const { return m_filter; }
+
+    void set_backdrop_filter(ResolvedCSSFilter backdrop_filter) { m_backdrop_filter = move(backdrop_filter); }
+    ResolvedCSSFilter const& backdrop_filter() const { return m_backdrop_filter; }
+
     Optional<CSSPixelRect> get_clip_rect() const;
 
     virtual bool wants_mouse_events() const override;
@@ -251,8 +258,6 @@ public:
             return m_own_scroll_frame->own_offset();
         return {};
     }
-
-    Optional<Gfx::Filter> resolve_filter(DisplayListRecordingContext&, CSS::Filter const& computed_filter) const;
 
 protected:
     explicit PaintableBox(Layout::Box const&);
@@ -334,6 +339,9 @@ private:
 
     Optional<BordersData> m_outline_data;
     CSSPixels m_outline_offset { 0 };
+
+    ResolvedCSSFilter m_filter;
+    ResolvedCSSFilter m_backdrop_filter;
 
     Optional<CSSPixels> m_scroll_thumb_grab_position;
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;

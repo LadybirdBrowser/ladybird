@@ -629,15 +629,13 @@ void PaintableBox::paint_border(DisplayListRecordingContext& context) const
 
 void PaintableBox::paint_backdrop_filter(DisplayListRecordingContext& context) const
 {
-    auto const& backdrop_filter = computed_values().backdrop_filter();
-    if (backdrop_filter.is_none()) {
+    if (!m_backdrop_filter.has_filters())
         return;
-    }
 
     auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
     auto border_radii_data = normalized_border_radii_data();
     ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
-    if (auto resolved_backdrop_filter = resolve_filter(context, backdrop_filter); resolved_backdrop_filter.has_value())
+    if (auto resolved_backdrop_filter = to_gfx_filter(m_backdrop_filter, context.device_pixels_per_css_pixel()); resolved_backdrop_filter.has_value())
         context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data, *resolved_backdrop_filter);
 }
 
@@ -1251,6 +1249,76 @@ void PaintableBox::resolve_paint_properties()
     if (auto mask_image = computed_values.mask_image()) {
         mask_image->resolve_for_size(layout_node_with_style_and_box_metrics(), absolute_padding_box_rect().size());
     }
+
+    // Filters
+    auto resolve_css_filter = [&](CSS::Filter const& computed_filter) -> ResolvedCSSFilter {
+        ResolvedCSSFilter result;
+        for (auto const& filter_operation : computed_filter.filters()) {
+            filter_operation.visit(
+                [&](CSS::FilterOperation::Blur const& blur) {
+                    auto resolved_radius = blur.resolved_radius(layout_node_with_style_and_box_metrics());
+                    result.operations.empend(ResolvedCSSFilter::Blur {
+                        .radius = CSSPixels::nearest_value_for(resolved_radius),
+                    });
+                },
+                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
+                    CSS::CalculationResolutionContext resolution_context {
+                        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node_with_style_and_box_metrics()),
+                    };
+                    auto to_css_px = [&](CSS::LengthOrCalculated const& length) {
+                        return CSSPixels::nearest_value_for(length.resolved(resolution_context).map([&](auto&& it) { return it.to_px(layout_node_with_style_and_box_metrics()).to_double(); }).value_or(0.0));
+                    };
+                    auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node_with_style_and_box_metrics());
+                    auto resolved_color = drop_shadow.color
+                        ? drop_shadow.color->to_color(color_context).value_or(computed_values.color())
+                        : computed_values.color();
+
+                    result.operations.empend(ResolvedCSSFilter::DropShadow {
+                        .offset_x = to_css_px(drop_shadow.offset_x),
+                        .offset_y = to_css_px(drop_shadow.offset_y),
+                        .radius = drop_shadow.radius.has_value() ? to_css_px(*drop_shadow.radius) : CSSPixels(0),
+                        .color = resolved_color,
+                    });
+                },
+                [&](CSS::FilterOperation::Color const& color_operation) {
+                    result.operations.empend(ResolvedCSSFilter::Color {
+                        .operation = color_operation.operation,
+                        .amount = color_operation.resolved_amount(),
+                    });
+                },
+                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
+                    result.operations.empend(ResolvedCSSFilter::HueRotate {
+                        .angle_degrees = hue_rotate.angle_degrees(layout_node_with_style_and_box_metrics()),
+                    });
+                },
+                [&](CSS::URL const& css_url) {
+                    auto& url_string = css_url.url();
+                    if (url_string.is_empty() || !url_string.starts_with('#'))
+                        return;
+                    auto fragment_or_error = url_string.substring_from_byte_offset(1);
+                    if (fragment_or_error.is_error())
+                        return;
+                    auto maybe_filter = document().get_element_by_id(fragment_or_error.value());
+                    if (!maybe_filter)
+                        return;
+                    if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
+                        auto& node = layout_node_with_style_and_box_metrics();
+                        result.svg_filter = filter_element->gfx_filter(node);
+                    }
+                });
+        }
+        return result;
+    };
+
+    if (computed_values.filter().has_filters())
+        set_filter(resolve_css_filter(computed_values.filter()));
+    else
+        set_filter({});
+
+    if (computed_values.backdrop_filter().has_filters())
+        set_backdrop_filter(resolve_css_filter(computed_values.backdrop_filter()));
+    else
+        set_backdrop_filter({});
 }
 
 RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
@@ -1289,87 +1357,6 @@ PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
         paintable = paintable->containing_block();
     }
     return nullptr;
-}
-
-Optional<Gfx::Filter> PaintableBox::resolve_filter(DisplayListRecordingContext& context, CSS::Filter const& computed_filter) const
-{
-    Optional<Gfx::Filter> resolved_filter;
-    for (auto const& filter : computed_filter.filters()) {
-        filter.visit(
-            [&](CSS::FilterOperation::Blur const& blur) {
-                auto resolved_radius = blur.resolved_radius(layout_node_with_style_and_box_metrics()) * context.device_pixels_per_css_pixel();
-                auto new_filter = Gfx::Filter::blur(resolved_radius, resolved_radius);
-
-                resolved_filter = resolved_filter.has_value()
-                    ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                    : new_filter;
-            },
-            [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                CSS::CalculationResolutionContext context {
-                    .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node_with_style_and_box_metrics()),
-                };
-                auto to_px = [&](CSS::LengthOrCalculated const& length) {
-                    return static_cast<float>(length.resolved(context).map([&](auto&& it) { return it.to_px(layout_node_with_style_and_box_metrics()).to_double(); }).value_or(0.0));
-                };
-                // The default value for omitted values is missing length values set to 0
-                // and the missing used color is taken from the color property.
-                auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node_with_style_and_box_metrics());
-                auto resolved_color = drop_shadow.color
-                    ? drop_shadow.color->to_color(color_context).value_or(this->computed_values().color())
-                    : this->computed_values().color();
-                auto new_filter = Gfx::Filter::drop_shadow(to_px(drop_shadow.offset_x),
-                    to_px(drop_shadow.offset_y),
-                    drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f, resolved_color);
-
-                resolved_filter = resolved_filter.has_value()
-                    ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                    : new_filter;
-            },
-            [&](CSS::FilterOperation::Color const& color_operation) {
-                auto new_filter = Gfx::Filter::color(color_operation.operation, color_operation.resolved_amount());
-
-                resolved_filter = resolved_filter.has_value()
-                    ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                    : new_filter;
-            },
-            [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                auto new_filter = Gfx::Filter::hue_rotate(hue_rotate.angle_degrees(layout_node_with_style_and_box_metrics()));
-
-                resolved_filter = resolved_filter.has_value()
-                    ? Gfx::Filter::compose(new_filter, *resolved_filter)
-                    : new_filter;
-            },
-            [&](CSS::URL const& css_url) {
-                auto& url_string = css_url.url();
-
-                if (url_string.is_empty() || !url_string.starts_with('#'))
-                    return;
-
-                auto fragment_or_error = url_string.substring_from_byte_offset(1);
-
-                if (fragment_or_error.is_error())
-                    return;
-
-                // FIXME: Support urls that are not only composed of a fragment.
-                auto maybe_filter = document().get_element_by_id(fragment_or_error.value());
-
-                if (!maybe_filter)
-                    return;
-
-                if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
-                    auto& layout_node = layout_node_with_style_and_box_metrics();
-                    auto new_filter = filter_element->gfx_filter(layout_node);
-
-                    if (!new_filter.has_value())
-                        return;
-
-                    resolved_filter = resolved_filter.has_value()
-                        ? Gfx::Filter::compose(*new_filter, *resolved_filter)
-                        : new_filter;
-                }
-            });
-    }
-    return resolved_filter;
 }
 
 static PhysicalResizeAxes compute_physical_resize_axes(CSS::ComputedValues const& computed)
