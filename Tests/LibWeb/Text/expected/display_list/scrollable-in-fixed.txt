@@ -9,5 +9,7 @@ SaveLayer@0
   FillPath@0 path_bounding_rect=[32,32 182x102]
   FillRect@3 rect=[33,33 300x200] color=rgb(240, 128, 128)
   DrawGlyphRun@3 rect=[33,33 179x18] translation=[33,46.796875] color=rgb(0, 0, 0) scale=1
+  PaintScrollBar@0
+  PaintScrollBar@0
 Restore@0
 
