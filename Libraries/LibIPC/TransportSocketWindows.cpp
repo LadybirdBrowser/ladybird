@@ -182,7 +182,11 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
             break;
         }
 
-        m_unprocessed_bytes.append(bytes_read.data(), bytes_read.size());
+        if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
+            dbgln("TransportSocketWindows: Failed to append to unprocessed_bytes buffer");
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
     }
 
     size_t index = 0;
@@ -192,14 +196,23 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
         if (header.size + sizeof(MessageHeader) > m_unprocessed_bytes.size() - index)
             break;
         Message message;
-        message.bytes.append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size);
+        if (message.bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.size).is_error()) {
+            dbgln("TransportSocketWindows: Failed to allocate message buffer for size {}", header.size);
+            should_shutdown = ShouldShutdown::Yes;
+            break;
+        }
         callback(move(message));
         index += header.size + sizeof(MessageHeader);
     }
 
     if (index < m_unprocessed_bytes.size()) {
-        auto remaining_bytes = MUST(ByteBuffer::copy(m_unprocessed_bytes.span().slice(index)));
-        m_unprocessed_bytes = move(remaining_bytes);
+        auto remaining_bytes_or_error = ByteBuffer::copy(m_unprocessed_bytes.span().slice(index));
+        if (remaining_bytes_or_error.is_error()) {
+            dbgln("TransportSocketWindows: Failed to copy remaining bytes");
+            should_shutdown = ShouldShutdown::Yes;
+        } else {
+            m_unprocessed_bytes = remaining_bytes_or_error.release_value();
+        }
     } else {
         m_unprocessed_bytes.clear();
     }
