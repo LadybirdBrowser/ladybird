@@ -1034,16 +1034,6 @@ void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_dis
     document().set_needs_display(absolute_rect(), should_invalidate_display_list);
 }
 
-Optional<CSSPixelRect> PaintableBox::get_masking_area() const
-{
-    auto clip_path = computed_values().clip_path();
-    // FIXME: Support other clip sources.
-    if (!clip_path.has_value() || !clip_path->is_basic_shape())
-        return {};
-    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-    return absolute_border_box_rect();
-}
-
 RefPtr<Gfx::ImmutableBitmap> PaintableBox::calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const
 {
     return {};

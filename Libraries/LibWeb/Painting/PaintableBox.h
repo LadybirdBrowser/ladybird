@@ -40,7 +40,7 @@ public:
     void set_stacking_context(GC::Ref<StackingContext>);
     void invalidate_stacking_context();
 
-    virtual Optional<CSSPixelRect> get_masking_area() const;
+    virtual Optional<CSSPixelRect> get_masking_area() const { return {}; }
     virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }
     virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const;
 
