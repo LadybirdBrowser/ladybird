@@ -34,6 +34,12 @@ public:
         begin_seek();
     }
 
+    virtual void on_exit() override
+    {
+        for (auto const& track : m_tracks_enabled_while_seeking)
+            PlaybackStateHandler::on_track_enabled(track);
+    }
+
     virtual void seek(AK::Duration timestamp, SeekMode mode) override
     {
         m_target_timestamp = timestamp;
@@ -48,6 +54,11 @@ public:
 
     virtual void enter_buffering() override { }
     virtual void exit_buffering() override { }
+
+    virtual void on_track_enabled(Track const& track) override
+    {
+        m_tracks_enabled_while_seeking.append(track);
+    }
 
 private:
     struct SeekData : public RefCounted<SeekData> {
@@ -164,6 +175,7 @@ private:
     AK::Duration m_target_timestamp;
     SeekMode m_mode { SeekMode::Accurate };
     size_t m_current_seek_id { 0 };
+    Vector<Track> m_tracks_enabled_while_seeking;
 };
 
 }

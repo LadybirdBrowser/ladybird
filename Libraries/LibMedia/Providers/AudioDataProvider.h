@@ -46,6 +46,8 @@ public:
     void set_output_sample_specification(Audio::SampleSpecification);
 
     void start();
+    void suspend();
+    void resume();
 
     AudioBlock retrieve_block();
 
@@ -62,10 +64,13 @@ private:
         void set_output_sample_specification(Audio::SampleSpecification);
 
         void start();
+        void suspend();
+        void resume();
         void exit();
 
         void wait_for_start();
         bool should_thread_exit() const;
+        bool handle_suspension();
         template<typename Invokee>
         void invoke_on_main_thread_while_locked(Invokee);
         template<typename Invokee>
@@ -92,6 +97,7 @@ private:
         enum class RequestedState : u8 {
             None,
             Running,
+            Suspended,
             Exit,
         };
 
@@ -105,6 +111,7 @@ private:
         NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
         Track m_track;
         NonnullOwnPtr<AudioDecoder> m_decoder;
+        bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
         i64 m_last_sample { NumericLimits<i64>::min() };
 

@@ -7,6 +7,7 @@ set(SOURCES
     Containers/Matroska/Reader.cpp
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp
+    PlaybackStates/PausedStateHandler.cpp
     PlaybackStates/PlaybackStateHandler.cpp
     PlaybackStates/ResumingStateHandler.cpp
     Providers/AudioDataProvider.cpp

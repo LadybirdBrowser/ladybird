@@ -34,6 +34,7 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
             thread_data->handle_seek();
+            thread_data->handle_suspension();
             thread_data->push_data_and_decode_some_frames();
         }
         return 0;
@@ -67,6 +68,16 @@ void VideoDataProvider::set_frame_end_time_handler(FrameEndTimeHandler&& handler
 void VideoDataProvider::start()
 {
     m_thread_data->start();
+}
+
+void VideoDataProvider::suspend()
+{
+    m_thread_data->suspend();
+}
+
+void VideoDataProvider::resume()
+{
+    m_thread_data->resume();
 }
 
 void VideoDataProvider::set_frames_queue_is_full_handler(FramesQueueIsFullHandler&& handler)
@@ -130,6 +141,22 @@ void VideoDataProvider::ThreadData::set_frames_queue_is_full_handler(FramesQueue
     m_frames_queue_is_full_handler = move(handler);
 }
 
+void VideoDataProvider::ThreadData::suspend()
+{
+    auto locker = take_lock();
+    VERIFY(m_requested_state != RequestedState::Exit);
+    m_requested_state = RequestedState::Suspended;
+    wake();
+}
+
+void VideoDataProvider::ThreadData::resume()
+{
+    auto locker = take_lock();
+    VERIFY(m_requested_state != RequestedState::Exit);
+    m_requested_state = RequestedState::Running;
+    wake();
+}
+
 void VideoDataProvider::ThreadData::exit()
 {
     auto locker = take_lock();
@@ -182,6 +209,26 @@ void VideoDataProvider::ThreadData::invoke_on_main_thread_while_locked(Invokee i
     event_loop->deferred_invoke([self = NonnullRefPtr(*this), invokee = move(invokee)] mutable {
         invokee(self);
     });
+}
+
+bool VideoDataProvider::ThreadData::handle_suspension()
+{
+    auto locker = take_lock();
+    if (m_requested_state != RequestedState::Suspended)
+        return false;
+
+    m_queue.clear();
+    m_decoder->flush();
+    m_decoder_needs_keyframe_next_seek = true;
+
+    while (m_requested_state == RequestedState::Suspended)
+        m_wait_condition.wait();
+
+    // Suspension must be woken with a seek, or we will throw decoding errors.
+    while (!handle_seek())
+        m_wait_condition.wait();
+
+    return true;
 }
 
 template<typename Invokee>
@@ -260,6 +307,10 @@ bool VideoDataProvider::ThreadData::handle_seek()
         }
 
         auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;
+        if (m_decoder_needs_keyframe_next_seek) {
+            seek_options |= DemuxerSeekOptions::Force;
+            m_decoder_needs_keyframe_next_seek = false;
+        }
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
             handle_error(demuxer_seek_result_or_error.release_error());
@@ -447,6 +498,9 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
                 }
 
                 if (handle_seek())
+                    return;
+
+                if (handle_suspension())
                     return;
 
                 {
