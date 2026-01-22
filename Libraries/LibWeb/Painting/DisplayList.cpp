@@ -168,6 +168,21 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
         auto const& [context, command] = commands[command_index];
 
+        auto bounding_rect = command_bounding_rectangle(command);
+
+        // OPTIMIZATION: If the leaf context is an effect and we're switching to a new context,
+        //               check culling before applying it. Effects (opacity, filters, blend modes) don't affect
+        //               clip state, so would_be_fully_clipped_by_painter() returns the same result before and after
+        //               applying effects.
+        //               This avoids expensive saveLayer/restore cycles for off-screen elements with effects like blur.
+        // NOTE: We must not do this for consecutive commands with the same context, as that would incorrectly restore
+        //       and re-apply the effect layer, breaking blend mode compositing.
+        if (context && applied_context != context && context->is_effect() && bounding_rect.has_value()) {
+            switch_to_context(context->parent());
+            if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))
+                continue;
+        }
+
         switch_to_context(context);
 
         if (command.has<PaintScrollBar>()) {
@@ -185,7 +200,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             continue;
         }
 
-        auto bounding_rect = command_bounding_rectangle(command);
         if (bounding_rect.has_value() && (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))) {
             // Any clip or mask that's located outside of the visible region is equivalent to a simple clip-rect,
             // so replace it with one to avoid doing unnecessary work.
