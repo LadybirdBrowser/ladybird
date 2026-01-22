@@ -393,6 +393,7 @@ struct ApplyMaskBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap const> bitmap;
     Gfx::MaskKind kind;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return { origin, bitmap->size() }; }
     void dump(StringBuilder&) const;
 };
 
