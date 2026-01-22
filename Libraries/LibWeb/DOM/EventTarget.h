@@ -28,6 +28,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl(JS::Realm&);
 
     virtual bool is_focusable() const { return false; }
+    virtual bool is_sequentially_focusable() const { return false; }
 
     void add_event_listener(FlyString const& type, IDLEventListener* callback, Variant<AddEventListenerOptions, bool> const& options);
     void remove_event_listener(FlyString const& type, IDLEventListener* callback, Variant<EventListenerOptions, bool> const& options);
