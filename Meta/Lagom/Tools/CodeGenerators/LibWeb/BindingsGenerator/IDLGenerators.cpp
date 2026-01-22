@@ -1606,8 +1606,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
             // NOTE: generate_to_cpp doesn't use the parameter name.
             // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter parameter { .type = *numeric_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
 
             union_generator.append(R"~~~(
             return { @js_name@@js_suffix@_number };
@@ -1632,6 +1632,47 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
 
+        bool includes_enumeration = false;
+        for (auto& type : types) {
+            if (interface.enumerations.contains(type->name())) {
+                includes_enumeration = true;
+                break;
+            }
+        }
+
+        // If V is a string and types includes an enumeration type, attempt to convert the string to that enumeration.
+        // Example: Libraries/LibWeb/WebAudio/AudioContext.idl (AudioContextOptions.latencyHint: (AudioContextLatencyCategory or double)).
+        if (includes_enumeration) {
+            union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_string()) {
+            auto @js_name@@js_suffix@_enum_string = TRY(@js_name@@js_suffix@.to_string(vm));
+)~~~");
+
+            for (auto& type : types) {
+                if (!interface.enumerations.contains(type->name()))
+                    continue;
+
+                auto& enumeration = interface.enumerations.find(type->name())->value;
+                auto enum_type = IDL::idl_type_name_to_cpp_type(*type, interface);
+
+                auto enum_generator = union_generator.fork();
+                enum_generator.set("enum.type", enum_type.name);
+
+                for (auto& it : enumeration.translated_cpp_names) {
+                    enum_generator.set("enum.alt.name", it.key);
+                    enum_generator.set("enum.alt.value", it.value);
+                    enum_generator.append(R"~~~(
+            if (@js_name@@js_suffix@_enum_string == "@enum.alt.name@"sv)
+                return @union_type@ { @enum.type@::@enum.alt.value@ };
+)~~~");
+                }
+            }
+
+            union_generator.append(R"~~~(
+        }
+)~~~");
+        }
+
         RefPtr<IDL::Type const> string_type;
         for (auto& type : types) {
             if (type->is_string()) {
@@ -1644,8 +1685,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             // 14. If types includes a string type, then return the result of converting V to that type.
             // NOTE: Currently all string types are converted to String.
 
-            IDL::Parameter parameter { .type = *string_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
+            IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
 
             union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_string };
@@ -1673,8 +1714,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
             // NOTE: generate_to_cpp doesn't use the parameter name.
             // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter parameter { .type = *numeric_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_numeric_type_generator, parameter, "x", ByteString::empty(), "x_number", interface, false, false, {}, false, recursion_depth + 1);
+            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, false, {}, false, recursion_depth + 1);
 
             union_numeric_type_generator.append(R"~~~(
         return x_number;
@@ -1684,8 +1725,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
             // NOTE: generate_to_cpp doesn't use the parameter name.
             // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter parameter { .type = *numeric_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
 
             union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_number };
@@ -1735,12 +1776,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
                     } else if (optional_default_value == "\"\"") {
                         union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? String {} : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, String {})))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                     } else if (optional_default_value->starts_with("\""sv) && optional_default_value->ends_with("\""sv)) {
                         union_generator.set("default_string_value", optional_default_value.value());
                         union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? MUST(String::from_utf8(@default_string_value@sv)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, MUST(String::from_utf8(@default_string_value@sv)))))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                     } else if (optional_default_value == "{}") {
                         VERIFY(dictionary_type);

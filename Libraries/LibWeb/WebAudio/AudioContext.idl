@@ -20,7 +20,7 @@ interface AudioContext : BaseAudioContext {
 };
 
 dictionary AudioContextOptions {
-    AudioContextLatencyCategory latencyHint = "interactive";
+    (AudioContextLatencyCategory or double) latencyHint = "interactive";
     float sampleRate;
 };
 
