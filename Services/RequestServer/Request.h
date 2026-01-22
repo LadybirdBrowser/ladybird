@@ -189,7 +189,7 @@ private:
     ByteString m_alt_svc_cache_path;
     Core::ProxyData m_proxy_data;
 
-    u32 m_status_code { 0 };
+    Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;
 
     NonnullRefPtr<HTTP::HeaderList> m_response_headers;

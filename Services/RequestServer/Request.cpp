@@ -301,6 +301,7 @@ void Request::handle_initial_state()
 
 void Request::handle_read_cache_state()
 {
+    m_status_code = m_cache_entry_reader->status_code();
     m_reason_phrase = m_cache_entry_reader->reason_phrase();
     m_response_headers = m_cache_entry_reader->response_headers();
     m_cache_status = CacheStatus::ReadFromCache;
@@ -349,7 +350,7 @@ void Request::handle_serve_substitution_state()
     }
 
     m_status_code = substitution->status_code;
-    m_reason_phrase = MUST(String::from_utf8(HTTP::reason_phrase_for_code(m_status_code)));
+    m_reason_phrase = MUST(String::from_utf8(HTTP::reason_phrase_for_code(*m_status_code)));
 
     // Determine content type: use override if provided, otherwise guess from filename.
     StringView content_type;
@@ -685,15 +686,11 @@ void Request::transfer_headers_to_client_if_needed()
         return;
 
     // m_status_code may already be set (e.g. from a resource substitution).
-    if (m_status_code == 0) {
-        if (m_cache_entry_reader.has_value())
-            m_status_code = m_cache_entry_reader->status_code();
-        else
-            m_status_code = acquire_status_code();
-    }
+    if (!m_status_code.has_value())
+        m_status_code = acquire_status_code();
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_cache_entry_writer->write_status_and_reason(m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {
+        if (m_cache_entry_writer->write_status_and_reason(*m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {
             m_cache_status = CacheStatus::NotCached;
             m_cache_entry_writer.clear();
         } else {
