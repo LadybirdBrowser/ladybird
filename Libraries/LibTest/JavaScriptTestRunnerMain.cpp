@@ -157,7 +157,7 @@ int main(int argc, char** argv)
             return 1;
         }
         test_root = LexicalPath::join(*ladybird_source_dir, g_test_root_fragment).string();
-        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
+        common_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibJS"sv, "Runtime"sv, "test-common.js"sv).string();
     }
     if (!FileSystem::is_directory(test_root)) {
         warnln("Test root is not a directory: {}", test_root);
@@ -170,7 +170,7 @@ int main(int argc, char** argv)
             warnln("No test root given, {} requires the LADYBIRD_SOURCE_DIR environment variable to be set", g_program_name);
             return 1;
         }
-        common_path = LexicalPath::join(*ladybird_source_dir, "Libraries"sv, "LibJS"sv, "Tests"sv, "test-common.js"sv).string();
+        common_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibJS"sv, "Runtime"sv, "test-common.js"sv).string();
     }
 
     auto test_root_or_error = FileSystem::real_path(test_root);

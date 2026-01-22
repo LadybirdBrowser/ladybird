@@ -109,7 +109,6 @@ describe("async arrow functions", () => {
                 return of;
             };
             ;
-
         ) {
             expect(f(43)).toBeInstanceOf(Promise);
 

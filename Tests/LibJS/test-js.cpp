@@ -13,7 +13,7 @@
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
 
-TEST_ROOT("Libraries/LibJS/Tests");
+TEST_ROOT("Tests/LibJS/Runtime");
 
 TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-parser-tests", 0);
 
