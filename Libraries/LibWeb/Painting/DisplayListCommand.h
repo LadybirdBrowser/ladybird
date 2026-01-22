@@ -265,6 +265,7 @@ struct DrawLine {
     Gfx::LineStyle style;
     Color alternate_color;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::IntRect::from_two_points(from, to).inflated(thickness, thickness); }
     void dump(StringBuilder&) const;
 };
 
