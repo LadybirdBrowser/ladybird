@@ -14,26 +14,15 @@ class ScrollStateSnapshot {
 public:
     static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames);
 
-    CSSPixelPoint cumulative_offset_for_frame_with_id(size_t id) const
-    {
-        if (id >= entries.size())
-            return {};
-        return entries[id].cumulative_offset;
-    }
-
     CSSPixelPoint own_offset_for_frame_with_id(size_t id) const
     {
-        if (id >= entries.size())
+        if (id >= own_offsets.size())
             return {};
-        return entries[id].own_offset;
+        return own_offsets[id];
     }
 
 private:
-    struct Entry {
-        CSSPixelPoint cumulative_offset;
-        CSSPixelPoint own_offset;
-    };
-    Vector<Entry> entries;
+    Vector<CSSPixelPoint> own_offsets;
 };
 
 class ScrollState {
@@ -50,11 +39,6 @@ public:
         auto scroll_frame = adopt_ref(*new ScrollFrame(paintable_box, m_scroll_frames.size(), true, move(parent)));
         m_scroll_frames.append(scroll_frame);
         return scroll_frame;
-    }
-
-    CSSPixelPoint cumulative_offset_for_frame_with_id(size_t id) const
-    {
-        return m_scroll_frames[id]->cumulative_offset();
     }
 
     CSSPixelPoint own_offset_for_frame_with_id(size_t id) const

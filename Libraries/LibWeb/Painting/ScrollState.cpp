@@ -11,9 +11,9 @@ namespace Web::Painting {
 ScrollStateSnapshot ScrollStateSnapshot::create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames)
 {
     ScrollStateSnapshot snapshot;
-    snapshot.entries.ensure_capacity(scroll_frames.size());
+    snapshot.own_offsets.ensure_capacity(scroll_frames.size());
     for (auto const& scroll_frame : scroll_frames)
-        snapshot.entries.append({ scroll_frame->cumulative_offset(), scroll_frame->own_offset() });
+        snapshot.own_offsets.append({ scroll_frame->own_offset() });
     return snapshot;
 }
 
