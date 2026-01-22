@@ -59,19 +59,26 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
         // 1. If sinkId is specified, let sinkId be the value of contextOptions.sinkId and run the following substeps:
 
         // 2. Set the internal latency of context according to contextOptions.latencyHint, as described in latencyHint.
-        switch (context_options->latency_hint) {
-        case Bindings::AudioContextLatencyCategory::Balanced:
-            // FIXME: Determine optimal settings for balanced.
-            break;
-        case Bindings::AudioContextLatencyCategory::Interactive:
-            // FIXME: Determine optimal settings for interactive.
-            break;
-        case Bindings::AudioContextLatencyCategory::Playback:
-            // FIXME: Determine optimal settings for playback.
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
+        context_options->latency_hint.visit(
+            [&](Bindings::AudioContextLatencyCategory category) {
+                switch (category) {
+                case Bindings::AudioContextLatencyCategory::Balanced:
+                    // FIXME: Determine optimal settings for balanced.
+                    break;
+                case Bindings::AudioContextLatencyCategory::Interactive:
+                    // FIXME: Determine optimal settings for interactive.
+                    break;
+                case Bindings::AudioContextLatencyCategory::Playback:
+                    // FIXME: Determine optimal settings for playback.
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            },
+            [&](double latency_seconds) {
+                // FIXME: Determine optimal settings for numeric latency hint.
+                (void)latency_seconds;
+            });
 
         // 3: If contextOptions.sampleRate is specified, set the sampleRate of context to this value.
         if (context_options->sample_rate.has_value()) {

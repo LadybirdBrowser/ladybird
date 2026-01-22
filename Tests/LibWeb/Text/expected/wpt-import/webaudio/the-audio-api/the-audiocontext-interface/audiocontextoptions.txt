@@ -1,12 +1,11 @@
-Harness status: Error
+Harness status: OK
 
-Found 32 tests
+Found 37 tests
 
-27 Pass
-5 Fail
+37 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "test-audiocontextoptions-latencyHint-basic"
-Fail	Executing "test-audiocontextoptions-latencyHint-double"
+Pass	Executing "test-audiocontextoptions-latencyHint-double"
 Pass	Executing "test-audiocontextoptions-sampleRate"
 Pass	Audit report
 Pass	> [test-audiocontextoptions-latencyHint-basic] Test creating contexts with basic latencyHint types.
@@ -21,12 +20,17 @@ Pass	  context = new AudioContext({'latencyHint': 'playback'}) did not throw an 
 Pass	  playback baseLatency is greater than or equal to 0.
 Pass	< [test-audiocontextoptions-latencyHint-basic] All assertions passed. (total 9 assertions)
 Pass	> [test-audiocontextoptions-latencyHint-double] Test creating contexts with explicit latencyHint values.
-Fail	X context = new AudioContext({'latencyHint': interactiveLatency/2}) incorrectly threw TypeError: "Invalid value '0' for enumeration type 'AudioContextLatencyCategory'".
+Pass	  context = new AudioContext({'latencyHint': interactiveLatency/2}) did not throw an exception.
 Pass	  double-constructor baseLatency small is less than or equal to 0.
-Fail	X context = new AudioContext({'latencyHint': validLatency}) incorrectly threw TypeError: "Invalid value '0' for enumeration type 'AudioContextLatencyCategory'".
+Pass	  context = new AudioContext({'latencyHint': validLatency}) did not throw an exception.
 Pass	  double-constructor baseLatency inrange 1 is greater than or equal to 0.
 Pass	  double-constructor baseLatency inrange 2 is less than or equal to 0.
-Fail	X creating two high latency contexts incorrectly threw TypeError: "Invalid value '0' for enumeration type 'AudioContextLatencyCategory'".
+Pass	  creating two high latency contexts did not throw an exception.
+Pass	  high latency context baseLatency is equal to 0.
+Pass	  high latency context baseLatency is greater than or equal to 0.
+Pass	  context = new AudioContext({'latencyHint': 'foo'}) threw TypeError: "Expected latencyHint to be a finite floating-point number".
+Pass	  context = new AudioContext('latencyHint') threw TypeError: "Not an object of type AudioContextOptions".
+Pass	< [test-audiocontextoptions-latencyHint-double] All assertions passed. (total 10 assertions)
 Pass	> [test-audiocontextoptions-sampleRate] Test creating contexts with non-default sampleRate values.
 Pass	  context = new AudioContext({sampleRate: 1}) threw NotSupportedError: "Sample rate is outside of allowed range".
 Pass	  context = new AudioContext({sampleRate: 1000000}) threw NotSupportedError: "Sample rate is outside of allowed range".
@@ -35,4 +39,4 @@ Pass	  context = new AudioContext({sampleRate: 0}) threw NotSupportedError: "Sam
 Pass	  context = new AudioContext({sampleRate: 24000}) did not throw an exception.
 Pass	  sampleRate inrange is equal to 24000.
 Pass	< [test-audiocontextoptions-sampleRate] All assertions passed. (total 6 assertions)
-Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 3 tasks were failed.
+Pass	# AUDIT TASK RUNNER FINISHED: 3 tasks ran successfully.

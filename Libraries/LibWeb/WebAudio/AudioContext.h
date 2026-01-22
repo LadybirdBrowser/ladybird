@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Variant.h>
 #include <LibWeb/Bindings/AudioContextPrototype.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -14,7 +15,7 @@
 namespace Web::WebAudio {
 
 struct AudioContextOptions {
-    Bindings::AudioContextLatencyCategory latency_hint = Bindings::AudioContextLatencyCategory::Interactive;
+    Variant<Bindings::AudioContextLatencyCategory, double> latency_hint = Bindings::AudioContextLatencyCategory::Interactive;
     Optional<float> sample_rate;
 };
 
