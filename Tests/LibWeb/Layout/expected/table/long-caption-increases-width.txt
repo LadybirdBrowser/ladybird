@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
       TextNode <#text> (not painted)
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 148 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [8,8] [0+0+0 63.046875 0+0+720.953125] [0+0+0 148 0+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 63.046875 0+0+0] [0+0+0 148 0+0+0] [BFC] children: not-inline
         Box <table#full-table> at [10,44] table-box [0+2+0 59.046875 0+2+0] [0+2+0 74 0+2+36] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)

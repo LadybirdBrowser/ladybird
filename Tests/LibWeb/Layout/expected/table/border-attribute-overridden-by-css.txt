@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 62 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 46 0+0+8] children: not-inline
-      TableWrapper <(anonymous)> at [8,8] [0+0+0 42.265625 0+0+741.734375] [0+0+0 46 0+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 42.265625 0+0+0] [0+0+0 46 0+0+0] [BFC] children: not-inline
         Box <table> at [18,18] table-box [0+10+0 22.265625 0+10+0] [0+10+0 26 0+10+0] [TFC] children: not-inline
           Box <tbody> at [20,20] table-row-group [0+0+0 18.265625 0+0+0] [0+0+0 22 0+0+0] children: not-inline
             Box <tr> at [20,20] table-row [0+0+0 18.265625 0+0+0] [0+0+0 22 0+0+0] children: not-inline
