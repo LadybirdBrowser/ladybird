@@ -243,6 +243,17 @@ bool code_point_has_white_space_property(u32 code_point)
     return code_point_has_property(code_point, UCHAR_WHITE_SPACE);
 }
 
+bool code_point_has_east_asian_full_half_or_wide_width(u32 code_point)
+{
+    auto width = u_getIntPropertyValue(static_cast<UChar32>(code_point), UCHAR_EAST_ASIAN_WIDTH);
+    return width == U_EA_FULLWIDTH || width == U_EA_HALFWIDTH || width == U_EA_WIDE;
+}
+
+bool code_point_has_hangul_script(u32 code_point)
+{
+    return code_point_has_script(code_point, USCRIPT_HANGUL);
+}
+
 // https://tc39.es/ecma262/#table-binary-unicode-properties
 bool is_ecma262_property(Property property)
 {

@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
+#include <LibWeb/CSS/WhiteSpaceProcessing.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -335,26 +336,25 @@ void TextNode::compute_text_for_rendering()
     // and are processed by performing the following steps:
     auto white_space_collapse = computed_values().white_space_collapse();
     if (first_is_one_of(white_space_collapse, CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks)) {
-        // 1. FIXME: Any sequence of collapsible spaces and tabs immediately preceding or following a segment break is removed.
+        // https://drafts.csswg.org/css-text-4/#white-space-phase-1
+        // 1. Any sequence of collapsible spaces and tabs immediately preceding or following a segment break is removed.
+        text = CSS::WhiteSpaceProcessing::remove_collapsible_spaces_and_tabs_around_segment_breaks(text);
 
         // 2. Collapsible segment breaks are transformed for rendering according to the segment break transformation
         //    rules.
         {
             // https://drafts.csswg.org/css-text-4/#line-break-transform
-            // FIXME: When white-space-collapse is not collapse, segment breaks are not collapsible. For values other than
-            // collapse or preserve-spaces (which transforms them into spaces), segment breaks are instead transformed
-            // into a preserved line feed (U+000A).
-
             // When white-space-collapse is collapse, segment breaks are collapsible, and are collapsed as follows:
             if (white_space_collapse == CSS::WhiteSpaceCollapse::Collapse) {
-                // 1. FIXME: First, any collapsible segment break immediately following another collapsible segment break is
-                //    removed.
+                // 1. First, any collapsible segment break immediately following another collapsible segment break is removed.
+                text = CSS::WhiteSpaceProcessing::collapse_consecutive_segment_breaks(text);
 
-                // 2. FIXME: Then any remaining segment break is either transformed into a space (U+0020) or removed depending
+                // 2. Then any remaining segment break is either transformed into a space (U+0020) or removed depending
                 //    on the context before and after the break. The rules for this operation are UA-defined in this
                 //    level.
-                convert_newlines = true;
+                text = CSS::WhiteSpaceProcessing::transform_segment_breaks_for_collapse(text);
             }
+            // For preserve-breaks, segment breaks are preserved as line feeds (already handled - we don't convert them)
         }
 
         // 3. Every collapsible tab is converted to a collapsible space (U+0020).

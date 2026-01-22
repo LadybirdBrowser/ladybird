@@ -37,6 +37,8 @@ bool code_point_has_identifier_continue_property(u32 code_point);
 bool code_point_has_regional_indicator_property(u32 code_point);
 bool code_point_has_variation_selector_property(u32 code_point);
 bool code_point_has_white_space_property(u32 code_point);
+bool code_point_has_east_asian_full_half_or_wide_width(u32 code_point);
+bool code_point_has_hangul_script(u32 code_point);
 
 bool is_ecma262_property(Property);
 bool is_ecma262_string_property(Property);

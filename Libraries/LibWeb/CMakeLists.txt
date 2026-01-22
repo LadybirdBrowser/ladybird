@@ -297,6 +297,7 @@ set(SOURCES
     CSS/URL.cpp
     CSS/ValueType.cpp
     CSS/VisualViewport.cpp
+    CSS/WhiteSpaceProcessing.cpp
     DOM/AbortController.cpp
     DOM/AbortSignal.cpp
     DOM/AbstractElement.cpp
