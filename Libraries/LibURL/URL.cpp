@@ -106,24 +106,16 @@ bool URL::cannot_have_a_username_or_password_or_port() const
 // https://url.spec.whatwg.org/#default-port
 Optional<u16> default_port_for_scheme(StringView scheme)
 {
-    // Spec defined mappings with port:
-    if (scheme == "ftp")
+    if (scheme == "ftp"sv)
         return 21;
-    if (scheme == "http")
+    if (scheme == "http"sv)
         return 80;
-    if (scheme == "https")
+    if (scheme == "https"sv)
         return 443;
-    if (scheme == "ws")
+    if (scheme == "ws"sv)
         return 80;
-    if (scheme == "wss")
+    if (scheme == "wss"sv)
         return 443;
-
-    // NOTE: not in spec, but we support these too
-    if (scheme == "irc")
-        return 6667;
-    if (scheme == "ircs")
-        return 6697;
-
     return {};
 }
 
