@@ -115,7 +115,7 @@ public:
     }
 
     template<typename... Args>
-    ErrorOr<void> try_append(Args&&... args)
+    ALWAYS_INLINE ErrorOr<void> try_append(Args&&... args)
     {
         static_assert(
             requires { T(forward<Args>(args)...); }, "Initializer is missing.");
@@ -281,11 +281,11 @@ private:
     }
 
     template<typename... Args>
-    Node* make_node(Args&&... args)
+    ALWAYS_INLINE Node* make_node(Args&&... args)
     {
         if constexpr (node_cache_size > 0) {
             if (m_node_cache.used_count > 0) {
-                auto* node = m_node_cache.nodes[--m_node_cache.used_count];
+                auto* node = m_node_cache.nodes.data()[--m_node_cache.used_count];
                 new (node) Node(forward<Args>(args)...);
                 return node;
             }

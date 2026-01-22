@@ -753,7 +753,7 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_append(T&& value)
+    ALWAYS_INLINE ErrorOr<void> try_append(T&& value)
     {
         TRY(try_grow_capacity(size() + 1));
         if constexpr (contains_reference)
@@ -765,13 +765,13 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_append(T const& value)
+    ALWAYS_INLINE ErrorOr<void> try_append(T const& value)
     requires(!contains_reference)
     {
         return try_append(T(value));
     }
 
-    ErrorOr<void> try_append(StorageType const* values, size_t count)
+    ALWAYS_INLINE ErrorOr<void> try_append(StorageType const* values, size_t count)
     {
         if (count == 0)
             return {};
@@ -837,7 +837,7 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_grow_capacity(size_t needed_capacity)
+    ALWAYS_INLINE ErrorOr<void> try_grow_capacity(size_t needed_capacity)
     {
         if (m_capacity >= needed_capacity)
             return {};
@@ -1061,7 +1061,7 @@ public:
     }
 
 private:
-    void reset_capacity()
+    ALWAYS_INLINE void reset_capacity()
     {
         m_capacity = inline_capacity;
     }
