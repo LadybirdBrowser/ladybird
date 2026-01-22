@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/RefCounted.h>
 #include <AK/Utf32View.h>
 #include <LibGfx/TextAttributes.h>
 #include <LibSyntax/Forward.h>
