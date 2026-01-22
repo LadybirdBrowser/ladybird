@@ -21,7 +21,7 @@ struct ProxyData {
     } type { Type::Direct };
 
     IPv4Address host_ipv4;
-    int port { 0 };
+    u16 port { 0 };
 
     bool operator==(ProxyData const& other) const = default;
 
