@@ -1704,8 +1704,8 @@ HANDLE_INSTRUCTION(loop)
 {
     LOG_INSN;
     auto& args = instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-    size_t arity = args.meta->arity;
-    configuration.label_stack().unchecked_append(Label(arity, short_ip.current_ip_value + 1, configuration.value_stack().size() - arity));
+    size_t params = args.meta->parameter_count;
+    configuration.label_stack().unchecked_append(Label(params, short_ip.current_ip_value + 1, configuration.value_stack().size() - params));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
