@@ -319,6 +319,7 @@ public:
     virtual void did_lose_focus() { }
     bool should_indicate_focus() const;
     virtual bool is_focusable() const override;
+    virtual bool is_sequentially_focusable() const override;
 
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
