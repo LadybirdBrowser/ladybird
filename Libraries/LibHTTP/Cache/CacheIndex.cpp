@@ -118,14 +118,9 @@ void CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, NonnullRe
     auto now = UnixDateTime::now();
 
     auto remove_exempted_headers = [](HeaderList& headers) {
-        for (size_t i = 0; i < headers.headers().size();) {
-            auto const& header = headers.headers()[i];
-
-            if (is_header_exempted_from_storage(header.name))
-                headers.delete_(header.name);
-            else
-                ++i;
-        }
+        headers.delete_all_matching([&](auto const& header) {
+            return is_header_exempted_from_storage(header.name);
+        });
     };
 
     remove_exempted_headers(request_headers);

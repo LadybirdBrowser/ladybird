@@ -53,6 +53,12 @@ public:
     [[nodiscard]] Vector<ByteString> unique_names() const;
 
     template<typename Callback>
+    void delete_all_matching(Callback&& callback)
+    {
+        m_headers.remove_all_matching(forward<Callback>(callback));
+    }
+
+    template<typename Callback>
     void for_each_header_value(StringView name, Callback&& callback) const
     {
         for (auto const& header : m_headers) {
