@@ -148,7 +148,7 @@ WebIDL::ExceptionOr<T> SVGList<T>::replace_item(T new_item, WebIDL::UnsignedLong
 
     // FIXME: 6. Attach newItem to the list interface object.
 
-    // FIXNE: 7. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
+    // FIXME: 7. If the list reflects an attribute, or represents the base value of an object that reflects an attribute, then
     //    reserialize the reflected attribute.
 
     // 8. Return newItem.
