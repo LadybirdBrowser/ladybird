@@ -27,7 +27,7 @@ def setup() -> None:
 
     LADYBIRD_SOURCE_DIR = Path(ladybird_source_dir)
 
-    BYTECODE_TEST_DIR = LADYBIRD_SOURCE_DIR / "Libraries/LibJS/Bytecode/Tests/"
+    BYTECODE_TEST_DIR = LADYBIRD_SOURCE_DIR / "Tests/LibJS/Bytecode/"
 
 
 def strip_color(s: str) -> str:
