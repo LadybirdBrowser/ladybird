@@ -15,6 +15,7 @@ enum class PlaybackState : u8 {
     Playing,
     Paused,
     Seeking,
+    Suspended,
 };
 
 }

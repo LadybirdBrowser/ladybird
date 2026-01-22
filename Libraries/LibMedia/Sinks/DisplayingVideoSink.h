@@ -36,6 +36,7 @@ public:
     //
     // Note that push_frame may block until update() is called, so do not call them from the same thread.
     DisplayingVideoSinkUpdateResult update();
+    void prepare_current_frame_for_next_update();
     RefPtr<Gfx::ImmutableBitmap> current_frame();
 
     void pause_updates();
@@ -55,7 +56,7 @@ private:
     TimedImage m_next_frame;
     RefPtr<Gfx::ImmutableBitmap> m_current_frame;
     bool m_pause_updates { false };
-    bool m_cleared_current_frame { false };
+    bool m_has_new_current_frame { false };
 };
 
 }

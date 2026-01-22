@@ -54,9 +54,9 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 
     auto current_time = m_time_provider->current_time();
     auto result = DisplayingVideoSinkUpdateResult::NoChange;
-    if (m_cleared_current_frame) {
+    if (m_has_new_current_frame) {
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
-        m_cleared_current_frame = false;
+        m_has_new_current_frame = false;
     }
 
     while (true) {
@@ -76,6 +76,13 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
     return result;
 }
 
+void DisplayingVideoSink::prepare_current_frame_for_next_update()
+{
+    auto update_result = update();
+    if (update_result == DisplayingVideoSinkUpdateResult::NewFrameAvailable)
+        m_has_new_current_frame = true;
+}
+
 RefPtr<Gfx::ImmutableBitmap> DisplayingVideoSink::current_frame()
 {
     return m_current_frame;
@@ -91,7 +98,8 @@ void DisplayingVideoSink::resume_updates()
     m_next_frame.clear();
     m_current_frame = nullptr;
     m_pause_updates = false;
-    m_cleared_current_frame = true;
+    m_has_new_current_frame = true;
+    prepare_current_frame_for_next_update();
 }
 
 }

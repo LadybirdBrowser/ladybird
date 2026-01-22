@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,7 +17,7 @@ void ResumingStateHandler::resume()
     if (m_playing)
         manager().replace_state_handler<PlayingStateHandler>();
     else
-        manager().replace_state_handler<PausedStateHandler>();
+        manager().replace_state_handler<PausedStateHandler>(PlaybackManager::RESUMING_SUSPEND_TIMEOUT_MS);
 }
 
 }

@@ -44,6 +44,9 @@ public:
 
     using AudioTracks = Vector<Track, EXPECTED_AUDIO_TRACK_COUNT>;
 
+    static constexpr int DEFAULT_SUSPEND_TIMEOUT_MS = 10000;
+    static constexpr int RESUMING_SUSPEND_TIMEOUT_MS = 1000;
+
     static NonnullRefPtr<PlaybackManager> create();
     ~PlaybackManager();
 

@@ -48,6 +48,8 @@ public:
     void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
     void start();
+    void suspend();
+    void resume();
 
     TimedImage retrieve_frame();
 
@@ -66,6 +68,8 @@ private:
         void set_frames_queue_is_full_handler(FramesQueueIsFullHandler&&);
 
         void start();
+        void suspend();
+        void resume();
         void exit();
 
         ImageQueue& queue();
@@ -75,6 +79,7 @@ private:
 
         void wait_for_start();
         bool should_thread_exit() const;
+        bool handle_suspension();
         template<typename Invokee>
         void invoke_on_main_thread_while_locked(Invokee);
         template<typename Invokee>
@@ -95,6 +100,7 @@ private:
         enum class RequestedState : u8 {
             None,
             Running,
+            Suspended,
             Exit,
         };
 
@@ -108,6 +114,7 @@ private:
         NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
         Track m_track;
         NonnullOwnPtr<VideoDecoder> m_decoder;
+        bool m_decoder_needs_keyframe_next_seek { false };
 
         RefPtr<MediaTimeProvider> m_time_provider;
 

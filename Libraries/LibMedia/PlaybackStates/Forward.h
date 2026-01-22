@@ -14,7 +14,8 @@
     X(PlayingStateHandler)                   \
     X(PausedStateHandler)                    \
     X(ResumingStateHandler)                  \
-    X(SeekingStateHandler)
+    X(SeekingStateHandler)                   \
+    X(SuspendedStateHandler)
 
 namespace Media {
 

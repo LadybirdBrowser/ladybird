@@ -115,7 +115,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRe
 NonnullRefPtr<PlaybackManager> PlaybackManager::create()
 {
     auto playback_manager = adopt_ref(*new (nothrow) PlaybackManager());
-    playback_manager->m_handler = make<PausedStateHandler>(*playback_manager);
+    playback_manager->m_handler = make<PausedStateHandler>(*playback_manager, RESUMING_SUSPEND_TIMEOUT_MS);
+    playback_manager->m_handler->on_enter();
     return playback_manager;
 }
 
@@ -222,14 +223,11 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     auto& track_data = get_video_data_for_track(track);
     if (track_data.display == nullptr) {
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
-        track_data.display->pause_updates();
         track_data.display->set_provider(track, track_data.provider);
         track_data.display->m_on_start_buffering = [this] {
             m_handler->enter_buffering();
         };
-        track_data.provider->seek(m_time_provider->current_time(), SeekMode::Accurate, [display = track_data.display](AK::Duration) {
-            display->resume_updates();
-        });
+        m_handler->on_track_enabled(track);
     }
 
     VERIFY(track_data.display->provider(track) == track_data.provider);
@@ -259,9 +257,7 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     auto had_provider = m_audio_sink->provider(track) != nullptr;
     m_audio_sink->set_provider(track, track_data.provider);
     if (!had_provider) {
-        track_data.provider->seek(current_time(), [sink = NonnullRefPtr(*m_audio_sink), track] {
-            sink->clear_track_data(track);
-        });
+        m_handler->on_track_enabled(track);
     }
 }
 

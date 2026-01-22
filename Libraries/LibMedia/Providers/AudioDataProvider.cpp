@@ -34,6 +34,7 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
+            thread_data->handle_suspension();
             thread_data->handle_seek();
             thread_data->push_data_and_decode_a_block();
         }
@@ -73,6 +74,16 @@ void AudioDataProvider::set_output_sample_specification(Audio::SampleSpecificati
 void AudioDataProvider::start()
 {
     m_thread_data->start();
+}
+
+void AudioDataProvider::suspend()
+{
+    m_thread_data->suspend();
+}
+
+void AudioDataProvider::resume()
+{
+    m_thread_data->resume();
 }
 
 void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& completion_handler)
@@ -116,6 +127,22 @@ void AudioDataProvider::ThreadData::start()
     wake();
 }
 
+void AudioDataProvider::ThreadData::suspend()
+{
+    auto locker = take_lock();
+    VERIFY(m_requested_state != RequestedState::Exit);
+    m_requested_state = RequestedState::Suspended;
+    wake();
+}
+
+void AudioDataProvider::ThreadData::resume()
+{
+    auto locker = take_lock();
+    VERIFY(m_requested_state != RequestedState::Exit);
+    m_requested_state = RequestedState::Running;
+    wake();
+}
+
 void AudioDataProvider::ThreadData::exit()
 {
     auto locker = take_lock();
@@ -154,6 +181,26 @@ bool AudioDataProvider::ThreadData::should_thread_exit() const
 {
     auto locker = take_lock();
     return m_requested_state == RequestedState::Exit;
+}
+
+bool AudioDataProvider::ThreadData::handle_suspension()
+{
+    auto locker = take_lock();
+    if (m_requested_state != RequestedState::Suspended)
+        return false;
+
+    m_queue.clear();
+    flush_decoder();
+    m_decoder_needs_keyframe_next_seek = true;
+
+    while (m_requested_state == RequestedState::Suspended)
+        m_wait_condition.wait();
+
+    // Suspension must be woken with a seek, or we will throw decoding errors.
+    while (!handle_seek())
+        m_wait_condition.wait();
+
+    return true;
 }
 
 template<typename Invokee>
@@ -266,7 +313,12 @@ bool AudioDataProvider::ThreadData::handle_seek()
             m_stream_cursor->reset_abort();
         }
 
-        auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp);
+        auto seek_options = DemuxerSeekOptions::None;
+        if (m_decoder_needs_keyframe_next_seek) {
+            seek_options |= DemuxerSeekOptions::Force;
+            m_decoder_needs_keyframe_next_seek = false;
+        }
+        auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
             handle_error(demuxer_seek_result_or_error.release_error());
             return true;
@@ -383,6 +435,9 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 
         while (queue_size >= m_queue_max_size) {
             if (handle_seek())
+                return;
+
+            if (handle_suspension())
                 return;
 
             {
