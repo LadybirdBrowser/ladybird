@@ -169,7 +169,7 @@ WeakEventLoopReference::WeakEventLoopReference(EventLoop& event_loop)
 
 void WeakEventLoopReference::revoke()
 {
-    Threading::RWLockLocker<Threading::LockMode::Read> locker { m_lock };
+    Threading::RWLockLocker<Threading::LockMode::Write> locker { m_lock };
     m_event_loop = nullptr;
 }
 
