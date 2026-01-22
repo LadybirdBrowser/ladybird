@@ -625,10 +625,13 @@ table[rules=all i] > tfoot > tr > td, table[rules=all i] > tfoot > tr > th {
  * https://html.spec.whatwg.org/multipage/rendering.html#form-controls
  */
 
-input, select, button, textarea {
+input, button, textarea {
     letter-spacing: initial;
     word-spacing: initial;
     line-height: initial;
+}
+
+input, select, button, textarea {
     text-transform: initial;
     text-indent: initial;
     text-shadow: initial;
