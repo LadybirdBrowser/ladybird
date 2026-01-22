@@ -86,6 +86,8 @@ public:
     VisualContextData const& data() const { return m_data; }
     RefPtr<AccumulatedVisualContext const> parent() const { return m_parent; }
 
+    bool is_effect() const { return m_data.has<EffectsData>(); }
+
     size_t depth() const { return m_depth; }
     size_t id() const { return m_id; }
 
