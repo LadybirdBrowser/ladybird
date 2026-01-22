@@ -1481,8 +1481,8 @@ void Document::update_layout(UpdateLayoutReason reason)
 
     paintable()->assign_scroll_frames();
 
+    set_needs_accumulated_visual_contexts_update(true);
     update_paint_and_hit_testing_properties_if_needed();
-    paintable()->assign_accumulated_visual_contexts();
 
     if (auto range = get_selection()->range()) {
         paintable()->recompute_selection_states(*range);
@@ -1665,11 +1665,18 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
         paintable->refresh_scroll_state();
     }
 
-    if (!m_needs_to_resolve_paint_only_properties)
-        return;
-    m_needs_to_resolve_paint_only_properties = false;
-    if (auto* paintable = this->paintable()) {
-        paintable->resolve_paint_only_properties();
+    if (m_needs_to_resolve_paint_only_properties) {
+        m_needs_to_resolve_paint_only_properties = false;
+        if (auto* paintable = this->paintable()) {
+            paintable->resolve_paint_only_properties();
+        }
+    }
+
+    if (m_needs_accumulated_visual_contexts_update) {
+        m_needs_accumulated_visual_contexts_update = false;
+        if (auto* paintable = this->paintable()) {
+            paintable->assign_accumulated_visual_contexts();
+        }
     }
 }
 
@@ -6653,14 +6660,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 
     update_paint_and_hit_testing_properties_if_needed();
 
-    if (m_needs_accumulated_visual_contexts_update) {
-        paintable()->assign_accumulated_visual_contexts();
-        m_needs_accumulated_visual_contexts_update = false;
-    }
-
     auto& viewport_paintable = *paintable();
-
-    viewport_paintable.refresh_scroll_state();
 
     viewport_paintable.paint_all_phases(context);
 
