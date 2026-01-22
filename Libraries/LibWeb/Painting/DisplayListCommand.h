@@ -99,6 +99,7 @@ struct DrawRepeatedImmutableBitmap {
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
     void dump(StringBuilder&) const;
 };
 
