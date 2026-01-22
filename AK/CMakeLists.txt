@@ -15,6 +15,7 @@ set(SOURCES
     JsonObject.cpp
     JsonParser.cpp
     JsonValue.cpp
+    MainThreadAssertions.cpp
     MemoryStream.cpp
     NumberFormat.cpp
     OptionParser.cpp

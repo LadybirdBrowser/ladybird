@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/MainThreadAssertions.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
@@ -42,6 +43,7 @@ static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+    AK::initialize_main_thread();
     AK::set_rich_debug_enabled(true);
 
     int request_server_socket { -1 };

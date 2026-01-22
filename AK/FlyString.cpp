@@ -6,6 +6,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashTable.h>
+#include <AK/MainThreadAssertions.h>
 #include <AK/Singleton.h>
 #include <AK/String.h>
 #include <AK/StringData.h>
@@ -21,6 +22,7 @@ struct FlyStringTableHashTraits : public Traits<Detail::StringData const*> {
 
 static auto& all_fly_strings()
 {
+    ASSERT_ON_MAIN_THREAD();
     static Singleton<HashTable<Detail::StringData const*, FlyStringTableHashTraits>> table;
     return *table;
 }
