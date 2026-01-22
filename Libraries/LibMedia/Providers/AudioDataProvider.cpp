@@ -20,15 +20,12 @@ namespace Media {
 
 DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track)
 {
-    auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
-    auto const& sample_specification = track.audio_data().sample_specification;
-    auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
-    auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, sample_specification, codec_initialization_data));
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     auto stream_cursor = stream->create_cursor();
     TRY(demuxer->create_context_for_track(track, stream_cursor));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(decoder), move(converter)));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(converter)));
+    TRY(thread_data->create_decoder());
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
@@ -91,12 +88,11 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
-AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<AudioDecoder>&& decoder, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_stream_cursor(stream_cursor)
     , m_track(track)
-    , m_decoder(move(decoder))
     , m_converter(move(converter))
 {
 }
@@ -125,6 +121,15 @@ void AudioDataProvider::ThreadData::start()
         return;
     m_requested_state = RequestedState::Running;
     wake();
+}
+
+DecoderErrorOr<void> AudioDataProvider::ThreadData::create_decoder()
+{
+    auto codec_id = TRY(m_demuxer->get_codec_id_for_track(m_track));
+    auto const& sample_specification = m_track.audio_data().sample_specification;
+    auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
+    m_decoder = TRY(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, sample_specification, codec_initialization_data));
+    return {};
 }
 
 void AudioDataProvider::ThreadData::suspend()
@@ -190,11 +195,23 @@ bool AudioDataProvider::ThreadData::handle_suspension()
         return false;
 
     m_queue.clear();
-    flush_decoder();
+    m_decoder.clear();
     m_decoder_needs_keyframe_next_seek = true;
 
     while (m_requested_state == RequestedState::Suspended)
         m_wait_condition.wait();
+
+    if (m_requested_state != RequestedState::Running)
+        return true;
+
+    auto result = create_decoder();
+    if (result.is_error()) {
+        m_is_in_error_state = true;
+        invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
+            if (self->m_error_handler)
+                self->m_error_handler(move(error));
+        });
+    }
 
     // Suspension must be woken with a seek, or we will throw decoding errors.
     while (!handle_seek())

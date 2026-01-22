@@ -20,14 +20,11 @@ namespace Media {
 
 DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
 {
-    auto codec_id = TRY(demuxer->get_codec_id_for_track(track));
-    auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(track));
-    auto decoder = DECODER_TRY_ALLOC(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
-
     auto stream_cursor = stream->create_cursor();
     TRY(demuxer->create_context_for_track(track, stream_cursor));
 
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(decoder), time_provider));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, time_provider));
+    TRY(thread_data->create_decoder());
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
     auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
@@ -100,14 +97,21 @@ void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCom
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
-VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<VideoDecoder>&& decoder, RefPtr<MediaTimeProvider> const& time_provider)
+VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_stream_cursor(stream_cursor)
     , m_track(track)
-    , m_decoder(move(decoder))
     , m_time_provider(time_provider)
 {
+}
+
+DecoderErrorOr<void> VideoDataProvider::ThreadData::create_decoder()
+{
+    auto codec_id = TRY(m_demuxer->get_codec_id_for_track(m_track));
+    auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
+    m_decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
+    return {};
 }
 
 bool VideoDataProvider::is_blocked() const
@@ -218,11 +222,23 @@ bool VideoDataProvider::ThreadData::handle_suspension()
         return false;
 
     m_queue.clear();
-    m_decoder->flush();
+    m_decoder.clear();
     m_decoder_needs_keyframe_next_seek = true;
 
     while (m_requested_state == RequestedState::Suspended)
         m_wait_condition.wait();
+
+    if (m_requested_state != RequestedState::Running)
+        return true;
+
+    auto result = create_decoder();
+    if (result.is_error()) {
+        m_is_in_error_state = true;
+        invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
+            if (self->m_error_handler)
+                self->m_error_handler(move(error));
+        });
+    }
 
     // Suspension must be woken with a seek, or we will throw decoding errors.
     while (!handle_seek())
