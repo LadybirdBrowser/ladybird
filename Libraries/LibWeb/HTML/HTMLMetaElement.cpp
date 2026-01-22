@@ -57,7 +57,9 @@ void HTMLMetaElement::update_metadata(Optional<String> const& old_name)
             document().obtain_theme_color();
         } else if (name()->equals_ignoring_ascii_case("color-scheme"sv)) {
             document().obtain_supported_color_schemes();
-            return;
+        } else if (name()->equals_ignoring_ascii_case("referrer"sv)) {
+            // 2. If element does not have a name attribute whose value is an ASCII case-insensitive match for "referrer", then return.
+            update_referrer_policy();
         }
     }
 
@@ -66,9 +68,47 @@ void HTMLMetaElement::update_metadata(Optional<String> const& old_name)
             document().obtain_theme_color();
         } else if (old_name->equals_ignoring_ascii_case("color-scheme"sv)) {
             document().obtain_supported_color_schemes();
-            return;
         }
+
+        // NOTE: For historical reasons, unlike other standard metadata names, the processing model for referrer is not
+        //       responsive to element removals, and does not use tree order. Only the most-recently-inserted or
+        //       most-recently-modified meta element in this state has an effect.
     }
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#meta-referrer
+void HTMLMetaElement::update_referrer_policy()
+{
+    // 1. If element is not in a document tree, then return.
+    if (!in_a_document_tree())
+        return;
+
+    // 3. If element does not have a content attribute, or that attribute's value is the empty string, then return.
+    auto content = attribute(AttributeNames::content);
+    if (!content.has_value() || content->is_empty())
+        return;
+
+    // 4. Let value be the value of element's content attribute, converted to ASCII lowercase.
+    auto value = content->bytes_as_string_view();
+
+    // 5. If value is one of the values given in the first column of the following table, then set value to the value given in the second column:
+    ReferrerPolicy::ReferrerPolicy policy;
+    if (value.equals_ignoring_ascii_case("never"sv))
+        policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
+    else if (value.equals_ignoring_ascii_case("default"sv))
+        policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY;
+    else if (value.equals_ignoring_ascii_case("always"sv))
+        policy = ReferrerPolicy::ReferrerPolicy::UnsafeURL;
+    else if (value.equals_ignoring_ascii_case("origin-when-crossorigin"sv))
+        policy = ReferrerPolicy::ReferrerPolicy::OriginWhenCrossOrigin;
+    // 6. If value is a referrer policy, then...
+    else if (auto parsed_policy = ReferrerPolicy::from_string(value); parsed_policy.has_value())
+        policy = *parsed_policy;
+    else
+        return;
+
+    // 6. ...set element's node document's policy container's referrer policy to policy.
+    document().policy_container()->referrer_policy = policy;
 }
 
 void HTMLMetaElement::inserted()

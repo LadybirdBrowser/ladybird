@@ -21,7 +21,7 @@ public:
     explicit WorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
     ~WorkerHost();
 
-    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::Bindings::RequestCredentials, bool is_shared);
+    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&, Web::Bindings::RequestCredentials, bool is_shared, Optional<URL::URL> document_url_if_started_by_window_fixme);
 
 private:
     GC::Root<Web::HTML::WorkerDebugConsoleClient> m_console;

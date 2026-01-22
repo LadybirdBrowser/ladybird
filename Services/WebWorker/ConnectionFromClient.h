@@ -41,7 +41,7 @@ private:
     Web::Page& page();
     Web::Page const& page() const;
 
-    virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType) override;
+    virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType, Optional<URL::URL>) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;
 
     GC::Root<PageHost> m_page_host;

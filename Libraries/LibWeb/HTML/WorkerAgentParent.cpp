@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
@@ -51,7 +52,13 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
     m_worker_ipc = make_ref_counted<WebWorkerClient>(move(transport));
     setup_worker_ipc_callbacks(realm);
 
-    m_worker_ipc->async_start_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), m_outside_settings->serialize(), m_agent_type);
+    auto serialized_outside_settings = m_outside_settings->serialize();
+
+    Optional<URL::URL> document_url_if_started_by_window_fixme;
+    if (auto* window = as_if<HTML::Window>(m_outside_settings->realm().global_object()))
+        document_url_if_started_by_window_fixme = window->associated_document().url();
+
+    m_worker_ipc->async_start_worker(m_url, m_worker_options.type, m_worker_options.credentials, m_worker_options.name, move(data_holder), serialized_outside_settings, m_agent_type, document_url_if_started_by_window_fixme);
 }
 
 void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
@@ -60,6 +67,10 @@ void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
     m_worker_ipc->on_request_cookie = [realm = GC::RawRef { realm }](URL::URL const& url, Cookie::Source source) {
         auto& client = Bindings::principal_host_defined_page(realm).client();
         return client.page_did_request_cookie(url, source);
+    };
+    m_worker_ipc->on_request_worker_agent = [realm = GC::RawRef { realm }](Web::Bindings::AgentType worker_type) {
+        auto& client = Bindings::principal_host_defined_page(realm).client();
+        return client.request_worker_agent(worker_type);
     };
 }
 
