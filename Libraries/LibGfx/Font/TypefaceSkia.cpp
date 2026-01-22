@@ -71,7 +71,15 @@ static SkFontStyle::Slant slope_to_skia_slant(u8 slope)
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
 {
     auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
-    auto skia_typeface = font_manager().makeFromData(data, static_cast<int>(ttc_index));
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+    // TrueType Collection files bundle multiple fonts (often different weights of the same
+    // family). We use SkFontArguments to specify which font to load from the collection.
+    SkFontArguments font_args;
+    font_args.setCollectionIndex(static_cast<int>(ttc_index));
+
+    auto stream = std::make_unique<SkMemoryStream>(data);
+    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
 
     if (!skia_typeface) {
         return Error::from_string_literal("Failed to load typeface from buffer");
