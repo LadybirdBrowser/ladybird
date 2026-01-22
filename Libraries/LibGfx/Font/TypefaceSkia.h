@@ -15,7 +15,7 @@ class TypefaceSkia : public Gfx::Typeface {
     AK_MAKE_NONCOPYABLE(TypefaceSkia);
 
 public:
-    static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, int index = 0);
+    static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, u32 ttc_index = 0);
     static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope);
     static Optional<FlyString> resolve_generic_family(StringView family_name);
 
@@ -30,7 +30,7 @@ public:
     virtual u8 slope() const override;
 
     virtual ReadonlyBytes buffer() const LIFETIME_BOUND override { return m_buffer; }
-    virtual unsigned ttc_index() const override { return m_ttc_index; }
+    virtual u32 ttc_index() const override { return m_ttc_index; }
 
     SkTypeface const* sk_typeface() const;
 
@@ -39,13 +39,13 @@ private:
     Impl& impl() const { return *m_impl; }
     NonnullOwnPtr<Impl> m_impl;
 
-    explicit TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, int ttc_index = 0);
+    TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, u32 ttc_index = 0);
 
     virtual bool is_skia() const override { return true; }
 
     OwnPtr<FontData> m_font_data;
     ReadonlyBytes m_buffer;
-    unsigned m_ttc_index { 0 };
+    u32 m_ttc_index { 0 };
 
     mutable Optional<FlyString> m_family;
 
