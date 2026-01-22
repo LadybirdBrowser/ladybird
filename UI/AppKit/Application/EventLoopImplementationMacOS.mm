@@ -477,7 +477,7 @@ void EventLoopImplementationMacOS::quit(int exit_code)
 
 void EventLoopImplementationMacOS::wake()
 {
-    CFRunLoopWakeUp(CFRunLoopGetCurrent());
+    CFRunLoopWakeUp(m_impl->run_loop);
 }
 
 bool EventLoopImplementationMacOS::was_exit_requested() const
