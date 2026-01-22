@@ -39,6 +39,7 @@
             { input: '', base: 'file:///test?test#test' },
             { input: '??a=b&c=d', base: 'http://example.org/foo/bar' },
             { input: 'http://example.com/\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF?\uD800\uD801\uDFFE\uDFFF\uFDD0\uFDCF\uFDEF\uFDF0\uFFFE\uFFFF' },
+            { input: 'irc://127.0.0.1:6667' },
         ];
 
         for (url of urls) {
