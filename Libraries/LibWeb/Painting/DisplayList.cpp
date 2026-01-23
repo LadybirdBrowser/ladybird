@@ -110,7 +110,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             [&](PerspectiveData const& perspective) {
                 save({});
                 auto matrix = scale_matrix_translation(perspective.matrix, static_cast<float>(device_pixels_per_css_pixel));
-                apply_transform({ .origin = { 0, 0 }, .matrix = matrix });
+                apply_transform({ 0, 0 }, matrix);
             },
             [&](ScrollData const& scroll) {
                 save({});
@@ -124,7 +124,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 save({});
                 auto origin = transform.origin.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<float>();
                 auto matrix = scale_matrix_translation(transform.matrix, static_cast<float>(device_pixels_per_css_pixel));
-                apply_transform({ .origin = { origin.x(), origin.y() }, .matrix = matrix });
+                apply_transform(origin, matrix);
             },
             [&](ClipData const& clip) {
                 save({});
@@ -247,7 +247,6 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         else HANDLE_COMMAND(AddMask, add_mask)
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
         else HANDLE_COMMAND(ApplyEffects, apply_effects)
-        else HANDLE_COMMAND(ApplyTransform, apply_transform)
         else VERIFY_NOT_REACHED();
         // clang-format on
     }

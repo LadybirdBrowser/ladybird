@@ -64,7 +64,7 @@ private:
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
     virtual void apply_effects(ApplyEffects const&) = 0;
-    virtual void apply_transform(ApplyTransform const&) = 0;
+    virtual void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
     virtual void add_clip_path(Gfx::Path const&) = 0;
