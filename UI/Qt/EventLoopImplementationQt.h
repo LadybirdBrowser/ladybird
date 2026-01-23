@@ -32,6 +32,8 @@ public:
     virtual void unregister_notifier(Core::Notifier&) override;
 
     virtual void did_post_event() override;
+    virtual Core::EventLoopThreadHandle current_thread_handle() override;
+    virtual void wake_thread(Core::EventLoopThreadHandle) override;
     static bool event_target_received_event(Badge<EventLoopImplementationQtEventTarget>, QEvent* event);
 
     virtual int register_signal(int, Function<void(int)>) override;

@@ -6,9 +6,11 @@
 
 #include "ALooperEventLoopImplementation.h"
 #include "JNIHelpers.h"
+#include <AK/HashTable.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibThreading/RWLock.h>
 #include <android/log.h>
 #include <android/looper.h>
 #include <fcntl.h>
@@ -16,10 +18,32 @@
 
 namespace Ladybird {
 
+static Threading::RWLock s_thread_data_lock;
+static HashTable<EventLoopThreadData*> s_thread_data_by_ptr;
+
 EventLoopThreadData& EventLoopThreadData::the()
 {
     static thread_local EventLoopThreadData s_thread_data { {}, {}, &Core::ThreadEventQueue::current() };
+    Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+    s_thread_data_by_ptr.set(&s_thread_data);
     return s_thread_data;
+}
+
+EventLoopThreadData::~EventLoopThreadData()
+{
+    Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+    s_thread_data_by_ptr.remove(this);
+}
+
+EventLoopThreadData* EventLoopThreadData::for_handle(Core::EventLoopThreadHandle handle)
+{
+    if (handle == 0)
+        return nullptr;
+    auto* ptr = reinterpret_cast<EventLoopThreadData*>(handle);
+    Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+    if (!s_thread_data_by_ptr.contains(ptr))
+        return nullptr;
+    return ptr;
 }
 
 static ALooperEventLoopImplementation& current_impl()
@@ -127,6 +151,19 @@ void ALooperEventLoopManager::did_post_event()
     (void)write(m_pipe[1], &msg, sizeof(msg));
 }
 
+Core::EventLoopThreadHandle ALooperEventLoopManager::current_thread_handle()
+{
+    return reinterpret_cast<Core::EventLoopThreadHandle>(&EventLoopThreadData::the());
+}
+
+void ALooperEventLoopManager::wake_thread(Core::EventLoopThreadHandle handle)
+{
+    auto* thread_data = EventLoopThreadData::for_handle(handle);
+    if (!thread_data || !thread_data->looper)
+        return;
+    ALooper_wake(thread_data->looper);
+}
+
 int looper_callback(int fd, int events, void* data)
 {
     auto& manager = *static_cast<ALooperEventLoopManager*>(data);
@@ -146,6 +183,7 @@ ALooperEventLoopImplementation::ALooperEventLoopImplementation()
     , m_thread_data(&EventLoopThreadData::the())
 {
     ALooper_acquire(m_event_loop);
+    m_thread_data->looper = m_event_loop;
 }
 
 ALooperEventLoopImplementation::~ALooperEventLoopImplementation()

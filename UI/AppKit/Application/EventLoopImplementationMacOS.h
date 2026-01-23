@@ -23,6 +23,8 @@ public:
     virtual void unregister_notifier(Core::Notifier&) override;
 
     virtual void did_post_event() override;
+    virtual Core::EventLoopThreadHandle current_thread_handle() override;
+    virtual void wake_thread(Core::EventLoopThreadHandle) override;
 
     virtual int register_signal(int, Function<void(int)>) override;
     virtual void unregister_signal(int) override;

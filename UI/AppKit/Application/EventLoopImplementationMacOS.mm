@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/IDAllocator.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
@@ -27,6 +28,7 @@ namespace Ladybird {
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;
 static HashMap<pthread_t, ThreadData*> s_thread_data;
+static HashTable<ThreadData*> s_thread_data_by_ptr;
 static thread_local pthread_t s_thread_id;
 static Threading::RWLock s_thread_data_lock;
 
@@ -37,8 +39,10 @@ struct ThreadData {
             s_thread_id = pthread_self();
         if (!s_this_thread_data) {
             s_this_thread_data = make<ThreadData>();
+            s_this_thread_data->run_loop = CFRunLoopGetCurrent();
             Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
             s_thread_data.set(s_thread_id, s_this_thread_data);
+            s_thread_data_by_ptr.set(s_this_thread_data.ptr());
         }
         return *s_this_thread_data;
     }
@@ -49,10 +53,22 @@ struct ThreadData {
         return s_thread_data.get(thread_id).value_or(nullptr);
     }
 
+    static ThreadData* for_handle(Core::EventLoopThreadHandle handle)
+    {
+        if (handle == 0)
+            return nullptr;
+        auto* ptr = reinterpret_cast<ThreadData*>(handle);
+        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        if (!s_thread_data_by_ptr.contains(ptr))
+            return nullptr;
+        return ptr;
+    }
+
     ~ThreadData()
     {
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id);
+        s_thread_data_by_ptr.remove(this);
     }
 
     IDAllocator timer_id_allocator;
@@ -63,6 +79,8 @@ struct ThreadData {
         CFRunLoopRef run_loop { nullptr };
     };
     HashMap<Core::Notifier*, NotifierState> notifiers;
+    CFRunLoopRef run_loop { nullptr };
+    CFRunLoopSourceRef deferred_source { nullptr };
 };
 
 class SignalHandlers : public RefCounted<SignalHandlers> {
@@ -251,6 +269,7 @@ struct EventLoopImplementationMacOS::Impl {
 EventLoopImplementationMacOS::EventLoopImplementationMacOS()
     : m_impl(make<Impl>(*this))
 {
+    ThreadData::the().deferred_source = m_impl->deferred_source;
 }
 
 EventLoopImplementationMacOS::~EventLoopImplementationMacOS() = default;
@@ -389,6 +408,21 @@ void EventLoopManagerMacOS::unregister_notifier(Core::Notifier& notifier)
 void EventLoopManagerMacOS::did_post_event()
 {
     CFRunLoopWakeUp(CFRunLoopGetCurrent());
+}
+
+Core::EventLoopThreadHandle EventLoopManagerMacOS::current_thread_handle()
+{
+    return reinterpret_cast<Core::EventLoopThreadHandle>(&ThreadData::the());
+}
+
+void EventLoopManagerMacOS::wake_thread(Core::EventLoopThreadHandle handle)
+{
+    auto* thread_data = ThreadData::for_handle(handle);
+    if (!thread_data || !thread_data->run_loop)
+        return;
+    if (thread_data->deferred_source)
+        CFRunLoopSourceSignal(thread_data->deferred_source);
+    CFRunLoopWakeUp(thread_data->run_loop);
 }
 
 static void handle_signal(CFFileDescriptorRef f, CFOptionFlags callback_types, void* info)
