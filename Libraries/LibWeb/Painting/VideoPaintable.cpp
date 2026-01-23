@@ -61,7 +61,7 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     auto const& video_element = as<HTML::HTMLVideoElement>(*dom_node());
     auto mouse_position = MediaPaintable::mouse_position(context, video_element);
 
-    auto const& current_frame = video_element.selected_video_track_sink() != nullptr ? video_element.selected_video_track_sink()->current_frame() : nullptr;
+    auto const& current_frame = video_element.selected_video_track_sink() != nullptr ? video_element.selected_video_track_sink()->current_frame(Media::DisplayingVideoSink::Painting::Yes) : nullptr;
     auto const& poster_frame = video_element.poster_frame();
 
     auto current_playback_position = video_element.current_playback_position();

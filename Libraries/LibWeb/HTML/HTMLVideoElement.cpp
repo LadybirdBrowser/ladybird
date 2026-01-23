@@ -192,7 +192,7 @@ RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)
         return nullptr;
-    return sink->current_frame();
+    return sink->current_frame(Media::DisplayingVideoSink::Painting::No);
 }
 
 }
