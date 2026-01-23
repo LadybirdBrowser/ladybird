@@ -870,6 +870,8 @@ void DisplayListPlayerSkia::add_rounded_rect_clip(AddRoundedRectClip const& comm
 void DisplayListPlayerSkia::add_mask(AddMask const& command)
 {
     auto const& rect = command.rect;
+    if (rect.is_empty())
+        return;
     auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
     ScrollStateSnapshot scroll_state_snapshot;
