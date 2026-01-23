@@ -19,7 +19,7 @@ struct Names {
 
 ByteString instruction_name(OpCode const& opcode)
 {
-    return Names::instruction_names.get(opcode).value_or("<unknown>");
+    return Names::instruction_names.get(opcode).value_or(ByteString::formatted("<unknown {:#x}>", opcode.value()));
 }
 
 Optional<OpCode> instruction_from_name(StringView name)
