@@ -23,16 +23,21 @@
 
 namespace RequestServer {
 
-static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
+static HashMap<int, NonnullRefPtr<ConnectionFromClient>>* g_connections;
 static IDAllocator s_client_ids;
 
 Optional<HTTP::DiskCache> g_disk_cache;
+
+void ConnectionFromClient::set_connections(HashMap<int, NonnullRefPtr<ConnectionFromClient>>& connections)
+{
+    g_connections = &connections;
+}
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_resolver(Resolver::default_resolver())
 {
-    s_connections.set(client_id(), *this);
+    g_connections->set(client_id(), *this);
 
     m_alt_svc_cache_path = ByteString::formatted("{}/Ladybird/alt-svc-cache.txt", Core::StandardPaths::cache_directory());
 
@@ -78,10 +83,10 @@ void ConnectionFromClient::request_complete(Badge<Request>, Request const& reque
 void ConnectionFromClient::die()
 {
     auto client_id = this->client_id();
-    s_connections.remove(client_id);
+    g_connections->remove(client_id);
     s_client_ids.deallocate(client_id);
 
-    if (s_connections.is_empty())
+    if (g_connections->is_empty())
         Core::EventLoop::current().quit(0);
 }
 
@@ -137,7 +142,7 @@ ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
         return client_socket.release_error();
     }
 
-    // Note: A ref is stored in the static s_connections map
+    // Note: A ref is stored in the g_connections map
     auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(client_socket.release_value())));
 
     return IPC::File::adopt_fd(socket_fds[1]);
