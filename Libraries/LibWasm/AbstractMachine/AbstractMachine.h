@@ -18,7 +18,7 @@
 
 namespace Wasm {
 
-constexpr inline size_t ArgumentsStaticSize = 8;
+constexpr inline size_t ArgumentsStaticSize = 3;
 
 class Configuration;
 class Result;
@@ -320,8 +320,9 @@ private:
 class ModuleInstance {
 public:
     explicit ModuleInstance(
-        Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports)
-        : m_types(move(types))
+        Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports, size_t minimum_call_record_allocation_size)
+        : cached_minimum_call_record_allocation_size(minimum_call_record_allocation_size)
+        , m_types(move(types))
         , m_tag_types(move(tag_types))
         , m_functions(move(function_addresses))
         , m_tables(move(table_addresses))
@@ -356,6 +357,8 @@ public:
     auto& exports() { return m_exports; }
     auto& tags() { return m_tags; }
     auto& tag_types() { return m_tag_types; }
+
+    size_t cached_minimum_call_record_allocation_size { 0 };
 
 private:
     Vector<FunctionType> m_types;
@@ -674,9 +677,8 @@ private:
 
 class Frame {
 public:
-    explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> arguments, Vector<Value, 8> locals, Expression const& expression, size_t arity)
+    explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> locals, Expression const& expression, size_t arity)
         : m_module(module)
-        , m_arguments(move(arguments))
         , m_locals(move(locals))
         , m_expression(expression)
         , m_arity(arity)
@@ -686,24 +688,14 @@ public:
     auto& module() const { return m_module; }
     auto& locals() const { return m_locals; }
     auto& locals() { return m_locals; }
-    auto& arguments() const { return m_arguments; }
-    auto& arguments() { return m_arguments; }
     auto& expression() const { return m_expression; }
     auto arity() const { return m_arity; }
     auto label_index() const { return m_label_index; }
     auto& label_index() { return m_label_index; }
 
-    Value& local_or_argument(LocalIndex index)
-    {
-        if (index.value() & LocalArgumentMarker)
-            return m_arguments[index.value() & ~LocalArgumentMarker];
-        return m_locals[index.value()];
-    }
-
 private:
     ModuleInstance const& m_module;
-    Vector<Value, ArgumentsStaticSize> m_arguments;
-    Vector<Value, 8> m_locals;
+    Vector<Value, ArgumentsStaticSize> m_locals;
     Expression const& m_expression;
     size_t m_arity { 0 };
     size_t m_label_index { 0 };

@@ -500,7 +500,9 @@ namespace Instructions {
     M(synthetic_call_30, 0xfe0000000000000cull, 3, 0)            \
     M(synthetic_call_31, 0xfe0000000000000dull, 3, 1)            \
     M(synthetic_end_expression, 0xfe0000000000000eull, 0, 0)     \
-    M(synthetic_argument_get, 0xfe0000000000000full, 0, 1)
+    M(synthetic_argument_get, 0xfe0000000000000full, 0, 1)       \
+    M(synthetic_call_with_record_0, 0xfe00000000000012ull, 0, 0) \
+    M(synthetic_call_with_record_1, 0xfe00000000000013ull, 0, 1)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
@@ -511,7 +513,7 @@ ENUMERATE_WASM_OPCODES(M)
 #undef M
 
 static constexpr inline OpCode SyntheticInstructionBase = 0xfe00000000000000ull;
-static constexpr inline size_t SyntheticInstructionCount = 16;
+static constexpr inline size_t SyntheticInstructionCount = 18;
 
 }
 

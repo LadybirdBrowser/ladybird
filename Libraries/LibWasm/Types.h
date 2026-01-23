@@ -620,6 +620,8 @@ struct Dispatch {
         R7,
         CountRegisters,
         Stack = CountRegisters,
+        CallRecord,
+        LastCallRecord = NumericLimits<u8>::max(),
     };
 
     static_assert(is_power_of_two(to_underlying(Stack)), "Stack marker must be a single bit");
@@ -645,6 +647,7 @@ struct CompiledInstructions {
     Vector<Instruction, 0, FastLastAccess::Yes> extra_instruction_storage;
     bool direct = false; // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     size_t max_call_arg_count = 0;
+    size_t max_call_rec_size = 0;
 };
 
 template<Enum auto... Vs>
@@ -1251,6 +1254,9 @@ public:
 
     static ParseResult<NonnullRefPtr<Module>> parse(Stream& stream);
 
+    size_t minimum_call_record_allocation_size() const { return m_minimum_call_record_allocation_size; }
+    void set_minimum_call_record_allocation_size(size_t size) { m_minimum_call_record_allocation_size = size; }
+
 private:
     void set_validation_status(ValidationStatus status) { m_validation_status = status; }
     void preprocess();
@@ -1272,6 +1278,8 @@ private:
 
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
+
+    size_t m_minimum_call_record_allocation_size { 0 };
 };
 
 CompiledInstructions try_compile_instructions(Expression const&, Span<FunctionType const> functions);

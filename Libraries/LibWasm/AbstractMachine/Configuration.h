@@ -14,6 +14,7 @@ namespace Wasm {
 
 enum class SourceAddressMix {
     AllRegisters,
+    AllCallRecords,
     Any,
 };
 
@@ -36,7 +37,6 @@ public:
 
         auto& frame = m_frame_stack.unchecked_last();
         m_locals_base = frame.locals().data();
-        m_arguments_base = frame.arguments().data();
 
         auto continuation = frame.expression().instructions().size() - 1;
         if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
@@ -50,9 +50,14 @@ public:
                 m_label_stack.ensure_capacity(*hint + m_label_stack.size());
         }
         m_label_stack.append(label);
-        if (auto max_count = frame.expression().compiled_instructions.max_call_arg_count; max_count > ArgumentsStaticSize) {
-            if (!m_call_argument_freelist.is_empty() && !any_of(m_call_argument_freelist, [&](auto const& entry) { return entry.capacity() >= frame.expression().compiled_instructions.max_call_arg_count; }))
-                m_call_argument_freelist.last().ensure_capacity(max_count);
+
+        auto max_call_rec_size = frame.expression().compiled_instructions.max_call_rec_size;
+        if (max_call_rec_size > 0) {
+            get_arguments_allocation_if_possible(m_current_call_record, max_call_rec_size);
+            m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
+            m_call_record_base = m_current_call_record.data();
+        } else {
+            m_call_record_base = nullptr;
         }
     }
     ALWAYS_INLINE auto& frame() const { return m_frame_stack.unchecked_last(); }
@@ -68,15 +73,6 @@ public:
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
 
-    ALWAYS_INLINE Value& local_or_argument(LocalIndex index)
-    {
-        if (index.value() & LocalArgumentMarker)
-            return m_arguments_base[index.value() & ~LocalArgumentMarker];
-        return m_locals_base[index.value()];
-    }
-    ALWAYS_INLINE Value const& argument(LocalIndex index) const { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }
-    ALWAYS_INLINE Value& argument(LocalIndex index) { return m_arguments_base[index.value() & ~LocalArgumentMarker]; }
-
     ALWAYS_INLINE Value const& local(LocalIndex index) const { return m_locals_base[index.value()]; }
     ALWAYS_INLINE Value& local(LocalIndex index) { return m_locals_base[index.value()]; }
 
@@ -84,15 +80,25 @@ public:
         explicit CallFrameHandle(Configuration& configuration)
             : configuration(configuration)
         {
+            if (configuration.m_call_record_base)
+                moved_call_record = move(configuration.m_current_call_record);
             configuration.depth()++;
+            configuration.m_call_record_base = nullptr;
         }
 
         ~CallFrameHandle()
         {
+            if (moved_call_record.has_value()) {
+                configuration.m_current_call_record = moved_call_record.release_value();
+                configuration.m_call_record_base = configuration.m_current_call_record.data();
+            } else {
+                configuration.m_call_record_base = nullptr;
+            }
             configuration.unwind({}, *this);
         }
 
         Configuration& configuration;
+        Optional<Vector<Value, ArgumentsStaticSize>> moved_call_record;
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
@@ -110,24 +116,49 @@ public:
         if (arguments.capacity() != ArgumentsStaticSize || max_size <= ArgumentsStaticSize)
             return; // Already heap allocated, or we just don't need to allocate anything.
 
-        // _arguments_ is still in static storage, pull something from the freelist if possible; otherwise allocate a new one.
+        // _arguments_ is still in static storage, pull something from the freelist if it fits.
         if (auto index = m_call_argument_freelist.find_first_index_if([&](auto& entry) { return entry.capacity() >= max_size; }); index.has_value()) {
             arguments = m_call_argument_freelist.take(*index);
             return;
         }
 
-        arguments.ensure_capacity(max_size);
+        if (!m_call_argument_freelist.is_empty())
+            arguments = m_call_argument_freelist.take_last();
+
+        arguments.ensure_capacity(max(max_size, frame().module().cached_minimum_call_record_allocation_size));
     }
 
     void release_arguments_allocation(Vector<Value, ArgumentsStaticSize>& arguments)
     {
         arguments.clear_with_capacity(); // Clear to avoid copying, but keep capacity for reuse.
-        if (arguments.capacity() != ArgumentsStaticSize) {
-            if (m_call_argument_freelist.size() >= 16) // Don't grow to heap.
-                return;
+        auto size = frame().expression().compiled_instructions.max_call_rec_size;
 
-            m_call_argument_freelist.append(move(arguments));
+        if (size > 0) {
+            // If we need a call record, keep this as the current one.
+            if (!m_call_record_base) {
+                m_current_call_record = move(arguments);
+                m_current_call_record.resize_and_keep_capacity(size);
+                m_call_record_base = m_current_call_record.data();
+                return;
+            }
+
+            VERIFY(m_current_call_record.size() >= size);
         }
+
+        if (arguments.capacity() != ArgumentsStaticSize) {
+            if (m_call_argument_freelist.size() >= 16) {
+                // Don't grow to heap.
+                return;
+            }
+
+            m_call_argument_freelist.unchecked_append(move(arguments));
+        }
+    }
+
+    void take_call_record(Vector<Value, ArgumentsStaticSize>& call_record)
+    {
+        call_record = move(m_current_call_record);
+        m_call_record_base = nullptr;
     }
 
     template<SourceAddressMix mix>
@@ -135,6 +166,9 @@ public:
     {
         if constexpr (mix == SourceAddressMix::AllRegisters) {
             regs.data()[to_underlying(destination)] = value;
+            return;
+        } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
+            m_call_record_base[to_underlying(destination) - Dispatch::RegisterOrStack::CallRecord] = value;
             return;
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(destination & ~(Dispatch::Stack - 1))) [[likely]] {
@@ -148,6 +182,9 @@ public:
                 value_stack().unchecked_append(value);
                 return;
             }
+
+            m_call_record_base[to_underlying(destination) - Dispatch::RegisterOrStack::CallRecord] = value;
+            return;
         }
 
         VERIFY_NOT_REACHED();
@@ -161,6 +198,8 @@ public:
 
         if constexpr (mix == SourceAddressMix::AllRegisters) {
             return regs.data()[to_underlying(source)];
+        } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
+            return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
                 return regs.data()[to_underlying(source)];
@@ -169,6 +208,8 @@ public:
         if constexpr (mix == SourceAddressMix::Any) {
             if (source == Dispatch::RegisterOrStack::Stack) [[unlikely]]
                 return value_stack().unsafe_last();
+
+            return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
         }
 
         VERIFY_NOT_REACHED();
@@ -180,6 +221,8 @@ public:
         auto const source = sources[index];
         if constexpr (mix == SourceAddressMix::AllRegisters) {
             return regs.data()[to_underlying(source)];
+        } else if constexpr (mix == SourceAddressMix::AllCallRecords) {
+            return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
         } else if constexpr (mix == SourceAddressMix::Any) {
             if (!(source & ~(Dispatch::Stack - 1))) [[likely]]
                 return regs.data()[to_underlying(source)];
@@ -188,6 +231,8 @@ public:
         if constexpr (mix == SourceAddressMix::Any) {
             if (source == Dispatch::RegisterOrStack::Stack) [[unlikely]]
                 return value_stack().unsafe_take_last();
+
+            return m_call_record_base[to_underlying(source) - Dispatch::RegisterOrStack::CallRecord];
         }
 
         VERIFY_NOT_REACHED();
@@ -211,12 +256,13 @@ private:
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64> m_label_stack;
     DoublyLinkedList<Frame, 512> m_frame_stack;
+    Vector<Value, ArgumentsStaticSize> m_current_call_record;
     Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
     size_t m_depth { 0 };
     u64 m_ip { 0 };
     bool m_should_limit_instruction_count { false };
     Value* m_locals_base { nullptr };
-    Value* m_arguments_base { nullptr };
+    Value* m_call_record_base { nullptr };
 };
 
 }
