@@ -1,0 +1,7 @@
+#import <MediaPlaybackQuality/VideoPlaybackQuality.idl>
+
+// https://w3c.github.io/media-playback-quality/#extension-to-the-htmlvideoelement-interface
+[Exposed=Window]
+partial interface HTMLVideoElement {
+    VideoPlaybackQuality getVideoPlaybackQuality();
+};

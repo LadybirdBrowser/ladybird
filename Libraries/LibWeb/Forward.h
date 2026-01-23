@@ -931,6 +931,12 @@ struct VideoConfiguration;
 
 }
 
+namespace Web::MediaPlaybackQuality {
+
+class VideoPlaybackQuality;
+
+}
+
 namespace Web::MediaSourceExtensions {
 
 class BufferedChangeEvent;
