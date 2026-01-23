@@ -4,11 +4,8 @@ AccumulatedVisualContext Tree:
       [3] transform=[0.8660254,0,0,1,0,0] origin=(58,58) (PaintableWithLines(BlockContainer<DIV>.rotated))
 
 DisplayList:
-Save@0
-  ApplyTransform@0 matrix=[1 0 0 1 0 0]
-  SaveLayer@0
-    FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 255)
-    DrawGlyphRun@3 rect=[8,8 21x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
-  Restore@0
+SaveLayer@0
+  FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 255)
+  DrawGlyphRun@3 rect=[8,8 21x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
 Restore@0
 

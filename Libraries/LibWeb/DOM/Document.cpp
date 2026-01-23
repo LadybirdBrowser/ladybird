@@ -6599,19 +6599,8 @@ RefPtr<Painting::DisplayList> Document::cached_display_list() const
 
 RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config)
 {
-    auto update_visual_viewport_transform = [&](Painting::DisplayList& display_list) {
-        auto transform = visual_viewport()->transform();
-        auto matrix = transform.to_matrix();
-        matrix[0, 3] *= display_list.device_pixels_per_css_pixel();
-        matrix[1, 3] *= display_list.device_pixels_per_css_pixel();
-        matrix[2, 3] *= display_list.device_pixels_per_css_pixel();
-        display_list.set_visual_viewport_transform(matrix);
-    };
-
-    if (m_cached_display_list && m_cached_display_list_paint_config == config) {
-        update_visual_viewport_transform(*m_cached_display_list);
+    if (m_cached_display_list && m_cached_display_list_paint_config == config)
         return m_cached_display_list;
-    }
 
     auto display_list = Painting::DisplayList::create(page().client().device_pixels_per_css_pixel());
     Painting::DisplayListRecorder display_list_recorder(display_list);
@@ -6671,7 +6660,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;
 
-    update_visual_viewport_transform(*m_cached_display_list);
     return display_list;
 }
 

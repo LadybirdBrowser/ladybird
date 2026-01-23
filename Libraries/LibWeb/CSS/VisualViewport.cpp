@@ -174,7 +174,8 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
 
     m_scale = new_scale;
     m_offset = (new_offset / m_scale).to_type<CSSPixels>();
-    m_document->set_needs_display(InvalidateDisplayList::No);
+    m_document->set_needs_accumulated_visual_contexts_update(true);
+    m_document->set_needs_display(InvalidateDisplayList::Yes);
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
@@ -187,7 +188,8 @@ void VisualViewport::reset()
 {
     m_scale = 1.0;
     m_offset = { 0, 0 };
-    m_document->set_needs_display(InvalidateDisplayList::No);
+    m_document->set_needs_accumulated_visual_contexts_update(true);
+    m_document->set_needs_display(InvalidateDisplayList::Yes);
 }
 
 }
