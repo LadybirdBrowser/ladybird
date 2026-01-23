@@ -903,6 +903,11 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
             m_mousemove_previous_screen_position = screen_position;
 
+            // https://w3c.github.io/uievents/#events-mouseevent-event-order
+            // Boundary events must be fired before pointermove/mousemove.
+            if (hovered_node_changed)
+                document.set_hovered_node(node);
+
             bool continue_ = node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointermove, screen_position, page_offset, viewport_position, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             if (!continue_)
                 return EventResult::Cancelled;
