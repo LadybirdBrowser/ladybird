@@ -64,6 +64,8 @@ private:
     Vector<GC::Ref<PaintableBox>> m_paintable_boxes_with_auto_content_visibility;
 
     size_t m_next_accumulated_visual_context_id { 1 };
+
+    RefPtr<AccumulatedVisualContext const> m_visual_viewport_context;
 };
 
 template<>

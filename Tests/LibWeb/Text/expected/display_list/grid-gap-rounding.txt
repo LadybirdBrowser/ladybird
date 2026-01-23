@@ -2,14 +2,11 @@ AccumulatedVisualContext Tree:
   [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
 
 DisplayList:
-Save@0
-  ApplyTransform@0 matrix=[1 0 0 1 0 0]
-  SaveLayer@0
-    FillRect@1 rect=[8,8 29x30] color=rgb(0, 0, 0)
-    FillRect@1 rect=[38,8 28x30] color=rgb(0, 0, 0)
-    FillRect@1 rect=[67,8 29x30] color=rgb(0, 0, 0)
-    FillRect@1 rect=[97,8 28x30] color=rgb(0, 0, 0)
-    FillRect@1 rect=[126,8 29x30] color=rgb(0, 0, 0)
-  Restore@0
+SaveLayer@0
+  FillRect@1 rect=[8,8 29x30] color=rgb(0, 0, 0)
+  FillRect@1 rect=[38,8 28x30] color=rgb(0, 0, 0)
+  FillRect@1 rect=[67,8 29x30] color=rgb(0, 0, 0)
+  FillRect@1 rect=[97,8 28x30] color=rgb(0, 0, 0)
+  FillRect@1 rect=[126,8 29x30] color=rgb(0, 0, 0)
 Restore@0
 

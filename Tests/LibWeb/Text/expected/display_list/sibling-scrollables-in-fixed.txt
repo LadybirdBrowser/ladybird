@@ -7,20 +7,17 @@ AccumulatedVisualContext Tree:
     [7] scroll_frame_id=3 (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
-Save@0
-  ApplyTransform@0 matrix=[1 0 0 1 0 0]
-  SaveLayer@0
-    FillRect@0 rect=[10,10 324x224] color=rgb(211, 211, 211)
-    FillPath@0 path_bounding_rect=[10,10 324x224]
-    FillPath@0 path_bounding_rect=[22,22 93x152]
-    FillRect@3 rect=[23,23 200x300] color=rgb(240, 128, 128)
-    FillPath@0 path_bounding_rect=[125,22 94x152]
-    FillRect@5 rect=[126,23 200x300] color=rgb(144, 238, 144)
-    FillPath@0 path_bounding_rect=[229,22 93x152]
-    FillRect@7 rect=[230,23 200x300] color=rgb(173, 216, 230)
-    DrawGlyphRun@3 rect=[23,23 71x18] translation=[23,36.796875] color=rgb(0, 0, 0) scale=1
-    DrawGlyphRun@5 rect=[126,23 66x18] translation=[126.328125,36.796875] color=rgb(0, 0, 0) scale=1
-    DrawGlyphRun@7 rect=[229,23 67x18] translation=[229.65625,36.796875] color=rgb(0, 0, 0) scale=1
-  Restore@0
+SaveLayer@0
+  FillRect@0 rect=[10,10 324x224] color=rgb(211, 211, 211)
+  FillPath@0 path_bounding_rect=[10,10 324x224]
+  FillPath@0 path_bounding_rect=[22,22 93x152]
+  FillRect@3 rect=[23,23 200x300] color=rgb(240, 128, 128)
+  FillPath@0 path_bounding_rect=[125,22 94x152]
+  FillRect@5 rect=[126,23 200x300] color=rgb(144, 238, 144)
+  FillPath@0 path_bounding_rect=[229,22 93x152]
+  FillRect@7 rect=[230,23 200x300] color=rgb(173, 216, 230)
+  DrawGlyphRun@3 rect=[23,23 71x18] translation=[23,36.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@5 rect=[126,23 66x18] translation=[126.328125,36.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@7 rect=[229,23 67x18] translation=[229.65625,36.796875] color=rgb(0, 0, 0) scale=1
 Restore@0
 

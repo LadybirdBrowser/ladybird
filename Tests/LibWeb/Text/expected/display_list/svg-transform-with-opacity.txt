@@ -5,10 +5,7 @@ AccumulatedVisualContext Tree:
         [4] transform=[1,0,0,1,20,20] origin=(8,8) (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
-Save@0
-  ApplyTransform@0 matrix=[1 0 0 1 0 0]
-  SaveLayer@0
-    FillPath@4 path_bounding_rect=[8,8 100x100]
-  Restore@0
+SaveLayer@0
+  FillPath@4 path_bounding_rect=[8,8 100x100]
 Restore@0
 

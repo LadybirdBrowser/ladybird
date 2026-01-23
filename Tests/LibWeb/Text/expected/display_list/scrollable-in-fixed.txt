@@ -3,14 +3,11 @@ AccumulatedVisualContext Tree:
     [3] scroll_frame_id=1 (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
-Save@0
-  ApplyTransform@0 matrix=[1 0 0 1 0 0]
-  SaveLayer@0
-    FillRect@0 rect=[20,20 204x154] color=rgb(211, 211, 211)
-    FillPath@0 path_bounding_rect=[20,20 204x154]
-    FillPath@0 path_bounding_rect=[32,32 182x102]
-    FillRect@3 rect=[33,33 300x200] color=rgb(240, 128, 128)
-    DrawGlyphRun@3 rect=[33,33 179x18] translation=[33,46.796875] color=rgb(0, 0, 0) scale=1
-  Restore@0
+SaveLayer@0
+  FillRect@0 rect=[20,20 204x154] color=rgb(211, 211, 211)
+  FillPath@0 path_bounding_rect=[20,20 204x154]
+  FillPath@0 path_bounding_rect=[32,32 182x102]
+  FillRect@3 rect=[33,33 300x200] color=rgb(240, 128, 128)
+  DrawGlyphRun@3 rect=[33,33 179x18] translation=[33,46.796875] color=rgb(0, 0, 0) scale=1
 Restore@0
 

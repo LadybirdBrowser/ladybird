@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -142,9 +143,16 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         return AccumulatedVisualContext::create(allocate_accumulated_visual_context_id(), move(data), parent);
     };
 
-    RefPtr<AccumulatedVisualContext const> viewport_state_for_descendants = nullptr;
+    // Create visual viewport transform as root (if not identity)
+    m_visual_viewport_context = nullptr;
+    auto transform = document().visual_viewport()->transform();
+    if (!transform.is_identity()) {
+        m_visual_viewport_context = append_node(nullptr, TransformData { transform.to_matrix(), CSSPixelPoint { 0, 0 } });
+    }
+
+    RefPtr<AccumulatedVisualContext const> viewport_state_for_descendants = m_visual_viewport_context;
     if (own_scroll_frame())
-        viewport_state_for_descendants = append_node(nullptr, ScrollData { own_scroll_frame()->id(), false });
+        viewport_state_for_descendants = append_node(m_visual_viewport_context, ScrollData { own_scroll_frame()->id(), false });
     set_accumulated_visual_context(nullptr);
     set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
@@ -156,7 +164,7 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         RefPtr<AccumulatedVisualContext const> inherited_state;
 
         if (paintable_box.is_fixed_position()) {
-            inherited_state = nullptr;
+            inherited_state = m_visual_viewport_context;
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
             // NOTE: transforms/perspectives can't be in intermediates for abspos because they establish
