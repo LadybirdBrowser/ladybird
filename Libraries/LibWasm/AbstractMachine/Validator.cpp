@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/HashTable.h>
 #include <AK/SourceLocation.h>
 #include <AK/TemporaryChange.h>
@@ -2106,6 +2107,11 @@ VALIDATE_INSTRUCTION(block)
     for (auto& parameter : parameters)
         stack.append(parameter);
 
+    args.meta = Instruction::StructuredInstructionArgs::Meta {
+        .arity = block_type.results().size(),
+        .parameter_count = parameters.size(),
+    };
+
     return {};
 }
 
@@ -2122,6 +2128,11 @@ VALIDATE_INSTRUCTION(loop)
     m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
+
+    args.meta = Instruction::StructuredInstructionArgs::Meta {
+        .arity = block_type.results().size(),
+        .parameter_count = parameters.size(),
+    };
 
     return {};
 }
@@ -2143,6 +2154,11 @@ VALIDATE_INSTRUCTION(if_)
     m_max_frame_size = max(m_max_frame_size, m_frames.size());
     for (auto& parameter : parameters)
         stack.append(parameter);
+
+    args.meta = Instruction::StructuredInstructionArgs::Meta {
+        .arity = block_type.results().size(),
+        .parameter_count = parameters.size(),
+    };
 
     return {};
 }
@@ -2189,6 +2205,11 @@ VALIDATE_INSTRUCTION(try_table)
     auto& parameters = block_type.parameters();
     for (size_t i = 1; i <= parameters.size(); ++i)
         TRY(stack.take(parameters[parameters.size() - i]));
+
+    args.try_.meta = Instruction::StructuredInstructionArgs::Meta {
+        .arity = block_type.results().size(),
+        .parameter_count = parameters.size(),
+    };
 
     m_frames.empend(block_type, FrameKind::TryTable, stack.size());
     m_max_frame_size = max(m_max_frame_size, m_frames.size());
@@ -2238,12 +2259,16 @@ VALIDATE_INSTRUCTION(try_table)
 
 VALIDATE_INSTRUCTION(br)
 {
-    auto label = instruction.arguments().get<LabelIndex>();
-    TRY(validate(label));
+    auto& args = instruction.arguments().get<Instruction::BranchArgs>();
+    TRY(validate(args.label));
 
-    auto& type = m_frames[(m_frames.size() - 1) - label.value()].labels();
+    auto& target = m_frames[(m_frames.size() - 1) - args.label.value()];
+
+    auto& type = target.labels();
     for (size_t i = 1; i <= type.size(); ++i)
         TRY(stack.take(type[type.size() - i]));
+
+    args.has_stack_adjustment = target.initial_size != stack.size();
 
     m_frames.last().unreachable = true;
     stack.resize(m_frames.last().initial_size);
@@ -2252,12 +2277,13 @@ VALIDATE_INSTRUCTION(br)
 
 VALIDATE_INSTRUCTION(br_if)
 {
-    auto label = instruction.arguments().get<LabelIndex>();
-    TRY(validate(label));
+    auto& args = instruction.arguments().get<Instruction::BranchArgs>();
+    TRY(validate(args.label));
 
     TRY(stack.take<ValueType::I32>());
 
-    auto& type = m_frames[(m_frames.size() - 1) - label.value()].labels();
+    auto& target = m_frames[(m_frames.size() - 1) - args.label.value()];
+    auto& type = target.labels();
 
     Vector<StackEntry> entries;
     entries.ensure_capacity(type.size());
@@ -2270,6 +2296,8 @@ VALIDATE_INSTRUCTION(br_if)
 
     for (size_t i = 0; i < entries.size(); ++i)
         stack.append(entries[entries.size() - i - 1]);
+
+    args.has_stack_adjustment = target.initial_size != stack.size();
 
     return {};
 }
