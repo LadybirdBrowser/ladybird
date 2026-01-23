@@ -72,3 +72,19 @@ test("invalid escapes should give syntax error", () => {
     expect("`\\01`").not.toEval();
     expect("`\\u{10FFFFF}`").not.toEval();
 });
+
+test("empty template literal", () => {
+    expect(``).toBe("");
+});
+
+test("const fold template literal concatenation", () => {
+    expect(`abc` + "xyz").toBe("abcxyz");
+    expect(`abc` + `xyz`).toBe("abcxyz");
+    expect("abc" + `xyz`).toBe("abcxyz");
+    expect("abc" + "xyz").toBe("abcxyz");
+    expect(`abc` + `` + `xyz`).toBe("abcxyz");
+    expect(`abc` + "" + `xyz`).toBe("abcxyz");
+    expect(`${"abcxyz"}`).toBe("abcxyz");
+    // TODO: not const fold-able (yet)
+    expect(`${"abc"}${"xyz"}`).toBe("abcxyz");
+});
