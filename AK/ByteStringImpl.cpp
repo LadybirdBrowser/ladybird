@@ -11,15 +11,31 @@
 
 namespace AK {
 
-static ByteStringImpl* s_the_empty_stringimpl = nullptr;
+// Static storage for the empty ByteStringImpl, avoiding heap allocation
+// and runtime initialization. The struct layout matches ByteStringImpl
+// with space for the NUL terminator in the inline buffer.
+struct EmptyByteStringImpl {
+    // Members from AtomicRefCountedBase
+    Atomic<unsigned> ref_count { 1 };
+
+    // Members from ByteStringImpl
+    size_t length { 0 };
+    unsigned hash { 0 };
+    bool has_hash { false };
+    char inline_buffer[1] { '\0' };
+
+    constexpr EmptyByteStringImpl() = default;
+};
+
+// The inline_buffer[1] fits within the trailing padding of ByteStringImpl's layout.
+static_assert(sizeof(EmptyByteStringImpl) == sizeof(ByteStringImpl));
+static_assert(alignof(EmptyByteStringImpl) == alignof(ByteStringImpl));
+
+static constinit EmptyByteStringImpl s_the_empty_stringimpl;
 
 ByteStringImpl& ByteStringImpl::the_empty_stringimpl()
 {
-    if (!s_the_empty_stringimpl) {
-        void* slot = kmalloc(sizeof(ByteStringImpl) + sizeof(char));
-        s_the_empty_stringimpl = new (slot) ByteStringImpl(ConstructTheEmptyStringImpl);
-    }
-    return *s_the_empty_stringimpl;
+    return reinterpret_cast<ByteStringImpl&>(s_the_empty_stringimpl);
 }
 
 ByteStringImpl::ByteStringImpl(ConstructWithInlineBufferTag, size_t length)
