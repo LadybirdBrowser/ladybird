@@ -231,100 +231,6 @@ void DisplayListPlayerSkia::translate(Translate const& command)
     canvas.translate(command.delta.x(), command.delta.y());
 }
 
-static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopList const& color_stop_list)
-{
-    ColorStopList stops_with_replaced_transition_hints;
-
-    auto const& first_color_stop = color_stop_list.first();
-    // First color stop in the list should never have transition hint value
-    VERIFY(!first_color_stop.transition_hint.has_value());
-    stops_with_replaced_transition_hints.empend(first_color_stop.color, first_color_stop.position);
-
-    // This loop replaces transition hints with five regular points, calculated using the
-    // formula defined in the spec. After rendering using linear interpolation, this will
-    // produce a result close enough to that obtained if the color of each point were calculated
-    // using the non-linear formula from the spec.
-    for (size_t i = 1; i < color_stop_list.size(); i++) {
-        auto const& color_stop = color_stop_list[i];
-        if (!color_stop.transition_hint.has_value()) {
-            stops_with_replaced_transition_hints.empend(color_stop.color, color_stop.position);
-            continue;
-        }
-
-        auto const& previous_color_stop = color_stop_list[i - 1];
-        auto const& next_color_stop = color_stop_list[i];
-
-        auto distance_between_stops = next_color_stop.position - previous_color_stop.position;
-        auto transition_hint = color_stop.transition_hint.value();
-
-        Array transition_hint_relative_sampling_positions {
-            transition_hint * 0.33f,
-            transition_hint * 0.66f,
-            transition_hint,
-            transition_hint + (1.f - transition_hint) * 0.33f,
-            transition_hint + (1.f - transition_hint) * 0.66f,
-        };
-
-        for (auto const& transition_hint_relative_sampling_position : transition_hint_relative_sampling_positions) {
-            auto position = previous_color_stop.position + transition_hint_relative_sampling_position * distance_between_stops;
-            auto value = color_stop_step(previous_color_stop, next_color_stop, position);
-            auto color = previous_color_stop.color.interpolate(next_color_stop.color, value);
-            stops_with_replaced_transition_hints.empend(color, position);
-        }
-
-        stops_with_replaced_transition_hints.empend(color_stop.color, color_stop.position);
-    }
-
-    return stops_with_replaced_transition_hints;
-}
-
-static ColorStopList expand_repeat_length(ColorStopList const& color_stop_list, float repeat_length)
-{
-    // https://drafts.csswg.org/css-images/#repeating-gradients
-    // When rendered, however, the color-stops are repeated infinitely in both directions, with their
-    // positions shifted by multiples of the difference between the last specified color-stop’s position
-    // and the first specified color-stop’s position. For example, repeating-linear-gradient(red 10px, blue 50px)
-    // is equivalent to linear-gradient(..., red -30px, blue 10px, red 10px, blue 50px, red 50px, blue 90px, ...).
-
-    auto first_stop_position = color_stop_list.first().position;
-    int const negative_repeat_count = AK::ceil(first_stop_position / repeat_length);
-    int const positive_repeat_count = AK::ceil((1.0f - first_stop_position) / repeat_length);
-
-    ColorStopList color_stop_list_with_expanded_repeat = color_stop_list;
-
-    auto get_color_between_stops = [](float position, auto const& current_stop, auto const& previous_stop) {
-        auto distance_between_stops = current_stop.position - previous_stop.position;
-        auto percentage = (position - previous_stop.position) / distance_between_stops;
-        return previous_stop.color.interpolate(current_stop.color, percentage);
-    };
-
-    for (auto repeat_count = 1; repeat_count <= negative_repeat_count; repeat_count++) {
-        for (auto stop : color_stop_list.in_reverse()) {
-            stop.position -= repeat_length * static_cast<float>(repeat_count);
-            if (stop.position < 0) {
-                stop.color = get_color_between_stops(0.0f, stop, color_stop_list_with_expanded_repeat.first());
-                color_stop_list_with_expanded_repeat.prepend(stop);
-                break;
-            }
-            color_stop_list_with_expanded_repeat.prepend(stop);
-        }
-    }
-
-    for (auto repeat_count = 1; repeat_count < positive_repeat_count; repeat_count++) {
-        for (auto stop : color_stop_list) {
-            stop.position += repeat_length * static_cast<float>(repeat_count);
-            if (stop.position > 1) {
-                stop.color = get_color_between_stops(1.0f, stop, color_stop_list_with_expanded_repeat.last());
-                color_stop_list_with_expanded_repeat.append(stop);
-                break;
-            }
-            color_stop_list_with_expanded_repeat.append(stop);
-        }
-    }
-
-    return color_stop_list_with_expanded_repeat;
-}
-
 static SkGradientShader::Interpolation to_skia_interpolation(CSS::InterpolationMethod interpolation_method)
 {
     SkGradientShader::Interpolation interpolation;
@@ -392,14 +298,12 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
     auto const& repeat_length = linear_gradient_data.color_stops.repeat_length;
     VERIFY(!color_stop_list.is_empty());
 
-    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
-
     Vector<SkColor4f> colors;
     Vector<SkScalar> positions;
-    auto const first_position = repeat_length.has_value() ? stops_with_replaced_transition_hints.first().position : 0.f;
-    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
-        auto const& stop = stops_with_replaced_transition_hints[stop_index];
-        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+    auto const first_position = repeat_length.has_value() ? color_stop_list.first().position : 0.f;
+    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
+        auto const& stop = color_stop_list[stop_index];
+        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
             continue;
 
         colors.append(to_skia_color4f(stop.color));
@@ -776,20 +680,14 @@ void DisplayListPlayerSkia::draw_rect(DrawRect const& command)
 void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& command)
 {
     auto const& radial_gradient_data = command.radial_gradient_data;
-
-    auto color_stop_list = radial_gradient_data.color_stops.list;
+    auto const& color_stop_list = radial_gradient_data.color_stops.list;
     VERIFY(!color_stop_list.is_empty());
-    auto const& repeat_length = radial_gradient_data.color_stops.repeat_length;
-    if (repeat_length.has_value())
-        color_stop_list = expand_repeat_length(color_stop_list, repeat_length.value());
-
-    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
     Vector<SkColor4f> colors;
     Vector<SkScalar> positions;
-    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
-        auto const& stop = stops_with_replaced_transition_hints[stop_index];
-        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
+        auto const& stop = color_stop_list[stop_index];
+        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
             continue;
         colors.append(to_skia_color4f(stop.color));
         positions.append(stop.position);
@@ -806,9 +704,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
     auto const sx = isinf(aspect_ratio) ? 1.0f : aspect_ratio;
     matrix.setScale(sx, 1.0f, center.x(), center.y());
 
-    SkTileMode tile_mode = SkTileMode::kClamp;
-    if (repeat_length.has_value())
-        tile_mode = SkTileMode::kRepeat;
+    SkTileMode tile_mode = radial_gradient_data.color_stops.repeating ? SkTileMode::kRepeat : SkTileMode::kClamp;
 
     auto color_space = SkColorSpace::MakeSRGB();
     auto interpolation = to_skia_interpolation(radial_gradient_data.interpolation_method);
@@ -824,20 +720,14 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
 void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& command)
 {
     auto const& conic_gradient_data = command.conic_gradient_data;
-
-    auto color_stop_list = conic_gradient_data.color_stops.list;
-    auto const& repeat_length = conic_gradient_data.color_stops.repeat_length;
-    if (repeat_length.has_value())
-        color_stop_list = expand_repeat_length(color_stop_list, repeat_length.value());
-
+    auto const& color_stop_list = conic_gradient_data.color_stops.list;
     VERIFY(!color_stop_list.is_empty());
-    auto stops_with_replaced_transition_hints = replace_transition_hints_with_normal_color_stops(color_stop_list);
 
     Vector<SkColor4f> colors;
     Vector<SkScalar> positions;
-    for (size_t stop_index = 0; stop_index < stops_with_replaced_transition_hints.size(); stop_index++) {
-        auto const& stop = stops_with_replaced_transition_hints[stop_index];
-        if (stop_index > 0 && stop == stops_with_replaced_transition_hints[stop_index - 1])
+    for (size_t stop_index = 0; stop_index < color_stop_list.size(); stop_index++) {
+        auto const& stop = color_stop_list[stop_index];
+        if (stop_index > 0 && stop == color_stop_list[stop_index - 1])
             continue;
         colors.append(to_skia_color4f(stop.color));
         positions.append(stop.position);
