@@ -346,10 +346,6 @@
 #    cmakedefine01 WEBP_DEBUG
 #endif
 
-#ifndef WORKER_THREAD_DEBUG
-#    cmakedefine01 WORKER_THREAD_DEBUG
-#endif
-
 #ifndef XML_PARSER_DEBUG
 #    cmakedefine01 XML_PARSER_DEBUG
 #endif
