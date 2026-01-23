@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
- * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -769,14 +769,23 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
     bool at_sign_seen = false;
     bool inside_brackets = false;
     bool password_token_seen = false;
+    StringBuilder username_builder;
+    StringBuilder password_builder;
 
     Utf8View input(processed_input);
 
     // 8. Let pointer be a pointer for input.
     Utf8CodePointIterator iterator = input.begin();
+    u32 code_point = end_of_file;
 
     auto get_remaining = [&input, &iterator] {
         return input.substring_view(iterator - input.begin() + iterator.underlying_code_point_length_in_bytes()).as_string();
+    };
+
+    auto get_remaining_including_code_point = [&input, &iterator, &code_point] {
+        if (code_point == end_of_file)
+            return StringView {};
+        return input.substring_view(iterator - input.begin() + iterator.underlying_code_point_length_in_bytes() - AK::UnicodeUtils::code_unit_length_for_code_point(code_point)).as_string();
     };
 
     auto remaining_starts_with_two_ascii_hex_digits = [&]() {
@@ -788,7 +797,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
     //       ++iterator : "increase pointer by 1"
     //       continue   : "decrease pointer by 1"
     for (;;) {
-        u32 code_point = end_of_file;
+        code_point = end_of_file;
         if (!iterator.done())
             code_point = *iterator;
 
@@ -1064,7 +1073,16 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
             break;
         // -> authority state, https://url.spec.whatwg.org/#authority-state
-        case State::Authority:
+        case State::Authority: {
+            auto remaining = get_remaining_including_code_point();
+
+            // Authority is delimited by '@/?#' and additionally '\' for special URLs
+            auto delimiter = url->is_special() ? "@/?#\\"sv : "@/?#"sv;
+            auto authority_end = remaining.find_any_of(delimiter);
+            auto authority_length = authority_end.value_or(remaining.length());
+            auto authority = remaining.substring_view(0, authority_length);
+            code_point = authority_length < remaining.length() ? remaining[authority_length] : end_of_file;
+
             // 1. If c is U+0040 (@), then:
             if (code_point == '@') {
                 // 1. Invalid-credentials validation error.
@@ -1072,77 +1090,59 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
 
                 // 2. If atSignSeen is true, then prepend "%40" to buffer.
                 if (at_sign_seen) {
-                    auto content = buffer.to_byte_string();
-                    buffer.clear();
-                    buffer.append("%40"sv);
-                    buffer.append(content);
+                    if (password_token_seen)
+                        password_builder.append("%40"sv);
+                    else
+                        username_builder.append("%40"sv);
                 }
 
                 // 3. Set atSignSeen to true.
                 at_sign_seen = true;
 
-                StringBuilder username_builder;
-                StringBuilder password_builder;
-
                 // 4. For each codePoint in buffer:
-                for (auto c : Utf8View(buffer.string_view())) {
-                    // 1. If codePoint is U+003A (:) and passwordTokenSeen is false, then set passwordTokenSeen to true and continue.
-                    if (c == ':' && !password_token_seen) {
+                //     1. If codePoint is U+003A (:) and passwordTokenSeen is false, then set passwordTokenSeen to true and continue.
+                //     2. Let encodedCodePoints be the result of running UTF-8 percent-encode codePoint using the userinfo percent-encode set.
+                //     3. If passwordTokenSeen is true, then append encodedCodePoints to url’s password.
+                //     4. Otherwise, append encodedCodePoints to url’s username.
+                if (password_token_seen) {
+                    password_builder.append(percent_encode(authority, PercentEncodeSet::Userinfo));
+                } else {
+                    if (auto password_end = authority.find(':'); password_end.has_value()) {
                         password_token_seen = true;
-                        continue;
-                    }
-
-                    // 2. Let encodedCodePoints be the result of running UTF-8 percent-encode codePoint using the userinfo percent-encode set.
-                    // NOTE: This is done inside of step 3 and 4 implementation
-
-                    // 3. If passwordTokenSeen is true, then append encodedCodePoints to url’s password.
-                    if (password_token_seen) {
-                        if (password_builder.is_empty())
-                            password_builder.append(url->m_data->password);
-
-                        append_percent_encoded_if_necessary(password_builder, c, PercentEncodeSet::Userinfo);
-                    }
-                    // 4. Otherwise, append encodedCodePoints to url’s username.
-                    else {
-                        if (username_builder.is_empty())
-                            username_builder.append(url->m_data->username);
-
-                        append_percent_encoded_if_necessary(username_builder, c, PercentEncodeSet::Userinfo);
+                        username_builder.append(percent_encode(authority.substring_view(0, password_end.value()), PercentEncodeSet::Userinfo));
+                        password_builder.append(percent_encode(authority.substring_view(password_end.value() + 1), PercentEncodeSet::Userinfo));
+                    } else {
+                        username_builder.append(percent_encode(authority, PercentEncodeSet::Userinfo));
                     }
                 }
 
-                if (username_builder.string_view().length() > url->m_data->username.bytes().size())
-                    url->m_data->username = username_builder.to_string().release_value_but_fixme_should_propagate_errors();
-                if (password_builder.string_view().length() > url->m_data->password.bytes().size())
-                    url->m_data->password = password_builder.to_string().release_value_but_fixme_should_propagate_errors();
-
-                // 5. Set buffer to the empty string.
-                buffer.clear();
-
+                // NB: Since we have batch processed the username/password, we need to move the iterator past those code points.
+                iterator = input.iterator_at_byte_offset_without_validation(iterator - input.begin() + authority.length());
             }
             // 2. Otherwise, if one of the following is true:
             //    * c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
             //    * url is special and c is U+005C (\)
-            else if ((code_point == end_of_file || code_point == '/' || code_point == '?' || code_point == '#')
-                || (url->is_special() && code_point == '\\')) {
+            // NB: This is always the case per our search over authority above.
+            else {
                 // then:
 
                 // 1. If atSignSeen is true and buffer is the empty string, host-missing validation error, return failure.
-                if (at_sign_seen && buffer.is_empty()) {
+                if (at_sign_seen && authority.is_empty()) {
                     report_validation_error();
                     return {};
                 }
 
                 // 2. Decrease pointer by buffer’s code point length + 1, set buffer to the empty string, and set state to host state.
-                iterator = input.iterator_at_byte_offset(iterator - input.begin() - buffer.length() - 1);
+                iterator = input.iterator_at_byte_offset_without_validation(iterator - input.begin() - 1);
                 buffer.clear();
                 state = State::Host;
+                url->m_data->password = password_builder.to_string_without_validation();
+                url->m_data->username = username_builder.to_string_without_validation();
             }
             // 3. Otherwise, append c to buffer.
-            else {
-                buffer.append_code_point(code_point);
-            }
+            // NB: This is not needed as we do not process authority per codepoint over the buffer.
             break;
+        }
         // -> host state, https://url.spec.whatwg.org/#host-state
         // -> hostname state, https://url.spec.whatwg.org/#hostname-state
         case State::Host:
