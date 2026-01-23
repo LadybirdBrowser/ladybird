@@ -90,15 +90,6 @@ public:
     auto const& commands() const { return m_commands; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
-    template<typename Callback>
-    void for_each_command_in_range(size_t start, size_t end, Callback callback)
-    {
-        for (auto index = start; index < end; ++index) {
-            if (callback(m_commands[index].command, m_commands[index].context) == IterationDecision::Break)
-                break;
-        }
-    }
-
 private:
     DisplayList(double device_pixels_per_css_pixel)
         : m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
