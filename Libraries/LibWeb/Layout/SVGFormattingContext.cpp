@@ -243,20 +243,9 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
             .translate({ -active_view_box->min_x, -active_view_box->min_y });
     }
 
-    if (svg_box_state.has_definite_width() && svg_box_state.has_definite_height()) {
-        // Scale the box of the viewport based on the parent's viewBox transform.
-        // The viewBox transform is always just a simple scale + offset.
-        // FIXME: Avoid converting SVG box to floats.
-        Gfx::FloatRect svg_rect = { svg_box_state.offset.to_type<float>(),
-            { float(svg_box_state.content_width()), float(svg_box_state.content_height()) } };
-        svg_rect = m_parent_viewbox_transform.map(svg_rect);
-        svg_box_state.set_content_offset(svg_rect.location().to_type<CSSPixels>());
-        svg_box_state.set_content_width(CSSPixels(svg_rect.width()));
-        svg_box_state.set_content_height(CSSPixels(svg_rect.height()));
-        svg_box_state.set_has_definite_width(true);
-        svg_box_state.set_has_definite_height(true);
-    }
-
+    // NOTE: Calculate viewport dimensions BEFORE scaling the content by m_parent_viewbox_transform.
+    // For userSpaceOnUse clips (which have no viewBox), we need the unscaled content dimensions,
+    // not the final pixel dimensions. Otherwise, nested clips compound the scale incorrectly.
     auto viewport_width = [&] {
         if (active_view_box.has_value())
             return CSSPixels::nearest_value_for(active_view_box->width);
@@ -278,6 +267,20 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     m_available_space = available_space;
     m_svg_offset = svg_box_state.offset;
     m_viewport_size = { viewport_width, viewport_height };
+
+    if (svg_box_state.has_definite_width() && svg_box_state.has_definite_height()) {
+        // Scale the box of the viewport based on the parent's viewBox transform.
+        // The viewBox transform is always just a simple scale + offset.
+        // FIXME: Avoid converting SVG box to floats.
+        Gfx::FloatRect svg_rect = { svg_box_state.offset.to_type<float>(),
+            { float(svg_box_state.content_width()), float(svg_box_state.content_height()) } };
+        svg_rect = m_parent_viewbox_transform.map(svg_rect);
+        svg_box_state.set_content_offset(svg_rect.location().to_type<CSSPixels>());
+        svg_box_state.set_content_width(CSSPixels(svg_rect.width()));
+        svg_box_state.set_content_height(CSSPixels(svg_rect.height()));
+        svg_box_state.set_has_definite_width(true);
+        svg_box_state.set_has_definite_height(true);
+    }
 
     context_box().for_each_child_of_type<Box>([&](Box const& child) {
         layout_svg_element(child);
