@@ -380,15 +380,6 @@ struct ApplyEffects {
     void dump(StringBuilder&) const;
 };
 
-struct ApplyTransform {
-    static constexpr StringView command_name = "ApplyTransform"sv;
-
-    Gfx::FloatPoint origin;
-    Gfx::FloatMatrix4x4 matrix;
-
-    void dump(StringBuilder&) const;
-};
-
 using DisplayListCommand = Variant<
     DrawGlyphRun,
     FillRect,
@@ -418,7 +409,6 @@ using DisplayListCommand = Variant<
     AddMask,
     PaintNestedDisplayList,
     PaintScrollBar,
-    ApplyEffects,
-    ApplyTransform>;
+    ApplyEffects>;
 
 }

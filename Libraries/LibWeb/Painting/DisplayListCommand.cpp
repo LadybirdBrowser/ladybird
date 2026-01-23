@@ -165,10 +165,4 @@ void ApplyEffects::dump(StringBuilder& builder) const
     builder.appendff(" opacity={} has_filter={}", opacity, filter.has_value());
 }
 
-void ApplyTransform::dump(StringBuilder& builder) const
-{
-    auto affine_transform = extract_2d_affine_transform(matrix);
-    builder.appendff(" matrix={}", affine_transform);
-}
-
 }

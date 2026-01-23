@@ -357,12 +357,4 @@ void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendi
     APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter) });
 }
 
-void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)
-{
-    APPEND(ApplyTransform {
-        .origin = origin,
-        .matrix = matrix,
-    });
-}
-
 }

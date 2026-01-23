@@ -994,13 +994,13 @@ void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command)
     canvas.saveLayer(nullptr, &paint);
 }
 
-void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
+void DisplayListPlayerSkia::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 const& matrix)
 {
-    auto new_transform = Gfx::translation_matrix(Vector3<float>(command.origin.x(), command.origin.y(), 0));
-    new_transform = new_transform * command.matrix;
-    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-command.origin.x(), -command.origin.y(), 0));
-    auto matrix = to_skia_matrix4x4(new_transform);
-    surface().canvas().concat(matrix);
+    auto new_transform = Gfx::translation_matrix(Vector3<float>(origin.x(), origin.y(), 0));
+    new_transform = new_transform * matrix;
+    new_transform = new_transform * Gfx::translation_matrix(Vector3<float>(-origin.x(), -origin.y(), 0));
+    auto skia_matrix = to_skia_matrix4x4(new_transform);
+    surface().canvas().concat(skia_matrix);
 }
 
 void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path)
