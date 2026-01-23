@@ -209,7 +209,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
     return {};
 }
 
-void CacheEntryWriter::on_network_error()
+void CacheEntryWriter::remove_incomplete_entry()
 {
     remove();
     close_and_destroy_cache_entry();

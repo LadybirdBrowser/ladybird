@@ -149,8 +149,12 @@ Request::~Request()
     for (auto* string_list : m_curl_string_lists)
         curl_slist_free_all(string_list);
 
-    if (m_cache_entry_writer.has_value())
-        (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+    if (m_cache_entry_writer.has_value()) {
+        if (m_state == State::Complete)
+            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+        else
+            m_cache_entry_writer->remove_incomplete_entry();
+    }
 }
 
 void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
@@ -564,10 +568,8 @@ void Request::handle_complete_state()
                 dbgln("Request::handle_complete_state: Unable to map error ({}): \"\033[31;1m{}\033[0m\"", *m_curl_result_code, curl_error_message);
             }
 
-            if (m_cache_entry_writer.has_value()) {
-                m_cache_entry_writer->on_network_error();
-                m_cache_entry_writer.clear();
-            }
+            transition_to_state(State::Error);
+            return;
         }
 
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
