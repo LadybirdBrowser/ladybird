@@ -27,7 +27,7 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
     TRY(thread_data->create_decoder());
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
-    auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create([thread_data]() -> int {
+    auto thread = DECODER_TRY_ALLOC(Threading::Thread::try_create("Video Decoder"sv, [thread_data]() -> int {
         thread_data->wait_for_start();
         while (!thread_data->should_thread_exit()) {
             thread_data->handle_seek();
@@ -35,8 +35,7 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
             thread_data->push_data_and_decode_some_frames();
         }
         return 0;
-    },
-        "Video Decoder"sv));
+    }));
     thread->start();
     thread->detach();
 

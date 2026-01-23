@@ -36,7 +36,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
     auto playback_stream = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamPulseAudio(internal_state)));
 
     // Create the control thread and start it.
-    auto thread = TRY(Threading::Thread::try_create([=, sample_specification_selected_callback = move(sample_specification_selected_callback), data_request_callback = move(data_request_callback)]() mutable {
+    auto thread = TRY(Threading::Thread::try_create("Audio Control"sv, [=, sample_specification_selected_callback = move(sample_specification_selected_callback), data_request_callback = move(data_request_callback)]() mutable {
         auto context = TRY_OR_EXIT_THREAD(PulseAudioContext::the());
         internal_state->set_stream(TRY_OR_EXIT_THREAD(context->create_stream(initial_state, target_latency_ms, [data_request_callback = move(data_request_callback)](PulseAudioStream&, Span<float> buffer) {
             return data_request_callback(buffer);
@@ -50,8 +50,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
 
         internal_state->thread_loop();
         return 0;
-    },
-        "Audio Control"sv));
+    }));
 
     thread->start();
     thread->detach();

@@ -45,11 +45,11 @@ enum class ThreadState : u8 {
 class Thread final
     : public AtomicRefCounted<Thread> {
 public:
-    static NonnullRefPtr<Thread> construct(ESCAPING Function<intptr_t()> action, StringView thread_name)
+    static NonnullRefPtr<Thread> construct(StringView thread_name, ESCAPING Function<intptr_t()> action)
     {
         return adopt_ref(*new Thread(move(action), thread_name));
     }
-    static ErrorOr<NonnullRefPtr<Thread>> try_create(ESCAPING Function<intptr_t()> action, StringView thread_name)
+    static ErrorOr<NonnullRefPtr<Thread>> try_create(StringView thread_name, ESCAPING Function<intptr_t()> action)
     {
         return adopt_nonnull_ref_or_enomem(new (nothrow) Thread(move(action), thread_name));
     }
