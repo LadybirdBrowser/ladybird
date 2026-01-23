@@ -26,6 +26,8 @@ public:
 
     virtual void die() override;
 
+    static void set_connections(HashMap<int, NonnullRefPtr<ConnectionFromClient>>&);
+
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, Core::ProxyData proxy_data);
     void request_complete(Badge<Request>, Request const&);
 

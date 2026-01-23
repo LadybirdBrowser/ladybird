@@ -96,6 +96,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             RequestServer::g_disk_cache = cache.release_value();
     }
 
+    // Connections are stored on the stack to ensure they are destroyed before
+    // static destruction begins. This prevents crashes from notifiers trying to
+    // unregister from already-destroyed thread data during process exit.
+    HashMap<int, NonnullRefPtr<RequestServer::ConnectionFromClient>> connections;
+    RequestServer::ConnectionFromClient::set_connections(connections);
+
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>());
 
     return event_loop.exec();
