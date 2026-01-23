@@ -740,6 +740,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 }
 
                 TRY(g_stdout->write_until_depleted(ByteString::formatted("Function #{}{} (stack usage = {}):\n", address.value(), export_name, expression.stack_usage_hint())));
+
                 Wasm::Printer printer { *g_stdout, 1 };
                 for (size_t ip = 0; ip < expression.compiled_instructions.dispatches.size(); ++ip) {
                     auto& dispatch = expression.compiled_instructions.dispatches[ip];

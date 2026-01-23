@@ -1997,7 +1997,7 @@ HANDLE_INSTRUCTION(global_set)
 HANDLE_INSTRUCTION(memory_size)
 {
     LOG_INSN;
-    auto& args = instruction->arguments().get<Instruction::MemoryIndexArgument>();
+    auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
     auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto instance = configuration.store().get(address);
     auto pages = instance->size() / Constants::page_size;
@@ -2009,7 +2009,7 @@ HANDLE_INSTRUCTION(memory_size)
 HANDLE_INSTRUCTION(memory_grow)
 {
     LOG_INSN;
-    auto& args = instruction->arguments().get<Instruction::MemoryIndexArgument>();
+    auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
     auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto instance = configuration.store().get(address);
     i32 old_pages = instance->size() / Constants::page_size;
@@ -2027,7 +2027,7 @@ HANDLE_INSTRUCTION(memory_fill)
 {
     LOG_INSN;
     {
-        auto& args = instruction->arguments().get<Instruction::MemoryIndexArgument>();
+        auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
         auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
         auto instance = configuration.store().get(address);
         // bounds checked by verifier.
@@ -2054,7 +2054,7 @@ HANDLE_INSTRUCTION(memory_fill)
 HANDLE_INSTRUCTION(memory_copy)
 {
     LOG_INSN;
-    auto& args = instruction->arguments().get<Instruction::MemoryCopyArgs>();
+    auto& args = instruction->arguments().unsafe_get<Instruction::MemoryCopyArgs>();
     auto source_address = configuration.frame().module().memories().data()[args.src_index.value()];
     auto destination_address = configuration.frame().module().memories().data()[args.dst_index.value()];
     auto source_instance = configuration.store().get(source_address);
@@ -2095,7 +2095,7 @@ HANDLE_INSTRUCTION(memory_copy)
 HANDLE_INSTRUCTION(memory_init)
 {
     LOG_INSN;
-    auto& args = instruction->arguments().get<Instruction::MemoryInitArgs>();
+    auto& args = instruction->arguments().unsafe_get<Instruction::MemoryInitArgs>();
     auto& data_address = configuration.frame().module().datas()[args.data_index.value()];
     auto& data = *configuration.store().get(data_address);
     auto memory_address = configuration.frame().module().memories().data()[args.memory_index.value()];
@@ -4526,31 +4526,35 @@ FLATTEN void BytecodeInterpreter::interpret_impl(Configuration& configuration, E
     }
 }
 
+template<bool NeedsStackAdjustment>
 InstructionPointer BytecodeInterpreter::branch_to_label(Configuration& configuration, LabelIndex index)
 {
     dbgln_if(WASM_TRACE_DEBUG, "Branch to label with index {}...", index.value());
     auto& label_stack = configuration.label_stack();
     label_stack.shrink(label_stack.size() - index.value(), true);
-    auto label = configuration.label_stack().last();
+    auto const& label = configuration.label_stack().last();
     dbgln_if(WASM_TRACE_DEBUG, "...which is actually IP {}, and has {} result(s)", label.continuation().value(), label.arity());
 
-    configuration.value_stack().remove(label.stack_height(), configuration.value_stack().size() - label.stack_height() - label.arity());
+    if constexpr (NeedsStackAdjustment)
+        configuration.value_stack().remove(label.stack_height(), configuration.value_stack().size() - label.stack_height() - label.arity());
+    else
+        VERIFY(configuration.value_stack().size() - label.stack_height() - label.arity() == 0);
     return label.continuation().value() - 1;
 }
 
 template<typename ReadType, typename PushType>
 bool BytecodeInterpreter::load_and_push(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
-    auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto& arg = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
+    auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
+    auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.template to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
     dbgln_if(WASM_TRACE_DEBUG, "load({} : {}) -> stack", instance_address, sizeof(ReadType));
     if (instance_address + sizeof(ReadType) > memory->size()) {
         m_trap = Trap::from_string("Memory access out of bounds");
-        dbgln("LibWasm: load_and_push - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
+        dbgln_if(WASM_TRACE_DEBUG, "LibWasm: load_and_push - Memory access out of bounds (expected {} to be less than or equal to {})", instance_address + sizeof(ReadType), memory->size());
         return true;
     }
     auto slice = memory->data().bytes().slice(instance_address, sizeof(ReadType));
@@ -4568,9 +4572,9 @@ ALWAYS_INLINE static TDst convert_vector(TSrc v)
 template<size_t M, size_t N, template<typename> typename SetSign>
 bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
-    auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto& arg = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
+    auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
+    auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.template to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
@@ -4598,9 +4602,9 @@ bool BytecodeInterpreter::load_and_push_mxn(Configuration& configuration, Instru
 template<size_t N>
 bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto memarg_and_lane = instruction.arguments().get<Instruction::MemoryAndLaneArgument>();
-    auto& address = configuration.frame().module().memories()[memarg_and_lane.memory.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto memarg_and_lane = instruction.arguments().unsafe_get<Instruction::MemoryAndLaneArgument>();
+    auto& address = configuration.frame().module().memories().data()[memarg_and_lane.memory.memory_index.value()];
+    auto memory = configuration.store().unsafe_get(address);
     // bounds checked by verifier.
     auto vector = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u128>();
     auto base = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources).template to<u32>();
@@ -4622,9 +4626,9 @@ bool BytecodeInterpreter::load_and_push_lane_n(Configuration& configuration, Ins
 template<size_t N>
 bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto memarg_and_lane = instruction.arguments().get<Instruction::MemoryArgument>();
-    auto& address = configuration.frame().module().memories()[memarg_and_lane.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto memarg_and_lane = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
+    auto& address = configuration.frame().module().memories().data()[memarg_and_lane.memory_index.value()];
+    auto memory = configuration.store().unsafe_get(address);
     // bounds checked by verifier.
     auto base = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + memarg_and_lane.offset;
@@ -4645,9 +4649,9 @@ bool BytecodeInterpreter::load_and_push_zero_n(Configuration& configuration, Ins
 template<size_t M>
 bool BytecodeInterpreter::load_and_push_m_splat(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto& arg = instruction.arguments().get<Instruction::MemoryArgument>();
-    auto& address = configuration.frame().module().memories()[arg.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto& arg = instruction.arguments().unsafe_get<Instruction::MemoryArgument>();
+    auto& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
+    auto memory = configuration.store().unsafe_get(address);
     auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
     auto base = entry.template to<i32>();
     u64 instance_address = static_cast<u64>(bit_cast<u32>(base)) + arg.offset;
@@ -4858,7 +4862,7 @@ bool BytecodeInterpreter::store_value(Configuration& configuration, Instruction 
 template<size_t N>
 bool BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Instruction const& instruction, SourcesAndDestination const& addresses)
 {
-    auto& memarg_and_lane = instruction.arguments().get<Instruction::MemoryAndLaneArgument>();
+    auto& memarg_and_lane = instruction.arguments().unsafe_get<Instruction::MemoryAndLaneArgument>();
     // bounds checked by verifier.
     auto vector = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources).template to<u128>();
     auto src = bit_cast<u8*>(&vector) + memarg_and_lane.lane * N / 8;
@@ -4869,7 +4873,7 @@ bool BytecodeInterpreter::pop_and_store_lane_n(Configuration& configuration, Ins
 bool BytecodeInterpreter::store_to_memory(Configuration& configuration, Instruction::MemoryArgument const& arg, ReadonlyBytes data, u32 base)
 {
     auto const& address = configuration.frame().module().memories().data()[arg.memory_index.value()];
-    auto memory = configuration.store().get(address);
+    auto memory = configuration.store().unsafe_get(address);
     u64 instance_address = static_cast<u64>(base) + arg.offset;
     return store_to_memory(*memory, instance_address, data);
 }
