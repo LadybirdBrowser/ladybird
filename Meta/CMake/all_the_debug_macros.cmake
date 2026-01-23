@@ -82,7 +82,6 @@ set(WEBVIEW_PROCESS_DEBUG ON)
 set(WEB_FETCH_DEBUG ON)
 set(WEB_WORKER_DEBUG ON)
 set(WEBP_DEBUG ON)
-set(WORKER_THREAD_DEBUG ON)
 set(XML_PARSER_DEBUG ON)
 
 # False positive: ANDROID_LOG_DEBUG is a log level, not a debug flag

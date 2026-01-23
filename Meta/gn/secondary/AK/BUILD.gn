@@ -286,7 +286,6 @@ write_cmake_config("ak_debug_gen") {
     "WEB_FETCH_DEBUG=",
     "WEB_WORKER_DEBUG=",
     "WEBP_DEBUG=",
-    "WORKER_THREAD_DEBUG=",
     "XML_PARSER_DEBUG=",
   ]
 }

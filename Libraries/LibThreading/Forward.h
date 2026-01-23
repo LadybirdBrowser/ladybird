@@ -10,7 +10,4 @@ namespace Threading {
 
 class Thread;
 
-template<typename ErrorType>
-class WorkerThread;
-
 }
