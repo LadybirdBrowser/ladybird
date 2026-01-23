@@ -1480,6 +1480,39 @@ HANDLE_INSTRUCTION(local_set)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(synthetic_argument_set)
+{
+    LOG_INSN;
+    // bounds checked by verifier.
+    configuration.local(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+#define HANDLE_SPECIALIZED_LOCAL_SET(N)                                                                                \
+    HANDLE_INSTRUCTION(synthetic_local_set_##N)                                                                        \
+    {                                                                                                                  \
+        LOG_INSN;                                                                                                      \
+        configuration.local(N) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources); \
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));                                         \
+    }
+
+HANDLE_SPECIALIZED_LOCAL_SET(0)
+HANDLE_SPECIALIZED_LOCAL_SET(1)
+HANDLE_SPECIALIZED_LOCAL_SET(2)
+HANDLE_SPECIALIZED_LOCAL_SET(3)
+HANDLE_SPECIALIZED_LOCAL_SET(4)
+HANDLE_SPECIALIZED_LOCAL_SET(5)
+HANDLE_SPECIALIZED_LOCAL_SET(6)
+HANDLE_SPECIALIZED_LOCAL_SET(7)
+
+HANDLE_INSTRUCTION(synthetic_local_copy)
+{
+    LOG_INSN;
+    // local.get a; local.set b -> copy local a to local b directly
+    configuration.local(instruction->arguments().get<LocalIndex>()) = configuration.local(instruction->local_index());
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(i64_const)
 {
     LOG_INSN;
@@ -1570,6 +1603,13 @@ HANDLE_INSTRUCTION(br)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(synthetic_br_nostack)
+{
+    LOG_INSN;
+    ip_and_addresses.current_ip_value = interpreter.branch_to_label<false>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(br_if)
 {
     LOG_INSN;
@@ -1578,6 +1618,17 @@ HANDLE_INSTRUCTION(br_if)
     if (cond == 0)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
     ip_and_addresses.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label).value();
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_br_if_nostack)
+{
+    LOG_INSN;
+    // bounds checked by verifier.
+    auto cond = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources).template to<i32>();
+    if (cond == 0)
+        TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+    ip_and_addresses.current_ip_value = interpreter.branch_to_label<false>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label).value();
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -4960,23 +5011,76 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
                 continue;
+            } else if (instruction.opcode() == Instructions::local_set) {
+                // `local.get a; local.set b` -> `local_copy a b`.
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_local_copy,
+                    local_index_0,
+                    instruction.local_index()));
+
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                pattern_state = InsnPatternState::Nothing;
+                continue;
             } else {
                 pattern_state = InsnPatternState::Nothing;
             }
             break;
-        case InsnPatternState::GetLocalx2:
-            if (instruction.opcode() == Instructions::i32_add) {
-                // `local.get a; local.get b; i32.add` -> `i32.add_2local a b`.
-                // Replace the previous two ops with noops, and add i32.add_2local.
+        case InsnPatternState::GetLocalx2: {
+            auto make_2local_synthetic = [&](OpCode synthetic_op) {
                 set_default_dispatch(nop, result.dispatches.size() - 1);
                 set_default_dispatch(nop, result.dispatches.size() - 2);
                 result.extra_instruction_storage.unchecked_append(Instruction {
-                    Instructions::synthetic_i32_add2local,
+                    synthetic_op,
                     local_index_0,
                     local_index_1,
                 });
                 set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 pattern_state = InsnPatternState::Nothing;
+            };
+            if (instruction.opcode() == Instructions::i32_add) {
+                // `local.get a; local.get b; i32.add` -> `i32.add_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_add2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_sub) {
+                // `local.get a; local.get b; i32.sub` -> `i32.sub_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_sub2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_mul) {
+                // `local.get a; local.get b; i32.mul` -> `i32.mul_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_mul2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_and) {
+                // `local.get a; local.get b; i32.and` -> `i32.and_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_and2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_or) {
+                // `local.get a; local.get b; i32.or` -> `i32.or_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_or2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_xor) {
+                // `local.get a; local.get b; i32.xor` -> `i32.xor_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_xor2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_shl) {
+                // `local.get a; local.get b; i32.shl` -> `i32.shl_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_shl2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_shru) {
+                // `local.get a; local.get b; i32.shr_u` -> `i32.shru_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_shru2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i32_shrs) {
+                // `local.get a; local.get b; i32.shr_s` -> `i32.shrs_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i32_shrs2local);
                 continue;
             }
             if (instruction.opcode() == Instructions::i32_store) {
@@ -5010,7 +5114,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else {
                 pattern_state = InsnPatternState::Nothing;
             }
-            break;
+        } break;
         case InsnPatternState::I32Const:
             if (instruction.opcode() == Instructions::local_get) {
                 local_index_0 = instruction.local_index();
@@ -5773,6 +5877,52 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     }
 
     result.max_call_arg_count = max_call_arg_count;
+
+    // Swap out local.get (0..7) with local.get_[0..7] to avoid one extra load when possible
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto& dispatch = result.dispatches[i];
+        if (dispatch.instruction->opcode() == Instructions::local_get) {
+            auto local_index = dispatch.instruction->local_index().value();
+            if (local_index <= 7) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    static_cast<OpCode>(Instructions::synthetic_local_get_0.value() + local_index),
+                    dispatch.instruction->local_index()));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        }
+    }
+
+    // Swap out local.set (0..7) with local.set_[0..7] to avoid one extra load when possible
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto& dispatch = result.dispatches[i];
+        if (dispatch.instruction->opcode() == Instructions::local_set) {
+            auto local_index = dispatch.instruction->local_index().value();
+            if (local_index <= 7) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    static_cast<OpCode>(Instructions::synthetic_local_set_0.value() + local_index),
+                    dispatch.instruction->local_index()));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        }
+    }
+
+    // Swap out br(.if) with synthetic:br(.if).nostack if !args.has_stack_adjustment.
+    for (size_t i = 0; i < result.dispatches.size(); ++i) {
+        auto& dispatch = result.dispatches[i];
+        if ((dispatch.instruction->opcode() == Instructions::br || dispatch.instruction->opcode() == Instructions::br_if)
+            && !dispatch.instruction->arguments().get<Instruction::BranchArgs>().has_stack_adjustment) {
+            auto new_opcode = dispatch.instruction->opcode() == Instructions::br
+                ? Instructions::synthetic_br_nostack
+                : Instructions::synthetic_br_if_nostack;
+            result.extra_instruction_storage.unchecked_append(Instruction(
+                new_opcode,
+                dispatch.instruction->arguments()));
+            result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+            result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+        }
+    }
 
     if constexpr (should_try_to_use_direct_threading) {
         constexpr auto all_sources_are_registers = [](SourcesAndDestination const& addrs, ssize_t expected_source_count, ssize_t expected_dest_count) -> bool {
