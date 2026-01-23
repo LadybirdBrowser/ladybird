@@ -497,6 +497,7 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+    set_option(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
     set_option(CURLOPT_PIPEWAIT, 1L);
     set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
