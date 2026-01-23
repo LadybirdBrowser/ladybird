@@ -1,11 +1,11 @@
 /*
  * Copyright (c) 2025, Ladybird contributors
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "LightDarkStyleValue.h"
-#include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
 
@@ -15,6 +15,17 @@ Optional<Color> LightDarkStyleValue::to_color(ColorResolutionContext color_resol
         return m_properties.dark->to_color(color_resolution_context);
 
     return m_properties.light->to_color(color_resolution_context);
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> LightDarkStyleValue::absolutized(ComputationContext const& context) const
+{
+    if (!context.color_scheme.has_value())
+        return *this;
+
+    if (context.color_scheme == PreferredColorScheme::Dark)
+        return m_properties.dark->absolutized(context);
+
+    return m_properties.light->absolutized(context);
 }
 
 bool LightDarkStyleValue::equals(StyleValue const& other) const
