@@ -959,6 +959,8 @@ TEST_CASE(time_units)
     EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::min() / 2), 2, 1), Duration::from_seconds(NumericLimits<i64>::min()));
     EXPECT_EQ(Duration::from_time_units((NumericLimits<i64>::min() / 2) - 1, 2, 1), Duration::from_seconds(NumericLimits<i64>::min()));
 
+    EXPECT_EQ(Duration::from_time_units(-43776, 1, 14592), Duration::from_seconds(-3));
+
     EXPECT_EQ(Duration::from_milliseconds(999).to_time_units(1, 48'000), 47'952);
     EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
     EXPECT_EQ(Duration::from_milliseconds(-12'500).to_time_units(1, 1'000), -12'500);
