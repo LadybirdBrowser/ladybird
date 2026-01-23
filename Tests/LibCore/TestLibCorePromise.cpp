@@ -129,7 +129,8 @@ TEST_CASE(threaded_promise_instantly_resolved)
         thread_id = pthread_self();
         promise->resolve(42);
         return 0;
-    });
+    },
+        "PromiseResolver"sv);
     thread->start();
 
     promise
@@ -168,7 +169,8 @@ TEST_CASE(threaded_promise_resolved_later)
             MUST(Core::System::sleep_ms(5));
         promise->resolve(42);
         return 0;
-    });
+    },
+        "PromiseResolver"sv);
     thread->start();
 
     promise

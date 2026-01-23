@@ -36,7 +36,8 @@ DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(N
             thread_data->push_data_and_decode_a_block();
         }
         return 0;
-    }));
+    },
+        "Audio Decoder"sv));
     thread->start();
     thread->detach();
 

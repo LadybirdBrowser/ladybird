@@ -35,7 +35,8 @@ DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(N
             thread_data->push_data_and_decode_some_frames();
         }
         return 0;
-    }));
+    },
+        "Video Decoder"sv));
     thread->start();
     thread->detach();
 
