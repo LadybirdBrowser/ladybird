@@ -35,6 +35,7 @@ struct Context {
     RefPtr<RefRBTree> references { make_ref_counted<RefRBTree>() };
     size_t imported_function_count { 0 };
     size_t current_function_parameter_count { 0 };
+    Module const* current_module { nullptr };
 };
 
 struct ValidationError : public Error {
