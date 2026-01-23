@@ -1279,7 +1279,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 14. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
@@ -1862,7 +1862,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
@@ -2439,7 +2439,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
@@ -2717,7 +2717,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(Bindings::KeyFormat 
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
@@ -2915,7 +2915,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(Bindings::KeyFormat 
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
@@ -3228,7 +3228,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(Bindings::KeyFormat 
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
@@ -3573,7 +3573,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(Bindings::KeyFormat f
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
@@ -4781,7 +4781,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(idl_enum_to_string(usage));
 
         // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -5727,7 +5727,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(idl_enum_to_string(usage));
 
         // 5. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -6197,7 +6197,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -6701,7 +6701,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
 
         // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -7426,7 +7426,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -7671,7 +7671,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages())
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -8325,7 +8325,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
@@ -8992,7 +8992,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
         jwk.key_ops = Vector<String> {};
         jwk.key_ops->ensure_capacity(key->internal_usages().size());
         for (auto const& usage : key->internal_usages()) {
-            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
         }
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
@@ -9765,12 +9765,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::encrypt(Algorith
     return JS::ArrayBuffer::create(m_realm, maybe_ciphertext.value());
 }
 
-// If ciphertext has a length less than 128 bits, then throw an OperationError
+// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ChaCha20Poly1305::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
-    // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError. .
+    // 1. If the iv member of normalizedAlgorithm does not have a length of 12 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 12)
         return WebIDL::OperationError::create(m_realm, "IV must have a length of 12 bytes"_utf16);
 
