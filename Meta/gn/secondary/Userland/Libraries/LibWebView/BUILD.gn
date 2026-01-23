@@ -137,6 +137,7 @@ shared_library("LibWebView") {
     "//Userland/Libraries/LibIPC",
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
+    "//Userland/Libraries/LibMediaServerClient",
     "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibSyntax",
     "//Userland/Libraries/LibURL",

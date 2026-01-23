@@ -1,0 +1,19 @@
+executable("MediaServer") {
+  configs += [ "//Ladybird:ladybird_config" ]
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibMain",
+    "//Userland/Libraries/LibMediaServerClient",
+  ]
+  sources = [
+    "//Userland/Services/MediaServer/ConnectionFromClient.cpp",
+    "//Userland/Services/MediaServer/main.cpp",
+  ]
+  output_dir = "$root_out_dir/libexec"
+}

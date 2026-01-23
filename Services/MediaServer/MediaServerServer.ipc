@@ -1,0 +1,10 @@
+#include <LibCore/AnonymousBuffer.h>
+
+endpoint MediaServerServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    create_shared_single_producer_circular_buffer(size_t capacity) => (Core::AnonymousBuffer shm_buffer)
+
+    connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+}

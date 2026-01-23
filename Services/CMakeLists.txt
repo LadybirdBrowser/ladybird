@@ -1,4 +1,5 @@
 add_subdirectory(ImageDecoder)
+add_subdirectory(MediaServer)
 add_subdirectory(RequestServer)
 add_subdirectory(WebContent)
 add_subdirectory(WebDriver)

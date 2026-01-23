@@ -9,6 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <LibImageDecoderClient/Client.h>
+#include <LibMediaServerClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
@@ -28,6 +29,7 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_c
     Optional<IPC::File> request_server_socket = {});
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process();
+WEBVIEW_API ErrorOr<NonnullRefPtr<MediaServerClient::Client>> launch_media_server_process();
 WEBVIEW_API ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType);
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process();
 

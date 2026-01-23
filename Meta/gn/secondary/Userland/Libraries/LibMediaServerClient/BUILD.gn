@@ -1,0 +1,42 @@
+import("//Meta/gn/build/compiled_action.gni")
+
+compiled_action("MediaServerClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/MediaServer/MediaServerClient.ipc" ]
+  outputs = [ "$root_gen_dir/MediaServer/MediaServerClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("MediaServerServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/MediaServer/MediaServerServer.ipc" ]
+  outputs = [ "$root_gen_dir/MediaServer/MediaServerServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+shared_library("LibMediaServerClient") {
+  output_name = "mediaserverclient"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+    "//Userland/",
+  ]
+  deps = [
+    ":MediaServerClientEndpoint",
+    ":MediaServerServerEndpoint",
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+  ]
+  sources = [ "Client.cpp" ]
+  sources += get_target_outputs(":MediaServerClientEndpoint") +
+             get_target_outputs(":MediaServerServerEndpoint")
+}
