@@ -42,7 +42,7 @@ static intptr_t background_thread_func()
 static void init()
 {
     s_all_actions = new Queue<Function<void()>>;
-    s_background_thread = &Threading::Thread::construct(background_thread_func, "Background Thread"sv).leak_ref();
+    s_background_thread = &Threading::Thread::construct(background_thread_func, "Background"sv).leak_ref();
     s_background_thread->start();
 }
 
