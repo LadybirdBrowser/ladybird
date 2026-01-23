@@ -19,6 +19,8 @@
 
 namespace IPC {
 
+class Message;
+
 class SendQueue : public AtomicRefCounted<SendQueue> {
 public:
     void enqueue_message(Vector<u8>&& bytes, Vector<int>&& fds);
@@ -42,6 +44,17 @@ class TransportSocket {
 public:
     static constexpr socklen_t SOCKET_BUFFER_SIZE = 128 * KiB;
 
+    // IPC::Connection path: Set a decoder to parse raw bytes into IPC::Message objects
+    // on the I/O thread, and a handler to receive decoded messages.
+    using MessageDecoder = Function<OwnPtr<IPC::Message>(ReadonlyBytes, Queue<File>&)>;
+    using MessageHandler = Function<void(NonnullOwnPtr<IPC::Message>)>;
+    using PeerClosedHandler = Function<void()>;
+
+    void set_message_decoder(MessageDecoder decoder);
+    void set_message_handler(MessageHandler handler);
+    void set_peer_closed_handler(PeerClosedHandler handler);
+    void start();
+
     explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocket();
 
@@ -59,6 +72,9 @@ public:
         No,
         Yes,
     };
+
+    // Raw message path: Used by MessagePort which has its own message format
+    // (SerializedTransferRecord) rather than IPC::Message.
     struct Message {
         Vector<u8> bytes;
         Queue<File> fds;
@@ -114,6 +130,10 @@ private:
     RefPtr<AutoCloseFileDescriptor> m_notify_hook_write_fd;
     RefPtr<Core::Notifier> m_read_hook_notifier;
     Function<void()> m_on_read_hook;
+
+    MessageDecoder m_decoder;
+    MessageHandler m_message_handler;
+    PeerClosedHandler m_peer_closed_handler;
 };
 
 }
