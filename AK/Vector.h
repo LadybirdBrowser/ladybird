@@ -502,7 +502,7 @@ public:
     {
         VERIFY(index < m_size);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(slot(index), slot(index + 1), m_size - index - 1);
         } else {
             at(index).~StorageType();
@@ -523,7 +523,7 @@ public:
         VERIFY(index + count > index);
         VERIFY(index + count <= m_size);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(slot(index), slot(index + count), m_size - index - count);
         } else {
             for (size_t i = index; i < index + count; i++)
@@ -555,7 +555,7 @@ public:
                 ++it;
                 next_remove_index = it != end ? to_index(it) : m_size;
             } else {
-                if constexpr (Traits<StorageType>::is_trivial()) {
+                if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
                     __builtin_memcpy(slot(write_index), slot(read_index), sizeof(StorageType));
                 } else {
                     new (slot(write_index)) StorageType(move(raw_at(read_index)));
@@ -695,7 +695,7 @@ public:
             return try_append(forward<U>(value));
         TRY(try_grow_capacity(size() + 1));
         ++m_size;
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::move(slot(index + 1), slot(index), m_size - index - 1);
         } else {
             for (size_t i = size() - 1; i > index; --i) {
@@ -853,7 +853,7 @@ public:
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(new_buffer, data(), m_size);
         } else {
             for (size_t i = 0; i < m_size; ++i) {
@@ -879,7 +879,7 @@ public:
 
         TRY(try_ensure_capacity(new_size));
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyConstructible<StorageType>) {
             // For trivial types, we can just zero the new memory.
             size_t old_size = size();
             memset(slot(old_size), 0, (new_size - old_size) * sizeof(StorageType));
