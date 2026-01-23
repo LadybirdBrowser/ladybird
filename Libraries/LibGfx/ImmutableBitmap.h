@@ -80,6 +80,9 @@ private:
     mutable NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
 
     explicit ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl> bitmap);
+
+    void lock_context();
+    void unlock_context();
 };
 
 }

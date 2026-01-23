@@ -36,6 +36,7 @@ StringView export_format_name(ExportFormat format)
 }
 
 struct ImmutableBitmapImpl {
+    RefPtr<SkiaBackendContext> context;
     sk_sp<SkImage> sk_image;
     SkBitmap sk_bitmap;
     RefPtr<Gfx::Bitmap> bitmap;
@@ -200,6 +201,7 @@ ErrorOr<NonnullRefPtr<ImmutableBitmap>> ImmutableBitmap::create_from_yuv(Nonnull
 {
     // Hold onto the YUVData to lazily create the SkImage later.
     ImmutableBitmapImpl impl {
+        .context = nullptr,
         .sk_image = nullptr,
         .sk_bitmap = {},
         .bitmap = nullptr,
@@ -296,11 +298,20 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
 
 bool ImmutableBitmap::ensure_sk_image(SkiaBackendContext& context) const
 {
-    if (m_impl->sk_image)
+    if (m_impl->sk_image) {
+        if (m_impl->context)
+            VERIFY(m_impl->context.ptr() == &context);
+
         return true;
+    }
 
     // Bitmap-backed ImmutableBitmaps must have an sk_image already.
     VERIFY(m_impl->yuv_data != nullptr);
+
+    context.lock();
+    ScopeGuard unlock_guard = [&context] {
+        context.unlock();
+    };
 
     auto* gr_context = context.sk_context();
     if (!gr_context)
@@ -319,6 +330,7 @@ bool ImmutableBitmap::ensure_sk_image(SkiaBackendContext& context) const
     if (!sk_image)
         return false;
 
+    m_impl->context = context;
     m_impl->sk_image = move(sk_image);
     return true;
 }
@@ -349,6 +361,7 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bit
     auto sk_image = sk_bitmap.asImage();
 
     ImmutableBitmapImpl impl {
+        .context = nullptr,
         .sk_image = move(sk_image),
         .sk_bitmap = move(sk_bitmap),
         .bitmap = move(bitmap),
@@ -383,6 +396,7 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_su
     auto sk_image = sk_bitmap.asImage();
 
     ImmutableBitmapImpl impl {
+        .context = nullptr,
         .sk_image = move(sk_image),
         .sk_bitmap = move(sk_bitmap),
         .bitmap = move(bitmap),
@@ -397,6 +411,25 @@ ImmutableBitmap::ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl> impl)
 {
 }
 
-ImmutableBitmap::~ImmutableBitmap() = default;
+ImmutableBitmap::~ImmutableBitmap()
+{
+    lock_context();
+    m_impl->sk_image = nullptr;
+    unlock_context();
+}
+
+void ImmutableBitmap::lock_context()
+{
+    auto& context = m_impl->context;
+    if (context)
+        context->lock();
+}
+
+void ImmutableBitmap::unlock_context()
+{
+    auto& context = m_impl->context;
+    if (context)
+        context->unlock();
+}
 
 }
