@@ -19,6 +19,7 @@ using ColorStopList = Vector<Gfx::ColorStop, 4>;
 struct ColorStopData {
     ColorStopList list;
     Optional<float> repeat_length;
+    bool repeating { false };
 };
 
 struct LinearGradientData {
