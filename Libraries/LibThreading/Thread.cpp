@@ -77,6 +77,20 @@ void Thread::start()
         [](void* arg) -> void* {
             auto self = adopt_ref(*static_cast<Thread*>(arg));
 
+            {
+                // pthread_setname_np expects a 16-byte or shorter null-terminated C string.
+                auto thread_name = self->thread_name().substring(0, min(self->thread_name().length(), 15));
+#if defined(AK_OS_MACOS)
+                pthread_setname_np(thread_name.characters());
+#elif defined(AK_OS_OPENBSD)
+                pthread_set_name_np(pthread_self(), thread_name.characters());
+#elif defined(AK_OS_NETBSD)
+                pthread_setname_np(pthread_self(), "%s", const_cast<char*>(thread_name.characters()));
+#else
+                pthread_setname_np(pthread_self(), thread_name.characters());
+#endif
+            }
+
             auto exit_code = self->m_action();
 
             auto expected = Threading::ThreadState::Running;
