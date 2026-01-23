@@ -63,6 +63,7 @@ struct WASM_API BytecodeInterpreter final : public Interpreter {
 
     enum class CallType {
         UsingRegisters,
+        UsingCallRecord,
         UsingStack,
     };
 

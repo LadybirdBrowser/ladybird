@@ -13,13 +13,10 @@ namespace Wasm {
 
 void Configuration::unwind_impl()
 {
-    release_arguments_allocation(m_frame_stack.last().arguments());
-    m_frame_stack.last().locals().clear();
-
     auto last_frame = m_frame_stack.take_last();
     m_depth--;
     m_locals_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().locals().data();
-    m_arguments_base = m_frame_stack.is_empty() ? nullptr : m_frame_stack.unchecked_last().arguments().data();
+    release_arguments_allocation(last_frame.locals());
 }
 
 Result Configuration::call(Interpreter& interpreter, FunctionAddress address, Vector<Value, ArgumentsStaticSize>& arguments)
@@ -39,18 +36,16 @@ ErrorOr<Optional<HostFunction&>, Trap> Configuration::prepare_call(FunctionAddre
     if (auto* wasm_function = function->get_pointer<WasmFunction>()) {
         if (is_tailcall)
             unwind_impl(); // Unwind the current frame, the "return" in the tail-called function will unwind the frame we're gonna push now.
-        Vector<Value, 8> locals;
-        locals.ensure_capacity(wasm_function->code().func().total_local_count());
+        arguments.ensure_capacity(arguments.size() + wasm_function->code().func().total_local_count());
         for (auto& local : wasm_function->code().func().locals()) {
             for (size_t i = 0; i < local.n(); ++i)
-                locals.unchecked_append(Value(local.type()));
+                arguments.unchecked_append(Value(local.type()));
         }
 
         set_frame(
             is_tailcall ? IsTailcall::Yes : IsTailcall::No,
             wasm_function->module(),
             move(arguments),
-            move(locals),
             wasm_function->code().func().body(),
             wasm_function->type().results().size());
         return OptionalNone {};
