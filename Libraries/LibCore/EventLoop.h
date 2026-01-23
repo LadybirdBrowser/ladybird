@@ -16,6 +16,7 @@
 #include <AK/Swift.h>
 #include <AK/Time.h>
 #include <LibCore/Event.h>
+#include <LibCore/EventLoopImplementation.h>
 #include <LibCore/Forward.h>
 #include <LibThreading/RWLock.h>
 
@@ -49,6 +50,7 @@ class EventLoop {
 
 private:
     friend struct EventLoopPusher;
+    friend class WeakEventLoopReference;
 
 public:
     enum class WaitMode {
@@ -99,6 +101,8 @@ public:
 private:
     NonnullOwnPtr<EventLoopImplementation> m_impl;
     RefPtr<WeakEventLoopReference> m_weak;
+    ThreadEventQueue* m_thread_event_queue { nullptr };
+    EventLoopThreadHandle m_thread_handle { 0 };
 } SWIFT_UNSAFE_REFERENCE;
 
 class StrongEventLoopReference;
@@ -106,6 +110,7 @@ class StrongEventLoopReference;
 class WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopReference> {
 public:
     StrongEventLoopReference take();
+    bool deferred_invoke(ESCAPING Function<void()>);
 
 private:
     friend class EventLoop;
@@ -117,6 +122,8 @@ private:
 
     EventLoop* m_event_loop;
     Threading::RWLock m_lock;
+    ThreadEventQueue* m_thread_event_queue { nullptr };
+    EventLoopThreadHandle m_thread_handle { 0 };
 };
 
 class StrongEventLoopReference {

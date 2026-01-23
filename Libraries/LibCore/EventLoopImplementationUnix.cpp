@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinaryHeap.h>
+#include <AK/HashTable.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
@@ -30,6 +31,7 @@ struct ThreadData;
 class TimeoutSet;
 
 HashMap<pthread_t, ThreadData*> s_thread_data;
+HashTable<ThreadData*> s_thread_data_by_ptr;
 Threading::RWLock s_thread_data_lock;
 thread_local pthread_t s_thread_id;
 thread_local OwnPtr<ThreadData> s_this_thread_data;
@@ -232,6 +234,7 @@ struct ThreadData {
 
             Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
             s_thread_data.set(s_thread_id, s_this_thread_data.ptr());
+            s_thread_data_by_ptr.set(s_this_thread_data.ptr());
         } else {
             data = s_this_thread_data.ptr();
         }
@@ -242,6 +245,17 @@ struct ThreadData {
     {
         // NOTE: s_thread_data_lock is supposed to be held by the caller.
         return s_thread_data.get(thread_id).value_or(nullptr);
+    }
+
+    static ThreadData* for_handle(EventLoopThreadHandle handle)
+    {
+        if (handle == 0)
+            return nullptr;
+        auto* ptr = reinterpret_cast<ThreadData*>(handle);
+        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        if (!s_thread_data_by_ptr.contains(ptr))
+            return nullptr;
+        return ptr;
     }
 
     ThreadData()
@@ -265,6 +279,7 @@ struct ThreadData {
     {
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id);
+        s_thread_data_by_ptr.remove(this);
     }
 
     Threading::Mutex mutex;
@@ -674,6 +689,20 @@ void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
 
 void EventLoopManagerUnix::did_post_event()
 {
+}
+
+EventLoopThreadHandle EventLoopManagerUnix::current_thread_handle()
+{
+    return reinterpret_cast<EventLoopThreadHandle>(&ThreadData::the());
+}
+
+void EventLoopManagerUnix::wake_thread(EventLoopThreadHandle handle)
+{
+    auto* thread_data = ThreadData::for_handle(handle);
+    if (!thread_data)
+        return;
+    int wake_event = 0;
+    (void)Core::System::write(thread_data->wake_pipe_fds[1], { &wake_event, sizeof(wake_event) });
 }
 
 EventLoopManagerUnix::~EventLoopManagerUnix() = default;

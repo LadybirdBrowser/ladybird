@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/IDAllocator.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
@@ -31,6 +32,7 @@ namespace Ladybird {
 struct ThreadData;
 static thread_local OwnPtr<ThreadData> s_this_thread_data;
 static HashMap<pthread_t, ThreadData*> s_thread_data;
+static HashTable<ThreadData*> s_thread_data_by_ptr;
 static Threading::RWLock s_thread_data_lock;
 static thread_local Optional<pthread_t> s_thread_id;
 
@@ -43,6 +45,7 @@ struct ThreadData {
             s_this_thread_data = make<ThreadData>();
             Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
             s_thread_data.set(s_thread_id.value(), s_this_thread_data.ptr());
+            s_thread_data_by_ptr.set(s_this_thread_data.ptr());
         }
         return *s_this_thread_data;
     }
@@ -53,14 +56,28 @@ struct ThreadData {
         return s_thread_data.get(thread_id).value_or(nullptr);
     }
 
+    static ThreadData* for_handle(Core::EventLoopThreadHandle handle)
+    {
+        if (handle == 0)
+            return nullptr;
+        auto* ptr = reinterpret_cast<ThreadData*>(handle);
+        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+        if (!s_thread_data_by_ptr.contains(ptr))
+            return nullptr;
+        return ptr;
+    }
+
     ~ThreadData()
     {
         Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
         s_thread_data.remove(s_thread_id.value());
+        s_thread_data_by_ptr.remove(this);
     }
 
     Threading::Mutex mutex;
     HashMap<Core::Notifier*, NonnullOwnPtr<QSocketNotifier>> notifiers;
+    QEventLoop* event_loop { nullptr };
+    bool is_main_loop { false };
 };
 
 class QtEventLoopManagerEvent final : public QEvent {
@@ -208,6 +225,7 @@ static void dispatch_signal(int signal_number)
 EventLoopImplementationQt::EventLoopImplementationQt()
     : m_event_loop(make<QEventLoop>())
 {
+    ThreadData::the().event_loop = m_event_loop.ptr();
 }
 
 EventLoopImplementationQt::~EventLoopImplementationQt() = default;
@@ -258,6 +276,9 @@ void EventLoopImplementationQt::set_main_loop()
 
     auto& event_loop_manager = static_cast<EventLoopManagerQt&>(Core::EventLoopManager::the());
     event_loop_manager.set_main_loop_signal_notifiers({});
+
+    auto& thread_data = ThreadData::the();
+    thread_data.is_main_loop = true;
 }
 
 static void qt_timer_fired(Core::EventReceiver& object)
@@ -379,6 +400,24 @@ void EventLoopManagerQt::unregister_signal(int handler_id)
 void EventLoopManagerQt::did_post_event()
 {
     QCoreApplication::postEvent(m_main_thread_event_target.ptr(), new QtEventLoopManagerEvent(QtEventLoopManagerEvent::process_event_queue_event_type()));
+}
+
+Core::EventLoopThreadHandle EventLoopManagerQt::current_thread_handle()
+{
+    return reinterpret_cast<Core::EventLoopThreadHandle>(&ThreadData::the());
+}
+
+void EventLoopManagerQt::wake_thread(Core::EventLoopThreadHandle handle)
+{
+    auto* thread_data = ThreadData::for_handle(handle);
+    if (!thread_data)
+        return;
+    if (thread_data->is_main_loop) {
+        QCoreApplication::postEvent(m_main_thread_event_target.ptr(), new QtEventLoopManagerEvent(QtEventLoopManagerEvent::process_event_queue_event_type()));
+        return;
+    }
+    if (thread_data->event_loop)
+        thread_data->event_loop->wakeUp();
 }
 
 bool EventLoopManagerQt::event_target_received_event(Badge<EventLoopImplementationQtEventTarget>, QEvent* event)

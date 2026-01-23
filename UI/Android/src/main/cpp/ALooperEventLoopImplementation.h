@@ -30,6 +30,8 @@ public:
     virtual void unregister_notifier(Core::Notifier&) override;
 
     virtual void did_post_event() override;
+    virtual Core::EventLoopThreadHandle current_thread_handle() override;
+    virtual void wake_thread(Core::EventLoopThreadHandle) override;
 
     Function<void()> on_did_post_event;
 
@@ -53,10 +55,13 @@ struct TimerData {
 
 struct EventLoopThreadData {
     static EventLoopThreadData& the();
+    static EventLoopThreadData* for_handle(Core::EventLoopThreadHandle);
+    ~EventLoopThreadData();
 
     HashMap<long, TimerData> timers;
     HashTable<Core::Notifier*> notifiers;
     Core::ThreadEventQueue* thread_queue = nullptr;
+    ALooper* looper { nullptr };
 };
 
 class ALooperEventLoopImplementation : public Core::EventLoopImplementation {
