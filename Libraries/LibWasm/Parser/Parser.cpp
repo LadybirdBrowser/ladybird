@@ -325,7 +325,7 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case Instructions::br_if.value(): {
         // branches with a single label immediate
         auto index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
-        return Instruction { opcode, index };
+        return Instruction { opcode, BranchArgs { index } };
     }
     case Instructions::br_table.value(): {
         // br_table label* label

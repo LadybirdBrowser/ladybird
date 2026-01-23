@@ -1504,26 +1504,9 @@ HANDLE_INSTRUCTION(f64_const)
 HANDLE_INSTRUCTION(block)
 {
     LOG_INSN;
-    size_t arity = 0;
-    size_t param_arity = 0;
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    if (args.block_type.kind() != BlockType::Empty) [[unlikely]] {
-        switch (args.block_type.kind()) {
-        case BlockType::Type:
-            arity = 1;
-            break;
-        case BlockType::Index: {
-            auto& type = configuration.frame().module().types()[args.block_type.type_index().value()];
-            arity = type.results().size();
-            param_arity = type.parameters().size();
-            break;
-        }
-        case BlockType::Empty:
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    configuration.label_stack().append(Label(arity, args.end_ip, configuration.value_stack().size() - param_arity));
+    auto& meta = args.meta.value();
+    configuration.label_stack().unchecked_append(Label(meta.arity, args.end_ip, configuration.value_stack().size() - meta.parameter_count));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1531,45 +1514,28 @@ HANDLE_INSTRUCTION(loop)
 {
     LOG_INSN;
     auto& args = instruction->arguments().get<Instruction::StructuredInstructionArgs>();
-    size_t arity = 0;
-    if (args.block_type.kind() == BlockType::Index) {
-        auto& type = configuration.frame().module().types()[args.block_type.type_index().value()];
-        arity = type.parameters().size();
-    }
-    configuration.label_stack().append(Label(arity, ip_and_addresses.current_ip_value + 1, configuration.value_stack().size() - arity));
+    size_t arity = args.meta->arity;
+    configuration.label_stack().unchecked_append(Label(arity, ip_and_addresses.current_ip_value + 1, configuration.value_stack().size() - arity));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
 HANDLE_INSTRUCTION(if_)
 {
     LOG_INSN;
-    size_t arity = 0;
-    size_t param_arity = 0;
     auto& args = instruction->arguments().unsafe_get<Instruction::StructuredInstructionArgs>();
-    switch (args.block_type.kind()) {
-    case BlockType::Empty:
-        break;
-    case BlockType::Type:
-        arity = 1;
-        break;
-    case BlockType::Index: {
-        auto& type = configuration.frame().module().types()[args.block_type.type_index().value()];
-        arity = type.results().size();
-        param_arity = type.parameters().size();
-    }
-    }
+    auto& meta = args.meta.value();
 
     auto value = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources).template to<i32>();
-    auto end_label = Label(arity, args.end_ip.value(), configuration.value_stack().size() - param_arity);
+    auto end_label = Label(meta.arity, args.end_ip.value(), configuration.value_stack().size() - meta.parameter_count);
     if (value == 0) {
         if (args.else_ip.has_value()) {
             ip_and_addresses.current_ip_value = args.else_ip->value() - 1;
-            configuration.label_stack().append(end_label);
+            configuration.label_stack().unchecked_append(end_label);
         } else {
             ip_and_addresses.current_ip_value = args.end_ip.value();
         }
     } else {
-        configuration.label_stack().append(end_label);
+        configuration.label_stack().unchecked_append(end_label);
     }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -1600,7 +1566,7 @@ HANDLE_INSTRUCTION(return_)
 HANDLE_INSTRUCTION(br)
 {
     LOG_INSN;
-    ip_and_addresses.current_ip_value = interpreter.branch_to_label(configuration, instruction->arguments().get<LabelIndex>()).value();
+    ip_and_addresses.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label).value();
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1611,7 +1577,7 @@ HANDLE_INSTRUCTION(br_if)
     auto cond = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources).template to<i32>();
     if (cond == 0)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
-    ip_and_addresses.current_ip_value = interpreter.branch_to_label(configuration, instruction->arguments().get<LabelIndex>()).value();
+    ip_and_addresses.current_ip_value = interpreter.branch_to_label<true>(configuration, instruction->arguments().unsafe_get<Instruction::BranchArgs>().label).value();
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1622,10 +1588,10 @@ HANDLE_INSTRUCTION(br_table)
     auto i = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources).template to<u32>();
 
     if (i >= args.labels.size()) {
-        ip_and_addresses.current_ip_value = interpreter.branch_to_label(configuration, args.default_).value();
+        ip_and_addresses.current_ip_value = interpreter.branch_to_label<true>(configuration, args.default_).value();
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
     }
-    ip_and_addresses.current_ip_value = interpreter.branch_to_label(configuration, args.labels[i]).value();
+    ip_and_addresses.current_ip_value = interpreter.branch_to_label<true>(configuration, args.labels[i]).value();
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -5166,6 +5132,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 .block_type = ptr->block_type,
                 .end_ip = end_ip,
                 .else_ip = else_ip,
+                .meta = ptr->meta,
             };
             result.extra_instruction_storage.unchecked_append(move(instruction));
             result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();

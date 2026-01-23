@@ -478,11 +478,22 @@ public:
         BlockType block_type;
         InstructionPointer end_ip; // 'end' instruction IP if there is no 'else'; otherwise IP of instruction after 'end'.
         Optional<InstructionPointer> else_ip;
+
+        struct Meta {
+            size_t arity;
+            size_t parameter_count;
+        };
+        mutable Optional<Meta> meta {};
     };
 
     struct TableBranchArgs {
         Vector<LabelIndex> labels;
         LabelIndex default_;
+    };
+
+    struct BranchArgs {
+        LabelIndex label;
+        mutable bool has_stack_adjustment { false };
     };
 
     struct IndirectCallArgs {
@@ -576,6 +587,7 @@ private:
 
     Variant<
         BlockType,
+        BranchArgs,
         DataIndex,
         ElementIndex,
         FunctionIndex,

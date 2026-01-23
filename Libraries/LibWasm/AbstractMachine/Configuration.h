@@ -254,7 +254,7 @@ private:
 
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
-    Vector<Label, 64> m_label_stack;
+    Vector<Label, 64, FastLastAccess::Yes> m_label_stack;
     DoublyLinkedList<Frame, 512> m_frame_stack;
     Vector<Value, ArgumentsStaticSize> m_current_call_record;
     Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
