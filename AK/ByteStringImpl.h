@@ -73,12 +73,13 @@ public:
     unsigned case_insensitive_hash() const;
 
 private:
+    friend struct EmptyByteStringImpl;
+
     enum ConstructTheEmptyStringImplTag {
         ConstructTheEmptyStringImpl
     };
-    explicit ByteStringImpl(ConstructTheEmptyStringImplTag)
+    explicit constexpr ByteStringImpl(ConstructTheEmptyStringImplTag)
     {
-        m_inline_buffer[0] = '\0';
     }
 
     enum ConstructWithInlineBufferTag {
