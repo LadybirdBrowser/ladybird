@@ -84,6 +84,10 @@ Duration Duration::from_time_units(i64 time_units, u32 numerator, u32 denominato
     auto seconds_in_time_units = seconds * denominator / numerator;
     auto remainder_in_time_units = time_units - seconds_in_time_units;
     auto nanoseconds = ((remainder_in_time_units * 1'000'000'000 * numerator) + (denominator / 2)) / denominator;
+    if (nanoseconds == 1'000'000'000) {
+        seconds++;
+        nanoseconds = 0;
+    }
     VERIFY(nanoseconds >= 0);
     VERIFY(nanoseconds < 1'000'000'000);
     return Duration(seconds, static_cast<u32>(nanoseconds));
