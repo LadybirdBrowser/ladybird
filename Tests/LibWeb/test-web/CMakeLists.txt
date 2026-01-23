@@ -1,5 +1,6 @@
 set(SOURCES
     Application.cpp
+    Debug.cpp
     Fixture.cpp
     Fuzzy.cpp
     TestWebView.cpp
