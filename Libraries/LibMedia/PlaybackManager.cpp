@@ -144,7 +144,8 @@ void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStrea
             return 0;
         }
         return 0;
-    });
+    },
+        "Media Init"sv);
 
     thread->start();
     thread->detach();

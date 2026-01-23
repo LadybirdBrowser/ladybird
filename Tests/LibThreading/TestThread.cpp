@@ -33,7 +33,8 @@ TEST_CASE(threads_can_detach)
         (void)Core::System::sleep_ms(10);
         should_be_42 = 42;
         return 0;
-    });
+    },
+        "DetachTest"sv);
     thread->start();
     thread->detach();
 
@@ -48,7 +49,8 @@ TEST_CASE(detached_threads_do_not_need_to_be_joined)
         while (!should_exit.load())
             (void)Core::System::sleep_ms(10);
         return 0;
-    });
+    },
+        "DetachTest"sv);
     thread->start();
     thread->detach();
 
@@ -62,7 +64,7 @@ TEST_CASE(detached_threads_do_not_need_to_be_joined)
 
 TEST_CASE(join_dead_thread)
 {
-    auto thread = Threading::Thread::construct([&]() { return 0 /*nullptr*/; });
+    auto thread = Threading::Thread::construct([&]() { return 0 /*nullptr*/; }, "JoinTest"sv);
     thread->start();
 
     // The thread should have exited by then.

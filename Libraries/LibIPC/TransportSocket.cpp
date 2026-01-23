@@ -66,7 +66,7 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
         m_notify_hook_write_fd = adopt_ref(*new AutoCloseFileDescriptor(fds[1]));
     }
 
-    m_io_thread = Threading::Thread::construct([this] { return io_thread_loop(); });
+    m_io_thread = Threading::Thread::construct([this] { return io_thread_loop(); }, "IPC IO"sv);
     m_io_thread->start();
 }
 

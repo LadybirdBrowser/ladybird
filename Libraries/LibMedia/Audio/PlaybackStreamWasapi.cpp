@@ -311,7 +311,8 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
 
     auto audio_thread = Threading::Thread::construct([state] {
         return AudioState::render_thread_loop(*state);
-    });
+    },
+        "Audio Render"sv);
 
     if (initial_output_state == OutputState::Playing)
         TRY_HR(state->audio_client->Start());

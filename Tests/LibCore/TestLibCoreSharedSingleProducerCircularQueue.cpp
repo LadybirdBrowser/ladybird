@@ -63,7 +63,8 @@ TEST_CASE(simple_multithread)
                 FAIL("Unexpected error while dequeueing.");
         }
         return 0;
-    });
+    },
+        "QueueConsumer"sv);
     second_thread->start();
     (void)second_thread->join();
 
@@ -94,7 +95,8 @@ TEST_CASE(producer_consumer_multithread)
                 FAIL("Unexpected error while dequeueing.");
         }
         return 0;
-    });
+    },
+        "QueueConsumer"sv);
     second_thread->start();
 
     while (!other_thread_running.load())
@@ -124,10 +126,10 @@ TEST_CASE(multi_consumer)
     Atomic<size_t> dequeue_count = 0;
 
     auto threads = {
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
     };
 
     for (size_t i = 0; i < test_count; ++i)
@@ -151,10 +153,10 @@ TEST_CASE(single_producer_multi_consumer)
     Atomic<size_t> dequeue_count = 0;
 
     auto threads = {
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
-        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count)),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
+        Threading::Thread::construct(dequeuer(queue, dequeue_count, test_count), "Dequeuer"sv),
     };
     for (auto thread : threads)
         thread->start();

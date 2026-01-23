@@ -242,7 +242,8 @@ void RenderingThread::start(DisplayListPlayerType)
     m_thread = Threading::Thread::construct([thread_data = m_thread_data] {
         thread_data->compositor_loop();
         return static_cast<intptr_t>(0);
-    });
+    },
+        "Renderer"sv);
     m_thread->start();
 }
 
