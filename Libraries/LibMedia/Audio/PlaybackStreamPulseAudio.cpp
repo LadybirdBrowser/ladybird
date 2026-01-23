@@ -51,7 +51,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamPulseAudio::create(OutputSt
         internal_state->thread_loop();
         return 0;
     },
-        "Audio::PlaybackStream"sv));
+        "Audio Control"sv));
 
     thread->start();
     thread->detach();
