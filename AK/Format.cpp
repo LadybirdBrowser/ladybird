@@ -16,7 +16,9 @@
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringFloatingPointConversions.h>
+#include <AK/Time.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -1296,11 +1298,36 @@ void set_rich_debug_enabled(bool value)
     is_rich_debug_enabled = value;
 }
 
+#define DEFAULT_FORMAT "\033[0m"
+#define BOLD_YELLOW_FORMAT "\033[33;1m"
+
+static auto current_process_id()
+{
+#if defined(AK_OS_WINDOWS)
+    return GetCurrentProcessId();
+#else
+    return getpid();
+#endif
+}
+
+static auto current_thread_id()
+{
+#if defined(AK_OS_LINUX)
+    return gettid();
+#elif defined(AK_OS_WINDOWS)
+    return GetCurrentThreadId();
+#elif defined(AK_OS_MACOS)
+    u64 thread_id { 0 };
+    pthread_threadid_np(nullptr, &thread_id);
+    return thread_id;
+#else
+    return Empty();
+#endif
+}
+
+static auto s_main_thread_id = current_thread_id();
+
 #ifdef AK_OS_WINDOWS
-
-#    define YELLOW(str) "\33[93m" str "\33[0m"
-
-static int main_thread_id = GetCurrentThreadId();
 
 static int initialize_console_settings()
 {
@@ -1344,36 +1371,25 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
     StringBuilder builder;
 
     if (is_rich_debug_enabled) {
-#ifndef AK_OS_WINDOWS
         auto process_name = process_name_for_logging();
         if (!process_name.is_empty()) {
-            struct timespec ts = {};
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
-            auto pid = getpid();
-#    if defined(AK_OS_SERENITY) || defined(AK_OS_LINUX)
-            // Linux and Serenity handle thread IDs as if they are related to process ids
-            auto tid = gettid();
-            if (pid == tid)
-#    endif
-            {
-                builder.appendff("{}.{:03} \033[33;1m{}({})\033[0m: ", ts.tv_sec, ts.tv_nsec / 1000000, process_name, pid);
+            auto time = MonotonicTime::now_coarse();
+            builder.appendff("{}.{:03} " BOLD_YELLOW_FORMAT "{}", time.truncated_seconds(), time.nanoseconds_within_second() / 1000000, process_name);
+            auto process_id = current_process_id();
+            builder.appendff("({})", process_id);
+            auto thread_id = current_thread_id();
+
+            if (thread_id != s_main_thread_id) {
+                char thread_name[16];
+                auto thread_name_result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+                if (thread_name_result == 0 && strlen(thread_name) > 0)
+                    builder.appendff(" {}", thread_name);
+                else
+                    builder.append(" Thread"sv);
+                builder.appendff("({})", thread_id);
             }
-#    if defined(AK_OS_SERENITY) || defined(AK_OS_LINUX)
-            else {
-                builder.appendff("{}.{:03} \033[33;1m{}({}:{})\033[0m: ", ts.tv_sec, ts.tv_nsec / 1000000, process_name, pid, tid);
-            }
-#    endif
+            builder.append(DEFAULT_FORMAT ": "sv);
         }
-#else
-        auto process_name = process_name_for_logging();
-        if (!process_name.is_empty()) {
-            int tid = GetCurrentThreadId();
-            if (tid == main_thread_id)
-                builder.appendff(YELLOW("{}: "), process_name);
-            else
-                builder.appendff(YELLOW("{}:{}: "), process_name, tid);
-        }
-#endif
     }
 
     MUST(vformat(builder, fmtstr, params));
