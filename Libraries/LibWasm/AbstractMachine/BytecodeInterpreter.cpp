@@ -9,6 +9,7 @@
 #include <AK/ByteReader.h>
 #include <AK/Debug.h>
 #include <AK/Endian.h>
+#include <AK/GenericShorthands.h>
 #include <AK/MemoryStream.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
@@ -172,12 +173,12 @@ static_assert(sizeof(ShortenedIPAndAddresses) == sizeof(u64));
         static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS));                               \
     };                                                                                             \
     template<bool HasDynamicInsnLimit, typename Continue, SourceAddressMix source_address_mix>     \
-    Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
+    FLATTEN Outcome InstructionHandler<Instructions::name.value()>::operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))
 #define ALIAS_INSTRUCTION(new_name, existing_name)                                                                                                  \
     template<>                                                                                                                                      \
     struct InstructionHandler<Instructions::new_name.value()> {                                                                                     \
         template<bool HasDynamicInsnLimit, typename Continue, SourceAddressMix source_address_mix>                                                  \
-        static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                                                 \
+        FLATTEN static Outcome operator()(HANDLER_PARAMS(DECOMPOSE_PARAMS))                                                                         \
         {                                                                                                                                           \
             TAILCALL return InstructionHandler<Instructions::existing_name.value()>::operator()<HasDynamicInsnLimit, Continue, source_address_mix>( \
                 HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));                                                                                        \
@@ -1475,7 +1476,7 @@ HANDLE_INSTRUCTION(local_set)
 {
     LOG_INSN;
     // bounds checked by verifier.
-    configuration.local_or_argument(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
+    configuration.local(instruction->local_index()) = configuration.take_source<source_address_mix>(0, ip_and_addresses.addresses.sources);
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -1635,6 +1636,28 @@ HANDLE_INSTRUCTION(call)
     auto address = configuration.frame().module().functions()[index.value()];
     dbgln_if(WASM_TRACE_DEBUG, "call({})", address.value());
     if (interpreter.call_address(configuration, address, ip_and_addresses.addresses) == Outcome::Return)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_call_with_record_0)
+{
+    LOG_INSN;
+    auto index = instruction->arguments().get<FunctionIndex>();
+    auto address = configuration.frame().module().functions()[index.value()];
+    dbgln_if(WASM_TRACE_DEBUG, "call.with_record.0({})", address.value());
+    if (interpreter.call_address(configuration, address, ip_and_addresses.addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord) == Outcome::Return)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_call_with_record_1)
+{
+    LOG_INSN;
+    auto index = instruction->arguments().get<FunctionIndex>();
+    auto address = configuration.frame().module().functions()[index.value()];
+    dbgln_if(WASM_TRACE_DEBUG, "call.with_record.1({})", address.value());
+    if (interpreter.call_address(configuration, address, ip_and_addresses.addresses, BytecodeInterpreter::CallAddressSource::DirectCall, BytecodeInterpreter::CallType::UsingCallRecord) == Outcome::Return)
         return Outcome::Return;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
@@ -1913,7 +1936,17 @@ HANDLE_INSTRUCTION(local_tee)
     auto value = configuration.source_value<source_address_mix>(0, ip_and_addresses.addresses.sources); // bounds checked by verifier.
     auto local_index = instruction->local_index();
     dbgln_if(WASM_TRACE_DEBUG, "stack:peek -> locals({})", local_index.value());
-    configuration.frame().local_or_argument(local_index) = value;
+    configuration.local(local_index) = value;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_argument_tee)
+{
+    LOG_INSN;
+    auto value = configuration.source_value<source_address_mix>(0, ip_and_addresses.addresses.sources); // bounds checked by verifier.
+    auto local_index = instruction->local_index();
+    dbgln_if(WASM_TRACE_DEBUG, "stack:peek -> locals({})", local_index.value());
+    configuration.local(local_index) = value;
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -4668,7 +4701,7 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
     {
         Optional<ScopedValueRollback<decltype(configuration.regs)>> regs_rollback;
 
-        if (call_type == CallType::UsingRegisters)
+        if (call_type == CallType::UsingRegisters || call_type == CallType::UsingCallRecord)
             regs_rollback = ScopedValueRollback { configuration.regs };
 
         auto instance = configuration.store().get(address);
@@ -4678,22 +4711,28 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
             TRAP_IF_NOT(type->parameters().size() <= configuration.value_stack().size());
         }
         Vector<Value, ArgumentsStaticSize> args;
-        configuration.get_arguments_allocation_if_possible(args, type->parameters().size());
 
-        {
-            auto param_count = type->parameters().size();
-            if (param_count) {
-                args.ensure_capacity(param_count);
-                if (call_type == CallType::UsingRegisters) {
-                    args.resize_with_default_value(param_count, Value(0));
-                    for (size_t i = 0; i < param_count; ++i)
-                        args[param_count - i - 1] = configuration.take_source<SourceAddressMix::Any>(i, addresses.sources);
-                } else {
-                    auto span = configuration.value_stack().span().slice_from_end(param_count);
-                    for (auto& value : span)
-                        args.unchecked_append(value);
+        if (call_type == CallType::UsingCallRecord) {
+            configuration.take_call_record(args);
+            args.shrink(type->parameters().size(), true);
+        } else {
+            configuration.get_arguments_allocation_if_possible(args, type->parameters().size());
 
-                    configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+            {
+                auto param_count = type->parameters().size();
+                if (param_count) {
+                    args.ensure_capacity(param_count);
+                    if (call_type == CallType::UsingRegisters) {
+                        args.resize_and_keep_capacity(param_count);
+                        for (size_t i = 0; i < param_count; ++i)
+                            args[param_count - i - 1] = configuration.take_source<SourceAddressMix::Any>(i, addresses.sources);
+                    } else {
+                        auto span = configuration.value_stack().span().slice_from_end(param_count);
+                        for (auto& value : span)
+                            args.unchecked_append(value);
+
+                        configuration.value_stack().remove(configuration.value_stack().size() - span.size(), span.size());
+                    }
                 }
             }
         }
@@ -4730,7 +4769,7 @@ Outcome BytecodeInterpreter::call_address(Configuration& configuration, Function
     }
 
     if (!result.values().is_empty()) {
-        if (call_type == CallType::UsingRegisters) {
+        if (call_type == CallType::UsingRegisters || call_type == CallType::UsingCallRecord || result.values().size() == 1) {
             configuration.push_to_destination<SourceAddressMix::Any>(result.values().take_first(), addresses.destination);
         } else {
             configuration.value_stack().ensure_capacity(configuration.value_stack().size() + result.values().size());
@@ -4888,6 +4927,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     } pattern_state { InsnPatternState::Nothing };
     static Instruction nop { Instructions::nop };
 
+    size_t calls_in_expression = 0;
+
     auto const set_default_dispatch = [&result](Instruction const& instruction, size_t index = NumericLimits<size_t>::max()) {
         if (index < result.dispatches.size()) {
             result.dispatches[index] = { { .instruction_opcode = instruction.opcode() }, &instruction };
@@ -4910,6 +4951,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 set_default_dispatch(result.extra_instruction_storage.unsafe_last());
                 continue;
             }
+
+            calls_in_expression++;
         }
 
         switch (pattern_state) {
@@ -5133,7 +5176,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     result.dispatches.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
     result.src_dst_mappings.remove_all(nops_to_remove, [](auto const& it) { return it.key(); });
 
-    // Rewrite local.get of arguments to argument.get to keep local.get for locals only.
+    // Rewrite local.* of arguments to argument.* to keep local.* for locals only.
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
         if (dispatch.instruction->opcode() == Instructions::local_get) {
@@ -5141,6 +5184,24 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             if (local_index.value() & LocalArgumentMarker) {
                 result.extra_instruction_storage.unchecked_append(Instruction(
                     Instructions::synthetic_argument_get,
+                    local_index));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        } else if (dispatch.instruction->opcode() == Instructions::local_set) {
+            auto local_index = dispatch.instruction->local_index();
+            if (local_index.value() & LocalArgumentMarker) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_argument_set,
+                    local_index));
+                result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
+                result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
+            }
+        } else if (dispatch.instruction->opcode() == Instructions::local_tee) {
+            auto local_index = dispatch.instruction->local_index();
+            if (local_index.value() & LocalArgumentMarker) {
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_argument_tee,
                     local_index));
                 result.dispatches[i].instruction = &result.extra_instruction_storage.unsafe_last();
                 result.dispatches[i].instruction_opcode = result.dispatches[i].instruction->opcode();
@@ -5161,6 +5222,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         IP definition_index;
         Vector<IP> uses;
         IP last_use = 0;
+        bool was_created_as_a_result_of_polymorphic_stack = false;
     };
 
     struct ActiveReg {
@@ -5230,6 +5292,20 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     Vector<Vector<ValueID>> live_at_instr;
     live_at_instr.resize(result.dispatches.size());
 
+    // Track call record constraints
+    HashMap<ValueID, u8> value_to_callrec_slot;
+
+    struct CallInfo {
+        size_t call_index;
+        size_t param_count;
+        size_t result_count;
+        size_t earliest_arg_index;
+        Vector<ValueID> arg_values;
+    };
+    Vector<CallInfo> eligible_calls;
+
+    eligible_calls.ensure_capacity(calls_in_expression);
+
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
         auto opcode = dispatch.instruction->opcode();
@@ -5238,22 +5314,129 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         Vector<ValueID> dependent_ids;
 
         bool variadic_or_unknown = false;
+        bool requires_aliased_destination = true;
 
         switch (opcode.value()) {
 #define M(name, _, ins, outs)                    \
     case Instructions::name.value():             \
         if constexpr (ins == -1 || outs == -1) { \
             variadic_or_unknown = true;          \
-        } else {                                 \
-            inputs = ins;                        \
-            outputs = outs;                      \
         }                                        \
+        inputs = max(ins, 0);                    \
+        outputs = max(outs, 0);                  \
         break;
             ENUMERATE_WASM_OPCODES(M)
 #undef M
         }
 
         Vector<ValueID> input_ids;
+
+        if (opcode == Instructions::call) {
+            auto& type = functions[dispatch.instruction->arguments().get<FunctionIndex>().value()];
+
+            if (type.parameters().size() <= (Dispatch::LastCallRecord - Dispatch::CallRecord + 1)
+                && type.results().size() <= 1
+                && type.parameters().size() <= value_stack.size()) {
+
+                inputs = type.parameters().size();
+                outputs = type.results().size();
+                variadic_or_unknown = false;
+                requires_aliased_destination = false;
+
+                auto value_stack_copy = value_stack;
+
+                for (size_t j = 0; j < inputs; ++j) {
+                    auto input_value = value_stack.take_last();
+                    auto& value = values.get(input_value).value();
+
+                    // if this value was created as a result of a polymorphic stack,
+                    // we can't actually go and force it to a call record again, so disqualify this call.
+                    if (value.was_created_as_a_result_of_polymorphic_stack) {
+                        inputs = 0;
+                        outputs = 0;
+                        variadic_or_unknown = true;
+                        value_stack = move(value_stack_copy);
+                        goto avoid_optimizing_this_call;
+                    }
+
+                    input_ids.append(input_value);
+                    dependent_ids.append(input_value);
+                    value.uses.append(i);
+                    value.last_use = max(value.last_use, i);
+                    forced_stack_values.append(input_value);
+                }
+                instr_to_input_values.set(i, input_ids);
+                instr_to_dependent_values.set(i, dependent_ids);
+
+                for (size_t j = 0; j < outputs; ++j) {
+                    auto id = next_value_id++;
+                    values.set(id, Value { id, i, {}, i });
+                    value_stack.append(id);
+                    instr_to_output_value.set(i, id);
+                    ensure_id_space(id);
+                }
+
+                size_t earliest = i;
+                ValueID earliest_arg_value = NumericLimits<size_t>::max();
+                for (auto value_id : input_ids) {
+                    auto& value = values.get(value_id).value();
+                    if (earliest > value.definition_index.value()) {
+                        earliest = value.definition_index.value();
+                        earliest_arg_value = value_id;
+                    }
+                }
+
+                // Reverse the input_ids to match stack order
+                Vector<ValueID> reversed_args;
+                for (size_t j = 0; j < inputs; ++j) {
+                    reversed_args.append(input_ids[inputs - 1 - j]);
+                }
+
+                // Follow the alias root of the earliest arg value to find the first instruction that produced it.
+                auto new_earliest = earliest;
+                while (true) {
+                    auto maybe_inputs = instr_to_input_values.get(new_earliest);
+                    if (!maybe_inputs.has_value())
+                        break;
+                    bool found_earliest = false;
+                    for (auto val : maybe_inputs.value()) {
+                        auto root = find_root(val);
+                        if (root == find_root(earliest_arg_value)) {
+                            auto& value = values.get(val).value();
+                            if (value.definition_index.value() < new_earliest) {
+                                new_earliest = value.definition_index.value();
+                                found_earliest = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found_earliest)
+                        break;
+                }
+
+                eligible_calls.append({ .call_index = i,
+                    .param_count = inputs,
+                    .result_count = outputs,
+                    .earliest_arg_index = new_earliest,
+                    .arg_values = reversed_args });
+
+                continue;
+            }
+        }
+    avoid_optimizing_this_call:;
+
+        // Handle the inputs we actually know about.
+        size_t j = 0;
+        for (; j < inputs && !value_stack.is_empty(); ++j) {
+            auto input_value = value_stack.take_last();
+            input_ids.append(input_value);
+            dependent_ids.append(input_value);
+            auto& value = values.get(input_value).value();
+            value.uses.append(i);
+            value.last_use = max(value.last_use, i);
+        }
+
+        inputs -= j;
 
         if (variadic_or_unknown) {
             for (auto val : value_stack) {
@@ -5267,7 +5450,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             value_stack.clear_with_capacity();
         }
 
-        if (!variadic_or_unknown && value_stack.size() < inputs) {
+        if (value_stack.size() < inputs) {
             size_t j = 0;
             for (; j < inputs && !value_stack.is_empty(); ++j) {
                 auto input_value = value_stack.take_last();
@@ -5280,7 +5463,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
             for (; j < inputs; ++j) {
                 auto val_id = next_value_id++;
-                values.set(val_id, Value { val_id, i, {}, i });
+                values.set(val_id, Value { val_id, i, {}, i, true });
                 input_ids.append(val_id);
                 forced_stack_values.append(val_id);
                 ensure_id_space(val_id);
@@ -5311,13 +5494,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
 
         // Alias the output with the last input, if one exists.
-        if (outputs > 0) {
+        if (outputs > 0 && requires_aliased_destination) {
             auto maybe_input_ids = instr_to_input_values.get(i);
             if (maybe_input_ids.has_value() && !maybe_input_ids->is_empty()) {
                 auto last_input_id = maybe_input_ids->last();
                 union_alias(output_id, last_input_id);
 
                 auto alias_root = find_root(last_input_id);
+
+                // If the last input was created as a result of polymorphic stack, propagate that to the output (as they're aliased).
+                auto& output_value = values.get(output_id).value();
+                auto const& input_value = values.get(last_input_id).value();
+                if (input_value.was_created_as_a_result_of_polymorphic_stack)
+                    output_value.was_created_as_a_result_of_polymorphic_stack = true;
 
                 // If any *other* input is forced to alias the output, we have no choice but to place all three on the stack.
                 for (size_t j = 0; j < maybe_input_ids->size() - 1; ++j) {
@@ -5333,8 +5522,103 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     forced_stack_values.extend(value_stack);
 
+    // Build conflict graph and select maximum set of non-conflicting calls
+    // Prefer calls with more arguments, and among those with equal args, prefer shorter spans
+
+    struct CallScore {
+        size_t index;
+        size_t param_count;
+        size_t span;
+    };
+
+    Vector<CallScore> scored_calls;
+    for (size_t i = 0; i < eligible_calls.size(); ++i) {
+        auto& call = eligible_calls[i];
+        size_t span = call.call_index - call.earliest_arg_index;
+        scored_calls.append({ i, call.param_count, span });
+    }
+
+    // Sort by: more params first, then shorter span
+    quick_sort(scored_calls, [](auto const& a, auto const& b) {
+        if (a.param_count != b.param_count)
+            return a.param_count > b.param_count;
+        return a.span < b.span;
+    });
+
+    // Greedily select non-conflicting calls in priority order
+    Vector<CallInfo*> valid_calls;
+    HashTable<size_t> selected_indices;
+    size_t max_call_record_size = 0;
+
+    for (auto const& score : scored_calls) {
+        auto& call_info = eligible_calls[score.index];
+        size_t call_start = call_info.earliest_arg_index;
+        size_t call_end = call_info.call_index;
+
+        bool conflicts = false;
+        for (auto* other_call : valid_calls) {
+            size_t other_start = other_call->earliest_arg_index;
+            size_t other_end = other_call->call_index;
+
+            // Check if the ranges overlap
+            // Two ranges [a,b] and [c,d] overlap if: NOT (b < c OR d < a)
+            if (!(call_end < other_start || other_end < call_start)) {
+                conflicts = true;
+                break;
+            }
+        }
+
+        if (!conflicts) {
+            valid_calls.append(&call_info);
+            selected_indices.set(score.index);
+            max_call_record_size = max(max_call_record_size, call_info.param_count);
+        }
+    }
+
+    // Only apply call record optimization to non-conflicting calls
+    HashTable<size_t> calls_with_records;
+    for (auto* call_info : valid_calls) {
+        calls_with_records.set(call_info->call_index);
+
+        // Mark values for call record slots
+        for (size_t j = 0; j < call_info->param_count; ++j) {
+            value_to_callrec_slot.set(call_info->arg_values[j], Dispatch::CallRecord + j);
+        }
+
+        auto new_call_opcode = call_info->result_count == 0
+            ? Instructions::synthetic_call_with_record_0
+            : Instructions::synthetic_call_with_record_1;
+
+        auto new_call_insn = Instruction(
+            new_call_opcode,
+            result.dispatches[call_info->call_index].instruction->arguments());
+
+        result.extra_instruction_storage.unchecked_append(new_call_insn);
+        result.dispatches[call_info->call_index].instruction = &result.extra_instruction_storage.unsafe_last();
+        result.dispatches[call_info->call_index].instruction_opcode = new_call_opcode;
+    }
+
+    result.max_call_rec_size = max_call_record_size;
+
     for (size_t i = 0; i < final_roots.size(); ++i)
         final_roots[i] = find_root(i);
+
+    HashMap<ValueID, u8> root_to_callrec_slot;
+    for (auto const& [value_id, slot] : value_to_callrec_slot) {
+        auto root = final_roots[value_id.value()];
+        if (auto existing = root_to_callrec_slot.get(root); existing.has_value()) {
+            VERIFY(*existing == slot);
+        }
+        root_to_callrec_slot.set(root, slot);
+    }
+
+    value_to_callrec_slot.clear_with_capacity();
+    for (size_t i = 0; i < final_roots.size(); ++i) {
+        auto root = final_roots[i];
+        if (auto slot = root_to_callrec_slot.get(root); slot.has_value()) {
+            value_to_callrec_slot.set(ValueID { i }, *slot);
+        }
+    }
 
     struct LiveInterval {
         ValueID value_id;
@@ -5417,6 +5701,36 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     }
 
     for (auto& [key, group] : alias_groups) {
+        // Check if any value in this group needs a call record slot
+        Dispatch::RegisterOrStack forced_slot = Dispatch::RegisterOrStack::Stack;
+        bool has_callrec_constraint = false;
+
+        for (auto* interval : group) {
+            if (auto slot = value_to_callrec_slot.get(interval->value_id); slot.has_value()) {
+                forced_slot = static_cast<Dispatch::RegisterOrStack>(*slot);
+                has_callrec_constraint = true;
+                break;
+            }
+        }
+
+        if (has_callrec_constraint) {
+            // Force all values in this alias group to use the call record slot
+            for (auto* interval : group) {
+                value_alloc.set(interval->value_id, forced_slot);
+            }
+            continue;
+        }
+
+        auto has_fixed_allocation = false;
+        for (auto* interval : group) {
+            if (value_alloc.contains(interval->value_id)) {
+                has_fixed_allocation = true;
+                break;
+            }
+        }
+        if (has_fixed_allocation)
+            continue;
+
         IP group_start = NumericLimits<size_t>::max();
         IP group_end = 0;
         auto group_forced_to_stack = false;
@@ -5507,17 +5821,30 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
             return true;
         };
+        constexpr auto all_sources_are_callrec = [](SourcesAndDestination const& addrs, ssize_t expected_source_count, ssize_t expected_dest_count) -> bool {
+            if (expected_source_count < 0 || expected_dest_count > 1 || expected_dest_count < 0)
+                return false;
+            for (ssize_t i = 0; i < expected_source_count; ++i) {
+                if (addrs.sources[i] < Dispatch::CallRecord)
+                    return false;
+            }
+            if (expected_dest_count == 1 && addrs.destination < Dispatch::CallRecord)
+                return false;
+            return true;
+        };
 
         for (size_t i = 0; i < result.dispatches.size(); ++i) {
             auto& dispatch = result.dispatches[i];
             auto& addrs = result.src_dst_mappings[i];
 
-#define CASE(name, _, inputs, outputs)                                                                                                                                       \
-    case Instructions::name.value():                                                                                                                                         \
-        if (all_sources_are_registers(addrs, inputs, outputs))                                                                                                               \
-            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllRegisters>); \
-        else                                                                                                                                                                 \
-            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::Any>);          \
+#define CASE(name, _, inputs, outputs)                                                                                                                                         \
+    case Instructions::name.value():                                                                                                                                           \
+        if (all_sources_are_registers(addrs, inputs, outputs))                                                                                                                 \
+            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllRegisters>);   \
+        else if (all_sources_are_callrec(addrs, inputs, outputs))                                                                                                              \
+            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::AllCallRecords>); \
+        else                                                                                                                                                                   \
+            dispatch.handler_ptr = bit_cast<FlatPtr>(&InstructionHandler<Instructions::name.value()>::template operator()<false, Continue, SourceAddressMix::Any>);            \
         break;
 
             switch (dispatch.instruction->opcode().value()) {
@@ -5561,32 +5888,29 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                     ENUMERATE_WASM_OPCODES(XM)
                 }
                 for (ssize_t i = 0; i < in_count; ++i) {
-                    if (addresses.sources[i] < Dispatch::Stack) {
-                        warnln("       arg{} [reg{}]", i, to_underlying(addresses.sources[i]));
-                    } else {
-                        warnln("       arg{} [stack]", i);
-                    }
+                    warnln("       arg{} [{}]", i, regname(addresses.sources[i]));
                 }
                 if (out_count == 1) {
                     auto dest = addresses.destination;
-                    if (dest < Dispatch::Stack) {
-                        warnln("       dest [reg{}]", to_underlying(dest));
-                    } else {
-                        warnln("       dest [stack]");
-                    }
+                    warnln("       dest [{}]", regname(dest));
                 } else if (out_count > 1) {
                     warnln("       dest [multiple outputs]");
+                } else if (instruction->opcode() == Instructions::call || instruction->opcode() == Instructions::call_indirect) {
+                    if (addresses.destination != Dispatch::Stack)
+                        warnln("       dest [{}]", regname(addresses.destination));
                 }
             }
         };
 
         if (start_ish > end_ish)
             swap(start_ish, end_ish);
-        auto start_ip = start_ish >= 5 ? start_ish - 5 : 0;
+        auto start_ip = start_ish >= 40 ? start_ish - 40 : 0;
         auto end_ip = min(result.dispatches.size(), end_ish + 10);
         auto skip_start = Optional<size_t> {};
         for (auto ip = start_ip; ip < end_ip; ip += 5) {
             size_t chunk_end = min(end_ip, ip + 5);
+            print_range(ip, chunk_end);
+            continue;
             bool has_mark = false;
             for (auto const& mark : { marks... }) {
                 if (mark.ip >= ip && mark.ip < chunk_end) {
@@ -5606,6 +5930,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
     };
 
+    bool used[256] = { false };
     for (size_t i = 0; i < result.dispatches.size(); ++i) {
         auto& dispatch = result.dispatches[i];
         if (dispatch.instruction->opcode() == Instructions::if_) {
@@ -5626,6 +5951,45 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 dbgln("Instructions around the invalid end_ip:");
                 print_instructions_around(i, end_ip, Mark { i, "invalid if_"sv }, Mark { end_ip, "this should've been an end"sv }, Mark { end_ip - 1, "previous instruction"sv }, Mark { end_ip + 1, "next instruction"sv });
                 VERIFY_NOT_REACHED();
+            }
+        }
+        // If the instruction is a call with a callrec, clear used[] for the callrec registers.
+        if (dispatch.instruction->opcode() == Instructions::synthetic_call_with_record_0 || dispatch.instruction->opcode() == Instructions::synthetic_call_with_record_1) {
+            for (size_t j = to_underlying(Dispatch::CallRecord); j <= to_underlying(Dispatch::LastCallRecord); ++j)
+                used[j] = false;
+        }
+
+        auto& addr = result.src_dst_mappings[i];
+
+        // for each input, ensure it's not reading from a register that is not marked as used (unless stack).
+        ssize_t in_count = 0;
+        ssize_t out_count = 0;
+        switch (dispatch.instruction->opcode().value()) {
+            ENUMERATE_WASM_OPCODES(XM)
+        }
+        for (ssize_t j = 0; j < in_count; ++j) {
+            auto src = addr.sources[j];
+            if (src == Dispatch::Stack)
+                continue;
+            if (!used[to_underlying(src)]) {
+                dbgln("Instruction {} reads from register {} which is not populated", i, to_underlying(src));
+                dbgln("Instructions around the invalid read:");
+                print_instructions_around(i, i, Mark { i, "invalid read here"sv });
+                VERIFY_NOT_REACHED();
+            }
+            used[to_underlying(src)] = false;
+        }
+        // if the instruction has an output, ensure it's not writing to a register that is marked used.
+        if (out_count == 1 || dispatch.instruction->opcode() == Instructions::call || dispatch.instruction->opcode() == Instructions::call_indirect) {
+            auto dest = addr.destination;
+            if (dest != Dispatch::Stack) {
+                if (used[to_underlying(dest)]) {
+                    dbgln("Instruction {} writes to register {} which is already populated", i, to_underlying(dest));
+                    dbgln("Instructions around the invalid write:");
+                    print_instructions_around(i, i, Mark { i, "invalid write here"sv });
+                    VERIFY_NOT_REACHED();
+                }
+                used[to_underlying(dest)] = true;
             }
         }
     }

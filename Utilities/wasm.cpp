@@ -747,11 +747,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     ByteString regs;
                     auto first = true;
                     ssize_t in_count = 0;
-                    bool has_out = false;
+                    ssize_t out_count = 0;
 #define M(name, _, ins, outs)              \
     case Wasm::Instructions::name.value(): \
         in_count = ins;                    \
-        has_out = outs != 0;               \
+        out_count = outs;                  \
         break;
                     switch (dispatch.instruction->opcode().value()) {
                         ENUMERATE_WASM_OPCODES(M)
@@ -760,6 +760,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     constexpr auto reg_name = [](Wasm::Dispatch::RegisterOrStack reg) -> ByteString {
                         if (reg == Wasm::Dispatch::RegisterOrStack::Stack)
                             return "stack"sv;
+                        if (reg >= Wasm::Dispatch::RegisterOrStack::CallRecord)
+                            return ByteString::formatted("cr{}", to_underlying(reg) - to_underlying(Wasm::Dispatch::RegisterOrStack::CallRecord));
                         return ByteString::formatted("reg{}", to_underlying(reg));
                     };
                     if (in_count > -1) {
@@ -770,17 +772,25 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                                 regs = ByteString::formatted("{}, {}", regs, reg_name(addresses.sources[index]));
                             first = false;
                         }
-                        if (has_out) {
+                        if (out_count > 0) {
                             if (first)
                                 regs = ByteString::formatted(" () -> {}", reg_name(addresses.destination));
                             else
                                 regs = ByteString::formatted("{}) -> {}", regs, reg_name(addresses.destination));
-                        } else {
+                        } else if (out_count == 0) {
                             if (first)
                                 regs = ByteString::formatted(" () -x");
                             else
                                 regs = ByteString::formatted("{}) -x", regs);
+                        } else {
+                            if (first)
+                                regs = ByteString::formatted(" () -?");
+                            else
+                                regs = ByteString::formatted("{}) -?", regs);
                         }
+                    } else if (dispatch.instruction->opcode() == Wasm::Instructions::call || dispatch.instruction->opcode() == Wasm::Instructions::call_indirect) {
+                        if (addresses.destination != Wasm::Dispatch::RegisterOrStack::Stack)
+                            regs = ByteString::formatted("(?) -> {}", reg_name(addresses.destination));
                     }
 
                     if (regs.is_empty())

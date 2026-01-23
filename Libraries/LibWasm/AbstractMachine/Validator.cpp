@@ -97,6 +97,8 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& tag : module.tag_section().tags())
         m_context.tags.append(TagType(tag.type(), tag.flags()));
 
+    m_context.current_module = &module;
+
     // We need to build the set of declared functions to check that `ref.func` uses a specific set of predetermined functions, found in:
     // - Element initializer expressions
     // - Global initializer expressions
@@ -132,6 +134,9 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     TRY(validate(module.table_section()));
     TRY(validate(module.code_section()));
     TRY(validate(module.tag_section()));
+
+    for (auto& entry : module.code_section().functions())
+        module.set_minimum_call_record_allocation_size(max(entry.func().body().compiled_instructions.max_call_rec_size, module.minimum_call_record_allocation_size()));
 
     module.set_validation_status(Module::ValidationStatus::Valid, {});
     return {};
@@ -273,6 +278,19 @@ ErrorOr<void, ValidationError> Validator::validate(CodeSection const& section)
         auto results = TRY(function_validator.validate(function.body(), function_type.results()));
         if (results.result_types.size() != function_type.results().size())
             return Errors::invalid("function result"sv, function_type.results(), results.result_types);
+
+        if (function.body().compiled_instructions.max_call_rec_size != 0) {
+            size_t max_callee_locals = 0;
+            for (auto& insn : function.body().instructions()) {
+                if (!first_is_one_of(insn.opcode(), Instructions::call, Instructions::synthetic_call_with_record_0, Instructions::synthetic_call_with_record_1))
+                    continue;
+                auto callee_index = insn.arguments().template get<FunctionIndex>();
+                if (callee_index.value() - m_context.imported_function_count < section.functions().size())
+                    max_callee_locals = max(max_callee_locals, section.functions()[callee_index.value() - m_context.imported_function_count].func().total_local_count());
+            }
+
+            function.body().compiled_instructions.max_call_rec_size += max_callee_locals;
+        }
     }
 
     return {};

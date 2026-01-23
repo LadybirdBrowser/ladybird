@@ -188,6 +188,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         return InstantiationError { ByteString::formatted("Validation failed: {}", result.error()) };
 
     auto main_module_instance_pointer = make<ModuleInstance>();
+    main_module_instance_pointer->cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
     auto& main_module_instance = *main_module_instance_pointer;
 
     main_module_instance.types() = module.type_section().types();
@@ -195,6 +196,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     Vector<Value> global_values;
     Vector<Vector<Reference>> elements;
     ModuleInstance auxiliary_instance;
+
+    auxiliary_instance.cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
 
     for (auto [i, import_] : enumerate(module.import_section().imports())) {
         auto extern_ = externs.at(i);
@@ -294,7 +297,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         config.set_frame(IsTailcall::No,
             auxiliary_instance,
             Vector<Value, ArgumentsStaticSize> {},
-            Vector<Value, 8> {},
             entry.expression(),
             1);
         auto result = config.execute(interpreter);
@@ -316,7 +318,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             config.set_frame(IsTailcall::No,
                 main_module_instance,
                 Vector<Value, ArgumentsStaticSize> {},
-                Vector<Value, 8> {},
                 entry,
                 entry.instructions().size() - 1);
             auto result = config.execute(interpreter);
@@ -351,7 +352,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         config.set_frame(IsTailcall::No,
             main_module_instance,
             Vector<Value, ArgumentsStaticSize> {},
-            Vector<Value, 8> {},
             active_ptr->expression,
             1);
         auto result = config.execute(interpreter);
@@ -386,7 +386,6 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 config.set_frame(IsTailcall::No,
                     main_module_instance,
                     Vector<Value, ArgumentsStaticSize> {},
-                    Vector<Value, 8> {},
                     data.offset,
                     1);
                 auto result = config.execute(interpreter);
