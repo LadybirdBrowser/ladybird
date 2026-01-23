@@ -29,12 +29,11 @@ TEST_CASE(threads_can_detach)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<int> should_be_42 = 0;
 
-    auto thread = Threading::Thread::construct([&should_be_42]() {
+    auto thread = Threading::Thread::construct("DetachTest"sv, [&should_be_42]() {
         (void)Core::System::sleep_ms(10);
         should_be_42 = 42;
         return 0;
-    },
-        "DetachTest"sv);
+    });
     thread->start();
     thread->detach();
 
@@ -45,12 +44,11 @@ TEST_CASE(threads_can_detach)
 TEST_CASE(detached_threads_do_not_need_to_be_joined)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> should_exit { false };
-    auto thread = Threading::Thread::construct([&]() {
+    auto thread = Threading::Thread::construct("DetachTest"sv, [&]() {
         while (!should_exit.load())
             (void)Core::System::sleep_ms(10);
         return 0;
-    },
-        "DetachTest"sv);
+    });
     thread->start();
     thread->detach();
 
@@ -64,7 +62,7 @@ TEST_CASE(detached_threads_do_not_need_to_be_joined)
 
 TEST_CASE(join_dead_thread)
 {
-    auto thread = Threading::Thread::construct([&]() { return 0 /*nullptr*/; }, "JoinTest"sv);
+    auto thread = Threading::Thread::construct("JoinTest"sv, [&]() { return 0 /*nullptr*/; });
     thread->start();
 
     // The thread should have exited by then.
