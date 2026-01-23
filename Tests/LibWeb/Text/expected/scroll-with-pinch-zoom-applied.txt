@@ -1,0 +1,4 @@
+Initial: pageTop=0, scale=1
+After zoom: pageTop=33.328125, scale=1.5, offsetTop=33.328125
+pageTop changed by: 100
+PASS

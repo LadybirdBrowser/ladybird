@@ -2803,7 +2803,9 @@ RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
 
 GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
 {
-    return perform_a_scroll_of_the_viewport(m_viewport_scroll_offset + delta);
+    auto vv = active_document()->visual_viewport();
+    CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
+    return perform_a_scroll_of_the_viewport(page_position + delta);
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
