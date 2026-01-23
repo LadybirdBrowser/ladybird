@@ -17,6 +17,7 @@
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/ErrorTypes.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
@@ -2599,10 +2600,40 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
 
     auto dst = choose_dst(generator, preferred_dst);
 
-    for (size_t i = 0; i < m_expressions.size(); i++) {
-        auto value = TRY(m_expressions[i]->generate_bytecode(generator)).value();
+    Vector segments(m_expressions);
+
+    segments.remove_all_matching([&](auto expr) {
+        return expr->is_string_literal() && static_cast<StringLiteral const&>(*expr).value().is_empty();
+    });
+
+    // OPTIMIZATION: Empty template literal (``) can be turned into empty string literal ("")
+    if (segments.size() == 0)
+        return generator.add_constant(Value { GC::Ref { generator.vm().empty_string() } });
+
+    if (segments.size() == 1) {
+        auto value = TRY(segments[0]->generate_bytecode(generator)).value();
+
+        // OPTIMIZATION: String literal template (`xyz`) can be returned directly
+        if (value.operand().is_constant())
+            return value;
+
+        // OPTIMIZATION: `${x}` can be turned into ToString(x) op
+        generator.emit<Bytecode::Op::ToString>(dst, value);
+
+        return dst;
+    }
+
+    for (size_t i = 0; i < segments.size(); i++) {
+        auto expr = segments[i];
+
+        auto value = TRY(expr->generate_bytecode(generator)).value();
+
         if (i == 0) {
-            generator.emit_mov(dst, value);
+            if (expr->is_string_literal()) {
+                generator.emit_mov(dst, value);
+            } else {
+                generator.emit<Bytecode::Op::ToString>(dst, value);
+            }
         } else {
             generator.emit<Bytecode::Op::ConcatString>(dst, value);
         }
