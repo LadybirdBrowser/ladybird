@@ -375,6 +375,9 @@ struct ApplyEffects {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
     Optional<Gfx::Filter> filter {};
+    Optional<Gfx::Filter> backdrop_filter {};
+    Gfx::IntRect backdrop_filter_rect {};
+    CornerRadii backdrop_filter_border_radii {};
 
     void dump(StringBuilder&) const;
 };

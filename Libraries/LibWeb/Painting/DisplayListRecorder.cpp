@@ -359,9 +359,9 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutt
         .vertical = vertical });
 }
 
-void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter)
+void DisplayListRecorder::apply_effects(float opacity, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Gfx::Filter> filter, Optional<Gfx::Filter> backdrop_filter, Gfx::IntRect backdrop_filter_rect, CornerRadii backdrop_filter_border_radii)
 {
-    APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter) });
+    APPEND(ApplyEffects { .opacity = opacity, .compositing_and_blending_operator = compositing_and_blending_operator, .filter = move(filter), .backdrop_filter = move(backdrop_filter), .backdrop_filter_rect = backdrop_filter_rect, .backdrop_filter_border_radii = backdrop_filter_border_radii });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)

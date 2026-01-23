@@ -185,6 +185,9 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             computed_values.opacity(),
             mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
             paintable_box.filter(),
+            paintable_box.backdrop_filter(),
+            paintable_box.absolute_border_box_rect(),
+            paintable_box.normalized_border_radii_data(),
             computed_values.isolation() == CSS::Isolation::Isolate
         };
 

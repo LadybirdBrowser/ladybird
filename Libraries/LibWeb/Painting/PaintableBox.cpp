@@ -468,7 +468,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
     };
 
     if (phase == PaintPhase::Background && !empty_cells_property_applies()) {
-        paint_backdrop_filter(context);
+
         paint_background(context);
         paint_box_shadow(context);
     }

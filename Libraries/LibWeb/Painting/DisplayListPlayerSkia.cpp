@@ -936,7 +936,27 @@ void DisplayListPlayerSkia::apply_effects(ApplyEffects const& command)
     if (command.filter.has_value())
         paint.setImageFilter(to_skia_image_filter(command.filter.value()));
 
+    sk_sp<SkImage> background_snapshot;
+    if (command.backdrop_filter.has_value()) {
+        background_snapshot = surface().sk_surface().makeImageSnapshot();
+    }
+
     canvas.saveLayer(nullptr, &paint);
+
+    if (command.backdrop_filter.has_value() && background_snapshot) {
+        canvas.save();
+
+        auto rrect = to_skia_rrect(command.backdrop_filter_rect, command.backdrop_filter_border_radii);
+        canvas.clipRRect(rrect, true);
+
+        canvas.resetMatrix();
+
+        SkPaint backdrop_paint;
+        backdrop_paint.setImageFilter(to_skia_image_filter(command.backdrop_filter.value()));
+        canvas.drawImage(background_snapshot, 0, 0, SkSamplingOptions(), &backdrop_paint);
+
+        canvas.restore();
+    }
 }
 
 void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)

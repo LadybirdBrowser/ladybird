@@ -111,7 +111,7 @@ public:
 
     void paint_scrollbar(int scroll_frame_id, Gfx::IntRect gutter_rect, Gfx::IntRect thumb_rect, CSSPixelFraction scroll_size, Color thumb_color, Color track_color, bool vertical);
 
-    void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {});
+    void apply_effects(float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Gfx::Filter> filter = {}, Optional<Gfx::Filter> backdrop_filter = {}, Gfx::IntRect backdrop_filter_rect = {}, CornerRadii backdrop_filter_border_radii = {});
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
     void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::MaskKind);
 

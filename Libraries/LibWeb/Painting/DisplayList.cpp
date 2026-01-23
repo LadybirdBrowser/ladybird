@@ -105,7 +105,17 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
                 Optional<Gfx::Filter> gfx_filter;
                 if (effects.filter.has_filters())
                     gfx_filter = to_gfx_filter(effects.filter, device_pixels_per_css_pixel);
-                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = gfx_filter });
+
+                Optional<Gfx::Filter> gfx_backdrop_filter;
+                if (effects.backdrop_filter.has_filters())
+                    gfx_backdrop_filter = to_gfx_filter(effects.backdrop_filter, device_pixels_per_css_pixel);
+
+                Gfx::IntRect backdrop_rect;
+                if (gfx_backdrop_filter.has_value()) {
+                    backdrop_rect = device_pixel_converter.rounded_device_rect(effects.backdrop_filter_rect).to_type<int>();
+                }
+
+                apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = gfx_filter, .backdrop_filter = gfx_backdrop_filter, .backdrop_filter_rect = backdrop_rect, .backdrop_filter_border_radii = effects.backdrop_filter_clip_radii.as_corners(device_pixel_converter) });
             },
             [&](PerspectiveData const& perspective) {
                 save({});

@@ -66,6 +66,9 @@ struct EffectsData {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator blend_mode { Gfx::CompositingAndBlendingOperator::Normal };
     ResolvedCSSFilter filter;
+    ResolvedCSSFilter backdrop_filter;
+    CSSPixelRect backdrop_filter_rect;
+    BorderRadiiData backdrop_filter_clip_radii;
     bool isolate { false };
 
     bool needs_layer() const
@@ -73,6 +76,7 @@ struct EffectsData {
         return opacity < 1.0f
             || blend_mode != Gfx::CompositingAndBlendingOperator::Normal
             || filter.has_filters()
+            || backdrop_filter.has_filters()
             || isolate;
     }
 };
