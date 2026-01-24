@@ -36,6 +36,7 @@ public:
     static void paint_text_fragment_debug_highlight(DisplayListRecordingContext&, PaintableFragment const&);
 
     [[nodiscard]] virtual TraversalDecision hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const override;
+    [[nodiscard]] TraversalDecision hit_test_fragments(CSSPixelPoint position, CSSPixelPoint local_position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override
     {

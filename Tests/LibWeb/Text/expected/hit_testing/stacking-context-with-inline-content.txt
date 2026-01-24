@@ -1,0 +1,4 @@
+node: #text
+text: LMAO
+
+indexInNode: 1
