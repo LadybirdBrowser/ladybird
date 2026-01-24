@@ -1326,6 +1326,52 @@ static void create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> en
     }));
 }
 
+// Helper for populate_session_history_entry_document: runs steps 7 and 8
+static void finalize_session_history_entry(
+    GC::Ptr<SessionHistoryEntry> entry,
+    Navigable::NavigationParamsVariant const& received_navigation_params,
+    bool saveExtraDocumentState,
+    GC::Ptr<GC::Function<void()>> completion_steps)
+{
+    // 7. If entry's document state's document is not null, then:
+    if (entry->document()) {
+        // 1. Set entry's document state's ever populated to true.
+        entry->document_state()->set_ever_populated(true);
+
+        // 2. If saveExtraDocumentState is true:
+        if (saveExtraDocumentState) {
+            // 1. Let document be entry's document state's document.
+            auto document = entry->document();
+
+            // 2. Set entry's document state's origin to document's origin.
+            entry->document_state()->set_origin(document->origin());
+
+            // 3. If document's URL requires storing the policy container in history, then:
+            if (url_requires_storing_the_policy_container_in_history(document->url())) {
+                // 1. Assert: navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params).
+                VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>());
+
+                // 2. Set entry's document state's history policy container to navigationParams's policy container.
+                entry->document_state()->set_history_policy_container(GC::Ref { *received_navigation_params.get<GC::Ref<NavigationParams>>()->policy_container });
+            }
+        }
+
+        // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
+        if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
+            && (!received_navigation_params.has<Navigable::NullOrError>() && received_navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
+            // 1. Assert: navigationParams's request is not null.
+            VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>() && received_navigation_params.get<GC::Ref<NavigationParams>>()->request);
+
+            // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
+            entry->document_state()->set_request_referrer(received_navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
+        }
+    }
+
+    // 8. Run completionSteps.
+    if (completion_steps)
+        completion_steps->function()();
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
 void Navigable::populate_session_history_entry_document(
     GC::Ptr<SessionHistoryEntry> entry,
@@ -1453,47 +1499,30 @@ void Navigable::populate_session_history_entry_document(
             // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
             //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
             else if (auto const& response = received_navigation_params.get<GC::Ref<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
-                auto document = load_document(received_navigation_params.get<GC::Ref<NavigationParams>>(), signal_to_continue_session_history_processing);
+                auto navigation_params = received_navigation_params.get<GC::Ref<NavigationParams>>();
+                auto body = navigation_params->response->body();
+
+                // Get sniff bytes for MIME type detection. For streaming responses where bytes
+                // haven't arrived yet, we must wait asynchronously.
+                auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<ReadonlyBytes> { ReadonlyBytes {} };
+                if (!sniff_bytes.has_value()) {
+                    // Async path: bytes not yet available, wait for them
+                    body->wait_for_sniff_bytes(GC::create_function(heap(),
+                        [entry, navigation_params, signal_to_continue_session_history_processing,
+                            received_navigation_params, saveExtraDocumentState, completion_steps](ReadonlyBytes sniff_bytes) {
+                            auto document = load_document(navigation_params, signal_to_continue_session_history_processing, sniff_bytes);
+                            entry->document_state()->set_document(document);
+                            finalize_session_history_entry(entry, received_navigation_params, saveExtraDocumentState, completion_steps);
+                        }));
+                    return;
+                }
+
+                // Sync path: bytes available immediately
+                auto document = load_document(navigation_params, signal_to_continue_session_history_processing, sniff_bytes.value());
                 entry->document_state()->set_document(document);
             }
 
-            // 7. If entry's document state's document is not null, then:
-            if (entry->document()) {
-                // 1. Set entry's document state's ever populated to true.
-                entry->document_state()->set_ever_populated(true);
-
-                // 2. If saveExtraDocumentState is true:
-                if (saveExtraDocumentState) {
-                    // 1. Let document be entry's document state's document.
-                    auto document = entry->document();
-
-                    // 2. Set entry's document state's origin to document's origin.
-                    entry->document_state()->set_origin(document->origin());
-
-                    // 3. If document's URL requires storing the policy container in history, then:
-                    if (url_requires_storing_the_policy_container_in_history(document->url())) {
-                        // 1. Assert: navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params).
-                        VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>());
-
-                        // 2. Set entry's document state's history policy container to navigationParams's policy container.
-                        entry->document_state()->set_history_policy_container(GC::Ref { *received_navigation_params.get<GC::Ref<NavigationParams>>()->policy_container });
-                    }
-                }
-
-                // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
-                if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                    && (!received_navigation_params.has<NullOrError>() && received_navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
-                    // 1. Assert: navigationParams's request is not null.
-                    VERIFY(received_navigation_params.has<GC::Ref<NavigationParams>>() && received_navigation_params.get<GC::Ref<NavigationParams>>()->request);
-
-                    // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
-                    entry->document_state()->set_request_referrer(received_navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
-                }
-            }
-
-            // 8. Run completionSteps.
-            if (completion_steps)
-                completion_steps->function()();
+            finalize_session_history_entry(entry, received_navigation_params, saveExtraDocumentState, completion_steps);
         }));
     });
 
@@ -2104,7 +2133,8 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
         user_involvement);
 
     // 17. Return the result of loading an HTML document given navigationParams.
-    return load_document(navigation_params, Core::Promise<Empty>::construct());
+    // NB: The response body is a known byte sequence, so we can pass it directly for sniffing.
+    return load_document(navigation_params, Core::Promise<Empty>::construct(), result.bytes());
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url

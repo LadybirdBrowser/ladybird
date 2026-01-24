@@ -8,14 +8,13 @@
 #pragma once
 
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding);
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing);
+GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing, ReadonlyBytes sniff_bytes);
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline

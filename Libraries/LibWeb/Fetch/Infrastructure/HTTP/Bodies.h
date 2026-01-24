@@ -45,6 +45,20 @@ public:
     [[nodiscard]] SourceType const& source() const { return m_source; }
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
+    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
+    // Non-standard infrastructure to obtain the "resource header" for MIME type sniffing.
+    // The spec defines resource header as the byte sequence to sniff, obtained by reading
+    // "until [...] 1445 or more bytes have been read" or end of resource is reached.
+    // For non-streaming bodies (ByteBuffer/Blob source), bytes are available immediately.
+    // For streaming bodies, bytes are captured during fetch and delivered via callback.
+    using SniffBytesCallback = GC::Ref<GC::Function<void(ReadonlyBytes)>>;
+    Optional<ReadonlyBytes> sniff_bytes_if_available() const;
+    void wait_for_sniff_bytes(SniffBytesCallback on_ready);
+
+    // Called by FetchedDataReceiver to provide sniff bytes during streaming fetch.
+    void append_sniff_bytes(ReadonlyBytes bytes);
+    void set_sniff_bytes_complete();
+
     [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
     void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination) const;
@@ -68,6 +82,12 @@ private:
     // https://fetch.spec.whatwg.org/#concept-body-total-bytes
     // A length (null or an integer), initially null.
     Optional<u64> m_length;
+
+    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
+    // Non-standard: Captured "resource header" bytes for MIME type sniffing.
+    ByteBuffer m_sniff_bytes;
+    bool m_sniff_bytes_complete { false };
+    GC::Ptr<GC::Function<void(ReadonlyBytes)>> m_sniff_bytes_callback;
 };
 
 // https://fetch.spec.whatwg.org/#body-with-type
