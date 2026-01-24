@@ -118,14 +118,28 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!local_position.has_value())
         return TraversalDecision::Continue;
 
+    if (hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
+        return TraversalDecision::Break;
+
+    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || is_positioned())
+        && absolute_border_box_rect().contains(local_position.value())) {
+        if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
+
+    return TraversalDecision::Continue;
+}
+
+TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position, CSSPixelPoint local_position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
+{
     for (auto const& fragment : fragments()) {
         if (fragment.paintable().has_stacking_context() || !fragment.paintable().visible_for_hit_testing())
             continue;
         auto fragment_absolute_rect = fragment.absolute_rect();
-        if (fragment_absolute_rect.contains(local_position.value())) {
+        if (fragment_absolute_rect.contains(local_position)) {
             if (fragment.paintable().hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(local_position.value()), 0, 0 };
+            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(local_position), 0, 0 };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         } else if (type == HitTestType::TextCursor) {
@@ -148,30 +162,30 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
                 // the place to place the cursor. To determine the best place, we first find the closest fragment horizontally to
                 // the cursor. If we could not find one, then find for the closest vertically above the cursor.
                 // If we knew the direction of selection, we would look above if selecting upward.
-                if (fragment_absolute_rect.bottom() - 1 <= local_position.value().y()) { // fully below the fragment
+                if (fragment_absolute_rect.bottom() - 1 <= local_position.y()) { // fully below the fragment
                     HitTestResult hit_test_result {
                         .paintable = const_cast<Paintable&>(fragment.paintable()),
                         .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
-                        .vertical_distance = local_position.value().y() - fragment_absolute_rect.bottom(),
+                        .vertical_distance = local_position.y() - fragment_absolute_rect.bottom(),
                     };
                     if (callback(hit_test_result) == TraversalDecision::Break)
                         return TraversalDecision::Break;
-                } else if (fragment_absolute_rect.top() <= local_position.value().y()) { // vertically within the fragment
-                    if (local_position.value().x() < fragment_absolute_rect.left()) {
+                } else if (fragment_absolute_rect.top() <= local_position.y()) { // vertically within the fragment
+                    if (local_position.x() < fragment_absolute_rect.left()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset(),
                             .vertical_distance = 0,
-                            .horizontal_distance = fragment_absolute_rect.left() - local_position.value().x(),
+                            .horizontal_distance = fragment_absolute_rect.left() - local_position.x(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
-                    } else if (local_position.value().x() > fragment_absolute_rect.right()) {
+                    } else if (local_position.x() > fragment_absolute_rect.right()) {
                         HitTestResult hit_test_result {
                             .paintable = const_cast<Paintable&>(fragment.paintable()),
                             .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
                             .vertical_distance = 0,
-                            .horizontal_distance = local_position.value().x() - fragment_absolute_rect.right(),
+                            .horizontal_distance = local_position.x() - fragment_absolute_rect.right(),
                         };
                         if (callback(hit_test_result) == TraversalDecision::Break)
                             return TraversalDecision::Break;
@@ -180,13 +194,6 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             }
         }
     }
-
-    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || is_positioned())
-        && absolute_border_box_rect().contains(local_position.value())) {
-        if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-    }
-
     return TraversalDecision::Continue;
 }
 

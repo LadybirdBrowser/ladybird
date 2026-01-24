@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    body {
+        position: relative;
+        z-index: 1;
+        font-size: 100px;
+    }
+</style>
+<body>LMAO</body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Hit test in the middle of the text
+        const result = internals.hitTest(100, 50);
+        if (result) {
+            println(`node: ${result.node.nodeName}`);
+            println(`text: ${result.node.textContent}`);
+            println(`indexInNode: ${result.indexInNode}`);
+        } else {
+            println("FAIL: no hit test result");
+        }
+    });
+</script>

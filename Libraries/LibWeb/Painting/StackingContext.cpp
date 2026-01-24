@@ -17,6 +17,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -386,6 +387,23 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         for (auto const* paintable = paintable_box().last_child(); paintable; paintable = paintable->previous_sibling()) {
             if (paintable->is_inline() && !paintable->is_absolutely_positioned() && !paintable->has_stacking_context()) {
                 if (paintable->hit_test(position, type, callback) == TraversalDecision::Break)
+                    return TraversalDecision::Break;
+            }
+        }
+
+        // Hit test the stacking context root's own fragments if it's a PaintableWithLines.
+        if (is<PaintableWithLines>(paintable_box())) {
+            auto const& paintable_with_lines = as<PaintableWithLines>(paintable_box());
+            auto const& viewport_paintable = *paintable_box().document().paintable();
+            auto const& scroll_state = viewport_paintable.scroll_state_snapshot();
+            Optional<CSSPixelPoint> local_position;
+            if (auto state = paintable_box().accumulated_visual_context())
+                local_position = state->transform_point_for_hit_test(position, scroll_state);
+            else
+                local_position = position;
+
+            if (local_position.has_value()) {
+                if (paintable_with_lines.hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
                     return TraversalDecision::Break;
             }
         }
