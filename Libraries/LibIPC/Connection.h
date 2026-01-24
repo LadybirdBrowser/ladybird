@@ -102,6 +102,10 @@ protected:
         if (!peer_message.is_error())
             return peer_message.release_value();
 
+        dbgln("Failed to parse IPC message:");
+        dbgln("  Local endpoint error: {}", local_message.error());
+        dbgln("  Peer endpoint error: {}", peer_message.error());
+
         return nullptr;
     }
 };
