@@ -638,8 +638,9 @@ void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 
 void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 {
+    Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
     auto& thread_data = ThreadData::the();
-    Threading::MutexLocker locker(thread_data.mutex);
+    Threading::MutexLocker thread_data_content_locker(thread_data.mutex);
 
     thread_data.notifier_to_index.set(&notifier, thread_data.poll_fds.size());
     thread_data.notifiers.append(&notifier);
