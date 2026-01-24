@@ -20,4 +20,4 @@ set(SOURCES
 )
 
 ladybird_lib(LibURL url)
-target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex LibCrypto)
+target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex)
