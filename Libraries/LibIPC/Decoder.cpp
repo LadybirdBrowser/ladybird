@@ -167,7 +167,10 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     if (auto valid = TRY(decoder.decode<bool>()); !valid)
         return Core::AnonymousBuffer {};
 
-    auto size = TRY(decoder.decode_size());
+    // NOTE: We don't use decode_size() here since AnonymousBuffer is backed by
+    // shared memory, not heap allocation. The MAX_DECODED_SIZE limit doesn't
+    // apply because the memory is already allocated by the sender.
+    auto size = static_cast<size_t>(TRY(decoder.decode<u32>()));
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
