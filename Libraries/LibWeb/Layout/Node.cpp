@@ -617,34 +617,32 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_font_features(computed_style.font_features());
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
 
+    auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> Optional<CSS::BorderRadiusData> {
+        if (value.is_border_radius()) {
+            return CSS::BorderRadiusData {
+                CSS::LengthPercentage::from_style_value(value.as_border_radius().horizontal_radius()),
+                CSS::LengthPercentage::from_style_value(value.as_border_radius().vertical_radius())
+            };
+        }
+        if (value.is_percentage() || value.is_length() || value.is_calculated()) {
+            auto length_percentage = CSS::LengthPercentage::from_style_value(value);
+            return CSS::BorderRadiusData { length_percentage, length_percentage };
+        }
+        return {};
+    };
+
     auto const& border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
-    if (border_bottom_left_radius.is_border_radius()) {
-        computed_values.set_border_bottom_left_radius(
-            CSS::BorderRadiusData {
-                CSS::LengthPercentage::from_style_value(border_bottom_left_radius.as_border_radius().horizontal_radius()),
-                CSS::LengthPercentage::from_style_value(border_bottom_left_radius.as_border_radius().vertical_radius()) });
-    }
+    if (auto data = border_radius_data_from_style_value(border_bottom_left_radius); data.has_value())
+        computed_values.set_border_bottom_left_radius(data.release_value());
     auto const& border_bottom_right_radius = computed_style.property(CSS::PropertyID::BorderBottomRightRadius);
-    if (border_bottom_right_radius.is_border_radius()) {
-        computed_values.set_border_bottom_right_radius(
-            CSS::BorderRadiusData {
-                CSS::LengthPercentage::from_style_value(border_bottom_right_radius.as_border_radius().horizontal_radius()),
-                CSS::LengthPercentage::from_style_value(border_bottom_right_radius.as_border_radius().vertical_radius()) });
-    }
+    if (auto data = border_radius_data_from_style_value(border_bottom_right_radius); data.has_value())
+        computed_values.set_border_bottom_right_radius(data.release_value());
     auto const& border_top_left_radius = computed_style.property(CSS::PropertyID::BorderTopLeftRadius);
-    if (border_top_left_radius.is_border_radius()) {
-        computed_values.set_border_top_left_radius(
-            CSS::BorderRadiusData {
-                CSS::LengthPercentage::from_style_value(border_top_left_radius.as_border_radius().horizontal_radius()),
-                CSS::LengthPercentage::from_style_value(border_top_left_radius.as_border_radius().vertical_radius()) });
-    }
+    if (auto data = border_radius_data_from_style_value(border_top_left_radius); data.has_value())
+        computed_values.set_border_top_left_radius(data.release_value());
     auto const& border_top_right_radius = computed_style.property(CSS::PropertyID::BorderTopRightRadius);
-    if (border_top_right_radius.is_border_radius()) {
-        computed_values.set_border_top_right_radius(
-            CSS::BorderRadiusData {
-                CSS::LengthPercentage::from_style_value(border_top_right_radius.as_border_radius().horizontal_radius()),
-                CSS::LengthPercentage::from_style_value(border_top_right_radius.as_border_radius().vertical_radius()) });
-    }
+    if (auto data = border_radius_data_from_style_value(border_top_right_radius); data.has_value())
+        computed_values.set_border_top_right_radius(data.release_value());
     computed_values.set_display(computed_style.display());
     computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
