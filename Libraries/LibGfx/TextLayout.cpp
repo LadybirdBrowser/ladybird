@@ -15,6 +15,11 @@
 
 namespace Gfx {
 
+NonnullRefPtr<GlyphRun> GlyphRun::create_empty_with_metrics_of(GlyphRun const& other)
+{
+    return adopt_ref(*new GlyphRun(Vector<DrawGlyph> {}, other.font(), other.text_type(), 0.0f, other.m_line_height));
+}
+
 FloatRect GlyphRun::bounding_rect() const
 {
     if (glyphs().is_empty())
@@ -24,6 +29,24 @@ FloatRect GlyphRun::bounding_rect() const
     for (auto const& glyph : glyphs()) {
         FloatRect glyph_rect { glyph.position, { glyph.glyph_width, m_line_height } };
         result.unite(glyph_rect);
+    }
+    return result;
+}
+
+GlyphRun::BreakSegmentResult GlyphRun::fit_glyphs(double max_inline_available) const
+{
+    BreakSegmentResult result;
+    if (max_inline_available <= 0.0)
+        return result;
+    while (result.glyph_count < m_glyphs.size()) {
+        auto const& glyph = m_glyphs[result.glyph_count];
+        float glyph_end = glyph.position.x() + glyph.glyph_width;
+        if (glyph_end > max_inline_available)
+            break;
+
+        result.utf16_units += glyph.length_in_code_units;
+        result.inline_advance = glyph_end;
+        result.glyph_count++;
     }
     return result;
 }

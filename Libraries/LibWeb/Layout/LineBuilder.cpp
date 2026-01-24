@@ -449,4 +449,25 @@ void LineBuilder::did_introduce_clearance(CSSPixels clearance)
     m_current_block_offset = clearance;
 }
 
+Optional<CSSPixels> LineBuilder::remaining_inline_space() const
+{
+    if (m_containing_block_used_values.line_boxes.is_empty())
+        return {};
+    auto available_space = m_available_width_for_current_line.to_px_or_zero();
+    auto used_space = m_containing_block_used_values.line_boxes.last().width();
+
+    return available_space - used_space;
+}
+
+Optional<CSSPixels> LineBuilder::remaining_inline_space_if_should_break_word(CSSPixels next_item_width)
+{
+    bool broke = break_if_needed(next_item_width);
+    auto const& line_box = ensure_last_line_box();
+    auto remaining = m_available_width_for_current_line.to_px_or_zero() - line_box.width();
+
+    if (remaining > 0 && (broke || (line_box.is_empty() && next_item_width > remaining)))
+        return remaining;
+    return {};
+}
+
 }
