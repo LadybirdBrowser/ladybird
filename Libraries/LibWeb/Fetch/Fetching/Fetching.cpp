@@ -2131,7 +2131,9 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         fetched_data_receiver->set_response(response);
 
         // 14. Set response’s body to a new body whose stream is stream.
-        response->set_body(Infrastructure::Body::create(vm, stream));
+        auto body = Infrastructure::Body::create(vm, stream);
+        response->set_body(body);
+        fetched_data_receiver->set_body(body);
 
         // 17. Return response.
         // NOTE: Typically response’s body’s stream is still being enqueued to after returning.

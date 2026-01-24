@@ -25,6 +25,7 @@ public:
     void set_pending_promise(GC::Ref<WebIDL::Promise>);
 
     void set_response(GC::Ref<Fetch::Infrastructure::Response const> response) { m_response = response; }
+    void set_body(GC::Ref<Fetch::Infrastructure::Body> body);
 
     enum class NetworkState {
         Ongoing,
@@ -46,6 +47,7 @@ private:
 
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ptr<Fetch::Infrastructure::Response const> m_response;
+    GC::Ptr<Fetch::Infrastructure::Body> m_body;
 
     GC::Ref<Streams::ReadableStream> m_stream;
     GC::Ptr<WebIDL::Promise> m_pending_promise;

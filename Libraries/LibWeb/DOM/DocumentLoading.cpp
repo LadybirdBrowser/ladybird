@@ -412,7 +412,7 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#loading-a-document
-GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing)
+GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params, NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing, ReadonlyBytes sniff_bytes)
 {
     // To load a document given navigation params navigationParams, source snapshot params sourceSnapshotParams,
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
@@ -422,10 +422,7 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     // 1. Let type be the computed type of navigationParams's response.
     auto supplied_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
     auto type = MimeSniff::Resource::sniff(
-        navigation_params.response->body()->source().visit(
-            [](Empty) { return ReadonlyBytes {}; },
-            [](ByteBuffer const& buffer) { return ReadonlyBytes { buffer }; },
-            [](GC::Root<FileAPI::Blob> const& blob) { return blob->raw_bytes(); }),
+        sniff_bytes,
         MimeSniff::SniffingConfiguration {
             .sniffing_context = MimeSniff::SniffingContext::Browsing,
             .supplied_type = move(supplied_type) });
