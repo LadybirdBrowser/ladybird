@@ -298,15 +298,10 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
 
 bool ImmutableBitmap::ensure_sk_image(SkiaBackendContext& context) const
 {
-    if (m_impl->sk_image) {
-        if (m_impl->context)
-            VERIFY(m_impl->context.ptr() == &context);
-
+    if (m_impl->context) {
+        VERIFY(m_impl->context.ptr() == &context);
         return true;
     }
-
-    // Bitmap-backed ImmutableBitmaps must have an sk_image already.
-    VERIFY(m_impl->yuv_data != nullptr);
 
     context.lock();
     ScopeGuard unlock_guard = [&context] {
@@ -314,8 +309,24 @@ bool ImmutableBitmap::ensure_sk_image(SkiaBackendContext& context) const
     };
 
     auto* gr_context = context.sk_context();
+
+    // Bitmap-backed: try to upload raster image to GPU texture
+    if (m_impl->sk_image) {
+        if (!gr_context)
+            return true; // No GPU, but raster image is still usable
+        auto gpu_image = SkImages::TextureFromImage(gr_context, m_impl->sk_image.get(), skgpu::Mipmapped::kNo, skgpu::Budgeted::kYes);
+        if (gpu_image) {
+            m_impl->context = context;
+            m_impl->sk_image = move(gpu_image);
+        }
+        return true;
+    }
+
+    // YUV-backed: GPU is required to decode YUV to RGB
+    VERIFY(m_impl->yuv_data);
+
     if (!gr_context)
-        return false;
+        return false; // No GPU, cannot create image from YUV data
 
     auto const& pixmaps = m_impl->yuv_data->skia_yuva_pixmaps();
     auto color_space = color_space_from_cicp(m_impl->yuv_data->cicp());
