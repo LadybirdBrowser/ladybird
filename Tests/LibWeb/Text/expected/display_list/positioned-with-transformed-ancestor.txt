@@ -7,6 +7,6 @@ SaveLayer@0
   FillRect@2 rect=[8,8 200x200] color=rgb(211, 211, 211)
   FillRect@2 rect=[8,8 200x90] color=rgb(173, 216, 230)
   FillRect@2 rect=[33,33 100x50] color=rgb(255, 127, 80)
-  DrawGlyphRun@2 rect=[33,33 84x18] translation=[33,46.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@2 rect=[33,33 84x18] translation=[33,46.796875] color=rgb(0, 0, 0)
 Restore@0
 

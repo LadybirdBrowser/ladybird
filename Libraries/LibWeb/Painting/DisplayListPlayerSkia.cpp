@@ -103,37 +103,25 @@ void DisplayListPlayerSkia::flush()
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 {
-    auto const& gfx_font = command.glyph_run->font();
-    auto sk_font = gfx_font.skia_font(command.scale);
-
-    auto glyph_count = command.glyph_run->glyphs().size();
-    Vector<SkGlyphID> glyphs;
-    glyphs.ensure_capacity(glyph_count);
-    Vector<SkPoint> positions;
-    positions.ensure_capacity(glyph_count);
-    auto font_ascent = gfx_font.pixel_metrics().ascent;
-    for (auto const& glyph : command.glyph_run->glyphs()) {
-        auto transformed_glyph = glyph;
-        transformed_glyph.position.set_y(glyph.position.y() + font_ascent);
-        transformed_glyph.position = transformed_glyph.position.scaled(command.scale);
-        auto const& point = transformed_glyph.position;
-        glyphs.append(transformed_glyph.glyph_id);
-        positions.append(to_skia_point(point));
-    }
+    auto* blob = command.glyph_run->cached_skia_text_blob();
+    if (!blob)
+        return;
 
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
 
     auto& canvas = surface().canvas();
+    auto const& translation = command.translation;
+
     switch (command.orientation) {
     case Gfx::Orientation::Horizontal:
-        canvas.drawGlyphs(glyphs.size(), glyphs.data(), positions.data(), to_skia_point(command.translation), sk_font, paint);
+        canvas.drawTextBlob(blob, translation.x(), translation.y(), paint);
         break;
     case Gfx::Orientation::Vertical:
         canvas.save();
         canvas.translate(command.rect.width(), 0);
         canvas.rotate(90, command.rect.top_left().x(), command.rect.top_left().y());
-        canvas.drawGlyphs(glyphs.size(), glyphs.data(), positions.data(), to_skia_point(command.translation), sk_font, paint);
+        canvas.drawTextBlob(blob, translation.x(), translation.y(), paint);
         canvas.restore();
         break;
     }
@@ -454,11 +442,9 @@ void DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
     blur_paint.setImageFilter(blur_image_filter);
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
     draw_glyph_run({ .glyph_run = command.glyph_run,
-        .scale = command.glyph_run_scale,
         .rect = command.text_rect,
         .translation = command.draw_location + command.text_rect.location().to_type<float>(),
-        .color = command.color,
-        .bounding_rectangle = command.bounding_rect() });
+        .color = command.color });
     canvas.restore();
 }
 

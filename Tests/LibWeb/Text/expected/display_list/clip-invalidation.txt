@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
 DisplayList:
 SaveLayer@0
   FillRect@2 rect=[8,13 100x100] color=rgb(173, 216, 230)
-  DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0)
 Restore@0
 
 After clip change:
@@ -17,6 +17,6 @@ AccumulatedVisualContext Tree:
 DisplayList:
 SaveLayer@0
   FillRect@2 rect=[8,13 100x100] color=rgb(173, 216, 230)
-  DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@2 rect=[8,13 30x18] translation=[8,26.796875] color=rgb(0, 0, 0)
 Restore@0
 

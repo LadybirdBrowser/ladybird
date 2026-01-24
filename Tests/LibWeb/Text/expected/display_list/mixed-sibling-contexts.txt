@@ -8,8 +8,8 @@ DisplayList:
 SaveLayer@0
   FillPath@1 path_bounding_rect=[118,8 102x102]
   FillRect@4 rect=[119,9 150x150] color=rgb(173, 216, 230)
-  DrawGlyphRun@4 rect=[119,9 55x18] translation=[119,22.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@4 rect=[119,9 55x18] translation=[119,22.796875] color=rgb(0, 0, 0)
   FillRect@2 rect=[8,8 100x100] color=rgb(255, 127, 80)
-  DrawGlyphRun@2 rect=[8,8 88x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@2 rect=[8,8 88x18] translation=[8,21.796875] color=rgb(0, 0, 0)
 Restore@0
 

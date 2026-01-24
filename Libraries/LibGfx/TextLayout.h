@@ -10,6 +10,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
+#include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
@@ -17,6 +18,8 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShapeFeature.h>
+
+class SkTextBlob;
 
 namespace Gfx {
 
@@ -37,14 +40,8 @@ public:
         Rtl,
     };
 
-    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width, float line_height)
-        : m_glyphs(move(glyphs))
-        , m_font(move(font))
-        , m_text_type(text_type)
-        , m_width(width)
-        , m_line_height(line_height)
-    {
-    }
+    GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width);
+    ~GlyphRun();
 
     [[nodiscard]] Font const& font() const { return m_font; }
     [[nodiscard]] TextType text_type() const { return m_text_type; }
@@ -52,14 +49,20 @@ public:
     [[nodiscard]] Vector<DrawGlyph>& glyphs() { return m_glyphs; }
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
-    [[nodiscard]] FloatRect bounding_rect() const;
+
+    void ensure_text_blob(float scale) const;
+
+    FloatRect cached_blob_bounds() const;
+    SkTextBlob* cached_skia_text_blob() const;
 
 private:
     Vector<DrawGlyph> m_glyphs;
     NonnullRefPtr<Font const> m_font;
     TextType m_text_type;
     float m_width { 0 };
-    float m_line_height { 0 };
+
+    struct CachedTextBlob;
+    mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);

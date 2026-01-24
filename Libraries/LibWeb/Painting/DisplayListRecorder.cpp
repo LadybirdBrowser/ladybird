@@ -240,14 +240,13 @@ void DisplayListRecorder::draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::Gl
 {
     if (color.alpha() == 0)
         return;
+    glyph_run.ensure_text_blob(scale);
     APPEND(DrawGlyphRun {
         .glyph_run = glyph_run,
-        .scale = scale,
         .rect = rect,
         .translation = baseline_start,
         .color = color,
         .orientation = orientation,
-        .bounding_rectangle = glyph_run.bounding_rect().scaled(scale).translated(baseline_start).to_type<int>(),
     });
 }
 
@@ -299,9 +298,9 @@ void DisplayListRecorder::paint_inner_box_shadow(PaintBoxShadowParams params)
 
 void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location)
 {
+    glyph_run.ensure_text_blob(glyph_run_scale);
     APPEND(PaintTextShadow {
         .glyph_run = glyph_run,
-        .glyph_run_scale = glyph_run_scale,
         .shadow_bounding_rect = bounding_rect,
         .text_rect = text_rect,
         .draw_location = draw_location,

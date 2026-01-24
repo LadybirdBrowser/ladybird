@@ -40,14 +40,12 @@ struct DrawGlyphRun {
     static constexpr StringView command_name = "DrawGlyphRun"sv;
 
     NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
-    double scale { 1 };
     Gfx::IntRect rect;
     Gfx::FloatPoint translation;
     Color color;
     Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
-    Gfx::IntRect bounding_rectangle;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return bounding_rectangle; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void dump(StringBuilder&) const;
 };
 
@@ -175,7 +173,6 @@ struct PaintTextShadow {
     static constexpr StringView command_name = "PaintTextShadow"sv;
 
     NonnullRefPtr<Gfx::GlyphRun const> glyph_run;
-    double glyph_run_scale { 1 };
     Gfx::IntRect shadow_bounding_rect;
     Gfx::IntRect text_rect;
     Gfx::FloatPoint draw_location;
