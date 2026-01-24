@@ -76,15 +76,16 @@ void PaintableWithLines::paint_text_fragment_debug_highlight(DisplayListRecordin
 
 TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (computed_values().visibility() != CSS::Visibility::Visible)
-        return TraversalDecision::Continue;
+    auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
 
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
     if (m_fragments.is_empty()
         && !has_children()
         && type == HitTestType::TextCursor
         && layout_node().dom_node()
-        && layout_node().dom_node()->is_editable()) {
+        && layout_node().dom_node()->is_editable()
+        && is_visible
+        && visible_for_hit_testing()) {
         HitTestResult const hit_test_result {
             .paintable = const_cast<PaintableWithLines&>(*this),
             .index_in_node = 0,
@@ -98,13 +99,17 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!layout_node().children_are_inline())
         return PaintableBox::hit_test(position, type, callback);
 
-    if (hit_test_chrome(position, callback) == TraversalDecision::Break)
-        return TraversalDecision::Break;
+    // Only hit test chrome for visible elements.
+    if (is_visible) {
+        if (hit_test_chrome(position, callback) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
 
     if (hit_test_children(position, type, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (!visible_for_hit_testing())
+    // Hidden elements and elements with pointer-events: none shouldn't be hit.
+    if (!is_visible || !visible_for_hit_testing())
         return TraversalDecision::Continue;
 
     auto const& viewport_paintable = *document().paintable();
@@ -121,7 +126,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (!stacking_context() && is_visible() && (!layout_node().is_anonymous() || is_positioned())
+    if (!stacking_context() && is_visible && (!layout_node().is_anonymous() || is_positioned())
         && absolute_border_box_rect().contains(local_position.value())) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
@@ -133,7 +138,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
 TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position, CSSPixelPoint local_position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     for (auto const& fragment : fragments()) {
-        if (fragment.paintable().has_stacking_context() || !fragment.paintable().visible_for_hit_testing())
+        if (fragment.paintable().has_stacking_context() || !fragment.paintable().is_visible() || !fragment.paintable().visible_for_hit_testing())
             continue;
         auto fragment_absolute_rect = fragment.absolute_rect();
         if (fragment_absolute_rect.contains(local_position)) {
