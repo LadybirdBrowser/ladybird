@@ -17,8 +17,12 @@ namespace Web::SecureContexts {
 Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 {
     // 1. If origin is an opaque origin, return "Not Trustworthy".
-    if (origin.is_opaque())
-        return Trustworthiness::NotTrustworthy;
+    if (origin.is_opaque()) {
+        // AD-HOC: The secure context spec assumes file scheme origins are tuple origins.
+        //         Therefore, we need to special case file scheme origins here. See spec issue:
+        //         https://github.com/w3c/webappsec-secure-contexts/issues/66
+        return origin.opaque_data().type == URL::Origin::OpaqueData::Type::File ? Trustworthiness::PotentiallyTrustworthy : Trustworthiness::NotTrustworthy;
+    }
 
     // 2. Assert: origin is a tuple origin.
 
