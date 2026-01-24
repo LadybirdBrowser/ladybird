@@ -12,6 +12,7 @@ set(TEST_SOURCES
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestStrings.cpp
+    TestWebAudioRenderGraph.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

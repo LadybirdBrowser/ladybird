@@ -1051,6 +1051,11 @@ set(SOURCES
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/Realtime/ConstantSourceRenderNode.cpp
+    WebAudio/Realtime/DestinationRenderNode.cpp
+    WebAudio/Realtime/OhNoesRenderNode.cpp
+    WebAudio/Realtime/RenderGraphImpl.cpp
+    WebAudio/RenderGraph.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
