@@ -1782,7 +1782,7 @@ void Navigable::begin_navigation(NavigateParams params)
 
     // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
-        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, and initialInsertion.
+        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
             navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
@@ -2149,14 +2149,18 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     // 1. Assert: historyHandling is "replace".
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
 
-    // 2. Set the ongoing navigation for targetNavigable to null.
+    // 2. If targetNavigable's ongoing navigation is no longer navigationId, then return.
+    if (ongoing_navigation() != navigation_id)
+        return;
+
+    // 3. Set the ongoing navigation for targetNavigable to null.
     set_ongoing_navigation({});
 
-    // 3. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
+    // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
     if (!initiator_origin.is_same_origin_domain(active_document()->origin()))
         return;
 
-    // 4. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
+    // 5. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
     auto request = Fetch::Infrastructure::Request::create(vm);
     request->set_url(url);
     request->set_policy_container(source_snapshot_params->source_policy_container);
@@ -2164,14 +2168,14 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
     request->set_client(source_snapshot_params->fetch_client);
 
-    // 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
+    // 6. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
     if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
         return;
 
-    // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
+    // 7. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
     auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);
 
-    // 7. If newDocument is null:
+    // 8. If newDocument is null:
     if (!new_document) {
         // 1. If initialInsertion is true and targetNavigable's active document's is initial about:blank is true,
         //    then run the iframe load event steps given targetNavigable's container.
@@ -2184,16 +2188,16 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
         return;
     }
 
-    // 8. Assert: initiatorOrigin is newDocument's origin.
+    // 9. Assert: initiatorOrigin is newDocument's origin.
     VERIFY(initiator_origin == new_document->origin());
 
-    // 9. Let entryToReplace be targetNavigable's active session history entry.
+    // 10. Let entryToReplace be targetNavigable's active session history entry.
     auto entry_to_replace = active_session_history_entry();
 
-    // 10. Let oldDocState be entryToReplace's document state.
+    // 11. Let oldDocState be entryToReplace's document state.
     auto old_doc_state = entry_to_replace->document_state();
 
-    // 11. Let documentState be a new document state with
+    // 12. Let documentState be a new document state with
     //     document: newDocument
     //     history policy container: a clone of the oldDocState's history policy container if it is non-null; null otherwise
     //     request referrer: oldDocState's request referrer
@@ -2215,14 +2219,14 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     document_state->set_ever_populated(true);
     document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
 
-    // 12. Let historyEntry be a new session history entry, with
+    // 13. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
     //     document state: documentState
     GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
-    // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
+    // 14. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
     traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, user_involvement] {
         // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
         auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
