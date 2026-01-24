@@ -127,23 +127,8 @@ static Optional<ParsedIPv4Number> parse_ipv4_number(StringView input)
         return ParsedIPv4Number { 0, true };
 
     // 7. If input contains a code point that is not a radix-R digit, then return failure.
-    if (radix == 8) {
-        if (!all_of(input, [](auto character) { return is_ascii_octal_digit(character); }))
-            return {};
-    } else if (radix == 10) {
-        if (!all_of(input, [](auto character) { return is_ascii_digit(character); }))
-            return {};
-    } else if (radix == 16) {
-        if (!all_of(input, [](auto character) { return is_ascii_hex_digit(character); }))
-            return {};
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
     // 8. Let output be the mathematical integer value that is represented by input in radix-R notation, using ASCII hex digits for digits with values 0 through 15.
     auto maybe_output = AK::parse_number<u32>(input, TrimWhitespace::No, radix);
-
-    // NOTE: Parsing may have failed due to overflow.
     if (!maybe_output.has_value())
         return {};
 
