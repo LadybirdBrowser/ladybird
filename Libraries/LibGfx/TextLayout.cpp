@@ -9,23 +9,75 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/TextLayout.h>
+#include <core/SkFont.h>
+#include <core/SkTextBlob.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {
 
-FloatRect GlyphRun::bounding_rect() const
+struct GlyphRun::CachedTextBlob {
+    sk_sp<SkTextBlob> blob;
+    FloatRect bounds;
+    float scale { 0 };
+};
+
+GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, TextType text_type, float width)
+    : m_glyphs(move(glyphs))
+    , m_font(move(font))
+    , m_text_type(text_type)
+    , m_width(width)
 {
-    if (glyphs().is_empty())
-        return {};
-    auto const& first = glyphs().first();
-    FloatRect result { first.position, { first.glyph_width, m_line_height } };
-    for (auto const& glyph : glyphs()) {
-        FloatRect glyph_rect { glyph.position, { glyph.glyph_width, m_line_height } };
-        result.unite(glyph_rect);
+}
+
+GlyphRun::~GlyphRun() = default;
+
+void GlyphRun::ensure_text_blob(float scale) const
+{
+    if (m_cached_text_blob && m_cached_text_blob->scale == scale)
+        return;
+
+    auto sk_font = m_font->skia_font(scale);
+    auto glyph_count = m_glyphs.size();
+
+    m_cached_text_blob = make<CachedTextBlob>();
+    m_cached_text_blob->scale = scale;
+
+    if (glyph_count == 0)
+        return;
+
+    SkTextBlobBuilder builder;
+    auto const& run = builder.allocRunPos(sk_font, glyph_count);
+
+    float font_ascent = m_font->pixel_metrics().ascent;
+    for (size_t i = 0; i < glyph_count; ++i) {
+        run.glyphs[i] = m_glyphs[i].glyph_id;
+        run.pos[i * 2] = m_glyphs[i].position.x() * scale;
+        run.pos[i * 2 + 1] = (m_glyphs[i].position.y() + font_ascent) * scale;
     }
-    return result;
+
+    m_cached_text_blob->blob = builder.make();
+
+    if (m_cached_text_blob->blob) {
+        auto const& sk_bounds = m_cached_text_blob->blob->bounds();
+        m_cached_text_blob->bounds = { sk_bounds.x(), sk_bounds.y(), sk_bounds.width(), sk_bounds.height() };
+    }
+}
+
+FloatRect GlyphRun::cached_blob_bounds() const
+{
+    if (!m_cached_text_blob)
+        return {};
+    return m_cached_text_blob->bounds;
+}
+
+SkTextBlob* GlyphRun::cached_skia_text_blob() const
+{
+    if (!m_cached_text_blob || !m_cached_text_blob->blob)
+        return nullptr;
+    return m_cached_text_blob->blob.get();
 }
 
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list)
@@ -189,7 +241,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
         point.translate_by(letter_spacing, 0);
     }
 
-    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x(), metrics.ascent + metrics.descent));
+    return adopt_ref(*new GlyphRun(move(glyph_run), font, text_type, point.x() - baseline_start.x()));
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, ShapeFeatures const& features)

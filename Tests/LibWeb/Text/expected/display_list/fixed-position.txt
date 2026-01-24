@@ -5,8 +5,8 @@ AccumulatedVisualContext Tree:
 DisplayList:
 SaveLayer@0
   FillRect@2 rect=[8,8 150x50] color=rgb(0, 128, 0)
-  DrawGlyphRun@2 rect=[8,8 56x18] translation=[8,21.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@2 rect=[8,8 56x18] translation=[8,21.796875] color=rgb(0, 0, 0)
   FillRect@0 rect=[10,10 80x40] color=rgb(255, 0, 0)
-  DrawGlyphRun@0 rect=[10,10 44x18] translation=[10,23.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@0 rect=[10,10 44x18] translation=[10,23.796875] color=rgb(0, 0, 0)
 Restore@0
 

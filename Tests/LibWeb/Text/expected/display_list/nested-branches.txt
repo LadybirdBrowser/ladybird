@@ -14,12 +14,12 @@ SaveLayer@0
   FillPath@2 path_bounding_rect=[20,20 145x250]
   FillPath@2 path_bounding_rect=[175,20 145x250]
   FillRect@4 rect=[26,26 133x40] color=rgb(255, 136, 136)
-  DrawGlyphRun@4 rect=[26,26 20x18] translation=[26,39.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@4 rect=[26,26 20x18] translation=[26,39.796875] color=rgb(0, 0, 0)
   FillRect@5 rect=[26,71 133x40] color=rgb(136, 255, 136)
-  DrawGlyphRun@5 rect=[26,71 22x18] translation=[26,84.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@5 rect=[26,71 22x18] translation=[26,84.796875] color=rgb(0, 0, 0)
   FillRect@7 rect=[181,26 133x40] color=rgb(136, 136, 255)
-  DrawGlyphRun@7 rect=[181,26 22x18] translation=[181,39.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@7 rect=[181,26 22x18] translation=[181,39.796875] color=rgb(0, 0, 0)
   FillRect@8 rect=[181,71 133x40] color=rgb(255, 255, 136)
-  DrawGlyphRun@8 rect=[181,71 25x18] translation=[181,84.796875] color=rgb(0, 0, 0) scale=1
+  DrawGlyphRun@8 rect=[181,71 25x18] translation=[181,84.796875] color=rgb(0, 0, 0)
 Restore@0
 
