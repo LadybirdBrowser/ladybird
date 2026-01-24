@@ -31,9 +31,13 @@ using namespace AK::SIMD;
 #ifdef AK_COMPILER_CLANG
 #    define TAILCALL [[clang::musttail]]
 #    define HAS_TAILCALL
-#elif defined(AK_COMPILER_GCC) && (__GNUC__ > 14)
-#    define TAILCALL [[gnu::musttail]]
-#    define HAS_TAILCALL
+#elif defined(AK_COMPILER_GCC)
+#    if ((__GNUC__ > 15) || ((__GNUC__ == 15) && defined(NDEBUG) && !defined(HAS_ADDRESS_SANITIZER)))
+#        define TAILCALL [[gnu::musttail]]
+#        define HAS_TAILCALL
+#    else
+#        define TAILCALL
+#    endif
 #else
 #    define TAILCALL
 #endif
