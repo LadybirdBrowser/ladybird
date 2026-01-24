@@ -79,6 +79,8 @@ VM::VM(ErrorMessages error_messages)
 {
     s_the = this;
     m_bytecode_interpreter = make<Bytecode::Interpreter>();
+    m_megamorphic_cache = make<Bytecode::MegamorphicCache>();
+
 
     m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 

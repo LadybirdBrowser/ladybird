@@ -19,6 +19,7 @@
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Bytecode/MegamorphicCache.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Export.h>
 #include <LibJS/ModuleLoading.h>
@@ -63,6 +64,8 @@ public:
     GC::Heap& heap() const { return const_cast<GC::Heap&>(m_heap); }
 
     Bytecode::Interpreter& bytecode_interpreter() { return *m_bytecode_interpreter; }
+
+    Bytecode::MegamorphicCache& megamorphic_cache() { return *m_megamorphic_cache; }
 
     void dump_backtrace() const;
 
@@ -364,6 +367,8 @@ private:
     OwnPtr<Agent> m_agent;
 
     OwnPtr<Bytecode::Interpreter> m_bytecode_interpreter;
+
+    OwnPtr<Bytecode::MegamorphicCache> m_megamorphic_cache;
 
     bool m_dynamic_imports_allowed { false };
 };

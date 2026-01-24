@@ -88,6 +88,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
     auto& shape = base_obj->shape();
 
+    // Fast path: Check polymorphic inline cache (up to 4 shapes)
     for (auto& cache_entry : cache.entries) {
         auto cached_prototype = cache_entry.prototype.ptr();
         if (cached_prototype) {
@@ -133,6 +134,46 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             }
         }
     }
+
+    // Megamorphic path: Check megamorphic cache for shapes beyond polymorphic limit
+    // This is only beneficial when we have truly megamorphic access (many shapes)
+    // For polymorphic cases (2-4 shapes), the polymorphic cache above should handle it
+    {
+        auto megamorphic_entry = vm.megamorphic_cache().lookup_get(get_property_name(), shape);
+        if (megamorphic_entry.has_value()) [[unlikely]] {
+            auto const& entry = *megamorphic_entry;
+            if (entry.type == MegamorphicCache::Entry::Type::GetOwnProperty) {
+                // Validate entry is still valid
+                auto cached_shape = entry.shape.ptr();
+                if (cached_shape == &shape) [[likely]] {
+                    if (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation) [[likely]] {
+                        auto value = base_obj->get_direct(entry.property_offset);
+                        if (!value.is_accessor()) [[likely]]
+                            return value;
+                        return TRY(call(vm, value.as_accessor().getter(), this_value));
+                    }
+                }
+            } else if (entry.type == MegamorphicCache::Entry::Type::GetPropertyInPrototypeChain) {
+                // Validate prototype chain entry
+                auto cached_prototype = entry.prototype.ptr();
+                auto cached_shape = entry.shape.ptr();
+                auto cached_prototype_chain_validity = entry.prototype_chain_validity.ptr();
+                
+                if (cached_prototype && cached_shape == &shape && cached_prototype_chain_validity) [[likely]] {
+                    if (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation) [[likely]] {
+                        if (cached_prototype_chain_validity->is_valid()) [[likely]] {
+                            auto value = cached_prototype->get_direct(entry.property_offset);
+                            if (!value.is_accessor()) [[likely]]
+                                return value;
+                            return TRY(call(vm, value.as_accessor().getter(), this_value));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Slow path: Full property lookup
     GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
     if (shape.prototype())
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
@@ -159,6 +200,14 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             if (shape.is_dictionary()) {
                 entry.shape_dictionary_generation = shape.dictionary_generation();
             }
+
+            // Also insert into megamorphic cache
+            MegamorphicCache::Entry mega_entry;
+            mega_entry.type = MegamorphicCache::Entry::Type::GetOwnProperty;
+            mega_entry.shape = shape;
+            mega_entry.property_offset = cacheable_metadata.property_offset.value();
+            mega_entry.shape_dictionary_generation = shape.is_dictionary() ? shape.dictionary_generation() : 0;
+            vm.megamorphic_cache().insert_get(get_property_name(), shape, move(mega_entry));
         } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
             auto& entry = get_cache_slot();
             entry.shape = &base_obj->shape();
@@ -169,6 +218,16 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
             if (shape.is_dictionary()) {
                 entry.shape_dictionary_generation = shape.dictionary_generation();
             }
+
+            // Also insert into megamorphic cache
+            MegamorphicCache::Entry mega_entry;
+            mega_entry.type = MegamorphicCache::Entry::Type::GetPropertyInPrototypeChain;
+            mega_entry.shape = &base_obj->shape();
+            mega_entry.property_offset = cacheable_metadata.property_offset.value();
+            mega_entry.prototype = *cacheable_metadata.prototype;
+            mega_entry.prototype_chain_validity = *prototype_chain_validity;
+            mega_entry.shape_dictionary_generation = shape.is_dictionary() ? shape.dictionary_generation() : 0;
+            vm.megamorphic_cache().insert_get(get_property_name(), shape, move(mega_entry));
         }
     }
 
@@ -319,6 +378,28 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                     VERIFY_NOT_REACHED();
                 }
             }
+            
+            // Megamorphic path: Check megamorphic cache for PUT operations
+            {
+                auto megamorphic_entry = vm.megamorphic_cache().lookup_put(name, object->shape());
+                if (megamorphic_entry.has_value()) [[unlikely]] {
+                    auto const& entry = *megamorphic_entry;
+                    if (entry.type == MegamorphicCache::Entry::Type::ChangeOwnProperty) {
+                        auto cached_shape = entry.shape.ptr();
+                        if (cached_shape == &object->shape()) [[likely]] {
+                            if (!object->shape().is_dictionary() || object->shape().dictionary_generation() == entry.shape_dictionary_generation) [[likely]] {
+                                auto value_in_object = object->get_direct(entry.property_offset);
+                                if (!value_in_object.is_accessor()) [[likely]] {
+                                    object->put_direct(entry.property_offset, value);
+                                    return {};
+                                }
+                                (void)TRY(call(vm, value_in_object.as_accessor().setter(), this_value, value));
+                                return {};
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         CacheableSetPropertyMetadata cacheable_metadata;
@@ -356,6 +437,16 @@ ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value this_value
                         cache.shape_dictionary_generation = object->shape().dictionary_generation();
                     }
                 });
+                
+                // Also insert into megamorphic cache
+                {
+                    MegamorphicCache::Entry mega_entry;
+                    mega_entry.type = MegamorphicCache::Entry::Type::ChangeOwnProperty;
+                    mega_entry.shape = object->shape();
+                    mega_entry.property_offset = cacheable_metadata.property_offset.value();
+                    mega_entry.shape_dictionary_generation = object->shape().is_dictionary() ? object->shape().dictionary_generation() : 0;
+                    vm.megamorphic_cache().insert_put(name, object->shape(), move(mega_entry));
+                }
                 break;
             case CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain:
                 caches->update(PropertyLookupCache::Entry::Type::ChangePropertyInPrototypeChain, [&](auto& cache) {
