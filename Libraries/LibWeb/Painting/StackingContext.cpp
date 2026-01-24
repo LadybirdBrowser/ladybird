@@ -356,8 +356,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    if (paintable_box().computed_values().visibility() != CSS::Visibility::Visible)
-        return TraversalDecision::Continue;
+    auto const is_visible = paintable_box().computed_values().visibility() == CSS::Visibility::Visible;
 
     // NOTE: Hit testing basically happens in reverse painting order.
     // https://www.w3.org/TR/CSS22/visuren.html#z-index
@@ -438,7 +437,8 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
             return TraversalDecision::Break;
     }
 
-    if (!paintable_box().visible_for_hit_testing())
+    // Hidden elements and elements with pointer-events: none shouldn't be hit.
+    if (!is_visible || !paintable_box().visible_for_hit_testing())
         return TraversalDecision::Continue;
 
     auto const& viewport_paintable = *paintable_box().document().paintable();
