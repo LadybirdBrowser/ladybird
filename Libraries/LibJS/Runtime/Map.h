@@ -22,6 +22,7 @@ class JS_API Map : public Object {
 
 public:
     static GC::Ref<Map> create(Realm&);
+    GC::Ref<Map> copy() const;
 
     virtual ~Map() override = default;
 
