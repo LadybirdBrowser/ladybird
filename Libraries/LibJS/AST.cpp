@@ -1497,6 +1497,55 @@ void ScopeNode::add_hoisted_function(NonnullRefPtr<FunctionDeclaration const> de
     m_functions_hoistable_with_annexB_extension.append(move(declaration));
 }
 
+void ScopeNode::ensure_function_scope_data() const
+{
+    if (m_function_scope_data)
+        return;
+
+    auto data = make<FunctionScopeData>();
+
+    // Extract functions_to_initialize from var-scoped function declarations (in reverse order, deduplicated).
+    HashTable<Utf16FlyString> seen_function_names;
+    for (ssize_t i = m_var_declarations.size() - 1; i >= 0; i--) {
+        auto const& declaration = m_var_declarations[i];
+        if (is<FunctionDeclaration>(declaration)) {
+            auto& function_decl = static_cast<FunctionDeclaration const&>(*declaration);
+            if (seen_function_names.set(function_decl.name()) == AK::HashSetResult::InsertedNewEntry)
+                data->functions_to_initialize.append(static_ptr_cast<FunctionDeclaration const>(declaration));
+        }
+    }
+
+    data->has_function_named_arguments = seen_function_names.contains("arguments"_utf16_fly_string);
+
+    // Check if "arguments" is lexically declared.
+    MUST(for_each_lexically_declared_identifier([&](auto const& identifier) {
+        if (identifier.string() == "arguments"_utf16_fly_string)
+            data->has_lexically_declared_arguments = true;
+    }));
+
+    // Extract vars_to_initialize from var declarations.
+    HashTable<Utf16FlyString> seen_var_names;
+    MUST(for_each_var_declared_identifier([&](Identifier const& identifier) {
+        auto const& name = identifier.string();
+        if (seen_var_names.set(name) == AK::HashSetResult::InsertedNewEntry) {
+            data->vars_to_initialize.append({
+                .identifier = identifier,
+                .is_parameter = false,
+                .is_function_name = seen_function_names.contains(name),
+            });
+
+            data->var_names.set(name);
+
+            if (!identifier.is_local()) {
+                data->non_local_var_count++;
+                data->non_local_var_count_for_parameter_expressions++;
+            }
+        }
+    }));
+
+    m_function_scope_data = move(data);
+}
+
 Utf16FlyString ExportStatement::local_name_for_default = "*default*"_utf16_fly_string;
 
 static void dump_assert_clauses(ModuleRequest const& request)

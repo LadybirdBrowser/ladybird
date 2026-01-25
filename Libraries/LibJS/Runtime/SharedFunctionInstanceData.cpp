@@ -113,37 +113,29 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         m_arguments_object_needed = false;
     }
 
-    HashTable<Utf16FlyString> function_names;
-
     // 18. Else if hasParameterExpressions is false, then
     //     a. If functionNames contains "arguments" or lexicalNames contains "arguments", then
     //         i. Set argumentsObjectNeeded to false.
     // NOTE: The block below is a combination of step 14 and step 18.
-    if (scope_body) {
-        // NOTE: Nothing in the callback throws an exception.
-        MUST(scope_body->for_each_var_function_declaration_in_reverse_order([&](FunctionDeclaration const& function) {
-            if (function_names.set(function.name()) == AK::HashSetResult::InsertedNewEntry)
-                m_functions_to_initialize.append(function);
-        }));
+    if (!scope_body) {
+        m_arguments_object_needed = false;
+    } else {
+        scope_body->ensure_function_scope_data();
+        auto const& function_scope_data = *scope_body->function_scope_data();
 
-        auto const& arguments_name = vm.names.arguments.as_string();
+        for (auto const& decl : function_scope_data.functions_to_initialize)
+            m_functions_to_initialize.append(*decl);
 
-        if (!m_has_parameter_expressions && function_names.contains(arguments_name))
+        if (!m_has_parameter_expressions && function_scope_data.has_function_named_arguments)
             m_arguments_object_needed = false;
 
-        if (!m_has_parameter_expressions && m_arguments_object_needed) {
-            // NOTE: Nothing in the callback throws an exception.
-            MUST(scope_body->for_each_lexically_declared_identifier([&](auto const& identifier) {
-                if (identifier.string() == arguments_name)
-                    m_arguments_object_needed = false;
-            }));
-        }
-    } else {
-        m_arguments_object_needed = false;
+        if (!m_has_parameter_expressions && m_arguments_object_needed && function_scope_data.has_lexically_declared_arguments)
+            m_arguments_object_needed = false;
     }
 
-    size_t* environment_size = nullptr;
+    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.contains([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
 
+    size_t* environment_size = nullptr;
     size_t parameter_environment_bindings_count = 0;
     // 19. If strict is true or hasParameterExpressions is false, then
     if (strict || !m_has_parameter_expressions) {
@@ -162,103 +154,81 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
 
     *environment_size += parameters_in_environment;
 
-    HashMap<Utf16FlyString, ParameterIsLocal> parameter_bindings;
-
-    auto arguments_object_needs_binding = m_arguments_object_needed && !m_local_variables_names.contains([](auto const& local) { return local.declaration_kind == LocalVariable::DeclarationKind::ArgumentsObject; });
-
     // 22. If argumentsObjectNeeded is true, then
-    if (m_arguments_object_needed) {
-        // f. Let parameterBindings be the list-concatenation of parameterNames and « "arguments" ».
-        parameter_bindings = m_parameter_names;
-        parameter_bindings.set(vm.names.arguments.as_string(), ParameterIsLocal::No);
-
-        if (arguments_object_needs_binding)
-            (*environment_size)++;
-    } else {
-        parameter_bindings = m_parameter_names;
-        // a. Let parameterBindings be parameterNames.
-    }
-
-    HashMap<Utf16FlyString, ParameterIsLocal> instantiated_var_names;
+    if (arguments_object_needs_binding)
+        (*environment_size)++;
 
     size_t* var_environment_size = nullptr;
 
-    // 27. If hasParameterExpressions is false, then
-    if (!m_has_parameter_expressions) {
-        // b. Let instantiatedVarNames be a copy of the List parameterBindings.
-        instantiated_var_names = parameter_bindings;
+    if (scope_body) {
+        auto const& function_scope_data = *scope_body->function_scope_data();
 
-        if (scope_body) {
-            // c. For each element n of varNames, do
-            MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
-                // i. If instantiatedVarNames does not contain n, then
-                if (instantiated_var_names.set(id.string(), id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
-                    // 1. Append n to instantiatedVarNames.
-                    // Following steps will be executed in function_declaration_instantiation:
-                    // 2. Perform ! env.CreateMutableBinding(n, false).
-                    // 3. Perform ! env.InitializeBinding(n, undefined).
-                    m_var_names_to_initialize_binding.append({
-                        .identifier = id,
-                        // NOTE: We don't have to set parameter_binding or function_name here
-                        //       since those are only relevant in the hasParameterExpressions==true path.
-                    });
+        // 27. If hasParameterExpressions is false, then
+        if (!m_has_parameter_expressions) {
+            // Use pre-computed non_local_var_count for environment size.
+            *environment_size += function_scope_data.non_local_var_count;
 
-                    if (!id.is_local())
-                        (*environment_size)++;
-                }
-            }));
-        }
+            // Directly iterate vars_to_initialize - already deduplicated by parser.
+            for (auto const& var : function_scope_data.vars_to_initialize) {
+                // Skip vars that shadow parameters or "arguments" if needed.
+                if (var.is_parameter)
+                    continue;
+                if (var.identifier.string() == vm.names.arguments.as_string() && m_arguments_object_needed)
+                    continue;
 
-        // d. Let varEnv be env
-        var_environment_size = environment_size;
-    } else {
-        // a. NOTE: A separate Environment Record is needed to ensure that closures created by expressions in the formal parameter list do not have visibility of declarations in the function body.
-
-        // b. Let varEnv be NewDeclarativeEnvironment(env).
-        // NOTE: Here we are only interested in the size of the environment.
-        var_environment_size = &m_var_environment_bindings_count;
-
-        // 28. Else,
-        // NOTE: Steps a, b, c and d are executed in function_declaration_instantiation.
-        // e. For each element n of varNames, do
-        if (scope_body) {
-            MUST(scope_body->for_each_var_declared_identifier([&](Identifier const& id) {
-                auto const& name = id.string();
-
-                // 1. Append n to instantiatedVarNames.
-                // Following steps will be executed in function_declaration_instantiation:
-                // 2. Perform ! env.CreateMutableBinding(n, false).
-                // 3. Perform ! env.InitializeBinding(n, undefined).
-                if (instantiated_var_names.set(name, id.is_local() ? ParameterIsLocal::Yes : ParameterIsLocal::No) == AK::HashSetResult::InsertedNewEntry) {
-                    m_var_names_to_initialize_binding.append({
-                        .identifier = id,
-                        .parameter_binding = parameter_bindings.contains(name),
-                        .function_name = function_names.contains(name),
-                    });
-
-                    if (!id.is_local())
-                        (*var_environment_size)++;
-                }
-            }));
-        }
-    }
-
-    // 29. NOTE: Annex B.3.2.1 adds additional steps at this point.
-    // B.3.2.1 Changes to FunctionDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-functiondeclarationinstantiation
-    if (!m_strict && scope_body) {
-        MUST(scope_body->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) {
-            auto function_name = function_declaration.name();
-            if (parameter_bindings.contains(function_name))
-                return;
-
-            if (!instantiated_var_names.contains(function_name) && function_name != vm.names.arguments.as_string()) {
-                m_function_names_to_initialize_binding.append(function_name);
-                instantiated_var_names.set(function_name, ParameterIsLocal::No);
-                (*var_environment_size)++;
+                m_var_names_to_initialize_binding.append({
+                    .identifier = var.identifier,
+                });
             }
 
-            function_declaration.set_should_do_additional_annexB_steps();
-        }));
+            // d. Let varEnv be env
+            var_environment_size = environment_size;
+        } else {
+            // a. NOTE: A separate Environment Record is needed to ensure that closures created by
+            //          expressions in the formal parameter list do not have visibility of declarations in the function body.
+
+            // b. Let varEnv be NewDeclarativeEnvironment(env).
+            var_environment_size = &m_var_environment_bindings_count;
+
+            // Use pre-computed non_local_var_count_for_parameter_expressions for environment size.
+            *var_environment_size += function_scope_data.non_local_var_count_for_parameter_expressions;
+
+            // Directly iterate vars_to_initialize - already deduplicated by parser.
+            for (auto const& var : function_scope_data.vars_to_initialize) {
+                bool is_in_parameter_bindings = var.is_parameter || (var.identifier.string() == vm.names.arguments.as_string() && m_arguments_object_needed);
+                m_var_names_to_initialize_binding.append({
+                    .identifier = var.identifier,
+                    .parameter_binding = is_in_parameter_bindings,
+                    .function_name = var.is_function_name,
+                });
+            }
+        }
+
+        // 29. NOTE: Annex B.3.2.1 adds additional steps at this point.
+        // B.3.2.1 Changes to FunctionDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-functiondeclarationinstantiation
+        if (!m_strict) {
+            HashTable<Utf16FlyString> annexB_seen_names;
+            MUST(scope_body->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) {
+                auto function_name = function_declaration.name();
+
+                // Check if function name is in parameter_bindings (parameters + "arguments" if needed).
+                if (m_parameter_names.contains(function_name))
+                    return;
+                if (function_name == vm.names.arguments.as_string() && m_arguments_object_needed)
+                    return;
+
+                // Check if function name is already a var or already processed by AnnexB.
+                if (!function_scope_data.var_names.contains(function_name) && !annexB_seen_names.contains(function_name)) {
+                    m_function_names_to_initialize_binding.append(function_name);
+                    annexB_seen_names.set(function_name);
+                    (*var_environment_size)++;
+                }
+
+                function_declaration.set_should_do_additional_annexB_steps();
+            }));
+        }
+    } else {
+        var_environment_size = environment_size;
     }
 
     size_t* lex_environment_size = nullptr;

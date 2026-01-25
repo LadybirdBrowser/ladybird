@@ -281,6 +281,23 @@ public:
     }
 };
 
+struct VarToInitialize {
+    Identifier const& identifier;
+    bool is_parameter { false };
+    bool is_function_name { false };
+};
+
+struct FunctionScopeData {
+    Vector<NonnullRefPtr<FunctionDeclaration const>> functions_to_initialize;
+    Vector<VarToInitialize> vars_to_initialize;
+    HashTable<Utf16FlyString> var_names;
+    bool has_function_named_arguments { false };
+    bool has_argument_parameter { false };
+    bool has_lexically_declared_arguments { false };
+    size_t non_local_var_count { 0 };
+    size_t non_local_var_count_for_parameter_expressions { 0 };
+};
+
 class JS_API ScopeNode : public Statement {
 public:
     template<typename T, typename... Args>
@@ -314,6 +331,7 @@ public:
     [[nodiscard]] bool has_lexical_declarations() const { return !m_lexical_declarations.is_empty(); }
     [[nodiscard]] bool has_non_local_lexical_declarations() const;
     [[nodiscard]] bool has_var_declarations() const { return !m_var_declarations.is_empty(); }
+    [[nodiscard]] Vector<NonnullRefPtr<Declaration const>> const& var_declarations() const { return m_var_declarations; }
 
     [[nodiscard]] size_t var_declaration_count() const { return m_var_declarations.size(); }
     [[nodiscard]] size_t lexical_declaration_count() const { return m_lexical_declarations.size(); }
@@ -336,6 +354,10 @@ public:
         return index;
     }
 
+    FunctionScopeData const* function_scope_data() const { return m_function_scope_data.ptr(); }
+    void set_function_scope_data(OwnPtr<FunctionScopeData> data) { m_function_scope_data = move(data); }
+    void ensure_function_scope_data() const;
+
 protected:
     explicit ScopeNode(SourceRange source_range)
         : Statement(move(source_range))
@@ -352,6 +374,7 @@ private:
     Vector<NonnullRefPtr<FunctionDeclaration const>> m_functions_hoistable_with_annexB_extension;
 
     Vector<LocalVariable> m_local_variables_names;
+    mutable OwnPtr<FunctionScopeData> m_function_scope_data;
 };
 
 // ImportEntry Record, https://tc39.es/ecma262/#table-importentry-record-fields
