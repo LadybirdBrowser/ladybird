@@ -49,7 +49,7 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
         return RuleContext::AtMedia;
     if (name.equals_ignoring_ascii_case("font-face"sv))
         return RuleContext::AtFontFace;
-    if (name.equals_ignoring_ascii_case("keyframes"sv))
+    if (name.equals_ignoring_ascii_case("keyframes"sv) || name.equals_ignoring_ascii_case("-webkit-keyframes"sv))
         return RuleContext::AtKeyframes;
     if (name.equals_ignoring_ascii_case("supports"sv))
         return RuleContext::AtSupports;

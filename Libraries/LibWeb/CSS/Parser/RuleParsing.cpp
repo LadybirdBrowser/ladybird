@@ -91,6 +91,11 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
         [this, nested](AtRule const& at_rule) -> GC::Ptr<CSSRule> {
+            // https://compat.spec.whatwg.org/#css-at-rules
+            // @-webkit-keyframes must be supported as an alias of @keyframes.
+            if (at_rule.name.equals_ignoring_ascii_case("keyframes"sv) || at_rule.name.equals_ignoring_ascii_case("-webkit-keyframes"sv))
+                return convert_to_keyframes_rule(at_rule);
+
             if (has_ignored_vendor_prefix(at_rule.name))
                 return {};
 
@@ -99,9 +104,6 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
             if (at_rule.name.equals_ignoring_ascii_case("import"sv))
                 return convert_to_import_rule(at_rule);
-
-            if (at_rule.name.equals_ignoring_ascii_case("keyframes"sv))
-                return convert_to_keyframes_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
                 return convert_to_layer_rule(at_rule, nested);
