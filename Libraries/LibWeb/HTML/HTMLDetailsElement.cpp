@@ -72,6 +72,10 @@ void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional
 
     // 3. If localName is open, then:
     else if (local_name == HTML::AttributeNames::open) {
+        // The :open pseudo-class can affect sibling selectors (e.g., details:open + sibling),
+        // so we need full subtree + sibling invalidation, not just targeted invalidation.
+        invalidate_style(DOM::StyleInvalidationReason::HTMLDetailsOrDialogOpenAttributeChange);
+
         // 1. If one of oldValue or value is null and the other is not null, run the following steps, which are known as
         //    the details notification task steps, for this details element:
         if (old_value.has_value() != value.has_value()) {

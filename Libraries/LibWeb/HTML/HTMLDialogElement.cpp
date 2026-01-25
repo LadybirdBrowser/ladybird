@@ -675,6 +675,10 @@ void HTMLDialogElement::attribute_changed(FlyString const& local_name, Optional<
     if (local_name != "open"_fly_string)
         return;
 
+    // The :open pseudo-class can affect sibling selectors (e.g., dialog:open + sibling),
+    // so we need full subtree + sibling invalidation, not just targeted invalidation.
+    invalidate_style(DOM::StyleInvalidationReason::HTMLDetailsOrDialogOpenAttributeChange);
+
     // 3. If value is null and oldValue is not null, then run the dialog cleanup steps given element.
     if (!value.has_value() && old_value.has_value())
         run_dialog_cleanup_steps();
