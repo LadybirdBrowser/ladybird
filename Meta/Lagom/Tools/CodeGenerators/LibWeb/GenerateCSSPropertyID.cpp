@@ -296,6 +296,7 @@ size_t property_maximum_value_count(PropertyID);
 bool property_affects_layout(PropertyID);
 bool property_affects_stacking_context(PropertyID);
 bool property_needs_layout_for_getcomputedstyle(PropertyID);
+bool property_needs_layout_node_for_resolved_value(PropertyID);
 
 constexpr PropertyID first_property_id = PropertyID::@first_property_id@;
 constexpr PropertyID last_property_id = PropertyID::@last_property_id@;
@@ -722,6 +723,32 @@ bool property_needs_layout_for_getcomputedstyle(PropertyID property_id)
             return;
 
         if (value.as_object().get_bool("needs-layout-for-getcomputedstyle"sv).value_or(false)) {
+            auto member_generator = generator.fork();
+            member_generator.set("name:titlecase", title_casify(name));
+            member_generator.append(R"~~~(
+    case PropertyID::@name:titlecase@:
+)~~~");
+        }
+    });
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool property_needs_layout_node_for_resolved_value(PropertyID property_id)
+{
+    switch (property_id) {
+)~~~");
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        if (value.as_object().get_bool("needs-layout-node-for-resolved-value"sv).value_or(false)) {
             auto member_generator = generator.fork();
             member_generator.set("name:titlecase", title_casify(name));
             member_generator.append(R"~~~(

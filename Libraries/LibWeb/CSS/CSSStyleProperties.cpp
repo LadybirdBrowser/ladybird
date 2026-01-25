@@ -547,14 +547,20 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         Layout::NodeWithStyle* layout_node = abstract_element.layout_node();
 
-        // FIXME: Be smarter about updating layout if there's no layout node.
-        //        We may legitimately have no layout node if we're not visible, but this protects against situations
-        //        where we're requesting the computed style before layout has happened.
-        if (!layout_node || property_needs_layout_for_getcomputedstyle(property_id)) {
+        // Determine what work is needed for this property:
+        // 1. Properties that need layout computation (used values) - always run update_layout()
+        // 2. Properties that need a layout node for special resolution - ensure layout node exists
+        // 3. Everything else - just update_style() and return computed value
+        bool const needs_layout = property_needs_layout_for_getcomputedstyle(property_id);
+        bool const needs_layout_node = property_needs_layout_node_for_resolved_value(property_id) || property_is_logical_alias(property_id) || property_is_shorthand(property_id);
+
+        if (needs_layout || needs_layout_node) {
+            // Properties that need layout computation or layout node for special resolution
+            // always need update_layout() to ensure both style and layout tree are up to date.
             abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
             layout_node = abstract_element.layout_node();
         } else {
-            // FIXME: If we had a way to update style for a single element, this would be a good place to use it.
+            // Just ensure styles are up to date.
             abstract_element.document().update_style();
         }
 
@@ -580,7 +586,6 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         if (!layout_node) {
             auto style = abstract_element.document().style_computer().compute_style(abstract_element);
-
             return StyleProperty {
                 .property_id = property_id,
                 .value = style->property(property_id),
