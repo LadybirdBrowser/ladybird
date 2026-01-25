@@ -24,8 +24,6 @@ public:
     virtual void unregister_notifier(Notifier&) override;
 
     virtual void did_post_event() override;
-    virtual EventLoopThreadHandle current_thread_handle() override;
-    virtual void wake_thread(EventLoopThreadHandle) override;
 
     virtual int register_signal(int signal_number, Function<void(int)> handler) override;
     virtual void unregister_signal(int handler_id) override;

@@ -10,7 +10,6 @@
 #include <AK/Assertions.h>
 #include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
-#include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Windows.h>
 #include <LibCore/EventLoopImplementationWindows.h>
@@ -18,7 +17,6 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/Timer.h>
 #include <LibThreading/Mutex.h>
-#include <LibThreading/RWLock.h>
 
 struct OwnHandle {
     HANDLE handle = NULL;
@@ -63,10 +61,6 @@ template<>
 constexpr bool IsHashCompatible<HANDLE, OwnHandle> = true;
 
 namespace Core {
-
-struct ThreadData;
-static HashTable<ThreadData*> s_thread_data_by_ptr;
-static Threading::RWLock s_thread_data_lock;
 
 enum class CompletionType : u8 {
     Wake,
@@ -116,23 +110,9 @@ struct ThreadData {
         return nullptr;
     }
 
-    static ThreadData* for_handle(EventLoopThreadHandle handle)
-    {
-        if (handle == 0)
-            return nullptr;
-        auto* ptr = reinterpret_cast<ThreadData*>(handle);
-        Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
-        if (!s_thread_data_by_ptr.contains(ptr))
-            return nullptr;
-        return ptr;
-    }
-
     ThreadData()
         : wake_data(make<EventLoopWake>())
     {
-        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
-        s_thread_data_by_ptr.set(this);
-
         wake_data->type = CompletionType::Wake;
         wake_data->wait_event.handle = CreateEvent(NULL, FALSE, FALSE, NULL);
 
@@ -149,8 +129,6 @@ struct ThreadData {
     {
         NTSTATUS status = g_system.NtCancelWaitCompletionPacket(wake_data->wait_packet.handle, TRUE);
         VERIFY(NT_SUCCESS(status));
-        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
-        s_thread_data_by_ptr.remove(this);
     }
 
     OwnHandle iocp;
@@ -375,20 +353,6 @@ void EventLoopManagerWindows::unregister_signal([[maybe_unused]] int handler_id)
 
 void EventLoopManagerWindows::did_post_event()
 {
-}
-
-EventLoopThreadHandle EventLoopManagerWindows::current_thread_handle()
-{
-    auto* thread_data = ThreadData::the();
-    return reinterpret_cast<EventLoopThreadHandle>(thread_data);
-}
-
-void EventLoopManagerWindows::wake_thread(EventLoopThreadHandle handle)
-{
-    auto* thread_data = ThreadData::for_handle(handle);
-    if (!thread_data)
-        return;
-    SetEvent(thread_data->wake_data->wait_event.handle);
 }
 
 NonnullOwnPtr<EventLoopImplementation> EventLoopManagerWindows::make_implementation()

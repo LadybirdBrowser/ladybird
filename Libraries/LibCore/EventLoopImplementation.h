@@ -7,14 +7,12 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/Types.h>
 #include <LibCore/Forward.h>
 
 namespace Core {
 
 class EventLoopImplementation;
 class ThreadEventQueue;
-using EventLoopThreadHandle = FlatPtr;
 
 class EventLoopManager {
 public:
@@ -32,8 +30,6 @@ public:
     virtual void unregister_notifier(Notifier&) = 0;
 
     virtual void did_post_event() = 0;
-    virtual EventLoopThreadHandle current_thread_handle() = 0;
-    virtual void wake_thread(EventLoopThreadHandle) = 0;
 
     // FIXME: These APIs only exist for obscure use-cases inside SerenityOS. Try to get rid of them.
     virtual int register_signal(int signal_number, Function<void(int)> handler) = 0;

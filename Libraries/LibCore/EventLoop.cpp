@@ -36,8 +36,6 @@ Vector<EventLoop&>& event_loop_stack()
 EventLoop::EventLoop()
     : m_impl(EventLoopManager::the().make_implementation())
 {
-    m_thread_event_queue = &ThreadEventQueue::current();
-    m_thread_handle = EventLoopManager::the().current_thread_handle();
     if (event_loop_stack().is_empty()) {
         event_loop_stack().append(*this);
     }
@@ -167,35 +165,17 @@ void deferred_invoke(Function<void()> invokee)
 WeakEventLoopReference::WeakEventLoopReference(EventLoop& event_loop)
     : m_event_loop(&event_loop)
 {
-    m_thread_event_queue = event_loop.m_thread_event_queue;
-    m_thread_handle = event_loop.m_thread_handle;
 }
 
 void WeakEventLoopReference::revoke()
 {
     Threading::RWLockLocker<Threading::LockMode::Write> locker { m_lock };
     m_event_loop = nullptr;
-    m_thread_event_queue = nullptr;
-    m_thread_handle = 0;
 }
 
 StrongEventLoopReference WeakEventLoopReference::take()
 {
     return StrongEventLoopReference(*this);
-}
-
-bool WeakEventLoopReference::deferred_invoke(Function<void()> invokee)
-{
-    Threading::RWLockLocker<Threading::LockMode::Read> locker { m_lock };
-    if (!m_event_loop || !m_thread_event_queue || m_thread_handle == 0) {
-        // Catch use-after-revoke bugs early in debug builds.
-        VERIFY(m_event_loop != nullptr);
-        return false;
-    }
-
-    m_thread_event_queue->deferred_invoke(move(invokee));
-    EventLoopManager::the().wake_thread(m_thread_handle);
-    return true;
 }
 
 StrongEventLoopReference::StrongEventLoopReference(WeakEventLoopReference& event_loop_weak)
