@@ -115,9 +115,9 @@ public:
 
     constexpr void adopt_specified_values(CodingIndependentCodePoints cicp)
     {
-        if (cicp.color_primaries() != ColorPrimaries::Unspecified)
+        if (cicp.color_primaries() != ColorPrimaries::Unspecified && cicp.color_primaries() != ColorPrimaries::Reserved)
             set_color_primaries(cicp.color_primaries());
-        if (cicp.transfer_characteristics() != TransferCharacteristics::Unspecified)
+        if (cicp.transfer_characteristics() != TransferCharacteristics::Unspecified && cicp.transfer_characteristics() != TransferCharacteristics::Reserved)
             set_transfer_characteristics(cicp.transfer_characteristics());
         if (cicp.matrix_coefficients() != MatrixCoefficients::Unspecified)
             set_matrix_coefficients(cicp.matrix_coefficients());
