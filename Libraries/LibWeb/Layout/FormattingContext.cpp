@@ -1791,7 +1791,22 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
         return calculate_min_content_height(box, available_space.width.to_px_or_zero());
     }
 
-    auto height_of_containing_block = available_space.height.to_px_or_zero();
+    CSSPixels height_of_containing_block = available_space.height.to_px_or_zero();
+    // NOTE: Percentage heights are resolved against the containing block's used height,
+    //       not the available space height. The containing block's height must be definite
+    //       for percentage resolution to work (otherwise should_treat_height_as_auto
+    //       should have returned true and we wouldn't be here).
+    // NOTE: We only do this when available space height is indefinite. If it's definite,
+    //       we trust that the caller has set it up correctly (e.g., grid/flex items get
+    //       their cell/area size as available space).
+    if (height.contains_percentage() && available_space.height.is_indefinite()) {
+        // NOTE: Skip anonymous blocks to find the real containing block with definite height.
+        auto containing_block = box.containing_block();
+        while (containing_block && containing_block->is_anonymous())
+            containing_block = containing_block->containing_block();
+        if (containing_block && m_state.get(*containing_block).has_definite_height())
+            height_of_containing_block = m_state.get(*containing_block).content_height();
+    }
     auto& computed_values = box.computed_values();
 
     if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox) {
@@ -1900,8 +1915,20 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
             return true;
         if (available_space.height.is_max_content())
             return true;
-        if (available_space.height.is_indefinite())
-            return true;
+        // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
+        // If the height of the containing block is not specified explicitly (i.e., it depends on
+        // content height), and this element is not absolutely positioned, the percentage value
+        // is treated as 'auto'.
+        // NOTE: In quirks mode, percentage heights are handled specially and can resolve
+        //       even without explicit containing block height.
+        if (!box.is_absolutely_positioned() && !box.document().in_quirks_mode()) {
+            // NOTE: Anonymous blocks inherit height definiteness from their containing block.
+            auto containing_block = box.containing_block();
+            while (containing_block && containing_block->is_anonymous())
+                containing_block = containing_block->containing_block();
+            if (containing_block && !m_state.get(*containing_block).has_definite_height())
+                return true;
+        }
     }
 
     // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
