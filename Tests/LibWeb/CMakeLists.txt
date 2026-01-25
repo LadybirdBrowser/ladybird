@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestOfflineAudioRenderThread.cpp
     TestStrings.cpp
     TestWebAudioRenderGraph.cpp
 )
