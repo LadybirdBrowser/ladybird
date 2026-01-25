@@ -120,7 +120,7 @@ public:
                 m_catch_parameter_names.set(identifier.string());
             }));
         } else if (parameter) {
-            m_var_names.set(parameter->string());
+            m_var_names.set(parameter->string(), parameter.ptr());
             m_bound_names.set(parameter->string());
             m_catch_parameter_names.set(parameter->string());
         }
@@ -174,7 +174,7 @@ public:
                         || pusher->m_forbidden_var_names.contains(name))
                         throw_identifier_declared(name, declaration);
 
-                    pusher->m_var_names.set(name);
+                    pusher->m_var_names.set(name, &identifier);
                     if (pusher->is_top_level())
                         break;
 
@@ -192,17 +192,17 @@ public:
                 // Only non-top levels and Module don't var declare the top functions
                 // NOTE: Nothing in the callback throws an exception.
                 MUST(declaration->for_each_bound_identifier([&](auto const& identifier) {
-                    m_var_names.set(identifier.string());
+                    m_var_names.set(identifier.string(), &identifier);
                 }));
                 m_node->add_var_scoped_declaration(move(declaration));
             } else {
                 VERIFY(is<FunctionDeclaration>(*declaration));
-                auto& function_declaration = static_cast<FunctionDeclaration const&>(*declaration);
-                auto function_name = function_declaration.name();
+                auto function_declaration = static_ptr_cast<FunctionDeclaration const>(declaration);
+                auto function_name = function_declaration->name();
                 if (m_var_names.contains(function_name) || m_lexical_names.contains(function_name))
                     throw_identifier_declared(function_name, declaration);
 
-                if (function_declaration.kind() != FunctionKind::Normal || m_parser.m_state.strict_mode) {
+                if (function_declaration->kind() != FunctionKind::Normal || m_parser.m_state.strict_mode) {
                     if (m_function_names.contains(function_name))
                         throw_identifier_declared(function_name, declaration);
 
@@ -211,9 +211,9 @@ public:
                     return;
                 }
 
-                m_function_names.set(function_name);
+                m_function_names.set(function_name, function_declaration);
                 if (!m_lexical_names.contains(function_name))
-                    m_functions_to_hoist.append(static_ptr_cast<FunctionDeclaration const>(declaration));
+                    m_functions_to_hoist.append(function_declaration);
 
                 m_node->add_lexical_declaration(move(declaration));
             }
@@ -436,6 +436,62 @@ public:
             }
         }
 
+        // Build FunctionScopeData for function scopes to cache information needed by SharedFunctionInstanceData.
+        if (m_type == ScopeType::Function && m_function_parameters) {
+            auto data = make<FunctionScopeData>();
+
+            // Extract functions_to_initialize from var-scoped function declarations (in reverse order, deduplicated).
+            // This matches what for_each_var_function_declaration_in_reverse_order does.
+            HashTable<Utf16FlyString> seen_function_names;
+            for (ssize_t i = m_node->var_declaration_count() - 1; i >= 0; i--) {
+                auto const& declaration = m_node->var_declarations()[i];
+                if (is<FunctionDeclaration>(declaration)) {
+                    auto& function_decl = static_cast<FunctionDeclaration const&>(*declaration);
+                    if (seen_function_names.set(function_decl.name()) == AK::HashSetResult::InsertedNewEntry)
+                        data->functions_to_initialize.append(static_ptr_cast<FunctionDeclaration const>(declaration));
+                }
+            }
+
+            // Check if "arguments" is a function name.
+            data->has_function_named_arguments = seen_function_names.contains("arguments"_utf16_fly_string);
+
+            // Check if "arguments" is a parameter name.
+            data->has_argument_parameter = m_forbidden_lexical_names.contains("arguments"_utf16_fly_string);
+
+            // Check if "arguments" is lexically declared.
+            MUST(m_node->for_each_lexically_declared_identifier([&](auto const& identifier) {
+                if (identifier.string() == "arguments"_utf16_fly_string)
+                    data->has_lexically_declared_arguments = true;
+            }));
+
+            // Extract vars_to_initialize from m_var_names values with flags.
+            // Also count non-local vars for environment size pre-computation.
+            for (auto& [name, identifier] : m_var_names) {
+                bool is_parameter = m_forbidden_lexical_names.contains(name);
+                bool is_non_local = !identifier->is_local();
+
+                data->vars_to_initialize.append({
+                    .identifier = *identifier,
+                    .is_parameter = is_parameter,
+                    .is_function_name = seen_function_names.contains(name),
+                });
+
+                // Store var name for AnnexB checks.
+                data->var_names.set(name);
+
+                // Count non-local vars for environment size calculation.
+                // Note: vars named "arguments" may be skipped at runtime if arguments object is needed,
+                // but we count them here and adjust at runtime.
+                if (is_non_local) {
+                    data->non_local_var_count_for_parameter_expressions++;
+                    if (!is_parameter)
+                        data->non_local_var_count++;
+                }
+            }
+
+            m_node->set_function_scope_data(move(data));
+        }
+
         VERIFY(m_parser.m_state.current_scope_pusher == this);
         m_parser.m_state.current_scope_pusher = m_parent_scope;
     }
@@ -519,8 +575,8 @@ private:
     ScopePusher* m_top_level_scope { nullptr };
 
     HashTable<Utf16FlyString> m_lexical_names;
-    HashTable<Utf16FlyString> m_var_names;
-    HashTable<Utf16FlyString> m_function_names;
+    HashMap<Utf16FlyString, Identifier const*> m_var_names;
+    HashMap<Utf16FlyString, NonnullRefPtr<FunctionDeclaration const>> m_function_names;
     HashTable<Utf16FlyString> m_catch_parameter_names;
 
     HashTable<Utf16FlyString> m_forbidden_lexical_names;
@@ -1648,6 +1704,7 @@ NonnullRefPtr<ClassExpression const> Parser::parse_class_expression(bool expect_
 
     if (constructor.is_null()) {
         auto constructor_body = create_ast_node<BlockStatement>({ m_source_code, rule_start.position(), position() });
+
         if (!super_class.is_null()) {
             // Set constructor to the result of parsing the source text
             // constructor(... args){ super (...args);}
