@@ -10,7 +10,6 @@
 #include <AK/Types.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Limits.h>
-#include <LibIPC/Message.h>
 #include <LibIPC/TransportSocketWindows.h>
 
 #include <AK/Windows.h>
@@ -22,39 +21,6 @@ TransportSocketWindows::TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> 
 {
 }
 
-void TransportSocketWindows::set_message_decoder(MessageDecoder decoder)
-{
-    m_decoder = move(decoder);
-}
-
-void TransportSocketWindows::set_message_handler(MessageHandler handler)
-{
-    m_message_handler = move(handler);
-}
-
-void TransportSocketWindows::set_peer_closed_handler(PeerClosedHandler handler)
-{
-    m_peer_closed_handler = move(handler);
-}
-
-void TransportSocketWindows::start()
-{
-    // Windows does not use a separate I/O thread.
-    // Instead, set up a read hook that decodes messages on the main thread.
-    VERIFY(m_decoder);
-    VERIFY(m_message_handler);
-    m_socket->on_ready_to_read = [this] {
-        auto should_shutdown = read_as_many_messages_as_possible_without_blocking([this](Message&& message) {
-            Queue<File> fds;
-            if (auto decoded = m_decoder(message.bytes.span(), fds)) {
-                m_message_handler(decoded.release_nonnull());
-            }
-        });
-        if (should_shutdown == ShouldShutdown::Yes && m_peer_closed_handler)
-            m_peer_closed_handler();
-    };
-}
-
 void TransportSocketWindows::set_peer_pid(int pid)
 {
     m_peer_pid = pid;
@@ -62,7 +28,6 @@ void TransportSocketWindows::set_peer_pid(int pid)
 
 void TransportSocketWindows::set_up_read_hook(Function<void()> hook)
 {
-    // Raw message path (used by MessagePort)
     VERIFY(m_socket->is_open());
     m_socket->on_ready_to_read = move(hook);
 }

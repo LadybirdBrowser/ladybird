@@ -13,25 +13,11 @@
 
 namespace IPC {
 
-class Message;
-
 class TransportSocketWindows {
     AK_MAKE_NONCOPYABLE(TransportSocketWindows);
     AK_MAKE_DEFAULT_MOVABLE(TransportSocketWindows);
 
 public:
-    // IPC::Connection path: Set a decoder to parse raw bytes into IPC::Message objects
-    // and a handler to receive decoded messages.
-    // NOTE: Windows does not use a separate I/O thread; decoding happens on the main thread.
-    using MessageDecoder = Function<OwnPtr<IPC::Message>(ReadonlyBytes, Queue<File>&)>;
-    using MessageHandler = Function<void(NonnullOwnPtr<IPC::Message>)>;
-    using PeerClosedHandler = Function<void()>;
-
-    void set_message_decoder(MessageDecoder decoder);
-    void set_message_handler(MessageHandler handler);
-    void set_peer_closed_handler(PeerClosedHandler handler);
-    void start();
-
     explicit TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket);
 
     void set_peer_pid(int pid);
@@ -67,10 +53,6 @@ private:
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     ByteBuffer m_unprocessed_bytes;
     int m_peer_pid = -1;
-
-    MessageDecoder m_decoder;
-    MessageHandler m_message_handler;
-    PeerClosedHandler m_peer_closed_handler;
 };
 
 }

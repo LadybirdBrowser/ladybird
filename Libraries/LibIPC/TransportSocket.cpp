@@ -11,7 +11,6 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Limits.h>
-#include <LibIPC/Message.h>
 #include <LibIPC/TransportSocket.h>
 #include <LibThreading/Thread.h>
 
@@ -68,10 +67,6 @@ TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
     }
 
     m_io_thread = Threading::Thread::construct([this] { return io_thread_loop(); });
-}
-
-void TransportSocket::start()
-{
     m_io_thread->start();
 }
 
@@ -177,9 +172,6 @@ void TransportSocket::set_up_read_hook(Function<void()> hook)
         if (m_on_read_hook)
             m_on_read_hook();
     };
-
-    // Start I/O thread now that the read hook is set up (for raw message path)
-    start();
 
     {
         Threading::MutexLocker locker(m_incoming_mutex);
@@ -296,21 +288,6 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
     return {};
 }
 
-void TransportSocket::set_message_decoder(MessageDecoder decoder)
-{
-    m_decoder = move(decoder);
-}
-
-void TransportSocket::set_message_handler(MessageHandler handler)
-{
-    m_message_handler = move(handler);
-}
-
-void TransportSocket::set_peer_closed_handler(PeerClosedHandler handler)
-{
-    m_peer_closed_handler = move(handler);
-}
-
 TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& bytes, Vector<int>& fds)
 {
     auto byte_count = bytes.size();
@@ -337,7 +314,6 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
 void TransportSocket::read_incoming_messages()
 {
     Vector<NonnullOwnPtr<Message>> batch;
-    Vector<NonnullOwnPtr<IPC::Message>> decoded_batch;
     while (m_socket->is_open()) {
         u8 buffer[4096];
         auto received_fds = Vector<int> {};
@@ -408,37 +384,21 @@ void TransportSocket::read_incoming_messages()
                 break;
             if (header.fd_count > m_unprocessed_fds.size())
                 break;
+            auto message = make<Message>();
             received_fd_count += header.fd_count;
             if (received_fd_count.has_overflow()) {
                 dbgln("TransportSocket: received_fd_count would overflow");
                 m_peer_eof = true;
                 break;
             }
-            if (m_decoder) {
-                // Decode on I/O thread
-                Queue<File> fds_for_message;
-                for (size_t i = 0; i < header.fd_count; ++i)
-                    fds_for_message.enqueue(m_unprocessed_fds.dequeue());
-                ReadonlyBytes payload { m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size };
-                if (auto decoded = m_decoder(payload, fds_for_message)) {
-                    decoded_batch.append(decoded.release_nonnull());
-                } else {
-                    dbgln("TransportSocket: Failed to decode message");
-                    m_peer_eof = true;
-                    break;
-                }
-            } else {
-                // Legacy path: store raw bytes
-                auto message = make<Message>();
-                for (size_t i = 0; i < header.fd_count; ++i)
-                    message->fds.enqueue(m_unprocessed_fds.dequeue());
-                if (message->bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size).is_error()) {
-                    dbgln("TransportSocket: Failed to allocate message buffer for payload_size {}", header.payload_size);
-                    m_peer_eof = true;
-                    break;
-                }
-                batch.append(move(message));
+            for (size_t i = 0; i < header.fd_count; ++i)
+                message->fds.enqueue(m_unprocessed_fds.dequeue());
+            if (message->bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size).is_error()) {
+                dbgln("TransportSocket: Failed to allocate message buffer for payload_size {}", header.payload_size);
+                m_peer_eof = true;
+                break;
             }
+            batch.append(move(message));
         } else if (header.type == MessageHeader::Type::FileDescriptorAcknowledgement) {
             if (header.payload_size != 0) {
                 dbgln("TransportSocket: FileDescriptorAcknowledgement with non-zero payload_size {}", header.payload_size);
@@ -509,17 +469,6 @@ void TransportSocket::read_incoming_messages()
         (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
     };
 
-    // IPC::Connection path: call message handler for decoded IPC::Message objects.
-    // The handler is responsible for storing messages and waking the event loop.
-    if (!decoded_batch.is_empty() && m_message_handler) {
-        for (auto& msg : decoded_batch) {
-            m_message_handler(move(msg));
-        }
-    }
-
-    // Raw message path: store undecoded messages for retrieval via
-    // read_as_many_messages_as_possible_without_blocking().
-    // Used by MessagePort which has its own message format (SerializedTransferRecord).
     if (!batch.is_empty()) {
         Threading::MutexLocker locker(m_incoming_mutex);
         m_incoming_messages.extend(move(batch));
@@ -528,8 +477,6 @@ void TransportSocket::read_incoming_messages()
     }
 
     if (m_peer_eof) {
-        if (m_peer_closed_handler)
-            m_peer_closed_handler();
         m_incoming_cv.broadcast();
         notify_read_available();
     }
