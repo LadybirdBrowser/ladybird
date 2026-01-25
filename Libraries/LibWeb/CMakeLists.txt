@@ -1048,6 +1048,7 @@ set(SOURCES
     WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
+    WebAudio/OfflineAudioRenderThread.cpp
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
