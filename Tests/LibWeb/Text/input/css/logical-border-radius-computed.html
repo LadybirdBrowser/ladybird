@@ -39,5 +39,37 @@ test(() => {
 
     target.style.borderEndEndRadius = "calc(100% / 4)";
     println(`border-end-end-radius: calc(100% / 4) -> ${getComputedStyle(target).borderBottomRightRadius}`);
+
+    // Reset
+    target.style.cssText = "width: 200px; height: 100px;";
+
+    // Test <length-percentage>{2} values
+    target.style.borderStartStartRadius = "50% 0%";
+    println(`border-start-start-radius: 50% 0% -> ${getComputedStyle(target).borderTopLeftRadius}`);
+
+    target.style.borderStartEndRadius = "45% 5%";
+    println(`border-start-end-radius: 45% 5% -> ${getComputedStyle(target).borderTopRightRadius}`);
+
+    target.style.borderEndStartRadius = "40% 10%";
+    println(`border-end-start-radius: 40% 10% -> ${getComputedStyle(target).borderBottomLeftRadius}`);
+
+    target.style.borderEndEndRadius = "35% 15%";
+    println(`border-end-end-radius: 35% 15% -> ${getComputedStyle(target).borderBottomRightRadius}`);
+
+    // Reset
+    target.style.cssText = "width: 200px; height: 100px;";
+
+    // Test <slash-separated-border-radius-syntax> values
+    target.style.borderStartStartRadius = "30% / 20%";
+    println(`border-start-start-radius: 30% / 20% -> ${getComputedStyle(target).borderTopLeftRadius}`);
+
+    target.style.borderStartEndRadius = "25% / 15%";
+    println(`border-start-end-radius: 25% / 15% -> ${getComputedStyle(target).borderTopRightRadius}`);
+
+    target.style.borderEndStartRadius = "20% / 10%";
+    println(`border-end-start-radius: 20% / 10% -> ${getComputedStyle(target).borderBottomLeftRadius}`);
+
+    target.style.borderEndEndRadius = "15% / 5%";
+    println(`border-end-end-radius: 15% / 5% -> ${getComputedStyle(target).borderBottomRightRadius}`);
 });
 </script>

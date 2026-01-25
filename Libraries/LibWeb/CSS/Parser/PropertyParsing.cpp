@@ -558,6 +558,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     case PropertyID::BorderTopRightRadius:
     case PropertyID::BorderBottomRightRadius:
     case PropertyID::BorderBottomLeftRadius:
+    case PropertyID::BorderEndEndRadius:
+    case PropertyID::BorderEndStartRadius:
+    case PropertyID::BorderStartEndRadius:
+    case PropertyID::BorderStartStartRadius:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_value(tokens); });
     case PropertyID::BorderRadius:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_border_radius_shorthand_value(tokens); });

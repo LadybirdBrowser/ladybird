@@ -618,17 +618,12 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
 
     auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> Optional<CSS::BorderRadiusData> {
-        if (value.is_border_radius()) {
-            return CSS::BorderRadiusData {
-                CSS::LengthPercentage::from_style_value(value.as_border_radius().horizontal_radius()),
-                CSS::LengthPercentage::from_style_value(value.as_border_radius().vertical_radius())
-            };
-        }
-        if (value.is_percentage() || value.is_length() || value.is_calculated()) {
-            auto length_percentage = CSS::LengthPercentage::from_style_value(value);
-            return CSS::BorderRadiusData { length_percentage, length_percentage };
-        }
-        return {};
+        return CSS::BorderRadiusData {
+            CSS::LengthPercentage::from_style_value(value.as_border_radius().horizontal_radius()),
+            CSS::LengthPercentage::from_style_value(value.as_border_radius().vertical_radius())
+        };
+
+        VERIFY_NOT_REACHED();
     };
 
     auto const& border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
