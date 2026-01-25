@@ -956,14 +956,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generate_labelled_evaluation(Bytecode::Generator& generator, Vector<FlyString> const& label_set, [[maybe_unused]] Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    // test
-    // jump if_false (true) end (false) body
-    // body
-    // jump always (true) test
-    // end
+
     auto& test_block = generator.make_block();
-    auto& body_block = generator.make_block();
-    auto& end_block = generator.make_block();
 
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
@@ -975,6 +969,20 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> WhileStatement::generat
 
     generator.switch_to_basic_block(test_block);
     auto test = TRY(m_test->generate_bytecode(generator)).value();
+
+    // OPTIMIZATION: If predicate is always false, ignore body and exit early
+    if (auto constant = generator.try_get_constant(test); constant.has_value() && !constant->to_boolean_slow_case()) {
+        return completion;
+    }
+
+    // test
+    // jump if_false (true) end (false) body
+    // body
+    // jump always (true) test
+    // end
+    auto& body_block = generator.make_block();
+    auto& end_block = generator.make_block();
+
     generator.emit_jump_if(
         test,
         Bytecode::Label { body_block },
@@ -1171,6 +1179,15 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ForStatement::generate_
         generator.switch_to_basic_block(*test_block_ptr);
 
         auto test = TRY(m_test->generate_bytecode(generator)).value();
+
+        // OPTIMIZATION: test value is always falsey, skip body entirely
+        if (auto constant = generator.try_get_constant(test); constant.has_value() && !constant->to_boolean_slow_case()) {
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
+            auto undefined_value = generator.add_constant(js_undefined());
+            generator.switch_to_basic_block(end_block);
+            return undefined_value;
+        }
+
         generator.emit_jump_if(test, Bytecode::Label { *body_block_ptr }, Bytecode::Label { end_block });
     }
 
@@ -2447,10 +2464,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     // jump always (true) end
     // end
 
-    auto& true_block = generator.make_block();
-    auto& false_block = generator.make_block();
-    // NOTE: if there is no 'else' block the end block is the same as the false block
-    auto& end_block = m_alternate ? generator.make_block() : false_block;
+    auto predicate = TRY(m_predicate->generate_bytecode(generator)).value();
 
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
@@ -2458,28 +2472,43 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
         generator.emit_mov(*completion, generator.add_constant(js_undefined()));
     }
 
-    auto predicate = TRY(m_predicate->generate_bytecode(generator)).value();
+    auto build_block = [&](auto node, Optional<BasicBlock&> end_block = {}) -> CodeGenerationErrorOr<Optional<ScopedOperand>> {
+        auto value = TRY(node->generate_bytecode(generator, completion));
+        if (!generator.is_current_block_terminated()) {
+            if (generator.must_propagate_completion() && value.has_value())
+                generator.emit_mov(*completion, *value);
+            if (end_block.has_value())
+                generator.emit<Bytecode::Op::Jump>(Bytecode::Label { *end_block });
+        }
+        return Optional<ScopedOperand> {};
+    };
+
+    // OPTIMIZATION: if the predicate is always true/false, only build the consequent/alternate blocks, respectively.
+    if (auto constant = generator.try_get_constant(predicate); constant.has_value()) {
+        if (constant->to_boolean_slow_case()) {
+            (void)TRY(build_block(m_consequent));
+        } else if (m_alternate) {
+            (void)TRY(build_block(m_alternate));
+        }
+        return completion;
+    }
+
+    auto& true_block = generator.make_block();
+    auto& false_block = generator.make_block();
+    // NOTE: if there is no 'else' block the end block is the same as the false block
+    auto& end_block = m_alternate ? generator.make_block() : false_block;
+
     generator.emit_jump_if(
         predicate,
         Bytecode::Label { true_block },
         Bytecode::Label { false_block });
 
     generator.switch_to_basic_block(true_block);
-    auto consequent = TRY(m_consequent->generate_bytecode(generator, completion));
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion() && consequent.has_value())
-            generator.emit_mov(*completion, *consequent);
-        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
-    }
+    (void)TRY(build_block(m_consequent, { end_block }));
 
     if (m_alternate) {
         generator.switch_to_basic_block(false_block);
-        auto alternate = TRY(m_alternate->generate_bytecode(generator, completion));
-        if (!generator.is_current_block_terminated()) {
-            if (generator.must_propagate_completion() && alternate.has_value())
-                generator.emit_mov(*completion, *alternate);
-            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
-        }
+        (void)TRY(build_block(m_alternate, { end_block }));
     }
 
     generator.switch_to_basic_block(end_block);
@@ -2507,6 +2536,18 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> DebuggerStatement::gene
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
+
+    auto test = TRY(m_test->generate_bytecode(generator)).value();
+
+    // OPTIMIZATION: if the predicate is always true/false, only build the consequent/alternate blocks, respectively.
+    if (auto constant = generator.try_get_constant(test); constant.has_value()) {
+        auto is_always_true = constant->to_boolean_slow_case();
+
+        if (is_always_true)
+            return TRY(m_consequent->generate_bytecode(generator)).value();
+        return TRY(m_alternate->generate_bytecode(generator)).value();
+    }
+
     // test
     // jump if_true (true) true (false) false
     // true
@@ -2519,7 +2560,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ConditionalExpression::
     auto& false_block = generator.make_block();
     auto& end_block = generator.make_block();
 
-    auto test = TRY(m_test->generate_bytecode(generator)).value();
     generator.emit_jump_if(
         test,
         Bytecode::Label { true_block },
