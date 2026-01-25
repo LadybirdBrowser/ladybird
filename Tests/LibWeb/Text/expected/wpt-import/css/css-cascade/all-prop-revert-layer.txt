@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 279 tests
 
-273 Pass
-6 Fail
+274 Pass
+5 Fail
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -260,7 +260,7 @@ Pass	text-decoration-thickness
 Pass	text-overflow
 Pass	top
 Pass	touch-action
-Fail	transform
+Pass	transform
 Pass	transform-box
 Pass	transform-origin
 Pass	transform-style
