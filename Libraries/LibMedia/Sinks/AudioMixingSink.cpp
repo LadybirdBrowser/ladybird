@@ -85,9 +85,15 @@ void AudioMixingSink::create_playback_stream()
         return self->write_audio_data_to_playback_stream(buffer);
     };
     constexpr u32 target_latency_ms = 100;
-    m_playback_stream = MUST(Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(sample_specification_callback), move(data_callback)));
 
-    set_volume(m_volume);
+    auto stream_or_error = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(sample_specification_callback), move(data_callback));
+
+    if (!stream_or_error.is_error()) {
+        m_playback_stream = stream_or_error.value();
+        set_volume(m_volume);
+    } else {
+        dbgln("Failed to create playback stream: {}", stream_or_error.error());
+    }
 }
 
 ReadonlySpan<float> AudioMixingSink::write_audio_data_to_playback_stream(Span<float> buffer)
