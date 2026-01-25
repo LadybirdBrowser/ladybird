@@ -234,14 +234,6 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     box_state.padding_left = padding_left.to_px_or_zero(box);
     box_state.padding_right = padding_right.to_px_or_zero(box);
 
-    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-    if (auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node()); html_element
-        && html_element->uses_button_layout() && computed_values.width().is_auto()) {
-        box_state.set_content_width(calculate_fit_content_width(box, available_space));
-        return;
-    }
-
     // NOTE: If we are calculating the min-content or max-content width of this box,
     //       and the width should be treated as auto, then we can simply return here,
     //       as the preferred width and min/max constraints are irrelevant for intrinsic sizing.
@@ -324,6 +316,14 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
         }
         if (is<TableWrapper>(box))
             return CSS::Length::make_px(compute_table_box_width_inside_table_wrapper(box, remaining_available_space));
+
+        // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+        // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
+        if (auto const* html_element = as_if<HTML::HTMLElement>(box.dom_node()); html_element
+            && html_element->uses_button_layout() && computed_values.width().is_auto()) {
+            return CSS::Length::make_px(calculate_fit_content_width(box, available_space));
+        }
+
         if (should_treat_width_as_auto(box, available_space))
             return CSS::LengthOrAuto::make_auto();
         return CSS::Length::make_px(calculate_inner_width(box, available_space.width, computed_values.width()));
