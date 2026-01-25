@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 68 tests
 
-61 Pass
-7 Fail
+65 Pass
+3 Fail
 Pass	Property block-size has initial value 0px
 Pass	Property block-size does not inherit
 Pass	Property border-block-end-color has initial value rgb(0, 0, 255)
@@ -19,9 +19,9 @@ Pass	Property border-block-start-style does not inherit
 Pass	Property border-block-start-width has initial value 3px
 Pass	Property border-block-start-width does not inherit
 Pass	Property border-end-end-radius has initial value 0px
-Fail	Property border-end-end-radius does not inherit
+Pass	Property border-end-end-radius does not inherit
 Pass	Property border-end-start-radius has initial value 0px
-Fail	Property border-end-start-radius does not inherit
+Pass	Property border-end-start-radius does not inherit
 Pass	Property border-inline-end-color has initial value rgb(0, 0, 255)
 Pass	Property border-inline-end-color does not inherit
 Pass	Property border-inline-end-style has initial value none
@@ -35,9 +35,9 @@ Pass	Property border-inline-start-style does not inherit
 Pass	Property border-inline-start-width has initial value 3px
 Pass	Property border-inline-start-width does not inherit
 Pass	Property border-start-end-radius has initial value 0px
-Fail	Property border-start-end-radius does not inherit
+Pass	Property border-start-end-radius does not inherit
 Pass	Property border-start-start-radius has initial value 0px
-Fail	Property border-start-start-radius does not inherit
+Pass	Property border-start-start-radius does not inherit
 Pass	Property inline-size has initial value 294px
 Pass	Property inline-size does not inherit
 Pass	Property inset-block-end has initial value auto
