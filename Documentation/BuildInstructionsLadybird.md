@@ -54,7 +54,12 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 # Update apt package list and install clang and associated packages
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
+- Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
+```bash
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt update && sudo apt install g++-14 libstdc++-14-dev
+```
 #### Additional Note for Some Linux Users
 Depending on the distribution you're using, your C++ compiler may not recognize `this Self& self` syntax properly and the build will fail. Even though the build command correctly specifies `-std=c++23`, your specific version of `g++` or `clang++` might have released before this feature was fully implemented and supported. You may need to install a new C++ compiler to get a working build.
 
@@ -66,12 +71,6 @@ From here, run the build command again but explicitly tell it to use the `g++-14
 
 If this build is successful, you can run the regular build command `./Meta/ladybird.py run` going forward.
 
-- Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
-
-```bash
-sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-sudo apt update && sudo apt install g++-14 libstdc++-14-dev
-```
 
 #### Audio support:
 
