@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
@@ -115,13 +116,19 @@ UnrealizedSourceRange Executable::source_range_at(size_t offset) const
         return {};
     auto it = InstructionStreamIterator(bytecode.span().slice(offset), this);
     VERIFY(!it.at_end());
-    auto mapping = source_map.get(offset);
-    if (!mapping.has_value())
+    auto* entry = binary_search(source_map, offset, nullptr, [](size_t needle, SourceMapEntry const& entry) -> int {
+        if (needle < entry.bytecode_offset)
+            return -1;
+        if (needle > entry.bytecode_offset)
+            return 1;
+        return 0;
+    });
+    if (!entry)
         return {};
     return UnrealizedSourceRange {
         .source_code = source_code,
-        .start_offset = mapping->source_start_offset,
-        .end_offset = mapping->source_end_offset,
+        .start_offset = entry->source_record.source_start_offset,
+        .end_offset = entry->source_record.source_end_offset,
     };
 }
 

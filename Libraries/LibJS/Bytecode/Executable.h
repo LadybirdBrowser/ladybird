@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
@@ -92,6 +91,11 @@ struct SourceRecord {
     u32 source_end_offset {};
 };
 
+struct SourceMapEntry {
+    u32 bytecode_offset {};
+    SourceRecord source_record {};
+};
+
 class JS_API Executable final : public Cell {
     GC_CELL(Executable, Cell);
     GC_DECLARE_ALLOCATOR(Executable);
@@ -143,7 +147,7 @@ public:
     Vector<ExceptionHandlers> exception_handlers;
     Vector<size_t> basic_block_start_offsets;
 
-    HashMap<size_t, SourceRecord> source_map;
+    Vector<SourceMapEntry> source_map;
 
     Vector<LocalVariable> local_variable_names;
     u32 local_index_base { 0 };
