@@ -65,7 +65,7 @@ namespace Web {
 // NB: Some web servers treat us very badly unless we pretend to be one of the major browsers.
 //     This token is appended to the User-Agent string to improve compatibility.
 //     We will need to update this periodically to match a somewhat recent version.
-#define SAD_COMPATIBILITY_HACK "Chrome/140.0.0.0"
+#define SAD_COMPATIBILITY_HACK "Chrome/140.0.0.0 AppleWebKit/537.36 Safari/537.36"
 
 constexpr auto default_user_agent = "Mozilla/5.0 (" OS_STRING "; " CPU_STRING ") " BROWSER_NAME "/" BROWSER_VERSION " " SAD_COMPATIBILITY_HACK ""sv;
 constexpr auto default_platform = OS_STRING " " CPU_STRING ""sv;
