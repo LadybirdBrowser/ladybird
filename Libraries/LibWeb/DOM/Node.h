@@ -72,6 +72,7 @@ enum class ShouldComputeRole {
     X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \
     X(HTMLInputElementSetIsOpen)                    \
+    X(HTMLInputElementSetType)                      \
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
     X(HTMLOptionElementSelectedChange)              \
     X(HTMLSelectElementSetIsOpen)                   \
