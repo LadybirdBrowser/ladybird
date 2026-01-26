@@ -1,0 +1,15 @@
+<!DOCTYPE quirks>
+<html>
+<style>
+body { margin: 0; }
+</style>
+<body>
+<!-- Flex container with percentage height SHOULD use quirks walk-up.
+     The container should get 50% of viewport height (300px) -->
+<div style="height: auto;">
+    <div style="display: flex; height: 50%;">
+        <div style="width: 50px; height: 30px;"></div>
+    </div>
+</div>
+</body>
+</html>
