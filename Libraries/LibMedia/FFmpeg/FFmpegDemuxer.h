@@ -7,9 +7,11 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibMedia/CodecID.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/FFmpeg/FFmpegForward.h>
@@ -40,6 +42,15 @@ public:
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
 private:
+    struct StreamInfo {
+        Track track;
+        CodecID codec_id;
+        ByteBuffer codec_initialization_data;
+        AK::Duration duration;
+        i32 time_base_numerator;
+        i32 time_base_denominator;
+    };
+
     struct TrackContext {
         TrackContext(NonnullOwnPtr<FFmpegIOContext>&& io_context)
             : io_context(move(io_context))
@@ -55,13 +66,14 @@ private:
         bool peeked_packet_already { false };
     };
 
-    FFmpegDemuxer(NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&&);
+    FFmpegDemuxer();
 
+    StreamInfo const& get_track_info(Track const&) const;
     TrackContext& get_track_context(Track const&);
-    DecoderErrorOr<Track> get_track_for_stream_index(u32 stream_index);
 
-    NonnullOwnPtr<FFmpegIOContext> m_io_context;
-    AVFormatContext* m_format_context;
+    AK::Duration m_total_duration;
+    Vector<StreamInfo> m_stream_info;
+    Array<int, to_underlying(TrackType::Unknown)> m_preferred_track_for_type;
 
     HashMap<Track, NonnullOwnPtr<TrackContext>> m_track_contexts;
 };

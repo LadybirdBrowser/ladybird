@@ -18,16 +18,9 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer(NonnullOwnPtr<Media::FFmpeg::FFmpegIOContext>&& io_context)
-    : m_io_context(move(io_context))
-{
-}
+FFmpegDemuxer::FFmpegDemuxer() = default;
 
-FFmpegDemuxer::~FFmpegDemuxer()
-{
-    if (m_format_context != nullptr)
-        avformat_close_input(&m_format_context);
-}
+FFmpegDemuxer::~FFmpegDemuxer() = default;
 
 static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_context, AVIOContext& io_context)
 {
@@ -45,79 +38,8 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     return {};
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer)
+static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream)
 {
-    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream_consumer));
-    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(move(io_context))));
-
-    TRY(initialize_format_context(demuxer->m_format_context, *demuxer->m_io_context->avio_context()));
-
-    return demuxer;
-}
-
-DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
-{
-    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
-
-    auto track_context = make<TrackContext>(move(io_context));
-
-    // We've already initialized a format context, so the only way this can fail is OOM.
-    MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
-
-    track_context->packet = av_packet_alloc();
-    VERIFY(track_context->packet != nullptr);
-
-    VERIFY(m_track_contexts.set(track, move(track_context)) == HashSetResult::InsertedNewEntry);
-
-    return {};
-}
-
-FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
-{
-    return *m_track_contexts.get(track).release_value();
-}
-
-static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
-{
-    VERIFY(time_base.num > 0);
-    VERIFY(time_base.den > 0);
-    return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
-}
-
-static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
-{
-    VERIFY(time_base.num > 0);
-    VERIFY(time_base.den > 0);
-    return duration.to_time_units(time_base.num, time_base.den);
-}
-
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
-{
-    if (m_format_context->duration < 0) {
-        return DecoderError::format(DecoderErrorCategory::Unknown, "Negative stream duration");
-    }
-
-    return AK::Duration::from_time_units(m_format_context->duration, 1, AV_TIME_BASE);
-}
-
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
-{
-    VERIFY(track.identifier() < m_format_context->nb_streams);
-    auto* stream = m_format_context->streams[track.identifier()];
-
-    if (stream->duration >= 0) {
-        return time_units_to_duration(stream->duration, stream->time_base);
-    }
-
-    // If the stream doesn't specify the duration, fallback to what the container says the duration is.
-    return total_duration();
-}
-
-DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index)
-{
-    VERIFY(stream_index < m_format_context->nb_streams);
-
-    auto& stream = *m_format_context->streams[stream_index];
     auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
     auto get_string_metadata = [&](char const* key) {
         auto* name_entry = av_dict_get(stream.metadata, key, nullptr, 0);
@@ -127,13 +49,13 @@ DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index
     };
     auto name = get_string_metadata("title");
     auto language = get_string_metadata("language");
-    Track track(type, stream_index, name, language);
+    Track track(type, stream.index, name, language);
 
     if (type == TrackType::Video) {
         auto color_primaries = static_cast<ColorPrimaries>(stream.codecpar->color_primaries);
         auto transfer_characteristics = static_cast<TransferCharacteristics>(stream.codecpar->color_trc);
         auto matrix_coefficients = static_cast<MatrixCoefficients>(stream.codecpar->color_space);
-        auto color_range = [stream] {
+        auto color_range = [&stream] {
             switch (stream.codecpar->color_range) {
             case AVColorRange::AVCOL_RANGE_MPEG:
                 return VideoFullRangeFlag::Studio;
@@ -170,28 +92,123 @@ DecoderErrorOr<Track> FFmpegDemuxer::get_track_for_stream_index(u32 stream_index
     return track;
 }
 
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+{
+    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+
+    AVFormatContext* format_context = nullptr;
+    TRY(initialize_format_context(format_context, *io_context->avio_context()));
+
+    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer()));
+    demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
+
+    for (u32 i = 0; i < format_context->nb_streams; i++) {
+        auto& stream = *format_context->streams[i];
+
+        auto track = TRY(create_track_from_stream(stream));
+        auto codec_id = media_codec_id_from_ffmpeg_codec_id(stream.codecpar->codec_id);
+        auto codec_initialization_data = DECODER_TRY_ALLOC(ByteBuffer::copy(stream.codecpar->extradata, stream.codecpar->extradata_size));
+
+        AK::Duration duration;
+        if (stream.duration >= 0)
+            duration = AK::Duration::from_time_units(stream.duration, stream.time_base.num, stream.time_base.den);
+        else
+            duration = demuxer->m_total_duration;
+
+        DECODER_TRY_ALLOC(demuxer->m_stream_info.try_empend(StreamInfo {
+            .track = move(track),
+            .codec_id = codec_id,
+            .codec_initialization_data = move(codec_initialization_data),
+            .duration = duration,
+            .time_base_numerator = stream.time_base.num,
+            .time_base_denominator = stream.time_base.den,
+        }));
+    }
+
+    demuxer->m_preferred_track_for_type.fill(-1);
+    for (size_t type_index = 0; type_index < demuxer->m_preferred_track_for_type.size(); type_index++) {
+        auto type = static_cast<TrackType>(type_index);
+        auto media_type = ffmpeg_media_type_from_track_type(type);
+        auto best_stream_index = av_find_best_stream(format_context, media_type, -1, -1, nullptr, 0);
+        if (best_stream_index >= 0) {
+            VERIFY(static_cast<size_t>(best_stream_index) < demuxer->m_stream_info.size());
+            demuxer->m_preferred_track_for_type[type_index] = best_stream_index;
+        }
+    }
+
+    avformat_close_input(&format_context);
+    return demuxer;
+}
+
+DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+{
+    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+
+    auto track_context = make<TrackContext>(move(io_context));
+
+    // We've already initialized a format context, so the only way this can fail is OOM.
+    MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
+
+    track_context->packet = av_packet_alloc();
+    VERIFY(track_context->packet != nullptr);
+
+    VERIFY(m_track_contexts.set(track, move(track_context)) == HashSetResult::InsertedNewEntry);
+
+    return {};
+}
+
+FFmpegDemuxer::StreamInfo const& FFmpegDemuxer::get_track_info(Track const& track) const
+{
+    return m_stream_info[track.identifier()];
+}
+
+FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track)
+{
+    return *m_track_contexts.get(track).release_value();
+}
+
+static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
+{
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
+}
+
+static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
+{
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return duration.to_time_units(time_base.num, time_base.den);
+}
+
+DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
+{
+    return m_total_duration;
+}
+
+DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
+{
+    auto const& track_info = get_track_info(track);
+    return track_info.duration;
+}
+
 DecoderErrorOr<Vector<Track>> FFmpegDemuxer::get_tracks_for_type(TrackType type)
 {
-    auto media_type = ffmpeg_media_type_from_track_type(type);
-    Vector<Track> tracks = {};
-    for (u32 i = 0; i < m_format_context->nb_streams; i++) {
-        auto& stream = *m_format_context->streams[i];
-        if (stream.codecpar->codec_type != media_type)
-            continue;
-
-        tracks.append(TRY(get_track_for_stream_index(i)));
+    Vector<Track> tracks;
+    for (auto const& info : m_stream_info) {
+        if (info.track.type() == type)
+            DECODER_TRY_ALLOC(tracks.try_append(info.track));
     }
     return tracks;
 }
 
 DecoderErrorOr<Optional<Track>> FFmpegDemuxer::get_preferred_track_for_type(TrackType type)
 {
-    auto media_type = ffmpeg_media_type_from_track_type(type);
-    auto best_stream_index = av_find_best_stream(m_format_context, media_type, -1, -1, nullptr, 0);
-    if (best_stream_index < 0)
+    auto preferred_index = m_preferred_track_for_type[to_underlying(type)];
+    if (preferred_index < 0)
         return OptionalNone();
 
-    return get_track_for_stream_index(best_stream_index);
+    return m_stream_info[preferred_index].track;
 }
 
 DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions)
@@ -199,7 +216,6 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     auto& track_context = get_track_context(track);
     auto& format_context = *track_context.format_context;
 
-    VERIFY(format_context.nb_streams == m_format_context->nb_streams);
     VERIFY(track.identifier() < format_context.nb_streams);
     auto& stream = *format_context.streams[track.identifier()];
     auto av_timestamp = duration_to_time_units(timestamp, stream.time_base);
@@ -219,16 +235,14 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
 
 DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track const& track)
 {
-    VERIFY(track.identifier() < m_format_context->nb_streams);
-    auto* stream = m_format_context->streams[track.identifier()];
-    return media_codec_id_from_ffmpeg_codec_id(stream->codecpar->codec_id);
+    auto const& track_info = get_track_info(track);
+    return track_info.codec_id;
 }
 
 DecoderErrorOr<ReadonlyBytes> FFmpegDemuxer::get_codec_initialization_data_for_track(Track const& track)
 {
-    VERIFY(track.identifier() < m_format_context->nb_streams);
-    auto* stream = m_format_context->streams[track.identifier()];
-    return ReadonlyBytes { stream->codecpar->extradata, static_cast<size_t>(stream->codecpar->extradata_size) };
+    auto const& track_info = get_track_info(track);
+    return track_info.codec_initialization_data.bytes();
 }
 
 DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const& track)
@@ -237,7 +251,6 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
     auto& format_context = *track_context.format_context;
     auto& packet = *track_context.packet;
 
-    VERIFY(format_context.nb_streams == m_format_context->nb_streams);
     VERIFY(track.identifier() < format_context.nb_streams);
     auto& stream = *format_context.streams[track.identifier()];
 
