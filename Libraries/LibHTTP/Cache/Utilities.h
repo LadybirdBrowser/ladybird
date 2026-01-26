@@ -40,7 +40,7 @@ enum class CacheLifetimeStatus {
     MustRevalidate,
     StaleWhileRevalidate,
 };
-CacheLifetimeStatus cache_lifetime_status(HeaderList const&, AK::Duration freshness_lifetime, AK::Duration current_age);
+CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, HeaderList const& response_headers, AK::Duration freshness_lifetime, AK::Duration current_age);
 
 struct RevalidationAttributes {
     static RevalidationAttributes create(HeaderList const&);

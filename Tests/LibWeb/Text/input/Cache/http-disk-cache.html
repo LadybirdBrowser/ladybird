@@ -209,6 +209,7 @@
             url = await createRequest("/cache-test/cache-mode/reload", {
                 headers: {
                     "Cache-Control": "max-age=999",
+                    "Last-Modified": new Date().toUTCString(),
                 },
             });
 
@@ -503,9 +504,9 @@
             expectHttpStatus(url, response, 200);
         })();
 
-        // Responses with a no-cache directive must always be revalidated.
+        // Responses with a no-cache Cache-Control directive must always be revalidated.
         await (async () => {
-            url = await createRequest("/cache-test/no-cache", {
+            url = await createRequest("/cache-test/response/no-cache", {
                 headers: {
                     "Cache-Control": "no-cache",
                     "Last-Modified": new Date().toUTCString(),
@@ -525,6 +526,36 @@
             // By not attaching a TEST_CACHE_RESPOND_WITH_NOT_MODIFIED header, we tell http-test-server to respond to
             // revalidation requests with an HTTP 200 (i.e. revalidation fails).
             response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Requests with a no-cache Cache-Control directive must always be revalidated.
+        await (async () => {
+            url = await createRequest("/cache-test/request/no-cache", {
+                headers: {
+                    "Cache-Control": "max-age=999",
+                    "Last-Modified": new Date().toUTCString(),
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "no-cache",
+                    [TEST_CACHE_RESPOND_WITH_NOT_MODIFIED]: "1",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+
+            // By not attaching a TEST_CACHE_RESPOND_WITH_NOT_MODIFIED header, we tell http-test-server to respond to
+            // revalidation requests with an HTTP 200 (i.e. revalidation fails).
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "no-cache",
+                },
+            });
             expectCacheStatus(url, response, "written-to-cache");
         })();
 
