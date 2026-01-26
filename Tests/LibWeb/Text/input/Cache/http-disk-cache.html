@@ -12,6 +12,7 @@
     const TEST_CACHE_RESPOND_WITH_NOT_MODIFIED = "X-Ladybird-Respond-With-Not-Modified";
 
     const ACCESS_CONTROL_ALLOW_HEADERS = [
+        "Cache-Control",
         "If-Modified-Since",
         "Range",
         TEST_CACHE_ENABLED_HEADER,
@@ -137,9 +138,9 @@
             expectCacheStatus(url, response, "not-cached");
         })();
 
-        // Responses with a no-store directive are not cached.
+        // Responses with a no-store Cache-Control directive are not cached.
         await (async () => {
-            url = await createRequest("/cache-test/no-store", {
+            url = await createRequest("/cache-test/response/no-store", {
                 headers: {
                     "Cache-Control": "no-store",
                 },
@@ -149,7 +150,36 @@
             expectCacheStatus(url, response, "not-cached");
         })();
 
-        // Requests with a no-store directive are not cached.
+        // Requests with a no-store Cache-Control directive are not cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/no-store", {
+                headers: {
+                    "Cache-Control": "max-age=999",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "no-store",
+                },
+            });
+            expectCacheStatus(url, response, "not-cached");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "read-from-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "no-store",
+                },
+            });
+            expectCacheStatus(url, response, "not-cached");
+        })();
+
+        // Requests with a no-store Fetch directive are not cached.
         await (async () => {
             url = await createRequest("/cache-test/cache-mode/no-store", {
                 headers: {
