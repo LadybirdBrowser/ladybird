@@ -1,0 +1,13 @@
+JS bytecode executable ""
+[   0]    0: GetGlobal dst:reg6, identifier:outer
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, outer
+[  30]       End value:reg5
+
+JS bytecode executable "outer"
+[   0]    0: CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
+[  10]       InitializeVariableBinding identifier:inner, src:Undefined
+[  28]       NewFunction dst:reg5
+[  40]       SetVariableBinding identifier:inner, src:reg5
+[  58]       GetGlobal dst:reg6, identifier:Number
+[  68]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+[  88]       Return value:reg5

@@ -1,0 +1,16 @@
+JS bytecode executable ""
+[   0]    0: GetGlobal dst:reg6, identifier:foo
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
+[  30]       End value:reg5
+
+JS bytecode executable "foo"
+[   0]    0: CreateArguments is_immutable:false
+[  10]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:eval
+[  28]       CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
+[  50]       GetBinding dst:reg6, identifier:Number
+[  68]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+[  88]       Return value:reg5
+
+JS bytecode executable "eval"
+[   0]    0: SetLexicalBinding identifier:x, src:Int32(1)
+[  18]       End value:Undefined
