@@ -658,15 +658,18 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
     // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
     // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
     if (!box.children_are_inline()) {
+        CSSPixels marker_line_height = 0;
         for (auto* child_box = box.last_child_of_type<Box>(); child_box; child_box = child_box->previous_sibling_of_type<Box>()) {
             if (child_box->is_absolutely_positioned() || child_box->is_floating())
                 continue;
 
-            // FIXME: This is hack. If the last child is a list-item marker box, we ignore it for purposes of height calculation.
-            //        Perhaps markers should not be considered in-flow(?) Perhaps they should always be the first child of the list-item
-            //        box instead of the last child.
-            if (child_box->is_list_item_marker_box())
+            // NOTE: Markers are not in-flow, but for list items that contain only floats (or are otherwise empty),
+            //       the marker's line-height determines the list item's height. This ensures proper vertical stacking
+            //       of list items and alignment with their floated content.
+            if (child_box->is_list_item_marker_box()) {
+                marker_line_height = child_box->computed_values().line_height();
                 continue;
+            }
 
             auto const& child_box_state = m_state.get(*child_box);
 
@@ -681,6 +684,10 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
 
             return max(CSSPixels(0), child_box_state.offset.y() + child_box_state.content_height() + child_box_state.border_box_bottom() + margin_bottom);
         }
+
+        // If no in-flow children were found but there's a marker, use the marker's line-height.
+        if (marker_line_height > 0)
+            return marker_line_height;
     }
 
     // 4. zero, otherwise
