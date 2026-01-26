@@ -17,6 +17,7 @@ namespace AK {
 struct FlyStringTableHashTraits : public Traits<Detail::StringData const*> {
     static u32 hash(Detail::StringData const* string) { return string->hash(); }
     static bool equals(Detail::StringData const* a, Detail::StringData const* b) { return *a == *b; }
+    static constexpr bool may_have_slow_equality_check() { return true; }
 };
 
 static auto& all_fly_strings()
