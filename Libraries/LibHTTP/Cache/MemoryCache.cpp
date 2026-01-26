@@ -54,7 +54,7 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     auto freshness_lifetime = calculate_freshness_lifetime(cache_entry->status_code, cache_entry->response_headers);
     auto current_age = calculate_age(cache_entry->response_headers, cache_entry->request_time, cache_entry->response_time);
 
-    switch (cache_lifetime_status(cache_entry->response_headers, freshness_lifetime, current_age)) {
+    switch (cache_lifetime_status(request_headers, cache_entry->response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), cache_entry->response_body.size());
         return cache_entry;

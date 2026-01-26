@@ -384,44 +384,54 @@ AK::Duration calculate_stale_while_revalidate_lifetime(HeaderList const& headers
     return {};
 }
 
-CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duration freshness_lifetime, AK::Duration current_age)
+CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, HeaderList const& response_headers, AK::Duration freshness_lifetime, AK::Duration current_age)
 {
     auto revalidation_status = [&](auto revalidation_type) {
         // In order to revalidate a cache entry, we must have one of these headers to attach to the revalidation request.
-        if (headers.contains("Last-Modified"sv) || headers.contains("ETag"sv))
+        if (response_headers.contains("Last-Modified"sv) || response_headers.contains("ETag"sv))
             return revalidation_type;
         return CacheLifetimeStatus::Expired;
     };
 
-    auto cache_control = headers.get("Cache-Control"sv);
+    auto request_cache_control = request_headers.get("Cache-Control"sv);
+    auto response_cache_control = response_headers.get("Cache-Control"sv);
 
     // https://httpwg.org/specs/rfc9111.html#cache-response-directive.no-cache
     // The no-cache response directive, in its unqualified form (without an argument), indicates that the response MUST
     // NOT be used to satisfy any other request without forwarding it for validation and receiving a successful response
     //
     // FIXME: Handle the qualified form of the no-cache directive, which may allow us to re-use the response.
-    if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "no-cache"sv))
+    if (response_cache_control.has_value() && contains_cache_control_directive(*response_cache_control, "no-cache"sv))
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
+
+    if (request_cache_control.has_value()) {
+        // https://httpwg.org/specs/rfc9111.html#cache-request-directive.no-cache
+        // The no-cache request directive indicates that the client prefers a stored response not be used to satisfy the
+        // request without successful validation on the origin server.
+        if (request_cache_control->contains("no-cache"sv, CaseSensitivity::CaseInsensitive))
+            return revalidation_status(CacheLifetimeStatus::MustRevalidate);
+    }
 
     // https://httpwg.org/specs/rfc9111.html#expiration.model
     if (freshness_lifetime > current_age)
         return CacheLifetimeStatus::Fresh;
 
-    // AD-HOC: If there isn't a Cache-Control header, we have already at least determined the response is heuristically
-    //         cacheable by the time we reach here. Allow revalidating these responses. This is expected by WPT.
-    if (!cache_control.has_value())
+    // AD-HOC: If there isn't a Cache-Control response header, we have already at least determined the response is
+    //         heuristically cacheable by the time we reach here. Allow revalidating these responses. This is expected
+    //         by WPT.
+    if (!response_cache_control.has_value())
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     // https://httpwg.org/specs/rfc5861.html#n-the-stale-while-revalidate-cache-control-extension
     // When present in an HTTP response, the stale-while-revalidate Cache-Control extension indicates that caches MAY
     // serve the response it appears in after it becomes stale, up to the indicated number of seconds.
-    if (calculate_stale_while_revalidate_lifetime(headers, freshness_lifetime) > current_age)
+    if (calculate_stale_while_revalidate_lifetime(response_headers, freshness_lifetime) > current_age)
         return revalidation_status(CacheLifetimeStatus::StaleWhileRevalidate);
 
     // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
     // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT reuse
     // that response to satisfy another request until it has been successfully validated by the origin
-    if (contains_cache_control_directive(*cache_control, "must-revalidate"sv))
+    if (contains_cache_control_directive(*response_cache_control, "must-revalidate"sv))
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     return CacheLifetimeStatus::Expired;

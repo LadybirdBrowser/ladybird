@@ -144,7 +144,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return {};
     };
 
-    switch (cache_lifetime_status(response_headers, freshness_lifetime, current_age)) {
+    switch (cache_lifetime_status(request_headers, response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
         if (cache_mode == CacheMode::NoCache) {
             TRY(revalidate_cache_entry());
