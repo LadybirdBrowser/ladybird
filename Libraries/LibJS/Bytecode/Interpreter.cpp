@@ -1204,8 +1204,11 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
 
     if (cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
-        for (size_t i = 0; i < cache.hops; ++i)
+        for (size_t i = 0; i < cache.hops; ++i) {
+            if (environment->is_permanently_screwed_by_eval()) [[unlikely]]
+                goto slow_path;
             environment = environment->outer_environment();
+        }
         if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
             auto this_value = js_undefined();
@@ -1216,6 +1219,7 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
                 .this_value = this_value,
             };
         }
+    slow_path:
         cache = {};
     }
 
@@ -2083,8 +2087,11 @@ static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst
 
     if (cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
-        for (size_t i = 0; i < cache.hops; ++i)
+        for (size_t i = 0; i < cache.hops; ++i) {
+            if (environment->is_permanently_screwed_by_eval()) [[unlikely]]
+                goto slow_path;
             environment = environment->outer_environment();
+        }
         if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             Value value;
             if constexpr (binding_is_known_to_be_initialized == BindingIsKnownToBeInitialized::No) {
@@ -2095,6 +2102,7 @@ static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst
             interpreter.set(dst, value);
             return {};
         }
+    slow_path:
         cache = {};
     }
 
@@ -2102,6 +2110,7 @@ static ThrowCompletionOr<void> get_binding(Interpreter& interpreter, Operand dst
     auto reference = TRY(vm.resolve_binding(executable.get_identifier(identifier), strict));
     if (reference.environment_coordinate().has_value())
         cache = reference.environment_coordinate().value();
+
     interpreter.set(dst, TRY(reference.get_value(vm)));
     return {};
 }
@@ -2345,8 +2354,11 @@ static ThrowCompletionOr<void> initialize_or_set_binding(Interpreter& interprete
         : interpreter.running_execution_context().variable_environment.ptr();
 
     if (cache.is_valid()) [[likely]] {
-        for (size_t i = 0; i < cache.hops; ++i)
+        for (size_t i = 0; i < cache.hops; ++i) {
+            if (environment->is_permanently_screwed_by_eval()) [[unlikely]]
+                goto slow_path;
             environment = environment->outer_environment();
+        }
         if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
                 TRY(static_cast<DeclarativeEnvironment&>(*environment).initialize_binding_direct(vm, cache.index, value, Environment::InitializeBindingHint::Normal));
@@ -2355,6 +2367,7 @@ static ThrowCompletionOr<void> initialize_or_set_binding(Interpreter& interprete
             }
             return {};
         }
+    slow_path:
         cache = {};
     }
 
@@ -3179,13 +3192,17 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
 
     if (m_cache.is_valid()) [[likely]] {
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
-        for (size_t i = 0; i < m_cache.hops; ++i)
+        for (size_t i = 0; i < m_cache.hops; ++i) {
+            if (environment->is_permanently_screwed_by_eval()) [[unlikely]]
+                goto slow_path;
             environment = environment->outer_environment();
+        }
         if (!environment->is_permanently_screwed_by_eval()) [[likely]] {
             auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
             interpreter.set(dst(), value.typeof_(vm));
             return {};
         }
+    slow_path:
         m_cache = {};
     }
 

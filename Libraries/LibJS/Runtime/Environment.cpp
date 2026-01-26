@@ -26,6 +26,13 @@ void Environment::set_permanently_screwed_by_eval()
     if (m_permanently_screwed_by_eval)
         return;
     m_permanently_screwed_by_eval = true;
+
+    // Stop propagation at function or global boundaries.
+    // Eval can only inject vars into its containing function's variable environment,
+    // not into parent function scopes.
+    if (is_function_environment() || is_global_environment())
+        return;
+
     if (outer_environment())
         outer_environment()->set_permanently_screwed_by_eval();
 }
