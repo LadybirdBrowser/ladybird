@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Adam Hodgen <ant1441@gmail.com>
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
- * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2026, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
@@ -1533,6 +1533,16 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 {
     auto new_value_attribute_mode = value_attribute_mode_for_type_state(new_state);
     auto old_value_attribute_mode = value_attribute_mode_for_type_state(old_state);
+
+    if (checked_applies(old_state) != checked_applies(new_state)) {
+        invalidate_style(
+            DOM::StyleInvalidationReason::HTMLInputElementSetType,
+            {
+                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked },
+                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Unchecked },
+            },
+            {});
+    }
 
     // 1. If the previous state of the element's type attribute put the value IDL attribute in the value mode, and the element's
     //    value is not the empty string, and the new state of the element's type attribute puts the value IDL attribute in either
@@ -3273,15 +3283,20 @@ bool HTMLInputElement::required_applies() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#do-not-apply
-bool HTMLInputElement::checked_applies() const
+bool HTMLInputElement::checked_applies(TypeAttributeState type_state)
 {
-    switch (type_state()) {
+    switch (type_state) {
     case TypeAttributeState::Checkbox:
     case TypeAttributeState::RadioButton:
         return true;
     default:
         return false;
     }
+}
+
+bool HTMLInputElement::checked_applies() const
+{
+    return checked_applies(type_state());
 }
 
 bool HTMLInputElement::has_selectable_text() const

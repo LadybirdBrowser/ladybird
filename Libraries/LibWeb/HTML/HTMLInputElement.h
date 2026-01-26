@@ -222,6 +222,7 @@ public:
     bool multiple_applies() const;
     bool required_applies() const;
     bool checked_applies() const;
+    static bool checked_applies(TypeAttributeState);
     bool has_selectable_text() const;
 
     bool supports_a_picker() const;
