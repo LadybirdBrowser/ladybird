@@ -221,6 +221,7 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
             switch (cicp.color_primaries()) {
             case Media::ColorPrimaries::Reserved:
             case Media::ColorPrimaries::Unspecified:
+                return SkNamedPrimaries::kRec709;
             case Media::ColorPrimaries::XYZ:
                 VERIFY_NOT_REACHED();
             case Media::ColorPrimaries::BT709:
@@ -244,7 +245,7 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
             case Media::ColorPrimaries::EBU3213:
                 return SkNamedPrimaries::kITU_T_H273_Value22;
             }
-            VERIFY_NOT_REACHED();
+            return SkNamedPrimaries::kRec709;
         }();
         skcms_Matrix3x3 result;
         VERIFY(primaries.toXYZD50(&result));
@@ -255,7 +256,7 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
         switch (cicp.transfer_characteristics()) {
         case Media::TransferCharacteristics::Unspecified:
         case Media::TransferCharacteristics::Reserved:
-            VERIFY_NOT_REACHED();
+            return SkNamedTransferFn::kRec709;
         case Media::TransferCharacteristics::BT709:
             return SkNamedTransferFn::kRec709;
         case Media::TransferCharacteristics::BT470M:
@@ -290,7 +291,7 @@ static sk_sp<SkColorSpace> color_space_from_cicp(Media::CodingIndependentCodePoi
         case Media::TransferCharacteristics::HLG:
             return SkNamedTransferFn::kHLG;
         }
-        VERIFY_NOT_REACHED();
+        return SkNamedTransferFn::kRec709;
     }();
 
     return SkColorSpace::MakeRGB(transfer_function, gamut);
