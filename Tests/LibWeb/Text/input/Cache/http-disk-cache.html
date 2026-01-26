@@ -250,7 +250,7 @@
 
         // Responses with only a max-age directive are cached.
         await (async () => {
-            url = await createRequest("/cache-test/max-age", {
+            url = await createRequest("/cache-test/response/max-age", {
                 headers: {
                     "Cache-Control": "max-age=5",
                 },
@@ -265,7 +265,7 @@
 
         // Responses with an age less than their max-age directive are cached.
         await (async () => {
-            url = await createRequest("/cache-test/max-age-fresh", {
+            url = await createRequest("/cache-test/response/max-age-fresh", {
                 headers: {
                     Age: "2",
                     "Cache-Control": "max-age=5",
@@ -281,7 +281,7 @@
 
         // Responses with an age equal to their max-age directive are not cached.
         await (async () => {
-            url = await createRequest("/cache-test/max-age-expired", {
+            url = await createRequest("/cache-test/response/max-age-expired", {
                 headers: {
                     Age: "5",
                     "Cache-Control": "max-age=5",
@@ -289,6 +289,43 @@
             });
 
             response = await cacheFetch(url);
+            expectCacheStatus(url, response, "not-cached");
+        })();
+
+        // Responses with an age less than the requests's max-age directive are cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-age-fresh", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=999",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-age=5",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
+        // Responses with an age equal to the request's max-age directive are not cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-age-expired", {
+                headers: {
+                    Age: "5",
+                    "Cache-Control": "max-age=999",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-age=5",
+                },
+            });
             expectCacheStatus(url, response, "not-cached");
         })();
 

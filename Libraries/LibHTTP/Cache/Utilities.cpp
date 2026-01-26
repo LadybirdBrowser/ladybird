@@ -410,6 +410,14 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
         // request without successful validation on the origin server.
         if (request_cache_control->contains("no-cache"sv, CaseSensitivity::CaseInsensitive))
             return revalidation_status(CacheLifetimeStatus::MustRevalidate);
+
+        // https://httpwg.org/specs/rfc9111.html#cache-request-directive.max-age
+        // The max-age request directive indicates that the client prefers a response whose age is less than or equal to
+        // the specified number of seconds.
+        if (auto max_age = extract_cache_control_duration_directive(*request_cache_control, "max-age"sv); max_age.has_value()) {
+            if (*max_age <= current_age)
+                return CacheLifetimeStatus::Expired;
+        }
     }
 
     // https://httpwg.org/specs/rfc9111.html#expiration.model
