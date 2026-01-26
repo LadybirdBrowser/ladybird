@@ -43,6 +43,8 @@ public:
     // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
     RefPtr<Gfx::ImmutableBitmap> bitmap() const;
 
+    GC::Ref<MediaPlaybackQuality::VideoPlaybackQuality> get_video_playback_quality() const;
+
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);
 

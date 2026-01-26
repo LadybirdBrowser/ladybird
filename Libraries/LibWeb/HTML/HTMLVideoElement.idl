@@ -1,4 +1,5 @@
 #import <HTML/HTMLMediaElement.idl>
+#import <MediaPlaybackQuality/HTMLVideoElementExtensions.idl>
 
 // https://html.spec.whatwg.org/multipage/media.html#htmlvideoelement
 [Exposed=Window]

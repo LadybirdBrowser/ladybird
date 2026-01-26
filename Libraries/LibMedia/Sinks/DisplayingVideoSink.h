@@ -36,10 +36,18 @@ public:
     //
     // Note that push_frame may block until update() is called, so do not call them from the same thread.
     DisplayingVideoSinkUpdateResult update();
-    RefPtr<Gfx::ImmutableBitmap> current_frame();
+
+    enum class Painting {
+        No,
+        Yes,
+    };
+    RefPtr<Gfx::ImmutableBitmap> current_frame(Painting);
 
     void pause_updates();
     void resume_updates();
+
+    u32 total_frames() const { return m_total_frames; }
+    u32 dropped_frames() const { return m_dropped_frames; }
 
     Function<void()> m_on_start_buffering;
 
@@ -56,6 +64,10 @@ private:
     RefPtr<Gfx::ImmutableBitmap> m_current_frame;
     bool m_pause_updates { false };
     bool m_cleared_current_frame { false };
+    bool m_painted_last_frame { false };
+
+    u32 m_total_frames { 0 };
+    u32 m_dropped_frames { 0 };
 };
 
 }

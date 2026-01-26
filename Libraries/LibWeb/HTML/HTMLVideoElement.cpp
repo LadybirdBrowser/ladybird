@@ -21,7 +21,9 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/VideoBox.h>
+#include <LibWeb/MediaPlaybackQuality/VideoPlaybackQuality.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
@@ -187,12 +189,35 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     return {};
 }
 
+// https://w3c.github.io/media-playback-quality/#dom-htmlvideoelement-getvideoplaybackquality
+GC::Ref<MediaPlaybackQuality::VideoPlaybackQuality> HTMLVideoElement::get_video_playback_quality() const
+{
+    auto& realm = this->realm();
+
+    // 1. Let playbackQuality be a new instance of VideoPlaybackQuality.
+    // 2. Set playbackQuality.creationTime to the current high resolution time.
+    auto creation_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
+    // 3. Set playbackQuality.totalVideoFrames to the current value of the total video frame count.
+    // 4. Set playbackQuality.droppedVideoFrames to the current value of the dropped video frame count.
+    u32 total_frame_count = 0;
+    u32 dropped_frame_count = 0;
+    if (auto const sink = selected_video_track_sink()) {
+        total_frame_count = sink->total_frames();
+        dropped_frame_count = sink->dropped_frames();
+    }
+
+    // FIXME: 5. [DEPRECATED] Set playbackQuality.corruptedVideoFrames to the current value of the corrupted video frame count.
+
+    // 6. Return playbackQuality.
+    return realm.create<MediaPlaybackQuality::VideoPlaybackQuality>(realm, creation_time, dropped_frame_count, total_frame_count);
+}
+
 RefPtr<Gfx::ImmutableBitmap> HTMLVideoElement::bitmap() const
 {
     auto const& sink = selected_video_track_sink();
     if (sink == nullptr)
         return nullptr;
-    return sink->current_frame();
+    return sink->current_frame(Media::DisplayingVideoSink::Painting::No);
 }
 
 }

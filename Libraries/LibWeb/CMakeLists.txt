@@ -781,6 +781,7 @@ set(SOURCES
     MathML/MathMLMspaceElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
+    MediaPlaybackQuality/VideoPlaybackQuality.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp

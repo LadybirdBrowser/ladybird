@@ -70,14 +70,24 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
         }
         if (m_next_frame.timestamp() > current_time)
             break;
+
+        if (m_current_frame && !m_painted_last_frame)
+            m_dropped_frames++;
+
         m_current_frame = m_next_frame.release_image();
+        m_painted_last_frame = false;
+        m_total_frames++;
         result = DisplayingVideoSinkUpdateResult::NewFrameAvailable;
     }
+
     return result;
 }
 
-RefPtr<Gfx::ImmutableBitmap> DisplayingVideoSink::current_frame()
+RefPtr<Gfx::ImmutableBitmap> DisplayingVideoSink::current_frame(Painting painting)
 {
+    if (painting == Painting::Yes)
+        m_painted_last_frame = true;
+
     return m_current_frame;
 }
 

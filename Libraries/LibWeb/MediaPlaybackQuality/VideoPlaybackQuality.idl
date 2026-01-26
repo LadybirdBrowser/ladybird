@@ -1,0 +1,12 @@
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
+
+// https://w3c.github.io/media-playback-quality/#dom-videoplaybackquality
+[Exposed=Window]
+interface VideoPlaybackQuality {
+    readonly attribute DOMHighResTimeStamp creationTime;
+    readonly attribute unsigned long droppedVideoFrames;
+    readonly attribute unsigned long totalVideoFrames;
+
+    // Deprecated!
+    // readonly attribute unsigned long corruptedVideoFrames;
+};
