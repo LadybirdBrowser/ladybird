@@ -2337,7 +2337,9 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     switch (absolutized_value->to_keyword()) {
     case Keyword::Round:
         // The corner shape is a quarter of a convex ellipse. Equivalent to superellipse(1).
-        return SuperellipseStyleValue::create(NumberStyleValue::create(1));
+        // NB: We cache this value since 'round' is the initial value of the `corner-*-*-shape` properties
+        static NonnullRefPtr<StyleValue const> const cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1));
+        return cached_round_value;
     case Keyword::Squircle:
         // The corner shape is a quarter of a "squircle", a convex curve between round and square. Equivalent to superellipse(2).
         return SuperellipseStyleValue::create(NumberStyleValue::create(2));
