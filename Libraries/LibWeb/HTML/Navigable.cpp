@@ -170,6 +170,10 @@ Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
     , m_backing_store_manager(heap().allocate<Painting::BackingStoreManager>(*this))
+    , m_rendering_thread([page_client = &page->client()](Gfx::IntRect const& viewport_rect, i32 bitmap_id) {
+        if (page_client)
+            page_client->page_did_paint(viewport_rect, bitmap_id);
+    })
 {
     all_navigables().set(*this);
 
@@ -2814,11 +2818,7 @@ void Navigable::paint_next_frame()
 
     record_display_list_and_scroll_state(paint_config);
 
-    auto page_client = &page().top_level_traversable()->page().client();
-    m_rendering_thread.present_frame([page_client, viewport_rect](i32 bitmap_id) {
-        if (page_client)
-            page_client->page_did_paint(viewport_rect, bitmap_id);
-    });
+    m_rendering_thread.present_frame(viewport_rect);
 }
 
 void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)

@@ -40,7 +40,7 @@ struct UpdateBackingStoresCommand {
 };
 
 struct PresentFrameCommand {
-    Function<void(i32)> callback;
+    Gfx::IntRect viewport_rect;
 };
 
 struct ScreenshotCommand {
@@ -52,8 +52,9 @@ using CompositorCommand = Variant<UpdateDisplayListCommand, UpdateBackingStoresC
 
 class RenderingThread::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    ThreadData(Core::EventLoop& main_thread_event_loop)
+    ThreadData(Core::EventLoop& main_thread_event_loop, RenderingThread::PresentationCallback presentation_callback)
         : m_main_thread_event_loop(main_thread_event_loop)
+        , m_presentation_callback(move(presentation_callback))
     {
     }
 
@@ -117,11 +118,9 @@ public:
                     i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
                     m_backing_stores.swap();
 
-                    if (cmd.callback) {
-                        invoke_on_main_thread([callback = move(cmd.callback), rendered_bitmap_id]() mutable {
-                            callback(rendered_bitmap_id);
-                        });
-                    }
+                    invoke_on_main_thread([this, viewport_rect = cmd.viewport_rect, rendered_bitmap_id]() {
+                        m_presentation_callback(viewport_rect, rendered_bitmap_id);
+                    });
                 },
                 [this](ScreenshotCommand& cmd) {
                     if (!m_cached_display_list)
@@ -151,6 +150,7 @@ private:
     }
 
     Core::EventLoop& m_main_thread_event_loop;
+    RenderingThread::PresentationCallback m_presentation_callback;
 
     mutable Threading::Mutex m_mutex;
     mutable Threading::ConditionVariable m_command_ready { m_mutex };
@@ -164,8 +164,8 @@ private:
     BackingStoreState m_backing_stores;
 };
 
-RenderingThread::RenderingThread()
-    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current())))
+RenderingThread::RenderingThread(PresentationCallback presentation_callback)
+    : m_thread_data(adopt_ref(*new ThreadData(Core::EventLoop::current(), move(presentation_callback))))
     , m_main_thread_exit_promise(Core::Promise<NonnullRefPtr<Core::EventReceiver>>::construct())
 {
     // FIXME: Come up with a better "event loop exited" notification mechanism.
@@ -209,9 +209,9 @@ void RenderingThread::update_backing_stores(RefPtr<Gfx::PaintingSurface> front, 
     m_thread_data->enqueue_command(UpdateBackingStoresCommand { move(front), move(back), front_id, back_id });
 }
 
-void RenderingThread::present_frame(Function<void(i32)>&& callback)
+void RenderingThread::present_frame(Gfx::IntRect viewport_rect)
 {
-    m_thread_data->enqueue_command(PresentFrameCommand { move(callback) });
+    m_thread_data->enqueue_command(PresentFrameCommand { viewport_rect });
 }
 
 void RenderingThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
