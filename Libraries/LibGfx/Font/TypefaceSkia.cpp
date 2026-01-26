@@ -127,9 +127,9 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     return result;
 }
 
-Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name)
+Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name, u16 weight, u8 slope)
 {
-    SkFontStyle style(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width, SkFontStyle::kUpright_Slant);
+    SkFontStyle style(weight, SkFontStyle::kNormal_Width, slope_to_skia_slant(slope));
     auto skia_typeface = font_manager().matchFamilyStyle(
         ByteString(family_name).characters(), style);
 
