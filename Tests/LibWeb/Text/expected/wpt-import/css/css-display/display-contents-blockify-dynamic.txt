@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Dynamic changes to `display` causing blockification of children are handled correctly
+1 Pass
+Pass	Dynamic changes to `display` causing blockification of children are handled correctly
