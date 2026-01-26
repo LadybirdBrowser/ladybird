@@ -573,6 +573,35 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         box_state.set_has_definite_height(true);
     }
 
+    if (box.document().in_quirks_mode()
+        && box.dom_node()
+        && box.dom_node()->is_html_body_element()
+        && box.computed_values().height().is_auto()) {
+        // 3.7. The body element fills the html element quirk
+        // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
+        // FIXME: Handle vertical writing mode.
+
+        // The element body must additionally meet the following conditions:
+        // - The computed value of the 'position' property of element is neither 'absolute' nor 'fixed'.
+        // - The computed value of the 'float' property of element is 'none'.
+        // - Element is not an inline-level element.
+        // - Element is not a multi-column spanning element.
+        // NON-STANDARD: We don't check column-span since no browser actually excludes it.
+        if (!box.is_absolutely_positioned() && !box.is_floating() && !box.is_inline()) {
+            // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
+            //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
+            //    the margin-top and margin-bottom properties of element.
+            auto margins = box_state.margin_top + box_state.margin_bottom;
+
+            // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
+            auto size = box_state.containing_block_used_values()->content_height() - margins;
+
+            // 3. Return the bigger value of size and the normal border box size the element would have
+            //    according to the CSS specification.
+            height = max(size, height);
+        }
+    }
+
     box_state.set_content_height(height);
 }
 
