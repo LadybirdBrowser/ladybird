@@ -4,13 +4,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,16] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
         Box <ul> at [48,16] flex-container(row) [0+0+40 744 0+0+0] [16+0+0 18 0+0+16] [FFC] children: not-inline
           ListItemBox <li> at [48,16] flex-item [0+0+0 57.296875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            ListItemMarkerBox <(anonymous)> at [48,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
             InlineNode <a> at [48,16] [0+0+0 57.296875 0+0+0] [0+0+0 18 0+0+0]
               frag 0 from TextNode start: 0, length: 5, rect: [48,16 57.296875x18] baseline: 13.796875
                   "HELLO"
               TextNode <#text> (not painted)
           ListItemBox <li> at [105.296875,16] flex-item [0+0+0 16.828125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
-            ListItemMarkerBox <(anonymous)> at [105.296875,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
             InlineNode <a> at [105.296875,16] [0+0+0 16.828125 0+0+0] [0+0+0 18 0+0+0]
               frag 0 from TextNode start: 0, length: 2, rect: [105.296875,16 16.828125x18] baseline: 13.796875
                   "HI"
@@ -22,11 +20,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>) [8,16 784x18]
         PaintableBox (Box<UL>) [8,16 784x18]
           PaintableWithLines (ListItemBox<LI>) [48,16 57.296875x18]
-            MarkerPaintable (ListItemMarkerBox(anonymous)) [48,16 0x0]
             PaintableWithLines (InlineNode<A>) [48,16 57.296875x18]
               TextPaintable (TextNode<#text>)
           PaintableWithLines (ListItemBox<LI>) [105.296875,16 16.828125x18]
-            MarkerPaintable (ListItemMarkerBox(anonymous)) [105.296875,16 0x0]
             PaintableWithLines (InlineNode<A>) [105.296875,16 16.828125x18]
               TextPaintable (TextNode<#text>)
 
