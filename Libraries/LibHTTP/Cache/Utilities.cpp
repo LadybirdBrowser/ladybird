@@ -424,6 +424,18 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
     if (freshness_lifetime > current_age)
         return CacheLifetimeStatus::Fresh;
 
+    if (request_cache_control.has_value()) {
+        // https://httpwg.org/specs/rfc9111.html#cache-request-directive.max-stale
+        // The max-stale request directive indicates that the client will accept a response that has exceeded its
+        // freshness lifetime. If a value is present, then the client is willing to accept a response that has exceeded
+        // its freshness lifetime by no more than the specified number of seconds. If no value is assigned to max-stale,
+        // then the client will accept a stale response of any age.
+        if (auto max_stale = extract_cache_control_duration_directive(*request_cache_control, "max-stale"sv, AK::Duration::max()); max_stale.has_value()) {
+            if (freshness_lifetime + *max_stale > current_age)
+                return CacheLifetimeStatus::Fresh;
+        }
+    }
+
     // AD-HOC: If there isn't a Cache-Control response header, we have already at least determined the response is
     //         heuristically cacheable by the time we reach here. Allow revalidating these responses. This is expected
     //         by WPT.

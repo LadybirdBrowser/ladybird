@@ -329,6 +329,69 @@
             expectCacheStatus(url, response, "not-cached");
         })();
 
+        // Responses with an age within the requests's max-stale directive are cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-stale-fresh", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-stale=5",
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "5",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
+        // Responses with an age outside of the requests's max-stale directive are not cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-stale-expired", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-stale=5",
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "10",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Requests with a valueluess max-stale directive are cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/max-stale-valueless", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "max-stale",
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: "60000",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
         // Incomplete responses are not cached.
         await (async () => {
             url = await createRequest(`/cache-test/incomplete`, {
