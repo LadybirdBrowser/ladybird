@@ -15,7 +15,7 @@ Color accent_color(PreferredColorScheme)
 
 Color accent_color_text(PreferredColorScheme)
 {
-    return Color(255, 255, 255);
+    return Color(0, 0, 0);
 }
 
 Color active_text(PreferredColorScheme scheme)
