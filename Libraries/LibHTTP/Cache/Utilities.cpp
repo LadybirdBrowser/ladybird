@@ -418,6 +418,15 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
             if (*max_age <= current_age)
                 return CacheLifetimeStatus::Expired;
         }
+
+        // https://httpwg.org/specs/rfc9111.html#cache-request-directive.min-fresh
+        // The min-fresh request directive indicates that the client prefers a response whose freshness lifetime is no
+        // less than its current age plus the specified time in seconds. That is, the client wants a response that will
+        // still be fresh for at least the specified number of seconds.
+        if (auto min_fresh = extract_cache_control_duration_directive(*request_cache_control, "min-fresh"sv); min_fresh.has_value()) {
+            if (freshness_lifetime < current_age + *min_fresh)
+                return CacheLifetimeStatus::Expired;
+        }
     }
 
     // https://httpwg.org/specs/rfc9111.html#expiration.model

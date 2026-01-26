@@ -392,6 +392,46 @@
             expectCacheStatus(url, response, "read-from-cache");
         })();
 
+        // Responses with an age within the requests's min-fresh directive are cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/min-fresh-fresh", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "min-fresh=2",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
+        // Responses with an age outside of the requests's min-fresh directive are not cached.
+        await (async () => {
+            url = await createRequest("/cache-test/request/min-fresh-expired", {
+                headers: {
+                    Age: "2",
+                    "Cache-Control": "max-age=5",
+                },
+            });
+
+            response = await cacheFetch(url);
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, {
+                headers: {
+                    "Cache-Control": "min-fresh=4",
+                },
+            });
+            expectCacheStatus(url, response, "not-cached");
+        })();
+
         // Incomplete responses are not cached.
         await (async () => {
             url = await createRequest(`/cache-test/incomplete`, {
