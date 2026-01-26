@@ -293,7 +293,7 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
     };
     Vector<UnlinkedExceptionHandlers> unlinked_exception_handlers;
 
-    HashMap<size_t, SourceRecord> source_map;
+    Vector<SourceMapEntry> source_map;
 
     Optional<ScopedOperand> undefined_constant;
 
@@ -360,8 +360,9 @@ CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode co
 
         block_offsets.set(block.ptr(), bytecode.size());
 
-        for (auto& [offset, source_record] : block->source_map()) {
-            source_map.set(bytecode.size() + offset, source_record);
+        for (auto const& entry : block->source_map()) {
+            VERIFY(bytecode.size() <= NumericLimits<u32>::max());
+            source_map.append({ static_cast<u32>(bytecode.size()) + entry.bytecode_offset, entry.source_record });
         }
 
         Bytecode::InstructionStreamIterator it(block->instruction_stream());
