@@ -1,0 +1,10 @@
+JS bytecode executable ""
+[   0]    0: CreateLexicalEnvironment capacity:0
+[  10]       CreateVariable identifier:Oops, is_immutable:true, is_global:false, is_strict:false
+[  20]       NewFunction dst:reg5
+[  38]       InitializeLexicalBinding identifier:Oops, src:reg5
+[  50]       LeaveLexicalEnvironment
+[  58]       SetGlobal identifier:Oops, src:reg5
+[  68]       GetGlobal dst:reg6, identifier:Oops
+[  78]       GetById dst:reg7, base:reg6, property:x, base_identifier:Oops
+[  90]       End value:reg7
