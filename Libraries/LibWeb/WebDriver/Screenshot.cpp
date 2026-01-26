@@ -58,7 +58,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
     IGNORE_USE_IN_ESCAPING_LAMBDA bool did_paint = false;
     HTML::PaintConfig paint_config { .canvas_fill_rect = paint_rect };
-    browsing_context.active_document()->navigable()->start_display_list_rendering(painting_surface, paint_config, [&did_paint] {
+    browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [&did_paint] {
         did_paint = true;
     });
     HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -48,21 +48,12 @@ void BackingStoreManager::restart_resize_timer()
     m_backing_store_shrink_timer->restart();
 }
 
-BackingStoreManager::BackingStore BackingStoreManager::acquire_store_for_next_frame()
-{
-    BackingStore backing_store;
-    backing_store.bitmap_id = m_back_bitmap_id;
-    backing_store.store = m_back_store;
-    swap_back_and_front();
-    return backing_store;
-}
-
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 {
     auto skia_backend_context = m_navigable->skia_backend_context();
 
-    m_front_store = nullptr;
-    m_back_store = nullptr;
+    RefPtr<Gfx::PaintingSurface> front_store;
+    RefPtr<Gfx::PaintingSurface> back_store;
 
 #ifdef AK_OS_MACOS
     if (skia_backend_context && s_browser_mach_port.has_value()) {
@@ -109,8 +100,12 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
             VERIFY_NOT_REACHED();
         }
 
-        m_front_store = Gfx::PaintingSurface::create_from_iosurface(move(front_iosurface), *skia_backend_context);
-        m_back_store = Gfx::PaintingSurface::create_from_iosurface(move(back_iosurface), *skia_backend_context);
+        front_store = Gfx::PaintingSurface::create_from_iosurface(move(front_iosurface), *skia_backend_context);
+        back_store = Gfx::PaintingSurface::create_from_iosurface(move(back_iosurface), *skia_backend_context);
+
+        m_allocated_size = size;
+
+        m_navigable->rendering_thread().update_backing_stores(front_store, back_store, m_front_bitmap_id, m_back_bitmap_id);
 
         return;
     }
@@ -124,26 +119,30 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 
 #ifdef USE_VULKAN
     if (skia_backend_context) {
-        m_front_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-        m_front_store->on_flush = [front_bitmap](auto& surface) {
+        front_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        front_store->on_flush = [front_bitmap](auto& surface) {
             surface.read_into_bitmap(*front_bitmap);
         };
-        m_back_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-        m_back_store->on_flush = [back_bitmap](auto& surface) {
+        back_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        back_store->on_flush = [back_bitmap](auto& surface) {
             surface.read_into_bitmap(*back_bitmap);
         };
     }
 #endif
 
-    if (!m_front_store)
-        m_front_store = Gfx::PaintingSurface::wrap_bitmap(*front_bitmap);
-    if (!m_back_store)
-        m_back_store = Gfx::PaintingSurface::wrap_bitmap(*back_bitmap);
+    if (!front_store)
+        front_store = Gfx::PaintingSurface::wrap_bitmap(*front_bitmap);
+    if (!back_store)
+        back_store = Gfx::PaintingSurface::wrap_bitmap(*back_bitmap);
 
     if (m_navigable->is_top_level_traversable()) {
         auto& page_client = m_navigable->top_level_traversable()->page().client();
         page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_bitmap->to_shareable_bitmap(), m_back_bitmap_id, back_bitmap->to_shareable_bitmap());
     }
+
+    m_allocated_size = size;
+
+    m_navigable->rendering_thread().update_backing_stores(front_store, back_store, m_front_bitmap_id, m_back_bitmap_id);
 }
 
 void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgress window_resize_in_progress)
@@ -156,25 +155,19 @@ void BackingStoreManager::resize_backing_stores_if_needed(WindowResizingInProgre
         return;
 
     Web::DevicePixelSize minimum_needed_size;
+    bool force_reallocate = false;
     if (window_resize_in_progress == WindowResizingInProgress::Yes) {
         // Pad the minimum needed size so that we don't have to keep reallocating backing stores while the window is being resized.
         minimum_needed_size = { viewport_size.width() + 256, viewport_size.height() + 256 };
     } else {
         // If we're not in the middle of a resize, we can shrink the backing store size to match the viewport size.
         minimum_needed_size = viewport_size;
-        m_front_store.clear();
-        m_back_store.clear();
+        force_reallocate = m_allocated_size != minimum_needed_size.to_type<int>();
     }
 
-    if (!m_front_store || !m_back_store || !m_front_store->size().contains(minimum_needed_size.to_type<int>())) {
+    if (force_reallocate || m_allocated_size.is_empty() || !m_allocated_size.contains(minimum_needed_size.to_type<int>())) {
         reallocate_backing_stores(minimum_needed_size.to_type<int>());
     }
-}
-
-void BackingStoreManager::swap_back_and_front()
-{
-    swap(m_front_store, m_back_store);
-    swap(m_front_bitmap_id, m_back_bitmap_id);
 }
 
 }

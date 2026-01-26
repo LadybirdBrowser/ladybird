@@ -201,8 +201,9 @@ public:
 
     bool is_ready_to_paint() const;
     void ready_to_paint();
+    void record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
-    void start_display_list_rendering(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
+    void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
@@ -210,6 +211,8 @@ public:
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const;
+
+    RenderingThread& rendering_thread() { return m_rendering_thread; }
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }

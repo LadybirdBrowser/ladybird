@@ -2767,41 +2767,16 @@ void Navigable::ready_to_paint()
     VERIFY(m_number_of_queued_rasterization_tasks >= 0 && m_number_of_queued_rasterization_tasks < 2);
 }
 
-void Navigable::paint_next_frame()
-{
-    if (!is_top_level_traversable())
-        return;
-
-    auto [backing_store_id, painting_surface] = m_backing_store_manager->acquire_store_for_next_frame();
-    if (!painting_surface)
-        return;
-
-    VERIFY(m_number_of_queued_rasterization_tasks <= 1);
-    m_number_of_queued_rasterization_tasks++;
-
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() } };
-    auto page_client = &page().top_level_traversable()->page().client();
-    start_display_list_rendering(*painting_surface, paint_config, [page_client, viewport_rect, backing_store_id] {
-        if (!page_client)
-            return;
-        page_client->page_did_paint(viewport_rect, backing_store_id);
-    });
-}
-
-void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
+void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     m_needs_repaint = false;
     auto document = active_document();
-    if (!document) {
-        callback();
+    if (!document)
         return;
-    }
+
     auto display_list = document->record_display_list(paint_config);
-    if (!display_list) {
-        callback();
+    if (!display_list)
         return;
-    }
 
     auto& document_paintable = *document->paintable();
     Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
@@ -2823,7 +2798,33 @@ void Navigable::start_display_list_rendering(Gfx::PaintingSurface& painting_surf
         return TraversalDecision::Continue;
     });
 
-    m_rendering_thread.enqueue_rendering_task(*display_list, move(scroll_state_snapshot_by_display_list), painting_surface, move(callback));
+    m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot_by_display_list));
+}
+
+void Navigable::paint_next_frame()
+{
+    if (!is_top_level_traversable())
+        return;
+
+    VERIFY(m_number_of_queued_rasterization_tasks <= 1);
+    m_number_of_queued_rasterization_tasks++;
+
+    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() } };
+
+    record_display_list_and_scroll_state(paint_config);
+
+    auto page_client = &page().top_level_traversable()->page().client();
+    m_rendering_thread.present_frame([page_client, viewport_rect](i32 bitmap_id) {
+        if (page_client)
+            page_client->page_did_paint(viewport_rect, bitmap_id);
+    });
+}
+
+void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
+{
+    record_display_list_and_scroll_state(paint_config);
+    m_rendering_thread.request_screenshot(painting_surface, move(callback));
 }
 
 RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
