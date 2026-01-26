@@ -98,6 +98,14 @@ bool is_cacheable(StringView method, HTTP::HeaderList const& request_headers)
     if (!method.is_one_of("GET"sv, "HEAD"sv))
         return false;
 
+    auto cache_control = request_headers.get("Cache-Control"sv);
+
+    // https://httpwg.org/specs/rfc9111.html#cache-request-directive.no-store
+    // The no-store request directive indicates that a cache MUST NOT store any part of either this request or any
+    // response to it.
+    if (cache_control.has_value() && cache_control->contains("no-store"sv, CaseSensitivity::CaseInsensitive))
+        return false;
+
     // FIXME: Neither the disk cache nor the memory cache handle partial responses yet. So we don't cache them for now.
     return !request_headers.contains("Range"sv);
 }
