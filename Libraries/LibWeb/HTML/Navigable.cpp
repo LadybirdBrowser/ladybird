@@ -2591,7 +2591,7 @@ bool Navigable::has_a_rendering_opportunity() const
     // Rendering opportunities typically occur at regular intervals.
 
     // FIXME: Return `false` here if we're an inactive browser tab.
-    return is_ready_to_paint();
+    return true;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inform-the-navigation-api-about-child-navigable-destruction
@@ -2760,15 +2760,9 @@ void Navigable::set_has_session_history_entry_and_ready_for_navigation()
     }
 }
 
-bool Navigable::is_ready_to_paint() const
-{
-    return m_number_of_queued_rasterization_tasks <= 1;
-}
-
 void Navigable::ready_to_paint()
 {
-    m_number_of_queued_rasterization_tasks--;
-    VERIFY(m_number_of_queued_rasterization_tasks >= 0 && m_number_of_queued_rasterization_tasks < 2);
+    m_rendering_thread.ready_to_paint();
 }
 
 void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
@@ -2809,9 +2803,6 @@ void Navigable::paint_next_frame()
 {
     if (!is_top_level_traversable())
         return;
-
-    VERIFY(m_number_of_queued_rasterization_tasks <= 1);
-    m_number_of_queued_rasterization_tasks++;
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() } };

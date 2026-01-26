@@ -37,6 +37,8 @@ public:
     void present_frame(Gfx::IntRect);
     void request_screenshot(NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback);
 
+    void ready_to_paint();
+
 private:
     NonnullRefPtr<ThreadData> m_thread_data;
     RefPtr<Threading::Thread> m_thread;
