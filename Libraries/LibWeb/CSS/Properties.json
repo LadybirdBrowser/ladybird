@@ -128,6 +128,7 @@
     "inherited": true,
     "initial": "currentColor",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ]
@@ -161,6 +162,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -172,6 +174,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "align-content"
     ]
@@ -180,6 +183,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "align-items"
     ]
@@ -188,6 +192,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "align-self"
     ]
@@ -203,6 +208,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "dashed-ident"
     ],
@@ -215,6 +221,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "dashed-ident"
     ],
@@ -244,6 +251,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "replace",
+    "requires-computation": "never",
     "valid-types": [
       "animation-composition"
     ],
@@ -254,6 +262,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "0s",
+    "requires-computation": "cascaded-value",
     "multiplicity": "coordinating-list",
     "valid-types": [
       "time [-∞,∞]"
@@ -265,6 +274,7 @@
     "inherited": false,
     "initial": "normal",
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-identifiers": [
       "normal",
       "reverse",
@@ -279,6 +289,7 @@
     "initial": "0s",
     "multiplicity": "coordinating-list",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "time [0,∞]"
     ],
@@ -292,6 +303,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-identifiers": [
       "none",
       "forwards",
@@ -305,6 +317,7 @@
     "inherited": false,
     "initial": "1",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "number [0,∞]"
     ],
@@ -318,6 +331,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "string",
       "custom-ident ![none]"
@@ -332,6 +346,7 @@
     "inherited": false,
     "initial": "running",
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-identifiers": [
       "running",
       "paused"
@@ -342,6 +357,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "dashed-ident",
       "scroll-function",
@@ -359,6 +375,7 @@
     "inherited": false,
     "initial": "ease",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "easing-function",
       "easing-keyword"
@@ -368,6 +385,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "appearance"
     ]
@@ -377,6 +395,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "ratio"
     ],
@@ -393,6 +412,7 @@
     "needs-layout-node-for-resolved-value": true,
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
     ]
@@ -418,6 +438,7 @@
     "inherited": false,
     "initial": "scroll",
     "multiplicity": "coordinating-list",
+    "requires-computation": "always",
     "valid-types": [
       "background-attachment"
     ]
@@ -428,6 +449,7 @@
     "inherited": false,
     "initial": "normal",
     "multiplicity": "coordinating-list",
+    "requires-computation": "always",
     "valid-types": [
       "mix-blend-mode"
     ]
@@ -439,6 +461,7 @@
     "initial": "border-box",
     "multiplicity": "coordinating-list",
     "__comment": "FIXME: Support `border-area`",
+    "requires-computation": "always",
     "valid-types": [
       "background-box"
     ]
@@ -449,6 +472,7 @@
     "inherited": false,
     "initial": "transparent",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "color"
     ],
@@ -462,6 +486,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "image"
     ],
@@ -476,6 +501,7 @@
     "initial": "padding-box",
     "multiplicity": "coordinating-list",
     "__comment": "FIXME: This shouldn't allow `text`",
+    "requires-computation": "always",
     "valid-types": [
       "background-box"
     ]
@@ -503,6 +529,7 @@
     "inherited": false,
     "initial": "0%",
     "multiplicity": "coordinating-list",
+    "requires-computation": "always",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -520,6 +547,7 @@
     "inherited": false,
     "initial": "0%",
     "multiplicity": "coordinating-list",
+    "requires-computation": "always",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -538,6 +566,7 @@
     "initial": "repeat",
     "multiplicity": "coordinating-list",
     "max-values": 2,
+    "requires-computation": "always",
     "valid-types": [
       "repetition"
     ],
@@ -553,6 +582,7 @@
     "initial": "auto",
     "multiplicity": "coordinating-list",
     "max-values": 2,
+    "requires-computation": "always",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -705,6 +735,7 @@
     "initial": "currentcolor",
     "inherited": false,
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -718,6 +749,7 @@
     "initial": "0",
     "inherited": false,
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -730,6 +762,7 @@
     "initial": "0",
     "inherited": false,
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -740,6 +773,7 @@
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
+    "requires-computation": "never",
     "valid-types": [
       "line-style"
     ]
@@ -748,6 +782,7 @@
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -762,6 +797,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "separate",
+    "requires-computation": "never",
     "valid-types": [
       "border-collapse"
     ]
@@ -813,6 +849,7 @@
     "inherited": false,
     "initial": "0",
     "max-values": 4,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "number [0,∞]"
@@ -824,6 +861,7 @@
     "inherited": false,
     "initial": "stretch",
     "max-values": 2,
+    "requires-computation": "never",
     "valid-types": [
       "border-image-repeat"
     ]
@@ -833,6 +871,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "100%",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "fill"
     ],
@@ -847,6 +886,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "image"
     ],
@@ -860,6 +900,7 @@
     "inherited": false,
     "initial": "1",
     "max-values": 4,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]",
@@ -988,6 +1029,7 @@
     "initial": "currentcolor",
     "inherited": false,
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -999,6 +1041,7 @@
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
+    "requires-computation": "never",
     "valid-types": [
       "line-style"
     ]
@@ -1007,6 +1050,7 @@
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -1045,6 +1089,7 @@
     "initial": "currentcolor",
     "inherited": false,
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -1056,6 +1101,7 @@
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
+    "requires-computation": "never",
     "valid-types": [
       "line-style"
     ]
@@ -1064,6 +1110,7 @@
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -1079,6 +1126,7 @@
     "inherited": true,
     "initial": "0",
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]"
     ],
@@ -1127,6 +1175,7 @@
     "initial": "currentcolor",
     "inherited": false,
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -1140,6 +1189,7 @@
     "initial": "0",
     "inherited": false,
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -1152,6 +1202,7 @@
     "initial": "0",
     "inherited": false,
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -1162,6 +1213,7 @@
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
+    "requires-computation": "never",
     "valid-types": [
       "line-style"
     ]
@@ -1170,6 +1222,7 @@
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -1200,6 +1253,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]",
@@ -1220,6 +1274,7 @@
     "inherited": false,
     "initial": "none",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "multiplicity": "list",
     "valid-identifiers": [
       "none"
@@ -1229,6 +1284,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "content-box",
+    "requires-computation": "never",
     "valid-types": [
       "box-sizing"
     ]
@@ -1237,6 +1293,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "top",
+    "requires-computation": "never",
     "valid-types": [
       "caption-side"
     ]
@@ -1247,6 +1304,7 @@
     "inherited": true,
     "initial": "auto",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -1258,6 +1316,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "clear"
     ]
@@ -1267,6 +1326,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -1282,6 +1342,7 @@
     "affects-layout": false,
     "affects-stacking-context": true,
     "inherited": false,
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
     ],
@@ -1297,6 +1358,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "nonzero",
+    "requires-computation": "never",
     "valid-types": [
       "fill-rule"
     ]
@@ -1307,6 +1369,7 @@
     "inherited": true,
     "initial": "canvastext",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ],
@@ -1319,6 +1382,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "srgb",
+    "requires-computation": "never",
     "valid-types": [
       "color-interpolation"
     ]
@@ -1328,6 +1392,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "custom-ident ![normal,light,dark,only]"
     ],
@@ -1341,6 +1406,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [1,∞]"
     ],
@@ -1352,6 +1418,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -1365,6 +1432,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]"
     ],
@@ -1376,6 +1444,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "column-span"
     ]
@@ -1384,6 +1453,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]"
     ],
@@ -1405,6 +1475,7 @@
     "inherited": false,
     "initial": "none",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "never",
     "valid-types": [
       "contain"
     ]
@@ -1414,6 +1485,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-identifiers": [
       "normal",
       "size",
@@ -1426,6 +1498,7 @@
     "inherited": false,
     "initial": "normal",
     "__comment": "FIXME: This accepts a whole lot of other types and identifiers!",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "counter",
       "image",
@@ -1444,6 +1517,7 @@
     "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
+    "requires-computation": "never",
     "valid-types": [
       "content-visibility"
     ]
@@ -1474,6 +1548,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "corner-shape"
     ]
@@ -1482,6 +1557,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "corner-shape"
     ]
@@ -1582,6 +1658,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "corner-shape"
     ]
@@ -1590,6 +1667,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "corner-shape"
     ]
@@ -1610,6 +1688,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1623,6 +1702,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1636,6 +1716,7 @@
     "inherited": false,
     "initial": "none",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "custom-ident ![none]",
       "integer [-∞,∞]"
@@ -1649,6 +1730,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "url",
       "cursor-predefined",
@@ -1660,6 +1742,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -1674,6 +1757,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -1687,6 +1771,7 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "ltr",
+    "requires-computation": "never",
     "valid-types": [
       "direction"
     ]
@@ -1695,6 +1780,7 @@
     "animation-type": "custom",
     "inherited": false,
     "initial": "inline",
+    "requires-computation": "never",
     "max-values": 3,
     "valid-identifiers": [
       "list-item"
@@ -1711,6 +1797,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "show",
+    "requires-computation": "never",
     "valid-types": [
       "empty-cells"
     ]
@@ -1720,6 +1807,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "black",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "paint"
     ]
@@ -1729,6 +1817,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -1738,6 +1827,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "nonzero",
+    "requires-computation": "never",
     "valid-types": [
       "fill-rule"
     ]
@@ -1751,6 +1841,7 @@
     "needs-layout-node-for-resolved-value": true,
     "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
     ]
@@ -1770,6 +1861,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -1787,6 +1879,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row",
+    "requires-computation": "never",
     "valid-types": [
       "flex-direction"
     ]
@@ -1802,6 +1895,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "number [0,∞]"
     ]
@@ -1810,6 +1904,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "number [0,∞]"
     ]
@@ -1818,6 +1913,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "nowrap",
+    "requires-computation": "never",
     "valid-types": [
       "flex-wrap"
     ]
@@ -1826,6 +1922,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "float"
     ]
@@ -1835,6 +1932,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "black",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "color"
     ]
@@ -1844,6 +1942,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -1871,6 +1970,7 @@
     "inherited": true,
     "initial": "serif",
     "multiplicity": "list",
+    "requires-computation": "never",
     "valid-types": [
       "custom-ident",
       "string"
@@ -1881,6 +1981,7 @@
     "inherited": true,
     "initial": "normal",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [0,∞]",
       "opentype-tag"
@@ -1895,6 +1996,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "font-kerning"
     ]
@@ -1903,6 +2005,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "string"
     ],
@@ -1914,6 +2017,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "font-optical-sizing"
     ]
@@ -1922,6 +2026,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "medium",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]",
@@ -1943,6 +2048,7 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "font-style"
     ]
@@ -1966,6 +2072,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-alternates"
     ]
@@ -1974,6 +2081,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-caps"
     ]
@@ -1982,6 +2090,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-east-asian"
     ]
@@ -1990,6 +2099,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-emoji"
     ]
@@ -1998,6 +2108,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-ligatures"
     ]
@@ -2006,6 +2117,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-numeric"
     ]
@@ -2014,6 +2126,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "font-variant-position"
     ]
@@ -2023,6 +2136,7 @@
     "inherited": true,
     "initial": "normal",
     "multiplicity": "list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "number",
       "opentype-tag"
@@ -2036,6 +2150,7 @@
     "inherited": true,
     "initial": "normal",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "number [1,1000]"
     ],
@@ -2051,6 +2166,7 @@
     "inherited": true,
     "initial": "normal",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "percentage [0,∞]",
       "font-width"
@@ -2111,6 +2227,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2124,12 +2241,14 @@
   "grid-auto-flow": {
     "animation-type": "discrete",
     "inherited": false,
-    "initial": "row"
+    "initial": "row",
+    "requires-computation": "never"
   },
   "grid-auto-rows": {
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2157,6 +2276,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-identifiers": [
       "auto"
     ],
@@ -2171,6 +2291,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-identifiers": [
       "auto"
     ],
@@ -2198,6 +2319,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-identifiers": [
       "auto"
     ],
@@ -2212,6 +2334,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-identifiers": [
       "auto"
     ],
@@ -2241,6 +2364,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-identifiers": [
       "none"
     ],
@@ -2253,6 +2377,7 @@
     "inherited": false,
     "initial": "none",
     "max-values": 4,
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2269,6 +2394,7 @@
     "inherited": false,
     "initial": "none",
     "max-values": 4,
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -2284,6 +2410,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -2305,6 +2432,7 @@
     "affects-layout": false,
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "image-rendering"
     ]
@@ -2407,6 +2535,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "isolation"
     ]
@@ -2415,6 +2544,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "justify-content"
     ]
@@ -2423,6 +2553,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "legacy",
+    "requires-computation": "never",
     "valid-types": [
       "justify-items"
     ]
@@ -2431,6 +2562,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "justify-self"
     ]
@@ -2439,6 +2571,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]",
@@ -2458,6 +2591,7 @@
     "inherited": true,
     "initial": "normal",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2475,6 +2609,7 @@
     "inherited": true,
     "initial": "normal",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "number [0,∞]",
@@ -2498,6 +2633,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "image"
     ],
@@ -2509,6 +2645,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "outside",
+    "requires-computation": "never",
     "valid-types": [
       "list-style-position"
     ]
@@ -2517,6 +2654,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "disc",
+    "requires-computation": "never",
     "valid-types": [
       "counter-style-name-keyword",
       "string"
@@ -2579,6 +2717,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2627,6 +2766,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2644,6 +2784,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2661,6 +2802,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -2695,6 +2837,7 @@
     "inherited": false,
     "affects-layout": false,
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "coord-box"
     ],
@@ -2708,6 +2851,7 @@
     "inherited": false,
     "affects-layout": false,
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "compositing-operator"
     ],
@@ -2719,6 +2863,7 @@
     "affects-layout": false,
     "affects-stacking-context": true,
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "image",
       "url"
@@ -2733,6 +2878,7 @@
     "inherited": false,
     "affects-layout": false,
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "masking-mode"
     ],
@@ -2743,6 +2889,7 @@
     "inherited": false,
     "affects-layout": false,
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "coord-box"
     ],
@@ -2754,6 +2901,7 @@
     "inherited": false,
     "initial": "0% 0%",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "position"
     ],
@@ -2766,6 +2914,7 @@
     "initial": "repeat",
     "multiplicity": "coordinating-list",
     "max-values": 2,
+    "requires-computation": "never",
     "valid-types": [
       "repetition"
     ],
@@ -2781,6 +2930,7 @@
     "initial": "auto",
     "multiplicity": "coordinating-list",
     "max-values": 2,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -2797,6 +2947,7 @@
     "inherited": false,
     "affects-layout": false,
     "multiplicity": "single",
+    "requires-computation": "never",
     "valid-types": [
       "mask-type"
     ],
@@ -2808,6 +2959,7 @@
     "initial": "0",
     "needs-layout-node-for-resolved-value": true,
     "__comment": "FIXME: `add(<integer>)` is also valid but we can't represent that here yet.",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer"
     ],
@@ -2819,6 +2971,7 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "math-shift"
     ]
@@ -2827,6 +2980,7 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "math-style"
     ]
@@ -2842,6 +2996,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -2868,6 +3023,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -2894,6 +3050,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -2920,6 +3077,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -2940,6 +3098,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "mix-blend-mode"
     ]
@@ -2949,6 +3108,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "fill",
+    "requires-computation": "never",
     "valid-types": [
       "object-fit"
     ]
@@ -2959,6 +3119,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "50% 50%",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "position"
     ],
@@ -2970,6 +3131,7 @@
     "affects-stacking-context": true,
     "inherited": false,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -2978,6 +3140,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [-∞,∞]"
     ]
@@ -2986,6 +3149,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [1,∞]"
     ],
@@ -3007,6 +3171,7 @@
     "__comment": "FIXME: We don't yet support `invert`. Until we do, the spec directs us to use `currentColor` as the default instead, and reject `invert`",
     "initial": "currentColor",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ]
@@ -3016,6 +3181,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]"
     ]
@@ -3025,6 +3191,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "outline-style"
     ]
@@ -3034,6 +3201,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "medium",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [0,∞]",
       "line-width"
@@ -3069,6 +3237,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-identifiers": [
       "anywhere",
       "break-word",
@@ -3079,6 +3248,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
+    "requires-computation": "never",
     "valid-types": [
       "overflow"
     ],
@@ -3090,6 +3260,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
+    "requires-computation": "never",
     "valid-types": [
       "overflow"
     ],
@@ -3148,6 +3319,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3189,6 +3361,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3203,6 +3376,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3217,6 +3391,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3231,6 +3406,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-identifiers": [
       "normal"
     ],
@@ -3242,6 +3418,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
     ],
@@ -3254,6 +3431,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "50% 50%",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "position"
     ],
@@ -3285,6 +3463,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "pointer-events"
     ]
@@ -3293,6 +3472,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "static",
+    "requires-computation": "never",
     "valid-types": [
       "positioning"
     ]
@@ -3301,6 +3481,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "dashed-ident"
     ],
@@ -3313,6 +3494,7 @@
     "__comment": "Animation type is currently listed as TBD in the specification",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "position-area"
     ],
@@ -3324,6 +3506,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "dashed-ident",
       "try-tactic"
@@ -3336,6 +3519,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "try-order"
     ],
@@ -3347,6 +3531,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "anchors-visible",
+    "requires-computation": "never",
     "valid-identifiers": [
       "always",
       "anchors-valid",
@@ -3359,6 +3544,7 @@
     "inherited": true,
     "initial": "auto",
     "multiplicity": "list",
+    "requires-computation": "never",
     "valid-types": [
       "string"
     ],
@@ -3372,6 +3558,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3386,6 +3573,7 @@
     "inherited": false,
     "affects-layout": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "resize"
     ]
@@ -3394,6 +3582,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]",
@@ -3413,12 +3602,14 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
-    "affects-stacking-context": true
+    "affects-stacking-context": true,
+    "requires-computation": "cascaded-value"
   },
   "row-gap": {
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3433,6 +3624,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3450,6 +3642,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3467,7 +3660,8 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
-    "affects-stacking-context": true
+    "affects-stacking-context": true,
+    "requires-computation": "cascaded-value"
   },
   "scroll-timeline": {
     "affects-layout": false,
@@ -3483,6 +3677,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "block",
+    "requires-computation": "never",
     "valid-types": [
       "axis"
     ],
@@ -3493,6 +3688,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-identifiers": [
       "none"
     ],
@@ -3505,20 +3701,23 @@
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
-    "initial": "auto"
+    "initial": "auto",
+    "requires-computation": "cascaded-value"
   },
   "scrollbar-gutter": {
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "This property should affect layout per-spec, but ladybird always uses overlay scrollbars so it doesn't in practice.",
     "inherited": false,
-    "initial": "auto"
+    "initial": "auto",
+    "requires-computation": "never"
   },
   "scrollbar-width": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "scrollbar-width"
     ],
@@ -3533,6 +3732,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -3541,6 +3741,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
@@ -3551,13 +3752,15 @@
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "none"
+    "initial": "none",
+    "requires-computation": "cascaded-value"
   },
   "shape-rendering": {
     "affects-layout": true,
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "shape-rendering"
     ]
@@ -3567,6 +3770,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "black",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "color"
     ]
@@ -3576,6 +3780,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -3585,6 +3790,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "none",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "paint"
     ]
@@ -3594,13 +3800,15 @@
     "inherited": true,
     "initial": "none",
     "affects-layout": false,
-    "percentages-resolve-to": "length"
+    "percentages-resolve-to": "length",
+    "requires-computation": "cascaded-value"
   },
   "stroke-dashoffset": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "0px",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "number [0,∞]",
@@ -3613,6 +3821,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "butt",
+    "requires-computation": "never",
     "valid-types": [
       "stroke-linecap"
     ]
@@ -3622,6 +3831,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "miter",
+    "requires-computation": "never",
     "valid-types": [
       "stroke-linejoin"
     ]
@@ -3631,6 +3841,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "4",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "number [0,∞]"
     ]
@@ -3640,6 +3851,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "1",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "opacity"
     ]
@@ -3649,6 +3861,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "1px",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "number [0,∞]",
@@ -3660,6 +3873,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "8",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "number [0,∞]"
@@ -3669,6 +3883,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "table-layout"
     ]
@@ -3677,6 +3892,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
+    "requires-computation": "never",
     "valid-types": [
       "text-align"
     ]
@@ -3685,6 +3901,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
+    "requires-computation": "never",
     "valid-types": [
       "text-anchor"
     ]
@@ -3705,6 +3922,7 @@
     "inherited": false,
     "initial": "currentcolor",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "color"
     ]
@@ -3715,6 +3933,7 @@
     "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
     "inherited": true,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "text-decoration-line"
     ]
@@ -3724,6 +3943,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "solid",
+    "requires-computation": "never",
     "valid-types": [
       "text-decoration-style"
     ]
@@ -3733,6 +3953,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -3747,6 +3968,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -3764,6 +3986,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "text-justify"
     ],
@@ -3776,6 +3999,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "clip",
+    "requires-computation": "never",
     "valid-types": [
       "text-overflow"
     ]
@@ -3785,6 +4009,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "text-rendering"
     ]
@@ -3795,6 +4020,7 @@
     "inherited": true,
     "initial": "none",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "none"
     ]
@@ -3804,6 +4030,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "text-transform"
     ]
@@ -3812,6 +4039,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-identifiers": [
       "auto"
     ],
@@ -3825,6 +4053,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "text-underline-position-horizontal",
       "text-underline-position-vertical"
@@ -3841,6 +4070,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "wrap",
+    "requires-computation": "never",
     "valid-types": [
       "text-wrap-mode"
     ]
@@ -3849,6 +4079,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "text-wrap-style"
     ]
@@ -3857,12 +4088,14 @@
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
-    "initial": "none"
+    "initial": "none",
+    "requires-computation": "never"
   },
   "top": {
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]",
@@ -3883,6 +4116,7 @@
     "inherited": false,
     "initial": "auto",
     "max-values": 2,
+    "requires-computation": "never",
     "valid-types": [
       "touch-action"
     ]
@@ -3895,6 +4129,7 @@
     "affects-stacking-context": true,
     "needs-layout-node-for-resolved-value": true,
     "percentages-resolve-to": "length",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "transform-list"
     ],
@@ -3907,6 +4142,7 @@
     "inherited": false,
     "initial": "view-box",
     "affects-layout": false,
+    "requires-computation": "never",
     "valid-types": [
       "transform-box"
     ]
@@ -3917,6 +4153,7 @@
     "inherited": false,
     "initial": "50% 50%",
     "max-values": 3,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -3934,6 +4171,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "flat",
+    "requires-computation": "never",
     "valid-identifiers": [
       "flat",
       "preserve-3d"
@@ -3957,6 +4195,7 @@
     "inherited": false,
     "initial": "normal",
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "transition-behavior"
     ]
@@ -3967,6 +4206,7 @@
     "inherited": false,
     "initial": "0s",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "time"
     ]
@@ -3977,6 +4217,7 @@
     "inherited": false,
     "initial": "0s",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "time [0,∞]"
     ]
@@ -3987,6 +4228,7 @@
     "inherited": false,
     "initial": "all",
     "multiplicity": "coordinating-list",
+    "requires-computation": "never",
     "valid-types": [
       "custom-ident ![none]"
     ],
@@ -4000,6 +4242,7 @@
     "inherited": false,
     "initial": "ease",
     "multiplicity": "coordinating-list",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "easing-function",
       "easing-keyword"
@@ -4011,6 +4254,7 @@
     "initial": "none",
     "affects-layout": false,
     "affects-stacking-context": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -4021,6 +4265,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
+    "requires-computation": "never",
     "valid-types": [
       "unicode-bidi"
     ]
@@ -4030,6 +4275,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "never",
     "valid-types": [
       "user-select"
     ]
@@ -4038,6 +4284,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "baseline",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]",
@@ -4063,6 +4310,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "block",
+    "requires-computation": "never",
     "valid-types": [
       "axis"
     ],
@@ -4073,6 +4321,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "view-timeline-inset"
     ],
@@ -4084,6 +4333,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-identifiers": [
       "none"
     ],
@@ -4098,6 +4348,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-types": [
       "custom-ident ![auto,none]"
     ],
@@ -4109,6 +4360,7 @@
     "animation-type": "custom",
     "inherited": true,
     "initial": "visible",
+    "requires-computation": "never",
     "valid-types": [
       "visibility"
     ]
@@ -4128,6 +4380,7 @@
     "animation-type": "discrete",
     "inherited": true,
     "initial": "collapse",
+    "requires-computation": "never",
     "valid-types": [
       "white-space-collapse"
     ]
@@ -4136,6 +4389,7 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
+    "requires-computation": "never",
     "valid-identifiers": [
       "none",
       "discard-before",
@@ -4147,6 +4401,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [1,∞]"
     ],
@@ -4156,6 +4411,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "fit-content",
       "length [0,∞]",
@@ -4179,6 +4435,7 @@
     "inherited": false,
     "initial": "auto",
     "multiplicity": "list",
+    "requires-computation": "never",
     "valid-types": [
       "custom-ident ![all,auto,contents,none,scroll-position,will-change]"
     ],
@@ -4192,6 +4449,7 @@
     "animation-type": "discrete",
     "initial": "normal",
     "inherited": true,
+    "requires-computation": "never",
     "valid-identifiers": [
       "normal",
       "keep-all",
@@ -4203,6 +4461,7 @@
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
+    "requires-computation": "non-inherited-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -4222,6 +4481,7 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "horizontal-tb",
+    "requires-computation": "never",
     "valid-types": [
       "writing-mode"
     ]
@@ -4231,6 +4491,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -4245,6 +4506,7 @@
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",
       "percentage [-∞,∞]"
@@ -4261,6 +4523,7 @@
     "inherited": false,
     "initial": "auto",
     "needs-layout-node-for-resolved-value": true,
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "integer [-∞,∞]"
     ],

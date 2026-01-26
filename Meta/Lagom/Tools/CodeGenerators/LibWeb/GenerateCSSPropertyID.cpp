@@ -292,6 +292,10 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID);
 Vector<PropertyID> const& property_computation_order();
 bool property_is_positional_value_list_shorthand(PropertyID);
 
+bool property_requires_computation_with_inherited_value(PropertyID);
+bool property_requires_computation_with_initial_value(PropertyID);
+bool property_requires_computation_with_cascaded_value(PropertyID);
+
 size_t property_maximum_value_count(PropertyID);
 
 bool property_affects_layout(PropertyID);
@@ -1600,6 +1604,101 @@ bool property_is_positional_value_list_shorthand(PropertyID property_id)
             )~~~");
         }
     });
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+)~~~");
+
+    Vector<StringView> properties_requiring_computation_with_inherited_value;
+    Vector<StringView> properties_requiring_computation_with_initial_value;
+    Vector<StringView> properties_requiring_computation_with_cascaded_value;
+
+    properties.for_each_member([&](auto& name, auto& value) {
+        VERIFY(value.is_object());
+        if (is_legacy_alias(value.as_object()))
+            return;
+
+        auto const& requires_computation = value.as_object().get_string("requires-computation"sv);
+
+        if (requires_computation.has_value() && value.as_object().has("longhands"sv)) {
+            dbgln("Property '{}' is a shorthand and cannot have 'requires-computation' set.", name);
+            VERIFY_NOT_REACHED();
+        }
+
+        if (value.as_object().has("longhands"sv))
+            return;
+
+        if (!requires_computation.has_value()) {
+            dbgln("Property '{}' is missing 'requires-computation' field.", name);
+            VERIFY_NOT_REACHED();
+        }
+
+        if (requires_computation.value() == "always"sv) {
+            properties_requiring_computation_with_inherited_value.append(name);
+            properties_requiring_computation_with_initial_value.append(name);
+            properties_requiring_computation_with_cascaded_value.append(name);
+        } else if (requires_computation.value() == "non-inherited-value"sv) {
+            properties_requiring_computation_with_initial_value.append(name);
+            properties_requiring_computation_with_cascaded_value.append(name);
+        } else if (requires_computation.value() == "cascaded-value"sv) {
+            properties_requiring_computation_with_cascaded_value.append(name);
+        } else if (requires_computation.value() != "never"sv) {
+            dbgln("Property '{}' has unrecognized 'requires-computation' value '{}'", name, requires_computation.value());
+            VERIFY_NOT_REACHED();
+        }
+    });
+
+    generator.append(R"~~~(
+bool property_requires_computation_with_inherited_value(PropertyID property_id)
+{
+    switch(property_id) {
+    )~~~");
+
+    for (auto const& property_name : properties_requiring_computation_with_inherited_value) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(property_name));
+        property_generator.appendln("    case PropertyID::@name:titlecase@:");
+    }
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool property_requires_computation_with_initial_value(PropertyID property_id)
+{
+    switch(property_id) {
+    )~~~");
+
+    for (auto const& property_name : properties_requiring_computation_with_initial_value) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(property_name));
+        property_generator.appendln("    case PropertyID::@name:titlecase@:");
+    }
+
+    generator.append(R"~~~(
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool property_requires_computation_with_cascaded_value(PropertyID property_id)
+{
+    switch(property_id) {
+    )~~~");
+
+    for (auto const& property_name : properties_requiring_computation_with_cascaded_value) {
+        auto property_generator = generator.fork();
+        property_generator.set("name:titlecase", title_casify(property_name));
+        property_generator.appendln("    case PropertyID::@name:titlecase@:");
+    }
 
     generator.append(R"~~~(
         return true;

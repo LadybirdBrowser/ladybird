@@ -1928,10 +1928,12 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         auto inherited = ComputedProperties::Inherited::No;
         RefPtr<StyleValue const> value;
         auto important = Important::No;
+        bool requires_computation;
 
         if (auto cascaded_style_property = cascaded_properties.style_property(property_id); cascaded_style_property.has_value()) {
             important = cascaded_style_property->important;
             value = cascaded_style_property->value;
+            requires_computation = property_requires_computation_with_cascaded_value(property_id);
         }
 
         // NOTE: We've already handled font-size above.
@@ -1953,19 +1955,23 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
 
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
-        if (should_inherit) {
+        if (should_inherit && abstract_element.element_to_inherit_style_from().has_value()) {
             inherited = ComputedProperties::Inherited::Yes;
+
             value = get_non_animated_inherit_value(property_id, abstract_element);
+            requires_computation = property_requires_computation_with_inherited_value(property_id);
 
             // FIXME: Do we need to recompute animated inherited values?
             if (auto animated_value = get_animated_inherit_value(property_id, abstract_element); animated_value.has_value())
                 computed_style->set_animated_property(property_id, animated_value->value, animated_value->is_result_of_transition, ComputedProperties::Inherited::Yes);
         }
 
-        if (!value || value->is_initial() || value->is_unset())
+        if (!value || value->is_initial() || value->is_unset() || (should_inherit && !abstract_element.element_to_inherit_style_from().has_value())) {
             value = property_initial_value(property_id);
+            requires_computation = property_requires_computation_with_initial_value(property_id);
+        }
 
-        computed_style->set_property(property_id, compute_property(property_id, value.release_nonnull()), inherited, important);
+        computed_style->set_property(property_id, requires_computation ? compute_property(property_id, value.release_nonnull()) : value.release_nonnull(), inherited, important);
     }
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element()))
