@@ -207,6 +207,9 @@ void Request::process()
     case State::WaitForCache:
         // Do nothing; we are waiting for the disk cache to notify us to proceed.
         break;
+    case State::FailedCacheOnly:
+        handle_failed_cache_only_state();
+        break;
     case State::ServeSubstitution:
         handle_serve_substitution_state();
         break;
@@ -272,8 +275,8 @@ void Request::handle_initial_state()
         if (m_state != State::Init)
             return;
 
-        if (m_cache_mode == HTTP::CacheMode::OnlyIfCached) {
-            transition_to_state(State::Error);
+        if (is_cache_only_request()) {
+            transition_to_state(State::FailedCacheOnly);
             return;
         }
 
@@ -324,6 +327,35 @@ void Request::handle_read_cache_state()
 
             transition_to_state(State::Error);
         });
+}
+
+void Request::handle_failed_cache_only_state()
+{
+    if (m_cache_mode == HTTP::CacheMode::OnlyIfCached) {
+        // NB: Contrary to the HTTP Caching RFC, the Fetch API expects a network error. See:
+        // https://github.com/web-platform-tests/wpt/issues/8032
+        transition_to_state(State::Error);
+        return;
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#cache-request-directive.only-if-cached
+    // The only-if-cached request directive indicates that the client only wishes to obtain a stored response. Caches
+    // that honor this request directive SHOULD, upon receiving it, respond with either a stored response consistent
+    // with the other constraints of the request or a 504 (Gateway Timeout) status code.
+    m_status_code = 504;
+    m_reason_phrase = MUST(String::from_utf8(HTTP::reason_phrase_for_code(*m_status_code)));
+
+    // NB: There is a privacy concern around allowing any origin to determine the cache state of other origins using
+    //     this Cache-Control directive. The Fetch API will prevent { cache: "only-if-cached" } requests that do not
+    //     pass a same-origin test. We mimic this here with the Access-Control-Allow-Origin response header.
+    m_response_headers->set({ "Access-Control-Allow-Origin"sv, m_url.origin().serialize().to_byte_string() });
+
+    if (inform_client_request_started().is_error())
+        return;
+    transfer_headers_to_client_if_needed();
+
+    m_curl_result_code = CURLE_OK;
+    transition_to_state(State::Complete);
 }
 
 void Request::handle_serve_substitution_state()
@@ -800,6 +832,15 @@ ErrorOr<void> Request::revalidation_failed()
 
     TRY(inform_client_request_started());
     return {};
+}
+
+bool Request::is_cache_only_request() const
+{
+    if (m_cache_mode == HTTP::CacheMode::OnlyIfCached)
+        return true;
+
+    auto cache_control = m_request_headers->get("Cache-Control"sv);
+    return cache_control.has_value() && cache_control->contains("only-if-cached"sv, CaseSensitivity::CaseInsensitive);
 }
 
 u32 Request::acquire_status_code() const
