@@ -1800,10 +1800,20 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
     //       we trust that the caller has set it up correctly (e.g., grid/flex items get
     //       their cell/area size as available space).
     if (height.contains_percentage() && available_space.height.is_indefinite()) {
-        // NOTE: Skip anonymous blocks to find the real containing block with definite height.
         auto containing_block = box.containing_block();
         while (containing_block && containing_block->is_anonymous())
             containing_block = containing_block->containing_block();
+
+        // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+        // In quirks mode, walk up to find an ancestor with explicit height or the viewport.
+        // NOTE: Flex/grid items resolve percentage heights against their container, not via quirk.
+        bool is_flex_or_grid_item = box.parent() && (box.parent()->display().is_flex_inside() || box.parent()->display().is_grid_inside());
+        if (box.document().in_quirks_mode() && !box.is_anonymous() && !is_flex_or_grid_item) {
+            while (containing_block && !containing_block->is_viewport()
+                && containing_block->computed_values().height().is_auto())
+                containing_block = containing_block->containing_block();
+        }
+
         if (containing_block && m_state.get(*containing_block).has_definite_height())
             height_of_containing_block = m_state.get(*containing_block).content_height();
     }
@@ -1919,15 +1929,31 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
         // If the height of the containing block is not specified explicitly (i.e., it depends on
         // content height), and this element is not absolutely positioned, the percentage value
         // is treated as 'auto'.
-        // NOTE: In quirks mode, percentage heights are handled specially and can resolve
-        //       even without explicit containing block height.
-        if (!box.is_absolutely_positioned() && !box.document().in_quirks_mode()) {
-            // NOTE: Anonymous blocks inherit height definiteness from their containing block.
-            auto containing_block = box.containing_block();
-            while (containing_block && containing_block->is_anonymous())
-                containing_block = containing_block->containing_block();
-            if (containing_block && !m_state.get(*containing_block).has_definite_height())
+        // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+        // In quirks mode, percentage heights can resolve even without explicit containing block
+        // height. The quirk applies to DOM elements only (not anonymous boxes), and excludes
+        // table-related display types.
+        if (!box.is_absolutely_positioned()) {
+            auto percentage_height_quirk_applies = [&] {
+                if (!box.document().in_quirks_mode() || box.is_anonymous())
+                    return false;
+                if (box.display().is_table_inside())
+                    return false;
+                // Flex/grid items resolve percentage heights against their container, not via quirk.
+                if (auto* parent = box.parent(); parent && parent->display().is_flex_inside())
+                    return false;
+                if (auto* parent = box.parent(); parent && parent->display().is_grid_inside())
+                    return false;
                 return true;
+            }();
+            if (!percentage_height_quirk_applies) {
+                // NOTE: Anonymous blocks inherit height definiteness from their containing block.
+                auto containing_block = box.containing_block();
+                while (containing_block && containing_block->is_anonymous())
+                    containing_block = containing_block->containing_block();
+                if (containing_block && !m_state.get(*containing_block).has_definite_height())
+                    return true;
+            }
         }
     }
 
