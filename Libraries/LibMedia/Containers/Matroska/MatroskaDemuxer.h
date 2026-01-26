@@ -27,19 +27,19 @@ public:
 
     virtual DecoderErrorOr<void> create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
 
-    DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
-    DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;
+    virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
+    virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;
 
-    DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions) override;
+    virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions) override;
 
-    DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
-    DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
+    virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
-    DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
+    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
 
-    DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;
+    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;
 
-    DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
+    virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
 private:
     struct TrackStatus {
