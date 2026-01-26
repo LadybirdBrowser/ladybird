@@ -334,8 +334,10 @@ public:
             }
 
             if (m_type == ScopeType::Function && !m_is_function_declaration && m_bound_names.contains(identifier_group_name)) {
-                // NOTE: Currently parser can't determine that named function expression assignment creates scope with binding for function name so function names are not considered as candidates to be optimized in global variables access
-                identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment = true;
+                // Named function expression: identifiers with this name inside the function may refer
+                // to the function's immutable name binding, so they cannot be optimized as globals.
+                for (auto& identifier : identifier_group.identifiers)
+                    identifier->set_is_inside_scope_with_eval();
             }
 
             if (m_type == ScopeType::ClassDeclaration) {
@@ -359,7 +361,7 @@ public:
             }
 
             if (m_type == ScopeType::Program) {
-                auto can_use_global_for_identifier = !(identifier_group.used_inside_with_statement || identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment || m_parser.m_state.initiated_by_eval);
+                auto can_use_global_for_identifier = !(identifier_group.used_inside_with_statement || m_parser.m_state.initiated_by_eval);
                 if (can_use_global_for_identifier) {
                     for (auto& identifier : identifier_group.identifiers) {
                         // Only mark identifiers as global if they are not inside a function scope
@@ -426,8 +428,6 @@ public:
                             maybe_parent_scope_identifier_group.value().captured_by_nested_function = true;
                         if (identifier_group.used_inside_with_statement)
                             maybe_parent_scope_identifier_group.value().used_inside_with_statement = true;
-                        if (identifier_group.might_be_variable_in_lexical_scope_in_named_function_assignment)
-                            maybe_parent_scope_identifier_group.value().might_be_variable_in_lexical_scope_in_named_function_assignment = true;
                     } else {
                         m_parent_scope->m_identifier_groups.set(identifier_group_name, identifier_group);
                     }
@@ -600,7 +600,6 @@ private:
     struct IdentifierGroup {
         bool captured_by_nested_function { false };
         bool used_inside_with_statement { false };
-        bool might_be_variable_in_lexical_scope_in_named_function_assignment { false };
         Vector<NonnullRefPtr<Identifier>> identifiers;
         Optional<DeclarationKind> declaration_kind;
     };
