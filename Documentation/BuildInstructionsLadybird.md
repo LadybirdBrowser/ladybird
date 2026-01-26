@@ -55,7 +55,7 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
 
-# Additional Note for Some Linux Users
+#### Additional Note for Some Linux Users
 Depending on the distribution you're using, your C++ compiler may not recognize `this Self& self` syntax properly and the build will fail. Even though the build command correctly specifies `-std=c++23`, your specific version of `g++` or `clang++` might have released before this feature was fully implemented and supported. You may need to install a new C++ compiler to get a working build.
 
 In this instance, run `g++ --version` to check if you have version 14 or newer. If not, run `sudo apt install g++-14`.
