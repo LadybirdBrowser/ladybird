@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestAudioDataProvider.cpp
+    TestCICP.cpp
     TestH264Decode.cpp
     TestParseMatroska.cpp
     TestPlaybackStream.cpp
