@@ -91,6 +91,7 @@ public:
     {
         VERIFY(!is_current_block_terminated());
         size_t slot_offset = m_current_basic_block->size();
+        VERIFY(slot_offset <= NumericLimits<u32>::max());
         m_current_basic_block->set_last_instruction_start_offset(slot_offset);
         grow(sizeof(OpType));
         void* slot = m_current_basic_block->data() + slot_offset;
@@ -98,7 +99,7 @@ public:
         static_cast<OpType*>(slot)->set_strict(m_strict);
         if constexpr (OpType::IsTerminator)
             m_current_basic_block->terminate({});
-        m_current_basic_block->add_source_map_entry(slot_offset, { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
+        m_current_basic_block->add_source_map_entry(static_cast<u32>(slot_offset), { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
     }
 
     template<typename OpType, typename ExtraSlotType, typename... Args>
@@ -109,6 +110,7 @@ public:
 
         size_t size_to_allocate = round_up_to_power_of_two(sizeof(OpType) + extra_slot_count * sizeof(ExtraSlotType), alignof(void*));
         size_t slot_offset = m_current_basic_block->size();
+        VERIFY(slot_offset <= NumericLimits<u32>::max());
         m_current_basic_block->set_last_instruction_start_offset(slot_offset);
         grow(size_to_allocate);
         void* slot = m_current_basic_block->data() + slot_offset;
@@ -116,7 +118,7 @@ public:
         static_cast<OpType*>(slot)->set_strict(m_strict);
         if constexpr (OpType::IsTerminator)
             m_current_basic_block->terminate({});
-        m_current_basic_block->add_source_map_entry(slot_offset, { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
+        m_current_basic_block->add_source_map_entry(static_cast<u32>(slot_offset), { m_current_ast_node->start_offset(), m_current_ast_node->end_offset() });
     }
 
     template<typename OpType, typename... Args>

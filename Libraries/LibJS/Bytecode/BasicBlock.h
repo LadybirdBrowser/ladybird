@@ -56,7 +56,7 @@ public:
     BasicBlock const* finalizer() const { return m_finalizer; }
 
     auto const& source_map() const { return m_source_map; }
-    void add_source_map_entry(size_t bytecode_offset, SourceRecord const& source_record) { m_source_map.set(bytecode_offset, source_record); }
+    void add_source_map_entry(u32 bytecode_offset, SourceRecord const& source_record) { m_source_map.set(bytecode_offset, source_record); }
 
     [[nodiscard]] bool has_resolved_this() const { return m_has_resolved_this; }
     void set_has_resolved_this() { m_has_resolved_this = true; }
