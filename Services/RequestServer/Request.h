@@ -83,6 +83,7 @@ private:
         Init,              // Decide whether to service this request from cache or the network.
         ReadCache,         // Read the cached response from disk.
         WaitForCache,      // Wait for an existing cache entry to complete before proceeding.
+        FailedCacheOnly,   // An only-if-cached request failed to find a cache entry.
         ServeSubstitution, // Serve content from a local file substitution.
         DNSLookup,         // Resolve the URL's host.
         Connect,           // Issue a network request to connect to the URL.
@@ -100,6 +101,8 @@ private:
             return "ReadCache"sv;
         case State::WaitForCache:
             return "WaitForCache"sv;
+        case State::FailedCacheOnly:
+            return "FailedCacheOnly"sv;
         case State::ServeSubstitution:
             return "ServeSubstitution"sv;
         case State::DNSLookup:
@@ -143,6 +146,7 @@ private:
 
     void handle_initial_state();
     void handle_read_cache_state();
+    void handle_failed_cache_only_state();
     void handle_serve_substitution_state();
     void handle_dns_lookup_state();
     void handle_connect_state();
@@ -159,6 +163,8 @@ private:
 
     virtual bool is_revalidation_request() const override;
     ErrorOr<void> revalidation_failed();
+
+    bool is_cache_only_request() const;
 
     u32 acquire_status_code() const;
     Requests::RequestTimingInfo acquire_timing_info() const;
