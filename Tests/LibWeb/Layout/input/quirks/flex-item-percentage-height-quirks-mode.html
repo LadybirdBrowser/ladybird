@@ -1,0 +1,13 @@
+<!DOCTYPE quirks>
+<html>
+<style>
+body { margin: 0; }
+</style>
+<body>
+<!-- Flex item with percentage height should NOT use quirks walk-up.
+     The item's height should be 0 or content-based, not 50% of viewport -->
+<div style="display: flex; flex-direction: column; height: auto;">
+    <div style="height: 50%;">X</div>
+</div>
+</body>
+</html>
