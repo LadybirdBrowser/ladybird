@@ -306,10 +306,19 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
     //        See: https://github.com/LadybirdBrowser/ladybird/issues/4782
     if (pseudo_element == CSS::PseudoElement::Marker && pseudo_element_content.type == CSS::ContentData::Type::Normal)
         if (auto* list_box = as_if<ListItemBox>(*element.layout_node())) {
+            // https://www.w3.org/TR/css-lists-3/#content-property
+            // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
+            // ::marker content is already excluded by the outer condition checking for Type::Normal.
+            auto const& list_style_type = list_box->computed_values().list_style_type();
+            if (list_style_type.has<CSS::CounterStyleNameKeyword>()
+                && list_style_type.get<CSS::CounterStyleNameKeyword>() == CSS::CounterStyleNameKeyword::None
+                && !list_box->list_style_image()) {
+                return {};
+            }
 
             auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
                 document,
-                list_box->computed_values().list_style_type(),
+                list_style_type,
                 list_box->computed_values().list_style_position(),
                 element,
                 *pseudo_element_style);
