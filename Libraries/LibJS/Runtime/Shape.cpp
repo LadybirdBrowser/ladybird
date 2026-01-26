@@ -22,25 +22,10 @@ Shape::~Shape()
         s_all_prototype_shapes.remove(this);
 }
 
-GC::Ref<Shape> Shape::create_cacheable_dictionary_transition()
+GC::Ref<Shape> Shape::create_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
-    new_shape->m_cacheable = true;
-    new_shape->m_prototype = m_prototype;
-    invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    ensure_property_table();
-    new_shape->ensure_property_table();
-    (*new_shape->m_property_table) = *m_property_table;
-    new_shape->m_property_count = new_shape->m_property_table->size();
-    return new_shape;
-}
-
-GC::Ref<Shape> Shape::create_uncacheable_dictionary_transition()
-{
-    auto new_shape = heap().allocate<Shape>(m_realm);
-    new_shape->m_dictionary = true;
-    new_shape->m_cacheable = false;
     new_shape->m_prototype = m_prototype;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     ensure_property_table();
@@ -315,7 +300,7 @@ void Shape::set_property_attributes_without_transition(PropertyKey const& proper
 void Shape::remove_property_without_transition(PropertyKey const& property_key, u32 offset)
 {
     invalidate_prototype_if_needed_for_change_without_transition();
-    VERIFY(is_uncacheable_dictionary());
+    VERIFY(is_dictionary());
     VERIFY(m_property_table);
     if (m_property_table->remove(property_key))
         --m_property_count;
