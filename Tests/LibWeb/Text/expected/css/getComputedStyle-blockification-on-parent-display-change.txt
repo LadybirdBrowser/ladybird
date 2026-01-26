@@ -1,0 +1,4 @@
+Initial child display: inline
+Color after flex: rgb(0, 0, 0)
+Display after flex: block
+Display after block: inline
