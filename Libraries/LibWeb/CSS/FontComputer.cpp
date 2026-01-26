@@ -23,6 +23,8 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/MimeSniff/Resource.h>
@@ -521,10 +523,73 @@ Gfx::Font const& FontComputer::initial_font() const
     return font;
 }
 
-void FontComputer::did_load_font(FlyString const&)
+static bool style_value_references_font_family(StyleValue const& font_family_value, FlyString const& family_name)
 {
-    m_computed_font_cache = {};
-    document().invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
+    if (!font_family_value.is_value_list())
+        return false;
+
+    for (auto const& item : font_family_value.as_value_list().values()) {
+        FlyString item_family_name;
+        if (item->is_string())
+            item_family_name = item->as_string().string_value();
+        else if (item->is_custom_ident())
+            item_family_name = item->as_custom_ident().custom_ident();
+        else
+            continue; // Skip generic keywords (sans-serif, serif, etc.)
+
+        if (item_family_name.equals_ignoring_ascii_case(family_name))
+            return true;
+    }
+    return false;
+}
+
+void FontComputer::did_load_font(FlyString const& family_name)
+{
+    // Only clear cache entries that reference the loaded font family.
+    m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {
+        return style_value_references_font_family(key.font_family, family_name);
+    });
+
+    auto element_uses_font_family = [&](DOM::Element const& element) {
+        // Check the element's own font-family.
+        if (auto style = element.computed_properties()) {
+            if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name))
+                return true;
+        }
+
+        // Check pseudo-elements, which may use a different font-family than the element itself.
+        for (size_t i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
+            if (auto style = element.computed_properties(static_cast<PseudoElement>(i))) {
+                if (style_value_references_font_family(style->property(PropertyID::FontFamily), family_name))
+                    return true;
+            }
+        }
+
+        return false;
+    };
+
+    // Walk the DOM tree (including shadow trees) and invalidate elements that use this font family.
+    document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+        auto* element = as_if<DOM::Element>(node);
+        if (!element)
+            return TraversalDecision::Continue;
+
+        // If this element's subtree is already marked for style update, skip the entire subtree.
+        if (element->entire_subtree_needs_style_update())
+            return TraversalDecision::SkipChildrenAndContinue;
+
+        // If this element already needs a style update, check descendants but don't re-check this element.
+        if (element->needs_style_update())
+            return TraversalDecision::Continue;
+
+        if (element_uses_font_family(*element)) {
+            element->invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
+            // invalidate_style() marks the entire subtree, so skip descendants.
+            return TraversalDecision::SkipChildrenAndContinue;
+        }
+
+        return TraversalDecision::Continue;
+    });
 }
 
 GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
