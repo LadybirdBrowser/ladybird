@@ -101,18 +101,6 @@ public:
     constexpr VideoFullRangeFlag video_full_range_flag() const { return m_video_full_range_flag; }
     constexpr void set_video_full_range_flag(VideoFullRangeFlag value) { m_video_full_range_flag = value; }
 
-    constexpr void default_code_points_if_unspecified(CodingIndependentCodePoints cicp)
-    {
-        if (color_primaries() == ColorPrimaries::Unspecified)
-            set_color_primaries(cicp.color_primaries());
-        if (transfer_characteristics() == TransferCharacteristics::Unspecified)
-            set_transfer_characteristics(cicp.transfer_characteristics());
-        if (matrix_coefficients() == MatrixCoefficients::Unspecified)
-            set_matrix_coefficients(cicp.matrix_coefficients());
-        if (video_full_range_flag() == VideoFullRangeFlag::Unspecified)
-            set_video_full_range_flag(cicp.video_full_range_flag());
-    }
-
     constexpr void adopt_specified_values(CodingIndependentCodePoints cicp)
     {
         if (cicp.color_primaries() != ColorPrimaries::Unspecified && cicp.color_primaries() != ColorPrimaries::Reserved)
