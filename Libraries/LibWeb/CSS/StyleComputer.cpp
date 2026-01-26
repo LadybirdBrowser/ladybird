@@ -1950,8 +1950,18 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     if (new_font_size)
         computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
 
-    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<CSS::PropertyID>(i);
+    Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
+        return computed_style->property(property_id);
+    };
+
+    auto const device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
+
+    auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value) {
+        auto const& computation_context = get_computation_context_for_property(property_id, *computed_style, abstract_element);
+        return compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
+    };
+
+    for (auto property_id : property_computation_order()) {
         auto inherited = ComputedProperties::Inherited::No;
         RefPtr<StyleValue const> value;
         auto important = Important::No;
@@ -1984,6 +1994,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             inherited = ComputedProperties::Inherited::Yes;
             value = get_non_animated_inherit_value(property_id, abstract_element);
 
+            // FIXME: Do we need to recompute animated inherited values?
             if (auto animated_value = get_animated_inherit_value(property_id, abstract_element); animated_value.has_value())
                 computed_style->set_animated_property(property_id, animated_value->value, animated_value->is_result_of_transition, ComputedProperties::Inherited::Yes);
         }
@@ -1991,14 +2002,14 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (!value || value->is_initial() || value->is_unset())
             value = property_initial_value(property_id);
 
-        computed_style->set_property(property_id, value.release_nonnull(), inherited, important);
+        computed_style->set_property(property_id, compute_property(property_id, value.release_nonnull()), inherited, important);
     }
+
+    if (is<HTML::HTMLHtmlElement>(abstract_element.element()))
+        const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(computed_style);
 
     // Compute the value of custom properties
     compute_custom_properties(computed_style, abstract_element);
-
-    // Convert properties into their computed forms
-    compute_property_values(computed_style, abstract_element);
 
     clear_computation_context_caches();
 
