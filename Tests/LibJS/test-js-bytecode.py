@@ -13,11 +13,12 @@ from pathlib import Path
 
 LADYBIRD_SOURCE_DIR: Path
 BYTECODE_TEST_DIR: Path
+BUILD_DIR: Path
 ANSI_COLOR_PATTERN = re.compile(r"\x1b\[\d+([;:]1)?m")
 
 
 def setup() -> None:
-    global LADYBIRD_SOURCE_DIR, BYTECODE_TEST_DIR
+    global LADYBIRD_SOURCE_DIR, BYTECODE_TEST_DIR, BUILD_DIR
 
     ladybird_source_dir = os.getenv("LADYBIRD_SOURCE_DIR")
 
@@ -26,8 +27,10 @@ def setup() -> None:
         sys.exit(1)
 
     LADYBIRD_SOURCE_DIR = Path(ladybird_source_dir)
-
     BYTECODE_TEST_DIR = LADYBIRD_SOURCE_DIR / "Tests/LibJS/Bytecode/"
+
+    # The script is copied to bin/test-js-bytecode, so the build dir is one level up
+    BUILD_DIR = Path(__file__).parent.parent.resolve()
 
 
 def strip_color(s: str) -> str:
@@ -52,7 +55,7 @@ def diff(a: str, a_file: Path, b: str, b_file: Path) -> None:
 
 def test(file: Path) -> bool:
     args = [
-        str(LADYBIRD_SOURCE_DIR / "Build/debug/bin/js"),
+        str(BUILD_DIR / "bin/js"),
         str(BYTECODE_TEST_DIR / "input" / file),
         "--disable-ansi-colors",
         "--dump-bytecode",
