@@ -54,8 +54,10 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    // This flag is set on the entire variable environment chain when direct eval() is performed.
-    // It is used to disable non-local variable access caching.
+    // This flag is set on environments within a function when direct eval() is performed in that function.
+    // It propagates up to the function boundary (not beyond) and is used to disable variable access caching.
+    // Code in parent functions is not affected because eval can only inject vars into its containing
+    // function's variable environment, not into parent function scopes.
     bool is_permanently_screwed_by_eval() const { return m_permanently_screwed_by_eval; }
     void set_permanently_screwed_by_eval();
 
