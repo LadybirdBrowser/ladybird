@@ -199,7 +199,6 @@ public:
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
 
-    bool is_ready_to_paint() const;
     void ready_to_paint();
     void record_display_list_and_scroll_state(PaintConfig);
     void paint_next_frame();
@@ -288,7 +287,6 @@ private:
     bool m_needs_repaint { true };
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
-    i32 m_number_of_queued_rasterization_tasks { 0 };
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     RenderingThread m_rendering_thread;
