@@ -118,6 +118,23 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     return result;
 }
 
+Optional<FlyString> TypefaceSkia::resolve_generic_family(StringView family_name)
+{
+    SkFontStyle style(SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width, SkFontStyle::kUpright_Slant);
+    auto skia_typeface = font_manager().matchFamilyStyle(
+        ByteString(family_name).characters(), style);
+
+    if (!skia_typeface)
+        return {};
+
+    SkString resolved_family;
+    skia_typeface->getFamilyName(&resolved_family);
+    auto result_or_error = FlyString::from_utf8(StringView { resolved_family.c_str(), resolved_family.size() });
+    if (result_or_error.is_error())
+        return {};
+    return result_or_error.release_value();
+}
+
 RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariationAxis> const& axes) const
 {
     if (axes.is_empty())

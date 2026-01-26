@@ -13,11 +13,8 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWebView/Plugins/FontPlugin.h>
-
-#ifdef USE_FONTCONFIG
-#    include <LibGfx/Font/GlobalFontConfig.h>
-#endif
 
 namespace WebView {
 
@@ -69,79 +66,6 @@ Vector<FlyString> FontPlugin::symbol_font_names()
     return m_symbol_font_names;
 }
 
-#ifdef USE_FONTCONFIG
-static Optional<String> query_fontconfig_for_generic_family(Web::Platform::GenericFont generic_font)
-{
-    char const* pattern_string = nullptr;
-    switch (generic_font) {
-    case Web::Platform::GenericFont::Cursive:
-        pattern_string = "cursive";
-        break;
-    case Web::Platform::GenericFont::Fantasy:
-        pattern_string = "fantasy";
-        break;
-    case Web::Platform::GenericFont::Monospace:
-        pattern_string = "monospace";
-        break;
-    case Web::Platform::GenericFont::SansSerif:
-        pattern_string = "sans-serif";
-        break;
-    case Web::Platform::GenericFont::Serif:
-        pattern_string = "serif";
-        break;
-    case Web::Platform::GenericFont::UiMonospace:
-        pattern_string = "monospace";
-        break;
-    case Web::Platform::GenericFont::UiRounded:
-        pattern_string = "sans-serif";
-        break;
-    case Web::Platform::GenericFont::UiSansSerif:
-        pattern_string = "sans-serif";
-        break;
-    case Web::Platform::GenericFont::UiSerif:
-        pattern_string = "serif";
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-    auto* config = Gfx::GlobalFontConfig::the().get();
-    VERIFY(config);
-
-    FcPattern* pattern = FcNameParse(reinterpret_cast<FcChar8 const*>(pattern_string));
-    VERIFY(pattern);
-
-    auto success = FcConfigSubstitute(config, pattern, FcMatchPattern);
-    VERIFY(success);
-
-    FcDefaultSubstitute(pattern);
-
-    // Never select bitmap fonts.
-    success = FcPatternAddBool(pattern, FC_SCALABLE, FcTrue);
-    VERIFY(success);
-
-    // FIXME: Enable this once we can handle OpenType variable fonts.
-    success = FcPatternAddBool(pattern, FC_VARIABLE, FcFalse);
-    VERIFY(success);
-
-    Optional<String> name;
-    FcResult result {};
-
-    if (auto* matched = FcFontMatch(config, pattern, &result)) {
-        FcChar8* family = nullptr;
-        if (FcPatternGetString(matched, FC_FAMILY, 0, &family) == FcResultMatch) {
-            auto const* family_cstring = reinterpret_cast<char const*>(family);
-            if (auto string = String::from_utf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {
-                name = string.release_value();
-            }
-        }
-        FcPatternDestroy(matched);
-    }
-    FcPatternDestroy(pattern);
-    return name;
-}
-#endif
-
 void FontPlugin::update_generic_fonts()
 {
     // How we choose which system font to use for each CSS font:
@@ -161,12 +85,35 @@ void FontPlugin::update_generic_fonts()
 
         RefPtr<Gfx::Font const> gfx_font;
 
-#ifdef USE_FONTCONFIG
-        auto name = query_fontconfig_for_generic_family(generic_font);
+        StringView generic_family_name;
+        switch (generic_font) {
+        case Web::Platform::GenericFont::Cursive:
+            generic_family_name = "cursive"sv;
+            break;
+        case Web::Platform::GenericFont::Fantasy:
+            generic_family_name = "fantasy"sv;
+            break;
+        case Web::Platform::GenericFont::Monospace:
+        case Web::Platform::GenericFont::UiMonospace:
+            generic_family_name = "monospace"sv;
+            break;
+        case Web::Platform::GenericFont::SansSerif:
+        case Web::Platform::GenericFont::UiRounded:
+        case Web::Platform::GenericFont::UiSansSerif:
+            generic_family_name = "sans-serif"sv;
+            break;
+        case Web::Platform::GenericFont::Serif:
+        case Web::Platform::GenericFont::UiSerif:
+            generic_family_name = "serif"sv;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        auto name = Gfx::TypefaceSkia::resolve_generic_family(generic_family_name);
         if (name.has_value()) {
             gfx_font = Gfx::FontDatabase::the().get(name.value(), 16, 400, Gfx::FontWidth::Normal, 0);
         }
-#endif
 
         if (!gfx_font) {
             for (auto const& fallback : fallbacks) {
