@@ -2181,7 +2181,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     // NB: The background properties are coordinated at compute time rather than use time, unlike other coordinating list property groups
     case PropertyID::BackgroundAttachment:
     case PropertyID::BackgroundClip:
-    case PropertyID::BackgroundImage:
     case PropertyID::BackgroundOrigin:
     case PropertyID::BackgroundPositionX:
     case PropertyID::BackgroundPositionY:
