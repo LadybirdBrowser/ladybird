@@ -13,6 +13,7 @@ namespace AK {
 struct Utf16FlyStringTableHashTraits : public Traits<Detail::Utf16StringData const*> {
     static u32 hash(Detail::Utf16StringData const* string) { return string->hash(); }
     static bool equals(Detail::Utf16StringData const* a, Detail::Utf16StringData const* b) { return *a == *b; }
+    static constexpr bool may_have_slow_equality_check() { return true; }
 };
 
 static auto& all_utf16_fly_strings()
