@@ -1919,6 +1919,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     if (new_font_size)
         computed_style->set_property(PropertyID::FontSize, *new_font_size, ComputedProperties::Inherited::No, Important::No);
 
+    auto const& computed_properties_to_inherit_from = abstract_element.element_to_inherit_style_from().map([](auto const& element) { return element.computed_properties(); }).value_or(nullptr);
+
     Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
         return computed_style->property(property_id);
     };
@@ -1964,17 +1966,23 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         if (should_inherit) {
             inherited = ComputedProperties::Inherited::Yes;
 
-            if (abstract_element.element_to_inherit_style_from().has_value()) {
-                value = get_non_animated_inherit_value(property_id, abstract_element);
+            if (computed_properties_to_inherit_from) {
+                value = computed_properties_to_inherit_from->property(property_id, ComputedProperties::WithAnimationsApplied::No);
                 requires_computation = property_requires_computation_with_inherited_value(property_id);
+
+                // FIXME: Do we need to recompute animated inherited values?
+                if (auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(property_id); animated_value.has_value())
+                    computed_style->set_animated_property(
+                        property_id,
+                        *animated_value.value(),
+                        computed_properties_to_inherit_from->is_animated_property_result_of_transition(property_id)
+                            ? AnimatedPropertyResultOfTransition::Yes
+                            : AnimatedPropertyResultOfTransition::No,
+                        ComputedProperties::Inherited::Yes);
             } else {
                 value = property_initial_value(property_id);
                 requires_computation = property_requires_computation_with_initial_value(property_id);
             }
-
-            // FIXME: Do we need to recompute animated inherited values?
-            if (auto animated_value = get_animated_inherit_value(property_id, abstract_element); animated_value.has_value())
-                computed_style->set_animated_property(property_id, animated_value->value, animated_value->is_result_of_transition, ComputedProperties::Inherited::Yes);
         }
 
         if (!value || value->is_initial() || value->is_unset()) {
