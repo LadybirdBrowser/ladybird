@@ -55,6 +55,17 @@ echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm
 sudo apt update -y && sudo apt install clang-20 clangd-20 clang-tools-20 clang-format-20 clang-tidy-20 lld-20 -y
 ```
 
+# Additional Note for Some Linux Users
+Depending on the distribution you're using, your C++ compiler may not recognize `this Self& self` syntax properly and the build will fail. Even though the build command correctly specifies `-std=c++23`, your specific version of `g++` or `clang++` might have released before this feature was fully implemented and supported. You may need to install a new C++ compiler to get a working build.
+
+In this instance, run `g++ --version` to check if you have version 14 or newer. If not, run `sudo apt install g++-14`.
+
+If your initial build previously failed, you'll need to navigate to that initial build directory and remove it. If you already enabled the Qt UI you will not need to repeat this setup.
+
+From here, run the build command again but explicitly tell it to use the `g++-14` compiler by setting the `CXX` environment variable: `CXX=g++-14 ./Meta/ladybird.py run`.
+
+If this build is successful, you can run the regular build command `./Meta/ladybird.py run` going forward.
+
 - Alternative: Install gcc from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
 
 ```bash
@@ -68,7 +79,7 @@ sudo apt update && sudo apt install g++-14 libstdc++-14-dev
 
 ```bash
 sudo apt install libpulse-dev
-```
+```d
 
 ### Arch Linux/Manjaro:
 
