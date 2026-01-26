@@ -1399,8 +1399,6 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
         style.set_property_without_modifying_flags(property_id, computed_value);
     }
 
-    style.set_display_before_box_type_transformation(style.display());
-
     if (abstract_element.has_value() && is<HTML::HTMLHtmlElement>(abstract_element->element()))
         const_cast<StyleComputer&>(*this).m_root_element_font_metrics = calculate_root_element_font_metrics(style);
 }
@@ -1611,6 +1609,8 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
     // (This has no effect on display types that generate no box at all, such as none or contents.)
 
     auto display = style.display();
+
+    style.set_display_before_box_type_transformation(display);
 
     if (display.is_none() || (display.is_contents() && !abstract_element.element().is_document_element()))
         return;
