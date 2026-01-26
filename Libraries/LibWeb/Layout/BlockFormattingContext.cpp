@@ -803,11 +803,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     place_block_level_element_in_normal_flow_horizontally(box, available_space);
 
     AvailableSpace available_space_for_height_resolution = available_space;
-    auto is_grid_or_flex_container = box.display().is_grid_inside() || box.display().is_flex_inside();
     auto is_table_box = box.display().is_table_row() || box.display().is_table_row_group() || box.display().is_table_header_group() || box.display().is_table_footer_group() || box.display().is_table_cell() || box.display().is_table_caption();
-    // NOTE: Spec doesn't mention this but quirk application needs to be skipped for grid and flex containers.
-    //       See https://github.com/w3c/csswg-drafts/issues/5545
-    if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box && !is_grid_or_flex_container) {
+    // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+    if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box) {
         // In quirks mode, for the purpose of calculating the height of an element, if the
         // computed value of the position property of element is relative or static, the specified value
         // for the height property of element is a <percentage>, and element does not have a computed
