@@ -1,5 +1,3 @@
-include(fontconfig)
-
 set(SOURCES
     Application.cpp
     Attribute.cpp
@@ -73,11 +71,6 @@ target_link_libraries(LibWebView PRIVATE LibCore LibDatabase LibDevTools LibFile
 
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
-endif()
-
-# Third-party
-if (HAS_FONTCONFIG)
-    target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
 endif()
 
 if (ENABLE_INSTALL_HEADERS)
