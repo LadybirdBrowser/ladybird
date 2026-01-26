@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025-2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,6 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
@@ -1172,7 +1171,11 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
                     }
                 } else {
                     tentative_offset_from_edge = preceding_float.offset_from_edge + preceding_float.used_values.margin_box_left() + box_state.margin_box_right() + box_state.content_width();
-                    fits_next_to_preceding_float = tentative_offset_from_edge >= 0;
+                    if (available_space.width.is_definite()) {
+                        fits_next_to_preceding_float = (tentative_offset_from_edge + box_state.margin_box_left()) <= available_space.width.to_px_or_zero();
+                    } else if (available_space.width.is_max_content() || available_space.width.is_indefinite()) {
+                        fits_next_to_preceding_float = true;
+                    }
                 }
                 did_touch_preceding_float = true;
                 if (!fits_next_to_preceding_float)
