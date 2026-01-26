@@ -1444,7 +1444,7 @@ void TraversableNavigable::process_screenshot_requests()
             auto bitmap = bitmap_or_error.release_value();
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .canvas_fill_rect = rect.to_type<int>() };
-            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         } else {
@@ -1458,7 +1458,7 @@ void TraversableNavigable::process_screenshot_requests()
             auto bitmap = bitmap_or_error.release_value();
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
             PaintConfig paint_config { .paint_overlay = true, .canvas_fill_rect = rect.to_type<int>() };
-            start_display_list_rendering(painting_surface, paint_config, [bitmap, &client] {
+            render_screenshot(painting_surface, paint_config, [bitmap, &client] {
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         }
