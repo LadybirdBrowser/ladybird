@@ -144,14 +144,29 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
 
     PreferredColorScheme scheme = color_resolution_context.color_scheme.value_or(PreferredColorScheme::Light);
 
+    // Calculate accent_color_text based on contrast to accent_color
+    if (keyword() == Keyword::Accentcolortext) {
+        // min_contrast = 10.2 is a magic number which provides the best accessibility trade-off based on:
+        // 1. https://webaim.org/resources/contrastchecker/
+        // 2. Current implementation of luminosity() and contrast_ratio() methods for Color instances
+
+        // the baseline colors with the least contrast from black and white are #757575 and #767676
+        // which score over 4.5 ratio for #fff and #000 accent_color_text values correspondingly
+        auto constexpr min_contrast = 10.2;
+        auto system_accent_text = SystemColor::accent_color_text(scheme);
+
+        if (color_resolution_context.accent_color.value_or(SystemColor::accent_color(scheme)).contrast_ratio(system_accent_text) < min_contrast)
+            return system_accent_text.inverted();
+
+        return system_accent_text;
+    }
+
     // First, handle <system-color>s, since they don't strictly require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
     case Keyword::Accentcolor:
-        return SystemColor::accent_color(scheme);
-    case Keyword::Accentcolortext:
-        return SystemColor::accent_color_text(scheme);
+        return color_resolution_context.accent_color.value_or(SystemColor::accent_color(scheme));
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
     case Keyword::Inactiveborder:
