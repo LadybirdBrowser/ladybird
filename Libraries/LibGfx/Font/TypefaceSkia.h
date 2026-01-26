@@ -17,6 +17,7 @@ class TypefaceSkia : public Gfx::Typeface {
 public:
     static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, int index = 0);
     static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope);
+    static Optional<FlyString> resolve_generic_family(StringView family_name);
 
     RefPtr<TypefaceSkia const> clone_with_variations(Vector<FontVariationAxis> const& axes) const;
 
