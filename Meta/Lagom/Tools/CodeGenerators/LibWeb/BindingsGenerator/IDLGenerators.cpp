@@ -3247,7 +3247,7 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
     JS_DECLARE_NATIVE_FUNCTION(@attribute.getter_callback@);
 )~~~");
 
-        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("LegacyLenientSetter")) {
             attribute_generator.set("attribute.setter_callback", attribute.setter_callback_name);
             attribute_generator.append(R"~~~(
     JS_DECLARE_NATIVE_FUNCTION(@attribute.setter_callback@);
@@ -3786,7 +3786,7 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
         }
 
-        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("LegacyLenientSetter")) {
             if (has_unforgeable_attribute) {
                 attribute_generator.append(R"~~~(
     auto native_@attribute.setter_callback@ = host_defined_intrinsics(realm).ensure_web_unforgeable_function("@namespaced_name@"_utf16_fly_string, "@attribute.name@"_utf16_fly_string, @attribute.setter_callback@, UnforgeableKey::Type::Setter);
@@ -4522,7 +4522,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 
         // https://webidl.spec.whatwg.org/#dfn-attribute-setter
         // 2. If attribute is read only and does not have a [LegacyLenientSetter], [PutForwards] or [Replaceable] extended attribute, return undefined; there is no attribute setter function.
-        if (!attribute.readonly || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("Replaceable"sv)) {
+        if (!attribute.readonly || attribute.extended_attributes.contains("LegacyLenientSetter"sv) || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("Replaceable"sv)) {
             attribute_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
@@ -4569,7 +4569,14 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 )~~~");
             }
             // FIXME: 6. If validThis is false, then return undefined.
-            // FIXME: 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
+            // 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
+            else if (auto legacy_lenient_setter_identifier = attribute.extended_attributes.get("LegacyLenientSetter"sv); legacy_lenient_setter_identifier.has_value()) {
+                attribute_generator.append(R"~~~(
+    (void)impl;
+    return JS::js_undefined();
+}
+)~~~");
+            }
             // 8. If attribute is declared with a [PutForwards] extended attribute, then:
             else if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
                 attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
