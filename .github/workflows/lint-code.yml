@@ -8,7 +8,7 @@ jobs:
     if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
 
       - name: Set Up Environment
         shell: bash
