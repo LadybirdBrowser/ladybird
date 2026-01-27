@@ -2104,15 +2104,15 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     // Compute the value of custom properties
     compute_custom_properties(computed_style, abstract_element);
 
-    // 2. Compute the font, since that may be needed for font-relative CSS units
+    // Compute the font, since that may be needed for font-relative CSS units
     compute_font(computed_style, abstract_element);
 
-    // 3. Convert properties into their computed forms
+    // Convert properties into their computed forms
     compute_property_values(computed_style, abstract_element);
 
     clear_computation_context_caches();
 
-    // 4. Add or modify CSS-defined animations
+    // Add or modify CSS-defined animations
     process_animation_definitions(computed_style, abstract_element);
 
     auto animations = abstract_element.element().get_animations_internal(
@@ -2130,18 +2130,18 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         }
     }
 
-    // 5. Run automatic box type transformations
+    // Run automatic box type transformations
     transform_box_type_if_needed(computed_style, abstract_element);
 
-    // 6. Apply any property-specific computed value logic
+    // Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
     compute_text_align(computed_style, abstract_element);
 
-    // 7. Let the element adjust computed style
+    // Let the element adjust computed style
     if (!abstract_element.pseudo_element().has_value())
         abstract_element.element().adjust_computed_style(computed_style);
 
-    // 8. Transition declarations [css-transitions-1]
+    // Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, abstract_element);
     if (auto previous_style = abstract_element.computed_properties()) {
