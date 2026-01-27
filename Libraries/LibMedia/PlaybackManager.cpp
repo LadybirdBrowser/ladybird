@@ -25,8 +25,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRe
 {
     auto demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
         if (Matroska::Reader::is_matroska_or_webm(stream->create_cursor()))
-            return Matroska::MatroskaDemuxer::from_stream(stream->create_cursor());
-        return FFmpeg::FFmpegDemuxer::from_stream(stream->create_cursor());
+            return Matroska::MatroskaDemuxer::from_stream(stream);
+        return FFmpeg::FFmpegDemuxer::from_stream(stream);
     }());
 
     // Create the video tracks and their data providers.
@@ -37,7 +37,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRe
     supported_video_tracks.ensure_capacity(all_video_tracks.size());
     supported_video_track_datas.ensure_capacity(all_video_tracks.size());
     for (auto const& track : all_video_tracks) {
-        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
+        auto video_data_provider_result = VideoDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
         if (video_data_provider_result.is_error())
             continue;
         supported_video_tracks.append(track);
@@ -54,7 +54,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(NonnullRe
     supported_audio_tracks.ensure_capacity(all_audio_tracks.size());
     supported_audio_track_datas.ensure_capacity(all_audio_tracks.size());
     for (auto const& track : all_audio_tracks) {
-        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, stream, track);
+        auto audio_data_provider_result = AudioDataProvider::try_create(main_thread_event_loop_reference, demuxer, track);
         if (audio_data_provider_result.is_error())
             continue;
         auto audio_data_provider = audio_data_provider_result.release_value();

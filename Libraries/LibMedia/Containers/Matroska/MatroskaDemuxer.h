@@ -18,14 +18,15 @@ namespace Media::Matroska {
 
 class MEDIA_API MatroskaDemuxer final : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_stream(IncrementallyPopulatedStream::Cursor&);
+    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const&);
 
-    MatroskaDemuxer(Reader&& reader)
-        : m_reader(move(reader))
+    MatroskaDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Reader&& reader)
+        : m_stream(stream)
+        , m_reader(move(reader))
     {
     }
 
-    virtual DecoderErrorOr<void> create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) override;
+    virtual DecoderErrorOr<void> create_context_for_track(Track const&) override;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) override;
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) override;
@@ -41,6 +42,10 @@ public:
 
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
+    virtual void set_blocking_reads_aborted_for_track(Track const&) override;
+    virtual void reset_blocking_reads_aborted_for_track(Track const&) override;
+    virtual bool is_read_blocked_for_track(Track const&) override;
+
 private:
     struct TrackStatus {
         SampleIterator iterator;
@@ -54,8 +59,9 @@ private:
         }
     };
 
-    DecoderErrorOr<TrackStatus*> get_track_status(Track const& track);
+    TrackStatus& get_track_status(Track const&);
 
+    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
     Reader m_reader;
 
     mutable Threading::Mutex m_track_statuses_mutex;

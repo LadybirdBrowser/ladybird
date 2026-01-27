@@ -93,6 +93,7 @@ public:
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
+    IncrementallyPopulatedStream::Cursor& cursor() { return m_stream_cursor; }
 
 private:
     friend class Reader;

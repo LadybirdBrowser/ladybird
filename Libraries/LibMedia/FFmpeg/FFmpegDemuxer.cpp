@@ -18,7 +18,10 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer() = default;
+FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+    : m_stream(stream)
+{
+}
 
 FFmpegDemuxer::~FFmpegDemuxer() = default;
 
@@ -92,14 +95,14 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream)
     return track;
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
 {
-    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+    auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_cursor()));
 
     AVFormatContext* format_context = nullptr;
     TRY(initialize_format_context(format_context, *io_context->avio_context()));
 
-    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer()));
+    auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream)));
     demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
 
     for (u32 i = 0; i < format_context->nb_streams; i++) {
@@ -140,11 +143,12 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
     return demuxer;
 }
 
-DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track)
 {
-    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(stream_cursor));
+    auto cursor = m_stream->create_cursor();
+    auto io_context = MUST(Media::FFmpeg::FFmpegIOContext::create(cursor));
 
-    auto track_context = make<TrackContext>(move(io_context));
+    auto track_context = make<TrackContext>(move(cursor), move(io_context));
 
     // We've already initialized a format context, so the only way this can fail is OOM.
     MUST(initialize_format_context(track_context->format_context, *track_context->io_context->avio_context()));
@@ -293,6 +297,24 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         av_packet_unref(&packet);
         return sample;
     }
+}
+
+void FFmpegDemuxer::set_blocking_reads_aborted_for_track(Track const& track)
+{
+    auto& track_context = get_track_context(track);
+    track_context.cursor->abort();
+}
+
+void FFmpegDemuxer::reset_blocking_reads_aborted_for_track(Track const& track)
+{
+    auto& track_context = get_track_context(track);
+    track_context.cursor->reset_abort();
+}
+
+bool FFmpegDemuxer::is_read_blocked_for_track(Track const& track)
+{
+    auto& track_context = get_track_context(track);
+    return track_context.cursor->is_blocked();
 }
 
 FFmpegDemuxer::TrackContext::~TrackContext()
