@@ -1,0 +1,8 @@
+Case 1 (has above CA, initial): rgb(0, 128, 0)
+Case 1 (has above CA, after move): rgb(0, 128, 0)
+Case 2 (has on body): rgb(0, 128, 0)
+Case 3 (has + sibling combinator): rgb(0, 128, 0)
+Case 4 (move within has, initial): rgb(0, 128, 0)
+Case 4 (move within has, after move): rgb(0, 128, 0)
+Case 5 (has + blur, focused): rgb(0, 128, 0)
+Case 5 (has + blur, blurred): rgb(255, 0, 0)

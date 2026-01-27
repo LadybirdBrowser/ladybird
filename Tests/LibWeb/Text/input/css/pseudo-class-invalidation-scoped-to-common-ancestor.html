@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+/* Case 1: Ancestor :focus-within with target below common ancestor.
+   When focus moves between inputs, the common ancestor is their shared parent.
+   The selector references .grandparent which is ABOVE the common ancestor. */
+.grandparent:focus-within .case1-target { background-color: green; }
+.case1-target { background-color: red; }
+
+/* Case 2: :focus on sibling affects adjacent sibling via combinator. */
+.case2-trigger:focus + .case2-target { background-color: green; }
+.case2-target { background-color: red; }
+
+/* Case 3: :focus-within on a deep structure — focus a deeply nested input,
+   target is a cousin node. Tests that the whole subtree is covered. */
+.case3-root:focus-within .case3-target { background-color: green; }
+.case3-target { background-color: red; }
+</style>
+
+<div class="grandparent" id="gp">
+    <div id="common-ancestor">
+        <div class="case1-target" id="case1-target">Case 1</div>
+        <div><input id="case1-input" type="text"></div>
+    </div>
+</div>
+
+<div id="case2-container">
+    <input class="case2-trigger" id="case2-trigger" type="text">
+    <div class="case2-target" id="case2-target">Case 2</div>
+</div>
+
+<div class="case3-root" id="case3-root">
+    <div id="case3-branch-a">
+        <div><input id="case3-input" type="text"></div>
+    </div>
+    <div id="case3-branch-b">
+        <div class="case3-target" id="case3-target">Case 3</div>
+    </div>
+</div>
+
+<script>
+asyncTest(async (done) => {
+    document.body.offsetWidth;
+
+    // Case 1: Focus input inside .grandparent.
+    // The rule ".grandparent:focus-within .case1-target" requires matching an
+    // ancestor (.grandparent) that is above the common ancestor of old/new focus.
+    document.getElementById("case1-input").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 1 (ancestor selector): ${getComputedStyle(document.getElementById("case1-target")).backgroundColor}`);
+
+    // Case 2: Focus the trigger, adjacent sibling should be affected.
+    document.getElementById("case2-trigger").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 2 (sibling combinator): ${getComputedStyle(document.getElementById("case2-target")).backgroundColor}`);
+
+    // Case 3: Focus deeply nested input, cousin target should be affected.
+    document.getElementById("case3-input").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 3 (deep nesting): ${getComputedStyle(document.getElementById("case3-target")).backgroundColor}`);
+
+    done();
+});
+</script>

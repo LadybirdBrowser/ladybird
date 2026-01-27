@@ -1915,7 +1915,19 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
             style_computer.pop_ancestor(static_cast<Element&>(node));
     };
 
-    invalidate_affected_elements_recursively(root);
+    // Seed the ancestor filter with ancestors above the starting node,
+    // so that ancestor-dependent selectors can still be correctly rejected.
+    for (auto* ancestor = old_new_common_ancestor.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->is_element())
+            style_computer.push_ancestor(static_cast<Element&>(*ancestor));
+    }
+
+    invalidate_affected_elements_recursively(old_new_common_ancestor);
+
+    for (auto* ancestor = old_new_common_ancestor.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->is_element())
+            style_computer.pop_ancestor(static_cast<Element&>(*ancestor));
+    }
 }
 
 void Document::set_hovered_node(GC::Ptr<Node> node)
