@@ -6559,10 +6559,6 @@ bool Document::is_decoded_svg() const
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
 void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
 {
-    // AD-HOC: The root element is excluded from the top layer
-    if (element == this->document_element())
-        return;
-
     // 1. Let doc be el’s node document.
 
     // 2. If el is already contained in doc’s top layer:
