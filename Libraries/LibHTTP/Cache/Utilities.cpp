@@ -296,10 +296,8 @@ AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const& hea
 
     // * If the max-age response directive (Section 5.2.2.1) is present, use its value, or
     if (cache_control.has_value()) {
-        if (auto max_age = extract_cache_control_directive(*cache_control, "max-age"sv); max_age.has_value()) {
-            if (auto seconds = max_age->to_number<i64>(); seconds.has_value())
-                return AK::Duration::from_seconds(*seconds);
-        }
+        if (auto max_age = extract_cache_control_duration_directive(*cache_control, "max-age"sv); max_age.has_value())
+            return *max_age;
     }
 
     // * If the Expires response header field (Section 5.3) is present, use its value minus the value of the Date response
@@ -373,11 +371,8 @@ AK::Duration calculate_stale_while_revalidate_lifetime(HeaderList const& headers
     if (!cache_control.has_value())
         return {};
 
-    if (auto swr = extract_cache_control_directive(*cache_control, "stale-while-revalidate"sv); swr.has_value()) {
-        if (auto seconds = swr->to_number<i64>(); seconds.has_value())
-            return freshness_lifetime + AK::Duration::from_seconds(*seconds);
-    }
-
+    if (auto swr = extract_cache_control_duration_directive(*cache_control, "stale-while-revalidate"sv); swr.has_value())
+        return freshness_lifetime + *swr;
     return {};
 }
 
@@ -526,6 +521,18 @@ Optional<StringView> extract_cache_control_directive(StringView cache_control, S
 
         directive_start = lexer.tell();
     }
+}
+
+Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache_control, StringView directive, Optional<AK::Duration> valueless_fallback)
+{
+    if (auto value = extract_cache_control_directive(cache_control, directive); value.has_value()) {
+        if (value->is_empty())
+            return valueless_fallback;
+        if (auto seconds = value->to_number<i64>(); seconds.has_value())
+            return AK::Duration::from_seconds(*seconds);
+    }
+
+    return {};
 }
 
 // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses

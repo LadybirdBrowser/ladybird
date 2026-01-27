@@ -54,6 +54,7 @@ void update_header_fields(HeaderList&, HeaderList const&);
 
 bool contains_cache_control_directive(StringView cache_control, StringView directive);
 Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive);
+Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache_control, StringView directive, Optional<AK::Duration> valueless_fallback = {});
 
 ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
 
