@@ -52,6 +52,9 @@ struct RevalidationAttributes {
 void store_header_and_trailer_fields(HeaderList&, HeaderList const&);
 void update_header_fields(HeaderList&, HeaderList const&);
 
+bool contains_cache_control_directive(StringView cache_control, StringView directive);
+Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive);
+
 ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
 
 AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&>, HeaderList const& request_headers);
