@@ -1,0 +1,152 @@
+name: 'Web benchmarks'
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [master]
+    types: [completed]
+
+env:
+  LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  VCPKG_ROOT: ${{ github.workspace }}/Build/vcpkg
+
+jobs:
+  web-benchmarks:
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        arch: ['x86_64']
+        runner_labels: ['["ubuntu-24.04-internal", "web-benchmarks", "self-hosted"]']
+
+        include:
+          - os_name: 'Linux'
+            arch: 'arm64'
+            runner_labels: '["ubuntu-24.04-arm-internal", "web-benchmarks", "self-hosted"]'
+
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: 'Checkout ladybird'
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: 'Determine ladybird commit hash'
+        id: ladybird-commit
+        shell: bash
+        run: |
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Checkout LadybirdBrowser/web-benchmarks'
+        uses: actions/checkout@v6.0.2
+        with:
+          repository: LadybirdBrowser/web-benchmarks
+          path: web-benchmarks
+          ref: master
+
+      - name: 'Determine web-benchmarks commit hash'
+        id: web-benchmarks-commit
+        shell: bash
+        run: |
+          cd web-benchmarks
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Set Up Environment'
+        uses: ./.github/actions/setup
+        with:
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+          toolchain: 'GNU'
+
+      - name: 'Restore Caches'
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          runner_labels: ${{ matrix.runner_labels }}
+          os: ${{ matrix.os_name }}
+          arch: ${{ matrix.arch }}
+          toolchain: 'GNU'
+          cache_key_extra: 'Distribution'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ github.workspace }}/Build/caches
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+
+      - name: 'Set dynamic environment variables'
+        shell: bash
+        run: |
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: 'Create Build Environment'
+        working-directory: ${{ github.workspace }}
+        run: |
+          cmake --preset Distribution -B Build \
+            -DENABLE_CI_BASELINE_CPU=ON \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14
+
+      - name: 'Build'
+        working-directory: ${{ github.workspace }}/Build
+        run: |
+          cmake --build .
+          cmake --install . --strip --prefix ${{ github.workspace }}/Install
+
+      - name: 'Save Caches'
+        uses: ./.github/actions/cache-save
+        with:
+          runner_labels: ${{ matrix.runner_labels }}
+          arch: ${{ matrix.arch }}
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
+          vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
+          vcpkg_cache_primary_key: ${{ steps.cache-restore.outputs.vcpkg_cache_primary_key }}
+
+      - name: 'Run the benchmarks'
+        shell: bash
+        run: |
+          cd web-benchmarks
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python3 -m pip install -r requirements.txt
+
+          run_options='--iterations=5'
+          run_options="${run_options} --executable=${{ github.workspace }}/Install/bin/Ladybird"
+
+          ./run.py ${run_options}
+
+      - name: 'Save results as an artifact'
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: web-benchmarks/results.json
+          retention-days: 90
+
+      - name: 'Call webhook'
+        shell: bash
+        run: |
+          echo '{
+              "commit": "${{ steps.ladybird-commit.outputs.sha }}",
+              "benchmarks_commit": "${{ steps.web-benchmarks-commit.outputs.sha }}",
+              "os": "${{ matrix.os_name }}",
+              "arch": "${{ matrix.arch }}",
+              "artifact": "web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
+              "artifact_run_id": "${{ github.run_id }}",
+              "category": "web"
+          }' > request.json
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --header 'Content-Type: application/json' \
+              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json | cut -d' ' -f2)" \
+              --data-binary '@request.json' \
+              '${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}'
