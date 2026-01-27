@@ -41,8 +41,10 @@ void CascadedProperties::revert_property(PropertyID property_id, Important impor
             && entry.property.important == important
             && cascade_origin == entry.origin;
     });
-    if (entries.is_empty())
+    if (entries.is_empty()) {
+        m_contained_properties_cache.set(to_underlying(property_id), false);
         m_properties.remove(it);
+    }
 }
 
 void CascadedProperties::revert_layer_property(PropertyID property_id, Important important, Optional<FlyString> layer_name)
@@ -56,8 +58,10 @@ void CascadedProperties::revert_layer_property(PropertyID property_id, Important
             && entry.property.important == important
             && layer_name == entry.layer_name;
     });
-    if (entries.is_empty())
+    if (entries.is_empty()) {
+        m_contained_properties_cache.set(to_underlying(property_id), false);
         m_properties.remove(it);
+    }
 }
 
 void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abstract_element)
@@ -73,6 +77,8 @@ void CascadedProperties::resolve_unresolved_properties(DOM::AbstractElement abst
 
 void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<StyleValue const> value, Important important, CascadeOrigin origin, Optional<FlyString> layer_name, GC::Ptr<CSS::CSSStyleDeclaration const> source)
 {
+    m_contained_properties_cache.set(to_underlying(property_id), true);
+
     auto& entries = m_properties.ensure(property_id);
 
     for (auto& entry : entries.in_reverse()) {
@@ -103,6 +109,8 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
 void CascadedProperties::set_property_from_presentational_hint(PropertyID property_id, NonnullRefPtr<StyleValue const> value)
 {
     StyleComputer::for_each_property_expanding_shorthands(property_id, value, [this](PropertyID longhand_property_id, StyleValue const& longhand_value) {
+        m_contained_properties_cache.set(to_underlying(longhand_property_id), true);
+
         auto& entries = m_properties.ensure(longhand_property_id);
 
         entries.append(Entry {
@@ -120,25 +128,26 @@ void CascadedProperties::set_property_from_presentational_hint(PropertyID proper
 
 RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
+    if (!m_contained_properties_cache.get(to_underlying(property_id)))
         return nullptr;
 
-    return it->value.last().property.value;
+    return m_properties.get(property_id)->last().property.value;
 }
 
 GC::Ptr<CSSStyleDeclaration const> CascadedProperties::property_source(PropertyID property_id) const
 {
-    auto it = m_properties.find(property_id);
-    if (it == m_properties.end())
+    if (!m_contained_properties_cache.get(to_underlying(property_id)))
         return nullptr;
 
-    return it->value.last().source;
+    return m_properties.get(property_id)->last().source;
 }
 
 Optional<StyleProperty> CascadedProperties::style_property(PropertyID property_id) const
 {
-    return m_properties.get(property_id).map([&](auto const& value) { return value.last().property; });
+    if (!m_contained_properties_cache.get(to_underlying(property_id)))
+        return {};
+
+    return m_properties.get(property_id)->last().property;
 }
 
 }
