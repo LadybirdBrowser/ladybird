@@ -18,13 +18,12 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track)
+DecoderErrorOr<NonnullRefPtr<AudioDataProvider>> AudioDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track)
 {
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
-    auto stream_cursor = stream->create_cursor();
-    TRY(demuxer->create_context_for_track(track, stream_cursor));
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, move(converter)));
+    TRY(demuxer->create_context_for_track(track));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider::ThreadData>(main_thread_event_loop, demuxer, track, move(converter)));
     TRY(thread_data->create_decoder());
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<AudioDataProvider>(thread_data));
 
@@ -88,10 +87,9 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
-AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
-    , m_stream_cursor(stream_cursor)
     , m_track(track)
     , m_converter(move(converter))
 {
@@ -171,7 +169,7 @@ void AudioDataProvider::ThreadData::seek(AK::Duration timestamp, SeekCompletionH
     m_seek_completion_handler = move(completion_handler);
     m_seek_id++;
     m_seek_timestamp = timestamp;
-    m_stream_cursor->abort();
+    m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
 }
 
@@ -331,7 +329,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
             auto locker = take_lock();
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
-            m_stream_cursor->reset_abort();
+            m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
         }
 
         auto seek_options = DemuxerSeekOptions::None;

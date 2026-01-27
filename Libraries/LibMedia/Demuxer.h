@@ -35,7 +35,7 @@ class Demuxer : public AtomicRefCounted<Demuxer> {
 public:
     virtual ~Demuxer() = default;
 
-    virtual DecoderErrorOr<void> create_context_for_track(Track const&, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&) = 0;
+    virtual DecoderErrorOr<void> create_context_for_track(Track const&) = 0;
 
     virtual DecoderErrorOr<Vector<Track>> get_tracks_for_type(TrackType) = 0;
     // Returns the container's preferred track for a given track type. This must return a value if any track of the
@@ -55,6 +55,10 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
+
+    virtual void set_blocking_reads_aborted_for_track(Track const&) = 0;
+    virtual void reset_blocking_reads_aborted_for_track(Track const&) = 0;
+    virtual bool is_read_blocked_for_track(Track const&) = 0;
 };
 
 }

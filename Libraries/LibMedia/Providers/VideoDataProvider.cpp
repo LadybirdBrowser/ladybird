@@ -18,12 +18,10 @@
 
 namespace Media {
 
-DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream> const& stream, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
+DecoderErrorOr<NonnullRefPtr<VideoDataProvider>> VideoDataProvider::try_create(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
 {
-    auto stream_cursor = stream->create_cursor();
-    TRY(demuxer->create_context_for_track(track, stream_cursor));
-
-    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, stream_cursor, track, time_provider));
+    TRY(demuxer->create_context_for_track(track));
+    auto thread_data = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider::ThreadData>(main_thread_event_loop, demuxer, track, time_provider));
     TRY(thread_data->create_decoder());
     auto provider = DECODER_TRY_ALLOC(try_make_ref_counted<VideoDataProvider>(thread_data));
 
@@ -97,10 +95,9 @@ void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCom
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
-VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
+VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, RefPtr<MediaTimeProvider> const& time_provider)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
-    , m_stream_cursor(stream_cursor)
     , m_track(track)
     , m_time_provider(time_provider)
 {
@@ -185,7 +182,7 @@ void VideoDataProvider::ThreadData::seek(AK::Duration timestamp, SeekMode seek_m
     m_seek_completion_handler = move(completion_handler);
     m_seek_timestamp = timestamp;
     m_seek_mode = seek_mode;
-    m_stream_cursor->abort();
+    m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
 }
 
@@ -323,7 +320,7 @@ bool VideoDataProvider::ThreadData::handle_seek()
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
             mode = m_seek_mode;
-            m_stream_cursor->reset_abort();
+            m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
         }
 
         auto seek_options = mode == SeekMode::Accurate ? DemuxerSeekOptions::None : DemuxerSeekOptions::Force;
@@ -540,7 +537,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
 
 bool VideoDataProvider::ThreadData::is_blocked() const
 {
-    return m_stream_cursor->is_blocked();
+    return m_demuxer->is_read_blocked_for_track(m_track);
 }
 
 }
