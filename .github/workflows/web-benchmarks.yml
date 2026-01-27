@@ -14,7 +14,6 @@ env:
 jobs:
   web-benchmarks:
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
-    if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
 
     strategy:
@@ -129,24 +128,3 @@ jobs:
           name: web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
           path: web-benchmarks/results.json
           retention-days: 90
-
-      - name: 'Call webhook'
-        shell: bash
-        run: |
-          echo '{
-              "commit": "${{ steps.ladybird-commit.outputs.sha }}",
-              "benchmarks_commit": "${{ steps.web-benchmarks-commit.outputs.sha }}",
-              "os": "${{ matrix.os_name }}",
-              "arch": "${{ matrix.arch }}",
-              "artifact": "web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
-              "artifact_run_id": "${{ github.run_id }}",
-              "category": "web"
-          }' > request.json
-          curl \
-              --fail \
-              --silent \
-              --show-error \
-              --header 'Content-Type: application/json' \
-              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json | cut -d' ' -f2)" \
-              --data-binary '@request.json' \
-              '${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}'
