@@ -3222,7 +3222,7 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
     JS_DECLARE_NATIVE_FUNCTION(@attribute.getter_callback@);
 )~~~");
 
-        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("LegacyLenientSetter")) {
             attribute_generator.set("attribute.setter_callback", attribute.setter_callback_name);
             attribute_generator.append(R"~~~(
     JS_DECLARE_NATIVE_FUNCTION(@attribute.setter_callback@);
@@ -3750,7 +3750,7 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
         }
 
-        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+        if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv) || attribute.extended_attributes.contains("LegacyLenientSetter")) {
             if (has_unforgeable_attribute) {
                 attribute_generator.append(R"~~~(
     auto native_@attribute.setter_callback@ = host_defined_intrinsics(realm).ensure_web_unforgeable_function("@namespaced_name@"_utf16_fly_string, "@attribute.name@"_utf16_fly_string, @attribute.setter_callback@, UnforgeableKey::Type::Setter);
@@ -4644,6 +4644,18 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
     if (receiver != JS::js_null())
         TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_utf16_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
+
+    return JS::js_undefined();
+}
+)~~~");
+        } else if (auto legacy_lenient_setter_identifier = attribute.extended_attributes.get("LegacyLenientSetter"sv); legacy_lenient_setter_identifier.has_value()) {
+            attribute_generator.append(R"~~~(
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
+{
+    WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
+    (void)TRY(impl_from(vm));
+    if (vm.argument_count() < 1)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
 
     return JS::js_undefined();
 }
