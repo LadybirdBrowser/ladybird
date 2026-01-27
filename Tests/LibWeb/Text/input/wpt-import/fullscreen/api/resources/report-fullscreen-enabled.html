@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>IFrame fullscreenEnabled attribute reporter</title>
+<body>
+<script>
+parent.postMessage({"report": {
+  "api": "fullscreen",
+  "enabled": document.fullscreenEnabled,
+  "frame": window.name
+}}, "*");
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>
+    Document#exitFullscreen() when the document is not the active document
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<iframe allowfullscreen></iframe>
+<script>
+    promise_test(async (t) => {
+        const iframe = document.querySelector("iframe");
+        const stolenTypeError = iframe.contentWindow.TypeError;
+        const documentBeforeNav = iframe.contentDocument;
+
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            iframe.src = "about:blank";
+        });
+
+        await promise_rejects_js(
+            t,
+            stolenTypeError,
+            documentBeforeNav.documentElement.requestFullscreen(),
+            "Promise should be undefined after navigation"
+        );
+    });
+</script>

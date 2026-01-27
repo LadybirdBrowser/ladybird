@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<title>Re-requesting fullscreen doesn't fail but doesn't change order</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../common/top-layer.js"></script>
+
+<div class="elements">
+  <div id="A">Element A</div>
+  <div id="B">Element B</div>
+</div>
+
+<style>
+  .elements > div {
+    width: 200px;
+    height: 200px;
+  }
+  #A { background: blue; }
+  #B { background: green; }
+</style>
+
+<script>
+promise_test(async (t) => {
+  t.add_cleanup(async () => {
+    while (document.fullscreenElement)
+      await document.exitFullscreen();
+  });
+  document.onfullscreenerror = () => assert_unreached('fullscreenerror should not happen');
+  const A = document.getElementById('A');
+  const B = document.getElementById('B');
+  assert_true(!isTopLayer(A) && !isTopLayer(B));
+  await blessTopLayer(document.body);
+  await A.requestFullscreen();
+  assert_equals(document.fullscreenElement, A, 'first A request');
+  assert_true(isTopLayer(A), 'A top layer');
+  await blessTopLayer(A);
+  try {
+    await B.requestFullscreen();
+  } catch (error) {
+    assert_unreached('The second call to requestFullscreen rejected - it should be possible to put siblings into fullscreen together');
+  }
+  assert_equals(document.fullscreenElement, B, 'B request');
+  assert_true(isTopLayer(B), 'B top layer');
+  assert_true(isTopLayer(A), 'A still top layer');
+  await blessTopLayer(B);
+  await A.requestFullscreen();
+  assert_true(isTopLayer(A), 'A is still top layer');
+  assert_true(isTopLayer(B), 'B is still top layer');
+  assert_equals(document.fullscreenElement, A, 'A is moved back to the top of the top layer stack');
+  assert_equals(document.elementFromPoint(10, 10), A, 'A should be topmost');
+
+  await document.exitFullscreen();
+  assert_equals(document.fullscreenElement, B, 'B goes back to being the fullscreen element');
+  assert_true(isTopLayer(B), 'B is still top layer');
+  assert_false(isTopLayer(A), 'A is no longer top layer');
+  await document.exitFullscreen();
+  assert_equals(document.fullscreenElement, null, 'Both closed');
+  assert_false(isTopLayer(A), 'A is no longer top layer');
+  assert_false(isTopLayer(B), 'B is no longer top layer');
+}, 'Requesting fullscreen on A, then B, then A');
+</script>

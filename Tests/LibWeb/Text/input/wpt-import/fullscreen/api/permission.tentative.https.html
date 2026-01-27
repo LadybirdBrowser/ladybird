@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Permissions API query support for "fullscreen"</title>
+<link rel="help" href="https://github.com/explainers-by-googlers/html-fullscreen-without-a-gesture">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<script>
+  promise_test(async (test) => {
+    let allowWithoutGestureCalled = false;
+    const status = await navigator.permissions.query({
+      name: "fullscreen",
+      get allowWithoutGesture() {
+        allowWithoutGestureCalled = true;
+        return true;
+      },
+    });
+    assert_true(status instanceof PermissionStatus);
+    assert_equals(status.name, "fullscreen", `name should be "fullscreen"`);
+    assert_true(allowWithoutGestureCalled, `allowWithoutGesture should be checked`);
+  }, `Querying "fullscreen" permission checks "allowWithoutGesture" option`);
+
+  promise_test(async (test) => {
+    const descriptor = { name: "fullscreen", allowWithoutGesture: true };
+    await test_driver.set_permission(descriptor, "granted");
+    const status = await navigator.permissions.query(descriptor);
+    assert_true(status instanceof PermissionStatus);
+    assert_equals(status.name, "fullscreen", `name should be "fullscreen"`);
+    assert_equals(status.state, "granted", `state should be "granted", as set`);
+  }, `Set and query "fullscreen" permission with "allowWithoutGesture" true`);
+
+  promise_test((test) => {
+    const descriptor = { name: "fullscreen", allowWithoutGesture: false };
+    return promise_rejects_js(test, TypeError, navigator.permissions.query(descriptor));
+  }, `Querying "fullscreen" permission with "allowWithoutGesture" false is unsupported`);
+
+</script>

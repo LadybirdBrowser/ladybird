@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() timing</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+promise_test(async t => {
+  const div = document.querySelector('div');
+
+  // If fullscreenchange is an animation frame event, then animation frame
+  // callbacks should be run after it is fired, before the timer callback.
+  // The resize event should fire before the fullscreenchange event.
+  const events = [];
+  const p = new Promise(resolve => {
+    const callback = t.step_func(event => {
+      // fullscreenElement should have changed before either event is fired.
+      assert_equals(document.fullscreenElement, div, `fullscreenElement in {event.type} event`);
+      events.push(event.type);
+      if (event.type == 'fullscreenchange') {
+        step_timeout(t.unreached_func('timer callback'));
+        requestAnimationFrame(t.step_func_done(() => {
+          // Removed 'resize' expectation for now, see https://crbug.com/381127087.
+          assert_array_equals(events, ['fullscreenchange'], 'event order');
+          resolve();
+        }));
+      }
+    });
+    document.onfullscreenchange = window.onresize = callback;
+  });
+  await trusted_request(div);
+  await p;
+  // so the user doesn't have to exit for themselves
+  document.exitFullscreen();
+}, 'Timing of fullscreenchange and resize events');
+
+async_test(t => {
+  // Gecko throttles requestAnimationFrame before the first paint, so
+  // wrap the test to work around that.
+  requestAnimationFrame(t.step_func(() => {
+    var promise = document.createElement('a').requestFullscreen();
+    var promise_executed = false;
+    promise.catch(()=>{promise_executed = true; });
+    // If fullscreenerror is an animation frame event, then animation frame
+    // callbacks should be run after it is fired, before the timer callback.
+    document.onfullscreenerror = t.step_func(() => {
+      assert_true(promise_executed, "promise executed");
+      step_timeout(t.unreached_func('timer callback'));
+      requestAnimationFrame(t.step_func_done());
+    });
+  }));
+}, 'Timing of fullscreenerror event');
+</script>

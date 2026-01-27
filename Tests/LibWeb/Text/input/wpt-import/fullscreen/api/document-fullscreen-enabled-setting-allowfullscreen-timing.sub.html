@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Document#fullscreenEnabled setting allowfullscreen after document creation, before response</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+// Set allowfullscreen attribute in a timeout after <iframe> has been inserted to the document.
+// The iframe's response is delayed so it happens after the attribute is set.
+
+async_test((t) => {
+  const iframe = document.createElement('iframe');
+  // no allowfullscreen attribute
+
+  const path = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+  iframe.src = "http://wpt.live:80" + path + "resources/echo-fullscreenEnabled.html?pipe=trickle(d1)";
+  iframe.onload = t.step_func(() => {
+    iframe.contentWindow.postMessage('What is document.fullscreenEnabled?', '*');
+  });
+
+  window.onmessage = t.step_func_done((e) => {
+    assert_false(e.data, 'document.fullscreenEnabled in the iframe');
+  });
+
+  document.body.appendChild(iframe);
+
+  t.step_timeout(() => {
+    iframe.allowFullscreen = true;
+  }, 10);
+});
+</script>

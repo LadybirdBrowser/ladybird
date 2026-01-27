@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() after error</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<div id="log"></div>
+<script>
+promise_test(async t => {
+  await new Promise(r => window.onload = r);
+
+  const element1 = document.createElement("div");
+  document.body.appendChild(element1);
+
+  await test_driver.bless("request full screen");
+  let promise = element1.requestFullscreen()
+  await new Promise(r => t.step_timeout(r, 0))
+  document.body.removeChild(element1);
+  try {
+    await promise;
+    assert_unreached("requestFullscreen shouldn't be successful");
+  } catch (e) {
+  }
+  try {
+    await document.exitFullscreen();
+  } catch (e) {
+  }
+
+  const element2 = document.createElement("div");
+  document.body.appendChild(element2);
+
+  await test_driver.bless("request full screen");
+  try {
+    await element2.requestFullscreen();
+  } catch (e) {
+    assert_unreached("requestFullscreen shouldn't throw an error - " + e.message);
+  }
+  await document.exitFullscreen();
+}, "requestFullscreen works even if previous requestFullscreen causes an error");
+</script>

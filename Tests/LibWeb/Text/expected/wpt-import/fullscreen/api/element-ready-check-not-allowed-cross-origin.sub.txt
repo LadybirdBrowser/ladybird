@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Cross-origin element ready check with no allowfullscreen or allow attribute

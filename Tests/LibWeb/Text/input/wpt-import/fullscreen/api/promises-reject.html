@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Promises#reject</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        const e = document.createElement("span");
+        await promise_rejects_js(
+            t,
+            TypeError,
+            e.requestFullscreen(),
+            "Rejects if the element is not connected"
+        );
+        await promise_rejects_js(
+            t,
+            TypeError,
+            document.exitFullscreen(),
+            "Not in fullscreen"
+        );
+    }, "Rejects if the element is not connected");
+</script>

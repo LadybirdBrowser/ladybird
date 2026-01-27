@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>Element ready check with no allowfullscreen attribute</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<body>
+  <iframe name="cross-origin-default"></iframe>
+</body>
+
+<script>
+  // Allow the time bomb to be triggered.
+  setup({ allow_uncaught_exception: true });
+
+  promise_test(async (t) => {
+    t.add_cleanup(() => {
+      if (document.fullscreenElement) return document.exitFullscreen();
+    });
+    const iframe = document.querySelector("iframe");
+    await new Promise((resolve) => {
+      iframe.onload = resolve;
+      iframe.src =
+        "http://not-wpt.live:80/fullscreen/api/resources/attempt-fullscreen.html";
+    });
+    // Trigger the child frame to report as soon as its content is loaded.
+    await trusted_click();
+    const timeBomb = new Promise((resolve, reject) => {
+      t.step_timeout(() => {
+        const error = new Error("Timed out waiting for message");
+        reject(error);
+      }, 5000);
+    });
+    const data = await Promise.race([promiseMessage(iframe), timeBomb]);
+    // When a message is received from a child frame, ensure that the report
+    // matches the expectations.
+    assert_false(
+      data.report.result,
+      `${data.report.frame} frame entered fullscreen, but allowfullscreen was not set`
+    );
+  }, "Cross-origin element ready check with no allowfullscreen or allow attribute");
+</script>

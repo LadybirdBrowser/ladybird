@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>Element ready check for element not in a document</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async function (t) {
+        const div = document.createElement("div");
+        document.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event"
+        );
+        await Promise.all([
+            promise_rejects_js(
+                t,
+                TypeError,
+                trusted_request(div, document.body)
+            ),
+            new Promise((resolve) => {
+                document.onfullscreenerror = resolve;
+            }),
+        ]);
+    }, "Element ready check for element not in a document");
+</script>

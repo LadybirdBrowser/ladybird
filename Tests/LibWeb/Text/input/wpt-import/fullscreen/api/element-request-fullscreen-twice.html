@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() twice</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        const div = document.querySelector("div");
+        await trusted_click(document.body);
+        const p = div.requestFullscreen();
+        assert_equals(
+            document.fullscreenElement,
+            null,
+            "fullscreenElement after first requestFullscreen()"
+        );
+        const rejectedPromises = [
+            promise_rejects_js(t, TypeError, div.requestFullscreen()),
+            promise_rejects_js(t, TypeError, div.requestFullscreen()),
+        ];
+        await Promise.all([p, fullScreenChange()]);
+        assert_equals(
+            document.fullscreenElement,
+            div,
+            "fullscreenElement after entering fullscreen"
+        );
+        // Ensure that there's are not more changes fullscreenchange event.
+        document.onfullscreenchange = t.unreached_func(
+            "second fullscreenchange event"
+        );
+        await Promise.all(rejectedPromises);
+        await new Promise((r) => requestAnimationFrame(r));
+    }, "requestFullscreen() multiple times after going fullscreen");
+</script>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen()</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async function (t) {
+        const div = document.querySelector("div");
+        await Promise.all([fullScreenChange(), trusted_request(div)]);
+        assert_equals(event.target, div, "event.target");
+        assert_true(event.bubbles, "event.bubbles");
+        assert_false(event.cancelable, "event.cancelable");
+        assert_true(event.composed, "event.composed");
+        await document.exitFullscreen();
+    });
+</script>

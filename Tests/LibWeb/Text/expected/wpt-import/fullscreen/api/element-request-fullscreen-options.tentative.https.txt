@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	fullscreenOptions.screen getter is invoked on requestFullscreen

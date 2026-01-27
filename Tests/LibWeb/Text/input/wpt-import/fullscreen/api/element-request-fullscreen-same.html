@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() on the current fullscreen element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+    promise_test(async (t) => {
+        const target = document.getElementById("target");
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+
+        await Promise.all([
+            fullScreenChange(),
+            trusted_request(target),
+        ]);
+
+        assert_equals(document.fullscreenElement, target);
+
+        // The next requestFullscreen() should fire no events due to "If element is
+        // doc's fullscreen element, terminate these subsubsteps."
+        document.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event"
+        );
+
+        await trusted_click(target);
+        await target.requestFullscreen();
+        assert_equals(document.fullscreenElement, target);
+        // Wait until after the next animation frame.
+        await new Promise((r) => requestAnimationFrame(r));
+    }, "Element#requestFullscreen() on the current fullscreen element");
+</script>

@@ -1,0 +1,42 @@
+<!doctype html>
+<title>Historical Fullscreen features</title>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+[
+  "onwebkitfullscreenchange",
+  "onwebkitfullscreenerror",
+  "webkitCurrentFullScreenElement",
+  "webkitFullscreenElement",
+  "webkitFullscreenEnabled",
+  "webkitIsFullScreen",
+  "webkitRequestFullScreen",
+  "webkitRequestFullscreen",
+  "webkitDisplayingFullscreen",
+  "webkitEnterFullScreen",
+  "webkitEnterFullscreen",
+  "webkitExitFullScreen",
+  "webkitExitFullscreen",
+  "webkitSupportsFullscreen",
+].forEach(function(member) {
+  ["webkit", "moz", "ms"].forEach(function(prefix) {
+    var alias = member.replace("webkit", prefix);
+    var clarifyTestName = (alias.indexOf('FullScreen') != -1 ? ' (uppercase S)' : '');
+
+    test(function() {
+      assert_false(alias in document.createElement('video'));
+    }, '<video> member must not be supported: ' + alias + clarifyTestName);
+
+    test(function() {
+      assert_false(alias in document);
+    }, 'Document member must not be supported: ' + alias + clarifyTestName);
+
+    // Some of the combinations tested here have never been supported, but
+    // it is convenient to just test all names on both <video> and document.
+  });
+});
+
+test(function() {
+  assert_false("fullScreen" in window);
+}, 'Window member must not be supported: fullScreen');
+</script>

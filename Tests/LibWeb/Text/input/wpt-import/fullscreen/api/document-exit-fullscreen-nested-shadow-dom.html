@@ -1,0 +1,69 @@
+<!doctype html>
+<title>Exiting fullscreen from a nested shadow root should work correctly.</title>
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1652155">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<div id="host">
+  <button>
+    <!--
+        This is gross, but testdriver doesn't let us click stuff in shadow
+        DOM, so here we are instead, using nested slots.
+    -->
+    fullscreen
+  </button>
+</div>
+<script>
+promise_test(async function() {
+  let host = document.getElementById("host");
+  host.attachShadow({ mode: "open" }).innerHTML = `
+    <style>
+      #outer { width: 200px; height: 200px; background: blue }
+    </style>
+    <div id="outer">
+      <slot></slot>
+    </div>
+  `;
+
+  let outer = host.shadowRoot.getElementById("outer");
+  outer.attachShadow({ mode: "open" }).innerHTML = `
+    <style>
+      #inner { width: 100px; height: 100px; background: purple }
+    </style>
+    <div id="inner"></div>
+    <slot></slot>
+  `;
+
+  let button = document.querySelector("button");
+
+  let inner = outer.shadowRoot.getElementById("inner");
+  let finished = new Promise(resolve => {
+    button.addEventListener("click", async function() {
+      await outer.requestFullscreen();
+      assert_equals(outer.getRootNode().fullscreenElement, outer);
+      assert_equals(document.fullscreenElement, host);
+
+      button.addEventListener("click", async function() {
+        await inner.requestFullscreen();
+        assert_equals(inner.getRootNode().fullscreenElement, inner);
+        assert_equals(document.fullscreenElement, host);
+        await document.exitFullscreen();
+        assert_equals(inner.getRootNode().fullscreenElement, null);
+        assert_equals(outer.getRootNode().fullscreenElement, outer);
+        assert_equals(document.fullscreenElement, host);
+        resolve();
+      }, { once: true });
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        test_driver.click(button);
+      }));
+    }, { once: true });
+  });
+
+  test_driver.click(button);
+  await finished;
+}, "Exiting fullscreen from a nested shadow root works correctly.");
+</script>

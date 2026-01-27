@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Element#requestFullscreen() without user activation</title>
+<link rel="help" href="https://github.com/explainers-by-googlers/html-fullscreen-without-a-gesture">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<div id="log"></div>
+<script>
+  promise_test(async (test) => {
+    const div = document.querySelector("div");
+    assert_false(navigator.userActivation.isActive, "userActivation.isActive");
+    await promise_rejects_js(test, TypeError, div.requestFullscreen());
+  }, `Element#requestFullscreen() rejects without user activation by default`);
+
+  promise_test(async (test) => {
+    test.add_cleanup(() => {
+        if (document.fullscreenElement) return document.exitFullscreen();
+    });
+    const descriptor = { name: "fullscreen", allowWithoutGesture: true };
+    await test_driver.set_permission(descriptor, "granted");
+    const status = await navigator.permissions.query(descriptor);
+    assert_equals((status).state, "granted", `state should be "granted", as set`);
+
+    const div = document.querySelector("div");
+    assert_false(navigator.userActivation.isActive, "userActivation.isActive");
+    await div.requestFullscreen();
+  }, `Element#requestFullscreen() resolves without user activation with permission`);
+</script>

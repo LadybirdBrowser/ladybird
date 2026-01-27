@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://crbug.com/1371331">
+<style>
+dialog::backdrop {
+  display: list-item;
+}
+</style>
+<dialog></dialog>
+<script>
+document.querySelector("dialog").showModal();
+</script>

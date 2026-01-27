@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() for an element in null namespace</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    const supportedNS = [
+        { ns: "http://www.w3.org/1999/xhtml", elemName: "div" },
+        { ns: "http://www.w3.org/2000/svg", elemName: "svg" },
+        { ns: "http://www.w3.org/1998/Math/MathML", elemName: "math" },
+    ];
+
+    const unsupportedNS = [null, "https://unknown.namespace", ""];
+
+    for (const ns of unsupportedNS) {
+        promise_test(async (t) => {
+            const element = document.createElementNS(ns, "element");
+            document.body.appendChild(element);
+            document.onfullscreenchange = t.unreached_func(
+                "fullscreenchange event"
+            );
+            await promise_rejects_js(t, TypeError, trusted_request(element));
+        }, `requestFullscreen() fails for an element in ${ns} namespace`);
+    }
+
+    for (const { ns, elemName } of supportedNS) {
+        promise_test(async (t) => {
+            const element = document.createElementNS(ns, elemName);
+            document.body.appendChild(element);
+            await Promise.all([trusted_request(element), fullScreenChange()]);
+            await document.exitFullscreen();
+        }, `requestFullscreen() succeed for an element in ${ns} namespace`);
+    }
+</script>

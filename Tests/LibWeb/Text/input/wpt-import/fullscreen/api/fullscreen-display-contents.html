@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <title>
+        Test that display:contents on fullscreen elements acts like
+        display:block
+    </title>
+    <meta charset="utf-8" />
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../trusted-click.js"></script>
+    <link rel="author" href="mailto:masonf@chromium.org" />
+    <link
+        rel="help"
+        href="https://fullscreen.spec.whatwg.org/#new-stacking-layer"
+    />
+    <div id="target"></div>
+    <style>
+        #target {
+            display: contents;
+            background-color: green;
+        }
+        #target::backdrop {
+            display: contents;
+        }
+    </style>
+
+    <script>
+        promise_test(async (t) => {
+            const target = document.querySelector("#target");
+            await test_driver.bless("fullscreen");
+            await target.requestFullscreen();
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            assert_equals(document.fullscreenElement, target);
+            assert_equals(
+                getComputedStyle(target).display,
+                "block",
+                "fullscreen element should have display:block"
+            );
+            assert_equals(
+                getComputedStyle(target, "::backdrop").display,
+                "block",
+                "fullscreen element's ::backdrop should have display:block"
+            );
+            await document.exitFullscreen();
+            new Promise((resolve) => requestAnimationFrame(resolve));
+            assert_equals(document.fullscreenElement, null);
+            assert_equals(
+                getComputedStyle(target).display,
+                "contents",
+                "fullscreen element should have display:contents after exiting fullscreen"
+            );
+        });
+    </script>
+</html>
