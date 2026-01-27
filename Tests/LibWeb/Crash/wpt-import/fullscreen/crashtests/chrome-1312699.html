@@ -1,0 +1,22 @@
+<!doctype html>
+<html class="test-wait">
+<link rel="help" href="https://crbug.com/1312699">
+<!-- FIXME: Make it so that we don't have do this relative path -->
+<script src="../../../../Text/input/wpt-import/resources/testdriver.js"></script>
+<script src="../../../../Text/input/wpt-import/resources/testdriver-vendor.js"></script>
+<video></video>
+<script>
+  async function crash() {
+    let video = document.querySelector("video");
+    await video.requestFullscreen();
+    video.width = null;
+    document.documentElement.classList.remove("test-wait");
+  }
+  document.addEventListener("click", () => crash(), false);
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    test_driver.click(document.body);
+  }));
+</script>
+</body>
+</html>

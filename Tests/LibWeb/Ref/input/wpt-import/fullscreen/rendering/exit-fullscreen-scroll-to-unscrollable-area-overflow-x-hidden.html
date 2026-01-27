@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+  <link rel="match" href="../../../../expected/wpt-import/fullscreen/rendering/exit-fullscreen-scroll-to-unscrollable-area-overflow-x-hidden-ref.html">
+  <link rel="author" title="Vitor Roriz" href="https://github.com/vitorroriz">
+  <meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-18" />
+  <style>
+    .container { overflow: hidden scroll; position: relative; scrollbar-width: none; }
+    .image { position: absolute; left: 100vw; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div style="width: 2500px; height: 500px; background-color: green;"></div>
+    <button id="fullscreen-button" style="margin-top: 2px; border: 1px solid black; border-radius: 0; background-color: white;"> Request fullscreen!</button>
+    <img id="target" src="../../images/red.png" class="image">
+    PASS if visually equal after exiting fullscreen (no scrolling has happened).
+  </div>
+
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script>
+  const fullscreenButton = document.getElementById('fullscreen-button');
+  const image = document.getElementById('target');
+  fullscreenButton.onclick = () => { image.requestFullscreen(); }
+  document.onfullscreenchange = () => {
+    if (document.fullscreenElement) {
+      // entering fullscreen
+      document.exitFullscreen();
+    } else {
+      // exiting fullscreen
+      document.documentElement.classList.remove("reftest-wait");
+    }
+  };
+  test_driver.click(fullscreenButton);
+  </script>
+</body>
+</html>

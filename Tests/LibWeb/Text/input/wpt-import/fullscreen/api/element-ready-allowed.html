@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Element ready check with enabled flag not set</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<iframe></iframe>
+<script>
+    promise_test(async function (t) {
+        const iframe = document.querySelector("iframe");
+        await new Promise((r) => {
+            iframe.onload = r;
+            iframe.src = "about:blank";
+        });
+        document.onfullscreenchange = t.unreached_func(
+            "document fullscreenchange event"
+        );
+        document.onfullscreenerror = t.unreached_func(
+            "document fullscreenerror event"
+        );
+        iframe.contentDocument.onfullscreenchange = t.unreached_func(
+            "iframe fullscreenchange event"
+        );
+        assert_false(iframe.allowFullscreen, "fullscreen enabled flag");
+        assert_true(
+            iframe.contentDocument.fullscreenEnabled,
+            "fullscreen enabled flag"
+        );
+        return trusted_request(iframe.contentDocument.body, document.body);
+    });
+</script>

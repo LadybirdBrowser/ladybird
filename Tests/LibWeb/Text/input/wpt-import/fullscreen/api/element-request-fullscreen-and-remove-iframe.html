@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() in iframe followed by removing the iframe
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<iframe allowfullscreen></iframe>
+<script>
+    promise_test(async (t) => {
+        const iframe = document.querySelector("iframe");
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            iframe.src = "about:blank";
+        });
+
+        const iframeDocument = iframe.contentDocument;
+        document.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event"
+        );
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+        iframeDocument.onfullscreenchange = t.unreached_func(
+            "iframe fullscreenchange event"
+        );
+        iframeDocument.onfullscreenerror = t.unreached_func(
+            "iframe fullscreenerror event"
+        );
+        await trusted_click(document.body);
+        const p = iframeDocument.body.requestFullscreen();
+        const typeErrorConstructor = iframe.contentWindow.TypeError;
+        iframe.remove();
+        // Prevent the tests from hanging if the promise never rejects.
+        const errorPromise = new Promise((_, reject) =>
+            t.step_timeout(() => {
+                assert_unreached("Promise didn't reject.");
+                reject(new Error("Promise didn't reject."));
+            }, 1000)
+        );
+        await Promise.race([
+            promise_rejects_js(t, typeErrorConstructor, p),
+            errorPromise,
+        ]);
+        assert_equals(document.fullscreenElement, null);
+        assert_equals(iframeDocument.fullscreenElement, null);
+    }, "requestFullscreen() in iframe followed by removing the iframe");
+</script>

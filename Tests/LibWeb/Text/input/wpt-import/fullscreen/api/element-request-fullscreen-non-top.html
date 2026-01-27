@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() for non-top element in fullscreen element stack
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="first">
+    <div id="last"></div>
+</div>
+<script>
+    promise_test(async (t) => {
+        const first = document.getElementById("first");
+        const last = document.getElementById("last");
+
+        await Promise.all([trusted_request(first), fullScreenChange()]);
+        assert_equals(document.fullscreenElement, first);
+
+        await Promise.all([trusted_request(last), fullScreenChange()]);
+        assert_equals(document.fullscreenElement, last);
+
+        await Promise.all([trusted_request(first, last), fullScreenChange()]);
+        assert_equals(document.fullscreenElement, first);
+    });
+</script>

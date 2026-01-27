@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<title>
+    Document#fullscreenEnabled removing allowfullscreen after load and then
+    navigating
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<iframe></iframe>
+<script>
+    function requestStatus(iframe) {
+        iframe.contentWindow.postMessage(
+            "What is document.fullscreenEnabled?",
+            "*"
+        );
+        return new Promise((resolve) => {
+            window.addEventListener("message", function listener(e) {
+                window.removeEventListener("message", listener);
+                resolve(event.data);
+            });
+        });
+    }
+
+    promise_test(async (t) => {
+        const iframe = document.querySelector("iframe");
+        iframe.allowFullscreen = true;
+        assert_true(iframe.allowFullscreen, "allowFullscreen is false");
+        assert_true(
+            iframe.hasAttribute("allowfullscreen"),
+            "allowFullscreen attribute is present"
+        );
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            const path = location.pathname.substring(
+                0,
+                location.pathname.lastIndexOf("/") + 1
+            );
+            iframe.src = `http://wpt.live:80${path}resources/echo-fullscreenEnabled.html`;
+        });
+
+        assert_true(
+            await requestStatus(iframe),
+            "document.fullscreenEnabled in the iframe, before navigation"
+        );
+
+        iframe.allowFullscreen = false;
+        assert_false(iframe.allowFullscreen, "allowFullscreen is false");
+        assert_false(
+            iframe.hasAttribute("allowfullscreen"),
+            "allowFullscreen attribute is not present"
+        );
+
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            iframe.contentWindow.location.href = iframe.src + "?2";
+        });
+
+        assert_false(
+            await requestStatus(iframe),
+            "document.fullscreenEnabled in the iframe, after navigation"
+        );
+    });
+</script>

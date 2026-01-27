@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Checks that the fullscreenerror event is fired when entering fullscreen fails

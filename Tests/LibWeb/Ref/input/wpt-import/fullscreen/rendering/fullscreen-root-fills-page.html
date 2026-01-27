@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<head>
+    <link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+    <link rel="match" href="../../../../expected/wpt-import/fullscreen/rendering/fullscreen-root-fills-page-ref.html">
+    <style>
+        html {
+            background-color: red;
+            height: 100%;
+            overflow: hidden;
+
+            /* These should be no-op */
+            top: 200px;
+            left: 200px;
+            right: 200px;
+            bottom: 200px;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body, #cover {
+            height: 100%;
+            width: 100%;
+        }
+
+        #cover {
+            background-color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cover"></div>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script>
+        document.addEventListener("fullscreenchange", () => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+        test_driver.bless("fullscreen")
+            .then(() => document.documentElement.requestFullscreen())
+    </script>
+</body>
+</html>

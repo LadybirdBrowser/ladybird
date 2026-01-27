@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	Element#requestFullscreen() rejects without user activation by default
+Fail	Element#requestFullscreen() resolves without user activation with permission

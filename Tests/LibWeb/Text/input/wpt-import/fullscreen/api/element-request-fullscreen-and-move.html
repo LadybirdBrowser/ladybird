@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() followed by moving the element within the
+    document
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="target"></div>
+<div id="moveto"></div>
+<script>
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+        const target = document.getElementById("target");
+        const moveTo = document.getElementById("moveto");
+        await trusted_click(document.body);
+        const p = target.requestFullscreen();
+        moveTo.appendChild(target);
+        await Promise.all([p, fullScreenChange()]);
+        assert_equals(document.fullscreenElement, target);
+        assert_equals(target.parentNode, moveTo);
+    }, "Element#requestFullscreen() followed by moving the element within the document");
+</script>

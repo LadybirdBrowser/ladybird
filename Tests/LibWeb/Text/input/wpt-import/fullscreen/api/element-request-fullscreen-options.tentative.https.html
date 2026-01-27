@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen({ screen }) tentative support</title>
+<link rel="help" href="https://w3c.github.io/window-management/" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<body></body>
+<script>
+    promise_test(async (t) => {
+        await test_driver.set_permission(
+            { name: "window-management" },
+            "granted"
+        );
+
+        let screenGetterInvoked = false;
+        const options = {
+            get screen() {
+                screenGetterInvoked = true;
+                return undefined;
+            },
+        };
+
+        await trusted_click(document.body);
+        await document.body.requestFullscreen(options);
+        assert_true(screenGetterInvoked);
+    }, "fullscreenOptions.screen getter is invoked on requestFullscreen");
+</script>

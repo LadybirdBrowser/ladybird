@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() on two elements in the same document</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<body>
+    <div id="a"></div>
+    <div id="b"></div>
+</body>
+<script>
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+
+        // Request fullscreen on both elements, but in reverse tree order.
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+
+        // Expect two fullscreenchange events, with document.fullscreenElement
+        // changing in the same order as the requests.
+        await trusted_click(b);
+        await Promise.all([b.requestFullscreen(), fullScreenChange()]);
+        assert_equals(document.fullscreenElement, b);
+
+        await trusted_click(b);
+        await Promise.all([a.requestFullscreen(), fullScreenChange()]);
+        assert_equals(document.fullscreenElement, a);
+    }, "Element#requestFullscreen() on two elements in the same document");
+</script>

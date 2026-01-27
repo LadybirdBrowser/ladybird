@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() followed by removing the element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="target"></div>
+<script>
+    promise_test(async (t) => {
+        const target = document.getElementById("target");
+        document.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event"
+        );
+        const errorEventPromise = new Promise(
+            (resolve) => (document.onfullscreenerror = resolve)
+        );
+        await trusted_click(document.body);
+        const p = target.requestFullscreen();
+        target.remove();
+        Promise.all([promise_rejects_js(t, TypeError, p), errorEventPromise]);
+    }, "requestFullscreen() followed by removing the element");
+</script>

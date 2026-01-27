@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+  body {
+    height: 10000px;
+    background: grey;
+  }
+</style>
+<title>fullscreen root block scrolling</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<body>
+<div>
+  This page tests that entering fullscreen doesn't adjust the scroll offset
+</div>
+<script>
+  promise_test(async (t) => {
+    t.add_cleanup(() => {
+      if (document.fullscreenElement) {
+        return document.exitFullscreen();
+      }
+    });
+    await trusted_click();
+    document.scrollingElement.scrollTop = 300;
+    await document.documentElement.requestFullscreen();
+    await fullScreenChange();
+
+    assert_equals(document.fullscreenElement, document.documentElement);
+    assert_not_equals(document.scrollingElement.scrollTop, 0);
+    document.scrollingElement.scrollTop = 0;
+  });
+</script>

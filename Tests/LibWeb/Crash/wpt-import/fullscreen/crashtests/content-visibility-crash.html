@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class=test-wait>
+<link rel=author href="mailto:m.cooolie@gmail.com">
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://bugs.chromium.org/p/chromium/issues/detail?id=1338135">
+<!-- FIXME: Make it so that we don't have do this relative path -->
+<script src="../../../../Text/input/wpt-import/resources/testdriver.js"></script>
+<script src="../../../../Text/input/wpt-import/resources/testdriver-vendor.js"></script>
+<body>
+<script>
+async function crash() {
+  const col = document.createElement("col");
+  document.body.appendChild(col);
+
+  let fullscreenPromise = null;
+  await test_driver.bless('open fullscreen', () => {
+    fullscreenPromise = col.requestFullscreen({navigationUI: 'hide'});
+  });
+  await fullscreenPromise;
+
+  const a = document.createElement("a");
+  document.body.appendChild(a);
+
+  document.body.style.all = 'unset';
+  document.body.style.contentVisibility = 'hidden';
+
+  a.offsetParent;
+
+  document.documentElement.classList.remove('test-wait');
+}
+crash();
+</script>

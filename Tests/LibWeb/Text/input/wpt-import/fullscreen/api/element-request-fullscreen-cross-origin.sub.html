@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<title>
+  Element#requestFullscreen() works properly with a tree of cross-origin iframes
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<body>
+  <script>
+    function waitFor(action, frameName) {
+      return new Promise((resolve) => {
+        window.addEventListener("message", function listener(e) {
+          if (e.data.action === action && e.data.name === frameName) {
+            window.removeEventListener("message", listener);
+            resolve(event.data);
+          }
+        });
+      });
+    }
+
+    function compare_report(report, expectedEvents) {
+      assert_equals(
+        report.events.length,
+        expectedEvents.length,
+        `Expected report for iframe "${report.frame}" to have ${expectedEvents.length} events: [${expectedEvents}]`
+      );
+      report.events.forEach((value, i) => {
+        assert_equals(
+          value,
+          expectedEvents[i],
+          "Event type matches in order expected"
+        );
+      });
+
+      report.events.length
+        ? assert_false(
+            report.fullscreenElementIsNull,
+            "Event fired, fullscreenElement is set"
+          )
+        : assert_true(
+            report.fullscreenElementIsNull,
+            "No event fired, fullscreenElement is null"
+          );
+    }
+
+    const iframes = [
+      {
+        name: "A",
+        src: "http://wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?a",
+        allow_fullscreen: true,
+        expectedEvents: ["fullscreenchange"],
+      },
+      {
+        name: "B",
+        src: "http://wpt.live:8000/fullscreen/api/resources/recursive-iframe-fullscreen.html?b",
+        allow_fullscreen: true,
+        expectedEvents: ["fullscreenchange"],
+      },
+      {
+        name: "C",
+        src: "http://not-wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?c",
+        allow_fullscreen: true,
+        expectedEvents: ["fullscreenchange"],
+      },
+      {
+        name: "D",
+        src: "http://not-wpt.live:8000/fullscreen/api/resources/recursive-iframe-fullscreen.html?d",
+        allow_fullscreen: true,
+        expectedEvents: ["fullscreenchange"],
+      },
+      {
+        name: "E",
+        src: "http://wpt.live:80/fullscreen/api/resources/recursive-iframe-fullscreen.html?e",
+        allow_fullscreen: true,
+        expectedEvents: [],
+      },
+    ];
+
+    promise_setup(async () => {
+      // Add the first iframe.
+      const iframeDetails = iframes[0];
+      const child_frame = document.createElement("iframe");
+      child_frame.allow = iframeDetails.allow_fullscreen ? "fullscreen" : "";
+      child_frame.name = iframeDetails.name;
+      child_frame.style.width = "100%";
+      child_frame.style.height = "100%";
+      child_frame.src = iframeDetails.src;
+      await new Promise((resolve) => {
+        child_frame.onload = resolve;
+        document.body.appendChild(child_frame);
+      });
+
+      // Create the nested iframes.
+      for (let i = 1; i < iframes.length; i++) {
+        const parentName = iframes[i - 1].name;
+        const details = iframes[i];
+        child_frame.contentWindow.postMessage(
+          { action: "addIframe", iframe: details, name: parentName },
+          "*"
+        );
+        await waitFor("load", details.name);
+      }
+    });
+
+    promise_test(async (t) => {
+      t.add_cleanup(() => {
+        if (document.fullscreenElement) {
+          return document.exitFullscreen();
+        }
+      });
+      document.onfullscreenerror = t.unreached_func(
+        "fullscreenerror event fired"
+      );
+      const fsChangeFiredPromise = new Promise((resolve) => {
+        document.onfullscreenchange = resolve;
+      });
+
+      const child_frame = document.querySelector("iframe[name=A]");
+      child_frame.contentWindow.postMessage(
+        {
+          action: "requestFullscreen",
+          name: "D",
+        },
+        "*"
+      );
+
+      await waitFor("requestFullscreen", "D");
+
+      for (const frame of iframes.slice(1)) {
+        const data = {
+          action: "requestReport",
+          name: frame.name,
+        };
+        child_frame.contentWindow.postMessage(data, "*");
+        const { report } = await waitFor("report", frame.name);
+        compare_report(report, frame.expectedEvents);
+      }
+      await fsChangeFiredPromise;
+    }, "Element#requestFullscreen() works properly with a tree of cross-origin iframes");
+  </script>
+</body>
