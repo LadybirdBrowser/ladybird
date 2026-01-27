@@ -1964,13 +1964,12 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     };
 
     for (auto property_id : property_computation_order()) {
-        auto inherited = ComputedProperties::Inherited::No;
         RefPtr<StyleValue const> value;
-        auto important = Important::No;
         bool requires_computation;
 
         if (auto cascaded_style_property = cascaded_properties.style_property(property_id); cascaded_style_property.has_value()) {
-            important = cascaded_style_property->important;
+            if (cascaded_style_property->important == Important::Yes)
+                computed_style->set_property_important(property_id, Important::Yes);
             value = cascaded_style_property->value;
             requires_computation = property_requires_computation_with_cascaded_value(property_id);
         }
@@ -1995,8 +1994,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
 
         // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if (should_inherit && computed_properties_to_inherit_from) {
-            inherited = ComputedProperties::Inherited::Yes;
-
+            computed_style->set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
             value = computed_properties_to_inherit_from->property(property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
 
@@ -2016,7 +2014,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             requires_computation = property_requires_computation_with_initial_value(property_id);
         }
 
-        computed_style->set_property(property_id, requires_computation ? compute_property(property_id, value.release_nonnull()) : value.release_nonnull(), inherited, important);
+        computed_style->set_property_without_modifying_flags(property_id, requires_computation ? compute_property(property_id, value.release_nonnull()) : value.release_nonnull());
     }
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element()))
