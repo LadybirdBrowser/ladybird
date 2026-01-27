@@ -22,11 +22,11 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigator.h>
-#include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/Page/ElementResizeAction.h>
@@ -69,12 +69,10 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
 
 static GC::Ptr<DOM::Node> input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
 {
-    if (is<Layout::Label>(paintable.layout_node())) {
-        auto const& label = as<Layout::Label>(paintable.layout_node());
-        return label.dom_node().control().ptr();
+    if (auto dom_node = paintable.dom_node()) {
+        if (auto* label = dom_node->first_ancestor_of_type<HTML::HTMLLabelElement>())
+            return label->control();
     }
-    if (auto const* label = paintable.layout_node().first_ancestor_of_type<Layout::Label>())
-        return label->dom_node().control().ptr();
     return nullptr;
 }
 
@@ -611,12 +609,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
                     } else {
                         m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position);
                     }
-                }
-            }
-
-            if (auto input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
-                if (button == UIEvents::MouseButton::Primary && input_control != node) {
-                    input_control->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                 }
             }
         }

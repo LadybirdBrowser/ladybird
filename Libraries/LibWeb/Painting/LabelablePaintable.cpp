@@ -5,13 +5,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/Layout/Label.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web::Painting {
+
+static bool is_inside_associated_label(HTML::FormAssociatedElement& control, CSSPixelPoint position)
+{
+    auto labels = control.form_associated_element_to_html_element().labels();
+    if (!labels)
+        return false;
+    for (u32 i = 0; i < labels->length(); ++i) {
+        if (auto* paintable_box = as_if<PaintableBox>(labels->item(i)->paintable())) {
+            if (paintable_box->absolute_rect().contains(position))
+                return true;
+        }
+    }
+    return false;
+}
 
 LabelablePaintable::LabelablePaintable(Layout::LabelableNode const& layout_node)
     : PaintableBox(layout_node)
@@ -54,7 +69,7 @@ LabelablePaintable::DispatchEventOfSameName LabelablePaintable::handle_mouseup(B
 
     bool is_inside_node_or_label = absolute_rect().contains(position);
     if (!is_inside_node_or_label)
-        is_inside_node_or_label = Layout::Label::is_inside_associated_label(layout_box(), position);
+        is_inside_node_or_label = is_inside_associated_label(layout_box().dom_node(), position);
 
     set_being_pressed(false);
     m_tracking_mouse = false;
@@ -69,28 +84,10 @@ LabelablePaintable::DispatchEventOfSameName LabelablePaintable::handle_mousemove
 
     bool is_inside_node_or_label = absolute_rect().contains(position);
     if (!is_inside_node_or_label)
-        is_inside_node_or_label = Layout::Label::is_inside_associated_label(layout_box(), position);
+        is_inside_node_or_label = is_inside_associated_label(layout_box().dom_node(), position);
 
     set_being_pressed(is_inside_node_or_label);
     return DispatchEventOfSameName::Yes;
-}
-
-void LabelablePaintable::handle_associated_label_mousedown(Badge<Layout::Label>)
-{
-    set_being_pressed(true);
-}
-
-void LabelablePaintable::handle_associated_label_mouseup(Badge<Layout::Label>)
-{
-    set_being_pressed(false);
-}
-
-void LabelablePaintable::handle_associated_label_mousemove(Badge<Layout::Label>, bool is_inside_node_or_label)
-{
-    if (being_pressed() == is_inside_node_or_label)
-        return;
-
-    set_being_pressed(is_inside_node_or_label);
 }
 
 }
