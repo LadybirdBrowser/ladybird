@@ -76,6 +76,12 @@
       ]
     },
     "icu",
+    {
+      "name": "libavif",
+      "features": [
+        "dav1d"
+      ]
+    },
     "libjpeg-turbo",
     "libjxl",
     {
@@ -88,12 +94,6 @@
       "name": "libproxy",
       "platform": "!(android | bsd)"
     },
-    {
-      "name": "libavif",
-      "features": [
-        "dav1d"
-      ]
-    },
     "libtommath",
     {
       "name": "libwebp",
@@ -103,12 +103,16 @@
         "simd"
       ]
     },
+    "libxml2",
     {
       "name": "mman",
       "platform": "windows"
     },
-    "libxml2",
     "openssl",
+    {
+      "name": "pthread",
+      "platform": "windows"
+    },
     {
       "name": "qtbase",
       "platform": "freebsd",
@@ -154,10 +158,6 @@
         "widgets",
         "zstd"
       ]
-    },
-    {
-      "name": "pthread",
-      "platform": "windows"
     },
     {
       "name": "sdl3",
@@ -208,13 +208,13 @@
       ]
     },
     "sqlite3",
-    "vulkan",
     {
       "name": "tiff",
       "features": [
         "zstd"
       ]
     },
+    "vulkan",
     "vulkan-headers",
     "woff2",
     "zlib"
@@ -265,6 +265,10 @@
       "version": "78.1#1"
     },
     {
+      "name": "libavif",
+      "version": "1.3.0#1"
+    },
+    {
       "name": "libjpeg-turbo",
       "version": "3.1.1#0"
     },
@@ -283,10 +287,6 @@
     {
       "name": "libtommath",
       "version": "1.3.0#2"
-    },
-    {
-      "name": "libavif",
-      "version": "1.3.0#1"
     },
     {
       "name": "libwebp",
