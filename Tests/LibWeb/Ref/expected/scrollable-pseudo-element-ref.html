@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+/* Wrapper clips the scrollbar area */
+.wrapper {
+    width: 85px;
+    height: 60px;
+    overflow: hidden;
+}
+
+.scrollable {
+    display: block;
+    white-space: pre-wrap;
+    width: 100px;
+    height: 60px;
+    overflow: scroll;
+    background: lightblue;
+}
+</style>
+<div class="wrapper">
+    <div class="scrollable">Line 1
+Line 2
+Line 3
+Line 4
+Line 5
+Line 6
+Line 7
+Line 8</div>
+</div>
+<script>
+    // Scroll to the same position as the test (40px)
+    document.querySelector('.scrollable').scrollTop = 40;
+</script>

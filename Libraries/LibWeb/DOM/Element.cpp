@@ -3731,8 +3731,9 @@ void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type
     if (pseudo_element_type.has_value()) {
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
             pseudo_element->set_scroll_offset(offset);
+    } else {
+        m_scroll_offset = offset;
     }
-    m_scroll_offset = offset;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#translation-mode
