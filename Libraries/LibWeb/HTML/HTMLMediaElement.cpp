@@ -973,6 +973,7 @@ struct HTMLMediaElement::FetchData : public RefCounted<FetchData> {
     URL::URL url_record;
     RefPtr<Media::IncrementallyPopulatedStream> stream;
     Function<void(String)> failure_callback;
+    bool accepts_byte_ranges { false };
     u64 offset { 0 };
 };
 
@@ -1096,6 +1097,9 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
                 fetch_data->stream->set_expected_size(actual_length);
             }
 
+            if (auto accept_ranges = response->header_list()->extract_header_list_values("Accept-Ranges"sv); accept_ranges.template has<Vector<ByteString>>())
+                fetch_data->accepts_byte_ranges = accept_ranges.template get<Vector<ByteString>>().contains([](auto const& units) { return units == "bytes"sv; });
+
             // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
             auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
@@ -1204,6 +1208,8 @@ Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref
 
 void HTMLMediaElement::restart_fetch_at_offset(NonnullRefPtr<FetchData> const& fetch_data, u64 offset)
 {
+    if (!fetch_data->accepts_byte_ranges)
+        return;
     if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
         m_fetch_controller->stop_fetch();
 
