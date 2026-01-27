@@ -170,14 +170,21 @@ PaintableBox::ScrollHandled PaintableBox::set_scroll_offset(CSSPixelPoint offset
     //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
     //           target in the inline axis as newInlineTarget.
 
-    GC::Ref<DOM::EventTarget> const event_target = *dom_node();
+    GC::Ptr<DOM::EventTarget> event_target;
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value())
+        event_target = node.pseudo_element_generator();
+    else
+        event_target = dom_node();
+
+    if (!event_target)
+        return ScrollHandled::Yes;
 
     // 3. If (element, "scroll") is already in doc’s pending scroll events, abort these steps.
-    if (document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { event_target, HTML::EventNames::scroll }))
+    if (document.pending_scroll_events().contains_slow(DOM::Document::PendingScrollEvent { *event_target, HTML::EventNames::scroll }))
         return ScrollHandled::Yes;
 
     // 4. Append (element, "scroll") to doc’s pending scroll events.
-    document.pending_scroll_events().append({ event_target, HTML::EventNames::scroll });
+    document.pending_scroll_events().append({ *event_target, HTML::EventNames::scroll });
 
     set_needs_display(InvalidateDisplayList::No);
     return ScrollHandled::Yes;
