@@ -12,14 +12,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [8,8] flex-container(column) [0+0+0 236.65625 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 236.65625 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 94.375x18] baseline: 15.796875
-            frag 1 from Label start: 0, length: 0, rect: [116.375,10 128.28125x18] baseline: 13.796875
+            frag 1 from BlockContainer start: 0, length: 0, rect: [116.375,10 128.28125x18] baseline: 13.796875
             BlockContainer <button> at [13,10] inline-block [0+1+4 94.375 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 94.375 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
                 BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 94.375 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 14, rect: [13,10 94.375x18] baseline: 13.796875
                       "Select file..."
                   TextNode <#text> (not painted)
-            Label <label> at [116.375,10] inline-block [0+0+4 128.28125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            BlockContainer <label> at [116.375,10] inline-block [0+0+4 128.28125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 17, rect: [116.375,10 128.28125x18] baseline: 13.796875
                   "No file selected."
               TextNode <#text> (not painted)
@@ -28,14 +28,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [252.65625,8] flex-container(column) [0+0+0 255.34375 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [252.65625,8] flex-item [0+0+0 255.34375 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [257.65625,10 103.71875x18] baseline: 15.796875
-            frag 1 from Label start: 0, length: 0, rect: [370.375,10 137.625x18] baseline: 13.796875
+            frag 1 from BlockContainer start: 0, length: 0, rect: [370.375,10 137.625x18] baseline: 13.796875
             BlockContainer <button> at [257.65625,10] inline-block [0+1+4 103.71875 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [257.65625,10] flex-container(column) [0+0+0 103.71875 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
                 BlockContainer <(anonymous)> at [257.65625,10] flex-item [0+0+0 103.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 15, rect: [257.65625,10 103.71875x18] baseline: 13.796875
                       "Select files..."
                   TextNode <#text> (not painted)
-            Label <label> at [370.375,10] inline-block [0+0+4 137.625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            BlockContainer <label> at [370.375,10] inline-block [0+0+4 137.625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 18, rect: [370.375,10 137.625x18] baseline: 13.796875
                   "No files selected."
               TextNode <#text> (not painted)
@@ -44,14 +44,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [516,8] flex-container(column) [0+0+0 255.34375 0+0+0] [0+0+0 26 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [516,8] flex-item [0+0+0 255.34375 0+0+0] [0+0+0 26 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [521,10 103.71875x18] baseline: 15.796875
-            frag 1 from Label start: 0, length: 0, rect: [633.71875,10 137.625x18] baseline: 13.796875
+            frag 1 from BlockContainer start: 0, length: 0, rect: [633.71875,10 137.625x18] baseline: 13.796875
             BlockContainer <button> at [521,10] inline-block [0+1+4 103.71875 4+1+0] [0+1+1 18 1+1+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [521,10] flex-container(column) [0+0+0 103.71875 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
                 BlockContainer <(anonymous)> at [521,10] flex-item [0+0+0 103.71875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 15, rect: [521,10 103.71875x18] baseline: 13.796875
                       "Select files..."
                   TextNode <#text> (not painted)
-            Label <label> at [633.71875,10] inline-block [0+0+4 137.625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+            BlockContainer <label> at [633.71875,10] inline-block [0+0+4 137.625 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 18, rect: [633.71875,10 137.625x18] baseline: 13.796875
                   "No files selected."
               TextNode <#text> (not painted)
@@ -68,7 +68,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x18]
                 PaintableWithLines (BlockContainer(anonymous)) [13,10 94.375x18]
                   TextPaintable (TextNode<#text>)
-            PaintableWithLines (Label<LABEL>) [112.375,10 132.28125x18]
+            PaintableWithLines (BlockContainer<LABEL>) [112.375,10 132.28125x18]
               TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [252.65625,8 255.34375x26]
@@ -78,7 +78,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [257.65625,10 103.71875x18]
                 PaintableWithLines (BlockContainer(anonymous)) [257.65625,10 103.71875x18]
                   TextPaintable (TextNode<#text>)
-            PaintableWithLines (Label<LABEL>) [366.375,10 141.625x18]
+            PaintableWithLines (BlockContainer<LABEL>) [366.375,10 141.625x18]
               TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>#multiple) [516,8 255.34375x26]
@@ -88,7 +88,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x18]
                 PaintableWithLines (BlockContainer(anonymous)) [521,10 103.71875x18]
                   TextPaintable (TextNode<#text>)
-            PaintableWithLines (Label<LABEL>) [629.71875,10 141.625x18]
+            PaintableWithLines (BlockContainer<LABEL>) [629.71875,10 141.625x18]
               TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

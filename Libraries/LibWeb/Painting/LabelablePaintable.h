@@ -27,10 +27,6 @@ public:
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
 
-    void handle_associated_label_mousedown(Badge<Layout::Label>);
-    void handle_associated_label_mouseup(Badge<Layout::Label>);
-    void handle_associated_label_mousemove(Badge<Layout::Label>, bool is_inside_node_or_label);
-
     bool being_pressed() const { return m_being_pressed; }
     // NOTE: Only the HTML node associated with this paintable should call this!
     void set_being_pressed(bool being_pressed);

@@ -17,8 +17,6 @@ class HTMLLabelElement final : public HTMLElement {
 public:
     virtual ~HTMLLabelElement() override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
-
     Optional<String> for_() const { return attribute(HTML::AttributeNames::for_); }
 
     GC::Ptr<HTMLElement> control() const;
@@ -28,6 +26,9 @@ private:
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+
+    virtual bool has_activation_behavior() const override;
+    virtual void activation_behavior(DOM::Event const&) override;
 };
 
 }

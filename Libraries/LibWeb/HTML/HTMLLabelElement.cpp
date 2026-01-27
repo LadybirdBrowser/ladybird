@@ -6,9 +6,9 @@
 
 #include <LibWeb/Bindings/HTMLLabelElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
-#include <LibWeb/Layout/Label.h>
 
 namespace Web::HTML {
 
@@ -27,9 +27,28 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
+bool HTMLLabelElement::has_activation_behavior() const
 {
-    return heap().allocate<Layout::Label>(document(), this, move(style));
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/forms.html#the-label-element:activation-behaviour
+void HTMLLabelElement::activation_behavior(DOM::Event const&)
+{
+    // The label element's exact default presentation and behavior, in particular what its activation behavior might be,
+    // if anything, should match the platform's label behavior. The activation behavior of a label element for events
+    // targeted at interactive content descendants of a label element, and any descendants of those interactive content
+    // descendants, must be to do nothing.
+
+    // AD-HOC: Click and focus the control, matching typical platform behavior.
+    auto control_element = control();
+    if (!control_element)
+        return;
+
+    control_element->click();
+
+    if (control_element->is_focusable())
+        HTML::run_focusing_steps(control_element);
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#labeled-control
