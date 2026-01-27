@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Document#fullscreenEnabled</title>
+    <meta charset="UTF-8" />
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <div id="log"></div>
+  <script>
+
+/*
+ * According to the spec the `default origin` for an iframe is its `declared
+ *   origin`, meaning, the src attribute:
+ *   https://w3c.github.io/webappsec-permissions-policy/#declared-origin
+ * The `default allowlist` for 'fullscreen' is "'self'":
+ *   https://fullscreen.spec.whatwg.org/#permissions-policy-integration
+ * And 'self' means:
+ *  'self'
+ *    The feature is allowed in documents in top-level traversables by default,
+ *    as well as those in child navigables whose document is same origin with
+ *    its parent’s document, when allowed in that Document. It is disallowed
+ *    by default in child navigables whose document is cross-origin with its
+ *    parent’s document.
+ *  (https://w3c.github.io/webappsec-permissions-policy/#default-allowlists)
+ * Therefore a navigated iframe must not have fullscreen permissions unless
+ *   the new origin matches the origin in the src attribute and is same-origin
+ *   with the embedding page.
+ */
+var expectations = {
+  "same_to_cross": {allowlist: "", iframe_src: "same", iframe_dest: "cross", target_result: false},
+  "cross_to_same": {allowlist: "", iframe_src: "cross", iframe_dest: "same", target_result: false},
+  "same_to_same": {allowlist: "", iframe_src: "same", iframe_dest: "same", target_result: true},
+  "cross_to_cross": {allowlist: "", iframe_src: "cross", iframe_dest: "cross", target_result: false},
+  "allowed_cross_to_same": {allowlist: "'self' http://not-wpt.live:80",
+   iframe_src: "cross", iframe_dest: "same", target_result: true},
+};
+
+for (const [test, {allowlist, iframe_src, iframe_dest, target_result}] of Object.entries(expectations)) {
+  promise_test(async () => {
+    let iframe = document.createElement("iframe");
+    if (allowlist !== "") {
+      iframe.allow = `fullscreen ${allowlist}`;
+    }
+
+    document.body.appendChild(iframe);
+    iframe.addEventListener("load", () => {
+      iframe.contentWindow.postMessage({dest: iframe_dest}, "*");
+    });
+
+    let hostname = iframe_src === "same" ? "wpt.live" : "not-wpt.live";
+    iframe.src = `http://${hostname}:80/fullscreen/api/resources/navigate.sub.html`;
+
+    window.addEventListener('message', e => {
+      if (e.data.report?.api == "fullscreen") {
+        resolve(e.data.report);
+      }
+    });
+
+    const { promise, resolve } = Promise.withResolvers();
+    const report = await promise;
+    assert_equals(report.enabled, target_result);
+  }, test);
+}
+
+  </script>
+</body>
+</html>

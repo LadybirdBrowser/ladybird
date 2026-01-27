@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Transitions should not be stopped by going fullscreen</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<style>
+  #trans {
+    transition: color steps(1, end) 100s;
+    color: green;
+  }
+</style>
+<div id="trans">Should be green</div>
+<script>
+  async_test(t => {
+    document.onfullscreenchange = t.step_func_done(() => {
+      assert_equals(document.fullscreenElement, trans);
+      assert_equals(getComputedStyle(trans).color, "rgb(0, 128, 0)", "Transition is in progress - still green");
+    });
+    trans.addEventListener('click', t.step_func(() => {
+      trans.style.color = "red";
+      trans.offsetTop;
+      trans.requestFullscreen();
+    }), {once: true});
+    test_driver.click(trans);
+  });
+</script>

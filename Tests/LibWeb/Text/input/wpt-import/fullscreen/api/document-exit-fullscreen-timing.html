@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>Document#exitFullscreen() timing</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        const div = document.querySelector("div");
+        await trusted_request(div);
+
+        await Promise.all([
+            new Promise((r) => (document.onfullscreenchange = r)),
+            document.exitFullscreen(),
+        ]);
+
+        // If fullscreenchange is an animation frame event, then animation frame
+        // callbacks should be run after it is fired, before the timer callback.
+        // The resize event should fire before the fullscreenchange event.
+        const events = [];
+        const callback = t.step_func((event) => {
+            // fullscreenElement should have changed before either event is fired.
+            assert_equals(
+                document.fullscreenElement,
+                null,
+                `fullscreenElement in ${event.type} event`
+            );
+            events.push(event.type);
+            if (event.type == "fullscreenchange") {
+                step_timeout(t.unreached_func("timer callback"));
+                requestAnimationFrame(
+                    t.step_func_done(() => {
+                        assert_array_equals(
+                            events,
+                            ["resize", "fullscreenchange"],
+                            "event order"
+                        );
+                    })
+                );
+            }
+        });
+        document.onfullscreenchange = window.onresize = callback;
+    }, "Timing of fullscreenchange and resize events");
+</script>

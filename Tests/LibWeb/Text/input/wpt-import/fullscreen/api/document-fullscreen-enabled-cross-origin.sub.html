@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Document#fullscreenEnabled</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<iframe src="resources/report-fullscreen-enabled.html" name="same-origin-default"></iframe>
+<iframe src="resources/report-fullscreen-enabled.html" allowfullscreen name="same-origin-allow"></iframe>
+<iframe src="http://not-wpt.live:80/fullscreen/api/resources/report-fullscreen-enabled.html" name="cross-origin-default"></iframe>
+<iframe src="http://not-wpt.live:8000/fullscreen/api/resources/report-fullscreen-enabled.html" allowfullscreen name="cross-origin-allow"></iframe>
+<script>
+var expectations = {
+  "same-origin-default": true,
+  "same-origin-allow": true,
+  "cross-origin-default": false,
+  "cross-origin-allow": true
+};
+
+var tests = {};
+for (var name in expectations) {
+  tests[name] = async_test( 'Fullscreen enabled test: ' + name);
+}
+
+// When a message is received from a child frame, ensure that the report
+// matches the expectations.
+window.addEventListener('message', e => {
+  if (e.data.report && e.data.report.api == "fullscreen") {
+    if (e.data.report.frame in expectations) {
+      tests[e.data.report.frame].step(() => {
+        assert_equals(e.data.report.enabled, expectations[e.data.report.frame],
+          e.data.report.frame + " frame fullscreenEnabled");
+      });
+      delete expectations[e.data.report.frame];
+      tests[e.data.report.frame].done();
+    }
+  }
+});
+</script>
