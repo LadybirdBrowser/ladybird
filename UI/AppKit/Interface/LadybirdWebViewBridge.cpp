@@ -59,6 +59,11 @@ void WebViewBridge::set_maximum_frames_per_second(u64 maximum_frames_per_second)
     client().async_set_maximum_frames_per_second(m_client_state.page_index, maximum_frames_per_second);
 }
 
+void WebViewBridge::exit_fullscreen()
+{
+    client().async_exit_fullscreen(m_client_state.page_index);
+}
+
 void WebViewBridge::update_palette()
 {
     auto theme = create_system_palette();

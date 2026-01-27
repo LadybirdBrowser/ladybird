@@ -192,6 +192,11 @@ struct HideCursor {
     m_web_view_bridge->set_maximum_frames_per_second([[[self window] screen] maximumFramesPerSecond]);
 }
 
+- (void)handleExitFullScreen
+{
+    m_web_view_bridge->exit_fullscreen();
+}
+
 - (void)handleVisibility:(BOOL)is_visible
 {
     m_web_view_bridge->set_system_visibility_state(is_visible
@@ -837,6 +842,19 @@ struct HideCursor {
         }
 
         if (([[self window] styleMask] & NSWindowStyleMaskFullScreen) == 0) {
+            [[self window] toggleFullScreen:nil];
+        }
+
+        m_web_view_bridge->did_update_window_rect();
+    };
+
+    m_web_view_bridge->on_exit_fullscreen_window = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        if (([[self window] styleMask] & NSWindowStyleMaskFullScreen) != 0) {
             [[self window] toggleFullScreen:nil];
         }
 

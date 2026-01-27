@@ -453,6 +453,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[[self tab] web_view] handleDisplayRefreshRateChange];
 }
 
+- (void)windowDidExitFullScreen:(NSNotification*)notification
+{
+    [[[self tab] web_view] handleExitFullScreen];
+}
+
 #pragma mark - NSToolbarDelegate
 
 - (NSToolbarItem*)toolbar:(NSToolbar*)toolbar
