@@ -217,32 +217,36 @@ void VideoDataProvider::ThreadData::invoke_on_main_thread_while_locked(Invokee i
 
 bool VideoDataProvider::ThreadData::handle_suspension()
 {
-    auto locker = take_lock();
-    if (m_requested_state != RequestedState::Suspended)
-        return false;
+    {
+        auto locker = take_lock();
+        if (m_requested_state != RequestedState::Suspended)
+            return false;
 
-    m_queue.clear();
-    m_decoder.clear();
-    m_decoder_needs_keyframe_next_seek = true;
+        m_queue.clear();
+        m_decoder.clear();
+        m_decoder_needs_keyframe_next_seek = true;
 
-    while (m_requested_state == RequestedState::Suspended)
-        m_wait_condition.wait();
+        while (m_requested_state == RequestedState::Suspended)
+            m_wait_condition.wait();
 
-    if (m_requested_state != RequestedState::Running)
-        return true;
+        if (m_requested_state != RequestedState::Running)
+            return true;
 
-    auto result = create_decoder();
-    if (result.is_error()) {
-        m_is_in_error_state = true;
-        invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
-            if (self->m_error_handler)
-                self->m_error_handler(move(error));
-        });
+        auto result = create_decoder();
+        if (result.is_error()) {
+            m_is_in_error_state = true;
+            invoke_on_main_thread_while_locked([error = result.release_error()](auto const& self) mutable {
+                if (self->m_error_handler)
+                    self->m_error_handler(move(error));
+            });
+        }
     }
 
     // Suspension must be woken with a seek, or we will throw decoding errors.
-    while (!handle_seek())
+    while (!handle_seek()) {
+        auto locker = take_lock();
         m_wait_condition.wait();
+    }
 
     return true;
 }
