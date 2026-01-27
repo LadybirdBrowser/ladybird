@@ -4,33 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibHTTP/HTTP.h>
 #include <LibURL/URL.h>
 
 namespace HTTP {
-
-static Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive)
-{
-    Optional<StringView> result;
-
-    cache_control.for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView candidate) {
-        if (!candidate.contains(directive, CaseSensitivity::CaseInsensitive))
-            return IterationDecision::Continue;
-
-        auto index = candidate.find('=');
-        if (!index.has_value())
-            return IterationDecision::Continue;
-
-        result = candidate.substring_view(*index + 1);
-        return IterationDecision::Break;
-    });
-
-    return result;
-}
 
 // https://httpwg.org/specs/rfc9110.html#field.date
 static Optional<UnixDateTime> parse_http_date(Optional<ByteString const&> date)
@@ -184,8 +167,7 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     // FIXME: must-understand is not implemented.
 
     // * the no-store cache directive is not present in the response (see Section 5.2.2.5);
-    if (cache_control.has_value()
-        && cache_control->contains("no-store"sv, CaseSensitivity::CaseInsensitive))
+    if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "no-store"sv))
         return false;
 
     // * if the cache is shared: the private response directive is either not present or allows a shared cache to store
@@ -213,9 +195,9 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     bool has_max_age = false;
 
     if (cache_control.has_value()) {
-        has_public = cache_control->contains("public"sv, CaseSensitivity::CaseInsensitive);
-        has_private = cache_control->contains("private"sv, CaseSensitivity::CaseInsensitive);
-        has_max_age = cache_control->contains("max-age"sv, CaseSensitivity::CaseInsensitive);
+        has_public = contains_cache_control_directive(*cache_control, "public"sv);
+        has_private = contains_cache_control_directive(*cache_control, "private"sv);
+        has_max_age = contains_cache_control_directive(*cache_control, "max-age"sv);
 
         // FIXME: cache extensions that explicitly allow caching are not interpreted.
     }
@@ -340,7 +322,7 @@ AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const& hea
     // been marked as explicitly cacheable (e.g., with a public response directive).
     if (is_heuristically_cacheable_status(status_code)) {
         heuristics_allowed = true;
-    } else if (cache_control.has_value() && cache_control->contains("public"sv, CaseSensitivity::CaseInsensitive)) {
+    } else if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "public"sv)) {
         heuristics_allowed = true;
     }
 
@@ -415,7 +397,7 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duratio
     // NOT be used to satisfy any other request without forwarding it for validation and receiving a successful response
     //
     // FIXME: Handle the qualified form of the no-cache directive, which may allow us to re-use the response.
-    if (cache_control.has_value() && cache_control->contains("no-cache"sv, CaseSensitivity::CaseInsensitive))
+    if (cache_control.has_value() && contains_cache_control_directive(*cache_control, "no-cache"sv))
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     // https://httpwg.org/specs/rfc9111.html#expiration.model
@@ -436,7 +418,7 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& headers, AK::Duratio
     // https://httpwg.org/specs/rfc9111.html#cache-response-directive.must-revalidate
     // The must-revalidate response directive indicates that once the response has become stale, a cache MUST NOT reuse
     // that response to satisfy another request until it has been successfully validated by the origin
-    if (cache_control->contains("must-revalidate"sv, CaseSensitivity::CaseInsensitive))
+    if (contains_cache_control_directive(*cache_control, "must-revalidate"sv))
         return revalidation_status(CacheLifetimeStatus::MustRevalidate);
 
     return CacheLifetimeStatus::Expired;
@@ -492,6 +474,57 @@ void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_
     for (auto const& updated_header : updated_headers) {
         if (!is_header_exempted_from_update(updated_header.name))
             stored_headers.append({ updated_header.name, updated_header.value });
+    }
+}
+
+bool contains_cache_control_directive(StringView cache_control, StringView directive)
+{
+    return extract_cache_control_directive(cache_control, directive).has_value();
+}
+
+// This is a modified version of the "get, decode, and split" algorithm. This version stops at the first match found,
+// does not un-escape quoted strings, and deals only with ASCII encodings. See:
+// https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
+Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive)
+{
+    VERIFY(!directive.is_empty());
+
+    GenericLexer lexer { cache_control };
+    size_t directive_start { 0 };
+
+    while (true) {
+        lexer.consume_until(is_any_of("\","sv));
+
+        if (!lexer.is_eof() && lexer.peek() == '"') {
+            auto quoted_string_start = lexer.tell();
+            lexer.consume_quoted_string('\\');
+
+            // FIXME: We currently bail if we come across an unterminated quoted string. Do other engines behave this
+            //        way, or do they try to move on by finding the next comma?
+            if (quoted_string_start == lexer.tell())
+                return {};
+
+            if (!lexer.is_eof())
+                continue;
+        }
+
+        auto name = cache_control.substring_view(directive_start, lexer.tell() - directive_start);
+        StringView value;
+
+        if (auto index = name.find_any_of("=\""sv); index.has_value() && name[*index] == '=') {
+            value = name.substring_view(*index + 1);
+            name = name.substring_view(0, *index);
+        }
+
+        if (name.trim(HTTP_WHITESPACE).equals_ignoring_ascii_case(directive))
+            return value.trim(HTTP_WHITESPACE);
+        if (lexer.is_eof())
+            return {};
+
+        VERIFY(lexer.peek() == ',');
+        lexer.ignore(1);
+
+        directive_start = lexer.tell();
     }
 }
 
