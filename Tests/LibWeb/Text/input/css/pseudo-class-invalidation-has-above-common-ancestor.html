@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+/* Case 1: :has() on ancestor above common ancestor.
+   When focus moves from input-a to input-b, the common ancestor is #shared-parent.
+   The :has(:focus) is on #outer which is ABOVE the common ancestor.
+   The target #outside-target is a sibling of #shared-parent, so it is
+   outside the common ancestor subtree but inside #outer. */
+#outer:has(:focus) > #outside-target { background-color: green; }
+#outside-target { background-color: red; }
+
+/* Case 2: :has() with descendant combinator, target outside common ancestor.
+   Focus goes into #ca2-inputs. The :has(:focus-within) is on body.
+   The target is a completely separate subtree. */
+body:has(:focus-within) #case2-target { background-color: green; }
+#case2-target { background-color: red; }
+
+/* Case 3: :has() with sibling combinator on element above common ancestor.
+   #has-container:has(:focus) ~ #sibling-target styles a sibling that is
+   entirely outside the common ancestor subtree. */
+#has-container:has(:focus) ~ #sibling-target { background-color: green; }
+#sibling-target { background-color: red; }
+
+/* Case 4: Moving focus between two inputs inside a :has() scope.
+   Both inputs are inside #ca4. The rule uses :has(:focus) on #ca4-outer
+   (above #ca4) and targets #ca4-indicator (also inside #ca4-outer but
+   outside #ca4). After moving focus, the :has() should still match. */
+#ca4-outer:has(:focus) > #ca4-indicator { background-color: green; }
+#ca4-indicator { background-color: red; }
+
+/* Case 5: :has(:focus) + blur — target outside common ancestor must revert.
+   After focusing #blur-input, #blur-outer:has(:focus) matches and #blur-target
+   turns green. After blur, the common ancestor is the root (old=input, new=null).
+   The target must revert to red. */
+#blur-outer:has(:focus) > #blur-target { background-color: green; }
+#blur-target { background-color: red; }
+</style>
+
+<!-- Case 1 -->
+<div id="outer">
+    <div id="outside-target">Case 1</div>
+    <div id="shared-parent">
+        <input id="input-a" type="text">
+        <input id="input-b" type="text">
+    </div>
+</div>
+
+<!-- Case 2 -->
+<div id="case2-target">Case 2</div>
+<div id="ca2-inputs">
+    <input id="case2-input" type="text">
+</div>
+
+<!-- Case 3 -->
+<div id="has-container">
+    <div><input id="case3-input" type="text"></div>
+</div>
+<div id="sibling-target">Case 3</div>
+
+<!-- Case 4 -->
+<div id="ca4-outer">
+    <div id="ca4-indicator">Case 4</div>
+    <div id="ca4">
+        <input id="ca4-input-a" type="text">
+        <input id="ca4-input-b" type="text">
+    </div>
+</div>
+
+<!-- Case 5 -->
+<div id="blur-outer">
+    <div id="blur-target">Case 5</div>
+    <div><input id="blur-input" type="text"></div>
+</div>
+
+<script>
+asyncTest(async (done) => {
+    document.body.offsetWidth;
+
+    const bg = id => getComputedStyle(document.getElementById(id)).backgroundColor;
+
+    // Case 1: Focus input-a first, then move to input-b.
+    // The common ancestor when moving focus is #shared-parent.
+    // #outside-target is outside that subtree but should still update
+    // because #outer:has(:focus) is above the common ancestor.
+    document.getElementById("input-a").focus();
+    await animationFrame();
+    await animationFrame();
+    // Verify it matched initially
+    let case1_initial = bg("outside-target");
+
+    // Now move focus to sibling — common ancestor is #shared-parent
+    document.getElementById("input-b").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 1 (has above CA, initial): ${case1_initial}`);
+    println(`Case 1 (has above CA, after move): ${bg("outside-target")}`);
+
+    // Case 2: Focus input in a separate subtree, target in another subtree.
+    // body:has(:focus-within) means the entire body scope is relevant.
+    document.getElementById("case2-input").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 2 (has on body): ${bg("case2-target")}`);
+
+    // Case 3: :has() with general sibling combinator.
+    document.getElementById("case3-input").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 3 (has + sibling combinator): ${bg("sibling-target")}`);
+
+    // Case 4: Move focus between two inputs inside :has() scope.
+    // Common ancestor is #ca4, but the indicator is outside #ca4.
+    document.getElementById("ca4-input-a").focus();
+    await animationFrame();
+    await animationFrame();
+    let case4_initial = bg("ca4-indicator");
+
+    document.getElementById("ca4-input-b").focus();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 4 (move within has, initial): ${case4_initial}`);
+    println(`Case 4 (move within has, after move): ${bg("ca4-indicator")}`);
+
+    // Case 5: Focus then blur — :has(:focus) must stop matching after blur.
+    document.getElementById("blur-input").focus();
+    await animationFrame();
+    await animationFrame();
+    let case5_focused = bg("blur-target");
+
+    document.getElementById("blur-input").blur();
+    await animationFrame();
+    await animationFrame();
+    println(`Case 5 (has + blur, focused): ${case5_focused}`);
+    println(`Case 5 (has + blur, blurred): ${bg("blur-target")}`);
+
+    done();
+});
+</script>
