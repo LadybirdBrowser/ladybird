@@ -44,6 +44,9 @@ flatpak_runtime_libs = [
     "qtbase",
     "qtmultimedia",
     "sqlite3",
+    "tiff",
+    "vulkan",
+    "vulkan-headers",
     "zlib",
 ]
 
@@ -51,6 +54,7 @@ flatpak_runtime_libs = [
 vcpkg_not_linux = [
     "dirent",
     "mman",
+    "pthread",
 ]
 
 

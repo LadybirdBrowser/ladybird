@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "4f326c4072038c8624c36a8ba5ed23f616adda53",
+  "builtin-baseline": "05442024c3fda64320bd25d2251cc9807b84fb6f",
   "dependencies": [
     {
       "name": "angle",
@@ -81,6 +81,10 @@
       "features": [
         "dav1d"
       ]
+    },
+    {
+      "name": "libdwarf",
+      "platform": "linux | windows | osx"
     },
     "libjpeg-turbo",
     "libjxl",
@@ -269,6 +273,10 @@
       "version": "1.3.0#1"
     },
     {
+      "name": "libdwarf",
+      "version": "2.3.0#0"
+    },
+    {
       "name": "libjpeg-turbo",
       "version": "3.1.1#0"
     },
@@ -309,6 +317,10 @@
       "version": "3.5.3#0"
     },
     {
+      "name": "pthread",
+      "version": "3.0.0#2"
+    },
+    {
       "name": "qtbase",
       "version": "6.10.0#1"
     },
@@ -331,6 +343,18 @@
     {
       "name": "sqlite3",
       "version": "3.50.4#0"
+    },
+    {
+      "name": "tiff",
+      "version": "4.7.1#0"
+    },
+    {
+      "name": "vulkan",
+      "version": "2023-12-17"
+    },
+    {
+      "name": "vulkan-headers",
+      "version": "1.4.335.0#0"
     },
     {
       "name": "woff2",
