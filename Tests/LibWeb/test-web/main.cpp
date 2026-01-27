@@ -384,6 +384,9 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
             continue;
         }
 
+        if (!is_valid_test_name(name))
+            continue;
+
         auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
         tests.append({ TestMode::Ref, input_path, {}, relative_path, relative_path });
     }
