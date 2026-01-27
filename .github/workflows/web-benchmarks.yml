@@ -1,0 +1,124 @@
+name: 'Web benchmarks'
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [master]
+    types: [completed]
+
+jobs:
+  web-benchmarks:
+    runs-on: ${{ fromJSON(matrix.runner_labels) }}
+    if: ${{ github.repository == 'LadybirdBrowser/ladybird' && github.event.workflow_run.conclusion == 'success' }}
+    name: ${{ matrix.os_name }}, ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        arch: ['x86_64']
+        flatpak_artifact: ['Ladybird-x86_64.flatpak']
+        runner_labels: ['["ubuntu-24.04-internal", "web-benchmarks", "self-hosted"]']
+
+        include:
+          - os_name: 'Linux'
+            arch: 'arm64'
+            flatpak_artifact: 'Ladybird-aarch64.flatpak'
+            runner_labels: '["ubuntu-24.04-arm-internal", "web-benchmarks", "self-hosted"]'
+
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: 'Determine ladybird commit hash'
+        id: ladybird-commit
+        shell: bash
+        run: |
+          # Use the commit from the CI run that built the Flatpak
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Checkout LadybirdBrowser/web-benchmarks'
+        uses: actions/checkout@v6.0.2
+        with:
+          repository: LadybirdBrowser/web-benchmarks
+          path: web-benchmarks
+          ref: master
+
+      - name: 'Determine web-benchmarks commit hash'
+        id: web-benchmarks-commit
+        shell: bash
+        run: |
+          cd web-benchmarks
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Install dependencies'
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y python3-venv flatpak
+
+      - name: 'Download Flatpak artifact'
+        uses: dawidd6/action-download-artifact@v12
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ matrix.flatpak_artifact }}
+          path: flatpak-bundle
+
+      - name: 'Install Flatpak runtime and Ladybird'
+        shell: bash
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.kde.Platform//6.9
+          # The artifact contains Ladybird.flatpak (the bundle file)
+          flatpak install --user --noninteractive flatpak-bundle/*.flatpak
+
+      - name: 'Create launcher script'
+        shell: bash
+        run: |
+          cat > ladybird-launcher.sh << 'EOF'
+          #!/bin/bash
+          exec flatpak run org.ladybird.Ladybird "$@"
+          EOF
+          chmod +x ladybird-launcher.sh
+
+      - name: 'Run the benchmarks'
+        shell: bash
+        run: |
+          cd web-benchmarks
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python3 -m pip install -r requirements.txt
+
+          run_options='--iterations=5'
+          run_options="${run_options} --executable=${{ github.workspace }}/ladybird-launcher.sh"
+
+          ./run.py ${run_options}
+
+      - name: 'Save results as an artifact'
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: web-benchmarks/results.json
+          retention-days: 90
+
+      - name: 'Call webhook'
+        shell: bash
+        run: |
+          echo '{
+              "commit": "${{ steps.ladybird-commit.outputs.sha }}",
+              "benchmarks_commit": "${{ steps.web-benchmarks-commit.outputs.sha }}",
+              "os": "${{ matrix.os_name }}",
+              "arch": "${{ matrix.arch }}",
+              "artifact": "web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
+              "artifact_run_id": "${{ github.run_id }}",
+              "category": "web"
+          }' > request.json
+          curl \
+              --fail \
+              --silent \
+              --show-error \
+              --header 'Content-Type: application/json' \
+              --header "X-Hub-Signature-256: sha256=$(openssl dgst -sha256 -hmac '${{ secrets.JS_BENCHMARKS_WEBHOOK_SECRET }}' request.json | cut -d' ' -f2)" \
+              --data-binary '@request.json' \
+              '${{ secrets.JS_BENCHMARKS_WEBHOOK_URL }}'
