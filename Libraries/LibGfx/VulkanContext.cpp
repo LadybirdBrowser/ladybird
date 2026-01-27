@@ -71,6 +71,45 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     VERIFY_NOT_REACHED();
 }
 
+typedef struct {
+    char const* name;
+    bool required;
+} DesiredExtension;
+
+#ifdef USE_VULKAN_IMAGES
+static Array<DesiredExtension, 4> desired_extensions = { {
+    { VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, true },
+    { VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME, true },
+    { VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, false },
+    { VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME, false },
+} };
+#else
+static Array<DesiredExtension, 0> desired_extensions;
+#endif
+
+static ErrorOr<Vector<char const*>> get_physical_device_supported_extensions(VkPhysicalDevice physical_device)
+{
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, NULL);
+    Vector<VkExtensionProperties> available;
+    available.resize(extension_count);
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, available.data());
+
+    Vector<char const*> supported;
+
+    for (auto ext : desired_extensions) {
+        if (!available.find_if([&ext](auto const& prop) { return !strcmp(prop.extensionName, ext.name); }).is_end()) {
+            supported.append(ext.name);
+        } else {
+            if (ext.required) {
+                dbgln("Missing required Vulkan extension: '{}'", ext.name);
+                return Error::from_string_literal("Missing Vulkan extension");
+            }
+        }
+    }
+    return supported;
+}
+
 static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
 {
     VkDevice device;
@@ -105,23 +144,16 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     queue_create_info.pQueuePriorities = &queue_priority;
 
     VkPhysicalDeviceFeatures deviceFeatures {};
-#ifdef USE_VULKAN_IMAGES
-    Array<char const*, 4> device_extensions = {
-        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
-        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
-        VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
-    };
-#else
-    Array<char const*, 0> device_extensions;
-#endif
+
+    Vector<char const*> extensions = TRY(get_physical_device_supported_extensions(physical_device));
+
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = device_extensions.size();
-    create_device_info.ppEnabledExtensionNames = device_extensions.data();
+    create_device_info.enabledExtensionCount = extensions.size();
+    create_device_info.ppEnabledExtensionNames = extensions.data();
 
     VkResult result = vkCreateDevice(physical_device, &create_device_info, nullptr, &device);
     if (result != VK_SUCCESS) {
