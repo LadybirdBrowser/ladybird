@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>Document#onfullscreenchange</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        const div = document.querySelector("div");
+        assert_equals(
+            document.onfullscreenchange,
+            null,
+            "initial onfullscreenchange"
+        );
+        const [, event] = await Promise.all([
+            trusted_request(div),
+            new Promise((r) =>
+                document.addEventListener("fullscreenchange", r)
+            ),
+        ]);
+        assert_true(event instanceof Event);
+        assert_equals(event.target, div);
+    }, "Checks that the fullscreenchange event is fired when entering fullscreen");
+</script>

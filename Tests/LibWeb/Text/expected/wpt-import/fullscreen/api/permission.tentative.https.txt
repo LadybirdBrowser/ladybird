@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Querying "fullscreen" permission checks "allowWithoutGesture" option
+Fail	Set and query "fullscreen" permission with "allowWithoutGesture" true
+Fail	Querying "fullscreen" permission with "allowWithoutGesture" false is unsupported

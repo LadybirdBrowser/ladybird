@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class=reftest-wait>
+<title>::backdrop inherits style from the fullscreen element</title>
+<link rel=match href="../../../../expected/wpt-import/fullscreen/rendering/backdrop-green-ref.html">
+<link rel=help href="https://github.com/whatwg/fullscreen/issues/124">
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<style>
+body {
+  --bg: red;
+}
+div {
+  --bg: green;
+}
+div::backdrop {
+  background: var(--bg);
+}
+</style>
+<div></div>
+<script>
+document.addEventListener('fullscreenchange', () => {
+  document.documentElement.classList.remove('reftest-wait');
+});
+test_driver.bless('fullscreen', () => {
+  document.querySelector('div').requestFullscreen();
+});
+</script>
