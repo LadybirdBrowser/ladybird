@@ -55,7 +55,7 @@ jobs:
       - name: Set up CMake PPA
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y gnupg
+          sudo apt-get install -y gnupg2
 
           wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
           sudo add-apt-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
