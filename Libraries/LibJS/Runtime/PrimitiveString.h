@@ -25,6 +25,8 @@ class JS_API PrimitiveString : public Cell {
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16View const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16FlyString const&);
@@ -82,6 +84,8 @@ private:
     explicit PrimitiveString(String);
 
     void resolve_rope_if_needed(EncodingPreference) const;
+
+    virtual void finalize() override;
 };
 
 class RopeString final : public PrimitiveString {
