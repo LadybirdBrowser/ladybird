@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Platform.h>
 #include <AK/StringView.h>
@@ -120,10 +121,44 @@ private:
     bool m_overrides_finalize { false };
 
     Ptr<FreelistEntry> m_freelist;
-    alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];
 
 public:
     static constexpr size_t min_possible_cell_size = sizeof(FreelistEntry);
+
+    // Upper bound on cells per block (ignoring bitmap overhead in sizeof(HeapBlock)).
+    // The actual cell count is always <= this, so the bitmap is always large enough.
+    static constexpr size_t max_cells_per_block = BLOCK_SIZE / min_possible_cell_size;
+    static constexpr size_t mark_bitmap_word_count = (max_cells_per_block + 63) / 64;
+
+    ALWAYS_INLINE size_t cell_index(Cell const* cell) const
+    {
+        return (reinterpret_cast<FlatPtr>(cell) - reinterpret_cast<FlatPtr>(m_storage)) / m_cell_size;
+    }
+
+    ALWAYS_INLINE bool is_marked(size_t index) const
+    {
+        return m_mark_bitmap[index / 64].load(AK::MemoryOrder::memory_order_relaxed) & (1ULL << (index % 64));
+    }
+
+    ALWAYS_INLINE void set_marked(size_t index)
+    {
+        m_mark_bitmap[index / 64].fetch_or(1ULL << (index % 64), AK::MemoryOrder::memory_order_relaxed);
+    }
+
+    ALWAYS_INLINE void clear_marked(size_t index)
+    {
+        m_mark_bitmap[index / 64].fetch_and(~(1ULL << (index % 64)), AK::MemoryOrder::memory_order_relaxed);
+    }
+
+    ALWAYS_INLINE void clear_all_marks()
+    {
+        for (auto& word : m_mark_bitmap)
+            word.store(0, AK::MemoryOrder::memory_order_relaxed);
+    }
+
+private:
+    Atomic<u64> m_mark_bitmap[mark_bitmap_word_count] {};
+    alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];
 };
 
 }
