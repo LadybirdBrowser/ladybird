@@ -16,6 +16,8 @@ class WEB_API NavigableContainer : public HTMLElement {
     WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
 
     virtual ~NavigableContainer() override;
@@ -45,6 +47,7 @@ protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements
     Optional<URL::URL> shared_attribute_processing_steps_for_iframe_and_frame(InitialInsertion initial_insertion);
