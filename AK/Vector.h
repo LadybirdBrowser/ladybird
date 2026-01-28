@@ -590,16 +590,25 @@ public:
     template<typename TUnaryPredicate>
     bool remove_all_matching(TUnaryPredicate const& predicate)
     {
-        bool something_was_removed = false;
-        for (size_t i = 0; i < size();) {
-            if (predicate(at(i))) {
-                remove(i);
-                something_was_removed = true;
-            } else {
-                ++i;
+        size_t write_index = 0;
+        for (size_t read_index = 0; read_index < m_size; ++read_index) {
+            if (predicate(at(read_index))) {
+                TypedTransfer<StorageType>::delete_(slot(read_index), 1);
+                continue;
             }
+            if (read_index != write_index) {
+                TypedTransfer<StorageType>::move(slot(write_index), slot(read_index), 1);
+                TypedTransfer<StorageType>::delete_(slot(read_index), 1);
+            }
+            ++write_index;
         }
-        return something_was_removed;
+
+        if (write_index == m_size)
+            return false;
+
+        m_size = write_index;
+        update_metadata();
+        return true;
     }
 
     ALWAYS_INLINE T take_last()
