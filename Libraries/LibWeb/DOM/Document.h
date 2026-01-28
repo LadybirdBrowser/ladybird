@@ -962,6 +962,7 @@ public:
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
 
     String dump_display_list();
+    String dump_stacking_context_tree();
 
     StyleInvalidator& style_invalidator() { return m_style_invalidator; }
 

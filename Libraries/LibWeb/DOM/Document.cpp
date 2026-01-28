@@ -163,6 +163,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
@@ -6948,6 +6949,25 @@ String Document::dump_display_list()
             indent += nesting_change;
     }
 
+    return builder.to_string_without_validation();
+}
+
+String Document::dump_stacking_context_tree()
+{
+    update_layout(UpdateLayoutReason::DumpDisplayList);
+
+    auto* viewport_paintable = paintable();
+    if (!viewport_paintable)
+        return "No paintable"_string;
+
+    viewport_paintable->build_stacking_context_tree_if_needed();
+
+    auto* stacking_context = viewport_paintable->stacking_context();
+    if (!stacking_context)
+        return "No stacking context"_string;
+
+    StringBuilder builder;
+    stacking_context->dump(builder);
     return builder.to_string_without_validation();
 }
 
