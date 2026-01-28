@@ -1,7 +1,7 @@
 font-feature-settings: normal
 font-kerning: auto
 font-language-override: normal
-font-optical-sizing: undefined
+font-optical-sizing: auto
 font-size-adjust: undefined
 font-variant-alternates: normal
 font-variant-caps: normal

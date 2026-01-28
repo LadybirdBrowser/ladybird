@@ -1850,7 +1850,7 @@
   },
   "font": {
     "initial": "normal medium serif",
-    "__comment": "FIXME: Support font-optical-sizing and font-size-adjust as reset-only sub-properties",
+    "__comment": "FIXME: Support font-size-adjust as a reset-only sub-property",
     "longhands": [
       "font-family",
       "font-size",
@@ -1862,6 +1862,7 @@
       "font-feature-settings",
       "font-kerning",
       "font-language-override",
+      "font-optical-sizing",
       "font-variation-settings"
     ]
   },
@@ -1907,6 +1908,14 @@
     ],
     "valid-identifiers": [
       "normal"
+    ]
+  },
+  "font-optical-sizing": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "valid-types": [
+      "font-optical-sizing"
     ]
   },
   "font-size": {

@@ -2675,7 +2675,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             PropertyID::FontFeatureSettings,
             PropertyID::FontKerning,
             PropertyID::FontLanguageOverride,
-            // FIXME: PropertyID::FontOpticalSizing,
+            PropertyID::FontOpticalSizing,
             // FIXME: PropertyID::FontSizeAdjust,
             PropertyID::FontVariationSettings,
         },
@@ -2693,7 +2693,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
             property_initial_value(PropertyID::FontFeatureSettings),   // font-feature-settings
             property_initial_value(PropertyID::FontKerning),           // font-kerning,
             property_initial_value(PropertyID::FontLanguageOverride),  // font-language-override
-                                                                       // FIXME: font-optical-sizing,
+            property_initial_value(PropertyID::FontOpticalSizing),     // font-optical-sizing,
                                                                        // FIXME: font-size-adjust,
             property_initial_value(PropertyID::FontVariationSettings), // font-variation-settings
         });

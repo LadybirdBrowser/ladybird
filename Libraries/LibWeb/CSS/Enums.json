@@ -337,6 +337,10 @@
     "normal",
     "none"
   ],
+  "font-optical-sizing": [
+    "auto",
+    "none"
+  ],
   "font-style-keyword": [
     "normal",
     "italic",
