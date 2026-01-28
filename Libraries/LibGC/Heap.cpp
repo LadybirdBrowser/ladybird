@@ -20,9 +20,11 @@
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/Timer.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
@@ -45,6 +47,9 @@ namespace GC {
 static constexpr size_t GC_MIN_BYTES_THRESHOLD { 8 * 1024 * 1024 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 7 };
 static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
+
+static constexpr int GC_INCREMENTAL_SWEEP_INTERVAL_MS = 16;
+static constexpr int GC_INCREMENTAL_SWEEP_SLICE_MS = 5;
 
 static Heap* s_the;
 
@@ -452,6 +457,12 @@ private:
 
 AK::JsonObject Heap::dump_graph()
 {
+    // An in-progress incremental sweep would leave parts of the heap as freelist
+    // entries while the conservative scan in gather_roots() can still pick up
+    // not-yet-swept (but unreachable) cells whose internal pointers lead to
+    // those freelist entries. Drain the sweep so we operate on a stable heap.
+    finish_pending_incremental_sweep();
+
     HashMap<Cell*, HeapRoot> roots;
     HashTable<HeapBlock*> all_live_heap_blocks;
     Vector<StackFrameInfo> stack_frames;
@@ -477,6 +488,13 @@ AK::JsonObject Heap::dump_graph()
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
+
+    // If an incremental sweep is still in progress, finish it first.
+    if (m_incremental_sweep_active && !is_gc_deferred()) {
+        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] New GC triggered, finishing current sweep...");
+        while (m_incremental_sweep_active)
+            sweep_next_block();
+    }
 
     {
         TemporaryChange change(m_collecting_garbage, true);
@@ -519,7 +537,21 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             ScopedPhaseTimer timer { report, g_phase_timings.sweep_weak_blocks_us };
             sweep_weak_blocks();
         }
+
+        // Run sweep callbacks at STW so they fire for every collection,
+        // not just CollectEverything. Static caches like
+        // StaticPropertyLookupCache prune by mark state and must see valid
+        // marks before incremental sweep starts freeing cells.
         {
+            ScopedPhaseTimer timer { report, g_phase_timings.sweep_callbacks_us };
+            for (auto& callback : m_sweep_callbacks)
+                callback();
+        }
+
+        // For CollectEverything we must finish sweeping synchronously so that
+        // every cell is collected before the Heap destructor returns. All
+        // other collection types defer sweeping to incremental work below.
+        if (collection_type == CollectionType::CollectEverything) {
             ScopedPhaseTimer timer { report, g_phase_timings.sweep_dead_cells_us };
             sweep_dead_cells(report, collection_measurement_timer);
         }
@@ -535,6 +567,12 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
                 dump_allocators();
         }
     }
+
+    // Arm incremental sweep before running post-GC tasks so any cells those
+    // tasks allocate get tagged as allocated-during-sweep and aren't freed
+    // by sweep_block before the next mark phase reaches them.
+    if (collection_type != CollectionType::CollectEverything)
+        start_incremental_sweep();
 
     run_post_gc_tasks();
 }
@@ -1020,12 +1058,6 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     }
 
     {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_callbacks_us };
-        for (auto& callback : m_sweep_callbacks)
-            callback();
-    }
-
-    {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_reclassify_us };
         for (auto* block : empty_blocks) {
             dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
@@ -1065,6 +1097,174 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     // Sweep is done; kick the global decommit worker so the slots we just
     // freed get madvise()'d off the GC pause path.
     BlockAllocator::wake_decommit_worker_async();
+}
+
+void Heap::sweep_block(HeapBlock& block)
+{
+    // Remove from the allocator's pending sweep list.
+    block.m_sweep_list_node.remove();
+
+    bool block_has_live_cells = false;
+    bool block_was_full = block.is_full();
+    size_t collected_cells = 0;
+    size_t live_cells = 0;
+
+    block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+        if (!cell->is_marked()) {
+            dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
+            block.deallocate(cell);
+            ++collected_cells;
+        } else {
+            cell->set_marked(false);
+            block_has_live_cells = true;
+            m_sweep_live_cell_bytes += block.cell_size();
+            auto cell_external_memory_size = cell->external_memory_size();
+            m_sweep_live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - m_sweep_live_external_bytes
+                ? NumericLimits<size_t>::max()
+                : m_sweep_live_external_bytes + cell_external_memory_size;
+            ++live_cells;
+        }
+    });
+
+    if (!block_has_live_cells) {
+        dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
+        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Block @ {} freed ({} cells collected)",
+            &block, collected_cells);
+        block.cell_allocator().block_did_become_empty({}, block);
+    } else if (block_was_full && !block.is_full()) {
+        dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", &block, block.cell_size());
+        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Block @ {} now usable (live: {}, collected: {})",
+            &block, live_cells, collected_cells);
+        block.cell_allocator().block_did_become_usable({}, block);
+    } else if constexpr (INCREMENTAL_SWEEP_DEBUG) {
+        dbgln("[sweep] Block @ {} swept (live: {}, collected: {})",
+            &block, live_cells, collected_cells);
+    }
+}
+
+bool Heap::sweep_next_block()
+{
+    if (!m_incremental_sweep_active)
+        return true;
+
+    if (is_gc_deferred())
+        return true;
+
+    // Find the next allocator that has blocks pending sweep.
+    while (auto* allocator = m_allocators_to_sweep.first()) {
+        if (auto* block = allocator->m_blocks_pending_sweep.first()) {
+            sweep_block(*block);
+            if (!allocator->has_blocks_pending_sweep())
+                allocator->m_sweep_list_node.remove();
+            return false;
+        }
+        // Allocator was drained by allocation-directed sweeping.
+        allocator->m_sweep_list_node.remove();
+    }
+
+    // No more blocks to sweep.
+    finish_incremental_sweep();
+    return true;
+}
+
+void Heap::start_incremental_sweep()
+{
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Starting incremental sweep ===");
+
+    m_incremental_sweep_active = true;
+    m_sweep_live_cell_bytes = 0;
+    m_sweep_live_external_bytes = 0;
+
+    for (auto& weak_container : m_weak_containers)
+        weak_container.remove_dead_cells({});
+
+    // Populate each allocator's pending sweep list with its current blocks.
+    // Blocks allocated during incremental sweep won't be on these lists
+    // and don't need sweeping.
+    size_t total_blocks = 0;
+    for (auto& allocator : m_all_cell_allocators) {
+        allocator.for_each_block([&](HeapBlock& block) {
+            allocator.m_blocks_pending_sweep.append(block);
+            ++total_blocks;
+            return IterationDecision::Continue;
+        });
+        if (allocator.has_blocks_pending_sweep())
+            m_allocators_to_sweep.append(allocator);
+    }
+
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] {} blocks to sweep", total_blocks);
+
+    start_incremental_sweep_timer();
+}
+
+void Heap::finish_incremental_sweep()
+{
+    update_gc_bytes_threshold(m_sweep_live_cell_bytes, m_sweep_live_external_bytes);
+
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Sweep complete ===");
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_sweep_live_cell_bytes, m_sweep_live_cell_bytes / KiB);
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_sweep_live_external_bytes, m_sweep_live_external_bytes / KiB);
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Next GC threshold: {} ({} KiB)", m_gc_bytes_threshold, m_gc_bytes_threshold / KiB);
+
+    // Clear marks on cells allocated during sweep. Sweep already cleared
+    // marks on cells it visited, so only these remain marked.
+    for (auto cell : m_cells_allocated_during_sweep)
+        cell->set_marked(false);
+    m_cells_allocated_during_sweep.clear();
+
+    m_incremental_sweep_active = false;
+
+    stop_incremental_sweep_timer();
+}
+
+void Heap::finish_pending_incremental_sweep()
+{
+    if (!m_incremental_sweep_active || is_gc_deferred())
+        return;
+
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Finishing pending sweep...");
+    while (m_incremental_sweep_active)
+        sweep_next_block();
+}
+
+void Heap::start_incremental_sweep_timer()
+{
+    if (!m_incremental_sweep_timer) {
+        m_incremental_sweep_timer = Core::Timer::create_repeating(GC_INCREMENTAL_SWEEP_INTERVAL_MS, [this] {
+            sweep_on_timer();
+        });
+    }
+    m_incremental_sweep_timer->start();
+}
+
+void Heap::stop_incremental_sweep_timer()
+{
+    if (m_incremental_sweep_timer)
+        m_incremental_sweep_timer->stop();
+}
+
+void Heap::sweep_on_timer()
+{
+    if (!m_incremental_sweep_active)
+        return;
+
+    if (is_gc_deferred())
+        return;
+
+    size_t blocks_swept = 0;
+    auto start_time = MonotonicTime::now();
+    auto deadline = start_time + AK::Duration::from_milliseconds(GC_INCREMENTAL_SWEEP_SLICE_MS);
+    while (MonotonicTime::now() < deadline) {
+        if (sweep_next_block())
+            break;
+        ++blocks_swept;
+    }
+
+    if (blocks_swept > 0) {
+        auto elapsed = MonotonicTime::now() - start_time;
+        dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] Timer slice: {} blocks in {}ms",
+            blocks_swept, elapsed.to_milliseconds());
+    }
 }
 
 void Heap::defer_gc()

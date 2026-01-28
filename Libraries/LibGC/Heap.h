@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/RefPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/String.h>
 #include <AK/Types.h>
@@ -49,8 +50,15 @@ public:
         auto* memory = allocate_cell<T>();
         defer_gc();
         new (memory) T(forward<Args>(args)...);
+        auto* cell = static_cast<T*>(memory);
+        // Cells allocated during incremental sweep must be marked so they
+        // survive until the next GC cycle clears and re-establishes marks.
+        if (m_incremental_sweep_active) {
+            cell->set_marked(true);
+            m_cells_allocated_during_sweep.append(cell);
+        }
         undefer_gc();
-        return *static_cast<T*>(memory);
+        return *cell;
     }
 
     enum class CollectionType {
@@ -86,6 +94,9 @@ public:
     void uproot_cell(Cell* cell);
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
+    bool is_incremental_sweep_active() const { return m_incremental_sweep_active; }
+
+    void sweep_block(HeapBlock&);
 
     void enqueue_post_gc_task(AK::Function<void()>);
 
@@ -128,6 +139,14 @@ private:
     void sweep_weak_blocks();
     void run_post_gc_tasks();
 
+    bool sweep_next_block();
+    void start_incremental_sweep();
+    void finish_incremental_sweep();
+    void finish_pending_incremental_sweep();
+    void start_incremental_sweep_timer();
+    void stop_incremental_sweep_timer();
+    void sweep_on_timer();
+
     template<typename Callback>
     void for_each_block(Callback callback)
     {
@@ -164,6 +183,13 @@ private:
 
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;
+
+    bool m_incremental_sweep_active { false };
+    size_t m_sweep_live_cell_bytes { 0 };
+    size_t m_sweep_live_external_bytes { 0 };
+    Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
+    CellAllocator::SweepList m_allocators_to_sweep;
+    RefPtr<Core::Timer> m_incremental_sweep_timer;
 };
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
