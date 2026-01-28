@@ -117,9 +117,9 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
 
     bool first_element = true;
     auto first_element_position = streamer.position();
+    auto element_data_end = first_element_position + element_data_size;
 
-    streamer.push_octets_read();
-    while (streamer.octets_read() < element_data_size) {
+    while (streamer.position() < element_data_end) {
         dbgln_if(MATROSKA_TRACE_DEBUG, "====== Reading  element ======");
         auto element_id = TRY(streamer.read_variable_size_integer(false));
         dbgln_if(MATROSKA_TRACE_DEBUG, "{:s} element ID is {:#010x}", element_name, element_id);
@@ -160,14 +160,13 @@ static DecoderErrorOr<size_t> parse_master_element(Streamer& streamer, [[maybe_u
         if (result.value() == ElementIterationDecision::BreakHere)
             break;
         if (result.value() == ElementIterationDecision::BreakAtEnd) {
-            TRY(streamer.seek_to_position(first_element_position + element_data_size));
+            TRY(streamer.seek_to_position(element_data_end));
             break;
         }
 
-        dbgln_if(MATROSKA_TRACE_DEBUG, "Read {} octets of the {} so far.", streamer.octets_read(), element_name);
+        dbgln_if(MATROSKA_TRACE_DEBUG, "Read {} octets of the {} so far.", streamer.position() - first_element_position, element_name);
         first_element = false;
     }
-    streamer.pop_octets_read();
 
     return first_element_position;
 }
@@ -772,7 +771,7 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
     Vector<ByteBuffer> frames;
 
     if (block.lacing() == Block::Lacing::EBML) {
-        auto octets_read_before_frame_sizes = streamer.octets_read();
+        auto frames_start_position = streamer.position();
         auto frame_count = TRY(streamer.read_octet()) + 1;
         Vector<u64> frame_sizes;
         frame_sizes.ensure_capacity(frame_count);
@@ -796,7 +795,7 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
             frame_size_sum += frame_size;
             previous_frame_size = frame_size;
         }
-        frame_sizes.append(block.data_size() - frame_size_sum - (streamer.octets_read() - octets_read_before_frame_sizes));
+        frame_sizes.append(block.data_size() - frame_size_sum - (streamer.position() - frames_start_position));
 
         for (int i = 0; i < frame_count; i++) {
             // FIXME: ReadonlyBytes instead of copying the frame data?
@@ -809,7 +808,7 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY(streamer.read_raw_octets(individual_frame_size)));
     } else if (block.lacing() == Block::Lacing::XIPH) {
-        auto frames_start_position = streamer.octets_read();
+        auto frames_start_position = streamer.position();
 
         auto frame_count_minus_one = TRY(streamer.read_octet());
         frames.ensure_capacity(frame_count_minus_one + 1);
@@ -829,7 +828,7 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
 
         for (auto i = 0; i < frame_count_minus_one; i++)
             frames.append(TRY(streamer.read_raw_octets(frame_sizes[i])));
-        frames.append(TRY(streamer.read_raw_octets(block.data_size() - (streamer.octets_read() - frames_start_position))));
+        frames.append(TRY(streamer.read_raw_octets(block.data_size() - (streamer.position() - frames_start_position))));
     } else {
         frames.append(TRY(streamer.read_raw_octets(block.data_size())));
     }
@@ -1250,7 +1249,6 @@ DecoderErrorOr<u8> Streamer::read_octet()
     u8 result;
     Bytes bytes { &result, 1 };
     TRY(m_stream_cursor->read_into(bytes));
-    m_octets_read.last()++;
     return bytes[0];
 }
 
@@ -1319,7 +1317,6 @@ DecoderErrorOr<ByteBuffer> Streamer::read_raw_octets(size_t num_octets)
     auto result = MUST(ByteBuffer::create_uninitialized(num_octets));
     auto bytes = result.bytes();
     TRY(m_stream_cursor->read_into(bytes));
-    m_octets_read.last() += num_octets;
     return result;
 }
 
@@ -1358,7 +1355,6 @@ DecoderErrorOr<void> Streamer::read_unknown_element()
     auto element_length = TRY(read_variable_size_integer());
     dbgln_if(MATROSKA_TRACE_DEBUG, "Skipping unknown element of size {}.", element_length);
     TRY(m_stream_cursor->seek(element_length, IncrementallyPopulatedStream::Cursor::SeekMode::FromCurrentPosition));
-    m_octets_read.last() += element_length;
     return {};
 }
 

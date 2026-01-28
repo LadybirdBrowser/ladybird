@@ -53,3 +53,26 @@ TEST_CASE(seek_in_multi_frame_blocks)
     EXPECT(coded_frame_after_backward_seek.timestamp() > AK::Duration::zero());
     EXPECT(coded_frame_after_backward_seek.timestamp() <= backward_seek_time);
 }
+
+TEST_CASE(block_group)
+{
+    auto file = MUST(Core::File::open("./test-matroska-block-group.mkv"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    u64 video_track = 0;
+    MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
+        video_track = track_entry.track_number();
+        return IterationDecision::Break;
+    }));
+    VERIFY(video_track == 1);
+
+    auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
+
+    auto first_block = MUST(iterator.next_block());
+    EXPECT(first_block.duration().has_value());
+    EXPECT_EQ(first_block.duration()->to_milliseconds(), 33);
+
+    auto second_block = MUST(iterator.next_block());
+    EXPECT_EQ(second_block.timestamp().to_milliseconds(), 33);
+    EXPECT(second_block.only_keyframes());
+}
