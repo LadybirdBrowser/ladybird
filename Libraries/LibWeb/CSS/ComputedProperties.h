@@ -252,6 +252,7 @@ public:
     double font_weight() const;
     Percentage font_width() const;
     int font_slope() const;
+    FontOpticalSizing font_optical_sizing() const;
 
     bool operator==(ComputedProperties const&) const;
 

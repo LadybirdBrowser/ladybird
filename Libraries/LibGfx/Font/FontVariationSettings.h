@@ -47,6 +47,12 @@ struct FontVariationSettings {
         axes.set(FourCC("wdth"), value);
     }
 
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_opsz
+    void set_optical_sizing(float value)
+    {
+        axes.set(FourCC("opsz"), value);
+    }
+
     bool is_empty() const { return axes.is_empty(); }
 
     Vector<FontVariationAxis> to_sorted_list() const

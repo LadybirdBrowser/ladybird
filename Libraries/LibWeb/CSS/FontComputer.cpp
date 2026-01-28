@@ -80,6 +80,7 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
                 VERIFY_NOT_REACHED();
         }
 
+        hash = pair_int_hash(hash, to_underlying(key.font_optical_sizing));
         hash = pair_int_hash(hash, Traits<Web::CSSPixels>::hash(key.font_size));
         hash = pair_int_hash(hash, key.font_slope);
         hash = pair_int_hash(hash, Traits<double>::hash(key.font_weight));
@@ -373,10 +374,11 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     ComputedFontCacheKey cache_key {
         .font_family = font_family,
+        .font_optical_sizing = font_optical_sizing,
         .font_size = font_size,
         .font_slope = font_slope,
         .font_weight = font_weight,
@@ -386,18 +388,28 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     };
 
     return m_computed_font_cache.ensure(cache_key, [&]() {
-        return compute_font_for_style_values_impl(font_family, font_size, font_slope, font_weight, font_width, font_variation_settings, font_feature_data);
+        return compute_font_for_style_values_impl(font_family, font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data);
     });
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, HashMap<FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
 
+    // FIXME: We need to respect `font-size-adjust` once that is implemented.
+    auto font_size_used_value = font_size.to_float();
+
     Gfx::FontVariationSettings variation;
     variation.set_weight(font_weight);
     variation.set_width(font_width.value());
+
+    // NB: The spec recommends that we use the 'used value' of font-size for 'opsz' when font-optical-sizing is 'auto'.
+    // FIXME: User agents must not select a value for the "opsz" axis which is not supported by the font used for
+    //        rendering the text. This can be accomplished by clamping a chosen value to the range supported by the
+    //        font. https://drafts.csswg.org/css-fonts/#font-optical-sizing-def
+    if (font_optical_sizing == FontOpticalSizing::Auto)
+        variation.set_optical_sizing(font_size_used_value);
 
     for (auto const& [tag_string, value] : font_variation_settings) {
         auto string_view = tag_string.bytes_as_string_view();
@@ -410,8 +422,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     }
 
     // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
-
-    float const font_size_in_pt = font_size * 0.75f;
+    float const font_size_in_pt = font_size_used_value * 0.75f;
 
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         // OPTIMIZATION: Look for an exact match in loaded fonts first.
