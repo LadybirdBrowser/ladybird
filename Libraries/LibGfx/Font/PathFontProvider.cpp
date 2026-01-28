@@ -57,6 +57,8 @@ RefPtr<Gfx::Font> PathFontProvider::get_font(FlyString const& family, float poin
     auto const compute_default_font_variation_settings = [&](unsigned weight, unsigned width) {
         FontVariationSettings default_font_variation_settings;
         default_font_variation_settings.set_weight(static_cast<float>(weight));
+        // NB: We use the pixel size for 'opsz'
+        default_font_variation_settings.set_optical_sizing(point_size / 0.75f);
 
         switch (width) {
         case FontWidth::UltraCondensed:

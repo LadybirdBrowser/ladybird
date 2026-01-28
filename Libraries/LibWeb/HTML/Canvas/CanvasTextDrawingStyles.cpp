@@ -150,6 +150,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
                 computed_font_style->as_font_style().to_font_slope(),
                 computed_font_weight->as_number().number(),
                 computed_font_width->as_percentage().percentage(),
+                CSS::FontOpticalSizing::Auto,
                 {},
                 {});
         },
