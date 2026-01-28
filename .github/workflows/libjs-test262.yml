@@ -50,20 +50,20 @@ jobs:
           repository: tc39/test262-parser-tests
           path: test262-parser-tests
 
-      # We are currently limited to CMake 3.28 in Ubuntu 24.04. Our build requires CMake 3.30 or later.
-      # If this step is removed in the future, then be sure stop specifying /usr/bin/cmake in the steps below.
-      - name: Set up CMake PPA
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y gnupg2
-
-          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
-          sudo add-apt-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
-
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 cmake jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
+          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
+
+          # We are currently limited to CMake 3.28 in Ubuntu 24.04. Our build requires CMake 3.30 or later.
+          CMAKE_VERSION=4.2.3
+          CMAKE_NAME="cmake-${CMAKE_VERSION}-linux-x86_64"
+          test -e ${CMAKE_NAME} || (
+            curl -f -L -o "${CMAKE_NAME}.tar.gz" "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_NAME}.tar.gz"
+            tar -xzf "./${CMAKE_NAME}.tar.gz"
+            rm "./${CMAKE_NAME}.tar.gz"
+            echo "${{ github.workspace }}/${CMAKE_NAME}" >> $GITHUB_PATH
+          )
 
           WASM_TOOLS_VERSION=1.243.0
           test -e /opt/wasm-tools-${WASM_TOOLS_VERSION} || (
@@ -79,7 +79,7 @@ jobs:
 
       - name: Print CMake version
         run: |
-          /usr/bin/cmake --version
+          cmake --version
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -112,10 +112,9 @@ jobs:
           export HOME=${{ github.workspace }}/home
           mkdir -p $HOME
 
-          # We specify /usr/bin/cmake below to ensure we use the apt-provided CMake over the image-bundled CMake (/usr/local/bin).
           env CC=clang-20 \
             CXX=clang++-20 \
-            /usr/bin/cmake --preset Release -B libjs-test262/Build \
+            cmake --preset Release -B libjs-test262/Build \
               -DCMAKE_C_COMPILER=clang-20 \
               -DCMAKE_CXX_COMPILER=clang++-20 \
               -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
