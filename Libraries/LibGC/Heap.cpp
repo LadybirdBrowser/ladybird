@@ -12,6 +12,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/Platform.h>
+#include <AK/QuickSort.h>
 #include <AK/StackInfo.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
@@ -30,7 +31,65 @@
 
 namespace GC {
 
+static constexpr bool DUMP_GC_STATS_ON_EXIT = false;
+
 static Heap* s_the;
+
+struct GCPause {
+    i64 mark_us { 0 };
+    i64 finalize_us { 0 };
+    i64 weak_us { 0 };
+    i64 sweep_us { 0 };
+    i64 total_us { 0 };
+};
+
+static Vector<GCPause> s_gc_pauses;
+
+[[maybe_unused]] static void dump_gc_stats()
+{
+    if (s_gc_pauses.is_empty())
+        return;
+
+    dbgln("=== GC Statistics ({} collections) ===", s_gc_pauses.size());
+
+    i64 total_mark = 0;
+    i64 total_finalize = 0;
+    i64 total_weak = 0;
+    i64 total_sweep = 0;
+    i64 total_total = 0;
+    for (auto& p : s_gc_pauses) {
+        total_mark += p.mark_us;
+        total_finalize += p.finalize_us;
+        total_weak += p.weak_us;
+        total_sweep += p.sweep_us;
+        total_total += p.total_us;
+    }
+
+    dbgln("  Total time in GC: {}.{:03} ms", total_total / 1000, total_total % 1000);
+    dbgln("    Mark:     {}.{:03} ms", total_mark / 1000, total_mark % 1000);
+    dbgln("    Finalize: {}.{:03} ms", total_finalize / 1000, total_finalize % 1000);
+    dbgln("    Weak:     {}.{:03} ms", total_weak / 1000, total_weak % 1000);
+    dbgln("    Sweep:    {}.{:03} ms", total_sweep / 1000, total_sweep % 1000);
+
+    auto avg = total_total / static_cast<i64>(s_gc_pauses.size());
+    dbgln("  Average pause: {}.{:03} ms", avg / 1000, avg % 1000);
+
+    Vector<GCPause> sorted = s_gc_pauses;
+    quick_sort(sorted, [](auto& a, auto& b) { return a.total_us > b.total_us; });
+
+    auto top = min(sorted.size(), static_cast<size_t>(10));
+    dbgln("  Top {} worst pauses:", top);
+    for (size_t i = 0; i < top; ++i) {
+        auto& p = sorted[i];
+        dbgln("    {}.{:03} ms (mark: {}.{:03}, finalize: {}.{:03}, weak: {}.{:03}, sweep: {}.{:03})",
+            p.total_us / 1000, p.total_us % 1000,
+            p.mark_us / 1000, p.mark_us % 1000,
+            p.finalize_us / 1000, p.finalize_us % 1000,
+            p.weak_us / 1000, p.weak_us % 1000,
+            p.sweep_us / 1000, p.sweep_us % 1000);
+    }
+    dbgln("==========================================");
+}
 
 Heap& Heap::the()
 {
@@ -41,6 +100,8 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
     : m_gather_embedder_roots(move(gather_embedder_roots))
 {
     s_the = this;
+    if constexpr (DUMP_GC_STATS_ON_EXIT)
+        atexit(dump_gc_stats);
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
     m_size_based_cell_allocators.append(make<CellAllocator>(96));
@@ -273,6 +334,8 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         if (print_report)
             collection_measurement_timer.start();
 
+        auto gc_start = MonotonicTime::now();
+
         if (collection_type == CollectionType::CollectGarbage) {
             if (m_gc_deferrals) {
                 m_should_gc_when_deferral_ends = true;
@@ -283,12 +346,35 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             gather_roots(roots, all_live_heap_blocks);
             mark_live_cells(roots, all_live_heap_blocks);
         }
-        finalize_unmarked_cells();
-        sweep_weak_blocks();
-        sweep_dead_cells(print_report, collection_measurement_timer);
 
+        auto after_mark = MonotonicTime::now();
+
+        // Phase 2: Finalization (stop-the-world)
+        finalize_unmarked_cells();
+
+        auto after_finalize = MonotonicTime::now();
+
+        // Phase 3: Weak refs (stop-the-world)
+        sweep_weak_blocks();
+
+        auto after_weak = MonotonicTime::now();
+
+        // Phase 4: Sweeping
+        sweep_dead_cells(print_report, collection_measurement_timer);
         if (print_report)
             dump_allocators();
+
+        auto after_sweep = MonotonicTime::now();
+
+        if constexpr (DUMP_GC_STATS_ON_EXIT) {
+            GCPause pause;
+            pause.mark_us = (after_mark - gc_start).to_nanoseconds() / 1000;
+            pause.finalize_us = (after_finalize - after_mark).to_nanoseconds() / 1000;
+            pause.weak_us = (after_weak - after_finalize).to_nanoseconds() / 1000;
+            pause.sweep_us = (after_sweep - after_weak).to_nanoseconds() / 1000;
+            pause.total_us = (after_sweep - gc_start).to_nanoseconds() / 1000;
+            s_gc_pauses.append(pause);
+        }
     }
 
     run_post_gc_tasks();
