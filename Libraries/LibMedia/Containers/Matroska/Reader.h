@@ -128,17 +128,6 @@ public:
     {
     }
 
-    size_t octets_read() { return m_octets_read.last(); }
-
-    void push_octets_read() { m_octets_read.append(0); }
-
-    void pop_octets_read()
-    {
-        auto popped = m_octets_read.take_last();
-        if (!m_octets_read.is_empty())
-            m_octets_read.last() += popped;
-    }
-
     DecoderErrorOr<u8> read_octet();
 
     DecoderErrorOr<i16> read_i16();
@@ -161,7 +150,6 @@ public:
 
 private:
     NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
-    Vector<size_t> m_octets_read { 0 };
 };
 
 }
