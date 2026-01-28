@@ -2891,6 +2891,12 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     // NOTE: Clamp to the scrolling area.
     new_viewport_scroll_offset.set_x(max(0.0, min(new_viewport_scroll_offset.x(), scrolling_area.width() - viewport_size().width().to_double())));
     new_viewport_scroll_offset.set_y(max(0.0, min(new_viewport_scroll_offset.y(), scrolling_area.height() - viewport_size().height().to_double())));
+
+    // AD-HOC: If the scroll position would not change, return early to avoid unnecessary display invalidation
+    //         and event loop scheduling (e.g. during momentum scrolling against a boundary).
+    if (new_viewport_scroll_offset.to_type<CSSPixels>() == m_viewport_scroll_offset && visual_dx == 0.0 && visual_dy == 0.0)
+        return WebIDL::create_resolved_promise(doc->realm(), JS::js_undefined());
+
     // FIXME: Get a Promise from this.
     perform_scroll_of_viewport_scrolling_box(new_viewport_scroll_offset.to_type<CSSPixels>());
 
