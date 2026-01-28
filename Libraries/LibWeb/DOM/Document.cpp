@@ -131,6 +131,7 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -3578,8 +3579,39 @@ bool Document::has_focus_for_bindings() const
 // https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
 bool Document::has_focus() const
 {
-    // FIXME: Implement this algorithm.
-    return true;
+    // 1. If target's node navigable's top-level traversable does not have system focus, then return false.
+    auto navigable = this->navigable();
+    if (!navigable)
+        return false;
+
+    auto traversable = navigable->traversable_navigable();
+    if (!traversable || !traversable->is_focused())
+        return false;
+
+    // 2. Let candidate be target's node navigable's top-level traversable's active document.
+    auto candidate = traversable->active_document();
+
+    // 3. While true:
+    while (candidate) {
+        // 3.1. If candidate is target, then return true.
+        if (candidate == this)
+            return true;
+
+        // 3.2. If the focused area of candidate is a navigable container with a non-null content navigable,
+        //      then set candidate to the active document of that navigable container's content navigable.
+        auto focused_area = candidate->focused_area();
+        if (auto* navigable_container = as_if<HTML::NavigableContainer>(focused_area.ptr())) {
+            if (auto content_navigable = navigable_container->content_navigable()) {
+                candidate = content_navigable->active_document();
+                continue;
+            }
+        }
+
+        // 3.3. Otherwise, return false.
+        return false;
+    }
+
+    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#allow-focus-steps
