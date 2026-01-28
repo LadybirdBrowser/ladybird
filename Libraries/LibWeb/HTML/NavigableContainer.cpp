@@ -38,8 +38,11 @@ NavigableContainer::NavigableContainer(DOM::Document& document, DOM::QualifiedNa
     all_instances().set(this);
 }
 
-NavigableContainer::~NavigableContainer()
+NavigableContainer::~NavigableContainer() = default;
+
+void NavigableContainer::finalize()
 {
+    Base::finalize();
     all_instances().remove(this);
 }
 
