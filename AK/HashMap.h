@@ -301,16 +301,6 @@ public:
         return list;
     }
 
-    [[nodiscard]] u32 hash() const
-    {
-        u32 hash = 0;
-        for (auto const& [key, value] : *this) {
-            auto entry_hash = pair_int_hash(key.hash(), value.hash());
-            hash = pair_int_hash(hash, entry_hash);
-        }
-        return hash;
-    }
-
     template<typename NewKeyTraits = KeyTraits, typename NewValueTraits = ValueTraits, bool NewIsOrdered = IsOrdered>
     ErrorOr<HashMap<K, V, NewKeyTraits, NewValueTraits, NewIsOrdered>> clone() const
     {
