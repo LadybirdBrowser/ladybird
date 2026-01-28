@@ -747,6 +747,15 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
                 signal_a_slot_change(*this_slot_element);
         }
 
+        // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
+        //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
+        if (auto* shadow_root = as_if<ShadowRoot>(node_to_insert->root())) {
+            node_to_insert->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+                shadow_root->register_slot(slot);
+                return TraversalDecision::Continue;
+            });
+        }
+
         // 6. Run assign slottables for a tree with node’s root.
         assign_slottables_for_a_tree(node_to_insert->root());
 
@@ -977,10 +986,15 @@ void Node::remove(bool suppress_observers)
 
     // 10. If node has an inclusive descendant that is a slot, then:
     auto has_descendent_slot = false;
+    auto* shadow_root = as_if<ShadowRoot>(parent_root);
 
-    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto const&) {
+    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
         has_descendent_slot = true;
-        return TraversalDecision::Break;
+        if (!shadow_root)
+            return TraversalDecision::Break;
+        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+        shadow_root->unregister_slot(slot);
+        return TraversalDecision::Continue;
     });
 
     if (has_descendent_slot) {
@@ -1284,10 +1298,15 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 16. If node has an inclusive descendant that is a slot:
     auto has_descendent_slot = false;
+    auto* shadow_root = as_if<ShadowRoot>(old_parent_root);
 
-    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto const&) {
+    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
         has_descendent_slot = true;
-        return TraversalDecision::Break;
+        if (!shadow_root)
+            return TraversalDecision::Break;
+        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+        shadow_root->unregister_slot(slot);
+        return TraversalDecision::Continue;
     });
 
     if (has_descendent_slot) {
@@ -1342,6 +1361,15 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
         if (is_named_shadow_host && this_element.is_slottable())
             assign_a_slot(this_element.as_slottable());
+    }
+
+    // AD-HOC: Register any slot elements in the moved subtree with the shadow root's slot registry so the registry is
+    //         up-to-date.
+    if (auto* new_shadow_root = as_if<ShadowRoot>(root())) {
+        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            new_shadow_root->register_slot(slot);
+            return TraversalDecision::Continue;
+        });
     }
 
     // 22. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.

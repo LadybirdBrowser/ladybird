@@ -90,17 +90,7 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
 
     // 6. Return the first slot in tree order in shadow’s descendants whose name is slottable’s name, if any; otherwise null.
     auto const& slottable_name = slottable.visit([](auto const& node) { return node->slottable_name(); });
-    GC::Ptr<HTML::HTMLSlotElement> slot;
-
-    shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
-        if (child.slot_name() != slottable_name)
-            return TraversalDecision::Continue;
-
-        slot = child;
-        return TraversalDecision::Break;
-    });
-
-    return slot;
+    return shadow->first_slot_with_name(slottable_name);
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
@@ -227,14 +217,21 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 // https://dom.spec.whatwg.org/#assign-slotables-for-a-tree
 void assign_slottables_for_a_tree(GC::Ref<Node> root)
 {
-    // AD-HOC: This method iterates over the root's entire subtree. That iteration does nothing if the root is not a
-    //         shadow root (see `find_slottables`). This iteration can be very expensive as the HTML parser inserts
-    //         nodes, especially on sites with many elements. So we skip it if we know it's going to be a no-op anyways.
-    if (!root->is_shadow_root() && !root->is_html_slot_element())
-        return;
-
     // To assign slottables for a tree, given a node root, run assign slottables for each slot of root’s inclusive
     // descendants, in tree order.
+
+    // OPTIMIZATION: If root is not a shadow root or slot element, there are no slots to process, so return early.
+    auto* shadow_root = as_if<ShadowRoot>(*root);
+    if (!shadow_root && !root->is_html_slot_element())
+        return;
+
+    if (shadow_root) {
+        shadow_root->for_each_registered_slot([](HTML::HTMLSlotElement& slot) {
+            assign_slottables(slot);
+        });
+        return;
+    }
+
     root->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([](auto& slot) {
         assign_slottables(slot);
         return TraversalDecision::Continue;

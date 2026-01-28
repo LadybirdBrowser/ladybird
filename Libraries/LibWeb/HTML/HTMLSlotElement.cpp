@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/HTMLSlotElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 
@@ -151,12 +152,21 @@ void HTMLSlotElement::attribute_changed(FlyString const& local_name, Optional<St
         if (value == String {} && !old_value.has_value())
             return;
 
+        // OPTIMIZATION: Update the slot registry before changing the name.
+        auto* shadow_root = as_if<DOM::ShadowRoot>(root());
+        if (shadow_root)
+            shadow_root->unregister_slot(*this);
+
         // 4. If value is null or the empty string, then set element’s name to the empty string.
         if (!value.has_value())
             set_slot_name({});
         // 5. Otherwise, set element’s name to value.
         else
             set_slot_name(*value);
+
+        // OPTIMIZATION: Register the slot with its new name.
+        if (shadow_root)
+            shadow_root->register_slot(*this);
 
         // 6. Run assign slottables for a tree with element’s root.
         DOM::assign_slottables_for_a_tree(root());

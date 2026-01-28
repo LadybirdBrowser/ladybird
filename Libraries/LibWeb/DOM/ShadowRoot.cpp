@@ -10,6 +10,8 @@
 #include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/SlotRegistry.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/BlockContainer.h>
@@ -228,6 +230,26 @@ ElementByIdMap& ShadowRoot::element_by_id() const
     if (!m_element_by_id)
         m_element_by_id = make<ElementByIdMap>();
     return *m_element_by_id;
+}
+
+void ShadowRoot::register_slot(HTML::HTMLSlotElement& slot)
+{
+    if (!m_slot_registry)
+        m_slot_registry = make<SlotRegistry>();
+    m_slot_registry->add(slot);
+}
+
+void ShadowRoot::unregister_slot(HTML::HTMLSlotElement& slot)
+{
+    if (m_slot_registry)
+        m_slot_registry->remove(slot);
+}
+
+GC::Ptr<HTML::HTMLSlotElement> ShadowRoot::first_slot_with_name(FlyString const& name) const
+{
+    if (!m_slot_registry)
+        return nullptr;
+    return m_slot_registry->first_slot_with_name(name);
 }
 
 // https://drafts.csswg.org/css-shadow-1/#shadow-root-part-element-map
