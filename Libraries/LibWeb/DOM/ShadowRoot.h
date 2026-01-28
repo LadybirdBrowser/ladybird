@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/ElementByIdMap.h>
+#include <LibWeb/DOM/SlotRegistry.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
@@ -72,6 +73,18 @@ public:
 
     ElementByIdMap& element_by_id() const;
 
+    void register_slot(HTML::HTMLSlotElement&);
+    void unregister_slot(HTML::HTMLSlotElement&);
+
+    template<typename Callback>
+    void for_each_registered_slot(Callback callback)
+    {
+        if (m_slot_registry)
+            m_slot_registry->for_each_slot(callback);
+    }
+
+    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(FlyString const& name) const;
+
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
 
@@ -109,6 +122,8 @@ private:
     bool m_serializable { false };
 
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
+
+    OwnPtr<SlotRegistry> m_slot_registry;
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
