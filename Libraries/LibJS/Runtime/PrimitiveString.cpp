@@ -140,8 +140,11 @@ PrimitiveString::PrimitiveString(String string)
 {
 }
 
-PrimitiveString::~PrimitiveString()
+PrimitiveString::~PrimitiveString() = default;
+
+void PrimitiveString::finalize()
 {
+    Base::finalize();
     if (has_utf16_string()) {
         auto const& string = *m_utf16_string;
         if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
