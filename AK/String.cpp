@@ -112,7 +112,7 @@ ErrorOr<String> String::from_utf16_be_with_replacement_character(ReadonlyBytes b
 
     Vector<char16_t> well_formed_utf16;
 
-    if (!validate_utf16_le(bytes)) {
+    if (!validate_utf16_be(bytes)) {
         well_formed_utf16.resize(bytes.size());
 
         simdutf::to_well_formed_utf16be(utf16_data, utf16_length, well_formed_utf16.data());

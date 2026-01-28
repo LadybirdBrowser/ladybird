@@ -195,6 +195,24 @@ TEST_CASE(with_replacement_character)
     EXPECT_EQ(string7, "\ufffdWHF!"sv);
 }
 
+TEST_CASE(from_utf16_be_with_replacement_character)
+{
+    // UTF-16 BE for "A" is 0x00 0x41
+    Array<u8, 2> valid_be { 0x00, 0x41 };
+    auto string1 = MUST(String::from_utf16_be_with_replacement_character(valid_be));
+    EXPECT_EQ(string1, "A"sv);
+
+    // Invalid surrogate pair in BE: high surrogate 0xD800 without low surrogate
+    // In BE: 0xD8 0x00
+    Array<u8, 2> invalid_be { 0xD8, 0x00 };
+    auto string2 = MUST(String::from_utf16_be_with_replacement_character(invalid_be));
+    EXPECT_EQ(string2, "\ufffd"sv);
+
+    // Same bytes interpreted as LE would be 0x00D8 which is valid (U+00D8 = Ø)
+    auto string3 = MUST(String::from_utf16_le_with_replacement_character(invalid_be));
+    EXPECT_EQ(string3, "Ø"sv);
+}
+
 TEST_CASE(from_code_points)
 {
     for (u32 code_point = 0; code_point < 0x80; ++code_point) {
