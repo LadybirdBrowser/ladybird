@@ -1,8 +1,6 @@
 name: Run test262 and test-wasm
 
-on:
-  push:
-    branches: [master]
+on: [pull_request]
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
@@ -10,10 +8,7 @@ env:
 
 jobs:
   run_and_update_results:
-    runs-on: test262-runner
-    if: github.repository == 'LadybirdBrowser/ladybird'
-
-    concurrency: libjs-test262
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Cleanup
@@ -53,7 +48,6 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build unzip clang-20 clang++-20 jq curl zip tar autoconf autoconf-archive automake nasm pkg-config libgl1-mesa-dev rsync libtool
 
           # We are currently limited to CMake 3.28 in Ubuntu 24.04. Our build requires CMake 3.30 or later.
           CMAKE_VERSION=4.2.3
@@ -65,112 +59,7 @@ jobs:
             echo "${{ github.workspace }}/${CMAKE_NAME}" >> $GITHUB_PATH
           )
 
-          WASM_TOOLS_VERSION=1.243.0
-          test -e /opt/wasm-tools-${WASM_TOOLS_VERSION} || (
-            NAME="wasm-tools-${WASM_TOOLS_VERSION}-x86_64-linux"
-            curl -f -L -o "${NAME}.tar.gz" "https://github.com/bytecodealliance/wasm-tools/releases/download/v${WASM_TOOLS_VERSION}/${NAME}.tar.gz"
-            tar -xzf "./${NAME}.tar.gz"
-            rm "./${NAME}.tar.gz"
-            echo "${{ github.workspace }}/${NAME}" >> $GITHUB_PATH
-          )
-
-          # FIXME: Just use the setup action
-          ./Toolchain/BuildVcpkg.py --ci
 
       - name: Print CMake version
         run: |
           cmake --version
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install Python dependencies
-        # The setup-python action set default python to python3.x. Note that we are not using system python here.
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r libjs-test262/requirements.txt
-
-      - name: Restore Caches
-        uses: ./.github/actions/cache-restore
-        with:
-          runner_labels: '["test262-runner"]'
-          os: 'Linux'
-          arch: 'Lagom'
-          download_cache_path: ${{ github.workspace }}/libjs-test262/Build/caches
-
-      - name: Get previous results
-        run: |
-          mkdir -p old-libjs-data
-          cp -R libjs-data/test262 libjs-data/wasm old-libjs-data
-
-      - name: Build test262-runner, test-js, test-wasm and test-js-bytecode
-        run: |
-          # FIXME: Why does vcpkg need this?
-          #        Running as a normal user would make this a non-issue though
-          export HOME=${{ github.workspace }}/home
-          mkdir -p $HOME
-
-          env CC=clang-20 \
-            CXX=clang++-20 \
-            cmake --preset Release -B libjs-test262/Build \
-              -DCMAKE_C_COMPILER=clang-20 \
-              -DCMAKE_CXX_COMPILER=clang++-20 \
-              -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
-              -DINCLUDE_WASM_SPEC_TESTS=ON \
-              -DENABLE_GUI_TARGETS=OFF
-          ninja -C libjs-test262/Build test262-runner test-js test-wasm test-js-bytecode
-
-      - name: Run test262 and test262-parser-tests
-        working-directory: libjs-test262
-        run: |
-          python3 run_all_and_update_results.py \
-            --serenity .. \
-            --test262 ../test262 \
-            --test262-parser-tests ../test262-parser-tests \
-            --results-json ../libjs-data/test262/results.json \
-            --per-file-output ../libjs-data/test262/per-file-master.json
-
-      - name: Run test-wasm
-        working-directory: libjs-test262
-        run: |
-          Build/bin/test-wasm --per-file Build/Lagom/Libraries/LibWasm/Tests > ../libjs-data/wasm/per-file-master.json || true
-          jq -nc -f /dev/stdin <<-EOF --slurpfile previous ../libjs-data/wasm/results.json --slurpfile details ../libjs-data/wasm/per-file-master.json > wasm-new-results.json
-            \$details[0] as \$details | \$previous[0] + [{
-              "commit_timestamp": $(git -C .. log -1 --format=%ct),
-              "run_timestamp": $(date +%s),
-              "versions": {
-                "serenity": "$(git -C .. rev-parse HEAD)"
-              },
-              "tests": {
-                "spectest": {
-                  "duration": (\$details.duration),
-                  "results": {
-                    "total": (\$details.results | keys | length),
-                    "passed": ([\$details.results | values[] | select(. == "PASSED")] | length),
-                    "failed": ([\$details.results | values[] | select(. == "FAILED")] | length),
-                    "skipped": ([\$details.results | values[] | select(. == "SKIPPED")] | length),
-                    "process_error": ([\$details.results | values[] | select(. == "PROCESS_ERROR")] | length)
-                  }
-                }
-              }
-            }]
-          EOF
-          mv wasm-new-results.json ../libjs-data/wasm/results.json
-
-      - name: Compare test262 results
-        run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/test262/per-file-master.json -n libjs-data/test262/per-file-master.json
-
-      - name: Compare Wasm results
-        run: ./libjs-test262/per_file_result_diff.py -o old-libjs-data/wasm/per-file-master.json -n libjs-data/wasm/per-file-master.json
-
-      - name: Deploy to GitHub
-        uses: JamesIves/github-pages-deploy-action@v4.8.0
-        with:
-          git-config-name: LadybirdBot
-          git-config-email: ladybirdbot@ladybird.org
-          branch: master
-          repository-name: LadybirdBrowser/libjs-data
-          token: ${{ secrets.LADYBIRD_BOT_TOKEN }}
-          folder: libjs-data
