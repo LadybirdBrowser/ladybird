@@ -7,10 +7,56 @@
 
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
+
+static bool is_stacking_context_creating_value(CSS::PropertyID property_id, RefPtr<StyleValue const> const& value)
+{
+    if (!value)
+        return false;
+
+    switch (property_id) {
+    case CSS::PropertyID::Opacity:
+        return !value->is_number() || value->as_number().number() != 1;
+    case CSS::PropertyID::Transform:
+        if (value->to_keyword() == CSS::Keyword::None)
+            return false;
+        if (value->is_value_list())
+            return value->as_value_list().size() > 0;
+        return value->is_transformation();
+    case CSS::PropertyID::Translate:
+    case CSS::PropertyID::Rotate:
+    case CSS::PropertyID::Scale:
+        return value->to_keyword() != CSS::Keyword::None;
+    case CSS::PropertyID::Filter:
+    case CSS::PropertyID::BackdropFilter:
+        if (value->is_keyword())
+            return value->to_keyword() != CSS::Keyword::None;
+        return value->is_filter_value_list();
+    case CSS::PropertyID::ClipPath:
+    case CSS::PropertyID::Mask:
+    case CSS::PropertyID::MaskImage:
+    case CSS::PropertyID::ViewTransitionName:
+        return value->to_keyword() != CSS::Keyword::None;
+    case CSS::PropertyID::Isolation:
+        return value->to_keyword() == CSS::Keyword::Isolate;
+    case CSS::PropertyID::MixBlendMode:
+        return value->to_keyword() != CSS::Keyword::Normal;
+    case CSS::PropertyID::ZIndex:
+        return value->to_keyword() != CSS::Keyword::Auto;
+    case CSS::PropertyID::Perspective:
+    case CSS::PropertyID::TransformStyle:
+        return value->to_keyword() != CSS::Keyword::None && value->to_keyword() != CSS::Keyword::Flat;
+    default:
+        // For properties we haven't optimized (contain, container-type, will-change, all),
+        // assume any value creates stacking context to be safe
+        return true;
+    }
+}
 
 RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, RefPtr<StyleValue const> const& old_value, RefPtr<StyleValue const> const& new_value)
 {
@@ -58,17 +104,14 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         invalidation.relayout = true;
     }
 
-    if (property_id == CSS::PropertyID::Opacity && old_value && new_value) {
-        // OPTIMIZATION: An element creates a stacking context when its opacity changes from 1 to less than 1
-        //               and stops to create one when opacity returns to 1. So stacking context tree rebuild is
-        //               not required for opacity changes within the range below 1.
-        auto old_value_opacity = old_value->as_number().number();
-        auto new_value_opacity = new_value->as_number().number();
-        if (old_value_opacity != new_value_opacity && (old_value_opacity == 1 || new_value_opacity == 1)) {
+    if (CSS::property_affects_stacking_context(property_id)) {
+        // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
+        //               stacking context) to a creating value or vice versa.
+        bool old_creates = is_stacking_context_creating_value(property_id, old_value);
+        bool new_creates = is_stacking_context_creating_value(property_id, new_value);
+        if (old_creates != new_creates) {
             invalidation.rebuild_stacking_context_tree = true;
         }
-    } else if (CSS::property_affects_stacking_context(property_id)) {
-        invalidation.rebuild_stacking_context_tree = true;
     }
     invalidation.repaint = true;
 
