@@ -804,7 +804,10 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
         }
     } else if (block.lacing() == Block::Lacing::FixedSize) {
         auto frame_count = TRY(streamer.read_octet()) + 1;
-        auto individual_frame_size = block.data_size() / frame_count;
+        auto frames_data_size = block.data_size() - 1;
+        if ((frames_data_size % frame_count) != 0)
+            return DecoderError::corrupted("Block with fixed-size frames has non-divisible size"sv);
+        auto individual_frame_size = frames_data_size / frame_count;
         for (int i = 0; i < frame_count; i++)
             frames.append(TRY(streamer.read_raw_octets(individual_frame_size)));
     } else if (block.lacing() == Block::Lacing::XIPH) {
