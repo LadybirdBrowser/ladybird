@@ -77,8 +77,11 @@ Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, G
     live_ranges().set(this);
 }
 
-Range::~Range()
+Range::~Range() = default;
+
+void Range::finalize()
 {
+    Base::finalize();
     live_ranges().remove(this);
 }
 
