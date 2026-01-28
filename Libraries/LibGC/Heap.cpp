@@ -587,11 +587,13 @@ public:
 
     virtual void visit_impl(Cell& cell) override
     {
-        if (cell.is_marked())
+        auto* block = HeapBlock::from_cell(&cell);
+        auto index = block->cell_index(&cell);
+        if (block->is_marked(index))
             return;
         dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
-        cell.set_marked(true);
+        block->set_marked(index);
         m_work_queue.append(cell);
     }
 
@@ -603,11 +605,13 @@ public:
             if (!value.is_cell())
                 continue;
             auto& cell = value.as_cell();
-            if (cell.is_marked())
+            auto* block = HeapBlock::from_cell(&cell);
+            auto index = block->cell_index(&cell);
+            if (block->is_marked(index))
                 continue;
             dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
-            cell.set_marked(true);
+            block->set_marked(index);
             m_work_queue.unchecked_append(cell);
         }
     }
@@ -621,11 +625,13 @@ public:
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
         for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
-            if (cell->is_marked())
-                return;
             if (cell->state() != Cell::State::Live)
                 return;
-            cell->set_marked(true);
+            auto* block = HeapBlock::from_cell(cell);
+            auto index = block->cell_index(cell);
+            if (block->is_marked(index))
+                return;
+            block->set_marked(index);
             m_work_queue.append(*cell);
         });
     }
@@ -652,8 +658,10 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots, HashTable<Heap
     MarkingVisitor visitor(*this, roots, all_live_heap_blocks);
     visitor.mark_all_live_cells();
 
-    for (auto& inverse_root : m_uprooted_cells)
-        inverse_root->set_marked(false);
+    for (auto& inverse_root : m_uprooted_cells) {
+        auto* block = HeapBlock::from_cell(inverse_root);
+        block->clear_marked(block->cell_index(inverse_root));
+    }
 
     m_uprooted_cells.clear();
 }
@@ -663,8 +671,8 @@ void Heap::finalize_unmarked_cells()
     for_each_block([&](auto& block) {
         if (!block.overrides_finalize())
             return IterationDecision::Continue;
-        block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
-            if (!cell->is_marked())
+        block.template for_each_cell_in_state<Cell::State::Live>([&block](Cell* cell) {
+            if (!block.is_marked(block.cell_index(cell)))
                 cell->finalize();
         });
         return IterationDecision::Continue;
@@ -702,18 +710,18 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         bool block_has_live_cells = false;
         bool block_was_full = block.is_full();
         block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked()) {
+            if (!block.is_marked(block.cell_index(cell))) {
                 dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
                 block.deallocate(cell);
                 ++collected_cells;
                 collected_cell_bytes += block.cell_size();
             } else {
-                cell->set_marked(false);
                 block_has_live_cells = true;
                 ++live_cells;
                 live_cell_bytes += block.cell_size();
             }
         });
+        block.clear_all_marks();
         if (!block_has_live_cells)
             empty_blocks.append(&block);
         else if (block_was_full != block.is_full())
@@ -770,17 +778,17 @@ void Heap::sweep_block(HeapBlock& block)
     size_t live_cells = 0;
 
     block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-        if (!cell->is_marked()) {
+        if (!block.is_marked(block.cell_index(cell))) {
             dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
             block.deallocate(cell);
             ++collected_cells;
         } else {
-            cell->set_marked(false);
             block_has_live_cells = true;
             m_sweep_live_cell_bytes += block.cell_size();
             ++live_cells;
         }
     });
+    block.clear_all_marks();
 
     if (!block_has_live_cells) {
         dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
@@ -859,8 +867,10 @@ void Heap::finish_incremental_sweep()
 
     // Clear marks on cells allocated during sweep. Sweep already cleared
     // marks on cells it visited, so only these remain marked.
-    for (auto cell : m_cells_allocated_during_sweep)
-        cell->set_marked(false);
+    for (auto cell : m_cells_allocated_during_sweep) {
+        auto* block = HeapBlock::from_cell(cell);
+        block->clear_marked(block->cell_index(cell));
+    }
     m_cells_allocated_during_sweep.clear();
 
     m_incremental_sweep_active = false;

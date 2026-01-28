@@ -21,6 +21,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
+#include <LibGC/HeapBlock.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/Internals.h>
 #include <LibGC/Root.h>
@@ -51,7 +52,8 @@ public:
         // Cells allocated during incremental sweep must be marked so they
         // survive until the next GC cycle clears and re-establishes marks.
         if (m_incremental_sweep_active) {
-            cell->set_marked(true);
+            auto* block = HeapBlock::from_cell(cell);
+            block->set_marked(block->cell_index(cell));
             m_cells_allocated_during_sweep.append(cell);
         }
         undefer_gc();
