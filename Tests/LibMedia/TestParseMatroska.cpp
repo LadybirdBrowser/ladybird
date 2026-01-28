@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2023-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,7 +20,7 @@ TEST_CASE(master_elements_containing_crc32)
         video_track = track_entry.track_number();
         return IterationDecision::Break;
     }));
-    VERIFY(video_track == 1);
+    EXPECT_EQ(video_track, 1u);
 
     auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
     MUST(iterator.next_block());
@@ -64,7 +64,7 @@ TEST_CASE(block_group)
         video_track = track_entry.track_number();
         return IterationDecision::Break;
     }));
-    VERIFY(video_track == 1);
+    EXPECT_EQ(video_track, 1u);
 
     auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
 
