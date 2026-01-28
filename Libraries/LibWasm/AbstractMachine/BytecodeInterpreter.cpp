@@ -5398,7 +5398,8 @@ bool BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
 {
     // bounds checked by Nor.
     auto rhs = configuration.take_source<mix>(0, addresses.sources).template to<PopTypeRHS>();
-    auto lhs = configuration.take_source<mix>(1, addresses.sources).template to<PopTypeLHS>(); // bounds checked by verifier.
+    auto& lhs_slot = configuration.source_value<mix>(1, addresses.sources); // bounds checked by verifier.
+    auto lhs = lhs_slot.template to<PopTypeLHS>();
     PushType result;
     auto call_result = Operator { forward<Args>(args)... }(lhs, rhs);
     if constexpr (IsSpecializationOf<decltype(call_result), AK::ErrorOr>) {
@@ -5409,7 +5410,7 @@ bool BytecodeInterpreter::binary_numeric_operation(Configuration& configuration,
         result = call_result;
     }
     dbgln_if(WASM_TRACE_DEBUG, "{} {} {} = {}", lhs, Operator::name(), rhs, result);
-    configuration.push_to_destination<mix>(Value(result), addresses.destination);
+    lhs_slot = Value(result);
     return false;
 }
 
