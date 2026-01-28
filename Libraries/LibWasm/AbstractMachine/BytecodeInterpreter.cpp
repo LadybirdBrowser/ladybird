@@ -1506,10 +1506,141 @@ HANDLE_INSTRUCTION(synthetic_i64_storelocal)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+HANDLE_INSTRUCTION(synthetic_i64_add2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(static_cast<i64>(Operators::Add {}(
+            configuration.local(instruction->local_index()).to<u64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>()))),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_addconstlocal)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(Value(static_cast<i64>(Operators::Add {}(configuration.local(instruction->local_index()).to<u64>(), instruction->arguments().unsafe_get<i64>()))), addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_andconstlocal)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(Value(Operators::BitAnd {}(configuration.local(instruction->local_index()).to<i64>(), instruction->arguments().unsafe_get<i64>())), addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_sub2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(static_cast<i64>(Operators::Subtract {}(
+            configuration.local(instruction->local_index()).to<u64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>()))),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_mul2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(static_cast<i64>(Operators::Multiply {}(
+            configuration.local(instruction->local_index()).to<u64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>()))),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_and2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitAnd {}(
+            configuration.local(instruction->local_index()).to<i64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<i64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_or2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitOr {}(
+            configuration.local(instruction->local_index()).to<i64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<i64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_xor2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitXor {}(
+            configuration.local(instruction->local_index()).to<i64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<i64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_shl2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitShiftLeft {}(
+            configuration.local(instruction->local_index()).to<u64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_shru2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitShiftRight {}(
+            configuration.local(instruction->local_index()).to<u64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_i64_shrs2local)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    configuration.push_to_destination<source_address_mix>(
+        Value(Operators::BitShiftRight {}(
+            configuration.local(instruction->local_index()).to<i64>(),
+            configuration.local(instruction->arguments().get<LocalIndex>()).to<u64>())),
+        addresses.destination);
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(synthetic_local_seti32_const)
 {
     LOG_INSN;
     configuration.local(instruction->local_index()) = Value(instruction->arguments().unsafe_get<i32>());
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(synthetic_local_seti64_const)
+{
+    LOG_INSN;
+    configuration.local(instruction->local_index()) = Value(instruction->arguments().unsafe_get<i64>());
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -5396,15 +5527,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     result.extra_instruction_storage.ensure_capacity(expression.instructions().size());
 
     i32 i32_const_value { 0 };
+    i64 i64_const_value { 0 };
     LocalIndex local_index_0 { 0 };
     LocalIndex local_index_1 { 0 };
     enum class InsnPatternState {
         Nothing,
         GetLocal,
         GetLocalI32Const,
+        GetLocalI64Const,
         GetLocalx2,
         I32Const,
         I32ConstGetLocal,
+        I64Const,
+        I64ConstGetLocal,
     } pattern_state { InsnPatternState::Nothing };
     static Instruction nop { Instructions::nop };
 
@@ -5444,6 +5579,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::i32_const) {
                 i32_const_value = instruction.arguments().get<i32>();
                 pattern_state = InsnPatternState::I32Const;
+            } else if (instruction.opcode() == Instructions::i64_const) {
+                i64_const_value = instruction.arguments().get<i64>();
+                pattern_state = InsnPatternState::I64Const;
             }
             break;
         case InsnPatternState::GetLocal:
@@ -5453,6 +5591,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             } else if (instruction.opcode() == Instructions::i32_const) {
                 i32_const_value = instruction.arguments().get<i32>();
                 pattern_state = InsnPatternState::GetLocalI32Const;
+            } else if (instruction.opcode() == Instructions::i64_const) {
+                i64_const_value = instruction.arguments().get<i64>();
+                pattern_state = InsnPatternState::GetLocalI64Const;
             } else if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
@@ -5547,6 +5688,51 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 make_2local_synthetic(Instructions::synthetic_i32_shrs2local);
                 continue;
             }
+            if (instruction.opcode() == Instructions::i64_add) {
+                // `local.get a; local.get b; i64.add` -> `i64.add_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_add2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_sub) {
+                // `local.get a; local.get b; i64.sub` -> `i64.sub_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_sub2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_mul) {
+                // `local.get a; local.get b; i64.mul` -> `i64.mul_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_mul2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_and) {
+                // `local.get a; local.get b; i64.and` -> `i64.and_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_and2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_or) {
+                // `local.get a; local.get b; i64.or` -> `i64.or_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_or2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_xor) {
+                // `local.get a; local.get b; i64.xor` -> `i64.xor_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_xor2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_shl) {
+                // `local.get a; local.get b; i64.shl` -> `i64.shl_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_shl2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_shru) {
+                // `local.get a; local.get b; i64.shr_u` -> `i64.shru_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_shru2local);
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_shrs) {
+                // `local.get a; local.get b; i64.shr_s` -> `i64.shrs_2local a b`.
+                make_2local_synthetic(Instructions::synthetic_i64_shrs2local);
+                continue;
+            }
             if (instruction.opcode() == Instructions::i32_store) {
                 // `local.get a; i32.store m` -> `i32.storelocal a m`.
                 set_default_dispatch(nop, result.dispatches.size() - 1);
@@ -5575,6 +5761,10 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 swap(local_index_0, local_index_1);
                 i32_const_value = instruction.arguments().get<i32>();
                 pattern_state = InsnPatternState::GetLocalI32Const;
+            } else if (instruction.opcode() == Instructions::i64_const) {
+                swap(local_index_0, local_index_1);
+                i64_const_value = instruction.arguments().get<i64>();
+                pattern_state = InsnPatternState::GetLocalI64Const;
             } else {
                 pattern_state = InsnPatternState::Nothing;
             }
@@ -5659,6 +5849,87 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                 continue;
             }
             pattern_state = InsnPatternState::Nothing;
+            break;
+        case InsnPatternState::I64Const:
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_0 = instruction.local_index();
+                pattern_state = InsnPatternState::I64ConstGetLocal;
+            } else if (instruction.opcode() == Instructions::i64_const) {
+                i64_const_value = instruction.arguments().get<i64>();
+            } else if (instruction.opcode() == Instructions::local_set) {
+                // `i64.const a; local.set b` -> `local.seti64_const b a`.
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_local_seti64_const,
+                    instruction.local_index(),
+                    i64_const_value));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else {
+                pattern_state = InsnPatternState::Nothing;
+            }
+            break;
+        case InsnPatternState::GetLocalI64Const:
+            if (instruction.opcode() == Instructions::local_set) {
+                // `i64.const a; local.set b` -> `local.seti64_const b a`.
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_local_seti64_const,
+                    instruction.local_index(),
+                    i64_const_value));
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            }
+            if (instruction.opcode() == Instructions::i64_const) {
+                i64_const_value = instruction.arguments().get<i64>();
+                pattern_state = InsnPatternState::I64Const;
+                break;
+            }
+            if (instruction.opcode() == Instructions::local_get) {
+                local_index_0 = instruction.local_index();
+                pattern_state = InsnPatternState::I64ConstGetLocal;
+                break;
+            }
+            [[fallthrough]];
+        case InsnPatternState::I64ConstGetLocal:
+            if (instruction.opcode() == Instructions::i64_const) {
+                i64_const_value = instruction.arguments().get<i64>();
+                pattern_state = InsnPatternState::GetLocalI64Const;
+            } else if (instruction.opcode() == Instructions::local_get) {
+                swap(local_index_0, local_index_1);
+                local_index_1 = instruction.local_index();
+                pattern_state = InsnPatternState::GetLocalx2;
+            } else if (instruction.opcode() == Instructions::i64_add) {
+                // `i64.const a; local.get b; i64.add` -> `i64.add_constlocal b a`.
+                // Replace the previous two ops with noops, and add i64.add_constlocal.
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                set_default_dispatch(nop, result.dispatches.size() - 2);
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_i64_addconstlocal,
+                    local_index_0,
+                    i64_const_value));
+
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else if (instruction.opcode() == Instructions::i64_and) {
+                // `i64.const a; local.get b; i64.and` -> `i64.and_constlocal b a`.
+                // Replace the previous two ops with noops, and add i64.and_constlocal.
+                set_default_dispatch(nop, result.dispatches.size() - 1);
+                set_default_dispatch(nop, result.dispatches.size() - 2);
+                result.extra_instruction_storage.unchecked_append(Instruction(
+                    Instructions::synthetic_i64_andconstlocal,
+                    local_index_0,
+                    i64_const_value));
+
+                set_default_dispatch(result.extra_instruction_storage.unsafe_last());
+                pattern_state = InsnPatternState::Nothing;
+                continue;
+            } else {
+                pattern_state = InsnPatternState::Nothing;
+            }
             break;
         }
         set_default_dispatch(instruction);
