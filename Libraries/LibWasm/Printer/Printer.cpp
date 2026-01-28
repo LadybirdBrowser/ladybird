@@ -1296,5 +1296,18 @@ HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
     { Instructions::synthetic_i32_shl2local, "synthetic:i32.shl2local" },
     { Instructions::synthetic_i32_shru2local, "synthetic:i32.shru2local" },
     { Instructions::synthetic_i32_shrs2local, "synthetic:i32.shrs2local" },
+    { Instructions::synthetic_i64_add2local, "synthetic:i64.add2local" },
+    { Instructions::synthetic_i64_addconstlocal, "synthetic:i64.addconstlocal" },
+    { Instructions::synthetic_i64_andconstlocal, "synthetic:i64.andconstlocal" },
+    { Instructions::synthetic_i64_storelocal, "synthetic:i64.storelocal" },
+    { Instructions::synthetic_i64_sub2local, "synthetic:i64.sub2local" },
+    { Instructions::synthetic_i64_mul2local, "synthetic:i64.mul2local" },
+    { Instructions::synthetic_i64_and2local, "synthetic:i64.and2local" },
+    { Instructions::synthetic_i64_or2local, "synthetic:i64.or2local" },
+    { Instructions::synthetic_i64_xor2local, "synthetic:i64.xor2local" },
+    { Instructions::synthetic_i64_shl2local, "synthetic:i64.shl2local" },
+    { Instructions::synthetic_i64_shru2local, "synthetic:i64.shru2local" },
+    { Instructions::synthetic_i64_shrs2local, "synthetic:i64.shrs2local" },
+    { Instructions::synthetic_local_seti64_const, "synthetic:local.seti64_const" },
 };
 HashMap<ByteString, Wasm::OpCode> Wasm::Names::instructions_by_name;
