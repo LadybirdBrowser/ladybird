@@ -649,10 +649,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    if (computed_style.backdrop_filter().has_filters())
-        computed_values.set_backdrop_filter(computed_style.backdrop_filter());
-    if (computed_style.filter().has_filters())
-        computed_values.set_filter(computed_style.filter());
+    computed_values.set_backdrop_filter(computed_style.backdrop_filter());
+    computed_values.set_filter(computed_style.filter());
 
     computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, color_resolution_context, CSS::InitialValues::flood_color()));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
