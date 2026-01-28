@@ -202,3 +202,49 @@ TEST_CASE(ebml_lacing)
     EXPECT_EQ(frames7[1].size(), 1u);
     EXPECT_EQ(frames7[2].size(), 8u);
 }
+
+TEST_CASE(seeking)
+{
+    auto test_files = {
+        "./test-matroska-seeking.mkv"sv,
+        "./test-matroska-seeking-without-cues.mkv"sv,
+    };
+
+    for (auto test_file : test_files) {
+        auto file = MUST(Core::File::open(test_file, Core::File::OpenMode::Read));
+        auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+        auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+        u64 video_track = 0;
+        MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
+            video_track = track_entry.track_number();
+            return IterationDecision::Break;
+        }));
+        EXPECT_EQ(video_track, 1u);
+
+        auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
+
+        auto first_block = MUST(iterator.next_block());
+        EXPECT_EQ(first_block.timestamp().to_milliseconds(), 0);
+        EXPECT(first_block.only_keyframes());
+
+        iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(150)));
+        auto block_after_forward_seek = MUST(iterator.next_block());
+        EXPECT_EQ(block_after_forward_seek.timestamp().to_milliseconds(), 100);
+        EXPECT(block_after_forward_seek.only_keyframes());
+
+        iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(220)));
+        auto block_at_200 = MUST(iterator.next_block());
+        EXPECT_EQ(block_at_200.timestamp().to_milliseconds(), 200);
+        EXPECT(block_at_200.only_keyframes());
+
+        iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(50)));
+        auto block_at_0 = MUST(iterator.next_block());
+        EXPECT_EQ(block_at_0.timestamp().to_milliseconds(), 0);
+        EXPECT(block_at_0.only_keyframes());
+
+        iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(100)));
+        auto block_exact_100 = MUST(iterator.next_block());
+        EXPECT_EQ(block_exact_100.timestamp().to_milliseconds(), 100);
+        EXPECT(block_exact_100.only_keyframes());
+    }
+}
