@@ -139,3 +139,66 @@ TEST_CASE(fixed_size_lacing_invalid)
     auto frames_or_error = iterator.get_frames(block);
     EXPECT(frames_or_error.is_error());
 }
+
+TEST_CASE(ebml_lacing)
+{
+    auto file = MUST(Core::File::open("./test-matroska-ebml-lacing.mkv"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    u64 video_track = 0;
+    MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
+        video_track = track_entry.track_number();
+        return IterationDecision::Break;
+    }));
+    EXPECT_EQ(video_track, 1u);
+
+    auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
+
+    auto block1 = MUST(iterator.next_block());
+    EXPECT_EQ(block1.lacing(), Media::Matroska::Block::Lacing::EBML);
+    auto frames1 = MUST(iterator.get_frames(block1));
+    EXPECT_EQ(frames1.size(), 2u);
+    EXPECT_EQ(frames1[0].size(), 4u);
+    EXPECT_EQ(frames1[1].size(), 4u);
+
+    auto block2 = MUST(iterator.next_block());
+    auto frames2 = MUST(iterator.get_frames(block2));
+    EXPECT_EQ(frames2.size(), 3u);
+    EXPECT_EQ(frames2[0].size(), 2u);
+    EXPECT_EQ(frames2[1].size(), 4u);
+    EXPECT_EQ(frames2[2].size(), 6u);
+
+    auto block3 = MUST(iterator.next_block());
+    auto frames3 = MUST(iterator.get_frames(block3));
+    EXPECT_EQ(frames3.size(), 3u);
+    EXPECT_EQ(frames3[0].size(), 6u);
+    EXPECT_EQ(frames3[1].size(), 4u);
+    EXPECT_EQ(frames3[2].size(), 2u);
+
+    auto block4 = MUST(iterator.next_block());
+    auto frames4 = MUST(iterator.get_frames(block4));
+    EXPECT_EQ(frames4.size(), 4u);
+    EXPECT_EQ(frames4[0].size(), 4u);
+    EXPECT_EQ(frames4[1].size(), 6u);
+    EXPECT_EQ(frames4[2].size(), 3u);
+    EXPECT_EQ(frames4[3].size(), 5u);
+
+    auto block5 = MUST(iterator.next_block());
+    auto frames5 = MUST(iterator.get_frames(block5));
+    EXPECT_EQ(frames5.size(), 5u);
+    for (auto const& frame : frames5)
+        EXPECT_EQ(frame.size(), 3u);
+
+    auto block6 = MUST(iterator.next_block());
+    auto frames6 = MUST(iterator.get_frames(block6));
+    EXPECT_EQ(frames6.size(), 2u);
+    EXPECT_EQ(frames6[0].size(), 1u);
+    EXPECT_EQ(frames6[1].size(), 10u);
+
+    auto block7 = MUST(iterator.next_block());
+    auto frames7 = MUST(iterator.get_frames(block7));
+    EXPECT_EQ(frames7.size(), 3u);
+    EXPECT_EQ(frames7[0].size(), 10u);
+    EXPECT_EQ(frames7[1].size(), 1u);
+    EXPECT_EQ(frames7[2].size(), 8u);
+}
