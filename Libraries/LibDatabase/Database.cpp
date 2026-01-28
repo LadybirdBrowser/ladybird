@@ -62,7 +62,13 @@ ErrorOr<NonnullRefPtr<Database>> Database::create(ByteString const& directory, S
     sqlite3* m_database { nullptr };
     SQL_TRY(sqlite3_open(database_file.characters(), &m_database));
 
-    return adopt_nonnull_ref_or_enomem(new (nothrow) Database(m_database));
+    auto database = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) Database(m_database)));
+
+    // Enable the WAL and set the synchronous pragma to normal by default for performance.
+    TRY(database->set_journal_mode_pragma(JournalMode::WriteAheadLog));
+    TRY(database->set_synchronous_pragma(Synchronous::Normal));
+
+    return database;
 }
 
 Database::Database(sqlite3* database)
