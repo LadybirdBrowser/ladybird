@@ -171,4 +171,52 @@ ValueType Database::result_column(StatementID statement_id, int column)
 ENUMERATE_SQL_TYPES
 #undef __ENUMERATE_TYPE
 
+ErrorOr<void> Database::set_journal_mode_pragma(JournalMode journal_mode)
+{
+    auto journal_mode_string = [&]() {
+        switch (journal_mode) {
+        case JournalMode::Delete:
+            return "DELETE"sv;
+        case JournalMode::Truncate:
+            return "TRUNCATE"sv;
+        case JournalMode::Persist:
+            return "PERSIST"sv;
+        case JournalMode::Memory:
+            return "MEMORY"sv;
+        case JournalMode::WriteAheadLog:
+            return "WAL"sv;
+        case JournalMode::Off:
+            return "OFF"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    auto pragma = ByteString::formatted("PRAGMA journal_mode={};", journal_mode_string);
+    SQL_TRY(sqlite3_exec(m_database, pragma.characters(), nullptr, nullptr, nullptr));
+
+    return {};
+}
+
+ErrorOr<void> Database::set_synchronous_pragma(Synchronous synchronous)
+{
+    auto synchronous_string = [&]() {
+        switch (synchronous) {
+        case Synchronous::Off:
+            return "OFF"sv;
+        case Synchronous::Normal:
+            return "NORMAL"sv;
+        case Synchronous::Full:
+            return "FULL"sv;
+        case Synchronous::Extra:
+            return "EXTRA"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    auto pragma = ByteString::formatted("PRAGMA synchronous={};", synchronous_string);
+    SQL_TRY(sqlite3_exec(m_database, pragma.characters(), nullptr, nullptr, nullptr));
+
+    return {};
+}
+
 }
