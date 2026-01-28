@@ -247,6 +247,16 @@ static bool is_inline_element(auto& el, auto& vector)
         EXPECT_EQ(ints.size(), 0u);                                                                                                      \
     }                                                                                                                                    \
                                                                                                                                          \
+    BENCHMARK_CASE(Vector##_remove_all_matching_trivial)                                                                                 \
+    {                                                                                                                                    \
+        Vector<int> ints;                                                                                                                \
+        for (int i = 0; i < 10000; ++i) {                                                                                                \
+            ints.append(i);                                                                                                              \
+        }                                                                                                                                \
+        ints.remove_all_matching([](int value) { return value % 2 == 0; });                                                              \
+        EXPECT_EQ(ints.size(), 5000u);                                                                                                   \
+    }                                                                                                                                    \
+                                                                                                                                         \
     TEST_CASE(Vector##_vector_remove)                                                                                                    \
     {                                                                                                                                    \
         Vector<int> ints;                                                                                                                \
