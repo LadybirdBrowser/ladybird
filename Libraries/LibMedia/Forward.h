@@ -19,6 +19,8 @@ class Demuxer;
 class DisplayingVideoSink;
 class FrameQueueItem;
 class IncrementallyPopulatedStream;
+class MediaStream;
+class MediaStreamCursor;
 class MediaTimeProvider;
 class PlaybackManager;
 class Track;

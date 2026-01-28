@@ -11,6 +11,7 @@
 #include <AK/Time.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
+#include <LibMedia/MediaStream.h>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -18,7 +19,7 @@ extern "C" {
 
 namespace Media::FFmpeg {
 
-FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<MediaStream> const& stream)
     : m_stream(stream)
 {
 }
@@ -95,7 +96,7 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream)
     return track;
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_cursor()));
 

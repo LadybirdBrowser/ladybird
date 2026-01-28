@@ -5,6 +5,7 @@
  */
 
 #include <LibMedia/Containers/Matroska/Reader.h>
+#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <stddef.h>
 
 extern "C" int LLVMFuzzerTestOneInput(u8 const* data, size_t size)

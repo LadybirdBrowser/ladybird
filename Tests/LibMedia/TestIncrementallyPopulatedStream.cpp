@@ -47,13 +47,13 @@ TEST_CASE(cursor_seek_modes)
     EXPECT_EQ(cursor->position(), 0u);
     EXPECT_EQ(cursor->size(), 100u);
 
-    MUST(cursor->seek(50, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(50, SeekMode::SetPosition));
     EXPECT_EQ(cursor->position(), 50u);
 
-    MUST(cursor->seek(10, Media::IncrementallyPopulatedStream::Cursor::SeekMode::FromCurrentPosition));
+    MUST(cursor->seek(10, SeekMode::FromCurrentPosition));
     EXPECT_EQ(cursor->position(), 60u);
 
-    MUST(cursor->seek(-10, Media::IncrementallyPopulatedStream::Cursor::SeekMode::FromEndPosition));
+    MUST(cursor->seek(-10, SeekMode::FromEndPosition));
     EXPECT_EQ(cursor->position(), 90u);
 }
 
@@ -70,23 +70,23 @@ TEST_CASE(cursor_read_operations)
     for (size_t i = 0; i < 10; i++)
         EXPECT_EQ(buffer[i], static_cast<u8>(i));
 
-    MUST(cursor->seek(50, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(50, SeekMode::SetPosition));
     MUST(cursor->read_into(buffer));
     for (size_t i = 0; i < 10; i++)
         EXPECT_EQ(buffer[i], static_cast<u8>(50 + i));
 
-    MUST(cursor->seek(95, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(95, SeekMode::SetPosition));
     bytes_read = MUST(cursor->read_into(buffer));
     EXPECT_EQ(bytes_read, 5u);
     for (size_t i = 0; i < 5; i++)
         EXPECT_EQ(buffer[i], static_cast<u8>(95 + i));
 
-    MUST(cursor->seek(100, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(100, SeekMode::SetPosition));
     auto result = cursor->read_into(buffer);
     EXPECT(result.is_error());
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::EndOfStream);
 
-    MUST(cursor->seek(0, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(0, SeekMode::SetPosition));
     bytes_read = MUST(cursor->read_into(buffer.span().trim(0)));
     EXPECT_EQ(bytes_read, 0u);
     EXPECT_EQ(cursor->position(), 0u);
@@ -117,8 +117,8 @@ TEST_CASE(multiple_cursors_independent)
     auto cursor1 = stream->create_cursor();
     auto cursor2 = stream->create_cursor();
 
-    MUST(cursor1->seek(10, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
-    MUST(cursor2->seek(50, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor1->seek(10, SeekMode::SetPosition));
+    MUST(cursor2->seek(50, SeekMode::SetPosition));
 
     EXPECT_EQ(cursor1->position(), 10u);
     EXPECT_EQ(cursor2->position(), 50u);
@@ -188,7 +188,7 @@ TEST_CASE(add_chunk_at_offset)
     stream->add_chunk_at(50, data.bytes().slice(50));
 
     auto cursor = stream->create_cursor();
-    MUST(cursor->seek(50, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(50, SeekMode::SetPosition));
 
     Array<u8, 30> buffer;
     auto bytes_read = MUST(cursor->read_into(buffer));
@@ -269,7 +269,7 @@ TEST_CASE(data_request_callback_invoked)
     });
 
     auto cursor = stream->create_cursor();
-    MUST(cursor->seek(seek_position, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+    MUST(cursor->seek(seek_position, SeekMode::SetPosition));
 
     auto thread = Threading::Thread::construct("TestCallback"sv, [cursor]() -> intptr_t {
         Array<u8, 10> buffer;

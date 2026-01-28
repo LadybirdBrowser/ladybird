@@ -8,22 +8,23 @@
 
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <LibMedia/FFmpeg/FFmpegForward.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/Forward.h>
 
 namespace Media::FFmpeg {
 
 class FFmpegIOContext {
 public:
-    explicit FFmpegIOContext(NonnullRefPtr<IncrementallyPopulatedStream::Cursor>, AVIOContext*);
+    explicit FFmpegIOContext(NonnullRefPtr<MediaStreamCursor>, AVIOContext*);
     ~FFmpegIOContext();
 
-    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>> create(NonnullRefPtr<IncrementallyPopulatedStream::Cursor>);
+    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>> create(NonnullRefPtr<MediaStreamCursor>);
 
     AVIOContext* avio_context() const { return m_avio_context; }
 
 private:
-    NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
+    NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
     AVIOContext* m_avio_context { nullptr };
 };
 

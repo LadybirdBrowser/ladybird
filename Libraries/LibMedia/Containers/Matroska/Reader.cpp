@@ -14,6 +14,7 @@
 #include <AK/Utf8View.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
+#include <LibMedia/MediaStream.h>
 
 #include "Reader.h"
 
@@ -95,7 +96,7 @@ constexpr u32 CUE_RELATIVE_POSITION_ID = 0xF0;
 constexpr u32 CUE_CODEC_STATE_ID = 0xEA;
 constexpr u32 CUE_REFERENCE_ID = 0xDB;
 
-DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> const& stream_cursor)
 {
     Reader reader;
     Streamer streamer { stream_cursor };
@@ -199,7 +200,7 @@ static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer& streamer, ElementI
     return header;
 }
 
-bool Reader::is_matroska_or_webm(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
+bool Reader::is_matroska_or_webm(NonnullRefPtr<MediaStreamCursor> const& stream_cursor)
 {
     auto header = [&] -> DecoderErrorOr<EBMLHeader> {
         Streamer streamer { stream_cursor };
@@ -920,7 +921,7 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
     return block;
 }
 
-DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number)
+DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number)
 {
     dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", m_first_cluster_position, m_segment_contents_position);
     return SampleIterator(stream_consumer, TRY(track_for_track_number(track_number)), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
@@ -1212,6 +1213,17 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
+SampleIterator::SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position)
+    : m_stream_cursor(stream_cursor)
+    , m_track(track)
+    , m_segment_timestamp_scale(timestamp_scale)
+    , m_segment_contents_position(segment_contents_position)
+    , m_position(position)
+{
+}
+
+SampleIterator::~SampleIterator() = default;
+
 DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget target)
 {
     // This is a private function. The position getter can return optional, but the caller should already know that this track has a position.
@@ -1235,6 +1247,13 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_
     }
     return {};
 }
+
+Streamer::Streamer(NonnullRefPtr<MediaStreamCursor> const& stream_cursor)
+    : m_stream_cursor(stream_cursor)
+{
+}
+
+Streamer::~Streamer() = default;
 
 DecoderErrorOr<String> Streamer::read_string()
 {
@@ -1357,13 +1376,18 @@ DecoderErrorOr<void> Streamer::read_unknown_element()
 {
     auto element_length = TRY(read_variable_size_integer());
     dbgln_if(MATROSKA_TRACE_DEBUG, "Skipping unknown element of size {}.", element_length);
-    TRY(m_stream_cursor->seek(element_length, IncrementallyPopulatedStream::Cursor::SeekMode::FromCurrentPosition));
+    TRY(m_stream_cursor->seek(element_length, AK::SeekMode::FromCurrentPosition));
     return {};
+}
+
+size_t Streamer::position() const
+{
+    return m_stream_cursor->position();
 }
 
 DecoderErrorOr<void> Streamer::seek_to_position(size_t position)
 {
-    return m_stream_cursor->seek(position, IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition);
+    return m_stream_cursor->seek(position, AK::SeekMode::SetPosition);
 }
 
 }

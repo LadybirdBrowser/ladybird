@@ -10,17 +10,25 @@
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/DecoderError.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/MediaStream.h>
 
 #include "MatroskaDemuxer.h"
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto cursor = stream->create_cursor();
     return make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(cursor)));
 }
+
+MatroskaDemuxer::MatroskaDemuxer(NonnullRefPtr<MediaStream> const& stream, Reader&& reader)
+    : m_stream(stream)
+    , m_reader(move(reader))
+{
+}
+
+MatroskaDemuxer::~MatroskaDemuxer() = default;
 
 static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
 {
