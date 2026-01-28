@@ -42,6 +42,26 @@ public:
     template<typename ValueType>
     ValueType result_column(StatementID, int column);
 
+    // https://www.sqlite.org/pragma.html#pragma_journal_mode
+    enum class JournalMode {
+        Delete,
+        Truncate,
+        Persist,
+        Memory,
+        WriteAheadLog,
+        Off,
+    };
+    ErrorOr<void> set_journal_mode_pragma(JournalMode);
+
+    // https://www.sqlite.org/pragma.html#pragma_synchronous
+    enum class Synchronous {
+        Off,
+        Normal,
+        Full,
+        Extra,
+    };
+    ErrorOr<void> set_synchronous_pragma(Synchronous);
+
 private:
     explicit Database(sqlite3*);
 
