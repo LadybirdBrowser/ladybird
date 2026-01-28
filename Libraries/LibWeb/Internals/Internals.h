@@ -73,6 +73,7 @@ public:
     bool headless();
 
     String dump_display_list();
+    String dump_stacking_context_tree();
     String dump_gc_graph();
 
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);

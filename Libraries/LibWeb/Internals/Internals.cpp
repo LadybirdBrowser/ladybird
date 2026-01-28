@@ -447,6 +447,11 @@ String Internals::dump_display_list()
     return window().associated_document().dump_display_list();
 }
 
+String Internals::dump_stacking_context_tree()
+{
+    return window().associated_document().dump_stacking_context_tree();
+}
+
 String Internals::dump_gc_graph()
 {
     return Bindings::main_thread_vm().heap().dump_graph().serialized();

@@ -62,6 +62,7 @@ interface Internals {
     readonly attribute boolean headless;
 
     DOMString dumpDisplayList();
+    DOMString dumpStackingContextTree();
     DOMString dumpGCGraph();
 
     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
