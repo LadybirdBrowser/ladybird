@@ -25,6 +25,16 @@ Cell* CellAllocator::allocate_cell(Heap& heap)
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);
 
+    if (m_usable_blocks.is_empty() && heap.is_incremental_sweep_active() && !heap.is_gc_deferred()) {
+        // Sweep our own pending blocks first to try to find free cells
+        // before allocating a new block.
+        while (!m_usable_blocks.is_empty() || !m_blocks_pending_sweep.is_empty()) {
+            if (!m_usable_blocks.is_empty())
+                break;
+            heap.sweep_block(*m_blocks_pending_sweep.first());
+        }
+    }
+
     if (m_usable_blocks.is_empty()) {
         auto block = HeapBlock::create_with_cell_size(heap, *this, m_cell_size, m_class_name, m_overrides_must_survive_garbage_collection, m_overrides_finalize);
         auto block_ptr = reinterpret_cast<FlatPtr>(block.ptr());
