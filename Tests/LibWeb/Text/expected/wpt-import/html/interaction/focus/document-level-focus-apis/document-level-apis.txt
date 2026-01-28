@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	The body element must be the active element if no element is focused
 Pass	The element must be the active element if it is focused
-Fail	The hasFocus() method must return false if the Document has no browsing context
+Pass	The hasFocus() method must return false if the Document has no browsing context
 Pass	When a child browsing context is focused, its browsing context container is also focused
