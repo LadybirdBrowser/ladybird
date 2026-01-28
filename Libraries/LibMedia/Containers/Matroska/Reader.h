@@ -12,7 +12,7 @@
 #include <AK/Optional.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/Forward.h>
 
 #include "Document.h"
 
@@ -35,9 +35,9 @@ class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
 
-    static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&);
+    static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<MediaStreamCursor> const&);
 
-    static bool is_matroska_or_webm(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&);
+    static bool is_matroska_or_webm(NonnullRefPtr<MediaStreamCursor> const&);
 
     Optional<AK::Duration> duration() { return m_segment_information.duration(); }
 
@@ -46,7 +46,7 @@ public:
     DecoderErrorOr<NonnullRefPtr<TrackEntry>> track_for_track_number(u64);
     DecoderErrorOr<size_t> track_count();
 
-    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_consumer, u64 track_number);
+    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number);
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
 
 private:
@@ -88,28 +88,23 @@ private:
 
 class MEDIA_API SampleIterator {
 public:
+    ~SampleIterator();
+
     DecoderErrorOr<Block> next_block();
     DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     TrackEntry const& track() const { return *m_track; }
-    IncrementallyPopulatedStream::Cursor& cursor() { return m_stream_cursor; }
+    MediaStreamCursor& cursor() { return m_stream_cursor; }
 
 private:
     friend class Reader;
 
-    SampleIterator(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position)
-        : m_stream_cursor(stream_cursor)
-        , m_track(track)
-        , m_segment_timestamp_scale(timestamp_scale)
-        , m_segment_contents_position(segment_contents_position)
-        , m_position(position)
-    {
-    }
+    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position);
 
     DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
 
-    NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
+    NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
     NonnullRefPtr<TrackEntry> m_track;
     u64 m_segment_timestamp_scale { 0 };
     size_t m_segment_contents_position { 0 };
@@ -124,10 +119,8 @@ private:
 
 class Streamer {
 public:
-    Streamer(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const& stream_cursor)
-        : m_stream_cursor(stream_cursor)
-    {
-    }
+    Streamer(NonnullRefPtr<MediaStreamCursor> const& stream_cursor);
+    ~Streamer();
 
     DecoderErrorOr<u8> read_octet();
 
@@ -145,12 +138,12 @@ public:
 
     DecoderErrorOr<ByteBuffer> read_raw_octets(size_t num_octets);
 
-    size_t position() const { return m_stream_cursor->position(); }
+    size_t position() const;
 
     DecoderErrorOr<void> seek_to_position(size_t position);
 
 private:
-    NonnullRefPtr<IncrementallyPopulatedStream::Cursor> m_stream_cursor;
+    NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
 };
 
 }

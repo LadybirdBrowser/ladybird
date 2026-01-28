@@ -21,7 +21,7 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<IncrementallyPopulatedStream> const&);
+    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
 
     virtual ~FFmpegDemuxer() override;
 
@@ -56,7 +56,7 @@ private:
     };
 
     struct TrackContext {
-        TrackContext(NonnullRefPtr<IncrementallyPopulatedStream::Cursor>&& cursor, NonnullOwnPtr<FFmpegIOContext>&& io_context)
+        TrackContext(NonnullRefPtr<MediaStreamCursor>&& cursor, NonnullOwnPtr<FFmpegIOContext>&& io_context)
             : cursor(move(cursor))
             , io_context(move(io_context))
         {
@@ -64,7 +64,7 @@ private:
         ~TrackContext();
         TrackContext(TrackContext&&) = default;
 
-        NonnullRefPtr<IncrementallyPopulatedStream::Cursor> cursor;
+        NonnullRefPtr<MediaStreamCursor> cursor;
         NonnullOwnPtr<FFmpegIOContext> io_context;
         AVFormatContext* format_context { nullptr };
         AVPacket* packet { nullptr };
@@ -72,12 +72,12 @@ private:
         bool peeked_packet_already { false };
     };
 
-    FFmpegDemuxer(NonnullRefPtr<IncrementallyPopulatedStream> const&);
+    FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
 
     StreamInfo const& get_track_info(Track const&) const;
     TrackContext& get_track_context(Track const&);
 
-    NonnullRefPtr<IncrementallyPopulatedStream> m_stream;
+    NonnullRefPtr<MediaStream> m_stream;
     AK::Duration m_total_duration;
     Vector<StreamInfo> m_stream_info;
     Array<int, to_underlying(TrackType::Unknown)> m_preferred_track_for_type;

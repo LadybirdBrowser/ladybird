@@ -16,18 +16,21 @@
 #include <LibCore/Forward.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
+#include <LibMedia/MediaStream.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
 
 namespace Media {
 
-class MEDIA_API IncrementallyPopulatedStream : public AtomicRefCounted<IncrementallyPopulatedStream> {
+class MEDIA_API IncrementallyPopulatedStream : public MediaStream {
 public:
     static NonnullRefPtr<IncrementallyPopulatedStream> create_empty();
     static NonnullRefPtr<IncrementallyPopulatedStream> create_from_data(ReadonlyBytes);
     static NonnullRefPtr<IncrementallyPopulatedStream> create_from_buffer(ByteBuffer const&);
 
     ~IncrementallyPopulatedStream();
+
+    virtual NonnullRefPtr<MediaStreamCursor> create_cursor() override;
 
     // Callback invoked when data at a specific offset is needed but not available.
     // The callback receives the desired offset position and is invoked on the provided event loop.
@@ -42,26 +45,20 @@ public:
     void set_expected_size(u64);
     Optional<u64> expected_size() const;
 
-    class MEDIA_API Cursor : public AtomicRefCounted<Cursor> {
+    class MEDIA_API Cursor : public MediaStreamCursor {
     public:
         ~Cursor();
 
-        enum class SeekMode : u8 {
-            SetPosition,
-            FromCurrentPosition,
-            FromEndPosition,
-        };
+        virtual DecoderErrorOr<void> seek(i64 offset, SeekMode mode) override;
+        virtual DecoderErrorOr<size_t> read_into(Bytes bytes) override;
 
-        DecoderErrorOr<void> seek(size_t offset, SeekMode mode);
-        DecoderErrorOr<size_t> read_into(Bytes bytes);
+        virtual size_t position() const override { return m_position; }
+        virtual size_t size() const override { return m_stream->size(); }
 
-        auto position() const { return m_position; }
-        auto size() const { return m_stream->size(); }
+        virtual void abort() override;
+        virtual void reset_abort() override { m_aborted = false; }
 
-        void abort();
-        void reset_abort() { m_aborted = false; }
-
-        bool is_blocked() const { return m_blocked; }
+        virtual bool is_blocked() const override { return m_blocked; }
 
     private:
         friend class IncrementallyPopulatedStream;
@@ -74,8 +71,6 @@ public:
         Atomic<bool> m_blocked { false };
         MonotonicTime m_active_timeout { MonotonicTime::now_coarse() };
     };
-
-    NonnullRefPtr<Cursor> create_cursor();
 
 private:
     class DataChunk {

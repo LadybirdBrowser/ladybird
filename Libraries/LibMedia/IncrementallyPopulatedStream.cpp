@@ -231,7 +231,7 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
     return read_from_chunks_while_locked(position, bytes);
 }
 
-NonnullRefPtr<IncrementallyPopulatedStream::Cursor> IncrementallyPopulatedStream::create_cursor()
+NonnullRefPtr<MediaStreamCursor> IncrementallyPopulatedStream::create_cursor()
 {
     return adopt_ref(*new Cursor(NonnullRefPtr { *this }));
 }
@@ -249,7 +249,7 @@ IncrementallyPopulatedStream::Cursor::~Cursor()
     VERIFY(m_stream->m_cursors.remove_first_matching([&](Cursor const& cursor) { return this == &cursor; }));
 }
 
-DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(size_t offset, SeekMode mode)
+DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, SeekMode mode)
 {
     switch (mode) {
     case SeekMode::SetPosition:
