@@ -1354,60 +1354,74 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::some)
     return Value(false);
 }
 
-ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort)
+static ThrowCompletionOr<void> array_merge_sort_impl(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, Span<Value> arr, Span<Value> workspace)
 {
-    // FIXME: it would probably be better to switch to insertion sort for small arrays for
-    // better performance
-    if (arr_to_sort.size() <= 1)
+    if (arr.size() <= 16) {
+        GC::RootVector<Value, 1> key(vm.heap());
+        key.append(js_undefined());
+        for (size_t i = 1; i < arr.size(); ++i) {
+            key[0] = arr[i];
+            size_t j = i;
+            while (j > 0 && TRY(compare_func(arr[j - 1], key[0])) > 0) {
+                arr[j] = arr[j - 1];
+                --j;
+            }
+            arr[j] = key[0];
+        }
         return {};
-
-    GC::RootVector<Value> left(vm.heap());
-    GC::RootVector<Value> right(vm.heap());
-
-    left.ensure_capacity(arr_to_sort.size() / 2);
-    right.ensure_capacity(arr_to_sort.size() / 2 + (arr_to_sort.size() & 1));
-
-    for (size_t i = 0; i < arr_to_sort.size(); ++i) {
-        if (i < arr_to_sort.size() / 2) {
-            left.append(arr_to_sort[i]);
-        } else {
-            right.append(arr_to_sort[i]);
-        }
     }
 
-    TRY(array_merge_sort(vm, compare_func, left));
-    TRY(array_merge_sort(vm, compare_func, right));
+    auto split_index = arr.size() / 2;
+    auto left = arr.slice(0, split_index);
+    auto right = arr.slice(split_index);
 
-    arr_to_sort.clear();
+    TRY(array_merge_sort_impl(vm, compare_func, left, workspace.slice(0, split_index)));
+    TRY(array_merge_sort_impl(vm, compare_func, right, workspace.slice(split_index)));
 
-    size_t left_index = 0, right_index = 0;
+    // Copy to workspace for merging
+    for (size_t i = 0; i < arr.size(); ++i)
+        workspace[i] = arr[i];
 
-    while (left_index < left.size() && right_index < right.size()) {
-        auto x = left[left_index];
-        auto y = right[right_index];
-
-        double comparison_result = TRY(compare_func(x, y));
-
-        if (comparison_result <= 0) {
-            arr_to_sort.append(x);
-            left_index++;
-        } else {
-            arr_to_sort.append(y);
-            right_index++;
-        }
+    size_t l = 0, r = split_index;
+    size_t i = 0;
+    while (l < split_index && r < arr.size()) {
+        if (TRY(compare_func(workspace[l], workspace[r])) <= 0)
+            arr[i++] = workspace[l++];
+        else
+            arr[i++] = workspace[r++];
     }
 
-    while (left_index < left.size()) {
-        arr_to_sort.append(left[left_index]);
-        left_index++;
-    }
-
-    while (right_index < right.size()) {
-        arr_to_sort.append(right[right_index]);
-        right_index++;
-    }
+    while (l < split_index) arr[i++] = workspace[l++];
+    while (r < arr.size()) arr[i++] = workspace[r++];
 
     return {};
+}
+
+ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr)
+{
+    if (arr.size() <= 1)
+        return {};
+
+    if (arr.size() > 16) {
+        bool is_sorted = true;
+        bool is_reverse_sorted = true;
+        for (size_t i = 1; i < arr.size(); ++i) {
+            auto res = TRY(compare_func(arr[i - 1], arr[i]));
+            if (res > 0) is_sorted = false;
+            if (res < 0) is_reverse_sorted = false;
+            if (!is_sorted && !is_reverse_sorted) break;
+        }
+        if (is_sorted) return {};
+        if (is_reverse_sorted) {
+            for (size_t i = 0; i < arr.size() / 2; ++i)
+                swap(arr[i], arr[arr.size() - 1 - i]);
+            return {};
+        }
+    }
+
+    GC::RootVector<Value> workspace(vm.heap());
+    workspace.resize(arr.size());
+    return array_merge_sort_impl(vm, compare_func, arr.span(), workspace.span());
 }
 
 // 23.1.3.30 Array.prototype.sort ( comparefn ), https://tc39.es/ecma262/#sec-array.prototype.sort
