@@ -43,7 +43,7 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int handle)
 
         // The handle will be duplicated and WSAPROTOCOL_INFO will be filled later in TransportSocketWindows::transfer.
         // It can't be duplicated here because it requires peer process pid, which only TransportSocketWindows knows about.
-        WSAPROTOCOL_INFO pi = {};
+        WSAPROTOCOL_INFOW pi = {};
         static_assert(sizeof(pi) >= sizeof(int));
         ByteReader::store(reinterpret_cast<u8*>(&pi), handle);
         TRY(m_data.try_append(reinterpret_cast<u8*>(&pi), sizeof(pi)));
