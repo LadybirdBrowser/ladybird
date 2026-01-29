@@ -288,62 +288,46 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, Ar
     if (operation == ArithmeticOperation::Subtract)
         duration = create_negated_temporal_duration(vm, duration);
 
-    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    // 3. Let internalDuration be ToInternalDurationRecord(duration).
+    auto internal_duration = to_internal_duration_record(vm, duration);
+
+    // 4. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));
 
-    // 4. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    // 5. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
     auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
 
-    // 5. Let sign be DurationSign(duration).
-    auto sign = duration_sign(duration);
+    // 6. Let durationToAdd be internalDuration.[[Date]].
+    auto const& duration_to_add = internal_duration.date;
 
-    // 6. Let calendar be yearMonth.[[Calendar]].
+    // 7. If durationToAdd.[[Weeks]] ≠ 0, or durationToAdd.[[Days]] ≠ 0, or internalDuration.[[Time]] ≠ 0, throw a RangeError exception.
+    if (duration_to_add.weeks != 0 || duration_to_add.days != 0 || !internal_duration.time.is_zero()) {
+        auto operation_string = operation == ArithmeticOperation::Add ? "added to"sv : "subtracted from"sv;
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainYearMonthAddition, operation_string);
+    }
+
+    // 8. Let calendar be yearMonth.[[Calendar]].
     auto const& calendar = year_month.calendar();
 
-    // 7. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], YEAR-MONTH).
+    // 9. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], YEAR-MONTH).
     auto fields = iso_date_to_fields(calendar, year_month.iso_date(), DateType::YearMonth);
 
-    // 8. Set fields.[[Day]] to 1.
+    // 10. Set fields.[[Day]] to 1.
     fields.day = 1;
 
-    // 9. Let intermediateDate be ? CalendarDateFromFields(calendar, fields, CONSTRAIN).
-    auto intermediate_date = TRY(calendar_date_from_fields(vm, calendar, fields, Overflow::Constrain));
+    // 11. Let date be ? CalendarDateFromFields(calendar, fields, CONSTRAIN).
+    auto date = TRY(calendar_date_from_fields(vm, calendar, fields, Overflow::Constrain));
 
-    ISODate date;
-
-    // 10. If sign < 0, then
-    if (sign < 0) {
-        // a. Let oneMonthDuration be ! CreateDateDurationRecord(0, 1, 0, 0).
-        auto one_month_duration = MUST(create_date_duration_record(vm, 0, 1, 0, 0));
-
-        // b. Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, CONSTRAIN).
-        auto next_month = TRY(calendar_date_add(vm, calendar, intermediate_date, one_month_duration, Overflow::Constrain));
-
-        // c. Let date be AddDaysToISODate(nextMonth, -1).
-        date = add_days_to_iso_date(next_month, -1);
-
-        // d. Assert: ISODateWithinLimits(date) is true.
-        VERIFY(iso_date_within_limits(date));
-    }
-    // 11. Else,
-    else {
-        // a. Let date be intermediateDate.
-        date = intermediate_date;
-    }
-
-    // 12. Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
-    auto duration_to_add = to_date_duration_record_without_time(vm, duration);
-
-    // 13. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
+    // 12. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
     auto added_date = TRY(calendar_date_add(vm, calendar, date, duration_to_add, overflow));
 
-    // 14. Let addedDateFields be ISODateToFields(calendar, addedDate, YEAR-MONTH).
+    // 13. Let addedDateFields be ISODateToFields(calendar, addedDate, YEAR-MONTH).
     auto added_date_fields = iso_date_to_fields(calendar, added_date, DateType::YearMonth);
 
-    // 15. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
+    // 14. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
     auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, added_date_fields, overflow));
 
-    // 16. Return ! CreateTemporalYearMonth(isoDate, calendar).
+    // 15. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, calendar));
 }
 
