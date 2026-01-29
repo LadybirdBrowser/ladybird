@@ -752,53 +752,15 @@ static Vector<CookieChange> observable_changes(URL::URL const& url, Vector<Cooki
     // The observable changes for url are the set of cookie changes to cookies in a cookie store which meet the
     // requirements in step 1 of Cookies § Retrieval Algorithm’s steps to compute the "cookie-string from a given
     // cookie store" with url as request-uri, for a "non-HTTP" API.
-    // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-14#name-retrieval-algorithm
-    auto canonicalized_domain = Cookie::canonicalize_domain(url);
-    if (!canonicalized_domain.has_value())
+    auto retrieval_host_canonical = Cookie::canonicalize_domain(url);
+    if (!retrieval_host_canonical.has_value())
         return {};
 
-    // FIXME: The retrieval's same-site status is "same-site" if the Document's "site for cookies" is same-site with the
-    //        top-level origin as defined in Section 5.2.1 (otherwise it is "cross-site"), and the retrieval's type is "non-HTTP".
-    auto is_same_site_retrieval = true;
-
+    Vector<CookieChange> observable_changes;
     auto now = UnixDateTime::now();
 
-    // 1. Let cookie-list be the set of cookies from the cookie store that meets all of the following requirements:
-    Vector<CookieChange> observable_changes;
     for (auto const& cookie : changes) {
-        // * Either:
-        //     The cookie's host-only-flag is true and the canonicalized host of the retrieval's URI is identical to
-        //     the cookie's domain.
-        bool is_host_only_and_has_identical_domain = cookie.host_only && (canonicalized_domain.value() == cookie.domain);
-        // Or:
-        //     The cookie's host-only-flag is false and the canonicalized host of the retrieval's URI domain-matches
-        //     the cookie's domain.
-        bool is_not_host_only_and_domain_matches = !cookie.host_only && Web::Cookie::domain_matches(canonicalized_domain.value(), cookie.domain);
-
-        if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
-            continue;
-
-        // * The retrieval's URI's path path-matches the cookie's path.
-        if (!Cookie::path_matches(url.serialize_path(), cookie.path))
-            continue;
-
-        // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
-        //   defined by the user agent).
-        if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
-            continue;
-
-        // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
-        if (cookie.http_only)
-            continue;
-
-        // * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
-        //   exclude the cookie unless all of the following conditions are met:
-        //     * The retrieval's type is "HTTP".
-        //     * The same-site-flag is "Lax" or "Default".
-        //     * The HTTP request associated with the retrieval uses a "safe" method.
-        //     * The target browsing context of the HTTP request associated with the retrieval is the active browsing context
-        //       or a top-level traversable.
-        if (cookie.same_site != Cookie::SameSite::None && !is_same_site_retrieval)
+        if (!Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical))
             continue;
 
         // A cookie change is a cookie and a type (either changed or deleted):

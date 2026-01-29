@@ -149,6 +149,46 @@ String default_path(URL::URL const& url)
     return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
 }
 
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
+bool cookie_matches_url(Web::Cookie::Cookie const& cookie, URL::URL const& url, String const& retrieval_host_canonical, Optional<Web::Cookie::Source> source)
+{
+    // * Either:
+    //     - The cookie's host-only-flag is true and retrieval-host-canonical is identical to the cookie's domain.
+    bool is_host_only_and_has_identical_domain = cookie.host_only && (retrieval_host_canonical == cookie.domain);
+    // Or:
+    //     - The cookie's host-only-flag is false and retrieval-host-canonical domain-matches (see Section 5.1.3)
+    //       the cookie's domain.
+    //     - The cookie's domain is not a public suffix, for user agents configured to reject "public suffixes".
+    bool is_not_host_only_and_domain_matches = (!cookie.host_only && Web::Cookie::domain_matches(retrieval_host_canonical, cookie.domain))
+        && !URL::is_public_suffix(cookie.domain);
+
+    if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
+        return false;
+
+    // * The retrieval's URI's path path-matches the cookie's path.
+    if (!Web::Cookie::path_matches(url.serialize_path(), cookie.path))
+        return false;
+
+    // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
+    //   defined by the user agent).
+    if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
+        return false;
+
+    // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
+    if (cookie.http_only && (source != Web::Cookie::Source::Http))
+        return false;
+
+    // FIXME: * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
+    //          exclude the cookie unless all of the following conditions are met:
+    //            * The retrieval's type is "HTTP".
+    //            * The same-site-flag is "Lax" or "Default".
+    //            * The HTTP request associated with the retrieval uses a "safe" method.
+    //            * The target browsing context of the HTTP request associated with the retrieval is the active browsing context
+    //              or a top-level traversable.
+
+    return true;
+}
+
 }
 
 template<>
