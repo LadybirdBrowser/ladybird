@@ -361,6 +361,9 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         // Phase 3: Weak refs (stop-the-world)
         sweep_weak_blocks();
 
+        for (auto& weak_container : m_weak_containers)
+            weak_container.remove_dead_cells({});
+
         auto after_weak = MonotonicTime::now();
 
         // Phase 4: Sweeping
@@ -718,9 +721,6 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         return IterationDecision::Continue;
     });
 
-    for (auto& weak_container : m_weak_containers)
-        weak_container.remove_dead_cells({});
-
     for (auto* block : empty_blocks) {
         dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
         block->cell_allocator().block_did_become_empty({}, *block);
@@ -829,9 +829,6 @@ void Heap::start_incremental_sweep()
 
     m_incremental_sweep_active = true;
     m_sweep_live_cell_bytes = 0;
-
-    for (auto& weak_container : m_weak_containers)
-        weak_container.remove_dead_cells({});
 
     // Populate each allocator's pending sweep list with its current blocks.
     // Blocks allocated during incremental sweep won't be on these lists
