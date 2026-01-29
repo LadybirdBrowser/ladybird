@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 31 tests
+
+26 Pass
+5 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "constant source"
+Pass	Executing "stop before start"
+Pass	Executing "stop equal to start"
+Pass	Executing "start/stop"
+Pass	Executing "basic automation"
+Pass	Executing "connected audioparam"
+Pass	Audit report
+Pass	> [constant source] 
+Pass	  Basic: ConstantSourceNode({offset: 0.5}) is identical to the array [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5...].
+Pass	< [constant source] All assertions passed. (total 1 assertions)
+Pass	> [stop before start] 
+Pass	  ConstantSourceNode with stop before start must output silence contains only the constant 0.
+Pass	< [stop before start] All assertions passed. (total 1 assertions)
+Pass	> [stop equal to start] 
+Pass	  ConstantSourceNode with stop equal to start  must output silence contains only the constant 0.
+Pass	< [stop equal to start] All assertions passed. (total 1 assertions)
+Pass	> [start/stop] 
+Pass	  start/stop: ConstantSourceNode frames [0, 10) contains only the constant 0.
+Pass	  start/stop: ConstantSourceNode frames [10, 300) contains only the constant 1.
+Pass	  start/stop: ConstantSourceNode frames [300, 6000) contains only the constant 0.
+Pass	< [start/stop] All assertions passed. (total 3 assertions)
+Pass	> [basic automation] 
+Fail	X Automation: ConstantSourceNode.linearRamp(1, 0.5) does not equal [0.5,0.5001666666666666,0.5003333333333333,0.5005,0.5006666666666667,0.5008333333333334,0.501,0.5011666666666666,0.5013333333333333,0.5015,0.5016666666666667,0.5018333333333334,0.502,0.5021666666666667,0.5023333333333333,0.5025...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":7.161e-7}.
+	Index	Actual			Expected		AbsError		RelError		Test threshold
+	[0]	1.0000000000000000e+0	5.0000000000000000e-1	5.0000000000000000e-1	1.0000000000000000e+0	3.5805000000000004e-7
+	[1]	1.0000000000000000e+0	5.0016666666666664e-1	4.9983333333333330e-1	9.9933355548150620e-1	3.5816935000000004e-7
+	[2]	1.0000000000000000e+0	5.0033333333333330e-1	4.9966666666666664e-1	9.9866755496335780e-1	3.5828869999999996e-7
+	[3]	1.0000000000000000e+0	5.0049999999999990e-1	4.9950000000000000e-1	9.9800199800199800e-1	3.5840804999999996e-7
+	[4]	1.0000000000000000e+0	5.0066666666666664e-1	4.9933333333333330e-1	9.9733688415446050e-1	3.5852740000000004e-7
+	...and 2995 more errors.
+	Max AbsError of 5.0000000000000000e-1 at index of 0.
+	Max RelError of 1.0000000000000000e+0 at index of 0.
+
+Pass	  Automation: ConstantSourceNode after ramp contains only the constant 1.
+Fail	< [basic automation] 1 out of 2 assertions were failed.
+Pass	> [connected audioparam] 
+Pass	  Connected param: ConstantSourceNode frames [0, 10) contains only the constant 0.
+Fail	X Connected param: ConstantSourceNode frames [10, 6000) does not equal [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+	Index	Actual			Expected		AbsError		RelError		Test threshold
+	[0]	0.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	0.0000000000000000e+0
+	[1]	0.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	0.0000000000000000e+0
+	[2]	0.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	0.0000000000000000e+0
+	[3]	0.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	0.0000000000000000e+0
+	[4]	0.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	1.0000000000000000e+0	0.0000000000000000e+0
+	...and 5985 more errors.
+	Max AbsError of 1.0000000000000000e+0 at index of 0.
+	Max RelError of 1.0000000000000000e+0 at index of 0.
+
+Fail	< [connected audioparam] 1 out of 2 assertions were failed.
+Fail	# AUDIT TASK RUNNER FINISHED: 2 out of 6 tasks were failed.
