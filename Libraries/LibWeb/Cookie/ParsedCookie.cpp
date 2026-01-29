@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2021-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "ParsedCookie.h"
 #include <AK/DateConstants.h>
 #include <AK/Function.h>
 #include <AK/StdLibExtras.h>
@@ -13,6 +12,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/Infra/Strings.h>
 #include <ctype.h>
 
@@ -461,54 +461,6 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
 
     // 7. Return the parsed-cookie-date as the result of this algorithm.
     return parsed_cookie_date;
-}
-
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.3
-bool domain_matches(StringView string, StringView domain_string)
-{
-    // A string domain-matches a given domain string if at least one of the following conditions hold:
-
-    // * The domain string and the string are identical. (Note that both the domain string and the string will have been
-    //   canonicalized to lower case at this point.)
-    if (string == domain_string)
-        return true;
-
-    // * All of the following conditions hold:
-    //   - The domain string is a suffix of the string.
-    if (!string.ends_with(domain_string))
-        return false;
-    //   - The last character of the string that is not included in the domain string is a %x2E (".") character.
-    if (string[string.length() - domain_string.length() - 1] != '.')
-        return false;
-    //   - The string is a host name (i.e., not an IP address).
-    if (AK::IPv4Address::from_string(string).has_value())
-        return false;
-
-    return true;
-}
-
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
-String default_path(URL::URL const& url)
-{
-    // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
-    auto uri_path = URL::percent_decode(url.serialize_path());
-
-    // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output
-    //    %x2F ("/") and skip the remaining steps.
-    if (uri_path.is_empty() || (uri_path[0] != '/'))
-        return "/"_string;
-
-    StringView uri_path_view = uri_path;
-    size_t last_separator = uri_path_view.find_last('/').value();
-
-    // 3. If the uri-path contains no more than one %x2F ("/") character, output %x2F ("/") and skip the remaining step.
-    if (last_separator == 0)
-        return "/"_string;
-
-    // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
-    //    %x2F ("/").
-    // FIXME: The path might not be valid UTF-8.
-    return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
 }
 
 }
