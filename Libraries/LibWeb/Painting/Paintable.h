@@ -164,7 +164,7 @@ public:
     };
     [[nodiscard]] SelectionStyle selection_style() const;
 
-    virtual void resolve_paint_properties();
+    MUST_UPCALL virtual void resolve_paint_properties();
 
     [[nodiscard]] String debug_description() const;
 
