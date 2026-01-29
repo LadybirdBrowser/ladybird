@@ -490,6 +490,7 @@ class PseudoElement;
 class Range;
 class RegisteredObserver;
 class ShadowRoot;
+class SlotRegistry;
 class StaticNodeList;
 class StaticRange;
 class StyleInvalidator;

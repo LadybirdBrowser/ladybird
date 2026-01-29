@@ -344,6 +344,7 @@ set(SOURCES
     DOM/Range.cpp
     DOM/ShadowRoot.cpp
     DOM/Slot.cpp
+    DOM/SlotRegistry.cpp
     DOM/Slottable.cpp
     DOM/StaticNodeList.cpp
     DOM/StaticRange.cpp
