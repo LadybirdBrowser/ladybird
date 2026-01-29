@@ -25,8 +25,10 @@ namespace GC {
 // It should only be used when the lifetime of the GC-allocated member is always longer than the object
 #if defined(AK_COMPILER_CLANG)
 #    define IGNORE_GC [[clang::annotate("serenity::ignore_gc")]]
+#    define GC_ALLOW_CELL_DESTRUCTOR [[clang::annotate("ladybird::allow_cell_destructor")]]
 #else
 #    define IGNORE_GC
+#    define GC_ALLOW_CELL_DESTRUCTOR
 #endif
 
 #define GC_CELL(class_, base_class)                \

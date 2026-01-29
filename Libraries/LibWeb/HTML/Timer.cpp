@@ -35,8 +35,9 @@ void Timer::visit_edges(Cell::Visitor& visitor)
     visitor.visit_possible_values(m_timer->on_timeout.raw_capture_range());
 }
 
-Timer::~Timer()
+void Timer::finalize()
 {
+    Base::finalize();
     VERIFY(!m_timer->is_active());
 }
 

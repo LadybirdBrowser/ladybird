@@ -44,8 +44,9 @@ CryptoKey::CryptoKey(JS::Realm& realm)
 {
 }
 
-CryptoKey::~CryptoKey()
+void CryptoKey::finalize()
 {
+    Base::finalize();
     m_key_data.visit(
         [](ByteBuffer& data) { secure_zero(data.data(), data.size()); },
         [](auto& data) { secure_zero(reinterpret_cast<u8*>(&data), sizeof(data)); });

@@ -496,6 +496,45 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     check_override_requires_flag("must_survive_garbage_collection", "OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION");
     check_override_requires_flag("finalize", "OVERRIDES_FINALIZE");
 
+    // Check that Cell subclasses (and all their base classes) don't have non-trivial destructors.
+    // They should override Cell::finalize() instead.
+    auto check_no_nontrivial_destructor = [&](clang::CXXRecordDecl const* check_record) {
+        if (!check_record || !check_record->isCompleteDefinition())
+            return;
+        if (check_record->getQualifiedNameAsString() == "GC::Cell")
+            return;
+        auto const* destructor = check_record->getDestructor();
+        if (!destructor || !destructor->isUserProvided())
+            return;
+        // Only flag destructors whose body we can see, that aren't defaulted,
+        // and that have a non-empty body. This way, out-of-line `= default` destructors
+        // and empty-body destructors `~Foo() {}` are fine.
+        if (!destructor->getBody() || destructor->isDefaulted())
+            return;
+        if (auto const* body = llvm::dyn_cast<clang::CompoundStmt>(destructor->getBody())) {
+            if (body->body_empty())
+                return;
+        }
+        if (decl_has_annotation(destructor, "ladybird::allow_cell_destructor"))
+            return;
+        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
+            "GC::Cell-inheriting class %0 has a non-trivial destructor; override Cell::finalize() instead (and set OVERRIDES_FINALIZE)");
+        auto builder = diag_engine.Report(destructor->getBeginLoc(), diag_id);
+        builder << check_record->getName();
+    };
+
+    check_no_nontrivial_destructor(record);
+    record->forallBases([&](clang::CXXRecordDecl const* base) -> bool {
+        if (base->getQualifiedNameAsString() == "GC::Cell")
+            return false;
+        // Only check bases that are themselves part of the Cell hierarchy.
+        // Non-Cell mixins (e.g. Weakable) are not our concern here.
+        if (!record_inherits_from_cell(*base))
+            return true;
+        check_no_nontrivial_destructor(base);
+        return true;
+    });
+
     clang::DeclarationName name = &m_context.Idents.get("visit_edges");
     auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
     if (!visit_edges_method && !fields_that_need_visiting.empty()) {

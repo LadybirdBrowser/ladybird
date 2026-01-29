@@ -32,6 +32,8 @@ class WEB_API Range final : public AbstractRange {
     GC_DECLARE_ALLOCATOR(Range);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<Range> create(Document&);
     [[nodiscard]] static GC::Ref<Range> create(HTML::Window&);
     [[nodiscard]] static GC::Ref<Range> create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
@@ -127,6 +129,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     GC::Ref<Node> root() const;
 
