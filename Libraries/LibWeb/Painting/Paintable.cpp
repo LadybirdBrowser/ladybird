@@ -40,8 +40,13 @@ Paintable::Paintable(Layout::Node const& layout_node)
     m_inline = layout_node.is_inline();
 }
 
-Paintable::~Paintable()
+Paintable::~Paintable() = default;
+
+void Paintable::finalize()
 {
+    Base::finalize();
+    if (m_list_node.is_in_list())
+        m_list_node.remove();
 }
 
 void Paintable::visit_edges(Cell::Visitor& visitor)

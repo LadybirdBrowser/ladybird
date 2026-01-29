@@ -61,6 +61,7 @@ void Storage::initialize(JS::Realm& realm)
 
 void Storage::finalize()
 {
+    Base::finalize();
     all_storages().remove(*this);
 }
 

@@ -168,11 +168,7 @@ public:
 
     [[nodiscard]] String debug_description() const;
 
-    virtual void finalize() override
-    {
-        if (m_list_node.is_in_list())
-            m_list_node.remove();
-    }
+    virtual void finalize() override;
 
     friend class Layout::Node;
 

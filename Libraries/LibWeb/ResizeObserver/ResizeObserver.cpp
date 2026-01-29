@@ -49,6 +49,7 @@ void ResizeObserver::visit_edges(JS::Cell::Visitor& visitor)
 
 void ResizeObserver::finalize()
 {
+    Base::finalize();
     if (m_document && m_list_node.is_in_list())
         m_document->unregister_resize_observer({}, *this);
 }

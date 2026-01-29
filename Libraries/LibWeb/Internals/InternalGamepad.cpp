@@ -115,6 +115,7 @@ void InternalGamepad::visit_edges(Cell::Visitor& visitor)
 
 void InternalGamepad::finalize()
 {
+    Base::finalize();
     disconnect();
 }
 

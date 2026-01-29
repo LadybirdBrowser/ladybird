@@ -70,6 +70,7 @@ AnimationTimeline::AnimationTimeline(JS::Realm& realm)
 
 void AnimationTimeline::finalize()
 {
+    Base::finalize();
     if (m_associated_document)
         m_associated_document->disassociate_with_timeline(*this);
 }

@@ -160,6 +160,7 @@ void Gamepad::visit_edges(Cell::Visitor& visitor)
 
 void Gamepad::finalize()
 {
+    Base::finalize();
     SDL_CloseGamepad(m_sdl_gamepad);
 }
 

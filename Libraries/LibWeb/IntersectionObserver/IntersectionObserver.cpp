@@ -103,6 +103,7 @@ IntersectionObserver::~IntersectionObserver() = default;
 
 void IntersectionObserver::finalize()
 {
+    Base::finalize();
     if (m_document)
         m_document->unregister_intersection_observer({}, *this);
 }

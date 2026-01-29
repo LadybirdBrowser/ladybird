@@ -130,6 +130,8 @@ void WebSocket::initialize(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
 void WebSocket::finalize()
 {
+    Base::finalize();
+
     auto ready_state = this->ready_state();
 
     // If a WebSocket object is garbage collected while its connection is still open, the user agent must start the
