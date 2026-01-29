@@ -6,6 +6,7 @@
  */
 
 #include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -93,6 +94,8 @@ bool domain_matches(StringView string, StringView domain_string)
         return false;
     //   - The string is a host name (i.e., not an IP address).
     if (AK::IPv4Address::from_string(string).has_value())
+        return false;
+    if (AK::IPv6Address::from_string(string).has_value())
         return false;
 
     return true;
