@@ -113,7 +113,6 @@ private:
         WebDriver,
     };
 
-    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, Web::Cookie::Source source);
     Vector<Web::Cookie::Cookie> get_matching_cookies(URL::URL const& url, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
