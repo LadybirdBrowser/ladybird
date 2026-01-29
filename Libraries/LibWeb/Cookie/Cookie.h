@@ -53,6 +53,8 @@ WEB_API bool domain_matches(StringView string, StringView domain_string);
 WEB_API bool path_matches(StringView request_path, StringView cookie_path);
 WEB_API String default_path(URL::URL const&);
 
+WEB_API bool cookie_matches_url(Cookie const&, URL::URL const&, String const& retrieval_host_canonical, Optional<Source> = {});
+
 }
 
 namespace IPC {

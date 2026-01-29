@@ -508,39 +508,8 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url,
     Vector<Web::Cookie::Cookie> cookie_list;
 
     m_transient_storage.for_each_cookie([&](Web::Cookie::Cookie& cookie) {
-        // * Either:
-        //     - The cookie's host-only-flag is true and retrieval-host-canonical is identical to the cookie's domain.
-        bool is_host_only_and_has_identical_domain = cookie.host_only && (*retrieval_host_canonical == cookie.domain);
-        // Or:
-        //     - The cookie's host-only-flag is false and retrieval-host-canonical domain-matches (see Section 5.1.3)
-        //       the cookie's domain.
-        //     - The cookie's domain is not a public suffix, for user agents configured to reject "public suffixes".
-        bool is_not_host_only_and_domain_matches = (!cookie.host_only && Web::Cookie::domain_matches(*retrieval_host_canonical, cookie.domain))
-            && !URL::is_public_suffix(cookie.domain);
-
-        if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
+        if (!Web::Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical, source))
             return;
-
-        // * The retrieval's URI's path path-matches the cookie's path.
-        if (!Web::Cookie::path_matches(url.serialize_path(), cookie.path))
-            return;
-
-        // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
-        //   defined by the user agent).
-        if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
-            return;
-
-        // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
-        if (cookie.http_only && (source != Web::Cookie::Source::Http))
-            return;
-
-        // FIXME: * If the cookie's same-site-flag is not "None" and the retrieval's same-site status is "cross-site", then
-        //          exclude the cookie unless all of the following conditions are met:
-        //            * The retrieval's type is "HTTP".
-        //            * The same-site-flag is "Lax" or "Default".
-        //            * The HTTP request associated with the retrieval uses a "safe" method.
-        //            * The target browsing context of the HTTP request associated with the retrieval is the active browsing context
-        //              or a top-level traversable.
 
         // NOTE: The WebDriver spec expects only step 1 above to be executed to match cookies.
         if (mode == MatchingCookiesSpecMode::WebDriver) {
