@@ -85,12 +85,39 @@ void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
 
 void ViewportPaintable::assign_scroll_frames()
 {
+    auto precompute_sticky_constraints = [](ScrollFrame& sticky_frame, PaintableBox const& paintable_box) {
+        auto nearest_scrolling_ancestor_frame = sticky_frame.nearest_scrolling_ancestor();
+        if (!nearest_scrolling_ancestor_frame)
+            return;
+
+        auto const& scroll_ancestor_paintable = nearest_scrolling_ancestor_frame->paintable_box();
+        auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
+        auto const* containing_block_of_sticky = paintable_box.containing_block();
+
+        CSSPixelRect containing_block_region;
+        bool needs_parent_offset_adjustment = false;
+        if (containing_block_of_sticky == &scroll_ancestor_paintable) {
+            containing_block_region = { {}, containing_block_of_sticky->scrollable_overflow_rect()->size() };
+        } else {
+            containing_block_region = containing_block_of_sticky->absolute_border_box_rect()
+                                          .translated(-scroll_ancestor_paintable.absolute_rect().top_left());
+            needs_parent_offset_adjustment = true;
+        }
+
+        sticky_frame.set_sticky_constraints({
+            .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
+            .border_box_size = sticky_border_box_rect.size(),
+            .containing_block_region = containing_block_region,
+            .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
+        });
+    };
+
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         RefPtr<ScrollFrame> sticky_scroll_frame;
         if (paintable_box.is_sticky_position()) {
             auto parent_scroll_frame = paintable_box.nearest_scroll_frame();
             sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
-
+            precompute_sticky_constraints(*sticky_scroll_frame, paintable_box);
             paintable_box.set_enclosing_scroll_frame(sticky_scroll_frame);
             paintable_box.set_own_scroll_frame(sticky_scroll_frame);
         }
@@ -271,13 +298,13 @@ void ViewportPaintable::refresh_scroll_state()
     m_needs_to_refresh_scroll_state = false;
 
     m_scroll_state.for_each_sticky_frame([&](auto& scroll_frame) {
-        auto const& sticky_box = scroll_frame->paintable_box();
-        auto const& sticky_insets = sticky_box.sticky_insets();
-
-        auto const* nearest_scrollable_ancestor = sticky_box.nearest_scrollable_ancestor();
-        if (!nearest_scrollable_ancestor) {
+        auto nearest_scrolling_ancestor_frame = scroll_frame->nearest_scrolling_ancestor();
+        if (!nearest_scrolling_ancestor_frame || !scroll_frame->has_sticky_constraints())
             return;
-        }
+
+        auto const& sticky_data = scroll_frame->sticky_constraints();
+        auto const& sticky_insets = scroll_frame->paintable_box().sticky_insets();
+        auto const& scroll_ancestor_paintable = nearest_scrolling_ancestor_frame->paintable_box();
 
         // For nested sticky elements, the parent sticky's offset is applied via cumulative_offset.
         // We need to adjust all position calculations to account for this, so we work in the
@@ -286,63 +313,35 @@ void ViewportPaintable::refresh_scroll_state()
         if (auto parent = scroll_frame->parent(); parent && parent->is_sticky())
             parent_sticky_offset = parent->cumulative_offset();
 
-        // Min and max offsets are needed to clamp the sticky box's position to stay within bounds of containing block.
-        CSSPixels min_y_offset_relative_to_nearest_scrollable_ancestor;
-        CSSPixels max_y_offset_relative_to_nearest_scrollable_ancestor;
-        CSSPixels min_x_offset_relative_to_nearest_scrollable_ancestor;
-        CSSPixels max_x_offset_relative_to_nearest_scrollable_ancestor;
-        auto const* containing_block_of_sticky_box = sticky_box.containing_block();
-        if (containing_block_of_sticky_box->could_be_scrolled_by_wheel_event()) {
-            min_y_offset_relative_to_nearest_scrollable_ancestor = 0;
-            max_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_of_sticky_box->scrollable_overflow_rect()->height() - sticky_box.absolute_border_box_rect().height();
-            min_x_offset_relative_to_nearest_scrollable_ancestor = 0;
-            max_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_of_sticky_box->scrollable_overflow_rect()->width() - sticky_box.absolute_border_box_rect().width();
-        } else {
-            auto containing_block_rect = containing_block_of_sticky_box->absolute_border_box_rect().translated(-nearest_scrollable_ancestor->absolute_rect().top_left());
-            containing_block_rect.translate_by(parent_sticky_offset);
-            min_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.top();
-            max_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.bottom() - sticky_box.absolute_border_box_rect().height();
-            min_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.left();
-            max_x_offset_relative_to_nearest_scrollable_ancestor = containing_block_rect.right() - sticky_box.absolute_border_box_rect().width();
-        }
+        auto sticky_position_in_ancestor = sticky_data.position_relative_to_scroll_ancestor + parent_sticky_offset;
 
-        auto sticky_rect = sticky_box.border_box_rect_relative_to_nearest_scrollable_ancestor();
-        sticky_rect.translate_by(parent_sticky_offset);
+        auto containing_block_region = sticky_data.containing_block_region;
+        if (sticky_data.needs_parent_offset_adjustment)
+            containing_block_region.translate_by(parent_sticky_offset);
+        CSSPixelPoint min_offset_within_containing_block = containing_block_region.top_left();
+        CSSPixelPoint max_offset_within_containing_block = {
+            containing_block_region.right() - sticky_data.border_box_size.width(),
+            containing_block_region.bottom() - sticky_data.border_box_size.height()
+        };
 
+        CSSPixelRect scrollport_rect { scroll_ancestor_paintable.scroll_offset(), scroll_ancestor_paintable.absolute_rect().size() };
         CSSPixelPoint sticky_offset;
-        auto scroll_offset = nearest_scrollable_ancestor->scroll_offset();
-        CSSPixelRect const scrollport_rect { scroll_offset, nearest_scrollable_ancestor->absolute_rect().size() };
 
         if (sticky_insets.top.has_value()) {
-            auto top_inset = sticky_insets.top.value();
-            if (scrollport_rect.top() > sticky_rect.top() - top_inset) {
-                auto desired_y = min(scrollport_rect.top() + top_inset, max_y_offset_relative_to_nearest_scrollable_ancestor);
-                sticky_offset.translate_by({ 0, desired_y - sticky_rect.top() });
-            }
+            if (scrollport_rect.top() > sticky_position_in_ancestor.y() - *sticky_insets.top)
+                sticky_offset.set_y(min(scrollport_rect.top() + *sticky_insets.top, max_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
         }
-
         if (sticky_insets.left.has_value()) {
-            auto left_inset = sticky_insets.left.value();
-            if (scrollport_rect.left() > sticky_rect.left() - left_inset) {
-                auto desired_x = min(scrollport_rect.left() + left_inset, max_x_offset_relative_to_nearest_scrollable_ancestor);
-                sticky_offset.translate_by({ desired_x - sticky_rect.left(), 0 });
-            }
+            if (scrollport_rect.left() > sticky_position_in_ancestor.x() - *sticky_insets.left)
+                sticky_offset.set_x(min(scrollport_rect.left() + *sticky_insets.left, max_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
         }
-
         if (sticky_insets.bottom.has_value()) {
-            auto bottom_inset = sticky_insets.bottom.value();
-            if (scrollport_rect.bottom() < sticky_rect.bottom() + bottom_inset) {
-                auto desired_y = max(scrollport_rect.bottom() - sticky_box.absolute_border_box_rect().height() - bottom_inset, min_y_offset_relative_to_nearest_scrollable_ancestor);
-                sticky_offset.translate_by({ 0, desired_y - sticky_rect.top() });
-            }
+            if (scrollport_rect.bottom() < sticky_position_in_ancestor.y() + sticky_data.border_box_size.height() + *sticky_insets.bottom)
+                sticky_offset.set_y(max(scrollport_rect.bottom() - sticky_data.border_box_size.height() - *sticky_insets.bottom, min_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
         }
-
         if (sticky_insets.right.has_value()) {
-            auto right_inset = sticky_insets.right.value();
-            if (scrollport_rect.right() < sticky_rect.right() + right_inset) {
-                auto desired_x = max(scrollport_rect.right() - sticky_box.absolute_border_box_rect().width() - right_inset, min_x_offset_relative_to_nearest_scrollable_ancestor);
-                sticky_offset.translate_by({ desired_x - sticky_rect.left(), 0 });
-            }
+            if (scrollport_rect.right() < sticky_position_in_ancestor.x() + sticky_data.border_box_size.width() + *sticky_insets.right)
+                sticky_offset.set_x(max(scrollport_rect.right() - sticky_data.border_box_size.width() - *sticky_insets.right, min_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
         }
 
         scroll_frame->set_own_offset(sticky_offset);
