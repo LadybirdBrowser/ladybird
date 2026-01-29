@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/FixedBitmap.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -46,6 +48,7 @@ private:
         GC::Ptr<CSS::CSSStyleDeclaration const> source;
     };
     HashMap<PropertyID, Vector<Entry>> m_properties;
+    AK::FixedBitmap<to_underlying(last_longhand_property_id) + 1> m_contained_properties_cache { false };
 };
 
 }
