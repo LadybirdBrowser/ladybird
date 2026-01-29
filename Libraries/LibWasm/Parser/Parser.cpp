@@ -7,6 +7,7 @@
 #include <AK/ConstrainedStream.h>
 #include <AK/Debug.h>
 #include <AK/Endian.h>
+#include <AK/Enumerate.h>
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
 #include <AK/ScopeLogger.h>
@@ -324,7 +325,7 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case Instructions::br_if.value(): {
         // branches with a single label immediate
         auto index = TRY(GenericIndexParser<LabelIndex>::parse(stream));
-        return Instruction { opcode, index };
+        return Instruction { opcode, BranchArgs { index } };
     }
     case Instructions::br_table.value(): {
         // br_table label* label
@@ -1472,7 +1473,13 @@ ParseResult<NonnullRefPtr<Module>> Module::parse(Stream& stream)
             return ParseError::SectionSizeMismatch;
     }
 
+    module_ptr->preprocess();
+
     return module_ptr;
+}
+
+void Module::preprocess()
+{
 }
 
 ByteString parse_error_to_byte_string(ParseError error)

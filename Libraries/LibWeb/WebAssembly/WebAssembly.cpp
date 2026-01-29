@@ -239,7 +239,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
             // 3.2. If o is not an Object, throw a TypeError exception.
             if (!value.is_object())
-                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value);
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::IsNotAEvaluatedFrom, value.to_string_without_side_effects(), "Object"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import_name.module)));
             auto const& object = value.as_object();
 
             // 3.3. Let v be ? Get(o, componentName).
@@ -268,7 +268,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
                         cache.add_imported_object(function);
                         Wasm::HostFunction host_function {
-                            [&](auto&, auto& arguments) -> Wasm::Result {
+                            [&](auto&, auto arguments) -> Wasm::Result {
                                 GC::RootVector<JS::Value> argument_values { vm.heap() };
                                 size_t index = 0;
                                 for (auto& entry : arguments) {

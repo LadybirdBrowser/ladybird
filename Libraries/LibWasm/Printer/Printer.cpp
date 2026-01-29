@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
 #include <AK/TemporaryChange.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -18,7 +19,7 @@ struct Names {
 
 ByteString instruction_name(OpCode const& opcode)
 {
-    return Names::instruction_names.get(opcode).value_or("<unknown>");
+    return Names::instruction_names.get(opcode).value_or(ByteString::formatted("<unknown {:#x}>", opcode.value()));
 }
 
 Optional<OpCode> instruction_from_name(StringView name)
@@ -473,12 +474,14 @@ void Printer::print(Wasm::Instruction const& instruction)
     print_indent();
     print("({}", instruction_name(instruction.opcode()));
     if (instruction.arguments().has<u8>()) {
-        if (instruction.opcode() == Instructions::local_get || instruction.opcode() == Instructions::local_set || instruction.opcode() == Instructions::local_tee)
-            print(" (local index {})", instruction.local_index());
+        if (first_is_one_of(instruction.opcode(), Instructions::local_get, Instructions::local_set, Instructions::local_tee, Instructions::synthetic_argument_get)) {
+            print(" (local index {})", instruction.local_index().value());
+        }
         print(")\n");
     } else {
         print(" ");
         instruction.arguments().visit(
+            [&](Instruction::BranchArgs const& branch) { print("(label index {})", branch.label.value()); },
             [&](BlockType const& type) { print(type); },
             [&](DataIndex const& index) { print("(data index {})", index.value()); },
             [&](ElementIndex const& index) { print("(element index {})", index.value()); },
@@ -506,7 +509,12 @@ void Printer::print(Wasm::Instruction const& instruction)
                 TemporaryChange change { m_indent, m_indent + 1 };
                 print(args.block_type);
                 print_indent();
-                print("(else {}) (end {}))", args.else_ip.has_value() ? ByteString::number(args.else_ip->value()) : "(none)", args.end_ip.value());
+                print("(else {}) (end {})", args.else_ip.has_value() ? ByteString::number(args.else_ip->value()) : "(none)", args.end_ip.value());
+                if (args.meta.has_value())
+                    print(" (meta arity {} params {})", args.meta->arity, args.meta->parameter_count);
+                else
+                    print(" (meta none)");
+                print(")");
             },
             [&](Instruction::TryTableArgs const& args) {
                 print("(try_table ");
@@ -530,7 +538,7 @@ void Printer::print(Wasm::Instruction const& instruction)
             [&](Vector<ValueType> const&) { print("(types...)"); },
             [&](auto const& value) { print("(const {})", value); });
 
-        if (instruction.local_index().value())
+        if (first_is_one_of(instruction.opcode(), Instructions::local_get, Instructions::local_set, Instructions::local_tee, Instructions::synthetic_argument_get, Instructions::synthetic_local_seti32_const, Instructions::synthetic_i32_storelocal))
             print(" (local index {})", instruction.local_index().value());
 
         print(")\n");
@@ -1259,5 +1267,47 @@ HashMap<Wasm::OpCode, ByteString> Wasm::Names::instruction_names {
     { Instructions::synthetic_call_30, "synthetic:call.30" },
     { Instructions::synthetic_call_31, "synthetic:call.31" },
     { Instructions::synthetic_end_expression, "synthetic:expression.end" },
+    { Instructions::synthetic_call_with_record_0, "synthetic:call.with_record.0" },
+    { Instructions::synthetic_call_with_record_1, "synthetic:call.with_record.1" },
+    { Instructions::synthetic_local_get_0, "synthetic:local.get.0" },
+    { Instructions::synthetic_local_get_1, "synthetic:local.get.1" },
+    { Instructions::synthetic_local_get_2, "synthetic:local.get.2" },
+    { Instructions::synthetic_local_get_3, "synthetic:local.get.3" },
+    { Instructions::synthetic_local_get_4, "synthetic:local.get.4" },
+    { Instructions::synthetic_local_get_5, "synthetic:local.get.5" },
+    { Instructions::synthetic_local_get_6, "synthetic:local.get.6" },
+    { Instructions::synthetic_local_get_7, "synthetic:local.get.7" },
+    { Instructions::synthetic_br_nostack, "synthetic:br.nostack" },
+    { Instructions::synthetic_br_if_nostack, "synthetic:br.if.nostack" },
+    { Instructions::synthetic_local_set_0, "synthetic:local.set.0" },
+    { Instructions::synthetic_local_set_1, "synthetic:local.set.1" },
+    { Instructions::synthetic_local_set_2, "synthetic:local.set.2" },
+    { Instructions::synthetic_local_set_3, "synthetic:local.set.3" },
+    { Instructions::synthetic_local_set_4, "synthetic:local.set.4" },
+    { Instructions::synthetic_local_set_5, "synthetic:local.set.5" },
+    { Instructions::synthetic_local_set_6, "synthetic:local.set.6" },
+    { Instructions::synthetic_local_set_7, "synthetic:local.set.7" },
+    { Instructions::synthetic_local_copy, "synthetic:local.copy" },
+    { Instructions::synthetic_i32_sub2local, "synthetic:i32.sub2local" },
+    { Instructions::synthetic_i32_mul2local, "synthetic:i32.mul2local" },
+    { Instructions::synthetic_i32_and2local, "synthetic:i32.and2local" },
+    { Instructions::synthetic_i32_or2local, "synthetic:i32.or2local" },
+    { Instructions::synthetic_i32_xor2local, "synthetic:i32.xor2local" },
+    { Instructions::synthetic_i32_shl2local, "synthetic:i32.shl2local" },
+    { Instructions::synthetic_i32_shru2local, "synthetic:i32.shru2local" },
+    { Instructions::synthetic_i32_shrs2local, "synthetic:i32.shrs2local" },
+    { Instructions::synthetic_i64_add2local, "synthetic:i64.add2local" },
+    { Instructions::synthetic_i64_addconstlocal, "synthetic:i64.addconstlocal" },
+    { Instructions::synthetic_i64_andconstlocal, "synthetic:i64.andconstlocal" },
+    { Instructions::synthetic_i64_storelocal, "synthetic:i64.storelocal" },
+    { Instructions::synthetic_i64_sub2local, "synthetic:i64.sub2local" },
+    { Instructions::synthetic_i64_mul2local, "synthetic:i64.mul2local" },
+    { Instructions::synthetic_i64_and2local, "synthetic:i64.and2local" },
+    { Instructions::synthetic_i64_or2local, "synthetic:i64.or2local" },
+    { Instructions::synthetic_i64_xor2local, "synthetic:i64.xor2local" },
+    { Instructions::synthetic_i64_shl2local, "synthetic:i64.shl2local" },
+    { Instructions::synthetic_i64_shru2local, "synthetic:i64.shru2local" },
+    { Instructions::synthetic_i64_shrs2local, "synthetic:i64.shrs2local" },
+    { Instructions::synthetic_local_seti64_const, "synthetic:local.seti64_const" },
 };
 HashMap<ByteString, Wasm::OpCode> Wasm::Names::instructions_by_name;

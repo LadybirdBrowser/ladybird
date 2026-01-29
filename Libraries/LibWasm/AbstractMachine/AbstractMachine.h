@@ -18,6 +18,8 @@
 
 namespace Wasm {
 
+constexpr inline size_t ArgumentsStaticSize = 3;
+
 class Configuration;
 class Result;
 struct Interpreter;
@@ -77,6 +79,8 @@ private:
 
 class Value {
 public:
+    Value() = default;
+
     explicit Value(ValueType type)
         : m_value(u128())
     {
@@ -216,6 +220,7 @@ private:
     u128 m_value;
 };
 static_assert(IsTriviallyDestructible<Value>);
+static_assert(IsTriviallyConstructible<Value>);
 
 struct ExternallyManagedTrap {
     Array<u8, 64> data;
@@ -315,11 +320,9 @@ private:
 class ModuleInstance {
 public:
     explicit ModuleInstance(
-        Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses,
-        Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses,
-        Vector<TagAddress> tag_addresses, Vector<TagType> tag_types,
-        Vector<ExportInstance> exports)
-        : m_types(move(types))
+        Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports, size_t minimum_call_record_allocation_size)
+        : cached_minimum_call_record_allocation_size(minimum_call_record_allocation_size)
+        , m_types(move(types))
         , m_tag_types(move(tag_types))
         , m_functions(move(function_addresses))
         , m_tables(move(table_addresses))
@@ -354,6 +357,8 @@ public:
     auto& exports() { return m_exports; }
     auto& tags() { return m_tags; }
     auto& tag_types() { return m_tag_types; }
+
+    size_t cached_minimum_call_record_allocation_size { 0 };
 
 private:
     Vector<FunctionType> m_types;
@@ -392,7 +397,7 @@ private:
 
 class HostFunction {
 public:
-    explicit HostFunction(AK::Function<Result(Configuration&, Vector<Value>&)> function, FunctionType const& type, ByteString name)
+    explicit HostFunction(AK::Function<Result(Configuration&, Span<Value>)> function, FunctionType const& type, ByteString name)
         : m_function(move(function))
         , m_type(type)
         , m_name(move(name))
@@ -404,7 +409,7 @@ public:
     auto& name() const { return m_name; }
 
 private:
-    AK::Function<Result(Configuration&, Vector<Value>&)> m_function;
+    AK::Function<Result(Configuration&, Span<Value>)> m_function;
     FunctionType m_type;
     ByteString m_name;
 };
@@ -672,7 +677,7 @@ private:
 
 class Frame {
 public:
-    explicit Frame(ModuleInstance const& module, Vector<Value> locals, Expression const& expression, size_t arity)
+    explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> locals, Expression const& expression, size_t arity)
         : m_module(module)
         , m_locals(move(locals))
         , m_expression(expression)
@@ -690,7 +695,7 @@ public:
 
 private:
     ModuleInstance const& m_module;
-    Vector<Value, 8> m_locals;
+    Vector<Value, ArgumentsStaticSize> m_locals;
     Expression const& m_expression;
     size_t m_arity { 0 };
     size_t m_label_index { 0 };
@@ -797,4 +802,9 @@ struct AK::Traits<Wasm::Linker::Name> : public AK::DefaultTraits<Wasm::Linker::N
     static constexpr bool is_trivial() { return false; }
     static unsigned hash(Wasm::Linker::Name const& entry) { return pair_int_hash(entry.module.hash(), entry.name.hash()); }
     static bool equals(Wasm::Linker::Name const& a, Wasm::Linker::Name const& b) { return a.name == b.name && a.module == b.module; }
+};
+
+template<>
+struct AK::Traits<Wasm::Value> : public AK::DefaultTraits<Wasm::Value> {
+    static constexpr bool is_trivial() { return true; }
 };

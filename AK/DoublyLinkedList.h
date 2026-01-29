@@ -41,12 +41,11 @@ template<typename T, size_t node_cache_size>
 class DoublyLinkedList {
 private:
     struct Node {
-        template<typename U>
-        explicit Node(U&& v)
+        template<typename... Args>
+        requires(IsConstructible<T, Args...>)
+        explicit Node(Args&&... args)
         {
-            new (m_value) T(forward<U>(v));
-            static_assert(
-                requires { T(v); }, "Conversion operator is missing.");
+            new (m_value) T(forward<Args>(args)...);
         }
 
         T const& value() const { return *bit_cast<T const*>(&m_value); }
@@ -115,12 +114,12 @@ public:
         return m_tail->value();
     }
 
-    template<typename U>
-    ErrorOr<void> try_append(U&& value)
+    template<typename... Args>
+    ALWAYS_INLINE ErrorOr<void> try_append(Args&&... args)
     {
         static_assert(
-            requires { T(value); }, "Conversion operator is missing.");
-        auto* node = make_node(forward<U>(value));
+            requires { T(forward<Args>(args)...); }, "Initializer is missing.");
+        auto* node = make_node(forward<Args>(args)...);
         if (!node)
             return Error::from_errno(ENOMEM);
         m_size += 1;
@@ -160,10 +159,10 @@ public:
         return {};
     }
 
-    template<typename U>
-    void append(U&& value)
+    template<typename... Args>
+    void append(Args&&... args)
     {
-        MUST(try_append(forward<U>(value)));
+        MUST(try_append(forward<Args>(args)...));
     }
 
     template<typename U>
@@ -282,11 +281,11 @@ private:
     }
 
     template<typename... Args>
-    Node* make_node(Args&&... args)
+    ALWAYS_INLINE Node* make_node(Args&&... args)
     {
         if constexpr (node_cache_size > 0) {
             if (m_node_cache.used_count > 0) {
-                auto* node = m_node_cache.nodes[--m_node_cache.used_count];
+                auto* node = m_node_cache.nodes.data()[--m_node_cache.used_count];
                 new (node) Node(forward<Args>(args)...);
                 return node;
             }
