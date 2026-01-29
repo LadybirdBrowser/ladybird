@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/WeakSet.h>
 
@@ -45,8 +46,9 @@ bool WeakSet::weak_set_remove(GC::Ptr<Cell> value)
 
 void WeakSet::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_values.remove_all_matching([](Cell* cell) {
-        return cell->state() != Cell::State::Live || !cell->is_marked();
+    m_values.remove_all_matching([this](Cell* cell) {
+        auto* block = GC::HeapBlock::from_cell(cell);
+        return !heap().is_live_heap_block(block) || cell->state() != Cell::State::Live || !cell->is_marked();
     });
 }
 
