@@ -59,6 +59,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     if (previous_chunk_iter.is_end() || previous_chunk_iter->end() < offset) {
         DataChunk new_chunk { offset, MUST(ByteBuffer::copy(data)) };
         m_chunks.insert(offset, move(new_chunk));
+        m_state_changed.broadcast();
         return;
     }
 
