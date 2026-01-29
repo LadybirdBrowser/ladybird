@@ -71,6 +71,24 @@ ErrorOr<WebView::ConsoleError> IPC::decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleTrace const& trace)
+{
+    TRY(encoder.encode(trace.label));
+    TRY(encoder.encode(trace.stack));
+
+    return {};
+}
+
+template<>
+ErrorOr<WebView::ConsoleTrace> IPC::decode(Decoder& decoder)
+{
+    auto label = TRY(decoder.decode<String>());
+    auto stack = TRY(decoder.decode<Vector<WebView::StackFrame>>());
+
+    return WebView::ConsoleTrace { move(label), move(stack) };
+}
+
+template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleOutput const& output)
 {
     TRY(encoder.encode(output.timestamp));
@@ -83,7 +101,7 @@ template<>
 ErrorOr<WebView::ConsoleOutput> IPC::decode(Decoder& decoder)
 {
     auto timestamp = TRY(decoder.decode<UnixDateTime>());
-    auto output = TRY(decoder.decode<Variant<WebView::ConsoleLog, WebView::ConsoleError>>());
+    auto output = TRY(decoder.decode<Variant<WebView::ConsoleLog, WebView::ConsoleError, WebView::ConsoleTrace>>());
 
     return WebView::ConsoleOutput { timestamp, move(output) };
 }

@@ -15,8 +15,11 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/StringConstructor.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/SourceRange.h>
 
 namespace JS {
 
@@ -347,13 +350,28 @@ ThrowCompletionOr<Value> Console::trace()
 
     // 1. Let trace be some implementation-defined, potentially-interactive representation of the callstack from where this function was called.
     Console::Trace trace;
-    auto& execution_context_stack = vm.execution_context_stack();
-    // NOTE: -2 to skip the console.trace() execution context
-    for (ssize_t i = execution_context_stack.size() - 2; i >= 0; --i) {
-        auto function_name = execution_context_stack[i]->function ? execution_context_stack[i]->function->name_for_call_stack() : ""_utf16;
-        trace.stack.append(function_name.is_empty()
-                ? "<anonymous>"_string
-                : function_name.to_utf8());
+    auto stack_trace = vm.stack_trace();
+
+    // NOTE: Skip the first frame (console.trace() itself)
+    for (size_t i = 1; i < stack_trace.size(); ++i) {
+        auto const& element = stack_trace[i];
+        auto* context = element.execution_context;
+
+        Console::TraceFrame frame;
+
+        auto function_name = (context && context->function) ? context->function->name_for_call_stack() : ""_utf16;
+        frame.function_name = function_name.is_empty() ? "<anonymous>"_string : function_name.to_utf8();
+
+        if (element.source_range) {
+            auto const& source_range = element.source_range->realize_source_range();
+            if (!source_range.filename().is_empty()) {
+                frame.source_file = MUST(String::from_byte_string(source_range.filename()));
+                frame.line = source_range.start.line;
+                frame.column = source_range.start.column;
+            }
+        }
+
+        trace.stack.append(move(frame));
     }
 
     // 2. Optionally, let formattedData be the result of Formatter(data), and incorporate formattedData as a label for trace.
