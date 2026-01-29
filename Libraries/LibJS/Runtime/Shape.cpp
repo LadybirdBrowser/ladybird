@@ -16,8 +16,11 @@ GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
 static HashTable<GC::Ptr<Shape>> s_all_prototype_shapes;
 
-Shape::~Shape()
+Shape::~Shape() = default;
+
+void Shape::finalize()
 {
+    Base::finalize();
     if (m_is_prototype_shape)
         s_all_prototype_shapes.remove(this);
 }

@@ -59,6 +59,8 @@ class JS_API Shape final : public Cell {
     GC_DECLARE_ALLOCATOR(Shape);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~Shape() override;
 
     enum class TransitionType : u8 {
@@ -114,6 +116,7 @@ private:
     void invalidate_all_prototype_chains_leading_to_this();
 
     virtual void visit_edges(Visitor&) override;
+    virtual void finalize() override;
 
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
     [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);

@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Cell.h>
+#include <LibGC/HeapBlock.h>
 #include <LibGC/WeakBlock.h>
 #include <sys/mman.h>
 
@@ -67,7 +68,12 @@ void WeakBlock::sweep()
         if (impl.state() == WeakImpl::State::Freelist)
             continue;
         auto* cell = static_cast<Cell*>(impl.ptr());
-        if (!cell || !cell->is_marked())
+        bool is_marked = false;
+        if (cell) {
+            auto* block = HeapBlock::from_cell(cell);
+            is_marked = block->is_marked(block->cell_index(cell));
+        }
+        if (!is_marked)
             impl.set_ptr({}, nullptr);
         if (impl.ref_count() == 0)
             deallocate(&impl);
