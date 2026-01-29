@@ -180,7 +180,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x2016]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,26 500x0]
       PaintableBox (Box<DIV>) [8,26 500x18]
-        PaintableWithLines (BlockContainer<DIV>) [8,26 0x18] overflow: [8,26 78.59375x18]
+        PaintableWithLines (BlockContainer<DIV>) [8,26 0x18]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,44 500x0]
       PaintableBox (Box<DIV>) [8,44 500x18]
@@ -205,7 +205,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x2016]
       PaintableBox (Box<DIV>) [8,298 500x8]
         ImagePaintable (ImageBox<IMG>) [8,298 8x8]
       PaintableWithLines (BlockContainer(anonymous)) [8,306 500x0]
-      PaintableBox (Box<DIV>) [8,306 100x18] overflow: [8,306 210.09375x18]
+      PaintableBox (Box<DIV>) [8,306 100x18]
         PaintableWithLines (BlockContainer<DIV>) [8,306 210.09375x18]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,324 500x0]

@@ -14,10 +14,10 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 20x20] overflow: [8,8 38.953125x20]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 20x20]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 20x0]
-      PaintableBox (Box<DIV>.grid) [8,8 20x20] overflow: [8,8 38.953125x20]
-        PaintableWithLines (BlockContainer<DIV>.whee) [8,8 20x20] overflow: [9,9 37.953125x18]
+      PaintableBox (Box<DIV>.grid) [8,8 20x20]
+        PaintableWithLines (BlockContainer<DIV>.whee) [8,8 20x20]
           TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

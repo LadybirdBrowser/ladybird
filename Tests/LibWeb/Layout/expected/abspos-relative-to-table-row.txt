@@ -27,14 +27,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x26] overflow: [0,0 800x39]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x10] overflow: [8,8 784x31]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 6x10] overflow: [8,8 75.5625x31]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x26]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x10]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 6x10]
         PaintableBox (Box<TABLE>) [8,8 6x10]
           PaintableBox (Box<TBODY>) [10,10 2x6]
             PaintableBox (Box<TR>) [10,10 2x2]
               PaintableWithLines (BlockContainer<TD>) [10,10 2x2]
-            PaintableBox (Box<TR>) [10,14 2x2] overflow: [10,14 73.5625x25]
+            PaintableBox (Box<TR>) [10,14 2x2]
               PaintableWithLines (BlockContainer<TD>) [10,14 2x2]
                 PaintableWithLines (BlockContainer<DIV>) [13,21 70.5625x18]
                   TextPaintable (TextNode<#text>)

@@ -19,7 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x106]
     PaintableBox (Box<BODY>) [8,8 784x90]
       PaintableBox (Box<DIV>) [8,8 784x90]
-        PaintableWithLines (BlockContainer(anonymous)) [8,8 65.328125x90] overflow: [8,8 80.234375x90]
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 65.328125x90]
           TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

@@ -53,22 +53,22 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer<DIV>) [11,10 196x23]
             TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>) [220,8 202x27] overflow: [221,9 346.546875x26]
-        PaintableBox (Box<DIV>) [221,9 200x25] overflow: [221,9 346.546875x26]
+      PaintableWithLines (BlockContainer<INPUT>) [220,8 202x27]
+        PaintableBox (Box<DIV>) [221,9 200x25]
           PaintableWithLines (BlockContainer<DIV>) [223,10 0x23]
             TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer<DIV>) [223,10 196x23] overflow: [223,10 344.546875x23]
+          PaintableWithLines (BlockContainer<DIV>) [223,10 196x23]
             TextPaintable (TextNode<#text>)
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<INPUT>) [432,8 202x27]
         PaintableBox (Box<DIV>) [433,9 200x25]
           PaintableWithLines (BlockContainer<DIV>) [435,10 196x23]
             TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,35 202x27] overflow: [9,36 398.171875x26]
-        PaintableBox (Box<DIV>) [9,36 200x25] overflow: [9,36 398.171875x26]
+      PaintableWithLines (BlockContainer<INPUT>#placeholder) [8,35 202x27]
+        PaintableBox (Box<DIV>) [9,36 200x25]
           PaintableWithLines (BlockContainer<DIV>) [11,37 0x23]
             TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer<DIV>) [11,37 196x23] overflow: [11,37 396.171875x23]
+          PaintableWithLines (BlockContainer<DIV>) [11,37 196x23]
             TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

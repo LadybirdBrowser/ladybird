@@ -70,7 +70,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x86]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 99.171875x86]
         PaintableBox (Box<TABLE>#full-table) [8,8 99.171875x68]
-          PaintableWithLines (BlockContainer<CAPTION>) [8,76 82.734375x18] overflow: [8,76 90.953125x18]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,76 82.734375x18]
             TextPaintable (TextNode<#text>)
           PaintableBox (Box<THEAD>) [10,10 95.171875x20]
             PaintableBox (Box<TR>) [10,10 95.171875x20]

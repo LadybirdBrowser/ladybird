@@ -59,7 +59,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x118]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x118]
       PaintableBox (Box<DIV>.container) [0,0 502x22]
-        PaintableWithLines (BlockContainer<DIV>.item) [1,1 52x20] overflow: [2,2 222.6875x18]
+        PaintableWithLines (BlockContainer<DIV>.item) [1,1 52x20]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.item) [53,1 102x20]
           TextPaintable (TextNode<#text>)

@@ -135,12 +135,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
     PaintableWithLines (BlockContainer<BODY>) [15,15 490x390]
       PaintableWithLines (BlockContainer(anonymous)) [20,20 480x0]
-      PaintableWithLines (BlockContainer<DL>) [20,20 480x10] overflow: [20,20 480x320]
+      PaintableWithLines (BlockContainer<DL>) [20,20 480x10]
         PaintableWithLines (BlockContainer<DT>) [25,25 79.984375x310]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DD>) [115,25 380x310]
           PaintableWithLines (BlockContainer(anonymous)) [135,45 340x0]
-          PaintableWithLines (BlockContainer<UL>) [135,45 340x0] overflow: [135,45 339.96875x250]
+          PaintableWithLines (BlockContainer<UL>) [135,45 340x0]
             PaintableWithLines (BlockContainer<LI>) [135,45 80x120]
               TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<LI>#bar) [225,45 159.96875x110]
@@ -165,7 +165,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<LI>#baz) [135,175 120x120]
               TextPaintable (TextNode<#text>)
-          PaintableWithLines (BlockContainer(anonymous)) [135,45 340x0] overflow: [275,175 200x140]
+          PaintableWithLines (BlockContainer(anonymous)) [135,45 340x0]
             PaintableWithLines (BlockContainer<BLOCKQUOTE>) [275,175 70x140]
               PaintableWithLines (BlockContainer(anonymous)) [280,195 50x0]
               PaintableWithLines (BlockContainer<ADDRESS>) [280,195 50x20]

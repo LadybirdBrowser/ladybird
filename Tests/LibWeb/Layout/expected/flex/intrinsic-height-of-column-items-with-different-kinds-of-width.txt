@@ -53,8 +53,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableBox (Box<DIV>.inner) [11,11 200x20]
           PaintableWithLines (BlockContainer(anonymous)) [12,12 19.125x18]
             TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer<DIV>.percentage) [10,32 52x22] overflow: [11,33 87.671875x20]
-        PaintableBox (Box<DIV>.inner) [11,33 50x20] overflow: [12,34 86.671875x18]
+      PaintableWithLines (BlockContainer<DIV>.percentage) [10,32 52x22]
+        PaintableBox (Box<DIV>.inner) [11,33 50x20]
           PaintableWithLines (BlockContainer(anonymous)) [12,34 86.671875x18]
             TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>.fit-content) [10,54 90.765625x22]

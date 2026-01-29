@@ -8,8 +8,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      PaintableWithLines (BlockContainer<MAIN>) [8,8 120x0] overflow: [8,8 120x40]
-        PaintableWithLines (BlockContainer<DIV>#asset-grid) [8,8 120x20] overflow: [18,18 100x30]
+      PaintableWithLines (BlockContainer<MAIN>) [8,8 120x0]
+        PaintableWithLines (BlockContainer<DIV>#asset-grid) [8,8 120x20]
           PaintableWithLines (BlockContainer<DIV>#virtual-timeline) [18,18 100x30]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
