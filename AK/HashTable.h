@@ -259,7 +259,7 @@ public:
         // container without it needing to reallocate. Our definition of "capacity" is the number of
         // buckets we can store, but we reallocate earlier because of `grow_at_load_factor_percent`.
         // This calculates the required internal capacity to store `capacity` number of values.
-        size_t required_capacity = capacity * 100 / grow_at_load_factor_percent + 1;
+        size_t required_capacity = (capacity * 100 / grow_at_load_factor_percent) + 1;
         if (required_capacity <= m_capacity)
             return {};
         return try_rehash(required_capacity);
@@ -327,13 +327,13 @@ public:
         void>;
 
     [[nodiscard]] ReverseIterator rbegin()
-    requires(IsOrdered)
+    requires IsOrdered
     {
         return ReverseIterator(m_collection_data.tail);
     }
 
     [[nodiscard]] ReverseIterator rend()
-    requires(IsOrdered)
+    requires IsOrdered
     {
         return ReverseIterator(nullptr);
     }
@@ -345,13 +345,13 @@ public:
         void>;
 
     [[nodiscard]] ReverseConstIterator rbegin() const
-    requires(IsOrdered)
+    requires IsOrdered
     {
         return ReverseConstIterator(m_collection_data.tail);
     }
 
     [[nodiscard]] ReverseConstIterator rend() const
-    requires(IsOrdered)
+    requires IsOrdered
     {
         return ReverseConstIterator(nullptr);
     }
@@ -548,7 +548,7 @@ public:
     }
 
     T take_last()
-    requires(IsOrdered)
+    requires IsOrdered
     {
         VERIFY(!is_empty());
         T element = move(*m_collection_data.tail->slot());
@@ -557,7 +557,7 @@ public:
     }
 
     T take_first()
-    requires(IsOrdered)
+    requires IsOrdered
     {
         VERIFY(!is_empty());
         T element = move(*m_collection_data.head->slot());

@@ -10,6 +10,8 @@
 #include <AK/QuickSort.h>
 #include <AK/StdLibExtras.h>
 
+#include <algorithm>
+
 TEST_CASE(sorts_without_copy)
 {
     struct NoCopy {
@@ -26,7 +28,7 @@ TEST_CASE(sorts_without_copy)
 
     // Test the dual pivot quick sort.
     for (size_t i = 0; i < 64; ++i)
-        array[i].value = (64 - i) % 32 + 32;
+        array[i].value = ((64 - i) % 32) + 32;
 
     dual_pivot_quick_sort(array, 0, array.size() - 1, [](auto& a, auto& b) { return a.value < b.value; });
 
@@ -35,7 +37,7 @@ TEST_CASE(sorts_without_copy)
 
     // Test the single pivot quick sort.
     for (size_t i = 0; i < 64; ++i)
-        array[i].value = (64 - i) % 32 + 32;
+        array[i].value = ((64 - i) % 32) + 32;
 
     AK::single_pivot_quick_sort(array.begin(), array.end(), [](auto& a, auto& b) { return a.value < b.value; });
 
@@ -58,7 +60,7 @@ TEST_CASE(maximum_stack_depth)
     // Construct the data in such a way that the assumed pivot choice
     // of (size / 2) causes the partitions to be of worst case size.
     for (int i = 0; i < size / 2; i++) {
-        swap(data[i], data[i + (size - i) / 2]);
+        swap(data[i], data[i + ((size - i) / 2)]);
     }
 
     // Measure the depth of the call stack through the less_than argument
@@ -74,9 +76,7 @@ TEST_CASE(maximum_stack_depth)
             : max_depth(obj.max_depth)
         {
             depth = obj.depth + 1;
-            if (depth > max_depth) {
-                max_depth = depth;
-            }
+            max_depth = max(depth, max_depth);
         }
         bool operator()(int& a, int& b)
         {

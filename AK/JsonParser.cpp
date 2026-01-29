@@ -13,7 +13,7 @@
 
 namespace AK {
 
-constexpr bool is_space(int ch)
+static constexpr bool is_space(int ch)
 {
     return ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ';
 }

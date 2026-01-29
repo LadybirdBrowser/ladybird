@@ -226,8 +226,7 @@ public:
     {
         // We allow "retrieving" more bits than we can provide, but we need to make sure that we don't underflow the current bit counter.
         // This only affects certain "modes", but all the relevant checks have been handled in the respective `peek_bits` call.
-        if (count > m_bit_count)
-            count = m_bit_count;
+        count = min(count, m_bit_count);
 
         m_bit_buffer >>= count;
         m_bit_count -= count;

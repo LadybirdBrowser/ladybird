@@ -40,7 +40,7 @@ template<typename T>
 inline constexpr bool HasFormatter<T, typename Formatter<T>::__no_formatter_defined> = false;
 
 template<typename Formatter>
-inline constexpr bool is_debug_only_formatter()
+constexpr bool is_debug_only_formatter()
 {
     constexpr bool has_is_debug_only = requires(Formatter const& formatter) { formatter.is_debug_only(); };
     if constexpr (has_is_debug_only)
@@ -206,15 +206,15 @@ public:
         Right,
     };
     enum class SignMode {
-        OnlyIfNeeded,
-        Always,
-        Reserved,
+        OnlyIfNeeded = 0,
+        Always = 1,
+        Reserved = 2,
         Default = OnlyIfNeeded,
     };
 
     enum class RealNumberDisplayMode {
-        FixedPoint,
-        General,
+        FixedPoint = 0,
+        General = 1,
         Default = General,
     };
 

@@ -115,7 +115,7 @@ public:
                     if constexpr (!VALUE)
                         byte = ~byte;
                     VERIFY(byte != 0);
-                    return i * 8 + bit_scan_forward(byte) - 1;
+                    return (i * 8) + bit_scan_forward(byte) - 1;
                 }
             }
 
@@ -145,7 +145,7 @@ public:
                 if constexpr (!VALUE)
                     byte = ~byte;
                 VERIFY(byte != 0);
-                return i * 8 + bit_scan_forward(byte) - 1;
+                return (i * 8) + bit_scan_forward(byte) - 1;
             }
 
             // NOTE: We don't really care about byte ordering. We found *one*
@@ -154,7 +154,7 @@ public:
             if constexpr (!VALUE)
                 val_large = ~val_large;
             VERIFY(val_large != 0);
-            return (reinterpret_cast<u8 const*>(ptr_large) - &m_data[0]) * 8 + bit_scan_forward(val_large) - 1;
+            return ((reinterpret_cast<u8 const*>(ptr_large) - &m_data[0]) * 8) + bit_scan_forward(val_large) - 1;
         }
     }
 
@@ -184,7 +184,7 @@ public:
         if constexpr (!VALUE)
             byte = ~byte;
         VERIFY(byte != 0);
-        return i * 8 + bit_scan_forward(byte) - 1;
+        return (i * 8) + bit_scan_forward(byte) - 1;
     }
 
     Optional<size_t> find_first_set() const { return find_first<true>(); }
@@ -199,7 +199,7 @@ public:
     //              This is used to increase performance, since the range of
     //              unset bits can be long, and we don't need the while range,
     //              so we can stop when we've reached @max_length.
-    inline Optional<size_t> find_next_range_of_unset_bits(size_t& from, size_t min_length = 1, size_t max_length = max_size) const
+    Optional<size_t> find_next_range_of_unset_bits(size_t& from, size_t min_length = 1, size_t max_length = max_size) const
     {
         if (min_length > max_length) {
             return {};
@@ -249,7 +249,7 @@ public:
             while (viewed_bits < bit_size) {
                 if (bucket == 0) {
                     if (free_chunks == 0) {
-                        *start_of_free_chunks = bucket_index * bit_size + viewed_bits;
+                        *start_of_free_chunks = (bucket_index * bit_size) + viewed_bits;
                     }
                     free_chunks += bit_size - viewed_bits;
                     viewed_bits = bit_size;
@@ -258,7 +258,7 @@ public:
                     bucket >>= trailing_zeroes;
 
                     if (free_chunks == 0) {
-                        *start_of_free_chunks = bucket_index * bit_size + viewed_bits;
+                        *start_of_free_chunks = (bucket_index * bit_size) + viewed_bits;
                     }
                     free_chunks += trailing_zeroes;
                     viewed_bits += trailing_zeroes;

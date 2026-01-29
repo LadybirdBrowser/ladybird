@@ -111,21 +111,21 @@ public:
 
     template<typename CallableType>
     Function(CallableType&& callable)
-    requires((IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...> && !IsSame<RemoveCVReference<CallableType>, Function>))
+    requires(IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...> && !IsSame<RemoveCVReference<CallableType>, Function>)
     {
         init_with_callable(forward<CallableType>(callable), CallableKind::FunctionObject);
     }
 
     template<typename FunctionType>
     Function(FunctionType f)
-    requires((IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...> && !IsSame<RemoveCVReference<FunctionType>, Function>))
+    requires(IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...> && !IsSame<RemoveCVReference<FunctionType>, Function>)
     {
         init_with_callable(move(f), CallableKind::FunctionPointer);
     }
 
     template<typename BlockType>
     Function(BlockType b)
-    requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
+    requires(IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>)
     {
         init_with_callable(move(b), CallableKind::Block);
     }
@@ -152,7 +152,7 @@ public:
 
     template<typename CallableType>
     Function& operator=(CallableType&& callable)
-    requires((IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...>))
+    requires(IsFunctionObject<CallableType> && IsCallableWithArguments<CallableType, Out, In...>)
     {
         clear();
         init_with_callable(forward<CallableType>(callable), CallableKind::FunctionObject);
@@ -161,7 +161,7 @@ public:
 
     template<typename FunctionType>
     Function& operator=(FunctionType f)
-    requires((IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...>))
+    requires(IsFunctionPointer<FunctionType> && IsCallableWithArguments<RemovePointer<FunctionType>, Out, In...>)
     {
         clear();
         if (f)
@@ -171,7 +171,7 @@ public:
 
     template<typename BlockType>
     Function& operator=(BlockType&& block)
-    requires((IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>))
+    requires(IsBlockClosure<BlockType> && IsCallableWithArguments<BlockType, Out, In...>)
     {
         clear();
         init_with_callable(static_cast<RemoveCVReference<BlockType>>(block), CallableKind::Block);
