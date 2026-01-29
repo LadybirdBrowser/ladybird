@@ -449,4 +449,20 @@ void LineBuilder::did_introduce_clearance(CSSPixels clearance)
     m_current_block_offset = clearance;
 }
 
+void LineBuilder::set_trailing_whitespace_on_previous_line()
+{
+    // When a line breaks at whitespace, that whitespace is not added to any line. For text
+    // selection purposes, we record this on the last fragment of the previous line.
+    auto& line_boxes = m_containing_block_used_values.line_boxes;
+    if (line_boxes.size() < 2)
+        return;
+
+    auto& previous_line_box = line_boxes[line_boxes.size() - 2];
+    if (previous_line_box.m_fragments.is_empty())
+        return;
+
+    auto& last_fragment = previous_line_box.m_fragments.last();
+    last_fragment.set_has_trailing_whitespace(true);
+}
+
 }
