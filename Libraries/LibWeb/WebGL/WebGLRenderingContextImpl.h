@@ -13,6 +13,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
@@ -85,7 +86,7 @@ public:
     Optional<Vector<GC::Root<WebGLShader>>> get_attached_shaders(GC::Root<WebGLProgram> program);
     WebIDL::Long get_attrib_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_buffer_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
-    JS::Value get_parameter(WebIDL::UnsignedLong pname);
+    WebIDL::ExceptionOr<JS::Value> get_parameter(WebIDL::UnsignedLong pname);
     WebIDL::UnsignedLong get_error();
     JS::Value get_program_parameter(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong pname);
     Optional<String> get_program_info_log(GC::Root<WebGLProgram> program);
@@ -94,6 +95,7 @@ public:
     GC::Root<WebGLShaderPrecisionFormat> get_shader_precision_format(WebIDL::UnsignedLong shadertype, WebIDL::UnsignedLong precisiontype);
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
     Optional<String> get_shader_source(GC::Root<WebGLShader> shader);
+    JS::Value get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
     JS::Value get_uniform(GC::Root<WebGLProgram> program, GC::Root<WebGLUniformLocation> location);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
@@ -165,6 +167,9 @@ protected:
     GC::Ptr<WebGLTexture> m_texture_binding_3d;
     GC::Ptr<WebGLTransformFeedback> m_transform_feedback_binding;
     GC::Ptr<WebGLVertexArrayObject> m_current_vertex_array;
+    GC::Ptr<WebGLQuery> m_any_samples_passed;
+    GC::Ptr<WebGLQuery> m_any_samples_passed_conservative;
+    GC::Ptr<WebGLQuery> m_transform_feedback_primitives_written;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };

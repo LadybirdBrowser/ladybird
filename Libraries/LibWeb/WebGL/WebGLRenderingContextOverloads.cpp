@@ -81,6 +81,7 @@ void WebGLRenderingContextOverloads::read_pixels(WebIDL::Long x, WebIDL::Long y,
     m_context->make_current();
 
     if (!pixels) {
+        set_error(GL_INVALID_VALUE);
         return;
     }
 

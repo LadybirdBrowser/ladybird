@@ -17,6 +17,7 @@
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/Extensions/EXTBlendMinMax.h>
 #include <LibWeb/WebGL/Extensions/EXTTextureFilterAnisotropic.h>
+#include <LibWeb/WebGL/Extensions/OESElementIndexUint.h>
 #include <LibWeb/WebGL/Extensions/OESStandardDerivatives.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
@@ -98,6 +99,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_angle_instanced_arrays_extension);
     visitor.visit(m_ext_blend_min_max_extension);
     visitor.visit(m_ext_texture_filter_anisotropic);
+    visitor.visit(m_oes_element_index_uint_object_extension);
     visitor.visit(m_oes_standard_derivatives_object_extension);
     visitor.visit(m_oes_vertex_array_object_extension);
     visitor.visit(m_webgl_compressed_texture_s3tc_extension);
@@ -207,6 +209,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
         VERIFY(m_ext_texture_filter_anisotropic);
         return m_ext_texture_filter_anisotropic;
+    }
+
+    if (name.equals_ignoring_ascii_case("OES_element_index_uint"sv)) {
+        if (!m_oes_element_index_uint_object_extension) {
+            m_oes_element_index_uint_object_extension = MUST(Extensions::OESElementIndexUint::create(realm(), *this));
+        }
+
+        VERIFY(m_oes_element_index_uint_object_extension);
+        return m_oes_element_index_uint_object_extension;
     }
 
     if (name.equals_ignoring_ascii_case("OES_standard_derivatives"sv)) {
