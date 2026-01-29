@@ -84,7 +84,11 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
         auto selection_end_in_this_fragment = min(m_length_in_code_units, end_offset_in_code_units - m_start_offset);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
+        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
+
+        // When start == end, this is a cursor position, which needs a width of 1
+        if (start_offset_in_code_units == end_offset_in_code_units)
+            pixel_width_of_selection = 1;
 
         auto rect = absolute_rect();
         switch (orientation()) {
@@ -110,7 +114,7 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
         auto selection_end_in_this_fragment = m_length_in_code_units;
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
+        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
 
         auto rect = absolute_rect();
         switch (orientation()) {
@@ -136,7 +140,7 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         auto selection_start_in_this_fragment = 0;
         auto selection_end_in_this_fragment = min<int>(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
+        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
 
         auto rect = absolute_rect();
         switch (orientation()) {
