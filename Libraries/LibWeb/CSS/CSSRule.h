@@ -64,7 +64,7 @@ public:
 
     virtual void dump(StringBuilder&, int indent_levels = 0) const;
 
-    virtual void clear_caches();
+    MUST_UPCALL virtual void clear_caches();
 
 protected:
     CSSRule(JS::Realm&, Type);
