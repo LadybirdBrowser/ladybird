@@ -422,7 +422,7 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         auto line_height = longhand(PropertyID::LineHeight);
         auto font_family = longhand(PropertyID::FontFamily);
 
-        for (auto const& reset_only_sub_property : { PropertyID::FontFeatureSettings, PropertyID::FontKerning, PropertyID::FontLanguageOverride, PropertyID::FontVariationSettings }) {
+        for (auto const& reset_only_sub_property : { PropertyID::FontFeatureSettings, PropertyID::FontKerning, PropertyID::FontLanguageOverride, PropertyID::FontOpticalSizing, PropertyID::FontVariationSettings }) {
             auto const& value = longhand(reset_only_sub_property);
 
             if (!value->equals(property_initial_value(reset_only_sub_property)))

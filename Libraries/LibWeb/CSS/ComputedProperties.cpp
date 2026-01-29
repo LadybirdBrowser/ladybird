@@ -2716,7 +2716,7 @@ WillChange ComputedProperties::will_change() const
 ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedProperties::computed_font_list(FontComputer const& font_computer) const
 {
     if (!m_cached_computed_font_list) {
-        const_cast<ComputedProperties*>(this)->m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_variation_settings());
+        const_cast<ComputedProperties*>(this)->m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings());
         VERIFY(!m_cached_computed_font_list->is_empty());
     }
 
@@ -2762,6 +2762,12 @@ Percentage ComputedProperties::font_width() const
 int ComputedProperties::font_slope() const
 {
     return property(PropertyID::FontStyle).as_font_style().to_font_slope();
+}
+
+FontOpticalSizing ComputedProperties::font_optical_sizing() const
+{
+    auto const& value = property(PropertyID::FontOpticalSizing);
+    return keyword_to_font_optical_sizing(value.to_keyword()).release_value();
 }
 
 }

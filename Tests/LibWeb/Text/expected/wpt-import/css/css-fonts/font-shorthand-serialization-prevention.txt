@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 188 tests
+Found 202 tests
 
-188 Pass
+202 Pass
 Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in specified style
 Pass	Setting font-family to sans-serif should not prevent the font shorthand from serializing in computed style
 Pass	Setting font-variant to initial should prevent the font shorthand from serializing in specified style
@@ -177,6 +177,20 @@ Pass	Setting font-language-override to normal should not prevent the font shorth
 Pass	Setting font-language-override to normal should not prevent the font shorthand from serializing in computed style
 Pass	Setting font-language-override to "SRB" should prevent the font shorthand from serializing in specified style
 Pass	Setting font-language-override to "SRB" should prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to initial should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to initial should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to inherit should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to inherit should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to unset should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to unset should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to revert should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to revert should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to revert-layer should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to revert-layer should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to auto should not prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to auto should not prevent the font shorthand from serializing in computed style
+Pass	Setting font-optical-sizing to none should prevent the font shorthand from serializing in specified style
+Pass	Setting font-optical-sizing to none should prevent the font shorthand from serializing in computed style
 Pass	Setting font-variation-settings to initial should prevent the font shorthand from serializing in specified style
 Pass	Setting font-variation-settings to initial should not prevent the font shorthand from serializing in computed style
 Pass	Setting font-variation-settings to inherit should prevent the font shorthand from serializing in specified style
