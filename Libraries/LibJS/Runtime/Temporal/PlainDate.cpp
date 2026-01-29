@@ -166,66 +166,92 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
     return TRY(create_temporal_date(vm, iso_date, move(calendar)));
 }
 
+// 3.5.5 CompareSurpasses ( sign, year, monthOrCode, day, target ), https://tc39.es/proposal-temporal/#sec-temporal-comparesurpasses
+bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_code, u8 day, CalendarDate const& target)
+{
+    // 1. If year ≠ target.[[Year]], then
+    if (year != target.year) {
+        // a. If sign × (year - target.[[Year]]) > 0, return true.
+        if (sign * (year - target.year) > 0)
+            return true;
+    }
+    // 2. Else if monthOrCode is a month code and monthOrCode is not target.[[MonthCode]], then
+    else if (auto const* month_code = month_or_code.get_pointer<String>(); month_code && *month_code != target.month_code) {
+        // a. If sign > 0, then
+        if (sign > 0) {
+            // i. If monthOrCode is lexicographically greater than target.[[MonthCode]], return true.
+            if (*month_code > target.month_code)
+                return true;
+        }
+        // b. Else,
+        else {
+            // i. If target.[[MonthCode]] is lexicographically greater than monthOrCode, return true.
+            if (target.month_code > *month_code)
+                return true;
+        }
+    }
+    // 3. Else if monthOrCode is an integer and monthOrCode ≠ target.[[Month]], then
+    else if (auto const* month = month_or_code.get_pointer<u8>(); month && *month != target.month) {
+        // a. If sign × (monthOrCode - target.[[Month]]) > 0, return true.
+        if (sign * (*month - target.month) > 0)
+            return true;
+    }
+    // 4. Else if day ≠ target.[[Day]], then
+    else if (day != target.day) {
+        // a. If sign × (day - target.[[Day]]) > 0, return true.
+        if (sign * (day - target.day) > 0)
+            return true;
+    }
+
+    // 5. Return false.
+    return false;
+}
+
 // 3.5.5 ISODateSurpasses ( sign, baseDate, isoDate2, years, months, weeks, days ), https://tc39.es/proposal-temporal/#sec-temporal-isodatesurpasses
 bool iso_date_surpasses(VM& vm, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days)
 {
-    // 1. Let yearMonth be BalanceISOYearMonth(baseDate.[[Year]] + years, baseDate.[[Month]] + months).
-    auto year_month = balance_iso_year_month(static_cast<double>(base_date.year) + years, static_cast<double>(base_date.month) + months);
+    // 1. Let parts be CalendarISOToDate("iso8601", baseDate).
+    auto parts = calendar_iso_to_date("iso8601"sv, base_date);
 
-    i32 year1 = 0;
-    u8 month1 = 0;
-    u8 day1 = 0;
+    // 2. Let target be CalendarISOToDate("iso8601", isoDate2).
+    auto target = calendar_iso_to_date("iso8601"sv, iso_date2);
 
-    // 2. If weeks is not 0 or days is not 0, then
-    if (weeks != 0 || days != 0) {
-        // a. Let regulatedDate be ! RegulateISODate(yearMonth.[[Year]], yearMonth.[[Month]], baseDate.[[Day]], CONSTRAIN).
-        auto regulated_date = MUST(regulate_iso_date(vm, year_month.year, year_month.month, base_date.day, Overflow::Constrain));
+    // 3. Let y0 be parts.[[Year]] + years.
+    auto year0 = parts.year + years;
 
-        // b. Let balancedDate be AddDaysToISODate(regulatedDate, 7 × weeks + days).
-        auto balanced_date = add_days_to_iso_date(regulated_date, (7 * weeks) + days);
+    // 4. If CompareSurpasses(sign, y0, parts.[[MonthCode]], parts.[[Day]], target) is true, return true.
+    if (compare_surpasses(sign, year0, parts.month_code, parts.day, target))
+        return true;
 
-        // c. Let y1 be balancedDate.[[Year]].
-        year1 = balanced_date.year;
+    // 5. If months = 0, return false.
+    if (months == 0)
+        return false;
 
-        // d. Let m1 be balancedDate.[[Month]].
-        month1 = balanced_date.month;
+    // 6. Let m0 be parts.[[Month]] + months.
+    auto month0 = parts.month + months;
 
-        // e. Let d1 be balancedDate.[[Day]].
-        day1 = balanced_date.day;
-    }
-    // 3. Else,
-    else {
-        // a. Let y1 be yearMonth.[[Year]].
-        year1 = year_month.year;
+    // 7. Let monthsAdded be BalanceISOYearMonth(y0, m0).
+    auto months_added = balance_iso_year_month(year0, month0);
 
-        // b. Let m1 be yearMonth.[[Month]].
-        month1 = year_month.month;
+    // 8. If CompareSurpasses(sign, monthsAdded.[[Year]], monthsAdded.[[Month]], parts.[[Day]], target) is true, return true.
+    if (compare_surpasses(sign, months_added.year, months_added.month, parts.day, target))
+        return true;
 
-        // c. Let d1 be baseDate.[[Day]].
-        day1 = base_date.day;
-    }
+    // 9. If weeks = 0 and days = 0, return false.
+    if (weeks == 0 && days == 0)
+        return false;
 
-    // 4. If y1 ≠ isoDate2.[[Year]], then
-    if (year1 != iso_date2.year) {
-        // a. If sign × (y1 - isoDate2.[[Year]]) > 0, return true.
-        if (sign * (year1 - iso_date2.year) > 0)
-            return true;
-    }
-    // 5. Else if m1 ≠ isoDate2.[[Month]], then
-    else if (month1 != iso_date2.month) {
-        // a. If sign × (m1 - isoDate2.[[Month]]) > 0, return true.
-        if (sign * (month1 - iso_date2.month) > 0)
-            return true;
-    }
-    // 6. Else if d1 ≠ isoDate2.[[Day]], then
-    else if (day1 != iso_date2.day) {
-        // a. If sign × (d1 - isoDate2.[[Day]]) > 0, return true.
-        if (sign * (day1 - iso_date2.day) > 0)
-            return true;
-    }
+    // 10. Let regulatedDate be ! RegulateISODate(monthsAdded.[[Year]], monthsAdded.[[Month]], parts.[[Day]], CONSTRAIN).
+    auto regulated_date = MUST(regulate_iso_date(vm, months_added.year, months_added.month, parts.day, Overflow::Constrain));
 
-    // 7. Return false.
-    return false;
+    // 11. Let daysInWeek be 7.
+    static constexpr auto days_in_week = 7.0;
+
+    // 12. Let balancedDate be AddDaysToISODate(regulatedDate, daysInWeek * weeks + days).
+    auto balanced_date = add_days_to_iso_date(regulated_date, (days_in_week * weeks) + days);
+
+    // 13. Return CompareSurpasses(sign, balancedDate.[[Year]], balancedDate.[[Month]], balancedDate.[[Day]], target).
+    return compare_surpasses(sign, balanced_date.year, balanced_date.month, balanced_date.day, target);
 }
 
 // 3.5.6 RegulateISODate ( year, month, day, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-regulateisodate
