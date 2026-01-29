@@ -66,116 +66,72 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
-    auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
-    auto trailing_whitespace_width = m_has_trailing_whitespace ? CSSPixels::nearest_value_for(font.glyph_width(' ')) : CSSPixels(0);
-
-    if (selection_state == Paintable::SelectionState::Full) {
-        auto rect = absolute_rect();
-        rect.set_width(rect.width() + trailing_whitespace_width);
-        return rect;
-    }
-
     auto const start_index = m_start_offset;
     auto const end_index = m_start_offset + m_length_in_code_units;
 
-    auto text = this->text();
+    // Determine selection bounds and check for early exit.
+    size_t selection_start_in_this_fragment;
+    size_t selection_end_in_this_fragment;
+    bool include_trailing_whitespace;
 
-    if (first_is_one_of(selection_state, Paintable::SelectionState::StartAndEnd, Paintable::SelectionState::None)) {
-        // we are in the start/end node (both the same)
-        if (start_index > end_offset_in_code_units)
+    switch (selection_state) {
+    case Paintable::SelectionState::Full:
+        include_trailing_whitespace = true;
+        break;
+    case Paintable::SelectionState::StartAndEnd:
+    case Paintable::SelectionState::None:
+        if (start_index > end_offset_in_code_units || end_index < start_offset_in_code_units)
             return {};
+        selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
+        selection_end_in_this_fragment = min(m_length_in_code_units, end_offset_in_code_units - m_start_offset);
+        include_trailing_whitespace = selection_end_in_this_fragment == m_length_in_code_units;
+        break;
+    case Paintable::SelectionState::Start:
         if (end_index < start_offset_in_code_units)
             return {};
-
-        auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
-        auto selection_end_in_this_fragment = min(m_length_in_code_units, end_offset_in_code_units - m_start_offset);
-        auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
-
-        // When start == end, this is a cursor position, which needs a width of 1
-        if (start_offset_in_code_units == end_offset_in_code_units)
-            pixel_width_of_selection = 1;
-
-        // Include any removed or swallowed whitespace if selection extends to end of fragment.
-        if (selection_end_in_this_fragment == m_length_in_code_units)
-            pixel_width_of_selection += trailing_whitespace_width;
-
-        auto rect = absolute_rect();
-        switch (orientation()) {
-        case Gfx::Orientation::Horizontal:
-            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-            rect.set_width(pixel_width_of_selection);
-            break;
-        case Gfx::Orientation::Vertical:
-            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
-            rect.set_height(pixel_width_of_selection);
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-
-        return rect;
-    }
-    if (selection_state == Paintable::SelectionState::Start) {
-        // we are in the start node
-        if (end_index < start_offset_in_code_units)
-            return {};
-
-        auto selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
-        auto selection_end_in_this_fragment = m_length_in_code_units;
-        auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
-
-        // Include any removed or swallowed whitespace (hanging whitespace is already in text).
-        pixel_width_of_selection += trailing_whitespace_width;
-
-        auto rect = absolute_rect();
-        switch (orientation()) {
-        case Gfx::Orientation::Horizontal:
-            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-            rect.set_width(pixel_width_of_selection);
-            break;
-        case Gfx::Orientation::Vertical:
-            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
-            rect.set_height(pixel_width_of_selection);
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-
-        return rect;
-    }
-    if (selection_state == Paintable::SelectionState::End) {
-        // we are in the end node
+        selection_start_in_this_fragment = max(0, start_offset_in_code_units - m_start_offset);
+        selection_end_in_this_fragment = m_length_in_code_units;
+        include_trailing_whitespace = true;
+        break;
+    case Paintable::SelectionState::End:
         if (start_index > end_offset_in_code_units)
             return {};
-
-        size_t selection_start_in_this_fragment = 0;
-        auto selection_end_in_this_fragment = min(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
-        auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
-        auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
-
-        // Include any removed or swallowed whitespace if selection extends to end of fragment.
-        if (selection_end_in_this_fragment == m_length_in_code_units)
-            pixel_width_of_selection += trailing_whitespace_width;
-
-        auto rect = absolute_rect();
-        switch (orientation()) {
-        case Gfx::Orientation::Horizontal:
-            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-            rect.set_width(pixel_width_of_selection);
-            break;
-        case Gfx::Orientation::Vertical:
-            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
-            rect.set_height(pixel_width_of_selection);
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-
-        return rect;
+        selection_start_in_this_fragment = 0;
+        selection_end_in_this_fragment = min(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
+        include_trailing_whitespace = selection_end_in_this_fragment == m_length_in_code_units;
+        break;
+    default:
+        VERIFY_NOT_REACHED();
     }
-    return {};
+
+    auto rect = absolute_rect();
+    auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
+
+    CSSPixels pixel_offset;
+    CSSPixels pixel_width;
+
+    // For Full selection, use the rect's existing dimensions rather than recalculating from text.
+    if (selection_state == Paintable::SelectionState::Full) {
+        pixel_offset = 0;
+        pixel_width = rect.primary_size_for_orientation(orientation());
+    } else {
+        pixel_offset = CSSPixels::nearest_value_for(font.width(text().substring_view(0, selection_start_in_this_fragment)));
+
+        // When start equals end, this is a cursor position.
+        if (start_offset_in_code_units == end_offset_in_code_units) {
+            pixel_width = 1;
+        } else {
+            pixel_width = CSSPixels::nearest_value_for(font.width(text().substring_view(selection_start_in_this_fragment,
+                selection_end_in_this_fragment - selection_start_in_this_fragment)));
+        }
+    }
+
+    if (m_has_trailing_whitespace && include_trailing_whitespace)
+        pixel_width += CSSPixels::nearest_value_for(font.glyph_width(' '));
+
+    rect.set_primary_offset_for_orientation(orientation(), rect.primary_offset_for_orientation(orientation()) + pixel_offset);
+    rect.set_primary_size_for_orientation(orientation(), pixel_width);
+    return rect;
 }
 
 Gfx::Orientation PaintableFragment::orientation() const
