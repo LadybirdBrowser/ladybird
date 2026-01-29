@@ -1136,12 +1136,14 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
             // FIXME: Support matching pseudo-elements.
             DOM::AbstractElement const abstract_element { const_cast<DOM::Element&>(element) };
 
-            // Potentially any ancestor shadow-host could be owner of the part, so walk up the tree until we find one.
-            // FIXME: That owner needs to be in scope for the rule. How do we tell?
-            // FIXME: How does this interact with :host ?
+            // https://drafts.csswg.org/css-shadow-1/#part
+            // "The ::part() pseudo-element only matches anything when the originating element is a shadow host."
             for (auto ancestor_shadow_root = element.containing_shadow_root();
                 ancestor_shadow_root;
                 ancestor_shadow_root = ancestor_shadow_root->containing_shadow_root()) {
+
+                if (ancestor_shadow_root == context.rule_shadow_root)
+                    continue;
 
                 auto const& part_element_map = ancestor_shadow_root->part_element_map();
                 bool all_part_names_match = true;
