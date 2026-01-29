@@ -53,17 +53,20 @@ public:
     CSSPixels text_decoration_thickness() const { return m_text_decoration_thickness; }
     void set_text_decoration_thickness(CSSPixels thickness) { m_text_decoration_thickness = thickness; }
 
+    bool has_trailing_whitespace() const { return m_has_trailing_whitespace; }
+
 private:
     GC::Ref<Layout::Node const> m_layout_node;
     CSSPixelPoint m_offset;
     CSSPixelSize m_size;
-    CSSPixels m_baseline;
     size_t m_start_offset { 0 };
     size_t m_length_in_code_units { 0 };
     RefPtr<Gfx::GlyphRun> m_glyph_run;
-    CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
+    CSSPixels m_baseline;
     CSSPixels m_text_decoration_thickness { 0 };
+    CSS::WritingMode m_writing_mode;
+    bool m_has_trailing_whitespace { false };
 };
 
 }

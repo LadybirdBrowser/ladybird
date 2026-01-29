@@ -342,9 +342,12 @@ void InlineFormattingContext::generate_line_boxes()
                         next_width = iterator.next_non_whitespace_sequence_width();
                 }
 
-                // If whitespace caused us to break, we swallow the whitespace instead of putting it on the next line.
-                if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width))
+                // If whitespace caused us to break, don't put it on the next line.
+                if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width)) {
+                    // Record that the previous line has trailing whitespace for text selection.
+                    line_builder.set_trailing_whitespace_on_previous_line();
                     break;
+                }
             } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
                 && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
                 // We may need to do an ellipsis if the text is too long for the container

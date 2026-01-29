@@ -19,11 +19,12 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     : m_layout_node(fragment.layout_node())
     , m_offset(fragment.offset())
     , m_size(fragment.size())
-    , m_baseline(fragment.baseline())
     , m_start_offset(fragment.start())
     , m_length_in_code_units(fragment.length_in_code_units())
     , m_glyph_run(fragment.glyph_run())
+    , m_baseline(fragment.baseline())
     , m_writing_mode(fragment.writing_mode())
+    , m_has_trailing_whitespace(fragment.has_trailing_whitespace())
 {
 }
 
@@ -65,13 +66,18 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
 
 CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
-    if (selection_state == Paintable::SelectionState::Full)
-        return absolute_rect();
+    auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
+    auto trailing_whitespace_width = m_has_trailing_whitespace ? CSSPixels::nearest_value_for(font.glyph_width(' ')) : CSSPixels(0);
+
+    if (selection_state == Paintable::SelectionState::Full) {
+        auto rect = absolute_rect();
+        rect.set_width(rect.width() + trailing_whitespace_width);
+        return rect;
+    }
 
     auto const start_index = m_start_offset;
     auto const end_index = m_start_offset + m_length_in_code_units;
 
-    auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
     auto text = this->text();
 
     if (first_is_one_of(selection_state, Paintable::SelectionState::StartAndEnd, Paintable::SelectionState::None)) {
@@ -89,6 +95,10 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         // When start == end, this is a cursor position, which needs a width of 1
         if (start_offset_in_code_units == end_offset_in_code_units)
             pixel_width_of_selection = 1;
+
+        // Include any removed or swallowed whitespace if selection extends to end of fragment.
+        if (selection_end_in_this_fragment == m_length_in_code_units)
+            pixel_width_of_selection += trailing_whitespace_width;
 
         auto rect = absolute_rect();
         switch (orientation()) {
@@ -116,6 +126,9 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
 
+        // Include any removed or swallowed whitespace (hanging whitespace is already in text).
+        pixel_width_of_selection += trailing_whitespace_width;
+
         auto rect = absolute_rect();
         switch (orientation()) {
         case Gfx::Orientation::Horizontal:
@@ -137,10 +150,14 @@ CSSPixelRect PaintableFragment::range_rect(Paintable::SelectionState selection_s
         if (start_index > end_offset_in_code_units)
             return {};
 
-        auto selection_start_in_this_fragment = 0;
-        auto selection_end_in_this_fragment = min<int>(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
+        size_t selection_start_in_this_fragment = 0;
+        auto selection_end_in_this_fragment = min(end_offset_in_code_units - m_start_offset, m_length_in_code_units);
         auto pixel_distance_to_first_selected_character = CSSPixels::nearest_value_for(font.width(text.substring_view(0, selection_start_in_this_fragment)));
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment)));
+
+        // Include any removed or swallowed whitespace if selection extends to end of fragment.
+        if (selection_end_in_this_fragment == m_length_in_code_units)
+            pixel_width_of_selection += trailing_whitespace_width;
 
         auto rect = absolute_rect();
         switch (orientation()) {
