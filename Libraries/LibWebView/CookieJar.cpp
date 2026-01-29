@@ -118,111 +118,8 @@ String CookieJar::get_cookie(URL::URL const& url, Web::Cookie::Source source)
     return MUST(builder.to_string());
 }
 
-void CookieJar::set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
-{
-    store_cookie(parsed_cookie, url, source);
-}
-
-// This is based on store_cookie() below, however the whole ParsedCookie->Cookie conversion is skipped.
-void CookieJar::update_cookie(Web::Cookie::Cookie cookie)
-{
-    CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
-
-    // 23. If the cookie store contains a cookie with the same name, domain, host-only-flag, and path as the
-    //     newly-created cookie:
-    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value() && old_cookie->host_only == cookie.host_only) {
-        // 3. Update the creation-time of the newly-created cookie to match the creation-time of the old-cookie.
-        cookie.creation_time = old_cookie->creation_time;
-
-        // 4. Remove the old-cookie from the cookie store.
-        // NOTE: Rather than deleting then re-inserting this cookie, we update it in-place.
-    }
-
-    // 24. Insert the newly-created cookie into the cookie store.
-    m_transient_storage.set_cookie(move(key), move(cookie));
-
-    m_transient_storage.purge_expired_cookies();
-}
-
-void CookieJar::dump_cookies()
-{
-    StringBuilder builder;
-
-    m_transient_storage.for_each_cookie([&](auto const& cookie) {
-        static constexpr auto key_color = "\033[34;1m"sv;
-        static constexpr auto attribute_color = "\033[33m"sv;
-        static constexpr auto no_color = "\033[0m"sv;
-
-        builder.appendff("{}{}{} - ", key_color, cookie.name, no_color);
-        builder.appendff("{}{}{} - ", key_color, cookie.domain, no_color);
-        builder.appendff("{}{}{}\n", key_color, cookie.path, no_color);
-
-        builder.appendff("\t{}Value{} = {}\n", attribute_color, no_color, cookie.value);
-        builder.appendff("\t{}CreationTime{} = {}\n", attribute_color, no_color, cookie.creation_time_to_string());
-        builder.appendff("\t{}LastAccessTime{} = {}\n", attribute_color, no_color, cookie.last_access_time_to_string());
-        builder.appendff("\t{}ExpiryTime{} = {}\n", attribute_color, no_color, cookie.expiry_time_to_string());
-        builder.appendff("\t{}Secure{} = {:s}\n", attribute_color, no_color, cookie.secure);
-        builder.appendff("\t{}HttpOnly{} = {:s}\n", attribute_color, no_color, cookie.http_only);
-        builder.appendff("\t{}HostOnly{} = {:s}\n", attribute_color, no_color, cookie.host_only);
-        builder.appendff("\t{}Persistent{} = {:s}\n", attribute_color, no_color, cookie.persistent);
-        builder.appendff("\t{}SameSite{} = {:s}\n", attribute_color, no_color, Web::Cookie::same_site_to_string(cookie.same_site));
-    });
-
-    dbgln("{} cookies stored\n{}", m_transient_storage.size(), builder.string_view());
-}
-
-Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
-{
-    Vector<Web::Cookie::Cookie> cookies;
-    cookies.ensure_capacity(m_transient_storage.size());
-
-    m_transient_storage.for_each_cookie([&](auto const& cookie) {
-        cookies.unchecked_append(cookie);
-    });
-
-    return cookies;
-}
-
-// https://w3c.github.io/webdriver/#dfn-associated-cookies
-Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
-{
-    return get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
-}
-
-Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
-{
-    return get_matching_cookies(url, Web::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
-}
-
-Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
-{
-    auto cookie_list = get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
-
-    for (auto const& cookie : cookie_list) {
-        if (cookie.name == name)
-            return cookie;
-    }
-
-    return {};
-}
-
-void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
-{
-    m_transient_storage.purge_expired_cookies(offset);
-}
-
-void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
-{
-    m_transient_storage.expire_and_purge_cookies_accessed_since(since);
-}
-
-Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
-{
-    return m_transient_storage.estimate_storage_size_accessed_since(since);
-}
-
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.7
-void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, Web::Cookie::Source source)
+void CookieJar::set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
@@ -495,6 +392,104 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
     m_transient_storage.set_cookie(move(key), move(cookie));
 
     m_transient_storage.purge_expired_cookies();
+}
+
+// This is based on store_cookie() below, however the whole ParsedCookie->Cookie conversion is skipped.
+void CookieJar::update_cookie(Web::Cookie::Cookie cookie)
+{
+    CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+
+    // 23. If the cookie store contains a cookie with the same name, domain, host-only-flag, and path as the
+    //     newly-created cookie:
+    if (auto const& old_cookie = m_transient_storage.get_cookie(key); old_cookie.has_value() && old_cookie->host_only == cookie.host_only) {
+        // 3. Update the creation-time of the newly-created cookie to match the creation-time of the old-cookie.
+        cookie.creation_time = old_cookie->creation_time;
+
+        // 4. Remove the old-cookie from the cookie store.
+        // NOTE: Rather than deleting then re-inserting this cookie, we update it in-place.
+    }
+
+    // 24. Insert the newly-created cookie into the cookie store.
+    m_transient_storage.set_cookie(move(key), move(cookie));
+
+    m_transient_storage.purge_expired_cookies();
+}
+
+void CookieJar::dump_cookies()
+{
+    StringBuilder builder;
+
+    m_transient_storage.for_each_cookie([&](auto const& cookie) {
+        static constexpr auto key_color = "\033[34;1m"sv;
+        static constexpr auto attribute_color = "\033[33m"sv;
+        static constexpr auto no_color = "\033[0m"sv;
+
+        builder.appendff("{}{}{} - ", key_color, cookie.name, no_color);
+        builder.appendff("{}{}{} - ", key_color, cookie.domain, no_color);
+        builder.appendff("{}{}{}\n", key_color, cookie.path, no_color);
+
+        builder.appendff("\t{}Value{} = {}\n", attribute_color, no_color, cookie.value);
+        builder.appendff("\t{}CreationTime{} = {}\n", attribute_color, no_color, cookie.creation_time_to_string());
+        builder.appendff("\t{}LastAccessTime{} = {}\n", attribute_color, no_color, cookie.last_access_time_to_string());
+        builder.appendff("\t{}ExpiryTime{} = {}\n", attribute_color, no_color, cookie.expiry_time_to_string());
+        builder.appendff("\t{}Secure{} = {:s}\n", attribute_color, no_color, cookie.secure);
+        builder.appendff("\t{}HttpOnly{} = {:s}\n", attribute_color, no_color, cookie.http_only);
+        builder.appendff("\t{}HostOnly{} = {:s}\n", attribute_color, no_color, cookie.host_only);
+        builder.appendff("\t{}Persistent{} = {:s}\n", attribute_color, no_color, cookie.persistent);
+        builder.appendff("\t{}SameSite{} = {:s}\n", attribute_color, no_color, Web::Cookie::same_site_to_string(cookie.same_site));
+    });
+
+    dbgln("{} cookies stored\n{}", m_transient_storage.size(), builder.string_view());
+}
+
+Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
+{
+    Vector<Web::Cookie::Cookie> cookies;
+    cookies.ensure_capacity(m_transient_storage.size());
+
+    m_transient_storage.for_each_cookie([&](auto const& cookie) {
+        cookies.unchecked_append(cookie);
+    });
+
+    return cookies;
+}
+
+// https://w3c.github.io/webdriver/#dfn-associated-cookies
+Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
+{
+    return get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+}
+
+Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
+{
+    return get_matching_cookies(url, Web::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
+}
+
+Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
+{
+    auto cookie_list = get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+
+    for (auto const& cookie : cookie_list) {
+        if (cookie.name == name)
+            return cookie;
+    }
+
+    return {};
+}
+
+void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
+{
+    m_transient_storage.purge_expired_cookies(offset);
+}
+
+void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
+{
+    m_transient_storage.expire_and_purge_cookies_accessed_since(since);
+}
+
+Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
+{
+    return m_transient_storage.estimate_storage_size_accessed_since(since);
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
