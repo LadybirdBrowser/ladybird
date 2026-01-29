@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+  :root {
+    accent-color: blue;
+  }
+
+  div#accentColorTest {
+    background-color: #696969;
+    width: 10px;
+    height: 10px;
+  }
+</style>
+
+<div id="accentColorTest"></div>
+
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const divEl = document.getElementById('accentColorTest');
+        const bgColorBefore = getComputedStyle(divEl)['background-color'];
+
+        println(`Before bgColor=${bgColorBefore}`)
+
+        divEl.style.backgroundColor = 'accentColor';
+        const bgColorAfter = getComputedStyle(divEl)['background-color'];
+
+        println(`After bgColor=${bgColorAfter}`);
+    });
+</script>
