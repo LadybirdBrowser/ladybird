@@ -10,7 +10,7 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 #include "Reader.h"
 
@@ -58,7 +58,7 @@ private:
 
     Reader m_reader;
 
-    mutable Threading::Mutex m_track_statuses_mutex;
+    mutable Sync::Mutex m_track_statuses_mutex;
     HashMap<Track, TrackStatus> m_track_statuses;
 };
 

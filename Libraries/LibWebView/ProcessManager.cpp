@@ -95,7 +95,7 @@ Optional<Process&> ProcessManager::find_process(pid_t pid)
 
 void ProcessManager::add_process(WebView::Process&& process)
 {
-    Threading::MutexLocker locker { m_lock };
+    Sync::MutexLocker locker { m_lock };
 
     auto pid = process.pid();
     auto result = m_processes.set(pid, move(process));
@@ -106,7 +106,7 @@ void ProcessManager::add_process(WebView::Process&& process)
 #if defined(AK_OS_MACH)
 void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 {
-    Threading::MutexLocker locker { m_lock };
+    Sync::MutexLocker locker { m_lock };
     for (auto const& info : m_statistics.processes) {
         if (info->pid == pid) {
             info->child_task_port = move(port);
@@ -118,7 +118,7 @@ void ProcessManager::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 
 Optional<Process> ProcessManager::remove_process(pid_t pid)
 {
-    Threading::MutexLocker locker { m_lock };
+    Sync::MutexLocker locker { m_lock };
     m_statistics.processes.remove_first_matching([&](auto const& info) {
         return (info->pid == pid);
     });
@@ -127,13 +127,13 @@ Optional<Process> ProcessManager::remove_process(pid_t pid)
 
 void ProcessManager::update_all_process_statistics()
 {
-    Threading::MutexLocker locker { m_lock };
+    Sync::MutexLocker locker { m_lock };
     (void)update_process_statistics(m_statistics);
 }
 
 JsonValue ProcessManager::serialize_json()
 {
-    Threading::MutexLocker locker { m_lock };
+    Sync::MutexLocker locker { m_lock };
     JsonArray serialized;
 
     m_statistics.for_each_process([&](auto const& process) {

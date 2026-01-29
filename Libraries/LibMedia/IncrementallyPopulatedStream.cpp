@@ -21,21 +21,21 @@ NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create
 
 void IncrementallyPopulatedStream::append(ByteBuffer&& buffer)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_buffer.append(buffer);
     m_state_changed.broadcast();
 }
 
 void IncrementallyPopulatedStream::close()
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_closed = true;
     m_state_changed.broadcast();
 }
 
 u64 IncrementallyPopulatedStream::size()
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     while (!m_closed && !m_expected_size.has_value())
         m_state_changed.wait();
     if (m_closed)
@@ -45,7 +45,7 @@ u64 IncrementallyPopulatedStream::size()
 
 void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     m_expected_size = expected_size;
     m_buffer.ensure_capacity(expected_size);
     m_state_changed.broadcast();
@@ -53,7 +53,7 @@ void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& consumer, size_t position, Bytes& bytes, AllowPositionAtEnd allow_position_at_end)
 {
-    Threading::MutexLocker locker { m_mutex };
+    Sync::MutexLocker locker { m_mutex };
     while (position + bytes.size() > m_buffer.size() && !m_closed && !consumer.m_aborted) {
         consumer.m_blocked = true;
         m_state_changed.wait();
@@ -101,7 +101,7 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes byt
 
 void IncrementallyPopulatedStream::Cursor::abort()
 {
-    Threading::MutexLocker locker { m_stream->m_mutex };
+    Sync::MutexLocker locker { m_stream->m_mutex };
     m_aborted = true;
     m_stream->m_state_changed.broadcast();
 }

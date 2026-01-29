@@ -9,7 +9,8 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
+#include <LibSync/Once.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -40,17 +41,17 @@ struct ThreadEventQueue::Private {
         u8 event_type { Event::Type::Invalid };
     };
 
-    Threading::Mutex mutex;
+    Sync::Mutex mutex;
     Vector<QueuedEvent> queued_events;
     Vector<NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>, 16> pending_promises;
 };
 
 static pthread_key_t s_current_thread_event_queue_key;
-static pthread_once_t s_current_thread_event_queue_key_once = PTHREAD_ONCE_INIT;
+static Sync::OnceFlag s_current_thread_event_queue_key_once {};
 
 ThreadEventQueue* ThreadEventQueue::current_or_null()
 {
-    pthread_once(&s_current_thread_event_queue_key_once, [] {
+    Sync::call_once(s_current_thread_event_queue_key_once, [] {
         pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
             if (value)
                 delete static_cast<ThreadEventQueue*>(value);
@@ -80,7 +81,7 @@ ThreadEventQueue::~ThreadEventQueue() = default;
 void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Type event_type)
 {
     {
-        Threading::MutexLocker lock(m_private->mutex);
+        Sync::MutexLocker lock(m_private->mutex);
         m_private->queued_events.empend(receiver, event_type);
     }
     Core::EventLoopManager::the().did_post_event();
@@ -89,7 +90,7 @@ void ThreadEventQueue::post_event(Core::EventReceiver* receiver, Core::Event::Ty
 void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
 {
     {
-        Threading::MutexLocker lock(m_private->mutex);
+        Sync::MutexLocker lock(m_private->mutex);
         m_private->queued_events.empend(move(invokee));
     }
     Core::EventLoopManager::the().did_post_event();
@@ -97,13 +98,13 @@ void ThreadEventQueue::deferred_invoke(Function<void()>&& invokee)
 
 void ThreadEventQueue::add_job(NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>> promise)
 {
-    Threading::MutexLocker lock(m_private->mutex);
+    Sync::MutexLocker lock(m_private->mutex);
     m_private->pending_promises.append(move(promise));
 }
 
 void ThreadEventQueue::cancel_all_pending_jobs()
 {
-    Threading::MutexLocker lock(m_private->mutex);
+    Sync::MutexLocker lock(m_private->mutex);
     for (auto const& promise : m_private->pending_promises)
         promise->reject(Error::from_errno(ECANCELED));
 
@@ -114,7 +115,7 @@ size_t ThreadEventQueue::process()
 {
     decltype(m_private->queued_events) events;
     {
-        Threading::MutexLocker locker(m_private->mutex);
+        Sync::MutexLocker locker(m_private->mutex);
         events = move(m_private->queued_events);
         m_private->pending_promises.remove_all_matching([](auto& job) { return job->is_resolved() || job->is_rejected(); });
     }
@@ -149,7 +150,7 @@ size_t ThreadEventQueue::process()
 
 bool ThreadEventQueue::has_pending_events() const
 {
-    Threading::MutexLocker locker(m_private->mutex);
+    Sync::MutexLocker locker(m_private->mutex);
     return !m_private->queued_events.is_empty();
 }
 
