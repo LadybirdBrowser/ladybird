@@ -150,15 +150,6 @@ public:
         return parse_annotated_date_time(Zoned::No, TimeRequired::Yes) || parse_annotated_time();
     }
 
-    // https://tc39.es/proposal-temporal/#prod-AmbiguousTemporalTimeString
-    [[nodiscard]] bool parse_ambiguous_temporal_time_string()
-    {
-        // AmbiguousTemporalTimeString :::
-        //     DateSpecMonthDay TimeZoneAnnotation[opt] Annotations[opt]
-        //     DateSpecYearMonth TimeZoneAnnotation[opt] Annotations[opt]
-        return parse_annotated_month_day() || parse_annotated_year_month();
-    }
-
     // https://tc39.es/proposal-temporal/#prod-TemporalYearMonthString
     [[nodiscard]] bool parse_temporal_year_month_string()
     {
@@ -208,7 +199,16 @@ public:
         // AnnotatedTime :::
         //     TimeDesignator Time DateTimeUTCOffset[~Z][opt] TimeZoneAnnotation[opt] Annotations[opt]
         //     Time DateTimeUTCOffset[~Z][opt] TimeZoneAnnotation[opt] Annotations[opt]
-        (void)parse_time_designator();
+        auto has_time_designator = parse_time_designator();
+
+        if (!has_time_designator) {
+            StateTransaction transaction { *this };
+
+            // It is a Syntax Error if ParseText(Time DateTimeUTCOffset[~Z], DateSpecMonthDay) is a Parse Node.
+            // It is a Syntax Error if ParseText(Time DateTimeUTCOffset[~Z], DateSpecYearMonth) is a Parse Node.
+            if (parse_date_spec_month_day() || parse_date_spec_year_month())
+                return false;
+        }
 
         if (!parse_time())
             return false;
@@ -1303,7 +1303,6 @@ private:
 };
 
 #define JS_ENUMERATE_ISO8601_PRODUCTION_PARSERS                                        \
-    __JS_ENUMERATE(AmbiguousTemporalTimeString, parse_ambiguous_temporal_time_string)  \
     __JS_ENUMERATE(AnnotationValue, parse_annotation_value)                            \
     __JS_ENUMERATE(DateMonth, parse_date_month)                                        \
     __JS_ENUMERATE(TemporalDateTimeString, parse_temporal_date_time_string)            \

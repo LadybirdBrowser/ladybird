@@ -169,15 +169,14 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
         // b. Let parseResult be ? ParseISODateTime(item, « TemporalTimeString »).
         auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalTimeString } }));
 
-        // c. If ParseText(StringToCodePoints(item), AmbiguousTemporalTimeString) is a Parse Node, throw a RangeError exception.
-        if (parse_iso8601(Production::AmbiguousTemporalTimeString, item.as_string().utf8_string_view()).has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainTime);
-
-        // d. Assert: parseResult.[[Time]] is not START-OF-DAY.
+        // c. Assert: parseResult.[[Time]] is not START-OF-DAY.
         VERIFY(!parse_result.time.has<ParsedISODateTime::StartOfDay>());
 
-        // e. Set result to parseResult.[[Time]].
+        // d. Set result to parseResult.[[Time]].
         time = parse_result.time.get<Time>();
+
+        // e. NOTE: A successful parse using TemporalTimeString guarantees absence of ambiguity with respect to any
+        //    ISO 8601 date-only, year-month, or month-day representation.
 
         // f. Let resolvedOptions be ? GetOptionsObject(options).
         auto resolved_options = TRY(get_options_object(vm, options));
