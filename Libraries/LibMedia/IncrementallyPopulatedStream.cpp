@@ -204,7 +204,7 @@ size_t IncrementallyPopulatedStream::read_from_chunks_while_locked(u64 position,
     return copy_size;
 }
 
-DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, size_t position, Bytes& bytes, AllowPositionAtEnd allow_position_at_end)
+DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, size_t position, Bytes& bytes)
 {
     Threading::MutexLocker locker { m_mutex };
 
@@ -223,8 +223,7 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
     if (cursor.m_aborted)
         return DecoderError::with_description(DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
 
-    u64 end = size();
-    if (position > end || (allow_position_at_end == AllowPositionAtEnd::No && position == end))
+    if (m_closed && position > m_expected_size.value())
         return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Blocking read reached end of stream"sv);
 
     if (bytes.size() == 0)
@@ -273,7 +272,7 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(size_t offset, S
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes bytes)
 {
-    auto read_count = TRY(m_stream->read_at(*this, m_position, bytes, AllowPositionAtEnd::No));
+    auto read_count = TRY(m_stream->read_at(*this, m_position, bytes));
     m_position += read_count;
     return read_count;
 }

@@ -105,11 +105,7 @@ private:
 
     using Chunks = AK::RedBlackTree<u64, DataChunk>;
 
-    enum class AllowPositionAtEnd : u8 {
-        No,
-        Yes,
-    };
-    DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&, AllowPositionAtEnd);
+    DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&);
 
     void begin_new_request_while_locked(u64 position);
     bool check_if_data_is_available_or_begin_request_while_locked(MonotonicTime now, u64 position, u64 length);
