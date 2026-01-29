@@ -37,6 +37,7 @@ private:
 ISODate create_iso_date_record(double year, double month, double day);
 ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value options = js_undefined());
 ThrowCompletionOr<GC::Ref<PlainDate>> create_temporal_date(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
+bool compare_surpasses(i8 sign, i32 year, Variant<u8, String> const& month_or_code, u8 day, CalendarDate const& target);
 bool iso_date_surpasses(VM&, i8 sign, ISODate base_date, ISODate iso_date2, double years, double months, double weeks, double days);
 ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, double day, Overflow overflow);
 bool is_valid_iso_date(double year, double month, double day);
