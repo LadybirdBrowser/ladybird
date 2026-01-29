@@ -89,7 +89,7 @@ Color gray_text(PreferredColorScheme)
 
 Color highlight(PreferredColorScheme)
 {
-    return Color(61, 174, 233);
+    return Color(61, 174, 233, 128);
 }
 
 Color highlight_text(PreferredColorScheme scheme)
