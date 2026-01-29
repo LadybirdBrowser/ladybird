@@ -1102,6 +1102,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
             if (maybe_verify_response_failure.has_value()) {
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
+                dbgln("HTMLMediaElement (src={}): verifying response failed", fetch_data->url_record.to_string());
                 fetch_data->stream->reached_end_of_body();
                 return;
             }
@@ -1129,6 +1130,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             //    This might never happen, e.g. when streaming an infinite resource such as web radio, or if the resource is longer than the user agent's
             //    ability to cache data.
             auto process_end_of_media = GC::create_function(heap(), [this, fetch_data, fetch_generation] {
+                dbgln("HTMLMediaElement (src={}): process end of media with fetch generation {} == {}?", fetch_data->url_record.to_string(), fetch_generation, m_current_fetch_generation);
                 if (fetch_generation != m_current_fetch_generation)
                     return;
 
@@ -1490,6 +1492,7 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 
         // 1. The user agent should cancel the fetching process.
         weak_self->m_fetch_controller->stop_fetch();
+        dbgln("HTMLMediaElement (src={}): unsupported format error", fetch_data->url_record.to_string());
         fetch_data->stream->reached_end_of_body();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
@@ -1569,6 +1572,23 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_video_tracks->remove_all_tracks({});
 }
 
+constexpr StringView ready_state_to_string(HTMLMediaElement::ReadyState ready_state)
+{
+    switch (ready_state) {
+    case HTMLMediaElement::ReadyState::HaveNothing:
+        return "HaveNothing"sv;
+    case HTMLMediaElement::ReadyState::HaveMetadata:
+        return "HaveMetadata"sv;
+    case HTMLMediaElement::ReadyState::HaveCurrentData:
+        return "HaveCurrentData"sv;
+    case HTMLMediaElement::ReadyState::HaveFutureData:
+        return "HaveFutureData"sv;
+    case HTMLMediaElement::ReadyState::HaveEnoughData:
+        return "HaveEnoughData"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#ready-states:media-element-3
 void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 {
@@ -1582,6 +1602,8 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     // follow the steps given below:
     if (m_network_state == NetworkState::Empty)
         return;
+
+    dbgln("HTMLMediaElement (src={}): ready state changed {} -> {}", m_current_src, ready_state_to_string(m_ready_state), ready_state_to_string(ready_state));
 
     // 1. Apply the first applicable set of substeps from the following list:
     // -> If the previous ready state was HAVE_NOTHING, and the new ready state is HAVE_METADATA
