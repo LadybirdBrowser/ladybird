@@ -103,8 +103,6 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
             context.display_list_recorder().fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
             break;
         }
-        case CSS::CounterStyleNameKeyword::None:
-            return;
         case CSS::CounterStyleNameKeyword::Decimal:
         case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
         case CSS::CounterStyleNameKeyword::LowerAlpha:

@@ -2517,6 +2517,9 @@
     "valid-types": [
       "counter-style-name-keyword",
       "string"
+    ],
+    "valid-identifiers": [
+      "none"
     ]
   },
   "margin": {
