@@ -296,7 +296,7 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
         if (!glyph_run)
             return;
 
-        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
+        auto selection_rect = context.rounded_device_rect(fragment.selection_rect()).to_type<int>();
         if (!selection_rect.is_empty())
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
 
@@ -347,7 +347,7 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
     if (caret_color.alpha() == 0)
         return;
 
-    auto cursor_rect = fragment.range_rect(paintable.selection_state(), cursor_position->offset(), cursor_position->offset());
+    auto cursor_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     VERIFY(cursor_rect.width() == 1);
 
     auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
