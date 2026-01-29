@@ -1,0 +1,7 @@
+Input element: inputType="insertText" (type: string)
+Textarea element: inputType="insertText" (type: string)
+Backspace: inputType="deleteContentBackward"
+Delete: inputType="deleteContentForward"
+Event is InputEvent: true
+Event has data property: true
+Event has isComposing property: true

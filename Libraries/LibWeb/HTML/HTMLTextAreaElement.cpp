@@ -2,7 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,6 +23,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::HTML {
 
@@ -30,10 +31,9 @@ GC_DEFINE_ALLOCATOR(HTMLTextAreaElement);
 
 HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
-    , m_input_event_timer(Core::Timer::create_single_shot(0, [weak_this = GC::Weak<HTMLTextAreaElement> { *this }]() {
-        if (!weak_this)
-            return;
-        weak_this->queue_firing_input_event();
+    , m_input_event_timer(Core::Timer::create_single_shot(0, [weak_this = GC::Weak { *this }]() {
+        if (weak_this)
+            weak_this->queue_firing_input_event();
     }))
 {
 }
@@ -420,7 +420,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     }
 }
 
-void HTMLTextAreaElement::did_edit_text_node()
+void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type)
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
@@ -430,6 +430,7 @@ void HTMLTextAreaElement::did_edit_text_node()
     // bubbles and composed attributes initialized to true. User agents may wait for a suitable break in the user's
     // interaction before queuing the task; for example, a user agent could wait for the user to have not hit a key for
     // 100ms, so as to only fire the event when the user pauses, instead of continuously for each keystroke.
+    m_pending_input_event_type = input_type;
     m_input_event_timer->restart(100);
 
     // A textarea element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the raw value.
@@ -438,18 +439,23 @@ void HTMLTextAreaElement::did_edit_text_node()
     update_placeholder_visibility();
 }
 
-EventResult HTMLTextAreaElement::handle_return_key(FlyString const&)
+EventResult HTMLTextAreaElement::handle_return_key(FlyString const& input_type)
 {
-    handle_insert(Utf16String::from_code_point(0x0A)); // Avoid the platform codepoint
+    handle_insert(input_type, Utf16String::from_code_point(0x0A)); // Avoid the platform codepoint
     return EventResult::Handled;
 }
 
 void HTMLTextAreaElement::queue_firing_input_event()
 {
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
+        // https://w3c.github.io/uievents/#event-type-input
         // FIXME: If a string was added to this textarea, this input event's .data should be set to it.
-        auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
-        dispatch_event(change_event);
+        UIEvents::InputEventInit input_event_init;
+        input_event_init.bubbles = true;
+        input_event_init.composed = true;
+        input_event_init.input_type = m_pending_input_event_type;
+        auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
+        dispatch_event(input_event);
     });
 }
 
