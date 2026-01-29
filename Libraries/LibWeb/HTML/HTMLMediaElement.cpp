@@ -1102,6 +1102,7 @@ void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data
             auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
             if (maybe_verify_response_failure.has_value()) {
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
+                fetch_data->stream->reached_end_of_body();
                 return;
             }
 
@@ -1489,6 +1490,7 @@ void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& f
 
         // 1. The user agent should cancel the fetching process.
         weak_self->m_fetch_controller->stop_fetch();
+        fetch_data->stream->reached_end_of_body();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
         fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
