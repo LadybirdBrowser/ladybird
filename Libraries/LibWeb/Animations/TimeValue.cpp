@@ -5,6 +5,7 @@
  */
 
 #include "TimeValue.h"
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 
@@ -25,6 +26,9 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
         if (unit_value->type().matches_time({}))
             return { Type::Milliseconds, MUST(unit_value->to("ms"_fly_string))->value() };
 
+        if (unit_value->type().matches_percentage())
+            return { Type::Percentage, unit_value->value() };
+
         VERIFY_NOT_REACHED();
     }
 
@@ -44,6 +48,30 @@ TimeValue TimeValue::from_css_numberish(CSS::CSSNumberish const& time, DOM::Abst
 
     if (style_value->resolves_to_time())
         return { Type::Milliseconds, style_value->resolve_time(calculation_resolution_context)->to_milliseconds() };
+
+    if (style_value->resolves_to_percentage())
+        return { Type::Percentage, style_value->resolve_percentage(calculation_resolution_context).value().value() };
+
+    VERIFY_NOT_REACHED();
+}
+
+TimeValue TimeValue::create_zero(GC::Ptr<AnimationTimeline> const& timeline)
+{
+    if (timeline && timeline->is_progress_based())
+        return TimeValue { Type::Percentage, 0.0 };
+
+    return TimeValue { Type::Milliseconds, 0.0 };
+}
+
+CSS::CSSNumberish TimeValue::as_css_numberish(JS::Realm& realm) const
+{
+    switch (type) {
+    case Type::Milliseconds:
+        return value;
+    case Type::Percentage:
+        GC::Ref<CSS::CSSNumericValue> numeric_value = CSS::CSSUnitValue::create(realm, value, "percent"_fly_string);
+        return GC::Root { numeric_value };
+    }
 
     VERIFY_NOT_REACHED();
 }

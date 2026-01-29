@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	Scroll based animation effect fill mode should return 'auto' for getTiming() and should return 'none' for getComputedTiming().
+Pass	Applied effect value before start delay with fill: none
+Pass	Applied effect value at start delay with fill: none
+Pass	Applied effect value at midpoint with fill: none
+Pass	Applied effect value at effect end with fill: none
+Pass	Applied effect value after effect end with fill: none
+Pass	Applied effect value before start delay with fill: backwards
+Pass	Applied effect value at start delay with fill: backwards
+Pass	Applied effect value at midpoint with fill: backwards
+Pass	Applied effect value at effect end with fill: backwards
+Pass	Applied effect value after effect end with fill: backwards
+Pass	Applied effect value before timeline start with fill: forwards
+Pass	Applied effect value at timeline start with fill: forwards
+Pass	Applied effect value in timeline range with fill: forwards
+Pass	Applied effect value at timeline end with fill: forwards
+Pass	Applied effect value after timeline end with fill: forwards
+Pass	Applied effect value before timeline start with fill: both
+Pass	Applied effect value at timeline start with fill: both
+Pass	Applied effect value in timeline range with fill: both
+Pass	Applied effect value at timeline end with fill: both
+Pass	Applied effect value after timeline end with fill: both
+Pass	Applied effect value before timeline start with fill: auto
+Pass	Applied effect value at timeline start with fill: auto
+Pass	Applied effect value in timeline range with fill: auto
+Pass	Applied effect value at timeline end with fill: auto
+Pass	Applied effect value after timeline end with fill: auto
