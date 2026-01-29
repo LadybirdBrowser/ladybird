@@ -28,6 +28,9 @@ Optional<String> ListItemMarkerBox::text() const
     auto index = m_list_item_element->ordinal_value();
 
     return m_list_style_type.visit(
+        [](Empty const&) -> Optional<String> {
+            return {};
+        },
         [index](CSS::CounterStyleNameKeyword keyword) -> Optional<String> {
             String text;
             switch (keyword) {
@@ -36,7 +39,6 @@ Optional<String> ListItemMarkerBox::text() const
             case CSS::CounterStyleNameKeyword::Disc:
             case CSS::CounterStyleNameKeyword::DisclosureClosed:
             case CSS::CounterStyleNameKeyword::DisclosureOpen:
-            case CSS::CounterStyleNameKeyword::None:
                 return {};
             case CSS::CounterStyleNameKeyword::Decimal:
                 text = String::number(index);
@@ -62,8 +64,6 @@ Optional<String> ListItemMarkerBox::text() const
             case CSS::CounterStyleNameKeyword::UpperRoman:
                 text = String::roman_number_from(index, String::Case::Upper);
                 break;
-            default:
-                VERIFY_NOT_REACHED();
             }
             return MUST(String::formatted("{}. ", text));
         },
@@ -79,6 +79,8 @@ GC::Ptr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
 
 CSSPixels ListItemMarkerBox::relative_size() const
 {
+    VERIFY(!m_list_style_type.has<Empty>());
+
     auto font_size = first_available_font().pixel_size();
     auto marker_text = text();
     if (marker_text.has_value())

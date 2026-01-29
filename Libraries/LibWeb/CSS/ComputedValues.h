@@ -143,7 +143,7 @@ private:
 
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
-using ListStyleType = Variant<CounterStyleNameKeyword, String>;
+using ListStyleType = Variant<Empty, CounterStyleNameKeyword, String>;
 
 class InitialValues {
 public:

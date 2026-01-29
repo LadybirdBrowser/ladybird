@@ -310,9 +310,7 @@ GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element
             // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
             // ::marker content is already excluded by the outer condition checking for Type::Normal.
             auto const& list_style_type = list_box->computed_values().list_style_type();
-            if (list_style_type.has<CSS::CounterStyleNameKeyword>()
-                && list_style_type.get<CSS::CounterStyleNameKeyword>() == CSS::CounterStyleNameKeyword::None
-                && !list_box->list_style_image()) {
+            if (list_style_type.has<Empty>() && !list_box->list_style_image()) {
                 return {};
             }
 
