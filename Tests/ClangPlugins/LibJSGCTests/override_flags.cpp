@@ -21,7 +21,7 @@ class MissingFinalizeFlag : public GC::Cell {
     GC_CELL(MissingFinalizeFlag, GC::Cell);
 
     // expected-error@+1 {{Class MissingFinalizeFlag overrides finalize but does not set static constexpr bool OVERRIDES_FINALIZE = true}}
-    virtual void finalize() override { }
+    virtual void finalize() override { Base::finalize(); }
 };
 
 // Class that correctly sets the survive flag - OK
@@ -41,7 +41,7 @@ class CorrectFinalizeFlag : public GC::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    virtual void finalize() override { }
+    virtual void finalize() override { Base::finalize(); }
 };
 
 // Class that sets the flag to false - ERROR (flag must be true)
@@ -52,5 +52,5 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = false;
 
     // expected-error@+1 {{Class FlagSetToFalse overrides finalize but does not set static constexpr bool OVERRIDES_FINALIZE = true}}
-    virtual void finalize() override { }
+    virtual void finalize() override { Base::finalize(); }
 };

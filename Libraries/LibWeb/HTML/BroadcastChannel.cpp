@@ -74,6 +74,7 @@ void BroadcastChannel::initialize(JS::Realm& realm)
 
 void BroadcastChannel::finalize()
 {
+    Base::finalize();
     s_broadcast_channel_repository.unregister_channel(*this);
 }
 

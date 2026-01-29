@@ -5177,6 +5177,7 @@ void @namespace_class@::visit_edges(JS::Cell::Visitor& visitor)
         generator.append(R"~~~(
 void @namespace_class@::finalize()
 {
+    Base::finalize();
     @name@::finalize(*this);
 }
 )~~~");
