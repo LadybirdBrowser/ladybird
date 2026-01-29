@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>Element ready check with allowfullscreen attribute</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<iframe name="cross-origin-allowed" allowfullscreen></iframe>
+<script>
+    promise_test(async (t) => {
+        // Trigger the child frame to report as soon as its content is loaded.
+        const iframe = document.querySelector("iframe");
+        await new Promise((resolve) => {
+            iframe.onload = resolve;
+            iframe.src =
+                "http://not-wpt.live:80/fullscreen/api/resources/attempt-fullscreen.html";
+        });
+
+        // Activate the child frame.
+        await test_driver.click(iframe);
+
+        // When a message is received from a child frame, ensure that the report
+        // matches the expectations.
+        const messagePromise = promiseMessage(iframe);
+        const data = await messagePromise;
+        assert_true(
+            data.report.result,
+            `${data.report.frame} frame did enter fullscreen`
+        );
+    }, "Element ready check with allowfullscreen attribute");
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() for SVG svg element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<svg></svg>
+<script>
+    promise_test(async (t) => {
+        const svg = document.querySelector("svg");
+        assert_true(svg instanceof SVGSVGElement);
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+        await Promise.all([
+            fullScreenChange(),
+            trusted_request(svg),
+        ]);
+    });
+</script>

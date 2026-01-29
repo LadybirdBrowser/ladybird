@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Document#onfullscreenerror</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        assert_equals(
+            document.onfullscreenerror,
+            null,
+            "initial onfullscreenerror"
+        );
+        const [, event] = await Promise.all([
+            promise_rejects_js(
+                t,
+                TypeError,
+                document.documentElement.requestFullscreen()
+            ),
+            new Promise((r) => document.addEventListener("fullscreenerror", r)),
+        ]);
+        assert_equals(event.target, document.documentElement);
+        assert_true(event instanceof Event);
+    }, "Checks that the fullscreenerror event is fired when entering fullscreen fails");
+</script>

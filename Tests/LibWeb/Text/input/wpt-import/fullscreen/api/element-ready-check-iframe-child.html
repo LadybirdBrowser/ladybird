@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>Element ready check for child of iframe</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<iframe><!-- script inserts child here --></iframe>
+<script>
+    promise_test(async (t) => {
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+        const div = document.createElement("div");
+        document.querySelector("iframe").appendChild(div);
+
+        await Promise.all([
+            trusted_request(div, document.body),
+            fullScreenChange(),
+        ]);
+
+        assert_equals(document.fullscreenElement, div);
+    }, "Element ready check for child of iframe");
+</script>
