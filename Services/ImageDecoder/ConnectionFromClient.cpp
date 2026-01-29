@@ -127,12 +127,17 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     if (auto maybe_metadata = decoder->metadata(); maybe_metadata.has_value() && is<Gfx::ExifMetadata>(*maybe_metadata)) {
         auto const& exif = static_cast<Gfx::ExifMetadata const&>(maybe_metadata.value());
         if (exif.x_resolution().has_value() && exif.y_resolution().has_value()) {
+            // Per HTML spec: "Resolution in EXIF is equivalent to CSS points per inch, therefore 72 is the base"
+            // Formula: CSS dimension = physical dimension × 72 / EXIF_resolution
+            // https://html.spec.whatwg.org/multipage/images.html#preparing-an-image-for-presentation
+            // FIXME: Honor EXIF ResolutionUnit (values other than inches are currently treated as inches).
+            // FIXME: Guard against zero/invalid resolution values so we do not produce infinite or NaN scales.
+            constexpr double EXIF_RESOLUTION_BASE = 72.0;
             auto const x_resolution = exif.x_resolution()->as_double();
             auto const y_resolution = exif.y_resolution()->as_double();
-            if (x_resolution < y_resolution)
-                result.scale.set_y(x_resolution / y_resolution);
-            else
-                result.scale.set_x(y_resolution / x_resolution);
+            // Higher DPI images have smaller natural dimensions (more densely packed pixels)
+            result.scale.set_x(EXIF_RESOLUTION_BASE / x_resolution);
+            result.scale.set_y(EXIF_RESOLUTION_BASE / y_resolution);
         }
     }
 

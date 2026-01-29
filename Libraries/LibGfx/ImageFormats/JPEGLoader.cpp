@@ -6,8 +6,11 @@
 
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
+#include <LibGfx/ImageFormats/TIFFLoader.h>
+#include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <jpeglib.h>
 #include <setjmp.h>
+#include <string.h>
 
 namespace Gfx {
 
@@ -22,6 +25,7 @@ struct JPEGLoadingContext {
 
     RefPtr<Gfx::Bitmap> rgb_bitmap;
     RefPtr<Gfx::CMYKBitmap> cmyk_bitmap;
+    OwnPtr<ExifMetadata> exif_metadata;
 
     ReadonlyBytes data;
     Vector<u8> icc_data;
@@ -77,9 +81,27 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
     cinfo.src = &source_manager;
 
-    jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
+    jpeg_save_markers(&cinfo, JPEG_APP0 + 1, 0xFFFF); // APP1 contains EXIF
+    jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF); // APP2 contains ICC
     if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
+
+    // Extract EXIF metadata (if present) so we can honor resolution and orientation.
+    for (auto* marker = cinfo.marker_list; marker; marker = marker->next) {
+        if (marker->marker != JPEG_APP0 + 1)
+            continue;
+
+        auto exif_data = ReadonlyBytes { marker->data, marker->data_length };
+        if (!exif_data.starts_with("Exif\0\0"sv.bytes())) 
+            continue;
+        exif_data = exif_data.slice(6);
+
+        auto exif_metadata_or_error = TIFFImageDecoderPlugin::read_exif_metadata(exif_data);
+        if (!exif_metadata_or_error.is_error()) {
+            exif_metadata = exif_metadata_or_error.release_value();
+            break;
+        }
+    }
 
     if (cinfo.jpeg_color_space == JCS_CMYK) {
         cinfo.out_color_space = JCS_CMYK;
@@ -243,6 +265,15 @@ ErrorOr<ImageFrameDescriptor> JPEGImageDecoderPlugin::frame(size_t index, Option
 
 Optional<Metadata const&> JPEGImageDecoderPlugin::metadata()
 {
+    if (m_context->state == JPEGLoadingContext::State::NotDecoded)
+        (void)frame(0);
+
+    if (m_context->state == JPEGLoadingContext::State::Error)
+        return OptionalNone {};
+
+    if (m_context->exif_metadata)
+        return *m_context->exif_metadata;
+
     return OptionalNone {};
 }
 
