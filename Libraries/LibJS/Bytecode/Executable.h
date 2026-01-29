@@ -239,6 +239,7 @@ public:
 
     [[nodiscard]] Operand original_operand_from_raw(u32) const;
 
+    virtual Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
 private:

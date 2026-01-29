@@ -54,7 +54,7 @@ void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
 {
     auto any_cells_were_removed = false;
     for (auto& record : m_records) {
-        if (!record.target || record.target->state() == Cell::State::Live)
+        if (!record.target || (record.target->state() == Cell::State::Live && record.target->is_marked()))
             continue;
         record.target = nullptr;
         any_cells_were_removed = true;

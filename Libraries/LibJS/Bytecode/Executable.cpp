@@ -341,13 +341,16 @@ StaticPropertyLookupCache::StaticPropertyLookupCache()
 
 static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
 {
-    if (entry.from_shape && entry.from_shape->state() != Cell::State::Live)
+    auto cell_is_dead = [](Cell const* cell) {
+        return cell->state() != Cell::State::Live || !cell->is_marked();
+    };
+    if (entry.from_shape && cell_is_dead(entry.from_shape))
         entry.from_shape = nullptr;
-    if (entry.shape && entry.shape->state() != Cell::State::Live)
+    if (entry.shape && cell_is_dead(entry.shape))
         entry.shape = nullptr;
-    if (entry.prototype && entry.prototype->state() != Cell::State::Live)
+    if (entry.prototype && cell_is_dead(entry.prototype))
         entry.prototype = nullptr;
-    if (entry.prototype_chain_validity && entry.prototype_chain_validity->state() != Cell::State::Live)
+    if (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity))
         entry.prototype_chain_validity = nullptr;
 }
 
@@ -370,7 +373,7 @@ void Executable::remove_dead_cells(Badge<GC::Heap>)
             clear_cache_entry_if_dead(entry);
     }
     for (auto& cache : object_shape_caches) {
-        if (cache.shape && cache.shape->state() != Cell::State::Live)
+        if (cache.shape && (cache.shape->state() != Cell::State::Live || !cache.shape->is_marked()))
             cache.shape = nullptr;
     }
 }

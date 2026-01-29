@@ -538,6 +538,15 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             sweep_weak_blocks();
         }
 
+        // Prune weak containers while we're still stop-the-world; doing this
+        // during incremental sweep risks reading cells that have already been
+        // freed and ASAN-poisoned.
+        for (auto& weak_container : m_weak_containers) {
+            if (!weak_container.owner_cell({}).is_marked())
+                continue;
+            weak_container.remove_dead_cells({});
+        }
+
         // Run sweep callbacks at STW so they fire for every collection,
         // not just CollectEverything. Static caches like
         // StaticPropertyLookupCache prune by mark state and must see valid
@@ -1052,12 +1061,6 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     }
 
     {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_weak_containers_us };
-        for (auto& weak_container : m_weak_containers)
-            weak_container.remove_dead_cells({});
-    }
-
-    {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_reclassify_us };
         for (auto* block : empty_blocks) {
             dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
@@ -1174,9 +1177,6 @@ void Heap::start_incremental_sweep()
     m_incremental_sweep_active = true;
     m_sweep_live_cell_bytes = 0;
     m_sweep_live_external_bytes = 0;
-
-    for (auto& weak_container : m_weak_containers)
-        weak_container.remove_dead_cells({});
 
     // Populate each allocator's pending sweep list with its current blocks.
     // Blocks allocated during incremental sweep won't be on these lists

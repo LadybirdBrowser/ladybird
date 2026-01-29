@@ -46,7 +46,7 @@ bool WeakSet::weak_set_remove(GC::Ptr<Cell> value)
 void WeakSet::remove_dead_cells(Badge<GC::Heap>)
 {
     m_values.remove_all_matching([](Cell* cell) {
-        return cell->state() != Cell::State::Live;
+        return cell->state() != Cell::State::Live || !cell->is_marked();
     });
 }
 
