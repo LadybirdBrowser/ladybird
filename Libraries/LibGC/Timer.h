@@ -25,6 +25,8 @@ public:
     virtual void finalize() override;
 
     void start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout);
+    void start_repeating(u64 interval_ms, GC::Ref<GC::Function<void()>> on_timeout);
+    void restart();
     void stop_and_fire_timeout_handler();
     void stop();
 

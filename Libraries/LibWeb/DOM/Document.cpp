@@ -22,6 +22,7 @@
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Timer.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Console.h>
@@ -544,7 +545,8 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
 
     m_is_decoded_svg = m_page->client().is_svg_page_client();
 
-    m_cursor_blink_timer = Core::Timer::create_repeating(500, [this] {
+    m_cursor_blink_timer = heap().allocate<GC::Timer>();
+    m_cursor_blink_timer->start_repeating(500, GC::create_function(heap(), [this] {
         auto cursor_position = this->cursor_position();
         if (!cursor_position)
             return;
@@ -558,7 +560,7 @@ Document::Document(JS::Realm& realm, URL::URL const& url, TemporaryDocumentForFr
             m_cursor_blink_state = !m_cursor_blink_state;
             node->set_needs_repaint();
         }
-    });
+    }));
 
     HTML::main_thread_event_loop().register_document({}, *this);
 }
@@ -747,6 +749,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_open_dialogs_list);
     visitor.visit(m_dialog_pointerdown_target);
     visitor.visit(m_console_client);
+    visitor.visit(m_cursor_blink_timer);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
