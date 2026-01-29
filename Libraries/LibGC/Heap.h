@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Function.h>
+#include <AK/HashTable.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
@@ -95,11 +96,15 @@ public:
 
     void sweep_block(HeapBlock&);
 
+    bool is_live_heap_block(HeapBlock* block) const { return m_live_heap_blocks.contains(block); }
+
     void enqueue_post_gc_task(AK::Function<void()>);
 
     WeakImpl* create_weak_impl(void*);
 
 private:
+    friend class CellAllocator;
+    friend class HeapBlock;
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
     friend class DeferGC;
@@ -196,6 +201,8 @@ private:
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 
     Vector<AK::Function<void()>> m_post_gc_tasks;
+
+    HashTable<HeapBlock*> m_live_heap_blocks;
 
     WeakBlock::List m_usable_weak_blocks;
     WeakBlock::List m_full_weak_blocks;

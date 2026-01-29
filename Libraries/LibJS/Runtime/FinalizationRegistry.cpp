@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
 
@@ -54,7 +55,10 @@ void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
 {
     auto any_cells_were_removed = false;
     for (auto& record : m_records) {
-        if (!record.target || record.target->state() == Cell::State::Live)
+        if (!record.target)
+            continue;
+        auto* block = GC::HeapBlock::from_cell(record.target);
+        if (heap().is_live_heap_block(block) && record.target->state() == Cell::State::Live)
             continue;
         record.target = nullptr;
         any_cells_were_removed = true;
