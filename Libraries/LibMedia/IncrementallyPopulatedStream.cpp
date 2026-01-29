@@ -95,9 +95,10 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
 
 void IncrementallyPopulatedStream::reached_end_of_body()
 {
+    dbgln("IncrementallyPopulatedStream ({}): reached end of body, waiting for lock", this);
     Threading::MutexLocker locker { m_mutex };
     m_expected_size = m_last_chunk_end;
-    dbgln("IncrementallyPopulatedStream: reached end of body at {}", m_last_chunk_end);
+    dbgln("IncrementallyPopulatedStream ({}): reached end of body at {}", this, m_last_chunk_end);
     m_closed = true;
     m_state_changed.broadcast();
 }
