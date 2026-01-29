@@ -16,4 +16,15 @@ describe("errors", () => {
             Temporal.PlainYearMonth.prototype.subtract.call("foo");
         }).toThrowWithMessage(TypeError, "Not an object of type Temporal.PlainYearMonth");
     });
+
+    test("subtracting units other than years and months are not allowed", () => {
+        const units = ["days", "hours", "minutes", "seconds", "milliseconds", "microseconds", "nanoseconds"];
+        const plainYearMonth = new Temporal.PlainYearMonth(1970, 1);
+
+        for (let unit of units) {
+            expect(() => {
+                plainYearMonth.subtract({ [unit]: 1 });
+            }).toThrowWithMessage(RangeError, "Only years and months may be subtracted from Temporal.PlainYearMonth");
+        }
+    });
 });
