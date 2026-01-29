@@ -40,6 +40,8 @@ public:
 
     void remove_last_line_if_empty();
 
+    void set_trailing_whitespace_on_previous_line();
+
     CSSPixels current_block_offset() const { return m_current_block_offset; }
 
     void recalculate_available_space();
