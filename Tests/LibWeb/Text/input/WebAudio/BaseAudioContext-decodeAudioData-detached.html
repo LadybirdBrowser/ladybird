@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const buffer = new ArrayBuffer(8);
+        const channel = new MessageChannel();
+
+        // Transfer detaches the ArrayBuffer.
+        channel.port1.postMessage(buffer, [buffer]);
+
+        println(`byteLength: ${buffer.byteLength}`);
+
+        const context = new OfflineAudioContext(1, 1, 44100);
+        try {
+            await context.decodeAudioData(buffer);
+            println("resolved");
+        } catch (e) {
+            println(`error: ${e.name}`);
+        }
+    });
+</script>

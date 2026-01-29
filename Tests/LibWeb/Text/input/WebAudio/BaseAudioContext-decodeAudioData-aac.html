@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        try {
+            const response = await fetch("../../../Assets/cheers.aac");
+            const bytes = await response.arrayBuffer();
+
+            const context = new OfflineAudioContext(2, 5 * 1024 * 1024, 44100);
+            const audioBuffer = await context.decodeAudioData(bytes);
+
+            println(`channels: ${audioBuffer.numberOfChannels}`);
+            println(`sampleRate: ${audioBuffer.sampleRate}`);
+            println(`length: ${audioBuffer.length}`);
+        } catch (e) {
+            println(`error: ${e}`);
+        }
+        done();
+    });
+</script>
