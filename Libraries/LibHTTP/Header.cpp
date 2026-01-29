@@ -31,6 +31,7 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
 
     // For now we only parse some headers that are of the ABNF list form "#something"
     if (name.is_one_of_ignoring_ascii_case(
+            "Accept-Ranges"sv,
             "Access-Control-Request-Headers"sv,
             "Access-Control-Expose-Headers"sv,
             "Access-Control-Allow-Headers"sv,

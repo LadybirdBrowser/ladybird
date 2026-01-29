@@ -35,9 +35,9 @@ class MEDIA_API Reader {
 public:
     typedef Function<DecoderErrorOr<IterationDecision>(TrackEntry const&)> TrackEntryCallback;
 
-    static DecoderErrorOr<Reader> from_stream(IncrementallyPopulatedStream::Cursor&);
+    static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&);
 
-    static bool is_matroska_or_webm(IncrementallyPopulatedStream::Cursor&);
+    static bool is_matroska_or_webm(NonnullRefPtr<IncrementallyPopulatedStream::Cursor> const&);
 
     Optional<AK::Duration> duration() { return m_segment_information.duration(); }
 

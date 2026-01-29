@@ -692,9 +692,7 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        TRY(m_media_element->fetch_resource(*url_record, [this](auto) {
-            failed_with_elements().release_value_but_fixme_should_propagate_errors();
-        }));
+        m_media_element->fetch_resource(*url_record, HTMLMediaElement::EntireResource {}, [self = GC::make_root(this)](auto) { self->failed_with_elements().release_value_but_fixme_should_propagate_errors(); });
 
         return {};
     }
@@ -930,7 +928,7 @@ void HTMLMediaElement::select_resource()
             //    then the load failed.
             queue_a_media_element_task([this, url_record = move(url_record), failed_with_attribute = move(failed_with_attribute)]() mutable {
                 if (url_record.has_value()) {
-                    fetch_resource(*url_record, move(failed_with_attribute)).release_value_but_fixme_should_propagate_errors();
+                    fetch_resource(*url_record, EntireResource {}, move(failed_with_attribute));
                     return;
                 }
             });
@@ -971,16 +969,46 @@ void HTMLMediaElement::select_resource()
     });
 }
 
-enum class FetchMode {
+struct HTMLMediaElement::FetchData : public RefCounted<FetchData> {
+    URL::URL url_record;
+    Function<void(String)> failure_callback;
+    RefPtr<Media::IncrementallyPopulatedStream> stream;
+    bool accepts_byte_ranges { false };
+    u64 offset { 0 };
+};
+
+// https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
+void HTMLMediaElement::fetch_resource(URL::URL const& url_record, ByteRange const& byte_range, Function<void(String)> failure_callback)
+{
+    auto fetch_data = make_ref_counted<FetchData>();
+    fetch_data->url_record = url_record;
+    fetch_data->failure_callback = move(failure_callback);
+    fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
+    fetch_data->stream->set_data_request_callback([self = GC::Weak(*this), fetch_data](u64 offset) {
+        if (!self)
+            return;
+        self->restart_fetch_at_offset(fetch_data, offset);
+    });
+
+    set_up_playback_manager(fetch_data);
+
+    fetch_resource(fetch_data, byte_range);
+}
+
+enum class FetchMode : u8 {
     Local,
     Remote,
 };
 
 // https://html.spec.whatwg.org/multipage/media.html#concept-media-load-resource
-WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_record, Function<void(String)> failure_callback)
+void HTMLMediaElement::fetch_resource(NonnullRefPtr<FetchData> const& fetch_data, ByteRange const& byte_range)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
+
+    auto const& url_record = fetch_data->url_record;
+
+    auto fetch_generation = ++m_current_fetch_generation;
 
     // 1. Let mode be remote.
     auto mode = FetchMode::Remote;
@@ -1032,16 +1060,28 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         //    to fetch the resource in full, in which case byteRange would be "entire resource", to fetch from a byte offset until the end, in which case
         //    byteRange would be (number, "until end"), or to fetch a range between two byte offsets, in which case byteRange would be a (number, number)
         //    tuple representing the two offsets.
-        ByteRange byte_range = EntireResource {};
+        // NB: byte_range is passed as a parameter.
 
-        // FIXME: 7. If byteRange is not "entire resource", then:
-        //            1. If byteRange[1] is "until end", then add a range header to request given byteRange[0].
-        //            2. Otherwise, add a range header to request given byteRange[0] and byteRange[1].
+        // 7. If byteRange is not "entire resource", then:
+        fetch_data->offset = 0;
+
+        if (!byte_range.has<EntireResource>()) {
+            // 1. If byteRange[1] is "until end", then add a range header to request given byteRange[0].
+            if (byte_range.has<UntilEnd>()) {
+                auto const& range = byte_range.get<UntilEnd>();
+                request->add_range_header(range.first, {});
+                fetch_data->offset = range.first;
+            } else {
+                // 2. Otherwise, add a range header to request given byteRange[0] and byteRange[1].
+                // NB: We don't currently have any need to request a range with a delimited end.
+                VERIFY_NOT_REACHED();
+            }
+        }
 
         // 8. Fetch request, with processResponse set to the following steps given response response:
         Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
 
-        fetch_algorithms_input.process_response = [this, byte_range = move(byte_range), failure_callback = move(failure_callback)](auto response) mutable {
+        fetch_algorithms_input.process_response = [this, byte_range = move(byte_range), fetch_data, fetch_generation](auto response) mutable {
             // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
             //        https://github.com/whatwg/html/issues/9355
             response = response->unsafe_response();
@@ -1049,28 +1089,36 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             // 1. Let global be the media element's node document's relevant global object.
             auto& global = document().realm().global_object();
 
-            // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
-            // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
-            if (!verify_response(response, byte_range)) {
-                auto error_message = response->network_error_message().value_or("Failed to fetch media resource"_string);
-                failure_callback(error_message);
-                return;
+            if (auto content_length = response->header_list()->extract_length(); content_length.template has<u64>()) {
+                auto actual_length = fetch_data->offset + content_length.template get<u64>();
+                fetch_data->stream->set_expected_size(actual_length);
             }
 
-            m_media_data = Media::IncrementallyPopulatedStream::create_empty();
-            if (auto length = response->header_list()->extract_length(); length.template has<u64>())
-                m_media_data->set_expected_size(length.template get<u64>());
+            if (auto accept_ranges = response->header_list()->extract_header_list_values("Accept-Ranges"sv); accept_ranges.template has<Vector<ByteString>>())
+                fetch_data->accepts_byte_ranges = accept_ranges.template get<Vector<ByteString>>().contains([](auto const& units) { return units == "bytes"sv; });
 
-            MUST(setup_playback_manager(move(failure_callback)));
+            // 4. If the result of verifying response given the current media resource and byteRange is false, then abort these steps.
+            // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
+            auto maybe_verify_response_failure = verify_response_or_get_failure_reason(response, byte_range, fetch_data);
+            if (maybe_verify_response_failure.has_value()) {
+                fetch_data->failure_callback(maybe_verify_response_failure.value());
+                dbgln("{}: HTMLMediaElement (src={}): verifying response failed", document().url_string(), fetch_data->url_record.to_string());
+                fetch_data->stream->reached_end_of_body();
+                return;
+            }
 
             // 2. Let updateMedia be to queue a media element task given the media element to run the first appropriate steps from the media data processing
             //    steps list below. (A new task is used for this so that the work described below occurs relative to the appropriate media element event task
             //    source rather than using the networking task source.)
-            auto update_media = GC::create_function(heap(), [this](ByteBuffer media_data) {
+            auto update_media = GC::create_function(heap(), [this, fetch_data, fetch_generation](ByteBuffer media_data) mutable {
+                if (fetch_generation != m_current_fetch_generation)
+                    return;
+
                 // 6. Update the media data with the contents of response's unsafe response obtained in this fashion. response can be CORS-same-origin or
                 //    CORS-cross-origin; this affects whether subtitles referenced in the media data are exposed in the API and, for video elements, whether
                 //    a canvas gets tainted when the video is drawn on it.
-                m_media_data->append(move(media_data));
+                fetch_data->stream->add_chunk_at(fetch_data->offset, media_data.bytes());
+                fetch_data->offset += media_data.size();
 
                 queue_a_media_element_task([this] {
                     process_media_data(FetchingStatus::Ongoing).release_value_but_fixme_should_propagate_errors();
@@ -1081,8 +1129,12 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             //    and if all of the data is available to the user agent without network access, then, the user agent must move on to the final step below.
             //    This might never happen, e.g. when streaming an infinite resource such as web radio, or if the resource is longer than the user agent's
             //    ability to cache data.
-            auto process_end_of_media = GC::create_function(heap(), [this] {
-                m_media_data->close();
+            auto process_end_of_media = GC::create_function(heap(), [this, fetch_data, fetch_generation] {
+                dbgln("{}: HTMLMediaElement (src={}): process end of media with fetch generation {} == {}?", document().url_string(), fetch_data->url_record.to_string(), fetch_generation, m_current_fetch_generation);
+                if (fetch_generation != m_current_fetch_generation)
+                    return;
+
+                fetch_data->stream->reached_end_of_body();
                 queue_a_media_element_task([this] {
                     process_media_data(FetchingStatus::Complete).release_value_but_fixme_should_propagate_errors();
                 });
@@ -1115,26 +1167,53 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
         // then the user agent must move on to the final step below. This might never happen, e.g. if the current media resource is a MediaStream.
         break;
     }
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
+Optional<String> HTMLMediaElement::verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range, NonnullRefPtr<FetchData> const& fetch_data)
+{
+    // 1. If response is a network error, then return false.
+    if (response->is_network_error()) {
+        VERIFY(response->network_error_message().has_value());
+        return response->network_error_message();
+    }
+
+    // 2. If byteRange is "entire resource", then return true.
+    if (byte_range.has<EntireResource>())
+        return {};
+
+    // 3. Let internalResponse be response's unsafe response.
+    auto internal_response = response->unsafe_response();
+
+    // 4. If internalResponse's status is 200, then return true.
+    if (internal_response->status() == 200)
+        return {};
+
+    // 5. If internalResponse's status is not 206, then return false.
+    if (internal_response->status() != 206)
+        return MUST(String::formatted("Unexpected status code: {}", internal_response->status()));
+
+    // 6. If the result of extracting content-range values from internalResponse is failure, then return false.
+    auto maybe_content_range = internal_response->header_list()->extract_content_range_values();
+    if (!maybe_content_range.has<HTTP::HeaderList::ContentRangeValues>())
+        return MUST(String::formatted("Failed to extract values from Content-Range: {}", internal_response->header_list()->get("Content-Range"sv)));
+
+    auto const& content_range = maybe_content_range.get<HTTP::HeaderList::ContentRangeValues>();
+    fetch_data->offset = content_range.first_byte_pos;
+    if (content_range.complete_length.has_value())
+        fetch_data->stream->set_expected_size(content_range.complete_length.value());
 
     return {};
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#verify-a-media-response
-bool HTMLMediaElement::verify_response(GC::Ref<Fetch::Infrastructure::Response> response, ByteRange const& byte_range)
+void HTMLMediaElement::restart_fetch_at_offset(NonnullRefPtr<FetchData> const& fetch_data, u64 offset)
 {
-    // 1. If response is a network error, then return false.
-    if (response->is_network_error())
-        return false;
+    if (!fetch_data->accepts_byte_ranges)
+        return;
+    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
+        m_fetch_controller->stop_fetch();
 
-    // 2. If byteRange is "entire resource", then return true.
-    if (byte_range.has<EntireResource>())
-        return true;
-
-    // 3. Let internalResponse be response's unsafe response.
-    // 4. If internalResponse's status is 200, then return true.
-    // 5. If internalResponse's status is not 206, then return false.
-    // 6. If the result of extracting content-range values from internalResponse is failure, then return false.
-    TODO();
+    fetch_resource(fetch_data, UntilEnd { offset });
 }
 
 void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
@@ -1374,7 +1453,7 @@ void HTMLMediaElement::on_metadata_parsed()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-WebIDL::ExceptionOr<void> HTMLMediaElement::setup_playback_manager(Function<void(String)> failure_callback)
+void HTMLMediaElement::set_up_playback_manager(NonnullRefPtr<FetchData> const& fetch_data)
 {
     m_playback_manager = Media::PlaybackManager::create();
 
@@ -1407,25 +1486,25 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::setup_playback_manager(Function<void
     };
 
     // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = [weak_self = GC::Weak(*this), failure_callback = move(failure_callback)](auto&& error) mutable {
+    m_playback_manager->on_unsupported_format_error = [weak_self = GC::Weak(*this), fetch_data](auto&& error) mutable {
         if (!weak_self)
             return;
 
         // 1. The user agent should cancel the fetching process.
         weak_self->m_fetch_controller->stop_fetch();
+        dbgln("{}: HTMLMediaElement (src={}): unsupported format error", weak_self->document().url_string(), fetch_data->url_record.to_string());
+        fetch_data->stream->reached_end_of_body();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-        failure_callback(MUST(String::from_utf8(error.description())));
+        fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
     };
 
-    m_playback_manager->add_media_source(*m_media_data);
+    m_playback_manager->add_media_source(*fetch_data->stream);
 
     m_playback_manager->on_playback_state_change = [weak_self = GC::Weak(*this)] {
         if (weak_self)
             weak_self->on_playback_manager_state_change();
     };
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
@@ -1493,6 +1572,23 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_video_tracks->remove_all_tracks({});
 }
 
+constexpr StringView ready_state_to_string(HTMLMediaElement::ReadyState ready_state)
+{
+    switch (ready_state) {
+    case HTMLMediaElement::ReadyState::HaveNothing:
+        return "HaveNothing"sv;
+    case HTMLMediaElement::ReadyState::HaveMetadata:
+        return "HaveMetadata"sv;
+    case HTMLMediaElement::ReadyState::HaveCurrentData:
+        return "HaveCurrentData"sv;
+    case HTMLMediaElement::ReadyState::HaveFutureData:
+        return "HaveFutureData"sv;
+    case HTMLMediaElement::ReadyState::HaveEnoughData:
+        return "HaveEnoughData"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#ready-states:media-element-3
 void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 {
@@ -1506,6 +1602,8 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     // follow the steps given below:
     if (m_network_state == NetworkState::Empty)
         return;
+
+    dbgln("{}: HTMLMediaElement (src={}): ready state changed {} -> {}", document().url_string(), m_current_src, ready_state_to_string(m_ready_state), ready_state_to_string(ready_state));
 
     // 1. Apply the first applicable set of substeps from the following list:
     // -> If the previous ready state was HAVE_NOTHING, and the new ready state is HAVE_METADATA
@@ -1716,7 +1814,11 @@ void HTMLMediaElement::pause_element()
         });
 
         // 4. Set the official playback position to the current playback position.
-        m_official_playback_position = m_current_playback_position;
+        // AD-HOC: If the seeking attribute is set, we don't want to overwrite the official playback position, since that
+        //         means it is temporarily set to the seeking target position instead of the current playback position.
+        //         See: https://github.com/whatwg/html/issues/11773 and https://github.com/whatwg/html/pull/11792
+        if (!seeking())
+            m_official_playback_position = m_current_playback_position;
     }
 }
 

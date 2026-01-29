@@ -16,6 +16,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibRequests/Request.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -1556,12 +1557,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             http_request = request->clone(realm);
 
             // 2. Set httpFetchParams to a copy of fetchParams.
+            auto new_http_fetch_params = Infrastructure::FetchParams::copy(fetch_params);
             // 3. Set httpFetchParams’s request to httpRequest.
-            auto new_http_fetch_params = Infrastructure::FetchParams::create(vm, *http_request, fetch_params.timing_info());
-            new_http_fetch_params->set_algorithms(fetch_params.algorithms());
-            new_http_fetch_params->set_task_destination(fetch_params.task_destination());
-            new_http_fetch_params->set_cross_origin_isolated_capability(fetch_params.cross_origin_isolated_capability());
-            new_http_fetch_params->set_preloaded_response_candidate(fetch_params.preloaded_response_candidate());
+            new_http_fetch_params->set_request(*http_request);
             http_fetch_params = new_http_fetch_params;
         }
 
@@ -1828,6 +1826,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     } else {
         pending_forward_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
     }
+
+    // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
+    if (http_fetch_params->controller()->state() == Infrastructure::FetchController::State::Stopped)
+        http_fetch_params->controller()->stop_fetch();
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
@@ -2164,7 +2166,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
+    auto network_request = ResourceLoader::the().load(load_request, on_headers_received, on_data_received, on_complete);
+    fetch_params.controller()->set_pending_request(move(network_request));
 
     return pending_response;
 }

@@ -505,6 +505,22 @@ public:
     Iterator end() { return {}; }
     Iterator begin_from(K key) { return Iterator(static_cast<Node*>(BaseTree::find(this->m_root, key))); }
 
+    Iterator find_largest_not_above_iterator(K key)
+    {
+        auto node = static_cast<Node*>(BaseTree::find_largest_not_above(this->m_root, key));
+        if (!node)
+            return end();
+        return Iterator(node, static_cast<Node*>(BaseTree::predecessor(node)));
+    }
+
+    Iterator find_smallest_not_below_iterator(K key)
+    {
+        auto node = static_cast<Node*>(BaseTree::find_smallest_not_below(this->m_root, key));
+        if (!node)
+            return end();
+        return Iterator(node, static_cast<Node*>(BaseTree::predecessor(node)));
+    }
+
     using ConstIterator = RedBlackTreeIterator<RedBlackTree const, V const>;
     friend ConstIterator;
     ConstIterator begin() const { return ConstIterator(static_cast<Node*>(this->m_minimum)); }

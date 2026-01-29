@@ -29,8 +29,10 @@ public:
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
     [[nodiscard]] static GC::Ref<FetchParams> create(JS::VM&, GC::Ref<Request>, GC::Ref<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] GC::Ref<Request> request() const { return m_request; }
+    void set_request(GC::Ref<Request> request) { m_request = request; }
     [[nodiscard]] GC::Ref<FetchController> controller() const { return m_controller; }
     [[nodiscard]] GC::Ref<FetchTimingInfo> timing_info() const { return m_timing_info; }
 
@@ -53,6 +55,7 @@ public:
 
 private:
     FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms>, GC::Ref<FetchController>, GC::Ref<FetchTimingInfo>);
+    FetchParams(FetchParams const&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

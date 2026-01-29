@@ -1,0 +1,14 @@
+{
+  "name": "nghttp2",
+  "version": "1.68.0",
+  "port-version": 1,
+  "description": "Implementation of the Hypertext Transfer Protocol version 2 in C",
+  "homepage": "https://github.com/nghttp2/nghttp2",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ]
+}
