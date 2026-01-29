@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -113,8 +113,8 @@ private:
         WebDriver,
     };
 
-    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, String canonicalized_domain, Web::Cookie::Source source);
-    Vector<Web::Cookie::Cookie> get_matching_cookies(URL::URL const& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
+    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, Web::Cookie::Source source);
+    Vector<Web::Cookie::Cookie> get_matching_cookies(URL::URL const& url, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;

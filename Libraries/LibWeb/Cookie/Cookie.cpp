@@ -59,23 +59,24 @@ SameSite same_site_from_string(StringView same_site_mode)
     return SameSite::Default;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.2
 Optional<String> canonicalize_domain(URL::URL const& url)
 {
     if (!url.host().has_value())
         return {};
 
     // 1. Convert the host name to a sequence of individual domain name labels.
-    // 2. Convert each label that is not a Non-Reserved LDH (NR-LDH) label, to an A-label (see Section 2.3.2.1 of
-    //    [RFC5890] for the former and latter), or to a "punycode label" (a label resulting from the "ToASCII" conversion
-    //    in Section 4 of [RFC3490]), as appropriate (see Section 6.3 of this specification).
-    // 3. Concatenate the resulting labels, separated by a %x2E (".") character.
+    // 2. All labels must be one of U-label, A-label, or Non-Reserved LDH (NR-LDH) label (see Section 2.3.1 of [RFC5890]).
+    //    If any label is not one of these then abort this algorithm and fail to canonicalize the host name.
+    // 3. Convert each U-label to an A-label (see Section 2.3.2.1 of [RFC5890]).
+    // 4. If any label is a Fake A-label then abort this algorithm and fail to canonicalize the host name.
+    // 5. Concatenate the resulting labels, separated by a %x2E (".") character.
     // FIXME: Implement the above conversions.
 
     return MUST(url.serialized_host().to_lowercase());
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.3
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.3
 bool domain_matches(StringView string, StringView domain_string)
 {
     // A string domain-matches a given domain string if at least one of the following conditions hold:
@@ -101,7 +102,7 @@ bool domain_matches(StringView string, StringView domain_string)
     return true;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.4-3
 bool path_matches(StringView request_path, StringView cookie_path)
 {
     // A request-path path-matches a given cookie-path if at least one of the following conditions holds:
@@ -124,7 +125,7 @@ bool path_matches(StringView request_path, StringView cookie_path)
     return false;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.4-1
 String default_path(URL::URL const& url)
 {
     // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
