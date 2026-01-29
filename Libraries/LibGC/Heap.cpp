@@ -318,10 +318,6 @@ public:
         : m_heap(heap)
     {
         m_heap.find_min_and_max_block_addresses(m_min_block_address, m_max_block_address);
-        m_heap.for_each_block([&](auto& block) {
-            m_all_live_heap_blocks.set(&block);
-            return IterationDecision::Continue;
-        });
         m_work_queue.ensure_capacity(roots.size());
 
         for (auto& [root, root_origin] : roots) {
@@ -358,7 +354,7 @@ public:
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
-        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
             if (cell->state() != Cell::State::Live)
                 return;
 
@@ -450,7 +446,6 @@ private:
     HashMap<FlatPtr, GraphNode> m_graph;
 
     Heap& m_heap;
-    HashTable<HeapBlock*> m_all_live_heap_blocks;
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;
 };
@@ -464,9 +459,8 @@ AK::JsonObject Heap::dump_graph()
     finish_pending_incremental_sweep();
 
     HashMap<Cell*, HeapRoot> roots;
-    HashTable<HeapBlock*> all_live_heap_blocks;
     Vector<StackFrameInfo> stack_frames;
-    gather_roots(roots, all_live_heap_blocks, &stack_frames);
+    gather_roots(roots, &stack_frames);
     GraphConstructorVisitor visitor(*this, roots);
     visitor.visit_all_cells();
     auto graph = visitor.dump();
@@ -519,14 +513,13 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
                 return;
             }
             HashMap<Cell*, HeapRoot> roots;
-            HashTable<HeapBlock*> all_live_heap_blocks;
             {
                 ScopedPhaseTimer timer { report, g_phase_timings.gather_roots_us };
-                gather_roots(roots, all_live_heap_blocks);
+                gather_roots(roots);
             }
             {
                 ScopedPhaseTimer timer { report, g_phase_timings.mark_live_cells_us };
-                mark_live_cells(roots, all_live_heap_blocks);
+                mark_live_cells(roots);
             }
         }
         {
@@ -671,13 +664,11 @@ void Heap::register_sweep_callback(AK::Function<void()> callback)
     m_sweep_callbacks.append(move(callback));
 }
 
-void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
+void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>* out_stack_frames)
 {
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_must_survive_roots_us };
         for_each_block([&](auto& block) {
-            all_live_heap_blocks.set(&block);
-
             if (block.overrides_must_survive_garbage_collection()) {
                 block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
                     if (cell->must_survive_garbage_collection()) {
@@ -696,7 +687,7 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*>& 
     }
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_conservative_roots_us };
-        gather_conservative_roots(roots, all_live_heap_blocks, out_stack_frames);
+        gather_conservative_roots(roots, out_stack_frames);
     }
 
     {
@@ -747,7 +738,7 @@ void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, Fl
 }
 #endif
 
-NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, HashTable<HeapBlock*> const& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames)
+NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>* out_stack_frames)
 {
     FlatPtr dummy;
 
@@ -882,7 +873,7 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.conservative_cell_lookup_us };
-        for_each_cell_among_possible_pointers(all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
+        for_each_cell_among_possible_pointers(m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
             if (cell->state() == Cell::State::Live) {
                 dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
                 roots.set(cell, *possible_pointers.get(possible_pointer));
@@ -895,9 +886,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
 
 class MarkingVisitor final : public Cell::Visitor {
 public:
-    explicit MarkingVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots, HashTable<HeapBlock*> const& all_live_heap_blocks)
+    explicit MarkingVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
         : m_heap(heap)
-        , m_all_live_heap_blocks(all_live_heap_blocks)
     {
         m_heap.find_min_and_max_block_addresses(m_min_block_address, m_max_block_address);
         for (auto* root : roots.keys()) {
@@ -940,7 +930,7 @@ public:
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
-        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
             if (cell->is_marked())
                 return;
             if (cell->state() != Cell::State::Live)
@@ -960,19 +950,18 @@ public:
 private:
     Heap& m_heap;
     Vector<Ref<Cell>> m_work_queue;
-    HashTable<HeapBlock*> const& m_all_live_heap_blocks;
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;
 };
 
-void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots, HashTable<HeapBlock*> const& all_live_heap_blocks)
+void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
 {
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
     Optional<MarkingVisitor> visitor;
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_initial_visit_us };
-        visitor.emplace(*this, roots, all_live_heap_blocks);
+        visitor.emplace(*this, roots);
     }
 
     {
