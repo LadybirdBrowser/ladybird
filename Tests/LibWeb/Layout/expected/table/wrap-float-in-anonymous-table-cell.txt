@@ -17,7 +17,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableBox (Box<MAIN>) [8,8 200x100]
           PaintableBox (Box(anonymous)) [8,8 200x100]
             PaintableWithLines (BlockContainer(anonymous)) [8,8 100x100]
-              PaintableWithLines (BlockContainer(anonymous)) [8,8 100x0] overflow: [8,8 100x100]
+              PaintableWithLines (BlockContainer(anonymous)) [8,8 100x0]
                 PaintableWithLines (BlockContainer<DIV>.floaty) [8,8 100x100]
             PaintableWithLines (BlockContainer<DIV>.cell) [108,8 100x100]
 

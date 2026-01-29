@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x200] overflow: [0,0 800x208]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x200]
     PaintableBox (Box<BODY>) [8,8 300x200]
       PaintableWithLines (BlockContainer<DIV>#item2) [8,8 100x50]
         PaintableWithLines (BlockContainer<DIV>#item2-inner) [8,8 50x50]

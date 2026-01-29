@@ -25,11 +25,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x40]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x24]
-      PaintableWithLines (TableWrapper(anonymous)) [8,8 6x24] overflow: [8,8 17.265625x24]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 6x24]
         PaintableBox (Box<TABLE>) [8,8 6x24]
           PaintableBox (Box<TBODY>) [10,10 2x20]
             PaintableBox (Box<TR>) [10,10 2x20]
-              PaintableWithLines (BlockContainer<TD>) [10,10 2x20] overflow: [10,10 15.265625x21]
+              PaintableWithLines (BlockContainer<TD>) [10,10 2x20]
                 TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

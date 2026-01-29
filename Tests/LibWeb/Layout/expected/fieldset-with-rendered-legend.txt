@@ -11,8 +11,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23] overflow: [8,8 784x31]
-      FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x23] overflow: [12,10 776x29]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23]
+      FieldSetPaintable (FieldSetBox<FIELDSET>) [10,8 780x23]
         PaintableWithLines (LegendBox<LEGEND>) [24,1 40.328125x18]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,31 784x0]

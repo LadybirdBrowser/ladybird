@@ -9,7 +9,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,8 0x0] overflow: [8,8 100x100]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 0x0]
         SVGSVGPaintable (SVGSVGBox<svg>) [8,8 100x100]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

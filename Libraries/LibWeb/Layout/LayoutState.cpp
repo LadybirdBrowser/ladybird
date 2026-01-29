@@ -125,7 +125,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
     // - Additional padding added to the scrollable overflow rectangle as necessary to enable scroll positions that
     //   satisfy the requirements of both place-content: start and place-content: end alignment.
-    auto has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect);
+    auto has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect) && box.is_scroll_container();
     if (has_scrollable_overflow) {
         scrollable_overflow_rect.set_height(max(scrollable_overflow_rect.height(), content_overflow_rect.height() + paintable_box.box_model().padding.bottom));
     }
@@ -149,7 +149,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
             max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()),
             max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()),
         });
-        has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect);
+        has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect) && box.is_scroll_container();
     }
 
     const_cast<Painting::PaintableBox&>(paintable_box).set_overflow_data({

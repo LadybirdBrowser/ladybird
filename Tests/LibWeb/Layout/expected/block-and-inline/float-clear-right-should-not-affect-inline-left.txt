@@ -25,11 +25,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 650x466]
     PaintableWithLines (BlockContainer<BODY>) [8,16 634x388]
-      PaintableWithLines (BlockContainer(anonymous)) [8,16 634x0] overflow: [342,16 300x225]
+      PaintableWithLines (BlockContainer(anonymous)) [8,16 634x0]
         PaintableWithLines (BlockContainer<DIV>.a) [342,16 300x225]
       PaintableWithLines (BlockContainer<P>) [8,16 634x72]
         TextPaintable (TextNode<#text>)
-      PaintableWithLines (BlockContainer(anonymous)) [8,104 634x0] overflow: [342,241 300x225]
+      PaintableWithLines (BlockContainer(anonymous)) [8,104 634x0]
         PaintableWithLines (BlockContainer<DIV>.a) [342,241 300x225]
       PaintableWithLines (BlockContainer<DIV>.b) [8,104 634x300]
       PaintableWithLines (BlockContainer(anonymous)) [8,404 634x0]

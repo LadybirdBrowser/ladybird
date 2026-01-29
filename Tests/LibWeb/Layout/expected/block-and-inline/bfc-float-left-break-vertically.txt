@@ -19,12 +19,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x108]
     PaintableWithLines (BlockContainer(anonymous)) [1,1 798x0]
-    PaintableWithLines (BlockContainer<BODY>) [1,1 402x4] overflow: [2,2 400x53]
+    PaintableWithLines (BlockContainer<BODY>) [1,1 402x4]
       PaintableWithLines (BlockContainer(anonymous)) [2,2 400x0]
-      PaintableWithLines (BlockContainer<DIV>.ul) [2,2 400x2] overflow: [3,3 314x52]
+      PaintableWithLines (BlockContainer<DIV>.ul) [2,2 400x2]
         PaintableWithLines (BlockContainer<DIV>.yellow) [3,3 62x52]
         PaintableWithLines (BlockContainer<DIV>.orange) [65,3 252x52]
-      PaintableWithLines (BlockContainer(anonymous)) [2,4 400x0] overflow: [2,55 102x52]
+      PaintableWithLines (BlockContainer(anonymous)) [2,4 400x0]
         PaintableWithLines (BlockContainer<DIV>.green) [2,55 102x52]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

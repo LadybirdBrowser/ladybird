@@ -12,9 +12,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x85]
-    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2] overflow: [10,10 105.484375x74]
-      PaintableWithLines (BlockContainer<DIV>.outer) [10,10 104.484375x74] overflow: [11,11 104.484375x72]
-        PaintableWithLines (BlockContainer(anonymous)) [11,11 102.484375x20] overflow: [11,11 104.484375x20]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
+      PaintableWithLines (BlockContainer<DIV>.outer) [10,10 104.484375x74]
+        PaintableWithLines (BlockContainer(anonymous)) [11,11 102.484375x20]
           PaintableWithLines (BlockContainer<DIV>.first) [11,11 104.484375x20]
             TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.second) [11,31 52x52]

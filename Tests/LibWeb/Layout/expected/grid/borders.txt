@@ -146,7 +146,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x448]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x432] overflow: [8,8 784x440]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x432]
       PaintableBox (Box<DIV>.grid-container) [8,8 784x76]
         PaintableWithLines (BlockContainer<DIV>.grid-item) [8,8 392.140625x38]
           TextPaintable (TextNode<#text>)
@@ -183,18 +183,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>.grid-item) [8,332 359.03125x38]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,370 784x0]
-      PaintableBox (Box<DIV>.grid-container) [8,370 784x50] overflow: [8,370 784x53]
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,370 300x25] overflow: [18,380 280x18]
+      PaintableBox (Box<DIV>.grid-container) [8,370 784x50]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,370 300x25]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [308,370 300x25] overflow: [318,380 280x18]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [308,370 300x25]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,395 300x25] overflow: [18,405 280x18]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,395 300x25]
           TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [308,395 300x25] overflow: [318,405 280x18]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [308,395 300x25]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,420 784x0]
-      PaintableBox (Box<DIV>.grid-container) [8,420 784x20] overflow: [8,420 784x28]
-        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,420 784x20] overflow: [18,430 6.34375x18]
+      PaintableBox (Box<DIV>.grid-container) [8,420 784x20]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [8,420 784x20]
           TextPaintable (TextNode<#text>)
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

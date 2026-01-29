@@ -38,7 +38,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x318]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x302]
-      PaintableBox (Box<DIV>.grid-container) [8,8 302x302] overflow: [9,9 372.5x300]
+      PaintableBox (Box<DIV>.grid-container) [8,8 302x302]
         PaintableBox (Box<DIV>.grid-item) [9,9 145x145]
           PaintableWithLines (BlockContainer(anonymous)) [58.140625,72.5 46.71875x18]
             TextPaintable (TextNode<#text>)

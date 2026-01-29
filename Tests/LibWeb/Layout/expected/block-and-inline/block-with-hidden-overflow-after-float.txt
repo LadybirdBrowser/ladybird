@@ -33,7 +33,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>.ab) [108,8 684x18]
         PaintableWithLines (BlockContainer(anonymous)) [108,8 684x0]
-        PaintableWithLines (BlockContainer<DIV>) [108,8 684x0] overflow: [108,8 14.265625x18]
+        PaintableWithLines (BlockContainer<DIV>) [108,8 684x0]
           PaintableWithLines (BlockContainer<DIV>.a) [108,8 14.265625x18]
             TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer(anonymous)) [108,8 684x0]
