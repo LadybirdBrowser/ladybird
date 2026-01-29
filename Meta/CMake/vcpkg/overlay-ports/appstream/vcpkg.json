@@ -1,0 +1,31 @@
+{
+  "name": "appstream",
+  "version": "1.0.6",
+  "description": "Tools and libraries to work with AppStream metadata",
+  "homepage": "https://www.freedesktop.org/software/appstream/docs",
+  "license": "LGPL-2.1-or-later",
+  "dependencies": [
+    "curl",
+    {
+      "name": "gettext",
+      "host": true
+    },
+    "glib",
+    {
+      "name": "glib",
+      "host": true
+    },
+    {
+      "name": "gperf",
+      "host": true
+    },
+    "libxml2",
+    "libxmlb",
+    "libyaml",
+    {
+      "name": "vcpkg-tool-meson",
+      "host": true
+    },
+    "zstd"
+  ]
+}

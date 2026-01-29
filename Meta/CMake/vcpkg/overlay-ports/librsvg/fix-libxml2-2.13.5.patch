@@ -1,0 +1,25 @@
+diff --git a/rsvg-css.c b/rsvg-css.c
+index 3f3403f6f..c2bd7d757 100644
+--- a/rsvg-css.c
++++ b/rsvg-css.c
+@@ -843,7 +843,7 @@ rsvg_css_parse_overflow (const char *str, gboolean * inherit)
+ }
+ 
+ static void
+-rsvg_xml_noerror (void *data, xmlErrorPtr error)
++rsvg_xml_noerror (void *data, const xmlError *error)
+ {
+ }
+ 
+diff --git a/rsvg-private.h b/rsvg-private.h
+index 205c0346f..87536e6db 100644
+--- a/rsvg-private.h
++++ b/rsvg-private.h
+@@ -32,6 +32,7 @@
+ #include "rsvg.h"
+ 
+ #include <libxml/parser.h>
++#include <libxml/tree.h>
+ #include <libxml/xmlmemory.h>
+ #include <pango/pango.h>
+ #include <glib.h>
