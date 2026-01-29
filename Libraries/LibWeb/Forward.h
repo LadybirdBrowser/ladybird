@@ -623,6 +623,8 @@ class BroadcastChannel;
 class BrowsingContext;
 class BrowsingContextGroup;
 class CanvasRenderingContext2D;
+class CanvasGradient;
+class CanvasPattern;
 class ClassicScript;
 class CloseEvent;
 class CloseWatcher;
@@ -800,6 +802,7 @@ enum class SandboxingFlagSet;
 
 struct Agent;
 struct DeserializedTransferRecord;
+struct DrawingState;
 struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
