@@ -1346,16 +1346,6 @@ RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
     return nullptr;
 }
 
-CSSPixelRect PaintableBox::border_box_rect_relative_to_nearest_scrollable_ancestor() const
-{
-    auto result = absolute_border_box_rect();
-    auto const* nearest_scrollable_ancestor = this->nearest_scrollable_ancestor();
-    if (nearest_scrollable_ancestor) {
-        result.set_location(result.location() - nearest_scrollable_ancestor->absolute_rect().top_left());
-    }
-    return result;
-}
-
 PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
 {
     auto const* paintable = this->containing_block();

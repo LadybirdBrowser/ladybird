@@ -17,4 +17,13 @@ ScrollFrame::ScrollFrame(PaintableBox const& paintable_box, size_t id, bool stic
 {
 }
 
+RefPtr<ScrollFrame const> ScrollFrame::nearest_scrolling_ancestor() const
+{
+    for (auto ancestor = m_parent; ancestor; ancestor = ancestor->parent()) {
+        if (!ancestor->is_sticky())
+            return ancestor;
+    }
+    return nullptr;
+}
+
 }
