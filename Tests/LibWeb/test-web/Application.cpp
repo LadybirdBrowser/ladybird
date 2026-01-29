@@ -41,6 +41,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(shuffle, "Shuffle the order of tests before running them", "shuffle", 's');
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
+    args_parser.add_option(file_scheme_urls_have_opaque_origins, "Treat file:// URLs as having opaque origins", "opaque-file-origins");
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
@@ -83,6 +84,9 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
         // Force all tests to run in serial if we are interested in the GC graph.
         test_concurrency = 1;
     }
+
+    if (!file_scheme_urls_have_opaque_origins)
+        URL::set_file_scheme_urls_have_tuple_origins();
 }
 
 ErrorOr<void> Application::launch_test_fixtures()
