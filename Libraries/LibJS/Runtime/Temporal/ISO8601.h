@@ -60,7 +60,6 @@ struct ParseResult {
 };
 
 enum class Production {
-    AmbiguousTemporalTimeString,
     AnnotationValue,
     DateMonth,
     TemporalDateTimeString,
