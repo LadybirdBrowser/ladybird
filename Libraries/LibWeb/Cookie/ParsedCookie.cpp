@@ -43,11 +43,11 @@ bool cookie_contains_invalid_control_character(StringView cookie_string)
     return false;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6-6
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6-6
 Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_string)
 {
     // 1. If the set-cookie-string contains a %x00-08 / %x0A-1F / %x7F character (CTL characters excluding HTAB):
-    //    Abort these steps and ignore the set-cookie-string entirely.
+    //    Abort this algorithm and ignore the set-cookie-string entirely.
     if (cookie_contains_invalid_control_character(cookie_string))
         return {};
 
@@ -77,8 +77,9 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
     if (auto position = name_value_pair.find('='); !position.has_value()) {
         value = name_value_pair;
     } else {
-        // Otherwise, the name string consists of the characters up to, but not including, the first %x3D ("=") character
-        // and the (possibly empty) value string consists of the characters after the first %x3D ("=") character.
+        // Otherwise, the (possibly empty) name string consists of the characters up to, but not including, the first
+        // %x3D ("=") character, and the (possibly empty) value string consists of the characters after the first
+        // %x3D ("=") character.
         name = name_value_pair.substring_view(0, position.value());
 
         if (position.value() < name_value_pair.length() - 1)
@@ -89,8 +90,8 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
     name = name.trim_whitespace();
     value = value.trim_whitespace();
 
-    // 5. If the sum of the lengths of the name string and the value string is more than 4096 octets, abort these steps
-    //    and ignore the set-cookie-string entirely.
+    // 5. If the sum of the lengths of the name string and the value string is more than 4096 octets, abort this
+    //    algorithm and ignore the set-cookie-string entirely.
     if (name.length() + value.length() > 4096)
         return {};
 
@@ -101,7 +102,7 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
     return parsed_cookie;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6-8
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6-8
 void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
 {
     // 1. If the unparsed-attributes string is empty, skip the rest of these steps.
@@ -125,7 +126,8 @@ void parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringVi
         cookie_av = unparsed_attributes;
         unparsed_attributes = {};
     }
-    // Let the cookie-av string be the characters consumed in this step.
+    // Let the cookie-av string be the characters consumed in this step; unparsed-attributes now contains any remaining
+    // characters.
 
     StringView attribute_name;
     StringView attribute_value;
@@ -184,7 +186,7 @@ void process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     }
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.1
 void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
     // 1. Let the expiry-time be the result of parsing the attribute-value as cookie-date (see Section 5.1.1).
@@ -213,7 +215,7 @@ void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
     parsed_cookie.expiry_time_from_expires_attribute = expiry_time.release_value();
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.2
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.2
 void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
     // 1. If the attribute-value is empty, ignore the cookie-av.
@@ -255,7 +257,7 @@ void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_valu
     parsed_cookie.expiry_time_from_max_age_attribute = expiry_time;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.3
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.3
 void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
     // 1. Let cookie-domain be the attribute-value.
@@ -273,7 +275,7 @@ void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value
     parsed_cookie.domain = move(lowercase_cookie_domain);
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.4
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.4
 void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_value)
 {
     String cookie_path;
@@ -294,19 +296,19 @@ void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     parsed_cookie.path = move(cookie_path);
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.5
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.5
 void on_secure_attribute(ParsedCookie& parsed_cookie)
 {
     parsed_cookie.secure_attribute_present = true;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.6
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.6
 void on_http_only_attribute(ParsedCookie& parsed_cookie)
 {
     parsed_cookie.http_only_attribute_present = true;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.7
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6.7
 void on_same_site_attribute(ParsedCookie& parsed_cookie, StringView attribute_value)
 {
     // 1. Let enforcement be "Default".
@@ -320,7 +322,7 @@ void on_same_site_attribute(ParsedCookie& parsed_cookie, StringView attribute_va
     parsed_cookie.same_site_attribute = enforcement;
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.1
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.1
 Optional<UnixDateTime> parse_date_time(StringView date_string)
 {
     // https://tools.ietf.org/html/rfc6265#section-5.1.1
@@ -430,7 +432,7 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
     if (year <= 69)
         year += 2000;
 
-    // 5. Abort these steps and fail to parse the cookie-date if:
+    // 5. Abort this algorithm and fail to parse the cookie-date if:
     // * at least one of the found-day-of-month, found-month, found-year, or found-time flags is not set,
     if (!found_day_of_month || !found_month || !found_year || !found_time)
         return {};
@@ -450,9 +452,9 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
     if (second > 59)
         return {};
 
-    // 6. Let the parsed-cookie-date be the date whose day-of-month, month, year, hour, minute, and second (in UTC) are the
-    //    day-of-month-value, the month-value, the year-value, the hour-value, the minute-value, and the second-value, respectively.
-    //    If no such date exists, abort these steps and fail to parse the cookie-date.
+    // 6. Let the parsed-cookie-date be the date whose day-of-month, month, year, hour, minute, and second (in UTC) are
+    //    the day-of-month-value, the month-value, the year-value, the hour-value, the minute-value, and the second-value,
+    //    respectively. If no such date exists, abort this algorithm and fail to parse the cookie-date.
     if (day_of_month > static_cast<unsigned int>(days_in_month(year, month)))
         return {};
 

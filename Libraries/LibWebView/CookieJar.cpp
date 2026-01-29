@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
@@ -18,6 +18,9 @@
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
+
+// For updates to the "Cookies: HTTP State Management Mechanism" RFC, see:
+// https://datatracker.ietf.org/doc/draft-ietf-httpbis-rfc6265bis/history/
 
 static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
@@ -87,18 +90,14 @@ CookieJar::~CookieJar()
     m_persisted_storage->synchronization_timer->on_timeout();
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.8.3
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
 String CookieJar::get_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
     m_transient_storage.purge_expired_cookies();
 
-    auto domain = Web::Cookie::canonicalize_domain(url);
-    if (!domain.has_value())
-        return {};
+    auto cookie_list = get_matching_cookies(url, source);
 
-    auto cookie_list = get_matching_cookies(url, domain.value(), source);
-
-    // 4. Serialize the cookie-list into a cookie-string by processing each cookie in the cookie-list in order:
+    // 6. Serialize the cookie-list into a cookie-string by processing each cookie in the cookie-list in order:
     StringBuilder builder;
 
     for (auto const& cookie : cookie_list) {
@@ -113,7 +112,7 @@ String CookieJar::get_cookie(URL::URL const& url, Web::Cookie::Source source)
         if (!cookie.value.is_empty())
             builder.append(cookie.value);
 
-        // 3. If there is an unprocessed cookie in the cookie-list, output the characters %x3B and %x20 ("; ").
+        // 3. If the cookie was not the last cookie in the cookie-list, output the characters %x3B and %x20 ("; ").
     }
 
     return MUST(builder.to_string());
@@ -121,11 +120,7 @@ String CookieJar::get_cookie(URL::URL const& url, Web::Cookie::Source source)
 
 void CookieJar::set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
 {
-    auto domain = Web::Cookie::canonicalize_domain(url);
-    if (!domain.has_value())
-        return;
-
-    store_cookie(parsed_cookie, url, domain.release_value(), source);
+    store_cookie(parsed_cookie, url, source);
 }
 
 // This is based on store_cookie() below, however the whole ParsedCookie->Cookie conversion is skipped.
@@ -191,29 +186,17 @@ Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
 // https://w3c.github.io/webdriver/#dfn-associated-cookies
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
 {
-    auto domain = Web::Cookie::canonicalize_domain(url);
-    if (!domain.has_value())
-        return {};
-
-    return get_matching_cookies(url, domain.value(), Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+    return get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
 }
 
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
 {
-    auto domain = Web::Cookie::canonicalize_domain(url);
-    if (!domain.has_value())
-        return {};
-
-    return get_matching_cookies(url, domain.value(), Web::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
+    return get_matching_cookies(url, Web::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
 }
 
 Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
 {
-    auto domain = Web::Cookie::canonicalize_domain(url);
-    if (!domain.has_value())
-        return {};
-
-    auto cookie_list = get_matching_cookies(url, domain.value(), Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+    auto cookie_list = get_matching_cookies(url, Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
 
     for (auto const& cookie : cookie_list) {
         if (cookie.name == name)
@@ -238,23 +221,23 @@ Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTim
     return m_transient_storage.estimate_storage_size_accessed_since(since);
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
-void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, String canonicalized_domain, Web::Cookie::Source source)
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.7
+void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL::URL const& url, Web::Cookie::Source source)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
-    // 2. If cookie-name is empty and cookie-value is empty, abort these steps and ignore the cookie entirely.
+    // 2. If cookie-name is empty and cookie-value is empty, abort this algorithm and ignore the cookie entirely.
     if (parsed_cookie.name.is_empty() && parsed_cookie.value.is_empty())
         return;
 
-    // 3. If the cookie-name or the cookie-value contains a %x00-08 / %x0A-1F / %x7F character (CTL characters
-    //    excluding HTAB), abort these steps and ignore the cookie entirely.
+    // 3. If the cookie-name or the cookie-value contains a %x00-08 / %x0A-1F / %x7F character (CTL characters excluding
+    //    HTAB), abort this algorithm and ignore the cookie entirely.
     if (Web::Cookie::cookie_contains_invalid_control_character(parsed_cookie.name))
         return;
     if (Web::Cookie::cookie_contains_invalid_control_character(parsed_cookie.value))
         return;
 
-    // 4. If the sum of the lengths of cookie-name and cookie-value is more than 4096 octets, abort these steps and
+    // 4. If the sum of the lengths of cookie-name and cookie-value is more than 4096 octets, abort this algorithm and
     //    ignore the cookie entirely.
     if (parsed_cookie.name.byte_count() + parsed_cookie.value.byte_count() > 4096)
         return;
@@ -308,30 +291,37 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
         // 1. Let the domain-attribute be the empty string.
     }
 
-    // 8. If the domain-attribute contains a character that is not in the range of [USASCII] characters, abort these
-    //    steps and ignore the cookie entirely.
+    // 8. If the domain-attribute contains a character that is not in CHAR, abort this algorithm and ignore the cookie
+    //    entirely.
     if (!domain_attribute.is_ascii())
+        return;
+
+    auto request_host_canonical = Web::Cookie::canonicalize_domain(url);
+    if (!request_host_canonical.has_value())
         return;
 
     // 9. If the user agent is configured to reject "public suffixes" and the domain-attribute is a public suffix:
     if (URL::is_public_suffix(domain_attribute)) {
-        // 1. If the domain-attribute is identical to the canonicalized request-host:
-        if (domain_attribute == canonicalized_domain) {
+        // 1. Let request-host-canonical be the canonicalized request-host.
+        // 2. If request-host fails to be canonicalized then abort this algorithm and ignore the cookie entirely.
+
+        // 3. If the domain-attribute is identical to the request-host-canonical:
+        if (domain_attribute == *request_host_canonical) {
             // 1. Let the domain-attribute be the empty string.
             domain_attribute = String {};
         }
         // Otherwise:
         else {
-            // 1. Abort these steps and ignore the cookie entirely.
+            // 1. Abort this algorithm and ignore the cookie entirely.
             return;
         }
     }
 
     // 10. If the domain-attribute is non-empty:
     if (!domain_attribute.is_empty()) {
-        // 1. If the canonicalized request-host does not domain-match the domain-attribute:
-        if (!Web::Cookie::domain_matches(canonicalized_domain, domain_attribute)) {
-            // 1. Abort these steps and ignore the cookie entirely.
+        // 1. If request-host-canonical does not domain-match (see Section 5.1.3) the domain-attribute:
+        if (!Web::Cookie::domain_matches(*request_host_canonical, domain_attribute)) {
+            // 1. Abort this algorithm and ignore the cookie entirely.
             return;
         }
         // Otherwise:
@@ -348,8 +338,8 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
         // 1. Set the cookie's host-only-flag to true.
         cookie.host_only = true;
 
-        // 2. Set the cookie's domain to the canonicalized request-host.
-        cookie.domain = move(canonicalized_domain);
+        // 2. Set the cookie's domain to request-host-canonical.
+        cookie.domain = request_host_canonical.release_value();
     }
 
     // 11. If the cookie-attribute-list contains an attribute with an attribute-name of "Path", set the cookie's path to
@@ -376,14 +366,14 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
     //     http-only-flag to true. Otherwise, set the cookie's http-only-flag to false.
     cookie.http_only = parsed_cookie.http_only_attribute_present;
 
-    // 15. If the cookie was received from a "non-HTTP" API and the cookie's http-only-flag is true, abort these steps
-    //     and ignore the cookie entirely.
+    // 15. If the cookie was received from a "non-HTTP" API and the cookie's http-only-flag is true, abort this
+    //     algorithm and ignore the cookie entirely.
     if (source == Web::Cookie::Source::NonHttp && cookie.http_only)
         return;
 
     // 16. If the cookie's secure-only-flag is false, and the request-uri does not denote a "secure" connection, then
-    //     abort these steps and ignore the cookie entirely if the cookie store contains one or more cookies that meet
-    //     all of the following criteria:
+    //     abort this algorithm and ignore the cookie entirely if the cookie store contains one or more cookies that
+    //     meet all of the following criteria:
     if (!cookie.secure && url.scheme() != "https"sv) {
         auto ignore_cookie = false;
 
@@ -396,7 +386,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
             if (!old_cookie.secure)
                 return IterationDecision::Continue;
 
-            // 3. Their domain domain-matches the domain of the newly-created cookie, or vice-versa.
+            // 3. Their domain domain-matches (see Section 5.1.3) the domain of the newly-created cookie, or vice-versa.
             if (!Web::Cookie::domain_matches(old_cookie.domain, cookie.domain) && !Web::Cookie::domain_matches(cookie.domain, old_cookie.domain))
                 return IterationDecision::Continue;
 
@@ -421,8 +411,8 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
     // 18. If the cookie's same-site-flag is not "None":
     if (cookie.same_site != Web::Cookie::SameSite::None) {
         // FIXME: 1. If the cookie was received from a "non-HTTP" API, and the API was called from a navigable's active document
-        //           whose "site for cookies" is not same-site with the top-level origin, then abort these steps and ignore the
-        //           newly created cookie entirely.
+        //           whose "site for cookies" is not same-site with the top-level origin, then abort this algorithm and ignore
+        //           the newly created cookie entirely.
 
         // FIXME: 2. If the cookie was received from a "same-site" request (as defined in Section 5.2), skip the remaining
         //           substeps and continue processing the cookie.
@@ -431,10 +421,10 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
         //           request's "reserved client" is either null or an environment whose "target browsing context"'s navigable
         //           is a top-level traversable), skip the remaining substeps and continue processing the cookie.
 
-        // FIXME: 4. Abort these steps and ignore the newly created cookie entirely.
+        // FIXME: 4. Abort this algorithm and ignore the newly created cookie entirely.
     }
 
-    // 19. If the cookie's "same-site-flag" is "None", abort these steps and ignore the cookie entirely unless the
+    // 19. If the cookie's "same-site-flag" is "None", abort this algorithm and ignore the cookie entirely unless the
     //     cookie's secure-only-flag is true.
     if (cookie.same_site == Web::Cookie::SameSite::None && !cookie.secure)
         return;
@@ -447,12 +437,12 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
         return value.equals_ignoring_ascii_case(prefix);
     };
 
-    // 20. If the cookie-name begins with a case-insensitive match for the string "__Secure-", abort these steps and
+    // 20. If the cookie-name begins with a case-insensitive match for the string "__Secure-", abort this algorithm and
     //     ignore the cookie entirely unless the cookie's secure-only-flag is true.
     if (has_case_insensitive_prefix(cookie.name, "__Secure-"sv) && !cookie.secure)
         return;
 
-    // 21. If the cookie-name begins with a case-insensitive match for the string "__Host-", abort these steps and
+    // 21. If the cookie-name begins with a case-insensitive match for the string "__Host-", abort this algorithm and
     //     ignore the cookie entirely unless the cookie meets all the following criteria:
     if (has_case_insensitive_prefix(cookie.name, "__Host-"sv)) {
         // 1. The cookie's secure-only-flag is true.
@@ -468,7 +458,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
             return;
     }
 
-    // 22. If the cookie-name is empty and either of the following conditions are true, abort these steps and ignore
+    // 22. If the cookie-name is empty and either of the following conditions are true, abort this algorithm and ignore
     //     the cookie entirely:
     if (cookie.name.is_empty()) {
         // * the cookie-value begins with a case-insensitive match for the string "__Secure-"
@@ -490,7 +480,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
         //    cookie.)
 
         // 2. If the newly-created cookie was received from a "non-HTTP" API and the old-cookie's http-only-flag is true,
-        //    abort these steps and ignore the newly created cookie entirely.
+        //    abort this algorithm and ignore the newly created cookie entirely.
         if (source == Web::Cookie::Source::NonHttp && old_cookie->http_only)
             return;
 
@@ -507,23 +497,31 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, URL
     m_transient_storage.purge_expired_cookies();
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.8.3
-Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode)
+// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
+Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, Web::Cookie::Source source, MatchingCookiesSpecMode mode)
 {
     auto now = UnixDateTime::now();
 
-    // 1. Let cookie-list be the set of cookies from the cookie store that meets all of the following requirements:
+    // 1. Let retrieval-host-canonical be the canonicalized host of the retrieval's URI.
+    auto retrieval_host_canonical = Web::Cookie::canonicalize_domain(url);
+
+    // 2. If the host of the retrieval's URI fails to be canonicalized then abort this algorithm.
+    if (!retrieval_host_canonical.has_value())
+        return {};
+
+    // 3. Let cookie-list be the set of cookies from the cookie store that meets all of the following requirements:
     Vector<Web::Cookie::Cookie> cookie_list;
 
     m_transient_storage.for_each_cookie([&](Web::Cookie::Cookie& cookie) {
         // * Either:
-        //     The cookie's host-only-flag is true and the canonicalized host of the retrieval's URI is identical to
-        //     the cookie's domain.
-        bool is_host_only_and_has_identical_domain = cookie.host_only && (canonicalized_domain == cookie.domain);
+        //     - The cookie's host-only-flag is true and retrieval-host-canonical is identical to the cookie's domain.
+        bool is_host_only_and_has_identical_domain = cookie.host_only && (*retrieval_host_canonical == cookie.domain);
         // Or:
-        //     The cookie's host-only-flag is false and the canonicalized host of the retrieval's URI domain-matches
-        //     the cookie's domain.
-        bool is_not_host_only_and_domain_matches = !cookie.host_only && Web::Cookie::domain_matches(canonicalized_domain, cookie.domain);
+        //     - The cookie's host-only-flag is false and retrieval-host-canonical domain-matches (see Section 5.1.3)
+        //       the cookie's domain.
+        //     - The cookie's domain is not a public suffix, for user agents configured to reject "public suffixes".
+        bool is_not_host_only_and_domain_matches = (!cookie.host_only && Web::Cookie::domain_matches(*retrieval_host_canonical, cookie.domain))
+            && !URL::is_public_suffix(cookie.domain);
 
         if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
             return;
@@ -555,11 +553,11 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url,
             return;
         }
 
-        // 3. Update the last-access-time of each cookie in the cookie-list to the current date and time.
+        // 5. Update the last-access-time of each cookie in the cookie-list to the current date and time.
         // NOTE: We do this first so that both our internal storage and cookie-list are updated.
         cookie.last_access_time = now;
 
-        // 2. The user agent SHOULD sort the cookie-list in the following order:
+        // 4. The user agent SHOULD sort the cookie-list in the following order:
         auto cookie_path_length = cookie.path.bytes().size();
         auto cookie_creation_time = cookie.creation_time;
 
