@@ -1,0 +1,55 @@
+JS bytecode executable ""
+[   0]    0: InitializeLexicalBinding identifier:a, src:String("abcxyz")
+[  18]       InitializeLexicalBinding identifier:b, src:String("abcxyz")
+[  30]       InitializeLexicalBinding identifier:c, src:String("abcxyz")
+[  48]       InitializeLexicalBinding identifier:d, src:String("abcxyz")
+[  60]       InitializeLexicalBinding identifier:e, src:String("abcxyz")
+[  78]       InitializeLexicalBinding identifier:f, src:String("abcxyz")
+[  90]       Mov dst:reg5, src:String("abc")
+[  a0]       ConcatString dst:reg5, src:String("xyz")
+[  b0]       InitializeLexicalBinding identifier:g, src:reg5
+[  c8]       GetGlobal dst:reg6, identifier:prefix
+[  d8]       Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
+[ 100]       InitializeLexicalBinding identifier:_prefix, src:reg5
+[ 118]       GetGlobal dst:reg6, identifier:suffix
+[ 128]       Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
+[ 150]       InitializeLexicalBinding identifier:_suffix, src:reg5
+[ 168]       GetGlobal dst:reg6, identifier:tostring
+[ 178]       Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
+[ 1a0]       InitializeLexicalBinding identifier:_tostring, src:reg5
+[ 1b8]       GetGlobal dst:reg6, identifier:multi
+[ 1c8]       Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
+[ 1f8]       InitializeLexicalBinding identifier:_multi, src:reg5
+[ 210]       GetGlobal dst:reg6, identifier:literal
+[ 220]       Call dst:reg5, callee:reg6, this_value:Undefined, literal
+[ 240]       InitializeLexicalBinding identifier:_literal, src:reg5
+[ 258]       GetGlobal dst:reg6, identifier:empty
+[ 268]       Call dst:reg5, callee:reg6, this_value:Undefined, empty
+[ 288]       InitializeLexicalBinding identifier:_empty, src:reg5
+[ 2a0]       End value:Undefined
+
+JS bytecode executable "prefix"
+[   0]    0: Mov dst:reg5, src:String("prefix-")
+[  10]       ConcatString dst:reg5, src:arg0
+[  20]       Return value:reg5
+
+JS bytecode executable "suffix"
+[   0]    0: ToString dst:reg5, value:arg0
+[  10]       ConcatString dst:reg5, src:String("-suffix")
+[  20]       Return value:reg5
+
+JS bytecode executable "tostring"
+[   0]    0: ToString dst:reg5, value:arg0
+[  10]       Return value:reg5
+
+JS bytecode executable "multi"
+[   0]    0: ToString dst:reg5, value:arg0
+[  10]       ConcatString dst:reg5, src:arg1
+[  20]       ConcatString dst:reg5, src:arg2
+[  30]       Return value:reg5
+
+JS bytecode executable "literal"
+[   0]    0: Return value:String("hello world")
+
+JS bytecode executable "empty"
+[   0]    0: Return value:String("")
