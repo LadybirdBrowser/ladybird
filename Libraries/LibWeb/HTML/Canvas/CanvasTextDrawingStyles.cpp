@@ -138,6 +138,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
             };
 
             // FIXME: Should font be recomputed on canvas element style change?
+            // FIXME: Respect the <font-variant-css2> portion of <'font'>
             auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size, computed_math_depth, inherited_font_size, inherited_math_depth, computation_context);
             auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight, inherited_font_weight, computation_context);
             auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width, computation_context);
@@ -149,6 +150,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
                 computed_font_style->as_font_style().to_font_slope(),
                 computed_font_weight->as_number().number(),
                 computed_font_width->as_percentage().percentage(),
+                {},
                 {});
         },
         [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {

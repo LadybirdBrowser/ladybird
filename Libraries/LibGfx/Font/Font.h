@@ -55,7 +55,7 @@ constexpr float text_shaping_resolution = 64;
 
 class Font : public RefCounted<Font> {
 public:
-    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations);
+    Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features);
     ScaledFontMetrics metrics() const;
     ~Font();
 
@@ -82,11 +82,9 @@ public:
 
     Font const& bold_variant() const;
     hb_font_t* harfbuzz_font() const;
+    ShapeFeatures const& features() const { return m_shape_features; }
 
     struct ShapingCache {
-        // Before using the cache, make sure the features match! If they don't, clear the cache.
-        ShapeFeatures features;
-
         HashMap<Utf16String, hb_buffer_t*> map;
         hb_buffer_t* single_ascii_character_map[128] { nullptr };
 
@@ -111,6 +109,7 @@ private:
     float m_point_width { 0.0f };
     float m_point_height { 0.0f };
     FontVariationSettings const m_font_variation_settings;
+    ShapeFeatures m_shape_features;
     FontPixelMetrics m_pixel_metrics;
 
     float m_pixel_size { 0.0f };

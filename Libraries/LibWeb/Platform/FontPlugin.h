@@ -7,7 +7,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/ShapeFeature.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Platform {
@@ -32,7 +34,7 @@ public:
 
     virtual ~FontPlugin();
 
-    virtual RefPtr<Gfx::Font> default_font(float point_size) = 0;
+    virtual RefPtr<Gfx::Font> default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
     virtual Gfx::Font& default_fixed_width_font() = 0;
 
     virtual FlyString generic_font_name(GenericFont) = 0;

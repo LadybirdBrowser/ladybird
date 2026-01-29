@@ -45,9 +45,9 @@ StringView FontDatabase::system_font_provider_name() const
 
 FontDatabase::FontDatabase() = default;
 
-RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope)
+RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
-    return m_system_font_provider->get_font(family, point_size, weight, width, slope);
+    return m_system_font_provider->get_font(family, point_size, weight, width, slope, font_variation_settings, shape_features);
 }
 
 RefPtr<Gfx::Font> FontDatabase::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope)
@@ -62,6 +62,7 @@ RefPtr<Gfx::Font> FontDatabase::get_font_for_code_point(u32 code_point, float po
         return { typeface->family(), typeface };
     });
 
+    // FIXME: Does it matter that we don't pass a FontVariationSettings or ShapeFeatures here?
     if (entry.typeface)
         return entry.typeface->font(point_size, {});
 

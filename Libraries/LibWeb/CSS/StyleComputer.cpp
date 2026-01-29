@@ -1483,6 +1483,11 @@ void StyleComputer::compute_font(ComputedProperties& style, Optional<DOM::Abstra
         PropertyID::FontVariationSettings,
         compute_font_feature_tag_value_list(font_variation_settings_value, font_computation_context));
 
+    auto const& font_feature_settings_specified_value = style.property(PropertyID::FontFeatureSettings);
+    style.set_property_without_modifying_flags(
+        PropertyID::FontFeatureSettings,
+        compute_font_feature_tag_value_list(font_feature_settings_specified_value, font_computation_context));
+
     RefPtr<Gfx::Font const> const found_font = style.first_available_computed_font(m_document->font_computer());
 
     Length::FontMetrics line_height_font_metrics {
