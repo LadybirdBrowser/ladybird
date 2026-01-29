@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,14 +19,9 @@ public:
 
     virtual GC::Ref<JS::Cell> as_cell() = 0;
 
-    virtual void handle_insert(Utf16String const&) = 0;
-    virtual EventResult handle_return_key(FlyString const& ui_input_type) = 0;
-
-    enum class DeleteDirection {
-        Backward,
-        Forward,
-    };
-    virtual void handle_delete(DeleteDirection) = 0;
+    virtual void handle_insert(FlyString const& input_type, Utf16String const&) = 0;
+    virtual EventResult handle_return_key(FlyString const& input_type) = 0;
+    virtual void handle_delete(FlyString const& input_type) = 0;
 
     virtual void select_all() = 0;
     virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) = 0;
