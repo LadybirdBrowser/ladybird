@@ -1,0 +1,117 @@
+JS bytecode executable ""
+[   0]    0: GetGlobal dst:reg6, identifier:ternary_true
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, ternary_true
+[  30]       GetGlobal dst:reg7, identifier:ternary_truthy
+[  40]       Call dst:reg6, callee:reg7, this_value:Undefined, ternary_truthy
+[  60]       GetGlobal dst:reg7, identifier:ternary_false
+[  70]       Call dst:reg5, callee:reg7, this_value:Undefined, ternary_false
+[  90]       GetGlobal dst:reg7, identifier:ternary_falsey
+[  a0]       Call dst:reg6, callee:reg7, this_value:Undefined, ternary_falsey
+[  c0]       GetGlobal dst:reg7, identifier:while_falsey
+[  d0]       Call dst:reg5, callee:reg7, this_value:Undefined, while_falsey
+[  f0]       GetGlobal dst:reg7, identifier:do_while_falsey
+[ 100]       Call dst:reg6, callee:reg7, this_value:Undefined, do_while_falsey
+[ 120]       GetGlobal dst:reg7, identifier:if_falsely
+[ 130]       Call dst:reg5, callee:reg7, this_value:Undefined, if_falsely
+[ 150]       GetGlobal dst:reg7, identifier:if_truthy
+[ 160]       Call dst:reg6, callee:reg7, this_value:Undefined, if_truthy
+[ 180]       GetGlobal dst:reg7, identifier:if_exhausted
+[ 190]       Call dst:reg5, callee:reg7, this_value:Undefined, if_exhausted
+[ 1b0]       GetGlobal dst:reg7, identifier:for_false
+[ 1c0]       Call dst:reg6, callee:reg7, this_value:Undefined, for_false
+[ 1e0]       GetGlobal dst:reg7, identifier:for_true
+[ 1f0]       Call dst:reg5, callee:reg7, this_value:Undefined, for_true, arguments:[Bool(true)]
+[ 218]       End value:reg5
+
+JS bytecode executable "ternary_true"
+[   0]    0: Return value:Int32(1)
+
+JS bytecode executable "ternary_truthy"
+[   0]    0: Return value:Int32(1)
+
+JS bytecode executable "ternary_false"
+[   0]    0: Return value:Int32(1)
+
+JS bytecode executable "ternary_falsey"
+[   0]    0: Return value:Int32(1)
+
+JS bytecode executable "while_falsey"
+[   0]    0: GetGlobal dst:reg6, identifier:alive
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  30]       End value:Undefined
+
+JS bytecode executable "alive"
+[   0]    0: Return value:String("alive")
+
+JS bytecode executable "do_while_falsey"
+[   0]    0: GetGlobal dst:reg6, identifier:alive
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  30]    1: GetGlobal dst:reg6, identifier:alive
+[  40]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  60]    2: GetGlobal dst:reg6, identifier:alive
+[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  90]    3: GetGlobal dst:reg6, identifier:alive
+[  a0]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  c0]       End value:Undefined
+
+JS bytecode executable "if_falsely"
+[   0]    0: GetGlobal dst:reg6, identifier:alive
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  30]       End value:Undefined
+
+JS bytecode executable "if_truthy"
+[   0]    0: GetGlobal dst:reg6, identifier:alive
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  30]       GetGlobal dst:reg6, identifier:alive
+[  40]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  60]       GetGlobal dst:reg6, identifier:alive
+[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  90]       GetGlobal dst:reg6, identifier:alive
+[  a0]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  c0]       End value:Undefined
+
+JS bytecode executable "if_exhausted"
+[   0]    0: GetGlobal dst:reg6, identifier:alive
+[  10]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  30]       GetGlobal dst:reg6, identifier:alive
+[  40]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  60]       GetGlobal dst:reg6, identifier:alive
+[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  90]       End value:Undefined
+
+JS bytecode executable "for_false"
+[   0]    0: Jump target:@10
+[   8]    1: End value:Undefined
+[  10]    2: Jump target:@20
+[  18]    3: End value:Undefined
+[  20]    4: Jump target:@30
+[  28]    5: End value:Undefined
+[  30]    6: GetGlobal dst:reg5, identifier:call_this
+[  40]       Call dst:x~0, callee:reg5, this_value:Undefined, call_this
+[  60]       Jump target:@70
+[  68]    7: End value:Undefined
+[  70]    8: GetGlobal dst:reg6, identifier:alive
+[  80]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  a0]       End value:Undefined
+
+JS bytecode executable "call_this"
+[   0]    0: Return value:Int32(1)
+
+JS bytecode executable "for_true"
+[   0]    0: Jump target:@48
+[   8]    1: GetGlobal dst:reg6, identifier:alive
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  38]       JumpIf condition:arg0, true_target:@58, false_target:@60
+[  48]    2: Jump target:@8
+[  50]    3: Jump target:@a8
+[  58]    4: Jump target:@50
+[  60]    5: Jump target:@48
+[  68]    6: GetGlobal dst:reg6, identifier:alive
+[  78]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  98]       JumpIf condition:arg0, true_target:@e8, false_target:@f0
+[  a8]    7: Jump target:@68
+[  b0]    8: GetGlobal dst:reg6, identifier:alive
+[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, alive
+[  e0]       End value:Undefined
+[  e8]    9: Jump target:@b0
+[  f0]   10: Jump target:@a8
