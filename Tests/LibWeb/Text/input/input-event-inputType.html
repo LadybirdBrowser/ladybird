@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<input id="textInput" type="text">
+<textarea id="textArea"></textarea>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const input = document.getElementById("textInput");
+        const textarea = document.getElementById("textArea");
+
+        // Test 1: inputType property exists and is "insertText" for HTMLInputElement
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`Input element: inputType="${e.inputType}" (type: ${typeof e.inputType})`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendText(input, "a");
+        });
+
+        // Test 2: inputType for insertText on HTMLTextAreaElement
+        await new Promise(resolve => {
+            textarea.addEventListener("input", e => {
+                println(`Textarea element: inputType="${e.inputType}" (type: ${typeof e.inputType})`);
+                resolve();
+            }, { once: true });
+            textarea.focus();
+            internals.sendText(textarea, "b");
+        });
+
+        // Test 3: inputType for deleteContentBackward (backspace)
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`Backspace: inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendKey(input, "Backspace");
+        });
+
+        // Test 4: inputType for deleteContentForward (delete key)
+        input.value = "test";
+        input.setSelectionRange(0, 0);
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`Delete: inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendKey(input, "Delete");
+        });
+
+        // Test 5: Verify the event is an InputEvent instance with expected properties
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`Event is InputEvent: ${e instanceof InputEvent}`);
+                println(`Event has data property: ${"data" in e}`);
+                println(`Event has isComposing property: ${"isComposing" in e}`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendText(input, "c");
+        });
+
+        done();
+    });
+</script>
