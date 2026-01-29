@@ -1052,6 +1052,7 @@ set(SOURCES
     WebAudio/PeriodicWave.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
+    WebCodecs/AudioData.cpp
     WebDriver/Actions.cpp
     WebDriver/Capabilities.cpp
     WebDriver/Client.cpp
