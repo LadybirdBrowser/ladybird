@@ -1560,7 +1560,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         } else {
             // We use your change here: calling scroll_by() directly
             scroll_by(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance);
-        }        return EventResult::Handled;
+        }
+        return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
 #if defined(AK_OS_MACOS)
@@ -1597,7 +1598,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             auto overflow_rect = scroll_target->scrollable_overflow_rect();
             if (overflow_rect.has_value())
                 (void)scroll_target->set_scroll_offset({ 0, overflow_rect->height() });
-            
+
         } else {
             document->window()->scroll_by(0, INT64_MAX);
         }
@@ -1753,7 +1754,7 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
     visitor.visit(m_mouse_event_tracking_paintable);
     visitor.visit(m_keyboard_scroll_container);
     visitor.visit(m_keyboard_scroll_container_parent);
-    
+
     if (m_element_resize_in_progress)
         m_element_resize_in_progress->visit_edges(visitor);
 
