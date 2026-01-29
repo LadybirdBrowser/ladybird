@@ -897,11 +897,14 @@ public:
     Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode_with_lhs_name(Bytecode::Generator&, Optional<Bytecode::IdentifierTableIndex> lhs_name, Optional<Bytecode::ScopedOperand> preferred_dst = {}, bool is_method = false) const;
 
     bool has_name() const override { return !name().is_empty(); }
+    bool is_method() const { return m_is_method; }
+    void set_is_method(bool is_method) { m_is_method = is_method; }
 
     virtual ~FunctionExpression() { }
 
 private:
     virtual bool is_function_expression() const override { return true; }
+    bool m_is_method { false };
 };
 
 class ErrorExpression final : public Expression {
