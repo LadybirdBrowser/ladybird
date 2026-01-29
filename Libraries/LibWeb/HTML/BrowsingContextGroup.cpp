@@ -26,8 +26,9 @@ BrowsingContextGroup::BrowsingContextGroup(GC::Ref<Web::Page> page)
     user_agent_browsing_context_group_set().set(*this);
 }
 
-BrowsingContextGroup::~BrowsingContextGroup()
+void BrowsingContextGroup::finalize()
 {
+    Base::finalize();
     user_agent_browsing_context_group_set().remove(*this);
 }
 

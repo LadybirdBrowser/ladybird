@@ -22,9 +22,9 @@ public:
         GC::Ref<HTML::BrowsingContextGroup> browsing_context;
         GC::Ref<DOM::Document> document;
     };
-    static WebIDL::ExceptionOr<BrowsingContextGroupAndDocument> create_a_new_browsing_context_group_and_document(GC::Ref<Page>);
+    static constexpr bool OVERRIDES_FINALIZE = true;
 
-    ~BrowsingContextGroup();
+    static WebIDL::ExceptionOr<BrowsingContextGroupAndDocument> create_a_new_browsing_context_group_and_document(GC::Ref<Page>);
 
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
@@ -38,6 +38,7 @@ private:
     explicit BrowsingContextGroup(GC::Ref<Web::Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#browsing-context-group-set
     OrderedHashTable<GC::Ref<BrowsingContext>> m_browsing_context_set;

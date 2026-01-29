@@ -25,6 +25,8 @@ class JS_API PrimitiveString : public Cell {
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16View const&);
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16FlyString const&);
@@ -37,7 +39,7 @@ public:
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create_from_unsigned_integer(VM&, u64);
 
-    virtual ~PrimitiveString();
+    virtual ~PrimitiveString() override;
 
     PrimitiveString(PrimitiveString const&) = delete;
     PrimitiveString& operator=(PrimitiveString const&) = delete;
@@ -77,6 +79,8 @@ protected:
 
 private:
     friend class RopeString;
+
+    virtual void finalize() override;
 
     explicit PrimitiveString(Utf16String);
     explicit PrimitiveString(String);

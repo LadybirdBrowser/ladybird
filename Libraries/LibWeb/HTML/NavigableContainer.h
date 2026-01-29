@@ -16,6 +16,8 @@ class WEB_API NavigableContainer : public HTMLElement {
     WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
 
     virtual ~NavigableContainer() override;
@@ -63,6 +65,9 @@ protected:
 
 private:
     virtual bool is_navigable_container() const override { return true; }
+
+    virtual void finalize() override;
+
     bool m_potentially_delays_the_load_event { true };
 };
 
