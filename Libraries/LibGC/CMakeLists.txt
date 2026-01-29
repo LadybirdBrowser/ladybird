@@ -8,6 +8,7 @@ set(SOURCES
     RootVector.cpp
     Heap.cpp
     HeapBlock.cpp
+    Timer.cpp
     WeakBlock.cpp
     WeakContainer.cpp
 )

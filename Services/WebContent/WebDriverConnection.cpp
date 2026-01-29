@@ -19,6 +19,7 @@
 #else
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
+#include <LibGC/Timer.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
@@ -63,7 +64,6 @@
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/ElementReference.h>
-#include <LibWeb/WebDriver/HeapTimer.h>
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/JSON.h>
 #include <LibWeb/WebDriver/Properties.h>
@@ -383,7 +383,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.create<Web::WebDriver::HeapTimer>();
+        auto timer = realm.heap().allocate<GC::Timer>();
 
         auto on_complete = GC::create_function(realm.heap(), [this, timer]() {
             timer->stop();
@@ -457,7 +457,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.create<Web::WebDriver::HeapTimer>();
+        auto timer = realm.heap().allocate<GC::Timer>();
 
         auto on_complete = GC::create_function(realm.heap(), [this, timer]() {
             timer->stop();
@@ -2819,7 +2819,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
     //    in milliseconds, return an error with error code timeout.
-    m_navigation_timer = realm.create<Web::WebDriver::HeapTimer>();
+    m_navigation_timer = realm.heap().allocate<GC::Timer>();
 
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
     //    navigation to mature.
@@ -2937,7 +2937,7 @@ void WebDriverConnection::wait_for_visibility_state(GC::Ref<GC::Function<void()>
         return;
     }
 
-    auto timer = realm.create<Web::WebDriver::HeapTimer>();
+    auto timer = realm.heap().allocate<GC::Timer>();
     m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
 
     m_document_observer->set_document_visibility_state_observer([timer, target_visibility_state](Web::HTML::VisibilityState visibility_state) {
@@ -2964,7 +2964,7 @@ public:
         String selector,
         WebDriverConnection::GetStartNode get_start_node,
         WebDriverConnection::OnFindComplete on_complete,
-        GC::Ref<Web::WebDriver::HeapTimer> timer)
+        GC::Ref<GC::Timer> timer)
         : m_browsing_context(browsing_context)
         , m_location_strategy(location_strategy)
         , m_selector(move(selector))
@@ -3035,7 +3035,7 @@ private:
     WebDriverConnection::GetStartNode m_get_start_node;
     WebDriverConnection::OnFindComplete m_on_complete;
 
-    GC::Ref<Web::WebDriver::HeapTimer> m_timer;
+    GC::Ref<GC::Timer> m_timer;
 };
 
 GC_DEFINE_ALLOCATOR(ElementLocator);
@@ -3052,7 +3052,7 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     auto timeout = m_timeouts_configuration.implicit_wait_timeout;
 
     // 4. Let timer be a new timer.
-    auto timer = realm.create<Web::WebDriver::HeapTimer>();
+    auto timer = realm.heap().allocate<GC::Timer>();
 
     auto wrapped_on_complete = GC::create_function(realm.heap(), [this, on_complete, timer](Web::WebDriver::Response result) {
         m_element_locator = nullptr;
