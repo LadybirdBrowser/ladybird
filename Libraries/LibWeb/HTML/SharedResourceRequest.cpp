@@ -88,22 +88,43 @@ void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infr
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) {
-            auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
-            auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
-            handle_successful_fetch(request->url(), mime_type, move(data));
-        });
-        auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
-            handle_failed_fetch();
-        });
-
         // Check for failed fetch response
         if (!Fetch::Infrastructure::is_ok_status(response->status()) || !response->body()) {
-            handle_failed_fetch();
+            handle_failed_fetch(FetchFailureReason::FetchFailed);
             return;
         }
 
-        response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
+        // AD-HOC: At this point, things gets very ad-hoc.
+        // FIXME: Bring this closer to spec.
+        auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
+        auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
+        bool const is_svg_image = mime_type == "image/svg+xml"sv || request->url().basename().ends_with(".svg"sv);
+
+        if (is_svg_image) {
+            auto process_body = GC::create_function(heap(), [this, request](ByteBuffer data) {
+                handle_successful_fetch_for_svg_image_data(request->url(), move(data));
+            });
+            auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
+                handle_failed_fetch(FetchFailureReason::FetchFailed);
+            });
+
+            response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
+            return;
+        }
+
+        auto process_body_chunk = GC::create_function(heap(), [this](ByteBuffer body_chunk) {
+            handle_successful_fetch_for_general_image_data(move(body_chunk));
+        });
+
+        auto process_end_of_body = GC::create_function(heap(), [this] {
+            handle_end_of_fetch_for_general_image_data();
+        });
+
+        auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
+            handle_failed_fetch(FetchFailureReason::FetchFailed);
+        });
+
+        response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
     };
 
     m_state = State::Fetching;
@@ -139,47 +160,58 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
     m_callbacks.append(move(callbacks));
 }
 
-void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, StringView mime_type, ByteBuffer data)
+void SharedResourceRequest::handle_successful_fetch_for_general_image_data(ByteBuffer partial_data)
 {
-    // AD-HOC: At this point, things gets very ad-hoc.
-    // FIXME: Bring this closer to spec.
+    if (!m_pending_decode.has_value()) {
+        auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+            Vector<AnimatedBitmapDecodedImageData::Frame> frames;
+            for (auto& frame : result.frames) {
+                frames.append(AnimatedBitmapDecodedImageData::Frame {
+                    .bitmap = Gfx::ImmutableBitmap::create(*frame.bitmap, result.color_space),
+                    .duration = static_cast<int>(frame.duration),
+                });
+            }
+            strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            strong_this->handle_successful_resource_load();
+            return {};
+        };
 
-    bool const is_svg_image = mime_type == "image/svg+xml"sv || url_string.basename().ends_with(".svg"sv);
+        auto handle_failed_decode = [strong_this = GC::Root(*this)](Error&) -> void {
+            strong_this->handle_failed_fetch(FetchFailureReason::DecodingFailed);
+        };
 
-    if (is_svg_image) {
-        auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, data);
-        if (result.is_error()) {
-            handle_failed_fetch();
-        } else {
-            m_image_data = result.release_value();
-            handle_successful_resource_load();
-        }
-        return;
+        m_pending_decode = Platform::ImageCodecPlugin::the().start_decoding_image(move(handle_successful_bitmap_decode), move(handle_failed_decode));
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
-        Vector<AnimatedBitmapDecodedImageData::Frame> frames;
-        for (auto& frame : result.frames) {
-            frames.append(AnimatedBitmapDecodedImageData::Frame {
-                .bitmap = Gfx::ImmutableBitmap::create(*frame.bitmap, result.color_space),
-                .duration = static_cast<int>(frame.duration),
-            });
-        }
-        strong_this->m_image_data = AnimatedBitmapDecodedImageData::create(strong_this->m_document->realm(), move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
-        strong_this->handle_successful_resource_load();
-        return {};
-    };
-
-    auto handle_failed_decode = [strong_this = GC::Root(*this)](Error&) -> void {
-        strong_this->handle_failed_fetch();
-    };
-
-    (void)Web::Platform::ImageCodecPlugin::the().decode_image(data.bytes(), move(handle_successful_bitmap_decode), move(handle_failed_decode));
+    Platform::ImageCodecPlugin::the().partial_image_data_became_available(*m_pending_decode, partial_data.bytes());
 }
 
-void SharedResourceRequest::handle_failed_fetch()
+void SharedResourceRequest::handle_end_of_fetch_for_general_image_data()
 {
+    if (!m_pending_decode.has_value())
+        return;
+
+    Platform::ImageCodecPlugin::the().no_more_data_for_image(m_pending_decode.value());
+}
+
+void SharedResourceRequest::handle_successful_fetch_for_svg_image_data(URL::URL const& url_string, ByteBuffer full_data)
+{
+    auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, full_data);
+    if (result.is_error()) {
+        handle_failed_fetch(FetchFailureReason::DecodingFailed);
+    } else {
+        m_image_data = result.release_value();
+        handle_successful_resource_load();
+    }
+}
+
+void SharedResourceRequest::handle_failed_fetch(FetchFailureReason reason)
+{
+    if (reason == FetchFailureReason::FetchFailed && m_pending_decode.has_value())
+        Platform::ImageCodecPlugin::the().no_more_data_for_image(m_pending_decode.value());
+
     m_state = State::Failed;
+    m_pending_decode.clear();
     for (auto& callback : m_callbacks) {
         if (callback.on_fail)
             callback.on_fail->function()();
@@ -190,6 +222,7 @@ void SharedResourceRequest::handle_failed_fetch()
 void SharedResourceRequest::handle_successful_resource_load()
 {
     m_state = State::Finished;
+    m_pending_decode.clear();
     for (auto& callback : m_callbacks) {
         if (callback.on_finish)
             callback.on_finish->function()();
