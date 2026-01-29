@@ -183,7 +183,7 @@ private:
 
     GC::Ptr<Web::DOM::DocumentObserver> m_document_observer;
     GC::Ptr<Web::HTML::NavigationObserver> m_navigation_observer;
-    GC::Ptr<Web::WebDriver::HeapTimer> m_navigation_timer;
+    GC::Ptr<GC::Timer> m_navigation_timer;
 };
 
 }

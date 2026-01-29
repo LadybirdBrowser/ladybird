@@ -5,26 +5,32 @@
  */
 
 #include <LibCore/Timer.h>
-#include <LibWeb/WebDriver/HeapTimer.h>
+#include <LibGC/Timer.h>
 
-namespace Web::WebDriver {
+namespace GC {
 
-GC_DEFINE_ALLOCATOR(HeapTimer);
+GC_DEFINE_ALLOCATOR(Timer);
 
-HeapTimer::HeapTimer()
+Timer::Timer()
     : m_timer(Core::Timer::create())
 {
 }
 
-HeapTimer::~HeapTimer() = default;
+Timer::~Timer() = default;
 
-void HeapTimer::visit_edges(JS::Cell::Visitor& visitor)
+void Timer::finalize()
+{
+    Base::finalize();
+    stop();
+}
+
+void Timer::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_on_timeout);
 }
 
-void HeapTimer::start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout)
+void Timer::start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout)
 {
     m_on_timeout = on_timeout;
 
@@ -42,7 +48,7 @@ void HeapTimer::start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout)
     m_timer->start();
 }
 
-void HeapTimer::stop_and_fire_timeout_handler()
+void Timer::stop_and_fire_timeout_handler()
 {
     auto on_timeout = m_on_timeout;
     stop();
@@ -51,7 +57,7 @@ void HeapTimer::stop_and_fire_timeout_handler()
         on_timeout->function()();
 }
 
-void HeapTimer::stop()
+void Timer::stop()
 {
     m_on_timeout = nullptr;
     m_timer->stop();
