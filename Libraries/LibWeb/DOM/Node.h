@@ -333,9 +333,9 @@ public:
     GC::Ptr<Element> parent_element();
     GC::Ptr<Element const> parent_element() const;
 
-    virtual void inserted();
+    MUST_UPCALL virtual void inserted();
     virtual void post_connection();
-    virtual void removed_from(Node* old_parent, Node& old_root);
+    MUST_UPCALL virtual void removed_from(Node* old_parent, Node& old_root);
     virtual void moved_from(GC::Ptr<Node> old_parent);
 
     struct ChildrenChangedMetadata {
