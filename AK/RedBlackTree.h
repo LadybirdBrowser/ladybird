@@ -15,10 +15,26 @@ namespace AK {
 
 template<Integral K>
 class BaseRedBlackTree {
-    AK_MAKE_NONCOPYABLE(BaseRedBlackTree);
     AK_MAKE_NONMOVABLE(BaseRedBlackTree);
 
 public:
+    BaseRedBlackTree(BaseRedBlackTree const& other)
+        : m_root(copy_node(other.m_root, nullptr))
+        , m_size(other.m_size)
+    {
+        update_minimum();
+    }
+
+    BaseRedBlackTree& operator=(BaseRedBlackTree const& other)
+    {
+        if (this != &other) {
+            clear();
+            m_root = copy_node(other.m_root, nullptr);
+            m_size = other.m_size;
+            update_minimum();
+        }
+        return *this;
+    }
     [[nodiscard]] size_t size() const { return m_size; }
     [[nodiscard]] bool is_empty() const { return m_size == 0; }
 
@@ -395,9 +411,43 @@ protected:
         return temp;
     }
 
+    void clear()
+    {
+        delete m_root;
+        m_root = nullptr;
+        m_size = 0;
+        m_minimum = nullptr;
+    }
+
     Node* m_root { nullptr };
     size_t m_size { 0 };
     Node* m_minimum { nullptr }; // maintained for O(1) begin()
+
+    virtual Node* clone_node(Node const*) const = 0;
+
+private:
+    void update_minimum()
+    {
+        if (m_root) {
+            auto* node = m_root;
+            while (node->left_child)
+                node = node->left_child;
+            m_minimum = node;
+        } else {
+            m_minimum = nullptr;
+        }
+    }
+
+    Node* copy_node(Node const* node, Node* parent)
+    {
+        if (!node)
+            return nullptr;
+        auto* new_node = clone_node(node);
+        new_node->parent = parent;
+        new_node->left_child = copy_node(node->left_child, new_node);
+        new_node->right_child = copy_node(node->right_child, new_node);
+        return new_node;
+    }
 };
 
 template<typename TreeType, typename ElementType>
@@ -444,6 +494,17 @@ template<Integral K, typename V>
 class RedBlackTree final : public BaseRedBlackTree<K> {
 public:
     RedBlackTree() = default;
+    RedBlackTree(RedBlackTree const& other)
+        : BaseTree(other)
+    {
+    }
+
+    RedBlackTree& operator=(RedBlackTree const& other)
+    {
+        BaseTree::operator=(other);
+        return *this;
+    }
+
     virtual ~RedBlackTree() override
     {
         clear();
@@ -560,10 +621,7 @@ public:
 
     void clear()
     {
-        delete this->m_root;
-        this->m_root = nullptr;
-        this->m_minimum = nullptr;
-        this->m_size = 0;
+        BaseTree::clear();
     }
 
 private:
@@ -583,6 +641,11 @@ private:
             delete this->right_child;
         }
     };
+
+    virtual typename BaseTree::Node* clone_node(typename BaseTree::Node const* other) const override
+    {
+        return new Node(other->key, static_cast<Node const*>(other)->value);
+    }
 };
 
 }
