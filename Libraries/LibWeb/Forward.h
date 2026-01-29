@@ -1316,6 +1316,7 @@ namespace Web::WebDriver {
 class HeapTimer;
 
 struct ActionObject;
+struct Error;
 struct InputState;
 
 };
