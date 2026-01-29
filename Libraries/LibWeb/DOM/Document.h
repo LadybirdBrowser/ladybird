@@ -1321,7 +1321,7 @@ private:
 
     GC::Ptr<JS::ConsoleClient> m_console_client;
 
-    RefPtr<Core::Timer> m_cursor_blink_timer;
+    GC::Ptr<GC::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
