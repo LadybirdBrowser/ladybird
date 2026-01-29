@@ -31,7 +31,9 @@ public:
     // https://encoding.spec.whatwg.org/#dom-textdecoder-fatal
     bool fatal() const { return m_fatal; }
     // https://encoding.spec.whatwg.org/#dom-textdecoder-ignorebom
-    bool const& ignore_bom() const { return m_ignore_bom; }
+    bool ignore_bom() const { return m_ignore_bom; }
+    // https://encoding.spec.whatwg.org/#textdecoder-bom-seen-flag
+    bool bom_seen() const { return m_bom_seen; }
 
 protected:
     TextDecoderCommonMixin();
@@ -45,6 +47,7 @@ protected:
     FlyString m_encoding;
     bool m_fatal { false };
     bool m_ignore_bom { false };
+    bool m_bom_seen { false };
 };
 
 }
