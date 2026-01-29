@@ -46,7 +46,6 @@ public:
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
-    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::FileList; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 

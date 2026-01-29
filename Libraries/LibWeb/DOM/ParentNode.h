@@ -12,7 +12,7 @@
 namespace Web::DOM {
 
 class WEB_API ParentNode : public Node {
-    WEB_PLATFORM_OBJECT(ParentNode, Node);
+    WEB_NON_IDL_PLATFORM_OBJECT(ParentNode, Node);
     GC_DECLARE_ALLOCATOR(ParentNode);
 
 public:

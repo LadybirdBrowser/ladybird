@@ -15,7 +15,7 @@ namespace Web::DOM {
 // FIXME: Just like HTMLCollection, LiveNodeList currently does no caching.
 
 class LiveNodeList : public NodeList {
-    WEB_PLATFORM_OBJECT(LiveNodeList, NodeList);
+    WEB_NON_IDL_PLATFORM_OBJECT(LiveNodeList, NodeList);
     GC_DECLARE_ALLOCATOR(LiveNodeList);
 
 public:

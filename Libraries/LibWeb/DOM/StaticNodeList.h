@@ -12,7 +12,7 @@
 namespace Web::DOM {
 
 class StaticNodeList final : public NodeList {
-    WEB_PLATFORM_OBJECT(StaticNodeList, NodeList);
+    WEB_NON_IDL_PLATFORM_OBJECT(StaticNodeList, NodeList);
     GC_DECLARE_ALLOCATOR(StaticNodeList);
 
 public:

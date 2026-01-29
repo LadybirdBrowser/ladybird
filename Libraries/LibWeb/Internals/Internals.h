@@ -85,6 +85,8 @@ public:
 
     void perform_per_test_cleanup();
 
+    void set_environments_top_level_url(StringView url);
+
 private:
     explicit Internals(JS::Realm&);
 

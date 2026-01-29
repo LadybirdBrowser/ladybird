@@ -35,8 +35,6 @@ public:
     void set_z(double z) { m_z = z; }
     void set_w(double w) { m_w = w; }
 
-    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::DOMPoint; }
-
 private:
     DOMPoint(JS::Realm&, double x, double y, double z, double w);
     DOMPoint(JS::Realm&);
