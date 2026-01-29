@@ -214,9 +214,7 @@ private:
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;
 
-    WeakPtr<WebContentConsoleClient> m_top_level_document_console_client;
-
-    GC::Root<JS::GlobalObject> m_console_global_object;
+    GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
 
     RefPtr<Core::Timer> m_paint_refresh_timer;
 

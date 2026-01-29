@@ -87,6 +87,7 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
+    visitor.visit(m_top_level_document_console_client);
 
     if (m_webdriver)
         m_webdriver->visit_edges(visitor);
