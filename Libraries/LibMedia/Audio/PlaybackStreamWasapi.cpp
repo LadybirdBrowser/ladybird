@@ -516,3 +516,6 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::set_volume(doub
 }
 
 }
+
+#undef ENUMERATE_CHANNEL_POSITIONS
+#undef MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG

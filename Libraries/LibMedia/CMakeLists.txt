@@ -22,6 +22,8 @@ set(SOURCES
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
+set_target_properties(LibMedia PROPERTIES UNITY_BUILD ${LADYBIRD_ENABLE_UNITY_BUILD})
+
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
