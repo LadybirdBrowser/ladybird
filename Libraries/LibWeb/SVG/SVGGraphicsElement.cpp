@@ -78,7 +78,7 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintCo
     return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke());
 }
 
-GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
+GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::CSSURL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.
     Optional<FlyString> fragment;
