@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+img { width: 50px; height: 50px; vertical-align: middle; }
+.selected { background: rgba(61, 174, 233, 0.5); }
+.img-wrapper {
+    display: inline-block;
+    position: relative;
+    vertical-align: middle;
+}
+.img-wrapper .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(61, 174, 233, 0.5);
+}
+</style>
+<p><span class="selected">before image </span><span class="img-wrapper"><img src="../data/smiley.png"><span class="overlay"></span></span><span class="selected"> after image</span></p>
