@@ -99,8 +99,9 @@ Object::~Object()
         s_intrinsics.remove(this);
 }
 
-void Object::initialize(Realm&)
+void Object::initialize(Realm& realm)
 {
+    Base::initialize(realm);
 }
 
 void Object::unsafe_set_shape(Shape& shape)

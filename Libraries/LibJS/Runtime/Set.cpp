@@ -24,6 +24,7 @@ Set::Set(Object& prototype)
 
 void Set::initialize(Realm& realm)
 {
+    Base::initialize(realm);
     m_values = Map::create(realm);
 }
 

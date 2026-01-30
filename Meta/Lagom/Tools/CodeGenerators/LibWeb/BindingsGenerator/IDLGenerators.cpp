@@ -3487,6 +3487,7 @@ GC_DEFINE_ALLOCATOR(@named_properties_class@);
 
 void @named_properties_class@::initialize(JS::Realm& realm)
 {
+    Base::initialize(realm);
     auto& vm = realm.vm();
 
     // The class string of a named properties object is the concatenation of the interface's identifier and the string "Properties".
