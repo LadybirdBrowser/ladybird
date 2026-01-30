@@ -37,6 +37,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -1361,6 +1362,14 @@ void ConnectionFromClient::cookies_changed(Vector<Web::Cookie::Cookie> cookies)
         if (!window)
             return;
         window->cookie_store()->process_cookie_changes(cookies);
+    }
+}
+
+void ConnectionFromClient::exit_fullscreen(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        Web::HTML::TemporaryExecutionContext context(page->page().top_level_browsing_context().active_document()->realm(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        page->page().top_level_browsing_context().active_document()->fully_exit_fullscreen();
     }
 }
 

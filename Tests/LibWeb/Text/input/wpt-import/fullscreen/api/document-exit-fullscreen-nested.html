@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>Document#exitFullscreen() for nested fullscreen</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div><div></div></div>
+<script>
+    promise_test(async (t) => {
+        const outer = document.querySelector("div");
+        const inner = outer.firstChild;
+
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+
+        // First request fullscreen for the outer element.
+        await Promise.all([
+            fullScreenChange(),
+            trusted_request(outer),
+        ]);
+
+        assert_equals(document.fullscreenElement, outer);
+
+        // Then request fullscreen for the inner element.
+        const p = trusted_request(inner);
+
+        // Even though we are already in fullscreen, the change in
+        // document.fullscreenElement should not happen synchronously.
+        assert_equals(document.fullscreenElement, outer);
+        await Promise.all([
+            fullScreenChange(),
+            p,
+        ]);
+        assert_equals(document.fullscreenElement, inner);
+
+        // Now exit fullscreen.
+        const exitP = document.exitFullscreen();
+        // Even though we don't need to exit fullscreen, the change in
+        // document.fullscreenElement should not happen synchronously.
+        assert_equals(document.fullscreenElement, inner);
+        await Promise.all([
+            exitP,
+            fullScreenChange(),
+        ]);
+        assert_equals(document.fullscreenElement, outer);
+    }, "Exit fullscreen for nested fullscreen");
+</script>

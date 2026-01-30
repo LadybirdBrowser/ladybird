@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>Element#requestFullscreen() on the current fullscreen element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<div id="log"></div>
+<script>
+promise_test(async (t) => {
+    t.add_cleanup(() => {
+        if (document.fullscreenElement) return document.exitFullscreen();
+    });
+
+    // Use the body element as the fullscreen element, because the second
+    // test_driver.bless() call needs to insert a button inside of it, which
+    // can't be clicked if another element is already fullscreen.
+    const target = document.body;
+
+    // First enter fullscreen.
+    await test_driver.bless("fullscreen", () => target.requestFullscreen());
+    assert_equals(document.fullscreenElement, target, "fullscreen element after first request");
+
+    // Now request fullscreen again, which should be a no-op.
+    await test_driver.bless("fullscreen", () => target.requestFullscreen());
+    assert_equals(document.fullscreenElement, target, "fullscreen element after second request");
+});
+</script>

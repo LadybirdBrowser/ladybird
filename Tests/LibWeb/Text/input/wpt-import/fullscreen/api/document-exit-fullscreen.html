@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Document#exitFullscreen()</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<body></body>
+<script>
+    promise_test(async function (t) {
+        const div = document.querySelector("div");
+        // enter fullscreen
+        await trusted_request(div);
+
+        // Exit fullscreen
+        const [event] = await Promise.all([
+            fullScreenChange(),
+            document.exitFullscreen(),
+        ]);
+
+        // Check event from exiting fullscreen
+        assert_equals(event.target, div, "event.target");
+        assert_true(event.bubbles, "event.bubbles");
+        assert_false(event.cancelable, "event.cancelable");
+        assert_true(event.composed, "event.composed");
+    }, "Checks that the fullscreenchange event is fired when exiting fullscreen");
+</script>

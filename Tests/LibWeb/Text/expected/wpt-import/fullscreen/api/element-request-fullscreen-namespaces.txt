@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	requestFullscreen() fails for an element in null namespace
+Pass	requestFullscreen() fails for an element in https://unknown.namespace namespace
+Pass	requestFullscreen() fails for an element in  namespace
+Pass	requestFullscreen() succeed for an element in http://www.w3.org/1999/xhtml namespace
+Pass	requestFullscreen() succeed for an element in http://www.w3.org/2000/svg namespace
+Pass	requestFullscreen() succeed for an element in http://www.w3.org/1998/Math/MathML namespace
