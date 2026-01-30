@@ -49,6 +49,8 @@ RefPtr<VideoDataProvider> DisplayingVideoSink::provider(Track const& track) cons
 
 DisplayingVideoSinkUpdateResult DisplayingVideoSink::update()
 {
+    if (m_provider == nullptr)
+        return DisplayingVideoSinkUpdateResult::NoChange;
     if (m_pause_updates)
         return DisplayingVideoSinkUpdateResult::NoChange;
 
