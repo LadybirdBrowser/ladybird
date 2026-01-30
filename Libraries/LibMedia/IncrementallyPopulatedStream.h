@@ -52,7 +52,7 @@ public:
             FromEndPosition,
         };
 
-        DecoderErrorOr<void> seek(size_t offset, SeekMode mode);
+        DecoderErrorOr<void> seek(i64 offset, SeekMode mode);
         DecoderErrorOr<size_t> read_into(Bytes bytes);
 
         auto position() const { return m_position; }

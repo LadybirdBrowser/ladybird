@@ -248,23 +248,27 @@ IncrementallyPopulatedStream::Cursor::~Cursor()
     Threading::MutexLocker locker { m_stream->m_mutex };
     VERIFY(m_stream->m_cursors.remove_first_matching([&](Cursor const& cursor) { return this == &cursor; }));
 }
-
-DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(size_t offset, SeekMode mode)
+DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, SeekMode mode)
 {
+    i64 seek_to = static_cast<i64>(m_position);
+
     switch (mode) {
     case SeekMode::SetPosition:
-        m_position = offset;
+        seek_to = offset;
         break;
     case SeekMode::FromCurrentPosition:
-        m_position += offset;
+        seek_to += offset;
         break;
     case SeekMode::FromEndPosition:
-        m_position = this->size() + offset;
+        seek_to = static_cast<i64>(this->size()) + offset;
         break;
     default:
         VERIFY_NOT_REACHED();
     }
 
+    if (seek_to < 0)
+        return DecoderError::with_description(DecoderErrorCategory::Invalid, "Invalid seek"sv);
+    m_position = static_cast<size_t>(seek_to);
     m_active_timeout = MonotonicTime::now_coarse() + CURSOR_ACTIVE_TIME;
     return {};
 }

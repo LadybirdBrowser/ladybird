@@ -290,3 +290,22 @@ TEST_CASE(data_request_callback_invoked)
 
     MUST(thread->join());
 }
+
+TEST_CASE(seek_negative_offset_from_current_is_supported)
+{
+    auto buffer = MUST(ByteBuffer::create_uninitialized(16));
+    buffer.bytes().fill(0);
+
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(move(buffer));
+    auto cursor = stream->create_cursor();
+
+    MUST(cursor->seek(10, Media::IncrementallyPopulatedStream::Cursor::SeekMode::SetPosition));
+
+    auto result = cursor->seek(-3, Media::IncrementallyPopulatedStream::Cursor::SeekMode::FromCurrentPosition);
+    EXPECT(!result.is_error());
+    EXPECT_EQ(cursor->position(), 7u);
+
+    auto before_start_result = cursor->seek(-20, Media::IncrementallyPopulatedStream::Cursor::SeekMode::FromCurrentPosition);
+    EXPECT(before_start_result.is_error());
+    EXPECT_EQ(before_start_result.error().category(), Media::DecoderErrorCategory::Invalid);
+}
