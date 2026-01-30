@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<title>slotchanged event</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+
+<script>
+customElements.define(
+  "custom-element",
+  class extends HTMLElement {
+    constructor() {
+      super();
+      const shadowRoot = this.attachShadow({mode: "open"});
+      const slot = document.createElement('slot');
+      slot.name = 'content';
+      shadowRoot.append(slot);
+    }
+  },
+);
+
+promise_test(async t => {
+  const customElement = document.body.appendChild(document.createElement('custom-element'));
+  t.add_cleanup(() => customElement.remove());
+
+  const slot = customElement.shadowRoot.children[0];
+  const slotChangePromise = new Promise((resolve, reject) => {
+    slot.addEventListener('slotchange', e => resolve(), {once: true});
+    t.step_timeout(() => reject('Timeout; slotchange was not fired'), 1500);
+  });
+
+  const defaultContentP = customElement.shadowRoot.appendChild(document.createElement('p'));
+  slot.moveBefore(defaultContentP, null);
+  await slotChangePromise;
+}, "Moving default content into a slot fires 'slotchange' event");
+
+promise_test(async t => {
+  const customElement = document.body.appendChild(document.createElement('custom-element'));
+  t.add_cleanup(() => customElement.remove());
+
+  const slot = customElement.shadowRoot.children[0];
+  const defaultContentP = slot.appendChild(document.createElement('p'));
+
+  // Wait for "signal a slot change" to asynchronously settle. This should fire
+  // the 'slotchange' event for the insertion above, but we will not assert that,
+  // since this test is only testing that 'slotchange' is fired on removal. We
+  // separate this out in case an implementation fires one but not the other
+  // (i.e., Chromium, at the time of writing this).
+  await new Promise(resolve => t.step_timeout(() => resolve()));
+
+  const slotChangePromise = new Promise((resolve, reject) => {
+    slot.addEventListener('slotchange', e => resolve(), {once: true});
+    t.step_timeout(() => reject('Timeout; slotchange was not fired'), 1500);
+  });
+
+  // Move `defaultContentP` OUT of the slot, and into the ShadowRoot. This
+  // triggers "signal a slot change" on `defaultContentP`'s old parent, which is
+  // the slot.
+  customElement.shadowRoot.moveBefore(defaultContentP, null);
+  await slotChangePromise;
+}, "Moving default content out of a slot fires 'slotchange' event");
+
+promise_test(async t => {
+  const customElement = document.body.appendChild(document.createElement('custom-element'));
+  t.add_cleanup(() => customElement.remove());
+
+  const slot = customElement.shadowRoot.children[0];
+  const slottable = document.body.appendChild(document.createElement('p'));
+  slottable.slot = 'content';
+
+  {
+    const slotChangePromise = new Promise((resolve, reject) => {
+      slot.addEventListener('slotchange', e => {
+        if (slot.assignedNodes().includes(slottable)) {
+          resolve();
+        } else {
+          reject('slot.assignedNodes() did not include the slottable after move');
+        }
+      }, {once: true});
+
+      t.step_timeout(() => reject('Timeout; slotchange (whiling moving an element in) was not fired'), 1500);
+    });
+
+    // Move the slottable INTO the custom element, thus slotting it.
+    customElement.moveBefore(slottable, null);
+    await slotChangePromise;
+  }
+
+  {
+    const slotChangePromise = new Promise((resolve, reject) => {
+      slot.addEventListener('slotchange', e => {
+        if (slot.assignedNodes().length === 0) {
+          resolve();
+        } else {
+          reject('slot.assignedNodes() not empty after the slottable moved out');
+        }
+      }, {once: true});
+
+      t.step_timeout(() => reject('Timeout; slotchange (whiling moving an element out) was not fired'), 1500);
+    });
+
+    // Move the slottable OUT of the custom element, thus unslotting it.
+    document.body.moveBefore(slottable, null);
+    await slotChangePromise;
+  }
+}, "Moving a slottable into and out out of a custom element fires 'slotchange' event");
+
+promise_test(async t => {
+  const customElement = document.body.appendChild(document.createElement('custom-element'));
+  const slot = customElement.shadowRoot.children[0];
+  t.add_cleanup(() => customElement.remove());
+
+  const p = document.createElement('p');
+  p.slot = 'content';
+  p.textContent = 'The content';
+  customElement.appendChild(p);
+
+  // See the above tests that do the same thing, for implementations that do not fire `slotchange`
+  // at this phase.
+  await new Promise(resolve => t.step_timeout(() => resolve()));
+
+  assert_array_equals(slot.assignedNodes(), [p]);
+  document.body.moveBefore(slot, null);
+
+  await new Promise((resolve, reject) => {
+    slot.addEventListener('slotchange', e => resolve(), {once: true});
+    t.step_timeout(() => reject('Timeout; slotchange was not fired2'), 1500);
+  });
+
+  assert_array_equals(slot.assignedNodes(), []);
+  customElement.shadowRoot.moveBefore(slot, null);
+
+  await new Promise((resolve, reject) => {
+    slot.addEventListener('slotchange', e => resolve(), {once: true});
+    t.step_timeout(() => reject('Timeout; slotchange was not fired3'), 1500);
+  });
+
+  assert_array_equals(slot.assignedNodes(), [p]);
+}, "Moving a slot runs the assign slottables algorithm");
+</script>

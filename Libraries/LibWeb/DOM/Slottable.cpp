@@ -202,6 +202,15 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     if (slottables != slot->assigned_nodes_internal())
         signal_a_slot_change(slot);
 
+    // AD-HOC: Clear the assigned slot for slottables that are no longer assigned to this slot.
+    //         This must happen before setting the new assigned slots to avoid stale references
+    //         during style computation.
+    for (auto const& old_slottable : slot->assigned_nodes_internal()) {
+        old_slottable.visit([&](auto const& node) {
+            node->set_assigned_slot(nullptr);
+        });
+    }
+
     // 4. For each slottable in slottables, set slottable’s assigned slot to slot.
     for (auto& slottable : slottables) {
         slottable.visit([&](auto& node) {

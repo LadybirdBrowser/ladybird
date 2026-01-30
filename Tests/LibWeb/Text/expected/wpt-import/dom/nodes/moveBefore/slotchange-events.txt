@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Moving default content into a slot fires 'slotchange' event
+Pass	Moving default content out of a slot fires 'slotchange' event
+Pass	Moving a slottable into and out out of a custom element fires 'slotchange' event
+Pass	Moving a slot runs the assign slottables algorithm
