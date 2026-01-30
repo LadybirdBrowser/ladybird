@@ -9,18 +9,24 @@
 
 namespace Web::Platform {
 
+namespace {
+namespace LIBWEB_UNITY_ID {
+
 EventLoopPlugin* s_the;
+
+}
+}
 
 EventLoopPlugin& EventLoopPlugin::the()
 {
-    VERIFY(s_the);
-    return *s_the;
+    VERIFY(LIBWEB_UNITY_ID::s_the);
+    return *LIBWEB_UNITY_ID::s_the;
 }
 
 void EventLoopPlugin::install(EventLoopPlugin& plugin)
 {
-    VERIFY(!s_the);
-    s_the = &plugin;
+    VERIFY(!LIBWEB_UNITY_ID::s_the);
+    LIBWEB_UNITY_ID::s_the = &plugin;
 }
 
 EventLoopPlugin::~EventLoopPlugin() = default;
