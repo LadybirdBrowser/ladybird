@@ -22,5 +22,10 @@
         internals.sendKey(text, "Right", modifiers);
         // Should be equal to "Lorem ip"
         println(window.getSelection());
+
+        internals.tripleclick(20, 20);
+
+        // Should be equal to "Lorem" all the way through "dolor."
+        println(window.getSelection());
     });
 </script>

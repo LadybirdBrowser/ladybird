@@ -1066,6 +1066,92 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
     return EventResult::Handled;
 }
 
+EventResult EventHandler::handle_tripleclick(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+{
+    if (should_ignore_device_input_event())
+        return EventResult::Dropped;
+
+    if (!m_navigable->active_document())
+        return EventResult::Dropped;
+    if (!m_navigable->active_document()->is_fully_active())
+        return EventResult::Dropped;
+
+    auto& document = *m_navigable->active_document();
+    auto viewport_position = document.visual_viewport()->map_to_layout_viewport(visual_viewport_position);
+
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleDoubleClick);
+
+    if (!paint_root())
+        return EventResult::Dropped;
+
+    GC::Ptr<Painting::Paintable> paintable;
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value())
+        paintable = result->paintable;
+    else
+        return EventResult::Dropped;
+
+    auto pointer_events = paintable->computed_values().pointer_events();
+    // FIXME: Handle other values for pointer-events.
+    if (pointer_events == CSS::PointerEvents::None)
+        return EventResult::Cancelled;
+
+    auto node = dom_node_for_event_dispatch(*paintable);
+
+    if (paintable->wants_mouse_events()) {
+        // FIXME: Handle triple clicks.
+    }
+
+    if (!node)
+        return EventResult::Dropped;
+
+    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+        if (auto content_navigable = iframe_element->content_navigable()) {
+            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), viewport_position);
+            return content_navigable->event_handler().handle_doubleclick(position, screen_position, button, buttons, modifiers);
+        }
+        return EventResult::Dropped;
+    }
+
+    // Search for the first parent of the hit target that's an element.
+    // "The topmost event target MUST be the element highest in the rendering order which is capable of being an event target." (https://www.w3.org/TR/uievents/#topmost-event-target)
+    GC::Ptr<Layout::Node> layout_node;
+    if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
+        return EventResult::Dropped;
+
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+    auto offset = compute_mouse_event_offset(page_offset, *offset_paintable);
+    node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::dblclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+
+    // NOTE: Dispatching an event may have disturbed the world.
+    if (!paint_root() || paint_root() != node->document().paintable_box())
+        return EventResult::Accepted;
+
+    if (button == UIEvents::MouseButton::Primary) {
+        if (auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor); result.has_value()) {
+            if (!result->paintable->dom_node())
+                return EventResult::Accepted;
+            if (!is<Painting::TextPaintable>(*result->paintable))
+                return EventResult::Accepted;
+
+            auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
+            auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit_paintable.dom_node()));
+
+            size_t previous_boundary = 0;
+            size_t next_boundary = hit_dom_node.length_in_utf16_code_units();
+
+            if (auto* target = document.active_input_events_target(&hit_dom_node)) {
+                target->set_selection_anchor(hit_dom_node, previous_boundary);
+                target->set_selection_focus(hit_dom_node, next_boundary);
+            } else if (auto selection = node->document().get_selection()) {
+                set_user_selection(hit_dom_node, previous_boundary, hit_dom_node, next_boundary, selection, hit_paintable.layout_node().user_select_used_value());
+            }
+        }
+    }
+
+    return EventResult::Handled;
+}
+
 EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, Vector<HTML::SelectedFile> files)
 {
     if (!m_navigable->active_document())
