@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-with-image-ref.html" />
+<style>
+img { width: 50px; height: 50px; vertical-align: middle; }
+</style>
+<p>before image <img src="../data/smiley.png"> after image</p>
+<script>
+document.getSelection().selectAllChildren(document.body);
+</script>
