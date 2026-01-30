@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Test terminating a chain of nested workers by calling terminate() from the owning document
