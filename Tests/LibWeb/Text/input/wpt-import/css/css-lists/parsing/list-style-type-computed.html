@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: getComputedStyle().listStyleType</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-list-style-type">
+<meta name="assert" content="list-style-type computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('list-style-type', 'none');
+
+test_computed_value('list-style-type', 'disc');
+test_computed_value('list-style-type', 'circle');
+test_computed_value('list-style-type', 'square');
+test_computed_value('list-style-type', 'disclosure-open');
+test_computed_value('list-style-type', 'disclosure-closed');
+test_computed_value('list-style-type', 'decimal');
+test_computed_value('list-style-type', 'decimal-leading-zero');
+test_computed_value('list-style-type', 'lower-roman');
+test_computed_value('list-style-type', 'upper-roman');
+test_computed_value('list-style-type', 'lower-greek');
+test_computed_value('list-style-type', 'lower-latin');
+test_computed_value('list-style-type', 'upper-latin');
+test_computed_value('list-style-type', 'armenian');
+test_computed_value('list-style-type', 'georgian');
+test_computed_value('list-style-type', 'lower-alpha');
+test_computed_value('list-style-type', 'upper-alpha');
+
+// <string>
+test_computed_value('list-style-type', '"marker string"');
+test_computed_value('list-style-type', '"Note: "');
+
+// <counter-style> = <counter-style-name> | symbols();
+test_computed_value('list-style-type', 'counter-Style-Name');
+test_computed_value('list-style-type', 'CounterStyleName');
+
+// symbols() = symbols( <symbols-type>? [ <string> | <image> ]+ );
+// <symbols-type> = cyclic | numeric | alphabetic | symbolic | fixed;
+test_computed_value('list-style-type', 'symbols(cyclic "string")');
+test_computed_value('list-style-type', 'symbols(cyclic "○" "●")');
+test_computed_value('list-style-type', 'symbols(fixed "1")');
+test_computed_value('list-style-type', 'symbols("string")');
+test_computed_value('list-style-type', 'symbols(alphabetic "first" "second")');
+test_computed_value('list-style-type', 'symbols(numeric "first" "second")');
+</script>
+</body>
+</html>

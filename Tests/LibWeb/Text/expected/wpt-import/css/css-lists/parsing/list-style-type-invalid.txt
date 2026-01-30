@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['list-style-type'] = "\"marker string\" none" should not set the property value
+Pass	e.style['list-style-type'] = "counter-Style-Name \"marker string\"" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(cyclic)" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(numeric \"n\")" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(alphabetic \"a\")" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(\"s\" symbolic)" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(fixed url(\"https://example.com\"))" should not set the property value
+Pass	e.style['list-style-type'] = "symbols(repeating '○' '●')" should not set the property value

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Content Module Level 3: getComputedStyle().content</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<!-- Note: we have to make this element 'display:none' so that it doesn't
+     trigger actual image loads from remote web servers when we set its
+     'content' property to e.g. https://www.example.com/picture.svg via the
+     scripted tests below. -->
+<div id="target" style="display:none"></div>
+<script>
+function test_computed_value_combinations(property, specified, computed) {
+    test_computed_value(property, specified, computed);
+    test_computed_value(property, `${specified} / "alt text"`, computed ? `${computed} / "alt text"` : undefined);
+}
+
+test_computed_value_combinations("content", "open-quote");
+test_computed_value_combinations("content", "close-quote");
+test_computed_value_combinations("content", "no-open-quote");
+test_computed_value_combinations("content", "no-close-quote");
+
+test_computed_value_combinations("content", "counter(counter-name)");
+test_computed_value_combinations("content", "counter(counter-name, counter-style)");
+test_computed_value_combinations("content", "counter(counter-name, dECiMaL)", "counter(counter-name)");
+test_computed_value_combinations("content", "counter(counter-name, DECIMAL)", "counter(counter-name)");
+
+test_computed_value_combinations("content", `counters(counter-name, ".")`);
+test_computed_value_combinations("content", `counters(counter-name, ".", counter-style)`);
+test_computed_value_combinations("content", `counters(counter-name, ".", dECiMaL)`, `counters(counter-name, ".")`);
+test_computed_value_combinations("content", `counters(counter-name, ".", DECIMAL)`, `counters(counter-name, ".")`);
+
+test_computed_value_combinations("content", `url("https://www.example.com/picture.svg")`);
+
+test_computed_value_combinations("content", `"hello"`);
+
+test_computed_value_combinations("content", `counter(counter-name) "potato"`);
+test_computed_value_combinations("content", `counters(counter-name, ".") "potato"`);
+test_computed_value_combinations("content", `"(" counters(counter-name, ".", counter-style) ")"`);
+test_computed_value_combinations("content", `open-quote "hello" "world" close-quote`);
+test_computed_value_combinations("content", `url("https://www.example.com/picture.svg") "hello"`);
+
+test_computed_value("content", "linear-gradient(to top right, red calc(10% + 2em), blue", "linear-gradient(to right top, rgb(255, 0, 0) calc(10% + 32px), rgb(0, 0, 255))");
+test_computed_value("content", "radial-gradient(ellipse 50% 40% at calc(2em + 10px) 30%, red, blue)", "radial-gradient(50% 40% at 42px 30%, rgb(255, 0, 0), rgb(0, 0, 255))");
+test_computed_value("content", "conic-gradient(from 1.5708rad, red 0deg, blue calc(180deg - 10deg))", "conic-gradient(from 90.0002deg, rgb(255, 0, 0) 0deg, rgb(0, 0, 255) 170deg)");
+
+</script>
+</body>
+</html>

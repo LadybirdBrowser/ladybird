@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Content Module Level 3: Invalid parsing</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.csswg.org/css-content-3/#content-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+function test_invalid_value_combinations(property, value) {
+    test_invalid_value(property, value);
+    test_invalid_value(property, `${value} / "alt text"`);
+}
+
+function test_invalid_value_alt_text(property, value) {
+    test_invalid_value(property, `${value} / url("https://www.example.com/picture.svg")`);
+    test_invalid_value(property, `${value} / no-open-quote`);
+    test_invalid_value(property, `${value} / no-close-quote`);
+    test_invalid_value(property, `${value} / "hi" no-close-quote`);
+}
+
+test_invalid_value_combinations("content", `attr()`);
+test_invalid_value_combinations("content", `counters(counter-name)`);
+test_invalid_value_combinations("content", `counter()`);
+
+test_invalid_value_alt_text("content", "open-quote");
+test_invalid_value_alt_text("content", "close-quote");
+test_invalid_value_alt_text("content", "no-open-quote");
+test_invalid_value_alt_text("content", "no-close-quote");
+
+test_invalid_value_alt_text("content", "counter(counter-name)");
+test_invalid_value_alt_text("content", "counter(counter-name, counter-style)");
+
+test_invalid_value_alt_text("content", `counters(counter-name, ".")`);
+test_invalid_value_alt_text("content", `counters(counter-name, ".", counter-style)`);
+
+test_invalid_value_alt_text("content", `url("https://www.example.com/picture.svg")`);
+
+test_invalid_value_alt_text("content", `"hello"`);
+
+test_invalid_value_alt_text("content", `"hello" "world"`);
+test_invalid_value_alt_text("content", `counter(counter-name) "potato"`);
+test_invalid_value_alt_text("content", `counters(counter-name, ".") "potato"`);
+test_invalid_value_alt_text("content", `"(" counters(counter-name, ".", counter-style) ")"`);
+test_invalid_value_alt_text("content", `open-quote "hello" "world" close-quote`);
+test_invalid_value_alt_text("content", `url("https://www.example.com/picture.svg") "hello"`);
+</script>
+</body>
+</html>

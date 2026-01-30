@@ -1,0 +1,48 @@
+Harness status: OK
+
+Found 42 tests
+
+34 Pass
+8 Fail
+Pass	e.style['content'] = "none" should set the property value
+Pass	e.style['content'] = "normal" should set the property value
+Pass	e.style['content'] = "open-quote" should set the property value
+Pass	e.style['content'] = "open-quote / \"alt text\"" should set the property value
+Pass	e.style['content'] = "close-quote" should set the property value
+Pass	e.style['content'] = "close-quote / \"alt text\"" should set the property value
+Pass	e.style['content'] = "no-open-quote" should set the property value
+Pass	e.style['content'] = "no-open-quote / \"alt text\"" should set the property value
+Pass	e.style['content'] = "no-close-quote" should set the property value
+Pass	e.style['content'] = "no-close-quote / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counter(counter-name)" should set the property value
+Pass	e.style['content'] = "counter(counter-name) / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counter(counter-name, counter-style)" should set the property value
+Pass	e.style['content'] = "counter(counter-name, counter-style) / \"alt text\"" should set the property value
+Fail	e.style['content'] = "counter(counter-name, dECiMaL)" should set the property value
+Fail	e.style['content'] = "counter(counter-name, dECiMaL) / \"alt text\"" should set the property value
+Fail	e.style['content'] = "counter(counter-name, DECIMAL)" should set the property value
+Fail	e.style['content'] = "counter(counter-name, DECIMAL) / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\")" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\") / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\", counter-style)" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\", counter-style) / \"alt text\"" should set the property value
+Fail	e.style['content'] = "counters(counter-name, \".\", dECiMaL)" should set the property value
+Fail	e.style['content'] = "counters(counter-name, \".\", dECiMaL) / \"alt text\"" should set the property value
+Fail	e.style['content'] = "counters(counter-name, \".\", DECIMAL)" should set the property value
+Fail	e.style['content'] = "counters(counter-name, \".\", DECIMAL) / \"alt text\"" should set the property value
+Pass	e.style['content'] = "url(\"picture.svg\")" should set the property value
+Pass	e.style['content'] = "url(\"picture.svg\") / \"alt text\"" should set the property value
+Pass	e.style['content'] = "\"hello\"" should set the property value
+Pass	e.style['content'] = "\"hello\" / \"alt text\"" should set the property value
+Pass	e.style['content'] = "\"hello\" \"world\"" should set the property value
+Pass	e.style['content'] = "\"hello\" \"world\" / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counter(counter-name) \"potato\"" should set the property value
+Pass	e.style['content'] = "counter(counter-name) \"potato\" / \"alt text\"" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\") \"potato\"" should set the property value
+Pass	e.style['content'] = "counters(counter-name, \".\") \"potato\" / \"alt text\"" should set the property value
+Pass	e.style['content'] = "\"(\" counters(counter-name, \".\", counter-style) \")\"" should set the property value
+Pass	e.style['content'] = "\"(\" counters(counter-name, \".\", counter-style) \")\" / \"alt text\"" should set the property value
+Pass	e.style['content'] = "open-quote \"hello\" \"world\" close-quote" should set the property value
+Pass	e.style['content'] = "open-quote \"hello\" \"world\" close-quote / \"alt text\"" should set the property value
+Pass	e.style['content'] = "url(\"picture.svg\") \"hello\"" should set the property value
+Pass	e.style['content'] = "url(\"picture.svg\") \"hello\" / \"alt text\"" should set the property value
