@@ -259,6 +259,11 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
+void ViewImplementation::notify_cookies_changed(ReadonlySpan<Web::Cookie::Cookie> cookies)
+{
+    client().async_cookies_changed(page_id(), cookies);
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());

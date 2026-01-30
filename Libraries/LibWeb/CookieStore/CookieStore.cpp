@@ -747,28 +747,24 @@ struct CookieChange {
 };
 
 // https://cookiestore.spec.whatwg.org/#observable-changes
-static Vector<CookieChange> observable_changes(URL::URL const& url, Vector<Cookie::Cookie> const& changes)
+static Vector<CookieChange> observable_changes(Vector<Cookie::Cookie> changes)
 {
     // The observable changes for url are the set of cookie changes to cookies in a cookie store which meet the
     // requirements in step 1 of Cookies § Retrieval Algorithm’s steps to compute the "cookie-string from a given
     // cookie store" with url as request-uri, for a "non-HTTP" API.
-    auto retrieval_host_canonical = Cookie::canonicalize_domain(url);
-    if (!retrieval_host_canonical.has_value())
-        return {};
-
     Vector<CookieChange> observable_changes;
+    observable_changes.ensure_capacity(changes.size());
+
     auto now = UnixDateTime::now();
 
-    for (auto const& cookie : changes) {
-        if (!Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical))
-            continue;
-
+    for (auto& cookie : changes) {
         // A cookie change is a cookie and a type (either changed or deleted):
         // - A cookie which is removed due to an insertion of another cookie with the same name, domain, and path is ignored.
         // - A newly-created cookie which is not immediately evicted is considered changed.
         // - A newly-created cookie which is immediately evicted is considered deleted.
         // - A cookie which is otherwise evicted or removed is considered deleted
-        observable_changes.append({ cookie, cookie.expiry_time < now ? CookieChange::Type::Deleted : CookieChange::Type::Changed });
+        auto type = cookie.expiry_time < now ? CookieChange::Type::Deleted : CookieChange::Type::Changed;
+        observable_changes.unchecked_empend(move(cookie), type);
     }
 
     return observable_changes;
@@ -812,19 +808,16 @@ static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
 }
 
 // https://cookiestore.spec.whatwg.org/#process-cookie-changes
-void CookieStore::process_cookie_changes(Vector<Cookie::Cookie> const& all_changes)
+void CookieStore::process_cookie_changes(Vector<Cookie::Cookie> all_changes)
 {
     auto& realm = this->realm();
 
     // 1. Let url be window’s relevant settings object’s creation URL.
-    auto url = HTML::relevant_settings_object(*this).creation_url;
-
     // 2. Let changes be the observable changes for url.
-    auto changes = observable_changes(url, all_changes);
-
     // 3. If changes is empty, then continue.
-    if (changes.is_empty())
-        return;
+    // NB: We perform the URL-based filtering in the UI process so that we don't have to send all changed cookies over
+    //     IPC to every tab.
+    auto changes = observable_changes(move(all_changes));
 
     // 4. Queue a global task on the DOM manipulation task source given window to fire a change event named "change"
     //    with changes at window’s CookieStore.
