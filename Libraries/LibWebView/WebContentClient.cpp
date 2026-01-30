@@ -81,7 +81,7 @@ void WebContentClient::notify_all_views_of_crash()
     Vector<u64> view_ids;
     view_ids.ensure_capacity(m_views.size());
     for (auto& [page_id, view] : m_views)
-        view_ids.append(view->view_id());
+        view_ids.unchecked_append(view->view_id());
 
     for (auto view_id : view_ids) {
         Core::deferred_invoke([view_id] {
