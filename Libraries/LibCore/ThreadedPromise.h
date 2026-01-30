@@ -13,7 +13,7 @@
 #include <AK/Concepts.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Core {
 
@@ -75,7 +75,7 @@ public:
     template<CallableAs<ErrorOr<void>, ResultType&&> ResolvedHandler>
     ThreadedPromise& when_resolved(ResolvedHandler handler)
     {
-        Threading::MutexLocker locker { m_mutex };
+        Sync::MutexLocker locker { m_mutex };
         VERIFY(!m_resolution_handler);
         m_resolution_handler = move(handler);
         return *this;
@@ -112,7 +112,7 @@ public:
     template<CallableAs<void, ErrorType&&> RejectedHandler>
     ThreadedPromise& when_rejected(RejectedHandler when_rejected = [](ErrorType&) { })
     {
-        Threading::MutexLocker locker { m_mutex };
+        Sync::MutexLocker locker { m_mutex };
         VERIFY(!m_rejection_handler);
         m_rejection_handler = move(when_rejected);
         return *this;
@@ -148,7 +148,7 @@ private:
     template<typename F>
     static void deferred_handler_check(NonnullRefPtr<ThreadedPromise> self, F&& function)
     {
-        Threading::MutexLocker locker { self->m_mutex };
+        Sync::MutexLocker locker { self->m_mutex };
         if (self->m_rejection_handler) {
             function();
             return;
@@ -168,7 +168,7 @@ private:
             //       to spin extremely briefly. Therefore, sleeping the thread should not be
             //       necessary.
             while (true) {
-                Threading::MutexLocker locker { m_mutex };
+                Sync::MutexLocker locker { m_mutex };
                 if (m_rejection_handler)
                     break;
             }
@@ -181,7 +181,7 @@ private:
 
     Function<ErrorOr<void>(ResultType&&)> m_resolution_handler;
     Function<void(ErrorType&&)> m_rejection_handler;
-    Threading::Mutex m_mutex;
+    Sync::Mutex m_mutex;
     Atomic<bool> m_has_completed;
 };
 
