@@ -3,7 +3,7 @@
 // https://drafts.csswg.org/css-counter-styles/#the-csscounterstylerule-interface
 [Exposed=Window]
 interface CSSCounterStyleRule : CSSRule {
-    [FIXME] attribute CSSOMString name;
+    attribute CSSOMString name;
     [FIXME] attribute CSSOMString system;
     [FIXME] attribute CSSOMString symbols;
     [FIXME] attribute CSSOMString additiveSymbols;

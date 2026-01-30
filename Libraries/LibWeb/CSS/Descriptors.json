@@ -189,5 +189,9 @@
         ]
       }
     }
+  },
+  "counter-style": {
+    "spec": "https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule",
+    "descriptors": {}
   }
 }
