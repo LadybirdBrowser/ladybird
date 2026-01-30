@@ -1873,8 +1873,16 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
 
+        // Some pseudo-elements are generated regardless of CSS rules, so we need to compute their styles even when no
+        // rules matched.
+        auto has_implicit_style = first_is_one_of(*abstract_element.pseudo_element(),
+            PseudoElement::DetailsContent,
+            PseudoElement::FileSelectorButton,
+            PseudoElement::Marker,
+            PseudoElement::Placeholder);
+
         // Bail if no pseudo-element rules matched.
-        if (!did_match_any_pseudo_element_rules)
+        if (!did_match_any_pseudo_element_rules && !has_implicit_style)
             return {};
 
         // Bail if no pseudo-element would be generated due to...
