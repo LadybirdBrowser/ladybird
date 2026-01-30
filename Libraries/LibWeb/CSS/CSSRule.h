@@ -62,7 +62,7 @@ public:
     // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
     virtual String serialized() const = 0;
 
-    virtual void dump(StringBuilder&, int indent_levels = 0) const;
+    MUST_UPCALL virtual void dump(StringBuilder&, int indent_levels = 0) const;
 
     MUST_UPCALL virtual void clear_caches();
 
