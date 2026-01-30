@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	super() after new AudioWorkletProcessor()
+Pass	new AudioWorkletProcessor() after super()
+Pass	new AudioWorkletProcessor() after new AudioWorkletProcessor()
+Pass	Singleton AudioWorkletProcessor

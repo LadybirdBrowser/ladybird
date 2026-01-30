@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
@@ -70,6 +71,12 @@ public:
 
     WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
 
+    // Used by AudioWorklet to tag MessagePort traffic with a registration generation.
+    // This lets the receiver defer delivery until the control thread is up to date.
+    void set_message_generation_provider(Function<u64()> provider) { m_message_generation_provider = move(provider); }
+    void set_message_generation_gate(Function<bool(u64)> gate) { m_message_generation_gate = move(gate); }
+    void flush_deferred_messages();
+
 private:
     explicit MessagePort(JS::Realm&);
 
@@ -79,7 +86,7 @@ private:
 
     bool is_entangled() const;
 
-    void post_message_task_steps(SerializedTransferRecord&);
+    void post_message_task_steps(SerializedTransferRecord&, u64 generation = 0, bool bypass_generation_gate = false);
     void post_port_message(SerializedTransferRecord const&);
     ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
     void read_from_transport();
@@ -95,6 +102,17 @@ private:
     GC::Ptr<DOM::EventTarget> m_worker_event_target;
 
     bool m_enabled { false };
+
+    struct DeferredMessage {
+        u64 generation { 0 };
+        SerializedTransferRecord record;
+    };
+
+    // Used by AudioWorklet to delay MessagePort delivery until registerProcessor sync.
+    // This avoids message-driven node construction racing descriptor propagation.
+    Function<u64()> m_message_generation_provider;
+    Function<bool(u64)> m_message_generation_gate;
+    Vector<DeferredMessage> m_deferred_messages;
 };
 
 }

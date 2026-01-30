@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
+#include <LibMedia/AudioBlock.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -79,6 +80,11 @@ public:
 
     void set_volume(double);
 
+    using DecodedAudioBlockCallback = Function<void(AudioBlock const&)>;
+    void set_decoded_audio_block_callback(DecodedAudioBlockCallback);
+
+    AudioMixingSink* audio_sink() const { return m_audio_sink.ptr(); }
+
     Function<void()> on_metadata_parsed;
     Function<void(DecoderError&&)> on_unsupported_format_error;
     Function<void(TrackType, Track const&)> on_track_added;
@@ -89,6 +95,22 @@ public:
     void add_media_source(NonnullRefPtr<IncrementallyPopulatedStream>);
 
 private:
+    struct DecodedAudioBlockCallbackState : public RefCounted<DecodedAudioBlockCallbackState> {
+        explicit DecodedAudioBlockCallbackState(DecodedAudioBlockCallback callback)
+            : m_callback(move(callback))
+        {
+        }
+
+        void call(AudioBlock const& block) const
+        {
+            if (m_callback)
+                m_callback(block);
+        }
+
+    private:
+        DecodedAudioBlockCallback m_callback;
+    };
+
     class WeakPlaybackManager : public AtomicRefCounted<WeakPlaybackManager> {
         friend class PlaybackManager;
 
@@ -136,6 +158,8 @@ private:
 
     DecoderErrorOr<void> prepare_playback_from_media_data(NonnullRefPtr<IncrementallyPopulatedStream>, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
 
+    void update_decoded_audio_block_callback();
+
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);
     inline void dispatch_state_change() const;
@@ -152,6 +176,9 @@ private:
     RefPtr<AudioMixingSink> m_audio_sink;
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
+
+    Threading::Mutex m_decoded_audio_block_callback_mutex;
+    RefPtr<DecodedAudioBlockCallbackState> m_decoded_audio_block_callback_state;
 
     Optional<Track> m_preferred_video_track;
     Optional<Track> m_preferred_audio_track;

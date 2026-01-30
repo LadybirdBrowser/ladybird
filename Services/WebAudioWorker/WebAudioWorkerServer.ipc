@@ -1,0 +1,12 @@
+#include <LibIPC/File.h>
+
+endpoint WebAudioWorkerServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    // Create a new IPC connection for WebAudio rendering/control.
+    connect_new_webaudio_client() => (IPC::File socket)
+
+    // Legacy: create more WebAudioWorkerServer connections.
+    connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+}

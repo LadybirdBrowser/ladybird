@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/DynamicsCompressorNodePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 
 namespace Web::WebAudio {
@@ -63,6 +64,16 @@ void DynamicsCompressorNode::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ratio);
     visitor.visit(m_attack);
     visitor.visit(m_release);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-dynamicscompressornode-reduction
+float DynamicsCompressorNode::reduction() const
+{
+    f32 reduction_db = 0.0f;
+    u64 render_quantum_index = 0;
+    if (context()->try_copy_realtime_dynamics_compressor_reduction(node_id(), reduction_db, render_quantum_index))
+        m_reduction = reduction_db;
+    return m_reduction;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode

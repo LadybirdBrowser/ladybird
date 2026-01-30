@@ -1,0 +1,87 @@
+<!doctype html>
+<title>Test parameters of process() AudioWorkletProcessor callback</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+var context;
+promise_setup(async (t) => {
+  context = new AudioContext();
+  const filePath = 'processors/process-parameter-test-processor.js';
+  await context.audioWorklet.addModule(filePath);
+});
+
+const get_parameters = async (node, options) => {
+  const event = await new Promise((resolve) => {
+    node.port.onmessage = resolve;
+  });
+  const inputs = event.data.inputs;
+  assert_equals(inputs.length, options.numberOfInputs, 'inputs length');
+  const outputs = event.data.outputs;
+  assert_equals(outputs.length, options.numberOfOutputs, 'outputs length');
+  for (let port = 0; port < inputs.length; ++port) {
+    for (let channel = 0; channel < inputs[port].length; ++channel) {
+      assert_equals(inputs[port][channel].length, 128,
+                    `inputs[${port}][${channel}].length`);
+    }
+  }
+  for (let port = 0; port < outputs.length; ++port) {
+    for (let channel = 0; channel < outputs[port].length; ++channel) {
+      assert_equals(outputs[port][channel].length, 128,
+                    `outputs[${port}][${channel}].length`);
+    }
+  }
+  return event.data;
+};
+
+promise_test(async (t) => {
+  const options = {
+    numberOfInputs: 3,
+    numberOfOutputs: 0
+  };
+  // Connect a source so that one channel of one input is active.
+  context.suspend();
+  const source = new ConstantSourceNode(context);
+  source.start();
+  const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+  const active_channel_index = merger.numberOfInputs - 1;
+  source.connect(merger, 0, active_channel_index);
+  const node = new AudioWorkletNode(context, 'process-parameter-test', options);
+  const active_port_index = options.numberOfInputs - 1;
+  merger.connect(node, 0, active_port_index);
+  context.resume();
+  const {inputs} = await get_parameters(node, options);
+  for (let port = 0; port < inputs.length - 1; ++port) {
+    if (port != active_port_index) {
+      assert_equals(inputs[port].length, 0, `inputs[${port}].length`);
+    }
+  }
+  const active_input = inputs[active_port_index];
+  assert_equals(active_input.length, merger.numberOfInputs,
+                'active_input.length');
+  for (let channel = 0; channel < active_input.length; ++channel) {
+    let expected = channel == active_channel_index ? 1.0 : 0.0;
+    for (let sample = 0; sample < inputs.length; ++sample) {
+      assert_equals(active_input[channel][sample], expected,
+                    `active_input[${channel}][${sample}]`);
+    }
+  }
+}, '3 inputs; 0 outputs');
+
+promise_test(async (t) => {
+  const options = {
+    numberOfInputs: 0,
+    numberOfOutputs: 3
+  };
+  const node = new AudioWorkletNode(context, 'process-parameter-test', options);
+  const {outputs} = await get_parameters(node, options);
+  for (let port = 0; port < outputs.length; ++port) {
+    assert_equals(outputs[port].length, 1, `outputs[${port}].length`);
+    for (let channel = 0; channel < outputs[port].length; ++channel) {
+      for (let sample = 0; sample < outputs.length; ++sample) {
+        assert_equals(outputs[port][channel][sample], 0.0,
+                      `outputs[${port}][${channel}][${sample}]`);
+      }
+    }
+  }
+}, '0 inputs; 3 outputs');
+</script>

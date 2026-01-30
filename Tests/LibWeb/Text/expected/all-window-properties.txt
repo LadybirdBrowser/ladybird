@@ -20,9 +20,13 @@ AudioDestinationNode
 AudioListener
 AudioNode
 AudioParam
+AudioParamMap
+AudioProcessingEvent
 AudioScheduledSourceNode
 AudioTrack
 AudioTrackList
+AudioWorklet
+AudioWorkletNode
 BarProp
 BaseAudioContext
 BeforeUnloadEvent

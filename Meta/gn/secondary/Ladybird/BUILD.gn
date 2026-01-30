@@ -52,6 +52,7 @@ config("ladybird_config") {
 
 ladybird_helper_processes = [
   "ImageDecoder",
+  "AudioServer",
   "RequestServer",
   "WebContent",
   "WebWorker",
@@ -353,6 +354,7 @@ if (current_os != "mac") {
     public_deps = [
       ":headless-browser",
       ":ladybird_executable",
+      "AudioServer",
       "ImageDecoder",
       "RequestServer",
       "WebContent",
@@ -363,6 +365,7 @@ if (current_os != "mac") {
       "$root_out_dir/bin/Ladybird",
       "$root_out_dir/bin/WebDriver",
       "$root_out_dir/bin/headless-browser",
+      "$root_out_dir/libexec/AudioServer",
       "$root_out_dir/libexec/ImageDecoder",
       "$root_out_dir/libexec/RequestServer",
       "$root_out_dir/libexec/WebContent",
@@ -374,6 +377,7 @@ if (current_os != "mac") {
   bundle_data("ladybird_bundle_libs") {
     public_deps = [
       "//AK",
+      "//Userland/Libraries/LibAudioServerClient",
       "//Userland/Libraries/LibCompress",
       "//Userland/Libraries/LibCore",
       "//Userland/Libraries/LibCrypto",
@@ -402,6 +406,7 @@ if (current_os != "mac") {
     ]
     sources = [
       "$root_out_dir/lib/liblagom-ak.dylib",
+      "$root_out_dir/lib/liblagom-audioserverclient.dylib",
       "$root_out_dir/lib/liblagom-compress.dylib",
       "$root_out_dir/lib/liblagom-core-minimal.dylib",
       "$root_out_dir/lib/liblagom-core.dylib",

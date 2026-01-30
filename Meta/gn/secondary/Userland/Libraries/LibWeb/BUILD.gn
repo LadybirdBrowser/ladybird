@@ -389,6 +389,7 @@ shared_library("LibWeb") {
            "//AK",
            "//Meta/gn/build/libs/skia",
            "//Meta/gn/build/libs/vulkan",
+           "//Userland/Libraries/LibAudioServerClient",
            "//Userland/Libraries/LibCore",
            "//Userland/Libraries/LibCrypto",
            "//Userland/Libraries/LibGfx",

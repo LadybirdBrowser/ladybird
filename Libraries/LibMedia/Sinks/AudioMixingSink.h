@@ -18,14 +18,23 @@
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Mutex.h>
 
+namespace AudioServerClient {
+
+class Client;
+
+}
+
 namespace Media {
 
-class MEDIA_API AudioMixingSink final : public AudioSink {
+class MEDIA_API AudioMixingSink : public AudioSink {
+protected:
     class AudioMixingSinkWeakReference;
+
+    struct AudioServerOutput;
 
 public:
     static ErrorOr<NonnullRefPtr<AudioMixingSink>> try_create();
-    AudioMixingSink(AudioMixingSinkWeakReference&);
+    AudioMixingSink(AudioMixingSinkWeakReference&, NonnullRefPtr<AudioServerClient::Client>);
     virtual ~AudioMixingSink() override;
 
     virtual void set_provider(Track const&, RefPtr<AudioDataProvider> const&) override;
@@ -34,15 +43,15 @@ public:
     // This section implements the pure virtuals in MediaTimeProvider.
     // AudioMixingSink cannot inherit from MediaTimeProvider, as AudioSink and MediaTimeProvider both inherit from
     // AtomicRefCounted. In order to use AudioMixingSink as a MediaTimeProvider, wrap it with WrapperTimeProvider.
-    AK::Duration current_time() const;
-    void resume();
-    void pause();
-    void set_time(AK::Duration);
-    void clear_track_data(Track const&);
+    virtual AK::Duration current_time() const;
+    virtual void resume();
+    virtual void pause();
+    virtual void set_time(AK::Duration);
+    virtual void clear_track_data(Track const&);
 
-    void set_volume(double);
+    virtual void set_volume(double);
 
-private:
+protected:
     static constexpr size_t MAX_BLOCK_COUNT = 16;
 
     class AudioMixingSinkWeakReference : public AtomicRefCounted<AudioMixingSinkWeakReference> {
@@ -65,24 +74,20 @@ private:
     };
 
     struct TrackMixingData {
-        TrackMixingData(NonnullRefPtr<AudioDataProvider> const& provider)
-            : provider(provider)
-        {
-        }
+        explicit TrackMixingData(NonnullRefPtr<AudioDataProvider> const& provider);
 
         NonnullRefPtr<AudioDataProvider> provider;
         AudioBlock current_block;
     };
 
-    void create_playback_stream();
-    ReadonlySpan<float> write_audio_data_to_playback_stream(Span<float>);
+    ReadonlySpan<float> write_audio_data_to_playback_stream(Span<float>, bool* did_mix_audio = nullptr, bool advance_cursor = true);
 
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
 
+    OwnPtr<AudioServerOutput> m_audio_server_output;
+
     Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_wait_condition { m_mutex };
-    RefPtr<Audio::PlaybackStream> m_playback_stream;
     Audio::SampleSpecification m_sample_specification;
     bool m_playing { false };
     double m_volume { 1 };

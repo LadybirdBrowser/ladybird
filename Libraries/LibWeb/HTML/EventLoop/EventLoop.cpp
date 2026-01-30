@@ -18,8 +18,10 @@
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -638,8 +640,18 @@ void EventLoop::perform_a_microtask_checkpoint()
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
     auto environments = GC::RootVector { heap(), m_related_environment_settings_objects };
     for (auto& environment_settings_object : environments) {
-        auto& global = as<HTML::UniversalGlobalScopeMixin>(environment_settings_object->global_object());
-        global.notify_about_rejected_promises({});
+        auto& global_object = environment_settings_object->global_object();
+
+        if (is<HTML::Window>(global_object)) {
+            auto& global = as<HTML::Window>(global_object);
+            global.notify_about_rejected_promises({});
+        } else if (is<HTML::WorkerGlobalScope>(global_object)) {
+            auto& global = as<HTML::WorkerGlobalScope>(global_object);
+            global.notify_about_rejected_promises({});
+        } else if (is<HTML::ShadowRealmGlobalScope>(global_object)) {
+            auto& global = as<HTML::ShadowRealmGlobalScope>(global_object);
+            global.notify_about_rejected_promises({});
+        }
     }
 
     // 5. Cleanup Indexed Database transactions.

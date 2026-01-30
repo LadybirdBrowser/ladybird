@@ -67,6 +67,11 @@ void AudioDataProvider::set_output_sample_specification(Audio::SampleSpecificati
     m_thread_data->set_output_sample_specification(sample_specification);
 }
 
+void AudioDataProvider::set_decoded_audio_block_callback(DecodedAudioBlockCallback callback)
+{
+    m_thread_data->set_decoded_audio_block_callback(move(callback));
+}
+
 void AudioDataProvider::start()
 {
     m_thread_data->start();
@@ -99,17 +104,29 @@ AudioDataProvider::ThreadData::~ThreadData() = default;
 
 void AudioDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 {
+    auto locker = take_lock();
     m_error_handler = move(handler);
 }
 
 void AudioDataProvider::ThreadData::set_block_end_time_handler(BlockEndTimeHandler&& handler)
 {
+    auto locker = take_lock();
     m_frame_end_time_handler = move(handler);
 }
 
 void AudioDataProvider::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
+    auto locker = take_lock();
     m_converter->set_output_sample_specification(sample_specification).release_value_but_fixme_should_propagate_errors();
+}
+
+void AudioDataProvider::ThreadData::set_decoded_audio_block_callback(DecodedAudioBlockCallback callback)
+{
+    auto locker = take_lock();
+    if (callback)
+        m_decoded_audio_block_callback_state = adopt_ref(*new DecodedAudioBlockCallbackState(move(callback)));
+    else
+        m_decoded_audio_block_callback_state = nullptr;
 }
 
 void AudioDataProvider::ThreadData::start()
@@ -272,11 +289,35 @@ void AudioDataProvider::ThreadData::flush_decoder()
 {
     m_decoder->flush();
     m_last_sample = NumericLimits<i64>::min();
+    m_last_tap_sample_rate.clear();
+    m_last_tap_sample = NumericLimits<i64>::min();
+    m_is_at_end_of_stream.store(false, AK::MemoryOrder::memory_order_relaxed);
 }
 
 DecoderErrorOr<void> AudioDataProvider::ThreadData::retrieve_next_block(AudioBlock& block)
 {
     TRY(m_decoder->write_next_block(block));
+
+    // The decoded-audio tap callback runs on the decoder thread and is used by WebAudio to
+    // observe decoded samples before any conversion (resampling/channel remapping) is applied.
+    // Ensure the timestamps it sees are monotonic, since some demuxers/codecs can produce
+    // jittery or slightly non-monotonic timestamps.
+    if (!m_last_tap_sample_rate.has_value() || m_last_tap_sample_rate.value() != block.sample_rate()) {
+        m_last_tap_sample_rate = block.sample_rate();
+        m_last_tap_sample = NumericLimits<i64>::min();
+    }
+    if (block.timestamp_in_samples() < m_last_tap_sample)
+        block.set_timestamp_in_samples(m_last_tap_sample);
+    m_last_tap_sample = block.timestamp_in_samples() + static_cast<i64>(block.sample_count());
+
+    // Let consumers see the decoded block before any conversion is applied.
+    RefPtr<DecodedAudioBlockCallbackState> callback_state;
+    {
+        auto locker = take_lock();
+        callback_state = m_decoded_audio_block_callback_state;
+    }
+    if (callback_state)
+        callback_state->call(block);
 
     auto convert_result = m_converter->convert(block);
     if (convert_result.is_error())
@@ -301,7 +342,8 @@ void AudioDataProvider::ThreadData::process_seek_on_main_thread(u32 seek_id, Cal
 
 void AudioDataProvider::ThreadData::resolve_seek(u32 seek_id)
 {
-    m_is_in_error_state = false;
+    m_is_in_error_state.store(false, AK::MemoryOrder::memory_order_relaxed);
+    m_is_at_end_of_stream.store(false, AK::MemoryOrder::memory_order_relaxed);
     process_seek_on_main_thread(seek_id, [](auto& self) {
         auto handler = move(self->m_seek_completion_handler);
         if (handler)
@@ -316,7 +358,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
         return false;
 
     auto handle_error = [&](DecoderError&& error) {
-        m_is_in_error_state = true;
+        m_is_in_error_state.store(true, AK::MemoryOrder::memory_order_relaxed);
         {
             auto locker = take_lock();
             m_queue.clear();
@@ -415,10 +457,26 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
 void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 {
-    auto set_error_and_wait_for_seek = [this](DecoderError&& error) {
+    auto wait_until_seek = [this](Atomic<bool>& wait_flag) -> bool {
+        while (wait_flag.load(AK::MemoryOrder::memory_order_relaxed)) {
+            if (handle_seek()) {
+                wait_flag.store(false, AK::MemoryOrder::memory_order_relaxed);
+                break;
+            }
+            {
+                auto locker = take_lock();
+                m_wait_condition.wait();
+            }
+            if (should_thread_exit())
+                return true;
+        }
+        return false;
+    };
+
+    auto set_error_and_wait_for_seek = [this, &wait_until_seek](DecoderError&& error) {
         {
             auto locker = take_lock();
-            m_is_in_error_state = true;
+            m_is_in_error_state.store(true, AK::MemoryOrder::memory_order_relaxed);
             invoke_on_main_thread_while_locked([error = move(error)](auto const& self) mutable {
                 if (self->m_error_handler)
                     self->m_error_handler(move(error));
@@ -426,17 +484,14 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
 
         dbgln_if(PLAYBACK_MANAGER_DEBUG, "Audio Data Provider: Encountered an error, waiting for a seek to start decoding again...");
-        while (m_is_in_error_state) {
-            if (handle_seek())
-                break;
-            {
-                auto locker = take_lock();
-                m_wait_condition.wait();
-                if (should_thread_exit_while_locked())
-                    return;
-            }
-        }
+        (void)wait_until_seek(m_is_in_error_state);
     };
+
+    if (m_is_at_end_of_stream.load(AK::MemoryOrder::memory_order_relaxed)) {
+        if (wait_until_seek(m_is_at_end_of_stream))
+            return;
+        return;
+    }
 
     auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
     if (sample_result.is_error()) {
@@ -480,6 +535,10 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         auto block = AudioBlock();
         auto block_result = retrieve_next_block(block);
         if (block_result.is_error()) {
+            if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                m_is_at_end_of_stream.store(true, AK::MemoryOrder::memory_order_relaxed);
+                break;
+            }
             if (block_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                 break;
             set_error_and_wait_for_seek(block_result.release_error());
@@ -489,6 +548,9 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         auto locker = take_lock();
         queue_block(move(block));
     }
+
+    if (m_is_at_end_of_stream.load(AK::MemoryOrder::memory_order_relaxed))
+        (void)wait_until_seek(m_is_at_end_of_stream);
 }
 
 }

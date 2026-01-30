@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	realtime suspended
+Pass	offline before start
+Pass	offline on complete

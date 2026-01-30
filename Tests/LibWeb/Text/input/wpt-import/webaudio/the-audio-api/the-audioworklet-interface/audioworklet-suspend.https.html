@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test if activation of worklet thread does not resume context rendering.
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const audit = Audit.createTaskRunner();
+      const context = new AudioContext();
+      const filePath = 'processors/dummy-processor.js';
+
+      context.suspend();
+
+      // Suspends the context right away and then activate worklet. The current
+      // time must not advance since the context is suspended.
+      audit.define(
+          {label: 'load-worklet-and-suspend'},
+          async (task, should) => {
+            await context.audioWorklet.addModule(filePath);
+            const suspendTime = context.currentTime;
+            const dummy = new AudioWorkletNode(context, 'dummy');
+            dummy.connect(context.destination);
+            return task.timeout(() => {
+              should(context.currentTime === suspendTime,
+                     'context.currentTime did not change after worklet started')
+                  .beTrue();
+              should(context.state, 'context.state').beEqualTo('suspended');
+            }, 500);
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

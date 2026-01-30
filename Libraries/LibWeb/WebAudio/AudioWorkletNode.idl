@@ -1,0 +1,25 @@
+#import <DOM/EventHandler.idl>
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/AudioParamMap.idl>
+#import <WebAudio/BaseAudioContext.idl>
+#import <HTML/MessagePort.idl>
+
+// https://webaudio.github.io/web-audio-api/#AudioWorkletNodeOptions
+dictionary AudioWorkletNodeOptions : AudioNodeOptions {
+    unsigned long numberOfInputs = 1;
+    unsigned long numberOfOutputs = 1;
+    sequence<unsigned long> outputChannelCount;
+    record<DOMString, double> parameterData;
+    object processorOptions;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioWorkletNode
+[Exposed=Window]
+interface AudioWorkletNode : AudioNode {
+    constructor(BaseAudioContext context, DOMString name, optional AudioWorkletNodeOptions options = {});
+
+    attribute EventHandler onprocessorerror;
+
+    readonly attribute MessagePort port;
+    readonly attribute AudioParamMap parameters;
+};

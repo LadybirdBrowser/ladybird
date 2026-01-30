@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Test onprocessorerror handler in AudioWorkletNode</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+let context = null;
+
+promise_setup(async () => {
+  const sampleRate = 48000;
+  const renderLength = sampleRate * 0.1;
+  context = new OfflineAudioContext(1, renderLength, sampleRate);
+
+  // Loads all processor definitions that are necessary for tests in this file.
+  await context.audioWorklet.addModule('./processors/error-processor.js');
+});
+
+promise_test(async () => {
+  const constructorErrorWorkletNode =
+      new AudioWorkletNode(context, 'constructor-error');
+  let error = await new Promise(resolve => {
+    constructorErrorWorkletNode.onprocessorerror = (e) => resolve(e);
+  });
+  assert_true(error instanceof ErrorEvent,
+      'onprocessorerror argument should be an ErrorEvent when ' +
+      'the constructor of AudioWorkletProcessor has an error.');
+}, 'Test if |onprocessorerror| is called for an exception thrown from the ' +
+    'processor constructor.');
+
+promise_test(async () => {
+  // An arbitrary Blob for testing. This is not deserializable on
+  // AudioWorkletGlobalScope.
+  const blob = new Blob([JSON.stringify({ hello: "world"}, null, 2)], {
+    type: "application/json",
+  });
+  const emptyErrorWorkletNode =
+      new AudioWorkletNode(context, 'empty-error', {processorOptions: {blob}});
+  let error = await new Promise(resolve => {
+    emptyErrorWorkletNode.onprocessorerror = (e) => resolve(e);
+  });
+  assert_true(error instanceof ErrorEvent,
+      'onprocessorerror argument should be an ErrorEvent when ' +
+      'the constructor of AudioWorkletProcessor has an error.');
+}, 'Test if |onprocessorerror| is called for a transfered object that cannot ' +
+   'be deserialized on the AudioWorkletGlobalScope.');
+
+promise_test(async () => {
+  const processErrorWorkletNode =
+      new AudioWorkletNode(context, 'process-error');
+  let error = await new Promise(resolve => {
+    processErrorWorkletNode.onprocessorerror = (e) => resolve(e);
+    // Need to start render to cause an exception in process().
+    context.startRendering();
+  });
+  assert_true(error instanceof ErrorEvent,
+      'onprocessorerror argument should be an ErrorEvent when the ' +
+      'process method of the AudioWorkletProcessor has an error.');
+}, 'Test if |onprocessorerror| is called upon failure of process() method.');
+</script>

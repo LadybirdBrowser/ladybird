@@ -1,4 +1,5 @@
 #import <WebAudio/BaseAudioContext.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
 
 // https://www.w3.org/TR/webaudio/#enumdef-audiocontextlatencycategory
 enum AudioContextLatencyCategory { "balanced", "interactive", "playback" };
@@ -26,6 +27,5 @@ dictionary AudioContextOptions {
 
 dictionary AudioTimestamp {
     [GenerateAsRequired] double contextTime;
-    // FIXME: Should be DOMHighResTimeStamp, but DOMHighResTimeStamp doesn't get parsed as a double during codegen
-    [GenerateAsRequired] double performanceTime;
+    [GenerateAsRequired] DOMHighResTimeStamp performanceTime;
 };

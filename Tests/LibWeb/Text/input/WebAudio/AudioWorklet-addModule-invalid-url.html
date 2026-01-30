@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        try {
+            const context = new AudioContext();
+            await context.audioWorklet.addModule("http://[invalid");
+            println("FAIL: fulfilled");
+        } catch (e) {
+            println(`${e.name}: ${e.message}`);
+        }
+        done();
+    });
+</script>

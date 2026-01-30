@@ -45,6 +45,9 @@ public:
     void set_block_end_time_handler(BlockEndTimeHandler&&);
     void set_output_sample_specification(Audio::SampleSpecification);
 
+    using DecodedAudioBlockCallback = Function<void(AudioBlock const&)>;
+    void set_decoded_audio_block_callback(DecodedAudioBlockCallback);
+
     void start();
     void suspend();
     void resume();
@@ -62,6 +65,7 @@ private:
         void set_error_handler(ErrorHandler&&);
         void set_block_end_time_handler(BlockEndTimeHandler&&);
         void set_output_sample_specification(Audio::SampleSpecification);
+        void set_decoded_audio_block_callback(DecodedAudioBlockCallback);
 
         void start();
         DecoderErrorOr<void> create_decoder();
@@ -96,6 +100,22 @@ private:
         AudioQueue& queue() { return m_queue; }
 
     private:
+        struct DecodedAudioBlockCallbackState : public RefCounted<DecodedAudioBlockCallbackState> {
+            explicit DecodedAudioBlockCallbackState(DecodedAudioBlockCallback callback)
+                : m_callback(move(callback))
+            {
+            }
+
+            void call(AudioBlock const& block) const
+            {
+                if (m_callback)
+                    m_callback(block);
+            }
+
+        private:
+            DecodedAudioBlockCallback m_callback;
+        };
+
         enum class RequestedState : u8 {
             None,
             Running,
@@ -114,13 +134,21 @@ private:
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
+
+        // Monotonic timestamp tracking for the decoded-audio tap callback.
+        // The tap observes blocks before any conversion is applied, so it needs its own
+        // monotonic correction separate from the post-conversion stream.
+        Optional<u32> m_last_tap_sample_rate;
+        i64 m_last_tap_sample { NumericLimits<i64>::min() };
         i64 m_last_sample { NumericLimits<i64>::min() };
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
         BlockEndTimeHandler m_frame_end_time_handler;
         ErrorHandler m_error_handler;
-        bool m_is_in_error_state { false };
+        RefPtr<DecodedAudioBlockCallbackState> m_decoded_audio_block_callback_state;
+        Atomic<bool> m_is_in_error_state { false };
+        Atomic<bool> m_is_at_end_of_stream { false };
 
         u32 m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };

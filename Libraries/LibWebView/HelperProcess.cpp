@@ -85,6 +85,7 @@ template<typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(
     IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket,
+    IPC::File audio_server_socket,
     ClientArguments&&... client_arguments)
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -147,22 +148,27 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
+    arguments.append("--audio-server-socket"sv);
+    arguments.append(ByteString::number(audio_server_socket.fd()));
+
     return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
     IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    Optional<IPC::File> request_server_socket,
+    IPC::File audio_server_socket)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), view);
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), move(audio_server_socket), view);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
     IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    Optional<IPC::File> request_server_socket,
+    IPC::File audio_server_socket)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket));
+    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), move(audio_server_socket));
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
@@ -174,6 +180,32 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     }
 
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
+}
+
+ErrorOr<NonnullRefPtr<AudioServerClient::Client>> launch_audio_server_process()
+{
+    Vector<ByteString> arguments;
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<AudioServerClient::Client>("AudioServer"sv, arguments);
+}
+
+ErrorOr<NonnullRefPtr<WebAudioWorkerClient::Client>> launch_webaudio_renderer_process()
+{
+    Vector<ByteString> arguments;
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    auto audio_server_socket = TRY(connect_new_audio_server_client());
+    arguments.append("--audio-server-socket"sv);
+    arguments.append(ByteString::number(audio_server_socket.fd()));
+
+    return launch_server_process<WebAudioWorkerClient::Client>("WebAudioWorker"sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type)
@@ -286,6 +318,21 @@ ErrorOr<IPC::File> connect_new_image_decoder_client()
     auto socket = sockets.take_last();
     TRY(socket.clear_close_on_exec());
 
+    return socket;
+}
+
+ErrorOr<IPC::File> connect_new_audio_server_client()
+{
+    auto new_sockets = Application::audio_server_client().send_sync_but_allow_failure<Messages::AudioServerServer::ConnectNewClients>(1);
+    if (!new_sockets)
+        return Error::from_string_literal("Failed to connect to AudioServer");
+
+    auto sockets = new_sockets->take_sockets();
+    if (sockets.size() != 1)
+        return Error::from_string_literal("Failed to connect to AudioServer");
+
+    auto socket = sockets.take_last();
+    TRY(socket.clear_close_on_exec());
     return socket;
 }
 

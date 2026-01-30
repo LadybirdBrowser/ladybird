@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        try {
+            await context.audioWorklet.addModule("../../data/AudioWorklet-processor.js");
+
+            let node = new AudioWorkletNode(context, "dummy", {
+                parameterData: {
+                    gain: 0.8,
+                },
+            });
+
+            println("parameters.size: " + node.parameters.size);
+
+            let gain = node.parameters.get("gain");
+            let detune = node.parameters.get("detune");
+
+            println("gain is AudioParam: " + (gain instanceof AudioParam));
+            println("gain.value: " + gain.value.toFixed(2));
+            println("detune.value: " + detune.value.toFixed(0));
+
+            let names = [];
+            for (let [name, param] of node.parameters)
+                names.push(name);
+            println("iterated names: " + names.join(","));
+
+            println("PASS");
+        } catch (e) {
+            println("FAIL: " + e);
+        }
+
+        done();
+    });
+</script>

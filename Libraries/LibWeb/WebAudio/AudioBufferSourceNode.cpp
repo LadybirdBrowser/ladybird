@@ -10,6 +10,8 @@
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/ControlMessage.h>
 
 namespace Web::WebAudio {
 
@@ -130,11 +132,21 @@ WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Op
     // 3. Set the internal slot [[source started]] on this AudioBufferSourceNode to true.
     set_source_started(true);
 
-    // FIXME: 4. Queue a control message to start the AudioBufferSourceNode, including the parameter values in the message.
+    // AD-HOC: Until we have a real control-message queue into the rendering thread, store scheduling
+    // parameters so OfflineAudioContext can snapshot them for offline rendering.
+    m_start_when = when;
+    m_start_offset = offset;
+    m_start_duration = duration;
+
+    // 4. Queue a control message to start the AudioBufferSourceNode, including the parameter values in the message.
+    // FIXME: Include any extra parameter values needed by derived node types.
+    context()->queue_control_message(StartSource { .node_id = node_id(), .when = when.value_or(0.0) });
+
+    context()->notify_audio_graph_changed();
+
     // FIXME: 5. Acquire the contents of the buffer if the buffer has been set.
     // FIXME: 6. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
 
-    dbgln("FIXME: Implement AudioBufferSourceNode::start(when, offset, duration)");
     return {};
 }
 

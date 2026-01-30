@@ -1,0 +1,8 @@
+#include <AK/ByteString.h>
+#include <LibCore/AnonymousBuffer.h>
+
+endpoint AudioServerClient
+{
+	audio_output_session_ready(u64 session_id, u32 sample_rate, u32 channel_count, Core::AnonymousBuffer shm_buffer) =|
+	audio_output_session_failed(u64 session_id, ByteString error) =|
+}

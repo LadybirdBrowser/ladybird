@@ -10,6 +10,11 @@ endif()
 lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
+if (NOT WIN32)
+    lagom_utility(MultipleAudioServerClientExample SOURCES Examples/MultipleAudioServerClientExample.cpp LIBS LibAudioServerClient LibIPC LibCore LibMain)
+    lagom_utility(MinimalAudioServerClientExample SOURCES Examples/MinimalAudioServerClientExample.cpp LIBS LibAudioServerClient LibIPC LibCore LibMain)
+endif()
+
 if (ENABLE_GUI_TARGETS)
     lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
 endif()

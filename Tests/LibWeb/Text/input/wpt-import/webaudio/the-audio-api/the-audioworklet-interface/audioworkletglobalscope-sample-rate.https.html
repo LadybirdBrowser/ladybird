@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test sampleRate in AudioWorkletGlobalScope
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      setup(() => {
+        let sampleRate = 48000;
+        let renderLength = 512;
+        let context = new OfflineAudioContext(1, renderLength, sampleRate);
+
+        let filePath = 'processors/one-pole-processor.js';
+
+        // Without rendering the context, attempt to access |sampleRate| in the
+        // global scope as soon as it is created.
+        audit.define(
+            'Query |sampleRate| upon AudioWorkletGlobalScope construction',
+            (task, should) => {
+              let onePoleFilterNode =
+                  new AudioWorkletNode(context, 'one-pole-filter');
+              let frequencyParam = onePoleFilterNode.parameters.get('frequency');
+
+              should(frequencyParam.maxValue,
+                     'frequencyParam.maxValue')
+                  .beEqualTo(0.5 * context.sampleRate);
+
+              task.done();
+            });
+
+        context.audioWorklet.addModule(filePath).then(() => {
+          audit.run();
+        });
+      });
+    </script>
+  </body>
+</html>

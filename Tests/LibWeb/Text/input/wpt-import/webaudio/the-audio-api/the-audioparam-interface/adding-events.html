@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Adding Events</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audio-param.js"></script>
+  </head>
+
+  <body>
+    <script>
+
+      // Arbitrary power of two to eliminate round-off in computing time from frame.
+      const sampleRate = 8192;
+
+      // Test insertion of an event in the middle of rendering.
+      //
+      // options dictionary:
+      //   method - automation method to test
+      //   prefix - string to use for prefixing messages
+      async function testInsertion(options) {
+        const {method, prefix} = options;
+
+        // Channel 0 is the output for the test, and channel 1 is the
+        // reference output.
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          length: sampleRate,
+          sampleRate: sampleRate
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfChannels: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Initial value and final values of the source node
+        const initialValue = 1;
+        const finalValue = 2;
+
+        // Set up the node for the automations under test
+        const src = new ConstantSourceNode(context, { offset: initialValue });
+        src.connect(merger, 0, 0);
+
+        // Set initial event to occur at this time.  Keep it in the first
+        // render quantum.
+        const initialEventTime = 64 / context.sampleRate;
+        // Any exception will naturally fail the test.
+        src.offset.setValueAtTime(initialValue, initialEventTime);
+
+        // Let time pass and then add a new event with time in the future.
+        const insertAtFrame = 512;
+        const insertTime = insertAtFrame / context.sampleRate;
+        const automationEndFrame = 1024 + 64;
+        const automationEndTime = automationEndFrame / context.sampleRate;
+
+        // Schedule the insertion while rendering is in progress.
+        context.suspend(insertTime).then(() => {
+          src.offset[method](finalValue, automationEndTime);
+          context.resume();
+        });
+
+        // Set up graph for the reference result.  Automate the source with
+        // the events scheduled from the beginning.  Let the gain node
+        // simulate the insertion of the event above.  This is done by
+        // setting the gain to 1 at the insertion time.
+        const srcRef = new ConstantSourceNode(context, {offset: 1});
+        const g = new GainNode(context, {gain: 0});
+        srcRef.connect(g).connect(merger, 0, 1);
+        srcRef.offset.setValueAtTime(initialValue, initialEventTime);
+        srcRef.offset[method](finalValue, automationEndTime);
+
+        // Allow everything through after |insertAtFrame| frames.
+        g.gain.setValueAtTime(1, insertTime);
+
+        // Go!
+        src.start();
+        srcRef.start();
+
+        const audioBuffer = await context.startRendering();
+
+        const actual = audioBuffer.getChannelData(0);
+        const expected = audioBuffer.getChannelData(1);
+
+        // Verify that the output is 1 until we reach
+        // insertAtFrame. Ignore the expected data because that always
+        // produces 1.
+        {
+          const actualBeforeInsert = actual.slice(0, insertAtFrame);
+          const expectedBeforeInsert = new Float32Array(insertAtFrame);
+          expectedBeforeInsert.fill(initialValue);
+          assert_array_equal_within_eps(
+              actualBeforeInsert,
+              expectedBeforeInsert,
+              0,
+              `${prefix}: output[0:${insertAtFrame - 1}]`);
+        }
+
+        // Verify ramp is correct by comparing it to the expected
+        {
+          const rampStart = insertAtFrame;
+          const rampEndInclusive = automationEndFrame;
+          const rampEndExclusive = rampEndInclusive + 1;
+
+          const actualRamp = actual.slice(rampStart, rampEndExclusive);
+          const expectedRamp = expected.slice(rampStart, rampEndExclusive);
+
+          assert_array_equal_within_eps(
+              actualRamp,
+              expectedRamp,
+              {absoluteThreshold: 0},
+              `${prefix}: output[${rampStart}:${rampEndInclusive}]`);
+        }
+
+        // Verify final output has the expected value
+        {
+          const tailStart = automationEndFrame + 1;
+          const actualTail = actual.slice(tailStart);
+          const refTail = new Float32Array(actualTail.length);
+          refTail.fill(finalValue);
+
+          assert_array_equal_within_eps(
+              actualTail,
+              refTail,
+              0,
+              `${prefix}: output[${tailStart}:]`);
+        }
+      }
+
+      // Define tests (replacing audit.define/audit.run with promise_test)
+      promise_test(async () => {
+        await testInsertion({
+          method: 'linearRampToValueAtTime',
+          prefix: 'linearRamp'
+        });
+      }, 'linearRamp: Insert linearRamp after running for some time');
+
+      promise_test(async () => {
+        await testInsertion({
+          method: 'exponentialRampToValueAtTime',
+          prefix: 'exponentialRamp'
+        });
+      }, 'exponentialRamp: Insert exponentialRamp after running for some time');
+    </script>
+  </body>
+</html>

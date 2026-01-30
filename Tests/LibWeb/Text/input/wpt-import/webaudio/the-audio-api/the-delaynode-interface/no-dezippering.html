@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test DelayNode Has No Dezippering
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      // The sample rate must be a power of two to avoid any round-off errors in
+      // computing when to suspend a context on a rendering quantum boundary.
+      // Otherwise this is pretty arbitrary.
+      let sampleRate = 16384;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {label: 'test0', description: 'Test DelayNode has no dezippering'},
+          (task, should) => {
+            let context = new OfflineAudioContext(1, sampleRate, sampleRate);
+
+            // Simple integer ramp for testing delay node
+            let buffer = new AudioBuffer(
+                {length: context.length, sampleRate: context.sampleRate});
+            let rampData = buffer.getChannelData(0);
+            for (let k = 0; k < rampData.length; ++k) {
+              rampData[k] = k + 1;
+            }
+
+            // |delay0Frame| is the initial delay in frames. |delay1Frame| is
+            // the new delay in frames.  These must be integers.
+            let delay0Frame = 64;
+            let delay1Frame = 16;
+
+            let src = new AudioBufferSourceNode(context, {buffer: buffer});
+            let delay = new DelayNode(
+                context, {delayTime: delay0Frame / context.sampleRate});
+
+            src.connect(delay).connect(context.destination);
+
+            // After a render quantum, change the delay to |delay1Frame|.
+            context.suspend(RENDER_QUANTUM_FRAMES / context.sampleRate)
+                .then(() => {
+                  delay.delayTime.value = delay1Frame / context.sampleRate;
+                })
+                .then(() => context.resume());
+
+            src.start();
+            context.startRendering()
+                .then(renderedBuffer => {
+                  let renderedData = renderedBuffer.getChannelData(0);
+
+                  // The first |delay0Frame| frames should be zero.
+                  should(
+                      renderedData.slice(0, delay0Frame),
+                      'output[0:' + (delay0Frame - 1) + ']')
+                      .beConstantValueOf(0);
+
+                  // Now we have the ramp should show up from the delay.
+                  let ramp0 =
+                      new Float32Array(RENDER_QUANTUM_FRAMES - delay0Frame);
+                  for (let k = 0; k < ramp0.length; ++k) {
+                    ramp0[k] = rampData[k];
+                  }
+
+                  should(
+                      renderedData.slice(delay0Frame, RENDER_QUANTUM_FRAMES),
+                      'output[' + delay0Frame + ':' +
+                          (RENDER_QUANTUM_FRAMES - 1) + ']')
+                      .beEqualToArray(ramp0);
+
+                  // After one rendering quantum, the delay is changed to
+                  // |delay1Frame|.
+                  let ramp1 =
+                      new Float32Array(context.length - RENDER_QUANTUM_FRAMES);
+                  for (let k = 0; k < ramp1.length; ++k) {
+                    // ramp1[k] = 1 + k + RENDER_QUANTUM_FRAMES - delay1Frame;
+                    ramp1[k] =
+                        rampData[k + RENDER_QUANTUM_FRAMES - delay1Frame];
+                  }
+                  should(
+                      renderedData.slice(RENDER_QUANTUM_FRAMES),
+                      'output[' + RENDER_QUANTUM_FRAMES + ':]')
+                      .beEqualToArray(ramp1);
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'test1', description: 'Test value setter and setValueAtTime'},
+          (task, should) => {
+            testWithAutomation(should, {prefix: '', threshold: 6.5819e-5})
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {label: 'test2', description: 'Test value setter and modulation'},
+          (task, should) => {
+            testWithAutomation(should, {
+              prefix: 'With modulation: ',
+              modulator: true
+            }).then(() => task.done());
+          });
+
+      // Compare .value setter with setValueAtTime, Optionally allow modulation
+      // of |delayTime|.
+      function testWithAutomation(should, options) {
+        let prefix = options.prefix;
+        // Channel 0 is the output of delay node using the setter and channel 1
+        // is the output using setValueAtTime.
+        let context = new OfflineAudioContext(2, sampleRate, sampleRate);
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        let src = new OscillatorNode(context);
+
+        // |delay0Frame| is the initial delay value in frames. |delay1Frame| is
+        // the new delay in frames. The values here are constrained only by the
+        // constraints for a DelayNode.  These are pretty arbitrary except we
+        // wanted them to be fractional so as not be on a frame boundary to
+        // test interpolation compared with |setValueAtTime()|..
+        let delay0Frame = 3.1;
+        let delay1Frame = 47.2;
+
+        let delayTest = new DelayNode(
+            context, {delayTime: delay0Frame / context.sampleRate});
+        let delayRef = new DelayNode(
+            context, {delayTime: delay0Frame / context.sampleRate});
+
+        src.connect(delayTest).connect(merger, 0, 0);
+        src.connect(delayRef).connect(merger, 0, 1);
+
+        if (options.modulator) {
+          // Fairly arbitrary modulation of the delay time, with a peak
+          // variation of 10 ms.
+          let mod = new OscillatorNode(context, {frequency: 1000});
+          let modGain = new GainNode(context, {gain: .01});
+          mod.connect(modGain);
+          modGain.connect(delayTest.delayTime);
+          modGain.connect(delayRef.delayTime);
+          mod.start();
+        }
+
+        // The time at which the delay time of |delayTest| node will be
+        // changed.  This MUST be on a render quantum boundary, but is
+        // otherwise arbitrary.
+        let changeTime = 3 * RENDER_QUANTUM_FRAMES / context.sampleRate;
+
+        // Schedule the delay change on |delayRef| and also apply the value
+        // setter for |delayTest| at |changeTime|.
+        delayRef.delayTime.setValueAtTime(
+            delay1Frame / context.sampleRate, changeTime);
+        context.suspend(changeTime)
+            .then(() => {
+              delayTest.delayTime.value = delay1Frame / context.sampleRate;
+            })
+            .then(() => context.resume());
+
+        src.start();
+
+        return context.startRendering().then(renderedBuffer => {
+          let actual = renderedBuffer.getChannelData(0);
+          let expected = renderedBuffer.getChannelData(1);
+
+          let match = should(actual, prefix + '.value setter output')
+                          .beCloseToArray(
+                              expected, {absoluteThreshold: options.threshold});
+          should(
+              match,
+              prefix + '.value setter output matches setValueAtTime output')
+              .beTrue();
+        });
+      }
+
+      audit.run();
+    </script>
+  </body>
+</html>

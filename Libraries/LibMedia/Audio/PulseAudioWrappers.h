@@ -127,6 +127,7 @@ public:
     AK::Duration total_time_played() const;
 
     ErrorOr<void> set_volume(double volume);
+    ErrorOr<void> set_muted(bool muted);
 
     PulseAudioContext& context() { return *m_context; }
 

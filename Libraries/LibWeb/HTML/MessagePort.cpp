@@ -281,6 +281,12 @@ ErrorOr<void> MessagePort::send_message_on_transport(SerializedTransferRecord co
 {
     IPC::MessageBuffer buffer;
     IPC::Encoder encoder(buffer);
+    // AudioWorklet specialization: Tag the message with a worklet registration generation if available.
+    // This lets the receiver defer delivery until registration propagation catches up.
+    u64 message_generation = 0;
+    if (m_message_generation_provider)
+        message_generation = m_message_generation_provider();
+    MUST(encoder.encode(message_generation));
     MUST(encoder.encode(serialize_with_transfer_result));
 
     TRY(buffer.transfer_message(*m_transport));
@@ -308,10 +314,13 @@ void MessagePort::read_from_transport()
         FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
         IPC::Decoder decoder { stream, raw_message.fds };
 
+        // AudioWorklet specialization: Read generation to decide whether to defer delivery.
+        // Deferral avoids message handlers racing AudioWorklet descriptor updates.
+        auto message_generation = MUST(decoder.decode<u64>());
         auto serialized_transfer_record = MUST(decoder.decode<SerializedTransferRecord>());
 
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
-            this->post_message_task_steps(serialized_transfer_record);
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record), message_generation]() mutable {
+            this->post_message_task_steps(serialized_transfer_record, message_generation);
         }));
     });
 
@@ -322,9 +331,16 @@ void MessagePort::read_from_transport()
     }
 }
 
-void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_with_transfer_result)
+void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_with_transfer_result, u64 generation, bool bypass_generation_gate)
 {
     VERIFY(m_enabled);
+
+    // Defer delivery until the control thread observes the matching registration generation.
+    // This keeps AudioWorklet message ordering deterministic around registerProcessor.
+    if (!bypass_generation_gate && m_message_generation_gate && m_message_generation_gate(generation)) {
+        m_deferred_messages.append(DeferredMessage { generation, move(serialize_with_transfer_result) });
+        return;
+    }
 
     // 1. Let finalTargetPort be the MessagePort in whose port message queue the task now finds itself.
     // NOTE: This can be different from targetPort, if targetPort itself was transferred and thus all its tasks moved along with it.
@@ -375,6 +391,27 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init);
     event->set_is_trusted(true);
     message_event_target->dispatch_event(event);
+}
+
+void MessagePort::flush_deferred_messages()
+{
+    // AudioWorklet: Retry deferred messages once registration updates have landed.
+    // This avoids dropping messages while still preventing early delivery.
+    if (m_deferred_messages.is_empty())
+        return;
+
+    Vector<DeferredMessage> remaining;
+    remaining.ensure_capacity(m_deferred_messages.size());
+
+    for (auto& message : m_deferred_messages) {
+        if (m_message_generation_gate && m_message_generation_gate(message.generation)) {
+            remaining.append(move(message));
+            continue;
+        }
+        post_message_task_steps(message.record, message.generation, true);
+    }
+
+    m_deferred_messages = move(remaining);
 }
 
 void MessagePort::enable()

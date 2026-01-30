@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebAudio: MediaElementAudioSource</title>
+  <link rel="stylesheet" href="webaudio.css" />
+</head>
+
+<body>
+  <header>
+    <div class="wrap">
+      <h1>LibWeb webaudio</h1>
+      <p class="sub">Featuring MediaElementAudioSourceNode, GainNode, StereoPannerNode, and AnalyserNode.</p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <section class="panel">
+        <div class="hd">
+          <div class="pill">
+            <span id="stateDot" class="dot"></span><span id="stateText">uninitialized</span>
+          </div>
+          <div class="btnrow">
+            <button id="btnInit" class="primary">Init AudioContext</button>
+            <button id="btnResume">Resume</button>
+            <button id="btnSuspend">Suspend</button>
+            <button id="btnClose" class="danger">Close</button>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+              <audio id="media" preload="auto" loop></audio>
+              <div class="flex-row">
+                <input id="file" type="file" accept="audio/*" />
+                <div class="btnrow">
+                  <button id="btnStart" class="primary">Start</button>
+                  <button id="btnStop" class="danger">Stop</button>
+                </div>
+              </div>
+          </div>
+          <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+            <div class="bd">
+            <div class="row">
+              <label for="gain">Gain</label>
+              <input id="gain" type="range" min="0" max="1000" value="750" step="5" />
+              <input id="gainN" type="number" min="0" max="1.0" value="0.75" step="0.005" />
+            </div>
+
+            <div class="row">
+              <label for="pan">Pan</label>
+              <input id="pan" type="range" min="-100" max="100" value="0" step="1" />
+              <input id="panN" type="number" min="-1" max="1" value="0" step="0.01" />
+            </div>
+
+            <div class="row">
+              <label for="fftSize">Analyser FFT size</label>
+              <select id="fftSize">
+                <option value="256">256</option>
+                <option value="512">512</option>
+                <option value="1024">1024</option>
+                <option value="2048" selected>2048</option>
+                <option value="4096">4096</option>
+                <option value="8192">8192</option>
+              </select>
+              <div class="hint">bigger => more frequency bins</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+          <div class="bd">
+            <div class="hint">Log</div>
+            <div class="logbox"><pre id="log"></pre></div>
+          </div>
+        </div>
+        <div class="status" id="status"></div>
+    </div>
+    </section>
+
+    <aside class="panel">
+      <div class="hd">
+        <div>Visualizers</div>
+        <div class="pill"><span class="dot" id="vizDot"></span><span id="vizText">idle</span></div>
+      </div>
+      <div class="bd">
+        <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+          <div class="hd" style="border-bottom: none; background: transparent">
+            <div>Time-domain</div>
+            <div class="pill">
+              <span class="dot" id="scopeDot"></span><span id="scopeText">idle</span>
+            </div>
+          </div>
+          <div class="bd">
+            <canvas id="timeCanvas" width="1000" height="280"></canvas>
+          </div>
+        </div>
+
+        <div class="panel" style="box-shadow: none; background: rgba(0, 0, 0, 0.12)">
+          <div class="hd" style="border-bottom: none; background: transparent">
+            <div>Frequency-domain</div>
+            <div class="pill">
+              <span class="dot" id="specDot"></span><span id="specText">idle</span>
+            </div>
+          </div>
+          <div class="bd">
+            <canvas id="freqCanvas" width="1000" height="280"></canvas>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  </div>
+
+  <script src="webaudio.js"></script>
+  <script>
+    (() => {
+      const {
+        $,
+        createDefaultLogger,
+        createPillController,
+        clampNumber,
+        createTimeDomainOscilloscope,
+        createFrequencyDomainSpectrum,
+        setupAudioContextControls,
+        setupMediaElementFilePicker,
+        setupStatusTextLoop,
+        setupMediaElementStartStopControls,
+      } = window.WebAudio;
+
+      /** @type {MediaElementAudioSourceNode|null} */
+      let source = null;
+      /** @type {GainNode|null} */
+      let gainNode = null;
+      /** @type {StereoPannerNode|null} */
+      let panner = null;
+      /** @type {AnalyserNode|null} */
+      let analyser = null;
+      let hasSelectedFile = false;
+      let filePicker = null;
+      let playbackControls = null;
+
+      const el = {
+        media: /** @type {HTMLAudioElement} */ ($("media")),
+        file: /** @type {HTMLInputElement} */ ($("file")),
+        btnStart: $("btnStart"),
+        btnStop: $("btnStop"),
+
+        gain: /** @type {HTMLInputElement} */ ($("gain")),
+        gainN: /** @type {HTMLInputElement} */ ($("gainN")),
+        pan: /** @type {HTMLInputElement} */ ($("pan")),
+        panN: /** @type {HTMLInputElement} */ ($("panN")),
+        fftSize: /** @type {HTMLSelectElement} */ ($("fftSize")),
+
+        status: $("status"),
+        timeCanvas: /** @type {HTMLCanvasElement} */ ($("timeCanvas")),
+        freqCanvas: /** @type {HTMLCanvasElement} */ ($("freqCanvas")),
+        vizDot: $("vizDot"),
+        vizText: $("vizText"),
+        scopeDot: $("scopeDot"),
+        scopeText: $("scopeText"),
+        specDot: $("specDot"),
+        specText: $("specText"),
+      };
+
+      const log = createDefaultLogger();
+
+      const setVizPill = createPillController({ dot: el.vizDot, text: el.vizText });
+      const setScopePill = createPillController({ dot: el.scopeDot, text: el.scopeText });
+      const setSpecPill = createPillController({ dot: el.specDot, text: el.specText });
+
+      const timeRenderer = createTimeDomainOscilloscope({
+        canvas: el.timeCanvas,
+        log,
+        setPill: setScopePill,
+      });
+      const freqRenderer = createFrequencyDomainSpectrum({
+        canvas: el.freqCanvas,
+        log,
+        setPill: setSpecPill,
+      });
+
+      const audio = setupAudioContextControls({
+        log,
+        onContextChanged: newCtx => {
+          if (newCtx)
+            statusLoop.start();
+          else
+            statusLoop.stop();
+
+          if (playbackControls)
+            playbackControls.updateButtons();
+        },
+        onAfterResume: () => {
+          if (playbackControls)
+            playbackControls.updateButtons();
+        },
+        onBeforeClose: async () => {
+          teardownGraph();
+        },
+        onAfterClose: () => {
+          teardownGraph();
+          stopVizLoops();
+          statusLoop.stop();
+          if (filePicker) filePicker.teardown();
+          filePicker = null;
+          if (playbackControls) playbackControls.updateButtons();
+        },
+      });
+
+      function gainFromUI() {
+        const fromNumber = Number(el.gainN.value);
+        if (Number.isFinite(fromNumber)) return clampNumber(fromNumber, 0, 1);
+        const milli = Number(el.gain.value);
+        if (Number.isFinite(milli)) return clampNumber(milli / 1000, 0, 1);
+        return 0.75;
+      }
+
+      function panFromUI() {
+        const fromNumber = Number(el.panN.value);
+        if (Number.isFinite(fromNumber)) return clampNumber(fromNumber, -1, 1);
+        const pct = Number(el.pan.value);
+        if (Number.isFinite(pct)) return clampNumber(pct / 100, -1, 1);
+        return 0;
+      }
+
+      function analyserFftSizeFromUI() {
+        const v = Number(el.fftSize.value);
+        if (!Number.isFinite(v)) return 2048;
+        return Math.max(32, Math.min(32768, Math.floor(v)));
+      }
+
+      function applyParams() {
+        if (gainNode) {
+          try {
+            gainNode.gain.value = gainFromUI();
+          } catch (e) {
+            log(`gain.gain.value set failed: ${e}`);
+          }
+        }
+        if (panner) {
+          try {
+            panner.pan.value = panFromUI();
+          } catch (e) {
+            log(`panner.pan.value set failed: ${e}`);
+          }
+        }
+        if (analyser) {
+          try {
+            analyser.fftSize = analyserFftSizeFromUI();
+          } catch (e) {
+            log(`analyser.fftSize set failed: ${e}`);
+          }
+        }
+      }
+
+      function ensureGraph() {
+        const ctx = audio.ctx;
+        if (!ctx) throw new Error("No AudioContext");
+
+        if (!source) {
+          source = ctx.createMediaElementSource(el.media);
+          log("Created MediaElementAudioSourceNode");
+        }
+
+        if (!gainNode) gainNode = ctx.createGain();
+
+        if (!panner) {
+          try {
+            panner = ctx.createStereoPanner();
+          } catch (e) {
+            panner = null;
+            log(`StereoPannerNode not available: ${e}`);
+          }
+        }
+
+        if (!analyser) {
+          analyser = ctx.createAnalyser();
+          analyser.smoothingTimeConstant = 0.8;
+        }
+
+        // Ensure a consistent chain.
+        try {
+          source.disconnect();
+        } catch (_) { }
+        try {
+          gainNode.disconnect();
+        } catch (_) { }
+        if (panner)
+          try {
+            panner.disconnect();
+          } catch (_) { }
+        try {
+          analyser.disconnect();
+        } catch (_) { }
+
+        source.connect(gainNode);
+        if (panner) {
+          gainNode.connect(panner);
+          panner.connect(analyser);
+        } else {
+          gainNode.connect(analyser);
+        }
+        analyser.connect(ctx.destination);
+
+        // Ensure params are applied after the graph is connected.
+        // Some engines only "kick" the render graph after an AudioParam update.
+        applyParams();
+
+        log("Connected graph: media -> gain -> (stereo panner) -> analyser -> destination");
+      }
+
+      function teardownGraph() {
+        try {
+          if (source) source.disconnect();
+        } catch (_) { }
+        try {
+          if (gainNode) gainNode.disconnect();
+        } catch (_) { }
+        try {
+          if (panner) panner.disconnect();
+        } catch (_) { }
+        try {
+          if (analyser) analyser.disconnect();
+        } catch (_) { }
+
+        source = null;
+        gainNode = null;
+        panner = null;
+        analyser = null;
+
+        setVizPill("disconnected", null);
+        setScopePill("idle", null);
+        setSpecPill("idle", null);
+      }
+
+      function startVizLoops() {
+        const enabled = !!analyser;
+        setVizPill(enabled ? "running" : "idle", enabled ? true : null);
+        timeRenderer.start({ analyser, enabled });
+        freqRenderer.start({ analyser, enabled });
+      }
+
+      function stopVizLoops() {
+        timeRenderer.stop();
+        freqRenderer.stop();
+        setVizPill("idle", null);
+      }
+
+      const statusLoop = setupStatusTextLoop({
+        target: el.status,
+        intervalMs: 250,
+        text: () => {
+          const m = el.media;
+          const ctx = audio.ctx;
+          return [
+            `media.paused=${m.paused}`,
+            `media.readyState=${m.readyState}`,
+            `media.currentTime=${m.currentTime.toFixed(3)}`,
+            `media.duration=${Number.isFinite(m.duration) ? m.duration.toFixed(3) : "?"}`,
+            `ctx.state=${ctx ? ctx.state : "(none)"}`,
+            `ctx.sampleRate=${ctx ? ctx.sampleRate : "(none)"}`,
+            `connected=${!!(ctx && source && gainNode && analyser)}`,
+          ].join("\n");
+        },
+      });
+
+      // Media controls
+      el.media.loop = true;
+
+      log("Choose an audio file to enable Start.");
+
+      filePicker = setupMediaElementFilePicker({
+        fileInput: el.file,
+        mediaElement: el.media,
+        log,
+        onSelectionChanged: hasFile => {
+          hasSelectedFile = hasFile;
+          if (playbackControls)
+            playbackControls.updateButtons();
+        },
+      });
+
+      playbackControls = setupMediaElementStartStopControls({
+        audioControls: audio,
+        mediaElement: el.media,
+        startButton: /** @type {HTMLButtonElement} */ (el.btnStart),
+        stopButton: /** @type {HTMLButtonElement} */ (el.btnStop),
+        log,
+        canStart: () => hasSelectedFile,
+        ensureGraph,
+        startVisualizers: startVizLoops,
+        stopVisualizers: stopVizLoops,
+        applyParams,
+        stopResetsTime: true,
+      });
+
+      // UI -> node params
+      el.gain.addEventListener("input", () => {
+        const milli = Number(el.gain.value);
+        if (Number.isFinite(milli)) el.gainN.value = (milli / 1000).toFixed(3);
+        applyParams();
+      });
+      el.gainN.addEventListener("input", () => {
+        const g = gainFromUI();
+        el.gain.value = String(Math.round(g * 1000));
+        applyParams();
+      });
+
+      el.pan.addEventListener("input", () => {
+        const pct = Number(el.pan.value);
+        if (Number.isFinite(pct)) el.panN.value = (pct / 100).toFixed(2);
+        applyParams();
+      });
+      el.panN.addEventListener("input", () => {
+        const p = panFromUI();
+        el.pan.value = String(Math.round(p * 100));
+        applyParams();
+      });
+
+      el.fftSize.addEventListener("change", applyParams);
+
+      setVizPill("idle", null);
+      setScopePill("idle", null);
+      setSpecPill("idle", null);
+
+      if (playbackControls)
+        playbackControls.updateButtons();
+      log("Tip: Choose an audio file, init/resume the AudioContext, then Start.");
+    })();
+  </script>
+</body>
+</html>

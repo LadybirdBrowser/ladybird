@@ -4,21 +4,67 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
+#include <AK/ScopeGuard.h>
+#include <LibAudioServerClient/Client.h>
+#include <LibCore/Environment.h>
+#include <LibCore/EventLoop.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/AudioContextPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
-#include <LibWeb/HTML/MessageChannel.h>
-#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebAudio/AudioContext.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
+#include <LibWeb/WebAudio/AudioService.h>
+#include <LibWeb/WebAudio/AudioWorklet.h>
+#include <LibWeb/WebAudio/Debug.h>
+#include <LibWeb/WebAudio/Engine/GraphCodec.h>
+#include <LibWeb/WebAudio/Engine/Policy.h>
+#include <LibWeb/WebAudio/Engine/SharedMemory.h>
+#include <LibWeb/WebAudio/RenderGraphSnapshot.h>
+#include <LibWeb/WebAudio/ScriptProcessor/ScriptProcessorHost.h>
+#include <LibWeb/WebAudio/ScriptProcessorNode.h>
+#include <LibWeb/WebAudio/Worklet/WorkletNodeDefinition.h>
+#include <LibWeb/WebAudio/Worklet/WorkletPortBinding.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioContext);
+
+AudioContext::AudioContext(JS::Realm& realm)
+    : BaseAudioContext(realm)
+    , m_control_event_loop(Core::EventLoop::current_weak())
+{
+    ASSERT_CONTROL_THREAD();
+}
+
+bool AudioContext::try_copy_realtime_analyser_data(NodeID analyser_node_id, u32 fft_size, Span<f32> out_time_domain, Span<f32> out_frequency_db, u64& out_render_quantum_index) const
+{
+    if (fft_size == 0)
+        return false;
+    if (out_time_domain.size() != fft_size)
+        return false;
+    if (!out_frequency_db.is_empty() && out_frequency_db.size() != (fft_size / 2))
+        return false;
+
+    if (!m_audio_service_client_id.has_value())
+        return false;
+    return AudioService::the().try_copy_analyser_snapshot(*m_audio_service_client_id, analyser_node_id, fft_size, out_time_domain, out_frequency_db, out_render_quantum_index);
+}
+
+bool AudioContext::try_copy_realtime_dynamics_compressor_reduction(NodeID compressor_node_id, f32& out_reduction_db, u64& out_render_quantum_index) const
+{
+    if (!m_audio_service_client_id.has_value())
+        return false;
+    return AudioService::the().try_copy_dynamics_compressor_reduction(*m_audio_service_client_id, compressor_node_id, out_reduction_db, out_render_quantum_index);
+}
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
 WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, Optional<AudioContextOptions> const& context_options)
@@ -39,6 +85,17 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
 
     // 1. Let context be a new AudioContext object.
     auto context = realm.create<AudioContext>(realm);
+
+    // Root the context for the duration of construction. The construction path can allocate
+    // heavily enough to trigger GC.
+    GC::Root<AudioContext> context_root { context };
+
+    // Register the context with the relevant global so navigation/unload cleanup can
+    // forcibly close it and release AudioService resources promptly.
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*context));
+    relevant_global.register_audio_context({}, context);
+    ArmedScopeGuard unregister_on_error { [&] { relevant_global.unregister_audio_context({}, *context); } };
+
     context->m_destination = TRY(AudioDestinationNode::construct_impl(realm, context));
 
     // 2. Set a [[control thread state]] to suspended on context.
@@ -59,37 +116,61 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
         // 1. If sinkId is specified, let sinkId be the value of contextOptions.sinkId and run the following substeps:
 
         // 2. Set the internal latency of context according to contextOptions.latencyHint, as described in latencyHint.
-        context_options->latency_hint.visit(
-            [&](Bindings::AudioContextLatencyCategory category) {
-                switch (category) {
-                case Bindings::AudioContextLatencyCategory::Balanced:
-                    // FIXME: Determine optimal settings for balanced.
-                    break;
-                case Bindings::AudioContextLatencyCategory::Interactive:
-                    // FIXME: Determine optimal settings for interactive.
-                    break;
-                case Bindings::AudioContextLatencyCategory::Playback:
-                    // FIXME: Determine optimal settings for playback.
-                    break;
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            },
-            [&](double latency_seconds) {
-                // FIXME: Determine optimal settings for numeric latency hint.
-                (void)latency_seconds;
-            });
+        constexpr u32 interactive_target_latency_ms = Render::AUDIO_CONTEXT_INTERACTIVE_TARGET_LATENCY_MS;
+        constexpr u32 balanced_target_latency_ms = Render::AUDIO_CONTEXT_BALANCED_TARGET_LATENCY_MS;
+        constexpr u32 playback_target_latency_ms = Render::AUDIO_CONTEXT_PLAYBACK_TARGET_LATENCY_MS;
+        constexpr u32 max_supported_target_latency_ms = Render::AUDIO_CONTEXT_MAX_SUPPORTED_TARGET_LATENCY_MS;
+
+        auto const& latency_hint = context_options->latency_hint;
+
+        if (latency_hint.has<Bindings::AudioContextLatencyCategory>()) {
+            switch (latency_hint.get<Bindings::AudioContextLatencyCategory>()) {
+            case Bindings::AudioContextLatencyCategory::Interactive:
+                context->m_target_latency_ms = interactive_target_latency_ms;
+                break;
+            case Bindings::AudioContextLatencyCategory::Balanced:
+                context->m_target_latency_ms = balanced_target_latency_ms;
+                break;
+            case Bindings::AudioContextLatencyCategory::Playback:
+                context->m_target_latency_ms = playback_target_latency_ms;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        } else {
+            auto latency_hint_seconds = latency_hint.get<double>();
+            if (!isfinite(latency_hint_seconds) || latency_hint_seconds < 0.0)
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid latencyHint"_string };
+
+            if (latency_hint_seconds <= static_cast<double>(interactive_target_latency_ms) / 1000.0) {
+                context->m_target_latency_ms = interactive_target_latency_ms;
+            } else {
+                auto latency_ms = static_cast<u32>(lround(latency_hint_seconds * 1000.0));
+                context->m_target_latency_ms = clamp(latency_ms, interactive_target_latency_ms, max_supported_target_latency_ms);
+            }
+        }
 
         // 3: If contextOptions.sampleRate is specified, set the sampleRate of context to this value.
         if (context_options->sample_rate.has_value()) {
             context->set_sample_rate(context_options->sample_rate.value());
+            context->m_sample_rate_is_explicit = true;
         }
         // Otherwise, follow these substeps:
         else {
             // FIXME: 1. If sinkId is the empty string or a type of AudioSinkOptions, use the sample rate of the default output device. Abort these substeps.
             // FIXME: 2. If sinkId is a DOMString, use the sample rate of the output device identified by sinkId. Abort these substeps.
             // If contextOptions.sampleRate differs from the sample rate of the output device, the user agent MUST resample the audio output to match the sample rate of the output device.
-            context->set_sample_rate(44100);
+            float default_sample_rate = 44100;
+
+            // Ask AudioServer for the output device format now so AudioContext.sampleRate matches from construction.
+            if (auto client = AudioServerClient::Client::default_client(); client) {
+                auto device_format_or_error = client->get_output_device_format();
+                if (!device_format_or_error.is_error())
+                    default_sample_rate = static_cast<float>(device_format_or_error.value().sample_rate);
+            }
+
+            context->set_sample_rate(default_sample_rate);
+            context->m_sample_rate_is_explicit = false;
         }
     }
 
@@ -102,6 +183,14 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
         // 2. Set this [[rendering thread state]] to running on the AudioContext.
         context->set_rendering_state(Bindings::AudioContextState::Running);
 
+        // Ladybird currently does not have a control-message queue to start the render backend on the rendering
+        // thread, so start the backend immediately on the control thread.
+        // If this succeeds, also resume the render thread so audio processing actually runs.
+        if (!context->start_rendering_audio_graph())
+            context->set_rendering_state(Bindings::AudioContextState::Suspended);
+        else
+            context->queue_control_message(ResumeContext { .generation = context->m_next_suspend_state_generation++ });
+
         // 3. Queue a media element task to execute the following steps:
         context->queue_a_media_element_task(GC::create_function(context->heap(), [context]() {
             // 1. Set the state attribute of the AudioContext to "running".
@@ -113,10 +202,171 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Real
     }
 
     // 12. Return context.
+    unregister_on_error.disarm();
     return context;
 }
 
-AudioContext::~AudioContext() = default;
+AudioContext::~AudioContext()
+{
+    if (m_render_thread_state_ack_timer) {
+        m_render_thread_state_ack_timer->stop();
+        m_render_thread_state_ack_timer = nullptr;
+    }
+    m_pending_render_thread_state_acks.clear();
+    stop_rendering_audio_graph();
+}
+
+void AudioContext::ensure_render_thread_state_ack_timer_running()
+{
+    if (m_render_thread_state_ack_timer)
+        return;
+
+    m_render_thread_state_ack_timer = Core::Timer::create_repeating(Render::AUDIO_CONTEXT_RENDER_THREAD_STATE_ACK_POLL_INTERVAL_MS, [this] {
+        process_render_thread_state_acks();
+    });
+    m_render_thread_state_ack_timer->start();
+}
+
+void AudioContext::snapshot_render_graph_and_prepare_resources(Render::GraphResourceRegistry& resources, Render::GraphDescription& out_graph_description)
+{
+    HashMap<NodeID, GC::Ref<ScriptProcessorNode>> script_processor_nodes;
+    out_graph_description = snapshot_render_graph(destination(), sample_rate(), nullptr, nullptr, &script_processor_nodes, &resources);
+
+    m_script_processor_nodes_for_rendering.clear();
+    for (auto const& it : script_processor_nodes)
+        m_script_processor_nodes_for_rendering.set(it.key, GC::Root<ScriptProcessorNode> { it.value });
+
+    if (!m_script_processor_host)
+        m_script_processor_host = make<Render::RealtimeScriptProcessorHost>(realm(), *this, m_control_event_loop, m_script_processor_nodes_for_rendering);
+    resources.set_script_processor_host(m_script_processor_host.ptr());
+
+    resources.clear_script_processor_transport_metadata();
+    for (auto const& it : out_graph_description.nodes) {
+        auto node_id = it.key;
+        auto const& node_desc = it.value;
+        if (!node_desc.has<Render::ScriptProcessorGraphNode>())
+            continue;
+        auto const& sp = node_desc.get<Render::ScriptProcessorGraphNode>();
+        resources.set_script_processor_transport_metadata(node_id, {
+                                                                       .buffer_size = static_cast<u32>(sp.buffer_size),
+                                                                       .input_channel_count = static_cast<u32>(sp.input_channel_count),
+                                                                       .output_channel_count = static_cast<u32>(sp.output_channel_count),
+                                                                   });
+    }
+}
+
+void AudioContext::on_audio_graph_changed()
+{
+    // https://webaudio.github.io/web-audio-api/#rendering-thread
+    // Graph mutations happen on the control thread and are communicated to the
+    //            rendering thread via control data structures.
+    if (!m_audio_service_client_id.has_value())
+        return;
+
+    auto resources = make<Render::GraphResourceRegistry>();
+    Render::GraphDescription graph_description;
+    snapshot_render_graph_and_prepare_resources(*resources, graph_description);
+
+    WA_GR_DBGLN("[WebAudio] on_audio_graph_changed: nodes={} conns={} param_conns={} param_autos={} dest_id={}",
+        graph_description.nodes.size(),
+        graph_description.connections.size(),
+        graph_description.param_connections.size(),
+        graph_description.param_automations.size(),
+        graph_description.destination_node_id);
+
+    if (should_log_graph_updates()) {
+        size_t const max_dump = 32;
+        size_t const connection_dump_count = graph_description.connections.size() < max_dump ? graph_description.connections.size() : max_dump;
+        for (size_t i = 0; i < connection_dump_count; ++i) {
+            auto const& c = graph_description.connections[i];
+            WA_GR_DBGLN("[WebAudio]   conn[{}]: {}:{} -> {}:{}", i, c.source, c.source_output_index, c.destination, c.destination_input_index);
+        }
+        if (graph_description.connections.size() > max_dump)
+            WA_GR_DBGLN("[WebAudio]   ... ({} more connections)", graph_description.connections.size() - max_dump);
+
+        size_t const param_connection_dump_count = graph_description.param_connections.size() < max_dump ? graph_description.param_connections.size() : max_dump;
+        for (size_t i = 0; i < param_connection_dump_count; ++i) {
+            auto const& c = graph_description.param_connections[i];
+            WA_GR_DBGLN("[WebAudio]   param_conn[{}]: {}:{} -> {}:param{}", i, c.source, c.source_output_index, c.destination, c.destination_param_index);
+        }
+        if (graph_description.param_connections.size() > max_dump)
+            WA_GR_DBGLN("[WebAudio]   ... ({} more param connections)", graph_description.param_connections.size() - max_dump);
+    }
+
+    auto encoded_or_error = Render::encode_render_graph_for_media_server(graph_description, sample_rate(), *resources);
+    if (encoded_or_error.is_error()) {
+        WA_GR_DBGLN("[WebAudio] Failed to encode render graph update: {}", encoded_or_error.error());
+        return;
+    }
+
+    auto worklet = audio_worklet();
+    auto worklet_modules = worklet->loaded_modules();
+
+    // Use the set of AudioWorkletNodes tracked by AudioWorklet, not only nodes
+    // reachable from the destination render graph snapshot.
+    Vector<Render::WorkletNodeDefinition> worklet_nodes = worklet->realtime_node_definitions();
+    Vector<NodeID> worklet_node_ids = worklet->realtime_node_ids();
+
+    // Best-effort: include any worklet nodes that are part of the current render
+    // graph snapshot but were not tracked for some reason.
+    for (auto const& it : graph_description.nodes) {
+        auto node_id = it.key;
+        auto const& node_desc = it.value;
+        if (!node_desc.has<Render::AudioWorkletGraphNode>())
+            continue;
+
+        bool already_tracked = false;
+        for (auto tracked_id : worklet_node_ids) {
+            if (tracked_id == node_id) {
+                already_tracked = true;
+                break;
+            }
+        }
+        if (already_tracked)
+            continue;
+
+        auto const& aw = node_desc.get<Render::AudioWorkletGraphNode>();
+        worklet_node_ids.append(node_id);
+        worklet_nodes.append(Render::WorkletNodeDefinition {
+            .node_id = node_id,
+            .processor_name = aw.processor_name,
+            .number_of_inputs = aw.number_of_inputs,
+            .number_of_outputs = aw.number_of_outputs,
+            .output_channel_count = aw.output_channel_count,
+            .channel_count = aw.channel_count,
+            .channel_count_mode = aw.channel_count_mode,
+            .channel_interpretation = aw.channel_interpretation,
+            .parameter_names = aw.parameter_names,
+            .parameter_data = {},
+            .serialized_processor_options = {},
+        });
+    }
+
+    worklet->prune_realtime_processor_ports(worklet_node_ids);
+
+    Vector<Render::WorkletPortBinding> worklet_port_bindings;
+    auto global_fd = worklet->clone_realtime_global_port_fd();
+    worklet_port_bindings.ensure_capacity(worklet_node_ids.size() + (global_fd.has_value() ? 1 : 0));
+
+    if (global_fd.has_value()) {
+        worklet_port_bindings.unchecked_append(Render::WorkletPortBinding {
+            .node_id = NodeID { 0 },
+            .processor_port_fd = global_fd.value(),
+        });
+    }
+
+    for (auto node_id : worklet_node_ids) {
+        auto fd = worklet->clone_realtime_processor_port_fd(node_id);
+        if (!fd.has_value())
+            continue;
+        worklet_port_bindings.unchecked_append(Render::WorkletPortBinding {
+            .node_id = node_id,
+            .processor_port_fd = fd.value(),
+        });
+    }
+
+    AudioService::the().update_client_render_graph(*m_audio_service_client_id, sample_rate(), encoded_or_error.release_value(), move(resources), move(worklet_modules), move(worklet_nodes), move(worklet_port_bindings));
+}
 
 void AudioContext::initialize(JS::Realm& realm)
 {
@@ -128,13 +378,89 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_pending_resume_promises);
+    for (auto& pending : m_pending_render_thread_state_acks)
+        visitor.visit(pending.promise);
+}
+
+void AudioContext::process_render_thread_state_acks()
+{
+    ASSERT_CONTROL_THREAD();
+
+    if (m_pending_render_thread_state_acks.is_empty()) {
+        if (m_render_thread_state_ack_timer) {
+            m_render_thread_state_ack_timer->stop();
+            m_render_thread_state_ack_timer = nullptr;
+        }
+        return;
+    }
+
+    u64 const suspend_state = render_thread_suspend_state_atomic().load(AK::MemoryOrder::memory_order_acquire);
+    bool const is_suspended = Render::decode_webaudio_suspend_state_is_suspended(suspend_state);
+    u64 const generation = Render::decode_webaudio_suspend_state_generation(suspend_state);
+
+    auto self = GC::Ref { *this };
+
+    while (!m_pending_render_thread_state_acks.is_empty()) {
+        auto const& pending = m_pending_render_thread_state_acks.first();
+        if (pending.suspended != is_suspended)
+            break;
+        if (generation < pending.generation)
+            break;
+
+        auto promise = pending.promise;
+        bool const target_suspended = pending.suspended;
+        m_pending_render_thread_state_acks.take_first();
+
+        queue_a_media_element_task(GC::create_function(heap(), [promise, self, target_suspended]() {
+            auto& realm = self->realm();
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+            bool removed_promise = false;
+            self->m_pending_promises.remove_all_matching([&](auto const& pending_promise) {
+                if (pending_promise != promise)
+                    return false;
+                removed_promise = true;
+                return true;
+            });
+            if (!removed_promise)
+                return;
+
+            // Resume() needs to resolve any queued resume promises first.
+            if (!target_suspended) {
+                for (auto const& pending_resume_promise : self->m_pending_resume_promises) {
+                    WebIDL::resolve_promise(realm, pending_resume_promise, JS::js_undefined());
+                    self->m_pending_promises.remove_first_matching([&pending_resume_promise](auto& pending_promise) {
+                        return pending_promise == pending_resume_promise;
+                    });
+                }
+                self->m_pending_resume_promises.clear();
+            }
+
+            WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+
+            auto const desired_state = target_suspended ? Bindings::AudioContextState::Suspended : Bindings::AudioContextState::Running;
+            if (self->state() != desired_state) {
+                self->set_control_state(desired_state);
+                self->queue_a_media_element_task(GC::create_function(self->heap(), [self]() {
+                    self->dispatch_event(DOM::Event::create(self->realm(), HTML::EventNames::statechange));
+                }));
+            }
+        }));
+    }
+
+    if (m_pending_render_thread_state_acks.is_empty() && m_render_thread_state_ack_timer) {
+        m_render_thread_state_ack_timer->stop();
+        m_render_thread_state_ack_timer = nullptr;
+    }
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp
 AudioTimestamp AudioContext::get_output_timestamp()
 {
-    dbgln("(STUBBED) getOutputTimestamp()");
-    return {};
+    AudioTimestamp timestamp;
+    timestamp.context_time = current_time();
+    timestamp.performance_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this));
+    return timestamp;
 }
 
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-resume
@@ -169,62 +495,46 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     set_control_state(Bindings::AudioContextState::Running);
 
     // 7. Queue a control message to resume the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 7.1: Attempt to acquire system resources.
+
+    u64 const generation = m_next_suspend_state_generation++;
+    queue_control_message(ResumeContext { .generation = generation });
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to running.
     set_rendering_state(Bindings::AudioContextState::Running);
 
     // 7.3: Start rendering the audio graph.
-    if (!start_rendering_audio_graph()) {
+    if (!m_audio_service_client_id.has_value() && !start_rendering_audio_graph()) {
         // 7.4: In case of failure, queue a media element task to execute the following steps:
-        queue_a_media_element_task(GC::create_function(heap(), [this]() {
-            auto& realm = this->realm();
+        queue_a_media_element_task(GC::create_function(heap(), [self = GC::Ref { *this }]() {
+            auto& realm = self->realm();
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
-            for (auto const& promise : m_pending_resume_promises) {
+            for (auto const& promise : self->m_pending_resume_promises) {
                 WebIDL::reject_promise(realm, promise, JS::js_null());
 
                 // 7.4.2: Additionally, remove those promises from [[pending promises]].
-                m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
+                self->m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
                     return pending_promise == promise;
                 });
             }
-            m_pending_resume_promises.clear();
+            self->m_pending_resume_promises.clear();
         }));
     }
 
-    // 7.5: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
-        auto& realm = this->realm();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    // Wait for the rendering backend to apply the resume.
+    m_pending_render_thread_state_acks.append({
+        .promise = promise,
+        .generation = generation,
+        .suspended = false,
+    });
+    m_pending_promises.append(promise);
 
-        // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
-        // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
-        //        [[pending promises]].
-        for (auto const& pending_resume_promise : m_pending_resume_promises) {
-            WebIDL::resolve_promise(realm, pending_resume_promise, JS::js_undefined());
-            m_pending_promises.remove_first_matching([&pending_resume_promise](auto& pending_promise) {
-                return pending_promise == pending_resume_promise;
-            });
-        }
-        m_pending_resume_promises.clear();
+    if (m_audio_service_client_id.has_value())
+        AudioService::the().set_client_suspended(*m_audio_service_client_id, false, generation);
 
-        // 7.5.3: Resolve promise.
-        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
-
-        // 7.5.4: If the state attribute of the AudioContext is not already "running":
-        if (state() != Bindings::AudioContextState::Running) {
-            // 7.5.4.1: Set the state attribute of the AudioContext to "running".
-            set_control_state(Bindings::AudioContextState::Running);
-
-            // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task(GC::create_function(heap(), [this]() {
-                this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
-            }));
-        }
-    }));
+    ensure_render_thread_state_ack_timer_running();
 
     // 8. Return promise.
     return promise;
@@ -233,6 +543,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-suspend
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
 {
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-suspend
     auto& realm = this->realm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
@@ -259,31 +570,51 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
     set_control_state(Bindings::AudioContextState::Suspended);
 
     // 7. Queue a control message to suspend the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 7.1: Attempt to release system resources.
+
+    u64 const generation = m_next_suspend_state_generation++;
+    queue_control_message(SuspendContext { .generation = generation });
 
     // 7.2: Set the [[rendering thread state]] on the AudioContext to suspended.
     set_rendering_state(Bindings::AudioContextState::Suspended);
 
-    // 7.3: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
-        auto& realm = this->realm();
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    // If we're not rendering yet, there's no backend state to wait for.
+    if (!m_audio_service_client_id.has_value()) {
+        queue_a_media_element_task(GC::create_function(heap(), [promise, self = GC::Ref { *this }]() {
+            auto& realm = self->realm();
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
-        // 7.3.1: Resolve promise.
-        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+            bool removed_promise = false;
+            self->m_pending_promises.remove_all_matching([&](auto const& pending_promise) {
+                if (pending_promise != promise)
+                    return false;
+                removed_promise = true;
+                return true;
+            });
+            if (!removed_promise)
+                return;
 
-        // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
-        if (state() != Bindings::AudioContextState::Suspended) {
-            // 7.3.2.1: Set the state attribute of the AudioContext to "suspended".
-            set_control_state(Bindings::AudioContextState::Suspended);
+            WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
-            // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task(GC::create_function(heap(), [this]() {
-                this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
-            }));
-        }
-    }));
+            if (self->state() != Bindings::AudioContextState::Suspended) {
+                self->set_control_state(Bindings::AudioContextState::Suspended);
+                self->queue_a_media_element_task(GC::create_function(self->heap(), [self]() {
+                    self->dispatch_event(DOM::Event::create(self->realm(), HTML::EventNames::statechange));
+                }));
+            }
+        }));
+        return promise;
+    }
+
+    // Wait for the rendering backend to apply the suspend.
+    m_pending_render_thread_state_acks.append({
+        .promise = promise,
+        .generation = generation,
+        .suspended = true,
+    });
+    AudioService::the().set_client_suspended(*m_audio_service_client_id, true, generation);
+
+    ensure_render_thread_state_ack_timer_running();
 
     // 8. Return promise.
     return promise;
@@ -292,6 +623,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
 // https://www.w3.org/TR/webaudio/#dom-audiocontext-close
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
 {
+    // https://webaudio.github.io/web-audio-api/#dom-audiocontext-close
     auto& realm = this->realm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
@@ -299,60 +631,158 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16);
 
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
+    // 2. If the [[control thread state]] flag on the AudioContext is closed, return a resolved promise.
+    // NOTE: WPT/audit.js code often does not attach rejection handlers to close() promises.
+    //       For compatibility, treat close() as idempotent.
+    if (state() == Bindings::AudioContextState::Closed)
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
 
-    // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
-    if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_utf16));
-        return promise;
-    }
+    // 3. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
 
     // 4. Set the [[control thread state]] flag on the AudioContext to closed.
     set_control_state(Bindings::AudioContextState::Closed);
 
     // 5. Queue a control message to close the AudioContext.
-    // FIXME: Implement control message queue to run following steps on the rendering thread
     // FIXME: 5.1: Attempt to release system resources.
+
+    queue_control_message(CloseContext {});
 
     // 5.2: Set the [[rendering thread state]] to "suspended".
     set_rendering_state(Bindings::AudioContextState::Suspended);
 
+    // https://webaudio.github.io/web-audio-api/#rendering-thread
+    // Closing a context stops audio processing and releases any system audio resources.
+    stop_rendering_audio_graph();
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.unregister_audio_context({}, *this);
+
     // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
 
     // 5.4: queue a media element task to execute the following steps:
-    queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
-        auto& realm = this->realm();
+    queue_a_media_element_task(GC::create_function(heap(), [promise, self = GC::Ref { *this }]() {
+        auto& realm = self->realm();
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 5.4.1: Resolve promise.
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 5.4.2: If the state attribute of the AudioContext is not already "closed":
-        if (state() != Bindings::AudioContextState::Closed) {
+        if (self->state() != Bindings::AudioContextState::Closed) {
             // 5.4.2.1: Set the state attribute of the AudioContext to "closed".
-            set_control_state(Bindings::AudioContextState::Closed);
+            self->set_control_state(Bindings::AudioContextState::Closed);
         }
 
         // 5.4.2.2: queue a media element task to fire an event named statechange at the AudioContext.
         // FIXME: Attempting to queue another task in here causes an assertion fail at Vector.h:148
-        this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
+        self->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
     }));
 
     // 6. Return promise
     return promise;
 }
 
-// FIXME: Actually implement the rendering thread
+void AudioContext::forcibly_close()
+{
+    if (state() == Bindings::AudioContextState::Closed)
+        return;
+
+    set_control_state(Bindings::AudioContextState::Closed);
+    set_rendering_state(Bindings::AudioContextState::Suspended);
+    stop_rendering_audio_graph();
+
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.unregister_audio_context({}, *this);
+}
+
 bool AudioContext::start_rendering_audio_graph()
 {
-    bool render_result = true;
-    return render_result;
+    // https://webaudio.github.io/web-audio-api/#rendering-thread
+    // The implementation acquires an audio output device and begins producing render quanta.
+    // If the output device's sample rate differs from the context's, output is resampled.
+
+    auto& service = AudioService::the();
+
+    u64 page_id = 0;
+    if (is<HTML::Window>(HTML::relevant_global_object(*this))) {
+        auto const& window = static_cast<HTML::Window const&>(HTML::relevant_global_object(*this));
+        page_id = window.page().client().id();
+    }
+
+    auto device_format_or_error = service.ensure_output_device_open(m_target_latency_ms, page_id);
+    if (device_format_or_error.is_error()) {
+        warnln("WebAudio: failed to open output device: {}", device_format_or_error.error());
+        stop_rendering_audio_graph();
+        return false;
+    }
+
+    auto device_format = device_format_or_error.release_value();
+    if (!m_sample_rate_is_explicit)
+        set_sample_rate(static_cast<float>(device_format.sample_rate));
+
+    // Approximate base latency from our buffering target.
+    m_base_latency = static_cast<double>(m_target_latency_ms) / 1000.0;
+
+    auto resources = make<Render::GraphResourceRegistry>();
+    Render::GraphDescription graph_description;
+    snapshot_render_graph_and_prepare_resources(*resources, graph_description);
+
+    auto encoded_or_error = Render::encode_render_graph_for_media_server(graph_description, sample_rate(), *resources);
+    if (encoded_or_error.is_error()) {
+        WA_GR_DBGLN("[WebAudio] Failed to encode render graph: {}", encoded_or_error.error());
+        stop_rendering_audio_graph();
+        return false;
+    }
+
+    if (!m_audio_service_client_id.has_value())
+        m_audio_service_client_id = service.register_client(*this, control_message_queue(), associated_task_queue(), current_frame_atomic(), render_thread_suspend_state_atomic());
+
+    auto worklet_modules = audio_worklet()->loaded_modules();
+
+    Vector<Render::WorkletNodeDefinition> worklet_nodes;
+    for (auto const& it : graph_description.nodes) {
+        auto node_id = it.key;
+        auto const& node_desc = it.value;
+        if (!node_desc.has<Render::AudioWorkletGraphNode>())
+            continue;
+        auto const& aw = node_desc.get<Render::AudioWorkletGraphNode>();
+        worklet_nodes.append(Render::WorkletNodeDefinition {
+            .node_id = node_id,
+            .processor_name = aw.processor_name,
+            .number_of_inputs = aw.number_of_inputs,
+            .number_of_outputs = aw.number_of_outputs,
+            .output_channel_count = aw.output_channel_count,
+            .channel_count = aw.channel_count,
+            .channel_count_mode = aw.channel_count_mode,
+            .channel_interpretation = aw.channel_interpretation,
+            .parameter_names = aw.parameter_names,
+            .parameter_data = {},
+            .serialized_processor_options = {},
+        });
+    }
+
+    service.set_client_render_graph(*m_audio_service_client_id, sample_rate(), encoded_or_error.release_value(), move(resources), move(worklet_modules), move(worklet_nodes));
+    return true;
+}
+
+void AudioContext::stop_rendering_audio_graph()
+{
+    if (m_audio_service_client_id.has_value()) {
+        if (should_log_graph_updates())
+            WA_GR_DBGLN("[WebAudio] AudioContext: stop_rendering_audio_graph client_id={} state={} allowed_to_start={}", *m_audio_service_client_id, static_cast<u32>(state()), m_allowed_to_start);
+        AudioService::the().unregister_client(*m_audio_service_client_id);
+        m_audio_service_client_id.clear();
+    }
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediaelementsource
 WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> AudioContext::create_media_element_source(GC::Ptr<HTML::HTMLMediaElement> media_element)
 {
+    if (!media_element)
+        return WebIDL::InvalidStateError::create(realm(), "Media element is null"_utf16);
+    if (media_element->has_webaudio_audio_tap())
+        return WebIDL::InvalidStateError::create(realm(), "Media element is already connected to WebAudio"_utf16);
+
     MediaElementAudioSourceOptions options;
     options.media_element = media_element;
     return MediaElementAudioSourceNode::create(realm(), *this, options);

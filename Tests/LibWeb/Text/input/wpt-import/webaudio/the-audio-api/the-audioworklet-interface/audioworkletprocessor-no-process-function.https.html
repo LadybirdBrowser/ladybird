@@ -1,0 +1,44 @@
+<!doctype html>
+<title>Test consistency of processing after resume()</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+
+const modulePath = 'audioworkletprocessor-no-process.js';
+
+// Verifies that an AudioWorkletProcessor without a defined process function
+// will throw an error when process() is called during the rendering quantum,
+// rather than during registration or construction.
+// https://webaudio.github.io/web-audio-api/#rendering-loop.
+promise_test(async () => {
+  // Ensures that no error occurs during registration (.addModule) or
+  // construction (new AudioWorkletNode), but in during processing
+  // after context.resume().
+  const context = new AudioContext();
+  await context.suspend();
+
+  // Registers the processor.
+  await context.audioWorklet.addModule(modulePath);
+
+  // Calls the constructor of the processor.
+  const node =
+      new AudioWorkletNode(context, 'audioworkletprocessor-no-process');
+  await new Promise((resolve) => {
+    node.port.onmessage = (event) => {
+      assert_equals(event.data.state, 'created');
+      resolve();
+    }
+  });
+
+  // `context.resume()` should trigger the processor to start processing,
+  // which will throw an error for an undefined process() method.
+  return new Promise(async (resolve) => {
+    node.onprocessorerror = (event) => {
+      resolve();
+    };
+
+    await context.resume();
+  });
+}, 'Test an AudioWorkletProcessor with undefined process function.');
+
+</script>

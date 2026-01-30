@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        try {
+            await context.audioWorklet.addModule("../../data/AudioWorklet-processor.js");
+            let node = new AudioWorkletNode(context, "dummy");
+            println("port is MessagePort: " + (node.port instanceof MessagePort));
+            println("port.postMessage: " + typeof node.port.postMessage);
+            println("parameters.size: " + node.parameters.size);
+            println("parameters.get: " + typeof node.parameters.get);
+            println("PASS");
+        } catch (e) {
+            println("FAIL: " + e);
+        }
+
+        done();
+    });
+</script>

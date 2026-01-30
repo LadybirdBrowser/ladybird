@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      Test get parameterDescriptor as various iterables
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/js/helpers.js"></script>
+  </head>
+
+  <body>
+    <script id="params">
+      // A series of AudioParamDescriptors, copied one by one into various iterable
+      // data structures. This is used by both the processor side and the main
+      // thread side, so is in a different script tag.
+      const PARAMS = [
+        {
+          name: "a control-rate parameter",
+          defaultValue: 0.5,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "a-rate",
+        },
+        {
+          name: "你好",
+          defaultValue: 2.5,
+          minValue: 0,
+          maxValue: 7,
+          automationRate: "a-rate",
+        },
+        {
+          name: "🎶",
+          defaultValue: 8.5,
+          minValue: 0,
+          maxValue: 11115,
+          automationRate: "k-rate",
+        },
+      ];
+    </script>
+    <script id="processors" type="worklet">
+      registerProcessor("set",
+      class SetParamProcessor extends AudioWorkletProcessor {
+        static get parameterDescriptors() {
+          var s = new Set();
+          s.add(PARAMS[0]);
+          s.add(PARAMS[1]);
+          s.add(PARAMS[2]);
+          return s;
+        }
+        constructor() { super(); }
+        process() {
+        }
+      });
+
+      registerProcessor("array",
+      class ArrayParamProcessor extends AudioWorkletProcessor {
+        static get parameterDescriptors() {
+          return PARAMS;
+        }
+        constructor() { super(); }
+        process() { }
+      });
+
+      function* gen() {
+        yield PARAMS[0];
+        yield PARAMS[1];
+        yield PARAMS[2];
+      }
+      registerProcessor("generator",
+      class GeneratorParamProcessor extends AudioWorkletProcessor {
+        static get parameterDescriptors() {
+          return gen();
+        }
+        constructor() { super(); }
+        process() { }
+      });
+      // Test a processor that has a get parameterDescriptors, but it returns
+      // something that is not iterable.
+      try {
+        registerProcessor("invalid",
+        class InvalidParamProcessor extends AudioWorkletProcessor {
+          static get parameterDescriptors() {
+            return 4;
+          }
+          constructor() { super(); }
+          process() { }
+        });
+        throw "This should not have been reached.";
+      } catch (e) {
+        // unclear how to signal success here, but we can signal failure in the
+        // developer console
+        if (e.name != "TypeError") {
+          throw "This should be TypeError";
+        }
+      }
+      // Test a processor that has a get parameterDescriptors, with a duplicate
+      // param name something that is not iterable.
+      try {
+        registerProcessor("duplicate-param-name",
+        class DuplicateParamProcessor extends AudioWorkletProcessor {
+          static get parameterDescriptors() {
+            var p = {
+                name: "a",
+                defaultValue: 1,
+                minValue: 0,
+                maxValue: 1,
+                automationRate: "k-rate",
+            };
+            return [p,p];
+          }
+          constructor() { super(); }
+          process() { }
+        });
+        throw "This should not have been reached.";
+      } catch (e) {
+        // unclear how to signal success here, but we can signal failure in the
+        // developer console
+        if (e.name != "NotSupportedError") {
+          throw "This should be NotSupportedError";
+        }
+      }
+      // Test a processor that has a no get parameterDescriptors.
+      try {
+        registerProcessor("no-params",
+        class NoParamProcessor extends AudioWorkletProcessor {
+          constructor() { super(); }
+          process() { }
+        });
+      } catch (e) {
+        throw "Construction should have worked.";
+      }
+    </script>
+    <script>
+      setup({ explicit_done: true });
+      // Mangle the PARAMS object into a map that has the same shape as what an
+      // AudioWorkletNode.parameter property would
+      var PARAMS_MAP = new Map();
+      for (var param of PARAMS) {
+        var o = param;
+        var name = o.name;
+        delete o.name;
+        PARAMS_MAP.set(name, o);
+      }
+
+      // This compares `lhs` and `rhs`, that are two maplike with the same shape
+      // as PARAMS_MAP.
+      function compare(testname, lhs, rhs) {
+        equals(lhs.size, rhs.size, "Map match in size for " + testname);
+        var i = 0;
+        for (var [k, v] of lhs) {
+          is_true(rhs.has(k), testname + ": " + k + " exists in both maps");
+          var vrhs = rhs.get(k);
+          ["defaultValue", "minValue", "maxValue", "automationRate"].forEach(
+            paramKey => {
+              equals(
+                v[paramKey],
+                vrhs[paramKey],
+                `Values for ${k}.${paramKey} match for ${testname}`
+              );
+            }
+          );
+        }
+      }
+      var ac = new AudioContext();
+      var url = URLFromScriptsElements(["params", "processors"]);
+      ac.audioWorklet
+        .addModule(url)
+        .then(() => {
+              ["set", "array", "generator"].forEach(iterable => {
+                test(() => {
+                  var node = new AudioWorkletNode(ac, iterable);
+                  compare(iterable, node.parameters, PARAMS_MAP);
+                }, `Creating an AudioWorkletNode with a ${iterable} for
+                    parameter descriptor worked`);
+          });
+        })
+        .then(function() {
+          test(function() {
+            assert_throws_dom("InvalidStateError", function() {
+              new AudioWorkletNode(ac, "invalid");
+            });
+          }, `Attempting to create an AudioWorkletNode with an non
+              iterable for parameter descriptor should not work`);
+        })
+      .then(function() {
+        test(() => {
+          new AudioWorkletNode(ac, "no-params");
+        }, `Attempting to create an AudioWorkletNode from a processor
+            that does not have a parameterDescriptors getter should work`);
+      })
+      .then(function() {
+        test(function() {
+          assert_throws_dom("InvalidStateError", function() {
+            new AudioWorkletNode(ac, "duplicate-param-name");
+          });
+        }, `Attempting to create an AudioWorkletNode with two parameter
+            descriptor with the same name should not work`);
+      }).then(function() {
+        done();
+      });
+    </script>
+  </body>
+</html>

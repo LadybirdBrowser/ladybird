@@ -20,6 +20,8 @@ source_set("WebAudio") {
     "AudioParam.h",
     "AudioScheduledSourceNode.cpp",
     "AudioScheduledSourceNode.h",
+    "BackgroundAudioDecoder.cpp",
+    "BackgroundAudioDecoder.h",
     "BaseAudioContext.cpp",
     "BaseAudioContext.h",
     "BiquadFilterNode.cpp",
@@ -34,5 +36,10 @@ source_set("WebAudio") {
     "OscillatorNode.h",
     "PeriodicWave.cpp",
     "PeriodicWave.h",
+    "Worklet/AudioWorkletProcessorHost.h",
+    "Worklet/AudioWorkletProcessorInvoker.cpp",
+    "Worklet/AudioWorkletProcessorInvoker.h",
+    "Worklet/MessagePortTransport.cpp",
+    "Worklet/MessagePortTransport.h",
   ]
 }

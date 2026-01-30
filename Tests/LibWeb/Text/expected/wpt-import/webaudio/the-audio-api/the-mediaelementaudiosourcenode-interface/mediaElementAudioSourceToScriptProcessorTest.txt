@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Element Source tests completed
+Pass	Channel 0 processed some data
+Pass	All data processed correctly

@@ -188,6 +188,66 @@ void PlaybackManager::set_up_data_providers()
             self->check_for_duration_change(time);
         });
     }
+
+    update_decoded_audio_block_callback();
+}
+
+void PlaybackManager::set_decoded_audio_block_callback(DecodedAudioBlockCallback callback)
+{
+    {
+        Threading::MutexLocker locker { m_decoded_audio_block_callback_mutex };
+        if (callback)
+            m_decoded_audio_block_callback_state = adopt_ref(*new DecodedAudioBlockCallbackState(move(callback)));
+        else
+            m_decoded_audio_block_callback_state = nullptr;
+    }
+    update_decoded_audio_block_callback();
+}
+
+void PlaybackManager::update_decoded_audio_block_callback()
+{
+    RefPtr<DecodedAudioBlockCallbackState> callback_state;
+    {
+        Threading::MutexLocker locker { m_decoded_audio_block_callback_mutex };
+        callback_state = m_decoded_audio_block_callback_state;
+    }
+
+    // Always clear callbacks first to avoid tapping multiple tracks.
+    for (auto const& audio_track_data : m_audio_track_datas)
+        audio_track_data.provider->set_decoded_audio_block_callback({});
+
+    if (!callback_state) {
+        return;
+    }
+
+    if (m_audio_track_datas.is_empty()) {
+        return;
+    }
+
+    // Prefer the demuxer's preferred audio track when available.
+    auto provider_callback = [weak_self = m_weak_wrapper](AudioBlock const& block) {
+        auto self = weak_self->take_strong();
+        if (!self)
+            return;
+
+        RefPtr<DecodedAudioBlockCallbackState> state;
+        {
+            Threading::MutexLocker locker { self->m_decoded_audio_block_callback_mutex };
+            state = self->m_decoded_audio_block_callback_state;
+        }
+        if (state)
+            state->call(block);
+    };
+
+    if (m_preferred_audio_track.has_value()) {
+        for (auto const& audio_track_data : m_audio_track_datas) {
+            if (audio_track_data.track == *m_preferred_audio_track) {
+                audio_track_data.provider->set_decoded_audio_block_callback(move(provider_callback));
+                return;
+            }
+        }
+    }
+    m_audio_track_datas.first().provider->set_decoded_audio_block_callback(move(provider_callback));
 }
 
 void PlaybackManager::check_for_duration_change(AK::Duration duration)

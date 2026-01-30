@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test micro task checkpoints in AudioWorkletGlobalScope
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <meta charset=utf-8>
+  </head>
+  <body>
+    <script id="layout-test-code">
+        promise_test(async () => {
+          const context = new AudioContext();
+
+          let filePath = 'processors/promise-processor.js';
+
+          await context.audioWorklet.addModule(filePath);
+          await context.suspend();
+          let node1 = new AudioWorkletNode(context, 'promise-processor');
+          let node2 = new AudioWorkletNode(context, 'promise-processor');
+
+          // Connecting to the destination is not strictly necessary in theory,
+          // but see
+          // https://bugs.chromium.org/p/chromium/issues/detail?id=1045926
+          // for why it is in practice.
+          node1.connect(node2).connect(context.destination);
+
+          await context.resume();
+
+          // The second node is the one that is going to receive the message,
+          // per spec: it is the second that will be processed, each time.
+          const e = await new Promise((resolve) => {
+            node2.port.onmessage = resolve;
+          });
+          context.close();
+          assert_equals(e.data, "ok",
+                      `Microtask checkpoints are performed
+                       in between render quantum`);
+        }, "test");
+    </script>
+  </body>
+</html>
