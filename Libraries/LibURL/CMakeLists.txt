@@ -21,3 +21,5 @@ set(SOURCES
 
 ladybird_lib(LibURL url)
 target_link_libraries(LibURL PRIVATE LibUnicode LibTextCodec LibRegex)
+
+set_target_properties(LibURL PROPERTIES UNITY_BUILD ${LADYBIRD_ENABLE_UNITY_BUILD})
