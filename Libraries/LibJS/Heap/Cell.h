@@ -17,7 +17,7 @@ class JS_API Cell : public GC::Cell {
     GC_CELL(Cell, GC::Cell);
 
 public:
-    virtual void initialize(Realm&);
+    MUST_UPCALL virtual void initialize(Realm&);
 
     virtual bool is_generator_result() const { return false; }
     virtual bool is_environment() const { return false; }
