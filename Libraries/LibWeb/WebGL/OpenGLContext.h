@@ -8,6 +8,7 @@
 
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibGfx/VulkanContext.h>
 #include <LibWeb/Export.h>
 
 namespace Web::WebGL {
