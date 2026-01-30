@@ -19,7 +19,7 @@ namespace Web::CSS {
 class ParsedFontFace {
 public:
     struct Source {
-        Variant<FlyString, URL> local_or_url;
+        Variant<FlyString, CSSURL> local_or_url;
         Optional<FlyString> format;
         Vector<FontTech> tech;
     };

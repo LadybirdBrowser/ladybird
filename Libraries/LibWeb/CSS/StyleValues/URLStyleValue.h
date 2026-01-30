@@ -14,14 +14,14 @@ namespace Web::CSS {
 
 class URLStyleValue final : public StyleValueWithDefaultOperators<URLStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<URLStyleValue const> create(URL const& url)
+    static ValueComparingNonnullRefPtr<URLStyleValue const> create(CSSURL const& url)
     {
         return adopt_ref(*new (nothrow) URLStyleValue(url));
     }
 
     virtual ~URLStyleValue() override = default;
 
-    URL const& url() const { return m_url; }
+    CSSURL const& url() const { return m_url; }
 
     bool properties_equal(URLStyleValue const& other) const { return m_url == other.m_url; }
 
@@ -31,13 +31,13 @@ public:
     }
 
 private:
-    URLStyleValue(URL const& url)
+    URLStyleValue(CSSURL const& url)
         : StyleValueWithDefaultOperators(Type::URL)
         , m_url(url)
     {
     }
 
-    URL m_url;
+    CSSURL m_url;
 };
 
 }

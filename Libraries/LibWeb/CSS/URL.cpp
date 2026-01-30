@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-URL::URL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers)
+CSSURL::CSSURL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers)
     : m_type(type)
     , m_url(move(url))
     , m_request_url_modifiers(move(request_url_modifiers))
@@ -19,7 +19,7 @@ URL::URL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-url
-String URL::to_string() const
+String CSSURL::to_string() const
 {
     // To serialize a URL means to create a string represented by "url(", followed by the serialization of the URL as a
     // string, followed by ")".
@@ -45,7 +45,7 @@ String URL::to_string() const
     return builder.to_string_without_validation();
 }
 
-bool URL::operator==(URL const&) const = default;
+bool CSSURL::operator==(CSSURL const&) const = default;
 
 RequestURLModifier RequestURLModifier::create_cross_origin(CrossOriginModifierValue value)
 {

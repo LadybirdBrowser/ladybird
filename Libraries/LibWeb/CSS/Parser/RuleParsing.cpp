@@ -233,9 +233,9 @@ GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 
     tokens.discard_whitespace();
 
-    Optional<URL> url = parse_url_function(tokens);
+    Optional<CSSURL> url = parse_url_function(tokens);
     if (!url.has_value() && tokens.next_token().is(Token::Type::String))
-        url = URL { tokens.consume_a_token().token().string().to_string() };
+        url = CSSURL { tokens.consume_a_token().token().string().to_string() };
 
     if (!url.has_value()) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
