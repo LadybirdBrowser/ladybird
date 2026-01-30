@@ -24,7 +24,13 @@ FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<MediaStream> const& stream)
 {
 }
 
-FFmpegDemuxer::~FFmpegDemuxer() = default;
+FFmpegDemuxer::~FFmpegDemuxer()
+{
+    for (auto& [track, context] : m_track_contexts) {
+        if (context->format_context != nullptr)
+            avformat_close_input(&context->format_context);
+    }
+}
 
 static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_context, AVIOContext& io_context)
 {
