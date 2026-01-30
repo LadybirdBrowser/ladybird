@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Biquad k-rate AudioParams (all)
+Pass	Biquad k-rate Q
+Pass	Biquad k-rate detune
+Pass	Biquad k-rate frequency
+Pass	Biquad k-rate gain

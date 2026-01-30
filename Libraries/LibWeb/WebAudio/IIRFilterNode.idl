@@ -1,0 +1,15 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#IIRFilterNode
+[Exposed=Window]
+interface IIRFilterNode : AudioNode {
+    constructor (BaseAudioContext context, IIRFilterOptions options);
+    undefined getFrequencyResponse (Float32Array frequencyHz, Float32Array magResponse, Float32Array phaseResponse);
+};
+
+// https://webaudio.github.io/web-audio-api/#IIRFilterOptions
+dictionary IIRFilterOptions : AudioNodeOptions {
+    required sequence<double> feedforward;
+    required sequence<double> feedback;
+};

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "registerprocessor-called-on-globalthis"
+Pass	Audit report
+Pass	> [registerprocessor-called-on-globalthis] 
+Pass	  "dummyWorkletNode" is an instance of AudioWorkletNode is true.
+Pass	< [registerprocessor-called-on-globalthis] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

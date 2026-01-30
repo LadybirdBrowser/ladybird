@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      waveshaper.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+
+      const sampleRate = 44100;
+      const lengthInSeconds = 4;
+      const numberOfRenderFrames = sampleRate * lengthInSeconds;
+      const numberOfCurveFrames = 65536;
+
+      let context;
+      let inputBuffer;
+      let waveShapingCurve;
+
+      function generateInputBuffer() {
+        // Create mono input buffer.
+        const buffer = new AudioBuffer({
+          length: numberOfRenderFrames,
+          numberOfChannels: 1,
+          sampleRate: context.sampleRate
+        });
+        const data = buffer.getChannelData(0);
+
+        // Generate an input vector with values from -1 -> +1 over a duration of
+        // lengthInSeconds. This exercises the full nominal input range and will
+        // touch every point of the shaping curve.
+        for (let i = 0; i < numberOfRenderFrames; ++i) {
+          let x = i / numberOfRenderFrames;
+          x = 2 * x - 1;
+          data[i] = x;
+        }
+
+        return buffer;
+      }
+
+      // Generates a symmetric curve: Math.atan(5 * x) / (0.5 * Math.PI)
+      // (with x == 0 corresponding to the center of the array)
+      // This curve is arbitrary, but would be useful in the real-world.
+      // To some extent, the actual curve we choose is not important in this
+      // test, since the input vector walks through all possible curve values.
+      function generateWaveShapingCurve() {
+        const curve = new Float32Array(numberOfCurveFrames);
+        const n = numberOfCurveFrames;
+        const n2 = n / 2;
+
+        for (let i = 0; i < n; ++i) {
+          const x = (i - n2) / n2;
+          curve[i] = Math.atan(5 * x) / (0.5 * Math.PI);
+        }
+        return curve;
+      }
+      // Following spec algorithm from
+      // https://webaudio.github.io/web-audio-api/#WaveShaperNode-attributes
+      function checkShapedCurve(buffer) {
+        const inputData = inputBuffer.getChannelData(0);
+        const outputData = buffer.getChannelData(0);
+        const c = waveShapingCurve;
+        const N = numberOfCurveFrames;
+        const tolerance = 1e-6;
+
+        let firstMismatchIndex = -1;
+        let actual = 0;
+        let expected = 0;
+
+        // Go through every sample and make sure it has been shaped exactly
+        // according to the shaping curve we gave it.
+        for (let i = 0; i < buffer.length; ++i) {
+          const x = inputData[i];
+
+          const v = ((N - 1) * 0.5) * (x + 1);
+          const k = Math.floor(v);
+          const f = v - k;
+
+          let y;
+          if (v < 0) {
+            y = c[0];
+          } else if (v >= N - 1) {
+            y = c[N - 1];
+          } else {
+            y = (1 - f) * c[k] + f * c[k + 1];
+          }
+
+          if (Math.abs(outputData[i] - y) > tolerance) {
+            firstMismatchIndex = i;
+            actual = outputData[i];
+            expected = y;
+            break;
+          }
+        }
+
+        assert_equals(
+            firstMismatchIndex,
+            -1,
+            firstMismatchIndex === -1
+                ? 'WaveShaperNode output should match the spec.'
+                : `Mismatch at sample ${firstMismatchIndex}: ` +
+                    `actual = ${actual}, expected = ${expected}, ` +
+                    `tolerance = ${tolerance}`);
+      }
+
+      promise_test(async t => {
+        // Create offline audio context.
+        context = new OfflineAudioContext(1, numberOfRenderFrames, sampleRate);
+
+        // source -> waveshaper -> destination
+        const source = new AudioBufferSourceNode(context);
+        const waveshaper = new WaveShaperNode(context);
+        source.connect(waveshaper);
+        waveshaper.connect(context.destination);
+
+        // Create an input test vector.
+        inputBuffer = generateInputBuffer();
+        source.buffer = inputBuffer;
+
+        // We'll apply non-linear distortion according to this shaping curve.
+        waveShapingCurve = generateWaveShapingCurve();
+        waveshaper.curve = waveShapingCurve;
+
+        source.start();
+
+        const renderedBuffer = await context.startRendering();
+        checkShapedCurve(renderedBuffer);
+      }, 'WaveShaperNode applies non-linear distortion correctly');
+    </script>
+  </body>
+</html>

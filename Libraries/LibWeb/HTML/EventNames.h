@@ -47,6 +47,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(cuechange)                \
     __ENUMERATE_HTML_EVENT(currententrychange)       \
     __ENUMERATE_HTML_EVENT(cut)                      \
+    __ENUMERATE_HTML_EVENT(devicechange)             \
     __ENUMERATE_HTML_EVENT(disconnect)               \
     __ENUMERATE_HTML_EVENT(dispose)                  \
     __ENUMERATE_HTML_EVENT(DOMContentLoaded)         \
@@ -102,6 +103,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(playing)                  \
     __ENUMERATE_HTML_EVENT(popstate)                 \
     __ENUMERATE_HTML_EVENT(progress)                 \
+    __ENUMERATE_HTML_EVENT(processorerror)           \
     __ENUMERATE_HTML_EVENT(ratechange)               \
     __ENUMERATE_HTML_EVENT(readystatechange)         \
     __ENUMERATE_HTML_EVENT(rejectionhandled)         \
@@ -118,6 +120,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(seeking)                  \
     __ENUMERATE_HTML_EVENT(select)                   \
     __ENUMERATE_HTML_EVENT(selectionchange)          \
+    __ENUMERATE_HTML_EVENT(sinkchange)               \
     __ENUMERATE_HTML_EVENT(slotchange)               \
     __ENUMERATE_HTML_EVENT(soundend)                 \
     __ENUMERATE_HTML_EVENT(soundstart)               \

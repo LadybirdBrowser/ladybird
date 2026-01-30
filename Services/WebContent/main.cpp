@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <LibAudioServerClient/Client.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -30,7 +31,9 @@
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <LibWeb/WebAudio/Engine/WebAudioClientRegistry.h>
 #include <LibWeb/WebIDL/Tracing.h>
+#include <LibWebAudioWorkerClient/WebAudioClient.h>
 #include <LibWebView/Plugins/FontPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
@@ -54,10 +57,29 @@
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
-static ErrorOr<void> reinitialize_resource_loader(IPC::File const& image_decoder_socket);
+static ErrorOr<void> reinitialize_resource_loader(IPC::File const& request_server_socket);
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
+
+static ErrorOr<void> reinitialize_audio_server(IPC::File const& audio_server_socket);
+static ErrorOr<void> initialize_audio_server(int audio_server_socket);
+
+static WebContent::ConnectionFromClient* s_connection_from_browser { nullptr };
+
+static void install_webaudio_socket_provider_if_possible(WebAudioWorkerClient::WebAudioClient& client)
+{
+    client.set_socket_provider([](u64 page_id) -> ErrorOr<IPC::File> {
+        if (!s_connection_from_browser)
+            return Error::from_string_literal("WebAudio: browser connection unavailable for RequestWebaudioClient");
+
+        auto response = s_connection_from_browser->send_sync_but_allow_failure<Messages::WebContentClient::RequestWebaudioClient>(page_id);
+        if (!response)
+            return Error::from_string_literal("WebAudio: browser disconnected during RequestWebaudioClient");
+
+        return response->take_socket();
+    });
+}
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -89,6 +111,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Vector<ByteString> certificates;
     int request_server_socket { -1 };
     int image_decoder_socket { -1 };
+    int audio_server_socket { -1 };
     bool enable_test_mode = false;
     bool expose_internals_object = false;
     bool wait_for_debugger = false;
@@ -110,6 +133,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(request_server_socket, "File descriptor of the socket for the RequestServer connection", "request-server-socket", 'r', "request_server_socket");
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
+    args_parser.add_option(audio_server_socket, "File descriptor of the socket for the AudioServer connection", "audio-server-socket", 0, "audio_server_socket");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -188,6 +212,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
 
     TRY(initialize_image_decoder(image_decoder_socket));
+    TRY(initialize_audio_server(audio_server_socket));
 
     Web::HTML::Window::set_enable_test_mode(enable_test_mode);
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
@@ -217,6 +242,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
     auto webcontent_client = WebContent::ConnectionFromClient::construct(make<IPC::Transport>(move(webcontent_socket)));
+    s_connection_from_browser = webcontent_client.ptr();
+
+    auto webaudio_client = WebAudioWorkerClient::WebAudioClient::create();
+    install_webaudio_socket_provider_if_possible(*webaudio_client);
+    Web::WebAudio::Render::WebAudioClientRegistry::set_webaudio_client(move(webaudio_client));
 
     webcontent_client->on_request_server_connection = [&](auto const& socket_file) {
         if (auto result = reinitialize_resource_loader(socket_file); result.is_error())
@@ -225,6 +255,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     webcontent_client->on_image_decoder_connection = [&](auto const& socket_file) {
         if (auto result = reinitialize_image_decoder(socket_file); result.is_error())
             dbgln("Failed to reinitialize image decoder: {}", result.error());
+    };
+    webcontent_client->on_audio_server_connection = [&](auto const& socket_file) {
+        if (auto result = reinitialize_audio_server(socket_file); result.is_error())
+            dbgln("Failed to reinitialize audio server: {}", result.error());
     };
 
     return event_loop.exec();
@@ -307,5 +341,41 @@ ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
     auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(make<IPC::Transport>(move(socket))));
     static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
 
+    return {};
+}
+
+ErrorOr<void> initialize_audio_server(int audio_server_socket)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(audio_server_socket));
+    TRY(socket->set_blocking(true));
+
+    auto new_client = TRY(try_make_ref_counted<AudioServerClient::Client>(make<IPC::Transport>(move(socket))));
+#ifdef AK_OS_WINDOWS
+    auto response = new_client->send_sync<Messages::AudioServerServer::InitTransport>(Core::System::getpid());
+    new_client->transport().set_peer_pid(response->peer_pid());
+#endif
+
+    NonnullRefPtr<AudioServerClient::Client> client = *new_client;
+    auto webaudio_client = WebAudioWorkerClient::WebAudioClient::create();
+    install_webaudio_socket_provider_if_possible(*webaudio_client);
+
+    AudioServerClient::Client::set_default_client(client);
+    Web::WebAudio::Render::WebAudioClientRegistry::set_webaudio_client(move(webaudio_client));
+    return {};
+}
+
+ErrorOr<void> reinitialize_audio_server(IPC::File const& audio_server_socket)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(audio_server_socket.take_fd()));
+    TRY(socket->set_blocking(true));
+
+    auto new_client = TRY(try_make_ref_counted<AudioServerClient::Client>(make<IPC::Transport>(move(socket))));
+
+    NonnullRefPtr<AudioServerClient::Client> client = *new_client;
+    auto webaudio_client = WebAudioWorkerClient::WebAudioClient::create();
+    install_webaudio_socket_provider_if_possible(*webaudio_client);
+
+    AudioServerClient::Client::set_default_client(client);
+    Web::WebAudio::Render::WebAudioClientRegistry::set_webaudio_client(move(webaudio_client));
     return {};
 }

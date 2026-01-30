@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<title>Test setTargetAtTime after an event in the same processing block</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+promise_test(function() {
+  const bufferSize = 179;
+  const valueStartOffset = 42;
+  const targetStartOffset = 53;
+  const sampleRate = 48000;
+  const scheduledValue = -0.5;
+
+  var context = new OfflineAudioContext(1, bufferSize, sampleRate);
+
+  var gain = context.createGain();
+  gain.gain.setValueAtTime(scheduledValue, valueStartOffset/sampleRate);
+  gain.gain.setTargetAtTime(scheduledValue, targetStartOffset/sampleRate,
+                            128/sampleRate);
+  gain.connect(context.destination);
+
+  // Apply unit DC signal to gain node.
+  var source = context.createBufferSource();
+  source.buffer =
+    function() {
+      var buffer = context.createBuffer(1, 1, context.sampleRate);
+      buffer.getChannelData(0)[0] = 1.0;
+      return buffer;
+    }();
+  source.loop = true;
+  source.start();
+  source.connect(gain);
+
+  return context.startRendering().
+    then(function(buffer) {
+      assert_equals(buffer.length, bufferSize, "output buffer length");
+      var output = buffer.getChannelData(0);
+      var i = 0;
+      for (; i < valueStartOffset; ++i) {
+        // "Its default value is 1."
+        assert_equals(output[i], 1.0, "default gain at sample " + i);
+      }
+      for (; i < buffer.length; ++i) {
+        // "If the next event (having time T1) after this SetValue event is
+        // not of type LinearRampToValue or ExponentialRampToValue, then, for
+        // T0≤t<T1: v(t)=V".
+        // "Start exponentially approaching the target value at the given time
+        // with a rate having the given time constant."
+        // The target is the same value, and so the SetValue value continues.
+        assert_equals(output[i], scheduledValue,
+                      "scheduled value at sample " + i);
+      }
+    });
+}, "setTargetAtTime() after setValueAtTime()");
+
+promise_test(async function() {
+  const bufferSize = 129;
+  const sampleRate = 16384;
+  const startSample1 = 125;
+  const target1 = Math.fround(-1./Math.expm1(-1.));
+  // Intentionally testing the second curve before and after the
+  // rendering quantum boundary.
+  const startSample2 = startSample1 + 1;
+  const target2 = 0.;
+  const timeConstant = 1./sampleRate;
+  const tolerance = Math.pow(2, -24); // Allow single precision math.
+  const context = new OfflineAudioContext(1, bufferSize, sampleRate);
+
+  const source = new ConstantSourceNode(context, {offset: 0.});
+  source.start();
+  source.offset.setTargetAtTime(target1, startSample1/sampleRate,
+                                timeConstant);
+  source.offset.setTargetAtTime(target2, startSample2/sampleRate,
+                                timeConstant);
+  source.connect(context.destination);
+
+  const buffer = await context.startRendering();
+
+  assert_equals(buffer.length, bufferSize, "output buffer length");
+  const output = buffer.getChannelData(0);
+  for (let i = 0; i <= startSample1; ++i) {
+    assert_equals(output[i], 0., "initial offset at sample " + i);
+  }
+  assert_approx_equals(
+    output[startSample2],
+    Math.fround(target1 * -Math.expm1(-(startSample2 - startSample1))),
+    tolerance,
+    "scheduled value at startSample2");
+  assert_approx_equals(
+    output[startSample2 + 1],
+    Math.fround(output[startSample2] * Math.exp(-1.)),
+    tolerance,
+    "scheduled value at startSample2 + 1");
+  assert_approx_equals(
+    output[startSample2 + 2],
+    Math.fround(output[startSample2] * Math.exp(-2.)),
+    tolerance,
+    "scheduled value at startSample2 + 2");
+}, "setTargetAtTime() after setTargetAtTime()");
+</script>

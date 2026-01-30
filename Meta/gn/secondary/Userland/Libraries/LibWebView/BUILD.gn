@@ -131,6 +131,7 @@ shared_library("LibWebView") {
     ":generate_native_stylesheet_source",
     "//AK",
     "//Meta/gn/build/libs/sqlite3",
+    "//Userland/Libraries/LibAudioServerClient",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
     "//Userland/Libraries/LibGfx",

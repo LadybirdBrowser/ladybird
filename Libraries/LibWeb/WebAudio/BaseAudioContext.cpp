@@ -6,35 +6,63 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/BaseAudioContextPrototype.h>
+#include <AK/Math.h>
+#include <AK/NumericLimits.h>
+#include <AK/StringView.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
+#include <LibWeb/WebAudio/AssociatedTaskQueue.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
+#include <LibWeb/WebAudio/AudioNode.h>
+#include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
+#include <LibWeb/WebAudio/AudioWorklet.h>
+#include <LibWeb/WebAudio/BackgroundAudioDecoder.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/ControlMessageQueue.h>
+#include <LibWeb/WebAudio/ConvolverNode.h>
+#include <LibWeb/WebAudio/Debug.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
+#include <LibWeb/WebAudio/IIRFilterNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
 #include <LibWeb/WebAudio/PannerNode.h>
+#include <LibWeb/WebAudio/WaveShaperNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAudio {
+
+BaseAudioContext::ControlThreadMarker::ControlThreadMarker()
+{
+    mark_current_thread_as_control_thread();
+    ASSERT_CONTROL_THREAD();
+}
+
+NodeID BaseAudioContext::next_node_id()
+{
+    ASSERT_CONTROL_THREAD();
+    return m_next_audio_node_id++;
+}
 
 BaseAudioContext::BaseAudioContext(JS::Realm& realm, float sample_rate)
     : DOM::EventTarget(realm)
     , m_sample_rate(sample_rate)
     , m_listener(AudioListener::create(realm, *this))
     , m_control_message_queue(make<ControlMessageQueue>())
+    , m_associated_task_queue(make<AssociatedTaskQueue>())
 {
+    mark_current_thread_as_control_thread();
+    ASSERT_CONTROL_THREAD();
 }
 
 BaseAudioContext::~BaseAudioContext() = default;
@@ -51,11 +79,40 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_destination);
     visitor.visit(m_pending_promises);
     visitor.visit(m_listener);
+    visitor.visit(m_audio_worklet);
+}
+
+GC::Ref<AudioWorklet> BaseAudioContext::audio_worklet() const
+{
+    if (!m_audio_worklet)
+        m_audio_worklet = AudioWorklet::create(realm(), const_cast<BaseAudioContext&>(*this));
+    return *m_audio_worklet;
+}
+
+bool BaseAudioContext::take_pending_promise(GC::Ref<WebIDL::Promise> const& promise)
+{
+    return m_pending_promises.remove_first_matching([&](auto& pending_promise) {
+        return pending_promise == promise;
+    });
+}
+
+void BaseAudioContext::set_control_state_and_dispatch_statechange(Bindings::AudioContextState state)
+{
+    if (m_control_thread_state == state)
+        return;
+    set_control_state(state);
+    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::statechange));
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::statechange, event_handler);
+}
+
+void BaseAudioContext::queue_associated_task(AssociatedTaskQueue::Task task)
+{
+    ASSERT_CONTROL_THREAD();
+    m_associated_task_queue->enqueue(move(task));
 }
 
 WebIDL::CallbackType* BaseAudioContext::onstatechange()
@@ -106,6 +163,12 @@ WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> BaseAudioContext::create_consta
     return ConstantSourceNode::create(realm(), *this);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createconvolver
+WebIDL::ExceptionOr<GC::Ref<ConvolverNode>> BaseAudioContext::create_convolver()
+{
+    return ConvolverNode::create(realm(), *this);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdelay
 WebIDL::ExceptionOr<GC::Ref<DelayNode>> BaseAudioContext::create_delay(double max_delay_time)
 {
@@ -145,6 +208,15 @@ WebIDL::ExceptionOr<GC::Ref<GainNode>> BaseAudioContext::create_gain()
     return GainNode::create(realm(), *this);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createiirfilter
+WebIDL::ExceptionOr<GC::Ref<IIRFilterNode>> BaseAudioContext::create_iir_filter(Vector<double> const& feedforward, Vector<double> const& feedback)
+{
+    IIRFilterOptions options;
+    options.feedforward = feedforward;
+    options.feedback = feedback;
+    return IIRFilterNode::create(realm(), *this, options);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createpanner
 WebIDL::ExceptionOr<GC::Ref<PannerNode>> BaseAudioContext::create_panner()
 {
@@ -174,7 +246,7 @@ WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> BaseAudioContext::create_scrip
     if (buffer_size == 0)
         buffer_size = ScriptProcessorNode::DEFAULT_BUFFER_SIZE;
 
-    return ScriptProcessorNode::create(realm(), *this, buffer_size, number_of_input_channels,
+    return ScriptProcessorNode::create(realm(), *this, static_cast<WebIDL::Long>(buffer_size), number_of_input_channels,
         number_of_output_channels);
 }
 
@@ -183,6 +255,12 @@ WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> BaseAudioContext::create_stereo_p
 {
     // Factory method for a StereoPannerNode.
     return StereoPannerNode::create(realm(), *this);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createwaveshaper
+WebIDL::ExceptionOr<GC::Ref<WaveShaperNode>> BaseAudioContext::create_wave_shaper()
+{
+    return WaveShaperNode::create(realm(), *this);
 }
 
 WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, float sample_rate)
@@ -212,140 +290,183 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     return {};
 }
 
-void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> steps)
+void BaseAudioContext::queue_a_media_element_task(StringView label, GC::Ref<GC::Function<void()>> steps)
 {
-    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_principal_settings_object().responsible_document(), steps);
-    (void)HTML::main_thread_event_loop().task_queue().add(task);
+    WA_DBGLN("[WebAudio] {}", label);
+    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, associated_document, steps);
+    HTML::main_thread_event_loop().task_queue().add(task);
 }
 
 void BaseAudioContext::queue_control_message(ControlMessage message)
 {
+    ASSERT_CONTROL_THREAD();
     m_control_message_queue->enqueue(move(message));
-    // FIXME: Should signal the rendering thread when implemented
 }
 
-// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::BufferSource> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
+void BaseAudioContext::schedule_source_end(AudioScheduledSourceNode& node, double end_time_seconds)
 {
-    auto& realm = this->realm();
+    ASSERT_CONTROL_THREAD();
 
-    // FIXME: When decodeAudioData is called, the following steps MUST be performed on the control thread:
+    if (m_sample_rate <= 0)
+        return;
 
-    // 1. If this's relevant global object's associated Document is not fully active then return a
-    //    promise rejected with "InvalidStateError" DOMException.
+    if (!__builtin_isfinite(end_time_seconds))
+        return;
+
+    if (end_time_seconds < 0.0)
+        end_time_seconds = 0.0;
+
+    if (m_dispatched_source_ends.contains(node.node_id()))
+        return;
+
+    WA_DBGLN("[WebAudio] schedule_source_end node_id={} end_time_s={} current_frame={}", node.node_id(), end_time_seconds, current_frame());
+
+    double const end_frame_f64 = AK::ceil(end_time_seconds * static_cast<double>(m_sample_rate));
+    u64 end_frame = 0;
+    if (end_frame_f64 >= static_cast<double>(AK::NumericLimits<u64>::max()))
+        end_frame = AK::NumericLimits<u64>::max();
+    else
+        end_frame = static_cast<u64>(end_frame_f64);
+
+    bool updated = false;
+    m_scheduled_source_end_nodes.set(node.node_id(), GC::Weak<AudioScheduledSourceNode> { node });
+    auto it = m_scheduled_source_end_frames.find(node.node_id());
+    if (it == m_scheduled_source_end_frames.end()) {
+        m_scheduled_source_end_frames.set(node.node_id(), end_frame);
+        updated = true;
+    } else if (end_frame < it->value) {
+        it->value = end_frame;
+        updated = true;
+    }
+
+    if (updated)
+        on_scheduled_source_end_added();
+
+    dispatch_scheduled_source_ends(current_frame());
+}
+
+void BaseAudioContext::dispatch_scheduled_source_ends(u64 current_frame)
+{
+    ASSERT_CONTROL_THREAD();
+
+    if (m_scheduled_source_end_frames.is_empty())
+        return;
+
+    Vector<NodeID> due_nodes;
+    due_nodes.ensure_capacity(m_scheduled_source_end_frames.size());
+
+    for (auto const& it : m_scheduled_source_end_frames) {
+        if (it.value <= current_frame)
+            due_nodes.append(it.key);
+    }
+
+    for (auto const& node_id : due_nodes) {
+        m_scheduled_source_end_frames.remove(node_id);
+        m_dispatched_source_ends.set(node_id);
+        auto node_it = m_scheduled_source_end_nodes.find(node_id);
+        if (node_it == m_scheduled_source_end_nodes.end()) {
+            WA_DBGLN("[WebAudio] dispatch_scheduled_source_ends missing node_id={}", node_id);
+            continue;
+        }
+
+        auto& weak_node = node_it->value;
+        if (!weak_node) {
+            m_scheduled_source_end_nodes.remove(node_it);
+            WA_DBGLN("[WebAudio] dispatch_scheduled_source_ends expired node_id={}", node_id);
+            continue;
+        }
+
+        auto& target_node = static_cast<AudioScheduledSourceNode&>(*weak_node);
+        m_scheduled_source_end_nodes.remove(node_it);
+
+        dispatch_scheduled_source_end_event(target_node);
+    }
+}
+
+void BaseAudioContext::dispatch_scheduled_source_end_event(AudioScheduledSourceNode& node)
+{
+    auto node_ref = GC::Ref<AudioScheduledSourceNode> { node };
+    queue_a_media_element_task("audio scheduled source ended"sv, GC::create_function(heap(), [node_ref] {
+        auto& realm = node_ref->realm();
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        node_ref->dispatch_event(DOM::Event::create(realm, HTML::EventNames::ended));
+    }));
+}
+
+void BaseAudioContext::notify_audio_graph_changed()
+{
+    ASSERT_CONTROL_THREAD();
+
+    // Coalesce multiple immediate graph mutations into a single snapshot/update.
+    // Many callers (e.g. AudioNode::disconnect + AudioNode::connect) will mutate the graph in
+    // quick succession within one JS task; snapshotting each intermediate state is wasteful and
+    // can enqueue transient disconnected graphs.
+    m_audio_graph_dirty = true;
+    if (m_audio_graph_update_task_scheduled)
+        return;
+    m_audio_graph_update_task_scheduled = true;
+
     auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
-    if (!associated_document.is_fully_active()) {
-        auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
-        return WebIDL::create_rejected_promise_from_exception(realm, error);
-    }
+    auto self = GC::Ref<BaseAudioContext> { *this };
 
-    // 2. Let promise be a new Promise.
-    auto promise = WebIDL::create_promise(realm);
+    // GC::Root?????
 
-    // FIXME: 3. If audioData is detached, execute the following steps:
-    if (true) {
-        // 3.1. Append promise to [[pending promises]].
-        m_pending_promises.append(promise);
+    auto steps = GC::create_function(heap(), [self] {
+        ASSERT_CONTROL_THREAD();
 
-        // FIXME: 3.2. Detach the audioData ArrayBuffer. If this operations throws, jump to the step 3.
+        self->m_audio_graph_update_task_scheduled = false;
+        if (!self->m_audio_graph_dirty)
+            return;
+        self->m_audio_graph_dirty = false;
 
-        // 3.3. Queue a decoding operation to be performed on another thread.
-        queue_a_decoding_operation(promise, move(audio_data), success_callback, error_callback);
-    }
+        self->on_audio_graph_changed();
 
-    // 4. Else, execute the following error steps:
-    else {
-        // 4.1. Let error be a DataCloneError.
-        auto error = WebIDL::DataCloneError::create(realm, "Audio data is not detached."_utf16);
+        // If additional mutations happened while processing, schedule again.
+        if (self->m_audio_graph_dirty)
+            self->notify_audio_graph_changed();
+    });
 
-        // 4.2. Reject promise with error, and remove it from [[pending promises]].
-        WebIDL::reject_promise(realm, promise, error);
-        m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
-            return pending_promise == promise;
-        });
+    HTML::queue_a_microtask(&associated_document, steps);
+}
 
-        // 4.3. Queue a media element task to invoke errorCallback with error.
-        if (error_callback) {
-            queue_a_media_element_task(GC::create_function(heap(), [&realm, error_callback, error] {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
-                if (completion.is_abrupt())
-                    HTML::report_exception(completion, realm);
-            }));
-        }
-    }
+void BaseAudioContext::register_audio_node_for_snapshot(AudioNode& node)
+{
+    // Keep a weak list of nodes so snapshot_render_graph() can include all nodes in the context.
+    m_audio_nodes_for_snapshot.remove_all_matching([](GC::Weak<AudioNode>& existing) {
+        return !existing;
+    });
 
-    // 5. Return promise.
-    return promise;
+    m_audio_nodes_for_snapshot.remove_first_matching([&](GC::Weak<AudioNode> const& existing) {
+        return existing.ptr() == &node;
+    });
+
+    m_audio_nodes_for_snapshot.append(GC::Weak<AudioNode> { node });
+}
+
+void BaseAudioContext::flush_pending_audio_graph_update()
+{
+    ASSERT_CONTROL_THREAD();
+
+    if (!m_audio_graph_update_task_scheduled)
+        return;
+
+    m_audio_graph_update_task_scheduled = false;
+    if (!m_audio_graph_dirty)
+        return;
+    m_audio_graph_dirty = false;
+
+    on_audio_graph_changed();
+
+    if (m_audio_graph_dirty)
+        notify_audio_graph_changed();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, [[maybe_unused]] GC::Root<WebIDL::BufferSource> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
+GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::BufferSource> const& audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
-    auto& realm = this->realm();
-
-    // FIXME: When queuing a decoding operation to be performed on another thread, the following steps
-    //        MUST happen on a thread that is not the control thread nor the rendering thread, called
-    //        the decoding thread.
-
-    // 1. Let can decode be a boolean flag, initially set to true.
-    auto can_decode { true };
-
-    // FIXME: 2. Attempt to determine the MIME type of audioData, using MIME Sniffing § 6.2 Matching an
-    //           audio or video type pattern. If the audio or video type pattern matching algorithm returns
-    //           undefined, set can decode to false.
-
-    // 3. If can decode is true,
-    if (can_decode) {
-        // FIXME: attempt to decode the encoded audioData into linear PCM. In case of
-        //        failure, set can decode to false.
-
-        // FIXME: If the media byte-stream contains multiple audio tracks, only decode the first track to linear pcm.
-    }
-
-    // 4. If can decode is false,
-    if (!can_decode) {
-        // queue a media element task to execute the following steps:
-        queue_a_media_element_task(GC::create_function(heap(), [this, &realm, promise, error_callback] {
-            // 4.1. Let error be a DOMException whose name is EncodingError.
-            auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_utf16);
-
-            // 4.1.2. Reject promise with error, and remove it from [[pending promises]].
-            WebIDL::reject_promise(realm, promise, error);
-            m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
-                return pending_promise == promise;
-            });
-
-            // 4.2. If errorCallback is not missing, invoke errorCallback with error.
-            if (error_callback) {
-                auto completion = WebIDL::invoke_callback(*error_callback, {}, { { error } });
-                if (completion.is_abrupt())
-                    HTML::report_exception(completion, realm);
-            }
-        }));
-    }
-
-    // 5. Otherwise:
-    else {
-        // FIXME: 5.1. Take the result, representing the decoded linear PCM audio data, and resample it to the
-        //             sample-rate of the BaseAudioContext if it is different from the sample-rate of
-        //             audioData.
-
-        // FIXME: 5.2. queue a media element task to execute the following steps:
-
-        // FIXME: 5.2.1. Let buffer be an AudioBuffer containing the final result (after possibly performing
-        //               sample-rate conversion).
-        auto buffer = MUST(create_buffer(2, 1, 44100));
-
-        // 5.2.2. Resolve promise with buffer.
-        WebIDL::resolve_promise(realm, promise, buffer);
-
-        // 5.2.3. If successCallback is not missing, invoke successCallback with buffer.
-        if (success_callback) {
-            auto completion = WebIDL::invoke_callback(*success_callback, {}, { { buffer } });
-            if (completion.is_abrupt())
-                HTML::report_exception(completion, realm);
-        }
-    }
+    auto& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    return associated_document.background_audio_decoder().decode_audio_data(*this, audio_data, success_callback, error_callback);
 }
 
 }

@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Panner Node Automation</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Use a power-of-two to eliminate some round-off; otherwise, this isn't
+      // really important.
+      const sampleRate = 16384;
+
+      // Render enough for the test; we don't need a lot.
+      const renderFrames = 2048;
+
+      // Initial panner positionX and final positionX for listener.
+      const positionX = 2000;
+
+      // Create the basic graph for testing which consists of an
+      // oscillator node connected to a panner node.
+      function createGraph(context) {
+        const listener = context.listener;
+
+        listener.positionX.value = 0;
+        listener.positionY.value = 0;
+        listener.positionZ.value = 0;
+
+        const src = new OscillatorNode(context);
+
+        const panner = new PannerNode(context, {
+          distanceModel: 'linear',
+          refDistance: 1,
+          maxDistance: 3000,
+          positionX: positionX,
+          positionY: 0,
+          positionZ: 0
+        });
+        src.connect(panner).connect(context.destination);
+
+        src.start();
+      }
+
+
+      // Verify the output from the panner is correct.
+      function verifyOutput(context, moveFrame, prefix) {
+        return context.startRendering().then(resultBuffer => {
+          // Get the outputs (left and right)
+          const c0 = resultBuffer.getChannelData(0);
+          const c1 = resultBuffer.getChannelData(1);
+
+          // The src/listener set up is such that audio should only come
+          // from the right for until |moveFrame|.  Hence the left channel
+          // should be 0 (or very nearly 0).
+          const zero = new Float32Array(moveFrame);
+
+          assert_array_equal_within_eps(
+              c0.slice(0, moveFrame),
+              zero,
+              {absoluteThreshold: 1e-16},
+              `${prefix}: output0[0:${moveFrame - 1}]`);
+          assert_not_constant_value(
+              c1.slice(0, moveFrame),
+              0,
+              `${prefix}: output1[0:${moveFrame - 1}]`);
+
+          // At |moveFrame| and beyond, the listener and source are at the
+          // same position, so the outputs from the left and right should be
+          // identical, and the left channel should not be 0 anymore.
+          assert_not_constant_value(
+              c0.slice(moveFrame),
+              0,
+              `${prefix}: output0[${moveFrame}:]`);
+          assert_array_equal_within_eps(
+              c1.slice(moveFrame),
+              c0.slice(moveFrame),
+              0,
+              `${prefix}: output1[${moveFrame}:]`);
+        });
+      }
+
+      // Test that listener.positionX.value setter does the right thing.
+      promise_test(async t => {
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+        createGraph(context);
+
+        // Frame at which the listener instantaneously moves to a new location.
+        const moveFrame = 512;
+
+        // Schedule a suspend; when it trips, set the value and resume.
+        context.suspend(moveFrame / context.sampleRate).then(() => {
+          context.listener.positionX.value = positionX;
+          context.resume();
+        });
+
+        await verifyOutput(context, moveFrame, 'listener.positionX.value');
+      }, 'Set Listener.positionX.value');
+
+      // Test that listener.positionX.setValueAtTime() does the right thing.
+      promise_test(async t => {
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+        createGraph(context);
+
+        // Frame at which the listener instantaneously moves to a new location.
+        const moveFrame = 512;
+
+        context.listener.positionX.setValueAtTime(
+            positionX, moveFrame / context.sampleRate);
+
+        await verifyOutput(
+            context, moveFrame, 'listener.positionX.setValueAtTime');
+      }, 'Listener.positionX.setValue');
+
+      // Test that listener.setPosition() does the right thing.
+      promise_test(async t => {
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+        createGraph(context);
+
+        // Frame at which the listener instantaneously moves to a new location.
+        const moveFrame = 512;
+
+        context.suspend(moveFrame / context.sampleRate).then(() => {
+          context.listener.setPosition(positionX, 0, 0);
+          context.resume();
+        });
+
+        await verifyOutput(
+            context, moveFrame, 'listener.setPosition');
+      }, 'Listener.setPosition');
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title> AudioParam.setValueCurveAtTime </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script>
+
+      // Play a long DC signal out through an AudioGainNode and for each time
+      // interval call setValueCurveAtTime() to set the values for the duration
+      // of the interval.  Each curve is a sine wave, and we assume that the
+      // time interval is not an exact multiple of the period. This causes a
+      // discontinuity between time intervals which is used to test timing.
+      const numberOfTests   = 20;
+      const sineAmplitude   = 1;
+      const freqHz          = 440;
+
+      // Max allowed difference between the rendered data and the expected
+      // result. Because of the linear interpolation, the rendered curve isn't
+      // exactly the same as the reference.  This value is experimentally
+      // determined.
+      const maxAllowedError = 3.7194e-6;
+
+      /* global helpers from audioparam-testing.js */
+      const { timeInterval, sampleRate } = window;
+
+      /* curve used by the automation scheduler */
+      const curve = createSineWaveArray(
+          timeInterval, freqHz, sineAmplitude, sampleRate);
+
+      /**
+       * Minimum required functionality for createAudioGraphAndTest.
+       */
+      function should(actual, description) {
+        return {
+          beLessThan(expected) {
+            assert_true(actual < expected,
+                        `${description}: ${actual} ≥ ${expected}`);
+          },
+          beLessThanOrEqualTo(expected) {
+            assert_true(actual <= expected,
+                        `${description}: ${actual} > ${expected}`);
+          },
+          beEqualTo(expected) {
+            assert_equals(actual, expected, description);
+          },
+          beTrue() {
+            assert_true(!!actual, description);
+          }
+        };
+      }
+
+      function automation(value, startTime, endTime) {
+        /* |value| is unused – mirrors the original test. */
+        gainNode.gain.setValueCurveAtTime(
+            curve, startTime, endTime - startTime);
+      }
+
+      promise_test(() => {
+        /* Return a real Promise so promise_test is satisfied. */
+        return new Promise(resolve => {
+          /* dummy task object exposing only .done() */
+          const task = { done: resolve };
+
+          /* No value needs to be set at each interval. */
+          const noopSetValue = () => {};
+
+          createAudioGraphAndTest(
+              task,
+              should,
+              numberOfTests,
+              sineAmplitude,
+              noopSetValue,
+              automation,
+              'setValueCurveAtTime()',
+              maxAllowedError,
+              createReferenceSineArray,
+              2 * Math.PI * sineAmplitude * freqHz / sampleRate,
+              differenceErrorMetric);
+        });
+      }, 'AudioParam.setValueCurveAtTime() reproduces the expected waveform');
+    </script>
+  </body>
+</html>

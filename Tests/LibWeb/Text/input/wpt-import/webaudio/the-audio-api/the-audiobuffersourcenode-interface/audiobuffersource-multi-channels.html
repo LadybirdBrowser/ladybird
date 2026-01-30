@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioBufferSourceNode supports 5.1 channel playback
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/mix-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      // Test AudioBufferSourceNode supports 5.1 channel.
+      // Creating context and fetching expected audio.
+      promise_test(async () => {
+        const sampleRate = 44100.0;
+        const context = new OfflineAudioContext(
+            6, sampleRate * toneLengthSeconds, sampleRate);
+
+        let expectedAudio;
+
+        const response = await fetch(
+            'resources/audiobuffersource-multi-channels-expected.wav');
+        const arrayBuffer = await response.arrayBuffer();
+        try {
+          expectedAudio = await context.decodeAudioData(arrayBuffer);
+        } catch (error) {
+          assert_unreached(
+              `Could not decode audio data due to ${error.message}`);
+        }
+
+        // Render and verify output.
+        const toneBuffer = createToneBuffer(context, 440, toneLengthSeconds, 6);
+        const source = new AudioBufferSourceNode(context, {buffer:toneBuffer});
+
+        source.connect(context.destination);
+        source.start();
+
+        const renderedAudio = await context.startRendering();
+
+        // Compute a threshold based on the maximum error, |maxUlp|,
+        // in ULP. This is experimentally determined. Assuming that
+        // the reference file is a 16-bit wav file, the max values in
+        // the wave file are +/- 32768.
+        const maxUlp = 1;
+        const threshold = maxUlp / 32768;
+        for (let k = 0; k < renderedAudio.numberOfChannels; ++k) {
+          assert_array_approx_equals(
+              renderedAudio.getChannelData(k),
+              expectedAudio.getChannelData(k),
+              threshold,
+              `Rendered audio for channel ${k}`);
+        }
+      }, 'AudioBufferSourceNode 5.1 channel playback verification');
+    </script>
+  </body>
+</html>

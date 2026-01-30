@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test k-rate AudioParams with inputs for AudioWorkletNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Use the worklet gain node to test k-rate parameters.
+      const filePath =
+          '../the-audioworklet-interface/processors/gain-processor.js';
+
+      promise_test(async () => {
+        // Arbitrary sample rate and duration.
+        const sampleRate = 8000;
+
+        // Only new a few render quanta to verify things are working.
+        const testDuration = 4 * 128 / sampleRate;
+
+        const context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate,
+        });
+
+        await context.audioWorklet.addModule(filePath);
+
+        const src = new ConstantSourceNode(context);
+        const kRateNode = new AudioWorkletNode(context, 'gain');
+        src.connect(kRateNode).connect(context.destination);
+
+        const kRateParam = kRateNode.parameters.get('gain');
+        kRateParam.automationRate = 'k-rate';
+        kRateParam.value = 0;
+
+        const mod = new ConstantSourceNode(context);
+        mod.offset.setValueAtTime(0, 0);
+        mod.offset.linearRampToValueAtTime(
+            10, context.length / context.sampleRate);
+        mod.connect(kRateParam);
+
+        mod.start();
+        src.start();
+
+        const audioBuffer = await context.startRendering();
+        const output = audioBuffer.getChannelData(0);
+
+        // Verify that the output isn't constantly zero.
+        const allZero = !output.some((value) => value !== 0);
+        assert_false(allZero, `output should not be all zeros`);
+
+        // Verify that the output from the worklet is step-wise
+        // constant.
+        for (let k = 0; k < output.length; k += 128) {
+          const slice = output.slice(k, k + 128);
+          const expected = new Float32Array(slice.length).fill(slice[0]);
+          assert_array_equals(
+              slice, expected, `k-rate output [${k}: ${k + 127}]`);
+        }
+      }, 'AudioWorklet k-rate AudioParam');
+    </script>
+  </body>
+</html>

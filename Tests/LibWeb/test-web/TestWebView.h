@@ -9,12 +9,15 @@
 #include "TestWeb.h"
 
 #include <AK/Badge.h>
+#include <AK/HashMap.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/HeadlessWebView.h>
+
+#include <LibURL/URL.h>
 
 namespace TestWeb {
 
@@ -24,6 +27,7 @@ public:
 
     void clear_content_filters();
     pid_t web_content_pid() const;
+    u64 page_id() const { return ViewImplementation::page_id(); }
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
 
@@ -34,11 +38,16 @@ public:
 private:
     TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
+    void load_wpt_resource_map();
+    Optional<ByteString> map_file_path_from_url(URL::URL const&) const;
+
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
 
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;
+
+    HashMap<String, ByteString> m_wpt_file_substitutions;
 };
 
 }

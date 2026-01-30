@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	AudioParam: Each method returns the same object to allow chaining
+Pass	AudioParam: Chaining with invalid operations does not apply later effects
+Pass	AudioParam: Chaining of envelope methods schedules values as expected

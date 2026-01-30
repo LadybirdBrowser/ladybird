@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test convergence of setTargetAtTime</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src='../../../webaudio/resources/audio-param.js'></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      promise_test(async () => {
+        // Two channels:
+        //  0 - actual result
+        //  1 - expected result
+        const context = new OfflineAudioContext(
+            {numberOfChannels: 2, sampleRate: 8000, length: 8000});
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfChannels: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Construct test source that will have the AudioParams being tested
+        // to verify that the AudioParams are working correctly.
+        const src = new ConstantSourceNode(context);
+
+        src.connect(merger, 0, 0);
+        src.offset.setValueAtTime(1, 0);
+
+        const timeConstant = 0.01;
+
+        // testTime must be at least 10*timeConstant. Also, this must not
+        // lie on a render boundary.
+        const testTime = 0.15;
+        const rampEnd = testTime + 0.001;
+
+        src.offset.setTargetAtTime(0.5, 0.01, timeConstant);
+        src.offset.setValueAtTime(0.5, testTime);
+        src.offset.linearRampToValueAtTime(1, rampEnd);
+
+        // The reference node that will generate the expected output.  We do
+        // the same automations, except we don't apply the setTarget
+        // automation.
+        const refSrc = new ConstantSourceNode(context);
+        refSrc.connect(merger, 0, 1);
+
+        refSrc.offset.setValueAtTime(0.5, 0);
+        refSrc.offset.setValueAtTime(0.5, testTime);
+        refSrc.offset.linearRampToValueAtTime(1, rampEnd);
+
+        src.start();
+        refSrc.start();
+
+        const resultBuffer = await context.startRendering();
+        const actual = resultBuffer.getChannelData(0);
+        const expected = resultBuffer.getChannelData(1);
+
+        // Just verify that the actual output matches the expected
+        // starting a little bit before testTime.
+        const testFrame = Math.floor(testTime * context.sampleRate) - 128;
+        const actualSlice = actual.slice(testFrame);
+        const expectedSlice = expected.slice(testFrame);
+
+        assert_equals(
+            actualSlice.length, expectedSlice.length,
+            `output[${testFrame}:] length`);
+
+        const relThreshold = 4.1724e-6;
+        assert_array_equal_within_eps(
+            actualSlice,
+            expectedSlice,
+            relThreshold,
+            `output[${testFrame}] approx expected (rel ${relThreshold})`);
+      }, 'setTargetAtTime: convergence handled correctly');
+    </script>
+  </body>
+</html>

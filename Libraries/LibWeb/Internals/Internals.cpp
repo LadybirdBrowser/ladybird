@@ -30,6 +30,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/WebAudio/OhNoesNode.h>
 
 namespace Web::Internals {
 
@@ -503,6 +504,17 @@ GC::Ref<InternalGamepad> Internals::connect_virtual_gamepad()
     auto gamepad = realm.create<InternalGamepad>(realm, *this);
     m_gamepads.append(gamepad);
     return gamepad;
+}
+
+WebIDL::ExceptionOr<GC::Ref<WebAudio::OhNoesNode>> Internals::create_oh_noes_node(GC::Ref<WebAudio::BaseAudioContext> context, String const& path)
+{
+#ifndef NDEBUG
+    return TRY(WebAudio::OhNoesNode::create_for_internals(realm(), context, String { path }));
+#else
+    (void)context;
+    (void)path;
+    return WebIDL::NotSupportedError::create(realm(), "Internals.createOhNoesNode() is only available in debug builds"_utf16);
+#endif
 }
 
 void Internals::disconnect_virtual_gamepad(GC::Ref<InternalGamepad> gamepad)

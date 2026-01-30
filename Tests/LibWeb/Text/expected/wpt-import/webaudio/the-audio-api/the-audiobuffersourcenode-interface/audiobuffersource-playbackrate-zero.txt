@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Synthesize and verify sample-and-hold behavior when playbackRate is set to zero halfway
+Pass	Subsample start with playbackRate 0 should produce sample-and-hold from exact start frame

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Testing AudioContext.getOutputTimestamp() method (cross-realm)
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const audit = Audit.createTaskRunner();
+
+      audit.define("getoutputtimestamp-cross-realm", function(task, should) {
+        const mainContext = new AudioContext();
+        return task.timeout(() => {
+          const iframe = document.createElement("iframe");
+          document.body.append(iframe);
+          const iframeContext = new iframe.contentWindow.AudioContext();
+
+          should(mainContext.getOutputTimestamp().performanceTime, "mainContext's performanceTime")
+            .beGreaterThan(iframeContext.getOutputTimestamp().performanceTime, "iframeContext's performanceTime");
+          should(iframeContext.getOutputTimestamp.call(mainContext).performanceTime, "mainContext's performanceTime (via iframeContext's method)")
+            .beCloseTo(mainContext.getOutputTimestamp().performanceTime, "mainContext's performanceTime", { threshold: 0.01 });
+        }, 1000);
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

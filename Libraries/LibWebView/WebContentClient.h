@@ -26,10 +26,15 @@
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
+namespace WebAudioWorkerClient {
+
+class Client;
+
+}
+
 namespace WebView {
 
 class ViewImplementation;
-
 class WEBVIEW_API WebContentClient final
     : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>
     , public WebContentClientEndpoint {
@@ -59,6 +64,8 @@ public:
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
+
+    Optional<pid_t> webaudio_worker_pid_for_page_id(u64 page_id) const;
 
 private:
     virtual void die() override;
@@ -149,10 +156,13 @@ private:
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap, i32 back_bitmap_id, Gfx::ShareableBitmap) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) override;
+    virtual Messages::WebContentClient::RequestWebaudioClientResponse request_webaudio_client(u64 page_id) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
+
+    HashMap<u64, RefPtr<WebAudioWorkerClient::Client>> m_webaudio_renderer_clients;
 
     ProcessHandle m_process_handle;
 

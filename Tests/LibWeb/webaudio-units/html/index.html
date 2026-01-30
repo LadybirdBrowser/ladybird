@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebAudio: Inspector</title>
+  <link rel="stylesheet" href="webaudio.css" />
+</head>
+
+<body>
+  <header>
+    <div class="wrap">
+      <h1>LibWeb webaudio</h1>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <section class="panel">
+        <div class="hd">
+          <div class="context-row">
+            <div class="context-controls">
+              <button id="btnToggle" class="primary">Start</button>
+              <select id="sampleRateSelect">
+                <option value="22050">22,050 Hz</option>
+                <option value="24000">24,000 Hz</option>
+                <option value="44100" selected>44,100 Hz</option>
+                <option value="48000">48,000 Hz</option>
+                <option value="96000">96,000 Hz</option>
+                <option value="192000">192,000 Hz</option>
+              </select>
+            </div>
+            <div class="pill">
+              <span id="stateDot" class="dot"></span><span id="stateText">uninitialized</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div id="graph" class="graph"></div>
+
+          <div class="status" id="status"></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="hd">
+          <div>Log</div>
+          <div class="pill"><span class="dot" id="logDot"></span><span id="logText">ready</span></div>
+        </div>
+        <div class="bd">
+          <div class="logbox"><pre id="log"></pre></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module" src="src/index.js"></script>
+</body>
+
+</html>

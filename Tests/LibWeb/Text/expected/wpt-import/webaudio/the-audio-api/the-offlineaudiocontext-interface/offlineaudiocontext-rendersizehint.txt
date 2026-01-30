@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	OfflineAudioContext with no renderSizeHint
+Pass	OfflineAudioContext with renderSizeHint: "default"
+Pass	OfflineAudioContext with renderSizeHint: "hardware"
+Pass	OfflineAudioContext with renderSizeHint: 256
+Pass	OfflineAudioContext with renderSizeHint: 1
+Pass	OfflineAudioContext with renderSizeHint at 6s boundary
+Pass	OfflineAudioContext with invalid renderSizeHint (0)throws NotSupportedError
+Pass	OfflineAudioContext with renderSizeHint > 6s boundarythrows NotSupportedError

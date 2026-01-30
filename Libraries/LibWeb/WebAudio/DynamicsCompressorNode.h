@@ -38,7 +38,7 @@ public:
     GC::Ref<AudioParam const> ratio() const { return m_ratio; }
     GC::Ref<AudioParam const> attack() const { return m_attack; }
     GC::Ref<AudioParam const> release() const { return m_release; }
-    float reduction() const { return m_reduction; }
+    float reduction() const;
 
     WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
@@ -66,7 +66,7 @@ private:
     GC::Ref<AudioParam> m_release;
 
     // https://webaudio.github.io/web-audio-api/#dom-dynamicscompressornode-internal-reduction-slot
-    float m_reduction { 0 }; // [[internal reduction]]
+    mutable float m_reduction { 0 }; // [[internal reduction]]
 };
 
 }

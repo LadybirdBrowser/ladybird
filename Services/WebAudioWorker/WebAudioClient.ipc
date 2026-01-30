@@ -1,0 +1,8 @@
+#include <LibWeb/WebAudio/AudioParamDescriptorIPC.h>
+
+endpoint WebAudioClient
+{
+	webaudio_session_worklet_processor_error(u64 session_id, u64 node_id) => ()
+	webaudio_session_worklet_processor_registered(u64 session_id, String name, Vector<Web::WebAudio::AudioParamDescriptor> descriptors, u64 generation) => ()
+	webaudio_session_worklet_module_evaluated(u64 session_id, u64 module_id, u64 required_generation, bool success, String error_name, String error_message, Vector<String> failed_processor_registrations) => ()
+}

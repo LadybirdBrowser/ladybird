@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Osc.detune Overflow</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      const sampleRate = 44100;
+      const renderLengthFrames = RENDER_QUANTUM_FRAMES;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('detune overflow', async (task, should) => {
+        let context =
+            new OfflineAudioContext(1, renderLengthFrames, sampleRate);
+
+        // This value of frequency and detune results in a computed frequency of
+        // 440*2^(153600/1200) = 1.497e41.  The frequency needs to be clamped to
+        // Nyquist.  But a sine wave at Nyquist frequency is all zeroes.  Verify
+        // the output is 0.
+        let osc = new OscillatorNode(context, {frequency: 440, detune: 153600});
+
+        osc.connect(context.destination);
+
+        let buffer = await context.startRendering();
+        let output = buffer.getChannelData(0);
+        should(output, 'Osc freq and detune outside nominal range')
+            .beConstantValueOf(0);
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

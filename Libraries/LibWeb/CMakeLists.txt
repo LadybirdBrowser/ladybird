@@ -1033,31 +1033,120 @@ set(SOURCES
     WebAssembly/Table.cpp
     WebAssembly/WebAssembly.cpp
     WebAudio/AnalyserNode.cpp
+    WebAudio/AssociatedTaskQueue.cpp
     WebAudio/AudioBuffer.cpp
     WebAudio/AudioBufferSourceNode.cpp
     WebAudio/AudioContext.cpp
+    WebAudio/AudioPlaybackStats.cpp
+    WebAudio/AudioSinkInfo.cpp
+    WebAudio/AudioProcessingEvent.cpp
     WebAudio/AudioDestinationNode.cpp
     WebAudio/AudioListener.cpp
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
+    WebAudio/AudioParamMap.cpp
+    WebAudio/AudioParamMapIterator.cpp
     WebAudio/AudioScheduledSourceNode.cpp
+    WebAudio/EngineController.cpp
+    WebAudio/AudioWorklet.cpp
+    WebAudio/AudioWorkletEnvironmentSettingsObject.cpp
+    WebAudio/AudioWorkletGlobalScope.cpp
+    WebAudio/AudioWorkletNode.cpp
+    WebAudio/AudioWorkletProcessor.cpp
+    WebAudio/BackgroundAudioDecoder.cpp
     WebAudio/BaseAudioContext.cpp
     WebAudio/BiquadFilterNode.cpp
     WebAudio/ChannelMergerNode.cpp
     WebAudio/ChannelSplitterNode.cpp
     WebAudio/ConstantSourceNode.cpp
+    WebAudio/ConvolverNode.cpp
     WebAudio/ControlMessageQueue.cpp
+    WebAudio/Debug.cpp
     WebAudio/DelayNode.cpp
+    WebAudio/MediaElementAudioSourceProvider.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
+    WebAudio/IIRFilterNode.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
+    WebAudio/MediaStreamAudioDestinationNode.cpp
+    WebAudio/MediaStreamAudioSourceNode.cpp
+    WebAudio/MediaStreamTrackAudioSourceNode.cpp
+    MediaCapture/MediaDeviceInfo.cpp
+    MediaCapture/MediaDevices.cpp
+    MediaCapture/MediaStream.cpp
+    MediaCapture/MediaStreamTrack.cpp
+    MediaCapture/MediaStreamTrackEvent.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
+    WebAudio/OhNoesNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/RenderGraph.cpp
+    WebAudio/GraphBuilder.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
+    WebAudio/WaveShaperNode.cpp
+    WebAudio/Engine/WebAudioWorkerSession.cpp
+    WebAudio/Engine/WebAudioClientRegistry.cpp
+    WebAudio/Engine/GraphCodec.cpp
+    WebAudio/Engine/FrequencyAnalysis.cpp
+    WebAudio/Engine/Mixing.cpp
+    WebAudio/Engine/GraphCompiler.cpp
+    WebAudio/Engine/GraphExecutor.cpp
+    WebAudio/Engine/OfflineAudioRenderThread.cpp
+    WebAudio/Engine/SincResampler.cpp
+    WebAudio/GraphNodes/AnalyserGraphNode.cpp
+    WebAudio/GraphNodes/AudioListenerGraphNode.cpp
+    WebAudio/GraphNodes/AudioWorkletGraphNode.cpp
+    WebAudio/GraphNodes/BiquadFilterGraphNode.cpp
+    WebAudio/GraphNodes/AudioBufferSourceGraphNode.cpp
+    WebAudio/GraphNodes/ChannelMergerGraphNode.cpp
+    WebAudio/GraphNodes/ChannelSplitterGraphNode.cpp
+    WebAudio/GraphNodes/ConstantSourceGraphNode.cpp
+    WebAudio/GraphNodes/ConvolverGraphNode.cpp
+    WebAudio/GraphNodes/IIRFilterGraphNode.cpp
+    WebAudio/GraphNodes/DelayGraphNode.cpp
+    WebAudio/GraphNodes/DestinationGraphNode.cpp
+    WebAudio/GraphNodes/DynamicsCompressorGraphNode.cpp
+    WebAudio/GraphNodes/GainGraphNode.cpp
+    WebAudio/GraphNodes/MediaElementAudioSourceGraphNode.cpp
+    WebAudio/GraphNodes/MediaStreamAudioSourceGraphNode.cpp
+    WebAudio/GraphNodes/OhNoesGraphNode.cpp
+    WebAudio/GraphNodes/OscillatorGraphNode.cpp
+    WebAudio/GraphNodes/PannerGraphNode.cpp
+    WebAudio/GraphNodes/ScriptProcessorGraphNode.cpp
+    WebAudio/GraphNodes/StereoPannerGraphNode.cpp
+    WebAudio/GraphNodes/WaveShaperGraphNode.cpp
+    WebAudio/RenderNodes/AnalyserRenderNode.cpp
+    WebAudio/RenderNodes/AudioListenerRenderNode.cpp
+    WebAudio/RenderNodes/AudioBufferSourceRenderNode.cpp
+    WebAudio/RenderNodes/AudioWorkletRenderNode.cpp
+    WebAudio/RenderNodes/BiquadFilterRenderNode.cpp
+    WebAudio/RenderNodes/ChannelMergerRenderNode.cpp
+    WebAudio/RenderNodes/ChannelSplitterRenderNode.cpp
+    WebAudio/RenderNodes/ConstantSourceRenderNode.cpp
+    WebAudio/RenderNodes/ConvolverRenderNode.cpp
+    WebAudio/RenderNodes/IIRFilterRenderNode.cpp
+    WebAudio/RenderNodes/DelayRenderNode.cpp
+    WebAudio/RenderNodes/DestinationRenderNode.cpp
+    WebAudio/RenderNodes/DynamicsCompressorRenderNode.cpp
+    WebAudio/RenderNodes/GainRenderNode.cpp
+    WebAudio/RenderNodes/MediaElementAudioSourceRenderNode.cpp
+    WebAudio/RenderNodes/OhNoesRenderNode.cpp
+    WebAudio/RenderNodes/OscillatorRenderNode.cpp
+    WebAudio/RenderNodes/PannerRenderNode.cpp
+    WebAudio/RenderNodes/ScriptProcessorRenderNode.cpp
+    WebAudio/RenderNodes/WaveShaperRenderNode.cpp
+    WebAudio/RenderNodes/StereoPannerRenderNode.cpp
+    WebAudio/ScriptProcessor/ScriptProcessorRequestPump.cpp
+    WebAudio/ScriptProcessor/ScriptProcessorStreamBindings.cpp
+    WebAudio/ScriptProcessor/ScriptProcessorHost.cpp
+    WebAudio/Worklet/RealtimeAudioWorkletProcessorHost.cpp
+    WebAudio/Worklet/OfflineAudioWorkletProcessorHost.cpp
+    WebAudio/Worklet/AudioWorkletPageClient.cpp
+    WebAudio/Worklet/AudioWorkletProcessorInvoker.cpp
+    WebAudio/Worklet/MessagePortTransport.cpp
     WebDriver/Actions.cpp
     WebDriver/Capabilities.cpp
     WebDriver/Client.cpp
@@ -1194,7 +1283,7 @@ ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
 find_package(LibXml2 REQUIRED)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibAudioServerClient LibWebAudioWorkerClient LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 # FIXME: https://github.com/microsoft/vcpkg/issues/42324
 target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)

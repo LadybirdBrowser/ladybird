@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	initialize OfflineAudioContext
+Pass	invalid constructor
+Pass	default constructor
+Pass	test AudioNodeOptions
+Pass	construct with options

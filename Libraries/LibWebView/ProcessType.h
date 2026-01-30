@@ -16,6 +16,8 @@ enum class ProcessType : u8 {
     WebWorker,
     RequestServer,
     ImageDecoder,
+    AudioServer,
+    WebAudioWorker,
 };
 
 }

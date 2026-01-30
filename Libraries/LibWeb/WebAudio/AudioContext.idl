@@ -1,4 +1,7 @@
 #import <WebAudio/BaseAudioContext.idl>
+#import <WebAudio/AudioPlaybackStats.idl>
+#import <WebAudio/AudioSinkInfo.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
 
 // https://www.w3.org/TR/webaudio/#enumdef-audiocontextlatencycategory
 enum AudioContextLatencyCategory { "balanced", "interactive", "playback" };
@@ -9,23 +12,28 @@ interface AudioContext : BaseAudioContext {
     constructor(optional AudioContextOptions contextOptions = {});
     readonly attribute double baseLatency;
     readonly attribute double outputLatency;
+    [SecureContext] readonly attribute (DOMString or AudioSinkInfo) sinkId;
+    attribute EventHandler onsinkchange;
+    attribute EventHandler onerror;
+    [SameObject] readonly attribute AudioPlaybackStats playbackStats;
     AudioTimestamp getOutputTimestamp ();
     Promise<undefined> resume ();
     Promise<undefined> suspend ();
     Promise<undefined> close ();
+    [SecureContext] Promise<undefined> setSinkId ((DOMString or AudioSinkOptions) sinkId);
     MediaElementAudioSourceNode createMediaElementSource (HTMLMediaElement mediaElement);
-    [FIXME] MediaStreamAudioSourceNode createMediaStreamSource (MediaStream mediaStream);
-    [FIXME] MediaStreamTrackAudioSourceNode createMediaStreamTrackSource (MediaStreamTrack mediaStreamTrack);
-    [FIXME] MediaStreamAudioDestinationNode createMediaStreamDestination ();
+    MediaStreamAudioSourceNode createMediaStreamSource (MediaStream mediaStream);
+    MediaStreamTrackAudioSourceNode createMediaStreamTrackSource (MediaStreamTrack mediaStreamTrack);
+    MediaStreamAudioDestinationNode createMediaStreamDestination ();
 };
 
 dictionary AudioContextOptions {
     (AudioContextLatencyCategory or double) latencyHint = "interactive";
     float sampleRate;
+    (DOMString or AudioSinkOptions) sinkId;
 };
 
 dictionary AudioTimestamp {
     [GenerateAsRequired] double contextTime;
-    // FIXME: Should be DOMHighResTimeStamp, but DOMHighResTimeStamp doesn't get parsed as a double during codegen
-    [GenerateAsRequired] double performanceTime;
+    [GenerateAsRequired] DOMHighResTimeStamp performanceTime;
 };

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Verify k-rate AudioParam input works correctly for playbackRate
+Pass	Verify k-rate AudioParam input works correctly for detune

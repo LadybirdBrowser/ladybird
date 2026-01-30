@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam of ConstantSourceNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="automation-rate-testing.js"></script>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define('ConstantSource k-rate offset', (task, should) => {
+        // Arbitrary sample rate and duration.
+        let sampleRate = 8000;
+
+        // Only new a few render quanta to verify things are working.
+        let testDuration = 4 * 128 / sampleRate;
+
+        let context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        doTest(context, should, {
+          sourceNodeName: 'none',
+          verifyPieceWiseConstant: true,
+          nodeName: 'ConstantSourceNode',
+          prefix: 'k-rate offset',
+          rateSettings: [{name: 'offset', value: 'k-rate'}],
+          automations: [{
+            name: 'offset',
+            methods: [
+              {name: 'setValueAtTime', options: [0, 0]}, {
+                name: 'linearRampToValueAtTime',
+                options: [10, testDuration]
+              }
+            ]
+          }]
+        }).then(() => task.done());
+      });
+
+      // Parameters for the For the following tests.
+
+      // Must be power of two to eliminate round-off
+      const sampleRate8k = 8192;
+
+      // Arbitrary duration that doesn't need to be too long to verify k-rate
+      // automations.  Probably should be at least a few render quanta.
+      const testDuration = 8 * RENDER_QUANTUM_FRAMES / sampleRate8k;
+
+      // Basic test that k-rate ConstantSourceNode.offset is k-rate.  This is
+      // the basis for all of the following tests, so make sure it's right.
+      audit.define(
+          {
+            label: 'ConstantSourceNode.offset k-rate automation',
+            description:
+                'Explicitly test ConstantSourceNode.offset k-rate automation is k-rate'
+          },
+          (task, should) => {
+            let context = new OfflineAudioContext({
+              numberOfChannels: 2,
+              sampleRate: sampleRate8k,
+              length: testDuration * sampleRate8k
+            });
+            let merger = new ChannelMergerNode(
+                context, {numberOfInputs: context.destination.channelCount});
+            merger.connect(context.destination);
+
+            // k-rate ConstantSource.offset using a linear ramp starting at 0
+            // and incrementing by 1 for each frame.
+            let src = new ConstantSourceNode(context, {offset: 0});
+            src.offset.automationRate = 'k-rate';
+
+            src.offset.setValueAtTime(0, 0);
+            src.offset.linearRampToValueAtTime(context.length, testDuration);
+
+            src.connect(merger, 0, 0);
+
+            src.start();
+
+            // a-rate ConstantSource using the same ramp as above.
+            let refSrc = new ConstantSourceNode(context, {offset: 0});
+
+            refSrc.offset.setValueAtTime(0, 0);
+            refSrc.offset.linearRampToValueAtTime(context.length, testDuration);
+
+            refSrc.connect(merger, 0, 1);
+
+            refSrc.start();
+
+            context.startRendering()
+                .then(buffer => {
+                  let actual = buffer.getChannelData(0);
+                  let expected = buffer.getChannelData(1);
+
+                  for (let k = 0; k < actual.length;
+                       k += RENDER_QUANTUM_FRAMES) {
+                    // Verify that the k-rate output is constant over the render
+                    // and that it matches the value of the a-rate value at the
+                    // beginning of the render.
+                    should(
+                        actual.slice(k, k + RENDER_QUANTUM_FRAMES),
+                        `k-rate ConstantSource.offset:  output[${k}:${
+                            k + RENDER_QUANTUM_FRAMES}]`)
+                        .beConstantValueOf(expected[k]);
+                  }
+                })
+                .then(() => task.done());
+          });
+
+      // This test verifies that a k-rate input to the ConstantSourceNode.offset
+      // works just as if we set the AudioParam to be k-rate.  This is the basis
+      // of the following tests, so make sure it works.
+      audit.define(
+          {
+            label: 'ConstantSource.offset',
+            description: 'Verify k-rate automation matches k-rate input'
+          },
+          (task, should) => {
+            let context = new OfflineAudioContext({
+              numberOfChannels: 2,
+              sampleRate: sampleRate8k,
+              length: testDuration * sampleRate8k
+            });
+
+            let merger = new ChannelMergerNode(
+                context, {numberOfInputs: context.destination.channelCount});
+            merger.connect(context.destination);
+
+            let tstSrc = new ConstantSourceNode(context);
+            let tstMod = new ConstantSourceNode(context);
+            tstSrc.offset.automationRate = 'k-rate';
+            tstMod.offset.linearRampToValueAtTime(context.length, testDuration);
+
+            tstMod.connect(tstSrc.offset)
+            tstSrc.connect(merger, 0, 0);
+
+            let refSrc = new ConstantSourceNode(context);
+            let refMod = new ConstantSourceNode(context);
+            refMod.offset.linearRampToValueAtTime(context.length, testDuration);
+            refMod.offset.automationRate = 'k-rate';
+
+            refMod.connect(refSrc.offset);
+            refSrc.connect(merger, 0, 1);
+
+            tstSrc.start();
+            tstMod.start();
+            refSrc.start();
+            refMod.start();
+
+            context.startRendering()
+                .then(buffer => {
+                  let actual = buffer.getChannelData(0);
+                  let expected = buffer.getChannelData(1);
+
+                  for (let k = 0; k < context.length;
+                       k += RENDER_QUANTUM_FRAMES) {
+                    should(
+                        actual.slice(k, k + RENDER_QUANTUM_FRAMES),
+                        `ConstantSource.offset k-rate input: output[${k}:${
+                            k + RENDER_QUANTUM_FRAMES}]`)
+                        .beConstantValueOf(expected[k]);
+                  }
+                })
+                .then(() => task.done());
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

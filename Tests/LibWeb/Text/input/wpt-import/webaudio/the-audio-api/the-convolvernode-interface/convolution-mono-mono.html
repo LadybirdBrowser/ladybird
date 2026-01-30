@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      convolution-mono-mono.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/convolution-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // description("Tests ConvolverNode processing a mono channel with mono
+      // impulse response.");
+
+      // To test the convolver, we convolve two square pulses together to
+      // produce a triangular pulse.  To verify the result is correct we
+      // check several parts of the result.  First, we make sure the initial
+      // part of the result is zero (due to the latency in the convolver).
+      // Next, the triangular pulse should match the theoretical result to
+      // within some roundoff.  After the triangular pulse, the result
+      // should be exactly zero, but round-off prevents that.  We make sure
+      // the part after the pulse is sufficiently close to zero.  Finally,
+      // the result should be exactly zero because the inputs are exactly
+      // zero.
+      audit.define('test', function(task, should) {
+        // Create offline audio context.
+        let context = new OfflineAudioContext(
+            2, sampleRate * renderLengthSeconds, sampleRate);
+
+        let squarePulse = createSquarePulseBuffer(context, pulseLengthFrames);
+        let trianglePulse =
+            createTrianglePulseBuffer(context, 2 * pulseLengthFrames);
+
+        let bufferSource = context.createBufferSource();
+        bufferSource.buffer = squarePulse;
+
+        let convolver = context.createConvolver();
+        convolver.normalize = false;
+        convolver.buffer = squarePulse;
+
+        bufferSource.connect(convolver);
+        convolver.connect(context.destination);
+
+        bufferSource.start(0);
+
+        context.startRendering()
+            .then(buffer => {
+              checkConvolvedResult(buffer, trianglePulse, should);
+            })
+            .then(task.done.bind(task));
+        ;
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

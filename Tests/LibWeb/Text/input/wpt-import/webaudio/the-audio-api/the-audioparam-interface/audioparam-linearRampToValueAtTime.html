@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioParam.linearRampToValueAtTime
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Play a long DC signal out through an AudioGainNode, and call
+      // setValueAtTime() and linearRampToValueAtTime() at regular intervals to
+      // set the starting and ending values for a linear ramp. Each time
+      // interval has a ramp with a different starting and ending value so that
+      // there is a discontinuity at each time interval boundary.  The
+      // discontinuity is for testing timing.  Also, we alternate between an
+      // increasing and decreasing ramp for each interval.
+
+      // Number of tests to run.
+      let numberOfTests = 100;
+
+      // Max allowed difference between the rendered data and the expected
+      // result.
+      let maxAllowedError = 1.865e-6;
+
+      // Set the gain node value to the specified value at the specified time.
+      function setValue(value, time) {
+        gainNode.gain.setValueAtTime(value, time);
+      }
+
+      // Generate a linear ramp ending at time |endTime| with an ending value of
+      // |value|.
+      function generateRamp(value, startTime, endTime){
+          // |startTime| is ignored because the linear ramp uses the value from
+          // the
+          // setValueAtTime() call above.
+          gainNode.gain.linearRampToValueAtTime(value, endTime)}
+
+      audit.define(
+          {
+            label: 'test',
+            description: 'AudioParam linearRampToValueAtTime() functionality'
+          },
+          function(task, should) {
+            createAudioGraphAndTest(
+                task, should, numberOfTests, 1, setValue, generateRamp,
+                'linearRampToValueAtTime()', maxAllowedError,
+                createLinearRampArray);
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

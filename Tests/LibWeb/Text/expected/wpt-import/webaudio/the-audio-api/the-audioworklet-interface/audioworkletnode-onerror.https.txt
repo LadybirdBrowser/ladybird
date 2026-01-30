@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test if |onprocessorerror| is called for an exception thrown from the processor constructor.
+Pass	Test if |onprocessorerror| is called for a transfered object that cannot be deserialized on the AudioWorkletGlobalScope.
+Pass	Test if |onprocessorerror| is called upon failure of process() method.

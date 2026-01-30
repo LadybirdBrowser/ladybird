@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Initializing AudioWorklet and Context"
+Pass	Executing "Verify Size of AudioParam Arrays"
+Pass	Audit report
+Pass	> [Initializing AudioWorklet and Context] 
+Pass	  Creating offline context for testing did not throw an exception.
+Pass	  Creating test worklet resolved correctly.
+Pass	< [Initializing AudioWorklet and Context] All assertions passed. (total 2 assertions)
+Pass	> [Verify Size of AudioParam Arrays] 
+Pass	  Render quantum 0: array size contains only the constant 1.
+Pass	  Render quantum 1: array size contains only the constant 1.
+Pass	  Render quantum 2-3: array size contains only the constant 128.
+Pass	  Remaining renders: array size contains only the constant 1.
+Pass	< [Verify Size of AudioParam Arrays] All assertions passed. (total 4 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 2 tasks ran successfully.

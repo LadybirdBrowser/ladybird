@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	linearRamp: Insert linearRamp after running for some time
+Pass	exponentialRamp: Insert exponentialRamp after running for some time

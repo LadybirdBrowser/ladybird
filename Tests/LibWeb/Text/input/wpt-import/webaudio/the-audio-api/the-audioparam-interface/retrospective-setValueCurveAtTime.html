@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test SetValueCurve with start time in the past</title>
+    <script src=../../../resources/testharness.js></script>
+    <script src=../../../resources/testharnessreport.js></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="retrospective-test.js"></script>
+  </head>
+  </body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {
+            label: 'test',
+            description: 'Test SetValueCurve with start time in the past'
+          },
+          (task, should) => {
+            let {context, source, test, reference} = setupRetrospectiveGraph();
+
+            // Suspend the context at this frame so we can synchronously set up
+            // automations.
+            const suspendFrame = 128;
+
+            context.suspend(suspendFrame / context.sampleRate)
+                .then(() => {
+                  // Call setValueAtTime with a time in the past
+                  test.gain.setValueCurveAtTime(
+                      new Float32Array([1.0, 0.1]), 0.5 * context.currentTime,
+                      1.0);
+                  reference.gain.setValueCurveAtTime(
+                      new Float32Array([1.0, 0.1]), context.currentTime, 1.0);
+                })
+                .then(() => context.resume());
+
+            source.start();
+
+            context.startRendering()
+                .then(resultBuffer => {
+                  let testValue = resultBuffer.getChannelData(0);
+                  let referenceValue = resultBuffer.getChannelData(1);
+
+                  // Until the suspendFrame, both should be exactly equal to 1.
+                  should(
+                      testValue.slice(0, suspendFrame),
+                      `Test[0:${suspendFrame - 1}]`)
+                      .beConstantValueOf(1);
+                  should(
+                      referenceValue.slice(0, suspendFrame),
+                      `Reference[0:${suspendFrame - 1}]`)
+                      .beConstantValueOf(1);
+
+                  // After the suspendFrame, both should be equal (and not
+                  // constant)
+                  should(
+                      testValue.slice(suspendFrame), `Test[${suspendFrame}:]`)
+                      .beEqualToArray(referenceValue.slice(suspendFrame));
+                })
+                .then(() => task.done());
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

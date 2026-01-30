@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test"
+Pass	Audit report
+Pass	> [test] Test linearRampToValue with end time in the past
+Pass	  Test[0:127] contains only the constant 1.
+Pass	  Reference[0:127] contains only the constant 1.
+Pass	  Test[128:] is identical to the array [0.10000000149011612,0.1000492125749588,0.10009842365980148,0.10014764219522476,0.10019685328006744,0.10024606436491013,0.10029527544975281,0.10034448653459549,0.10039370507001877,0.10044291615486145,0.10049212723970413,0.10054133832454681,0.1005905494093895,0.10063976794481277,0.10068897902965546,0.10073819011449814...].
+Pass	< [test] All assertions passed. (total 3 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

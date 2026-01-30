@@ -1,0 +1,18 @@
+#import <DOM/Event.idl>
+#import <WebAudio/AudioBuffer.idl>
+
+// https://webaudio.github.io/web-audio-api/#AudioProcessingEvent
+[Exposed=Window]
+interface AudioProcessingEvent : Event {
+    constructor(DOMString type, AudioProcessingEventInit eventInitDict);
+    readonly attribute double playbackTime;
+    readonly attribute AudioBuffer inputBuffer;
+    readonly attribute AudioBuffer outputBuffer;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioProcessingEventInit
+dictionary AudioProcessingEventInit : EventInit {
+    required double playbackTime;
+    required AudioBuffer inputBuffer;
+    required AudioBuffer outputBuffer;
+};

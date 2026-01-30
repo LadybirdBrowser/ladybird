@@ -1,0 +1,50 @@
+<!doctype html>
+<title>Test consistency of processing after resume()</title>
+<script src=../../../resources/testharness.js></script>
+<script src=../../../resources/testharnessreport.js></script>
+<script>
+
+const get_node_and_reply = (context) => {
+  const node = new AudioWorkletNode(context, 'port-processor');
+  return new Promise((resolve) => {
+    node.port.onmessage = (event) => resolve({node: node, reply: event.data});
+  });
+};
+
+const modulePath = 'processors/port-processor.js';
+
+promise_test(async t => {
+  const realtime = new AudioContext();
+  const sampleRate = realtime.sampleRate;
+
+  // Create a basic oscillator to form an audio graph.
+  const oscillator = realtime.createOscillator();
+  oscillator.connect(realtime.destination);
+  oscillator.start();
+
+  // Start rendering and suspend after a delay.
+  await new Promise(resolve => t.step_timeout(resolve, 1000));
+  await realtime.suspend();
+
+  // Capture currentTime after suspending.
+  const contextTime = realtime.currentTime;
+
+  // Load the audio module.
+  await realtime.audioWorklet.addModule(modulePath);
+
+  // creates AudioWorkletNode.
+  const construct1 = await get_node_and_reply(realtime);
+
+  // workletFrame should be the currentFrame sent in the message
+  // by the AudioWorkletNode.
+  const workletFrame = construct1.reply.currentFrame;
+
+  // Assert that contextTime * sampleRate equals workletFrame.
+  assert_equals(
+      Math.floor(contextTime * sampleRate), workletFrame,
+      `Expected workletFrame (${
+          workletFrame}) to be equal to contextTime * sampleRate (${
+          contextTime * sampleRate})`);
+}, 'currentTime vs currentFrames in Audio Worklet global scope');
+
+</script>

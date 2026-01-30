@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Test exponentialRampToValueAtTime() special cases</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async function() {
+  const bufferSize = 5;
+  const sampleRate = 16384;
+  const startSample = 3;
+  const offset0 = 2.;
+  const offset1 = -3.;
+  const context = new OfflineAudioContext(1, bufferSize, sampleRate);
+
+  const source = new ConstantSourceNode(context);
+  source.start();
+  // Explicit event to work around
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1265393
+  source.offset.setValueAtTime(offset0, 0.);
+  source.offset.exponentialRampToValueAtTime(offset1, startSample/sampleRate);
+  source.connect(context.destination);
+
+  const buffer = await context.startRendering();
+  assert_equals(buffer.length, bufferSize, "output buffer length");
+  const output = buffer.getChannelData(0);
+  for (let i = 0; i < startSample; ++i) {
+    assert_equals(output[i], offset0, "initial offset at sample " + i);
+  }
+  for (let i = startSample; i < bufferSize; ++i) {
+    assert_equals(output[i], offset1, "scheduled value at sample " + i);
+  }
+}, "v0 and v1 have opposite signs");
+
+promise_test(async function() {
+  const bufferSize = 4;
+  const sampleRate = 16384;
+  const startSample = 2;
+  const offset = -2.;
+  const context = new OfflineAudioContext(1, bufferSize, sampleRate);
+
+  const source = new ConstantSourceNode(context);
+  source.start();
+  // Explicit event to work around
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1265393
+  source.offset.setValueAtTime(0, 0.);
+  source.offset.exponentialRampToValueAtTime(offset, startSample/sampleRate);
+  source.connect(context.destination);
+
+  const buffer = await context.startRendering();
+  assert_equals(buffer.length, bufferSize, "output buffer length");
+  const output = buffer.getChannelData(0);
+  for (let i = 0; i < startSample; ++i) {
+    assert_equals(output[i], 0., "initial offset at sample " + i);
+  }
+  for (let i = startSample; i < bufferSize; ++i) {
+    assert_equals(output[i], offset, "scheduled value at sample " + i);
+  }
+}, "v0 is zero");
+</script>

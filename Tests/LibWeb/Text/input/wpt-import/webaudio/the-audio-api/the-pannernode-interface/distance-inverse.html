@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      distance-inverse.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/distance-model-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define('test', (task, should) => {
+        // Create offline audio context.
+        context = new OfflineAudioContext(
+            2, sampleRate * renderLengthSeconds, sampleRate);
+
+        createTestAndRun(context, 'inverse', should).then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

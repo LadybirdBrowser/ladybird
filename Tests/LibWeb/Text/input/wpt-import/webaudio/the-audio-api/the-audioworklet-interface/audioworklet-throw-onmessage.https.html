@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      Test the behaviour of AudioWorkletProcessor when an `onmessage` handler
+      throws.
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/js/helpers.js"></script>
+  </head>
+
+  <body>
+    <script id="processor" type="worklet">
+      registerProcessor("test-throw", class param extends AudioWorkletProcessor {
+        constructor() {
+          super()
+          this.i = 0;
+          this.port.onmessage = function(arg) {
+            throw "asdasd";
+          }
+        }
+        process(input, output, parameters) {
+          this.i++;
+          this.port.postMessage(this.i);
+          return true;
+        }
+      });
+    </script>
+    <script>
+      var latestIndexReceived = 0;
+      var node = null;
+      var ac = null;
+      promise_setup(function() {
+        ac = new AudioContext();
+        var url = URLFromScriptsElements(["processor"]);
+        return ac.audioWorklet.addModule(url).then(function() {
+          node = new AudioWorkletNode(ac, "test-throw");
+          node.port.onmessage = function(e) {
+            latestIndexReceived = parseInt(e.data);
+          };
+        });
+      });
+      promise_test(async t => {
+        var currentIndex = latestIndexReceived;
+        await t.step_wait(() => {
+          return latestIndexReceived > currentIndex;
+        }, "Process is still being called");
+
+        node.port.postMessage("asdasd"); // This throws on the processor side.
+        node.onprocessorerror = function() {
+          assert_true(false, "onprocessorerror must not be called.");
+        };
+        currentIndex = latestIndexReceived;
+        await t.step_wait(() => {
+          return latestIndexReceived > currentIndex + 2;
+        }, "Process is still being called");
+      }, `Throwing in an onmessage handler in the AudioWorkletGlobalScope shouldn't stop AudioWorkletProcessor`);
+    </script>
+  </body>
+</html>

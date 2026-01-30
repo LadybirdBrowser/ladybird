@@ -1,0 +1,18 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/AudioBuffer.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#ConvolverNode
+[Exposed=Window]
+interface ConvolverNode : AudioNode {
+    constructor (BaseAudioContext context, optional ConvolverOptions options = {});
+    attribute AudioBuffer? buffer;
+    attribute boolean normalize;
+};
+
+// https://webaudio.github.io/web-audio-api/#ConvolverOptions
+// disableNormalization is inverted to the ConvolverNode.normalize attribute.
+dictionary ConvolverOptions : AudioNodeOptions {
+    AudioBuffer? buffer;
+    boolean disableNormalization = false;
+};

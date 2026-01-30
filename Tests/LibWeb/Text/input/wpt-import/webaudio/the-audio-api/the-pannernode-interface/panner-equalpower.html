@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      panner-equalpower.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/panner-model-testing.js"></script>
+  </head>
+  <body>
+    <script>
+
+      // To test the panner, we create a number of panner nodes
+      // equally spaced on a semicircle at unit distance.  The
+      // semicircle covers the azimuth range from -90 to 90 deg,
+      // covering full left to full right.  Each source is an impulse
+      // turning at a different time and we check that the rendered
+      // impulse has the expected gain.
+      promise_test(async () => {
+        const context = new OfflineAudioContext(
+            2, sampleRate * renderLengthSeconds, sampleRate);
+        await createTestAndRun_W3CTH(
+            context, nodesToCreate, 1,
+            (panner, x, y, z) => panner.setPosition(x, y, z));
+      }, 'Equal-power panner model of AudioPannerNode');
+
+      // Test that a mono source plays out on both the left and right channels
+      // when the source and listener positions are the same.
+
+      promise_test(async () => {
+        const context =
+            new OfflineAudioContext(2, 0.25 * sampleRate, sampleRate);
+
+        // Arbitrary position for source and listener.  Just so we don't use
+        // defaults positions.
+        const x = 1;
+        const y = 2; // was 2
+        const z = 3; // was 3
+
+        context.listener.setPosition(x, y, z);
+
+        const source = new OscillatorNode(context);
+        const panner = new PannerNode(context, {
+          panningModel: 'equalpower',
+          positionX: x,
+          positionY: y,
+          positionZ: z,
+        });
+
+        source.connect(panner).connect(context.destination);
+        source.start();
+
+        const renderedBuffer = await context.startRendering();
+
+        // The rendered left and right channels should be identical.
+        const left = renderedBuffer.getChannelData(0);
+        const right = renderedBuffer.getChannelData(1);
+
+        assert_array_equals(
+            left, right,
+            'Mono: left and right channels should contain identical samples.');
+      }, 'Mono source and listener at the same position');
+
+      // Test that a stereo source plays out on both the left and right channels
+      // when the source and listener positions are the same.
+
+      promise_test(async () => {
+        const context =
+            new OfflineAudioContext(2, 0.25 * sampleRate, sampleRate);
+
+        // Arbitrary position for source and listener.  Just so we don't use
+        // defaults positions.
+        const x = 1;
+        const y = 2;
+        const z = 3;
+
+        context.listener.setPosition(x, y, z);
+
+        const source = new OscillatorNode(context);
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+        const panner = new PannerNode(context, {
+          panningModel: 'equalpower',
+          positionX: x,
+          positionY: y,
+          positionZ: z,
+        });
+
+        // Make the oscillator a stereo signal (identical signals on each
+        // channel).
+        source.connect(merger, 0, 0);
+        source.connect(merger, 0, 1);
+
+        merger.connect(panner).connect(context.destination);
+        source.start();
+
+        const renderedBuffer = await context.startRendering();
+
+        // The rendered left and right channels should be identical.
+        const left = renderedBuffer.getChannelData(0);
+        const right = renderedBuffer.getChannelData(1);
+        assert_array_equals(
+            left, right,
+            'Stereo: left and right channels should contain identical ' +
+            'samples.');
+      }, 'Stereo source and listener at the same position');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Test if AudioWorklet exists"
+Pass	Audit report
+Pass	> [Test if AudioWorklet exists] 
+Pass	  BaseAudioContext.audioWorklet is an instance of AudioWorklet is true.
+Pass	< [Test if AudioWorklet exists] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

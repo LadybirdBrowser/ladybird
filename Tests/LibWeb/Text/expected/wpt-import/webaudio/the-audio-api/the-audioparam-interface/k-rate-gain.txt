@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Test k-rate GainNode"
+Pass	Audit report
+Pass	> [Test k-rate GainNode] 
+Pass	  GainNode: Setting gain.automationRate to "k-rate" is equal to k-rate.
+Pass	  GainNode: k-rate node: gain.setValueAtTime(1,0) did not throw an exception.
+Pass	  GainNode: k-rate node: gain.linearRampToValueAtTime(0,1) did not throw an exception.
+Pass	  GainNode: a-rate node:gain.setValueAtTime(1,0) did not throw an exception.
+Pass	  GainNode: a-rate node:gain.linearRampToValueAtTime(0,1) did not throw an exception.
+Pass	  GainNode: Output of k-rate GainNode is identical to the array [0,0.33873793482780457,0.6374239921569824,0.8607420325279236,0.9822872281074524,0.9876883625984192,0.8763066530227661,0.6613118648529053,0.3681245446205139,0.03141075745224953,-0.30901700258255005,-0.6129070520401001,-0.8443279266357422,-0.9759167432785034,-0.9921147227287292,-0.8910065293312073...].
+Pass	  GainNode: Output of a-rate GainNode is identical to the array [0,0.33869558572769165,0.6372646689414978,0.8604192733764648,0.9817960858345032,0.9870710372924805,0.8756493926048279,0.6607332229614258,0.3677564263343811,0.03137541934847832,-0.30863073468208313,-0.6120643019676208,-0.8430614471435547,-0.9743309020996094,-0.9903785586357117,-0.8893359303474426...].
+Pass	  GainNode: Difference between a-rate and k-rate GainNode is not constantly 0 (contains 7937 different values).
+Pass	< [Test k-rate GainNode] All assertions passed. (total 8 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

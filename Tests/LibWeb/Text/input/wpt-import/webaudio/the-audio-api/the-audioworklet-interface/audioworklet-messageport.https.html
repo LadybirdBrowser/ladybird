@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test MessagePort in AudioWorkletNode and AudioWorkletProcessor
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+
+      // This test verifies the correct operation of MessagePort communication
+      // between the main thread and the AudioWorklet environment. It checks:
+      // 1. Messages can be sent/received via the AudioWorkletGlobalScope's
+      //    shared port (context.audioWorklet.port)
+      // 2. Messages can be sent/received via individual AudioWorkletProcessor
+      //    instance ports (node.port)
+      // 3. AudioWorkletProcessor instances send initialization messages
+      //    upon creation
+      promise_test(async () => {
+        const context = new AudioContext();
+        const filePath = 'processors/port-processor.js';
+        await context.audioWorklet.addModule(filePath);
+
+        const globalOnMessagePromise = new Promise((resolve) => {
+          context.audioWorklet.port.onmessage = (event) => {
+            resolve(event.data);
+          };
+          context.audioWorklet.port.postMessage('hello world');
+        });
+
+        assert_equals(
+            await globalOnMessagePromise,
+            'hello world',
+            'The response from AudioWorkletGlobalScope');
+
+        // Creates an AudioWorkletNode and sets an EventHandler on MessagePort
+        // object. The associated PortProcessor will post a message upon its
+        // construction. Test if the message is received correctly.
+        const nodeCreationOnMessagePromise = new Promise((resolve) => {
+          const node = new AudioWorkletNode(context, 'port-processor');
+          node.port.onmessage = (event) => {
+            resolve(event.data.state);
+          };
+        });
+
+        assert_equals(
+            await nodeCreationOnMessagePromise,
+            'created',
+            'The initial message from PortProcessor');
+
+        const nodeOnMessagePromise = new Promise((resolve) => {
+          const node = new AudioWorkletNode(context, 'port-processor');
+          node.port.onmessage = (event) => {
+            if (!event.data.state) {
+              // Ignore if the delivered message has |state|. This is already
+              // tested in the previous task.
+              resolve(event.data.message);
+            }
+          };
+          node.port.postMessage('hello');
+        });
+
+        assert_equals(
+            await nodeOnMessagePromise,
+            'hello',
+            'The response from PortProcessor');
+      }, 'Test MessagePort in AudioWorkletNode and AudioWorkletProcessor');
+    </script>
+  </body>
+</html>

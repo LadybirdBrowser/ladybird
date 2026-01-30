@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Constructor: BiquadFilter
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audionodeoptions.js"></script>
+  </head>
+  <body>
+    <script>
+      let context;
+
+      test(() => {
+        context = new OfflineAudioContext(1, 1, 48000);
+      }, 'initialize OfflineAudioContext');
+
+
+      test(() => {
+        testInvalidConstructor_W3CTH('BiquadFilterNode', context);
+      }, 'invalid constructor');
+
+      test(() => {
+        const prefix = 'node0';
+        const node = testDefaultConstructor_W3CTH('BiquadFilterNode', context, {
+          prefix: prefix,
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          channelCount: 2,
+          channelCountMode: 'max',
+          channelInterpretation: 'speakers'});
+
+        testDefaultAttributes_W3CTH(node, prefix, [
+          {name: 'type', value: 'lowpass'},
+          {name: 'Q', value: 1},
+          {name: 'detune', value: 0},
+          {name: 'frequency', value: 350},
+          {name: 'gain', value: 0.0}]);
+      }, 'default constructor');
+
+      test(() => {
+        testAudioNodeOptions_W3CTH(context, 'BiquadFilterNode');
+      }, 'test AudioNodeOptions');
+
+      test(() => {
+        const options = {
+          type: 'highpass',
+          frequency: 512,
+          detune: 1,
+          Q: 5,
+          gain: 3,
+        };
+
+        const node = new BiquadFilterNode(context, options);
+        assert_true(node instanceof BiquadFilterNode,
+            `node = new BiquadFilterNode(..., ${JSON.stringify(options)})`);
+
+        // Test that attributes are set according to the option values.
+        assert_equals(node.type, options.type, 'node.type');
+        assert_equals(
+            node.frequency.value, options.frequency, 'node.frequency.value');
+        assert_equals(node.detune.value, options.detune, 'node.detune.value');
+        assert_equals(node.Q.value, options.Q, 'node.Q.value');
+        assert_equals(node.gain.value, options.gain, 'node.gain.value');
+      }, 'construct with options');
+    </script>
+  </body>
+</html>

@@ -12,6 +12,13 @@
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::WebAudio {
+
+class BaseAudioContext;
+class OhNoesNode;
+
+}
+
 namespace Web::Internals {
 
 class WEB_API Internals final : public InternalsBase {
@@ -99,6 +106,8 @@ public:
 
     GC::Ref<InternalGamepad> connect_virtual_gamepad();
     void disconnect_virtual_gamepad(GC::Ref<InternalGamepad>);
+
+    WebIDL::ExceptionOr<GC::Ref<WebAudio::OhNoesNode>> create_oh_noes_node(GC::Ref<WebAudio::BaseAudioContext> context, String const& path);
 
     void perform_per_test_cleanup();
 

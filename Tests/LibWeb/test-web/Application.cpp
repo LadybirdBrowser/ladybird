@@ -36,6 +36,24 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');
+    args_parser.add_option(debug_timeouts, "Capture timeout backtraces (see test-dumps html -> Timeouts -> stderr)", "debug-timeouts");
+    args_parser.add_option(fail_fast, "Abort on first failure/timeout/crash", "fail-fast");
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Repeat all matched tests N times",
+        .long_name = "repeat",
+        .value_name = "n",
+        .accept_value = [&](StringView value) -> ErrorOr<bool> {
+            auto maybe_n = value.to_number<size_t>();
+            if (!maybe_n.has_value() || maybe_n.value() == 0)
+                return false;
+            repeat_enabled = true;
+            repeat_count = maybe_n.value();
+            return true;
+        },
+    });
+
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(shuffle, "Shuffle the order of tests before running them", "shuffle", 's');

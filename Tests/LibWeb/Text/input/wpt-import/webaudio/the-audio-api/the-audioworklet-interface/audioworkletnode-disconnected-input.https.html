@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioWorkletNode's Disconnected Input Array Length
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Arbitrary numbers used to align the test with render quantum boundary.
+      // The sample rate is a power of two to eliminate roundoff in computing
+      // the suspend time needed for the test.
+      const sampleRate = 16384;
+      const renderLength = 8 * RENDER_QUANTUM_FRAMES;
+      const filePath = 'processors/input-length-processor.js';
+
+      // Creates a 3-channel buffer and play with BufferSourceNode. The source
+      // goes through a bypass AudioWorkletNode (gain value of 1).
+      promise_test(async () => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length: renderLength,
+          sampleRate: sampleRate
+        });
+
+        await context.audioWorklet.addModule(filePath);
+
+        const sourceNode = new ConstantSourceNode(context);
+        const workletNode =
+            new AudioWorkletNode(context, 'input-length-processor');
+
+        workletNode.connect(context.destination);
+
+        // Connect the source after one render quantum.
+        const connectFrame = RENDER_QUANTUM_FRAMES;
+        context.suspend(connectFrame / sampleRate).then(() => {
+          sourceNode.connect(workletNode);
+          return context.resume();
+        });
+        // Disconnect the source after three render quanta.
+        const disconnectFrame = 3 * RENDER_QUANTUM_FRAMES;
+        context.suspend(disconnectFrame / sampleRate).then(() => {
+          sourceNode.disconnect(workletNode);
+          return context.resume();
+        });
+
+        sourceNode.start();
+        const resultBuffer = await context.startRendering();
+        const data = resultBuffer.getChannelData(0);
+
+        // Before connecting the source: input array length should be 0.
+        assert_array_equals(
+            data.subarray(0, connectFrame),
+            new Float32Array(connectFrame),
+            'Before connecting the source: Input array length should be 0');
+
+        // Find where the output is no longer 0.
+        const nonZeroIndex = data.findIndex(x => x > 0);
+        assert_equals(
+            nonZeroIndex,
+            connectFrame,
+            'First non-zero output should occur exactly at connectFrame');
+
+        // While source is connected: Input array length
+        // should be RENDER_QUANTUM_FRAMES
+        {
+          const expectedLength = disconnectFrame - connectFrame;
+          const expected =
+              new Float32Array(expectedLength).fill(RENDER_QUANTUM_FRAMES);
+          assert_array_equals(
+              data.subarray(connectFrame, disconnectFrame), expected,
+              'While source is connected: Input array length');
+        }
+
+        // After disconnecting the source: Input array length should be zero
+        {
+          const expectedLength = data.length - disconnectFrame;
+          const expected = new Float32Array(expectedLength);
+          assert_array_equals(
+              data.subarray(disconnectFrame), expected,
+              'After disconnecting the source: Input array length');
+        }
+      }, 'Input array length should be zero for disconnected input');
+    </script>
+  </body>
+</html>

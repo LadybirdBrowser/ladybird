@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/Debug.h>
 
 namespace Web::WebAudio {
 
@@ -17,9 +18,10 @@ AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL
     : DOM::EventTarget(realm)
     , m_context(context)
     , m_channel_count(channel_count)
-    , m_node_id(context->next_node_id({}))
+    , m_node_id(context->next_node_id())
 
 {
+    m_context->register_audio_node_for_snapshot(*this);
 }
 
 AudioNode::~AudioNode() = default;
@@ -84,6 +86,12 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
     // Connect destination_node input to node's output.
     destination_node->m_input_connections.append(input_connection);
 
+#if 0
+    WA_NODE_DBGLN("[WebAudio] connect node={} -> node={} output={} input={}", node_id().value(), destination_node->node_id().value(), output, input);
+#endif
+
+    m_context->notify_audio_graph_changed();
+
     return destination_node;
 }
 
@@ -114,6 +122,19 @@ WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_par
     // Connect node's output to destination_param.
     m_param_connections.append(param_connection);
 
+    // Track reverse (incoming) connections on the AudioParam so render-graph snapshotting can
+    // discover param-only dependencies.
+    AudioParam::InputConnection input_connection { GC::Ref { *this }, output };
+    for (auto const& existing_input : destination_param->m_input_connections) {
+        if (existing_input == input_connection)
+            return {};
+    }
+    destination_param->m_input_connections.append(input_connection);
+
+    WA_NODE_DBGLN("[WebAudio] connect node={} -> param output={}", node_id().value(), output);
+
+    m_context->notify_audio_graph_changed();
+
     return {};
 }
 
@@ -129,7 +150,17 @@ void AudioNode::disconnect()
         });
     }
 
+    for (auto const& connection : m_param_connections) {
+        auto& param_inputs = connection.destination_param->m_input_connections;
+        param_inputs.remove_all_matching([&](auto const& input_connection) {
+            return input_connection.source_node.ptr() == this && input_connection.output == connection.output;
+        });
+    }
     m_param_connections.clear();
+
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} all outputs", node_id().value());
+
+    m_context->notify_audio_graph_changed();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-output
@@ -157,6 +188,10 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
         return connection.output == output;
     });
 
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} output={}", node_id().value(), output);
+
+    m_context->notify_audio_graph_changed();
+
     return {};
 }
 
@@ -181,6 +216,10 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection to given AudioNode"));
     }
 
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} -> node={}", node_id().value(), destination_node->node_id().value());
+
+    m_context->notify_audio_graph_changed();
+
     return {};
 }
 
@@ -192,6 +231,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     if (output >= number_of_outputs()) {
         return WebIDL::IndexSizeError::create(realm(), Utf16String::formatted("Output index {} exceeds number of outputs", output));
     }
+
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} -> node={} output={}", node_id().value(), destination_node->node_id().value(), output);
 
     // The destinationNode parameter is the AudioNode to disconnect.
     auto before = m_output_connections.size();
@@ -211,6 +252,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to given AudioNode", output));
     }
 
+    m_context->notify_audio_graph_changed();
+
     return {};
 }
 
@@ -228,6 +271,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
     if (input >= destination_node->number_of_inputs()) {
         return WebIDL::IndexSizeError::create(realm(), Utf16String::formatted("Input index '{}' exceeds number of inputs", input));
     }
+
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} -> node={} output={} input={}", node_id().value(), destination_node->node_id().value(), output, input);
 
     // The destinationNode parameter is the AudioNode to disconnect.
     auto before = m_output_connections.size();
@@ -247,6 +292,8 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_n
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to input {} of given AudioNode", output, input));
     }
 
+    m_context->notify_audio_graph_changed();
+
     return {};
 }
 
@@ -256,13 +303,25 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
     // The destinationParam parameter is the AudioParam to disconnect.
     auto before = m_param_connections.size();
     m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
-        return connection.destination_param == destination_param;
+        if (connection.destination_param != destination_param)
+            return false;
+
+        auto& param_inputs = destination_param->m_input_connections;
+        param_inputs.remove_all_matching([&](auto const& input_connection) {
+            return input_connection.source_node.ptr() == this && input_connection.output == connection.output;
+        });
+
+        return true;
     });
 
     // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
     if (m_param_connections.size() == before) {
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection to given AudioParam"));
     }
+
+    WA_NODE_DBGLN("[WebAudio] disconnect node={} -> param", node_id().value());
+
+    m_context->notify_audio_graph_changed();
 
     return {};
 }
@@ -278,13 +337,23 @@ WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_
     // The destinationParam parameter is the AudioParam to disconnect.
     auto before = m_param_connections.size();
     m_param_connections.remove_all_matching([&](AudioParamConnection& connection) {
-        return connection.destination_param == destination_param && connection.output == output;
+        if (connection.destination_param != destination_param || connection.output != output)
+            return false;
+
+        auto& param_inputs = destination_param->m_input_connections;
+        param_inputs.remove_all_matching([&](auto const& input_connection) {
+            return input_connection.source_node.ptr() == this && input_connection.output == output;
+        });
+
+        return true;
     });
 
     // If there is no connection to the destinationParam, an InvalidAccessError exception MUST be thrown.
     if (m_param_connections.size() == before) {
         return WebIDL::InvalidAccessError::create(realm(), Utf16String::formatted("No connection from output {} to given AudioParam", output));
     }
+
+    m_context->notify_audio_graph_changed();
 
     return {};
 }
@@ -309,7 +378,7 @@ WebIDL::ExceptionOr<void> AudioNode::set_channel_count_mode(Bindings::ChannelCou
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
-Bindings::ChannelCountMode AudioNode::channel_count_mode()
+Bindings::ChannelCountMode AudioNode::channel_count_mode() const
 {
     return m_channel_count_mode;
 }
@@ -322,7 +391,7 @@ WebIDL::ExceptionOr<void> AudioNode::set_channel_interpretation(Bindings::Channe
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelinterpretation
-Bindings::ChannelInterpretation AudioNode::channel_interpretation()
+Bindings::ChannelInterpretation AudioNode::channel_interpretation() const
 {
     return m_channel_interpretation;
 }

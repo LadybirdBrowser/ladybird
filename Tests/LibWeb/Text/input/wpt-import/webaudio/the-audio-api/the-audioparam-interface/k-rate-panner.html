@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParams of PannerNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+
+      function assert_not_constant(arr, description) {
+        const first = arr[0];
+        for (let i = 1; i < arr.length; ++i) {
+          if (Math.abs(arr[i] - first) > Number.EPSILON) {
+            // If any element differs from the first by more than a negligible
+            // amount, the array is not constant, and the assertion passes.
+            return;
+          }
+        }
+        assert_unreached(`${description}: unexpectedly constant`);
+      }
+
+      function assert_all_close(arr, value, description) {
+        for (const x of arr) {
+          assert_approx_equals(x, value, Number.EPSILON, description);
+        }
+      }
+
+      function assert_all_constant(arr, value, description) {
+        for (const x of arr) {
+          assert_equals(x, value, description);
+        }
+      }
+
+
+      // Represents the 'k-rate' AudioParam automation rate.
+      const K_RATE = 'k-rate';
+      // Defines the size of one audio processing block (render quantum)
+      // in frames.
+      const BLOCK = 128;
+      // Arbitrary sample rate and duration.
+      const SAMPLE_RATE = 8000;
+
+      // Define a test where we verify that a k-rate audio param produces
+      // different results from an a-rate audio param for each of the audio
+      // params of a biquad.
+      //
+      // Each entry gives the name of the AudioParam, an initial value to be
+      // used with setValueAtTime, and a final value to be used with
+      // linearRampToValueAtTime. (See |doTest| for details as well.)
+
+      const pannerParams = [
+        {name: 'positionX', initial: 0, final: 1000},
+        {name: 'positionY', initial: 0, final: 1000},
+        {name: 'orientationX', initial: 1, final: 10},
+        {name: 'orientationY', initial: 1, final: 10},
+        {name: 'orientationZ', initial: 1, final: 10},
+      ];
+
+      pannerParams.forEach(param => {
+        promise_test(async t => {
+          const testDuration = (5 * BLOCK) / SAMPLE_RATE;
+          const context = new OfflineAudioContext({
+            numberOfChannels: 3,
+            sampleRate: SAMPLE_RATE,
+            length: testDuration * SAMPLE_RATE,
+          });
+
+          const merger = new ChannelMergerNode(context, {numberOfInputs: 3});
+          merger.connect(context.destination);
+          // Graph: ConstantSource → Panner → destination
+          const source = new ConstantSourceNode(context);
+          const commonOpts = {
+            distanceModel: 'inverse',
+            coneOuterAngle: 360,
+            coneInnerAngle: 0,
+            positionX: 1,
+            positionY: 1,
+            positionZ: 1,
+            orientationX: 0,
+            orientationY: 1,
+            orientationZ: 1,
+          };
+
+          const kRatePanner = new PannerNode(context, commonOpts);
+          const aRatePanner = new PannerNode(context, commonOpts);
+
+          // Switch only the k‑rate node’s target param to k‑rate
+          // automation
+          const kRateParam = kRatePanner[param.name];
+          kRateParam.automationRate = K_RATE;
+          assert_equals(kRateParam.automationRate, K_RATE,
+              `${param.name}.automationRate should be k‑rate`);
+
+          // Identical automation on both nodes
+          [kRatePanner, aRatePanner].forEach(panner => {
+            panner[param.name].setValueAtTime(param.initial, 0);
+            panner[param.name].linearRampToValueAtTime(param.final,
+                testDuration);
+          });
+
+          // Build routing: source → both panners
+          source.connect(kRatePanner);
+          source.connect(aRatePanner);
+
+          // k‑rate result → channel‑0; a‑rate → channel‑1
+          kRatePanner.connect(merger, 0, 0);
+          aRatePanner.connect(merger, 0, 1);
+
+          // Difference channel: k‑rate – a‑rate
+          const inverter = new GainNode(context, {gain: -1});
+          kRatePanner.connect(merger, 0, 2);
+          aRatePanner.connect(inverter).connect(merger, 0, 2);
+
+          source.start();
+
+          const buffer = await context.startRendering();
+
+          const kData = buffer.getChannelData(0);
+          const aData = buffer.getChannelData(1);
+          const diff = buffer.getChannelData(2);
+
+          // The difference signal must NOT be constant zero.
+          assert_not_constant(diff, `Panner ${param.name} – diff`);
+
+          // Verify that the k‑rate output is constant over each render quantum
+          for (let k = 0; k < kData.length; k += BLOCK) {
+            const slice = kData.slice(k, k + BLOCK);
+            assert_all_close(slice, slice[0],
+                `Panner ${param.name} k‑rate frames [` +
+                `${k}, ${k + slice.length - 1}]`
+            );
+          }
+
+          // (No strict requirement on a‑rate slice variability, so we skip.)
+        }, `Panner k‑rate vs a‑rate – ${param.name}`);
+      });
+
+      // Test k-rate automation of the listener.  The intial and final
+      // automation values are pretty arbitrary, except that they should be such
+      // that the panner and listener produces non-constant output.
+      const listenerParams = [
+        {name: 'positionX', initial: [1, 0], final: [1000, 1]},
+        {name: 'positionY', initial: [1, 0], final: [1000, 1]},
+        {name: 'positionZ', initial: [1, 0], final: [1000, 1]},
+        {name: 'forwardX', initial: [-1, 0], final: [1, 1]},
+        {name: 'forwardY', initial: [-1, 0], final: [1, 1]},
+        {name: 'forwardZ', initial: [-1, 0], final: [1, 1]},
+        {name: 'upX', initial: [-1, 0], final: [1000, 1]},
+        {name: 'upY', initial: [-1, 0], final: [1000, 1]},
+        {name: 'upZ', initial: [-1, 0], final: [1000, 1]},
+      ];
+
+      listenerParams.forEach(param => {
+        promise_test(async t => {
+          const testDuration = (5 * BLOCK) / SAMPLE_RATE;
+          const context = new OfflineAudioContext({
+            numberOfChannels: 1,
+            sampleRate: SAMPLE_RATE,
+            length: testDuration * SAMPLE_RATE,
+          });
+
+          const source = new ConstantSourceNode(context);
+          const panner = new PannerNode(context, {
+            distanceModel: 'inverse',
+            coneOuterAngle: 360,
+            coneInnerAngle: 10,
+            positionX: 10,
+            positionY: 10,
+            positionZ: 10,
+            orientationX: 1,
+            orientationY: 1,
+            orientationZ: 1,
+          });
+          source.connect(panner).connect(context.destination);
+          source.start();
+
+          const listener = context.listener;
+
+        // Set listener properties to "random" values so that motion on one of
+        // the attributes actually changes things relative to the panner
+        // location.  And the up and forward directions should have a simple
+        // relationship between them.
+          listener.positionX.value = -1;
+          listener.positionY.value = 1;
+          listener.positionZ.value = -1;
+          listener.forwardX.value = -1;
+          listener.forwardY.value = 1;
+          listener.forwardZ.value = -1;
+          // Make the up vector not parallel or perpendicular to the forward and
+          // position vectors so that automations of the up vector produce
+          // noticeable differences.
+          listener.upX.value = 1;
+          listener.upY.value = 1;
+          listener.upZ.value = 2;
+
+          const audioParam = listener[param.name];
+          audioParam.automationRate = K_RATE;
+          assert_equals(
+            audioParam.automationRate,
+            K_RATE,
+            `Listener ${param.name}.automationRate`
+          );
+
+          audioParam.setValueAtTime(...param.initial);
+          audioParam.linearRampToValueAtTime(...param.final);
+
+          const buffer = await context.startRendering();
+          const data = buffer.getChannelData(0);
+
+          assert_not_constant(data, `Listener ${param.name}`);
+          for (let k = 0; k < data.length; k += BLOCK) {
+            const slice = data.slice(
+              k,
+              Math.min(k + BLOCK, data.length)
+            );
+            assert_all_constant(
+              slice,
+              slice[0],
+                `Listener ${param.name} frames [${k}, ` +
+                `${k + slice.length - 1}]`
+            );
+          }
+        }, `Listener k-rate ${param.name}`);
+      });
+    </script>
+  </body>
+</html>

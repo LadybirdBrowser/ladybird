@@ -26,6 +26,7 @@ public:
     bool has_rendering_tasks() const;
 
     void add(GC::Ref<HTML::Task>);
+    GC::Ptr<HTML::Task> take_first_runnable_with_source(HTML::Task::Source);
     GC::Ptr<HTML::Task> take_first_runnable();
 
     void enqueue(GC::Ref<HTML::Task> task) { add(task); }

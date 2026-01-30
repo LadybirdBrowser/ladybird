@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParams of BiquadFilterNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="automation-rate-testing.js"></script>
+  </head>
+
+  <body>
+    <script>
+
+      promise_test(async () => {
+        // Arbitrary sample rate and duration.
+        const sampleRate = 8000;
+        const testDuration = 1;
+        const context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate,
+        });
+
+        await doTest_W3TH(context, {
+          nodeName: 'BiquadFilterNode',
+          nodeOptions: {type: 'lowpass'},
+          prefix: 'All k-rate params',
+          // Set all AudioParams to k-rate
+          rateSettings: [
+            {name: 'Q', value: 'k-rate'},
+            {name: 'detune', value: 'k-rate'},
+            {name: 'frequency', value: 'k-rate'},
+            {name: 'gain', value: 'k-rate'},
+          ],
+          // Automate just the frequency
+          automations: [{
+            name: 'frequency',
+            methods: [
+              {name: 'setValueAtTime', options: [350, 0]},
+              {name: 'linearRampToValueAtTime', options: [0, testDuration]}
+            ]
+          }]
+        });
+      }, 'Biquad k-rate AudioParams (all)');
+
+      // Define a test where we verify that a k-rate audio param produces
+      // different results from an a-rate audio param for each of the audio
+      // params of a biquad.
+      //
+      // Each entry gives the name of the AudioParam, an initial value to be
+      // used with setValueAtTime, and a final value to be used with
+      // linearRampToValueAtTime. (See |doTest_W3TH| for details as well.)
+
+      [{name: 'Q',
+        initial: 1,
+        final: 10
+       },
+       {name: 'detune',
+        initial: 0,
+        final: 1200
+       },
+       {name: 'frequency',
+        initial: 350,
+        final: 0
+       },
+       {name: 'gain',
+        initial: 10,
+        final: 0
+       }].forEach(paramProperty => {
+        promise_test(async () => {
+          // Arbitrary sample rate and duration.
+          const sampleRate = 8000;
+          const testDuration = 1;
+          const context = new OfflineAudioContext({
+            numberOfChannels: 3,
+            sampleRate: sampleRate,
+            length: testDuration * sampleRate
+          });
+
+          await doTest_W3TH(context, {
+            nodeName: 'BiquadFilterNode',
+            nodeOptions: {type: 'peaking', Q: 1, gain: 10},
+            prefix: `k-rate ${paramProperty.name}`,
+            // Just set the frequency to k-rate
+            rateSettings: [
+              {name: paramProperty.name, value: 'k-rate'},
+            ],
+            // Automate just the given AudioParam
+            automations: [{
+              name: paramProperty.name,
+              methods: [
+                {name: 'setValueAtTime', options: [paramProperty.initial, 0]},
+                {
+                  name: 'linearRampToValueAtTime',
+                  options: [paramProperty.final, testDuration],
+                }
+              ]
+            }]
+          });
+        }, `Biquad k-rate ${paramProperty.name}`);
+      });
+    </script>
+  </body>
+</html>

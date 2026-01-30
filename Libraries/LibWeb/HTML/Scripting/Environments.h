@@ -189,6 +189,7 @@ WEB_API void add_module_to_resolved_module_set(JS::Realm&, String const& seriali
 
 EnvironmentSettingsObject& incumbent_settings_object();
 WEB_API JS::Realm& incumbent_realm();
+WEB_API JS::Realm& incumbent_realm(JS::VM&);
 JS::Object& incumbent_global_object();
 
 JS::Realm& current_principal_realm();

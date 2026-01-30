@@ -42,6 +42,7 @@ static bool is_platform_object(Type const& type)
         "AudioNode"sv,
         "AudioParam"sv,
         "AudioScheduledSourceNode"sv,
+        "AudioSinkInfo"sv,
         "AudioTrack"sv,
         "BaseAudioContext"sv,
         "Blob"sv,
@@ -96,6 +97,8 @@ static bool is_platform_object(Type const& type)
         "KeyframeEffect"sv,
         "MediaKeySystemAccess"sv,
         "MediaList"sv,
+        "MediaStream"sv,
+        "MediaStreamTrack"sv,
         "Memory"sv,
         "MessagePort"sv,
         "Module"sv,
@@ -326,6 +329,12 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
     if (type.name() == "MediaSource")
         return { .name = "GC::Root<MediaSourceExtensions::MediaSource>", .sequence_storage_type = SequenceStorageType::RootVector };
+
+    if (type.name() == "MediaStream")
+        return { .name = "GC::Root<MediaCapture::MediaStream>", .sequence_storage_type = SequenceStorageType::RootVector };
+
+    if (type.name() == "MediaStreamTrack")
+        return { .name = "GC::Root<MediaCapture::MediaStreamTrack>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
         auto& parameterized_type = as<ParameterizedType>(type);
@@ -661,7 +670,11 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto const& type = parameter.type;
     scoped_generator.set("parameter.type.name", type->name());
 
-    if (!libweb_interface_namespaces.span().contains_slow(type->name())) {
+    if (type->name() == "MediaStream") {
+        scoped_generator.set("parameter.type.name.normalized", "MediaCapture::MediaStream");
+    } else if (type->name() == "MediaStreamTrack") {
+        scoped_generator.set("parameter.type.name.normalized", "MediaCapture::MediaStreamTrack");
+    } else if (!libweb_interface_namespaces.span().contains_slow(type->name())) {
         if (is_javascript_builtin(type))
             scoped_generator.set("parameter.type.name.normalized", ByteString::formatted("JS::{}", type->name()));
         else
@@ -712,7 +725,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (!@js_name@@js_suffix@.is_object())
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
 
-        auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm());
+        auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(vm));
         @cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return @cpp_type@::create(realm, *callback_type); }));
     }
 )~~~");
@@ -721,7 +734,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     if (!@js_name@@js_suffix@.is_object())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
 
-    auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm());
+    auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(vm));
     auto @cpp_name@ = adopt_ref(*new @cpp_type@(callback_type));
 )~~~");
         }
@@ -866,26 +879,37 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
     } else if (is_javascript_builtin(parameter.type) || parameter.type->name() == "BufferSource"sv) {
-        if (optional) {
+        // Nullable BufferSource is emitted as Optional so callers can accept null.
+        // This is used by WebGL BufferSource? overloads and WaveShaperNode curve.
+        if (parameter.type->is_nullable()) {
             scoped_generator.append(R"~~~(
     Optional<GC::Root<WebIDL::BufferSource>> @cpp_name@;
     if (!@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_nullish()) {
+            if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
+                return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+            @cpp_name@ = GC::make_root(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
+        }
+    }
+)~~~");
+        } else if (optional) {
+            scoped_generator.append(R"~~~(
+    Optional<GC::Root<WebIDL::BufferSource>> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+        @cpp_name@ = GC::make_root(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
+    }
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
     GC::Root<WebIDL::BufferSource> @cpp_name@;
-)~~~");
-        }
-        scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
     @cpp_name@ = GC::make_root(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
-)~~~");
-
-        if (optional) {
-            scoped_generator.append(R"~~~(
-        }
 )~~~");
         }
 
@@ -1125,12 +1149,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             callback_function_generator.append(R"~~~(
     GC::Ptr<WebIDL::CallbackType> @cpp_name@;
     if (@js_name@@js_suffix@.is_object())
-        @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
+        @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(vm), @operation_returns_promise@);
 )~~~");
             // FIXME: Handle default value for optional parameter here.
         } else {
             callback_function_generator.append(R"~~~(
-    auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
+    auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(vm), @operation_returns_promise@);
 )~~~");
         }
     } else if (parameter.type->name().is_one_of("sequence"sv, "FrozenArray"sv)) {
@@ -1498,7 +1522,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (includes_callable) {
             union_generator.append(R"~~~(
             if (@js_name@@js_suffix@_object.is_function())
-                return vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_function(), HTML::incumbent_realm());
+                return vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_function(), HTML::incumbent_realm(vm));
 )~~~");
         }
 
@@ -1946,7 +1970,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
     scoped_generator.set("value_cpp_name", value.replace("."sv, "_"sv));
-    if (!libweb_interface_namespaces.span().contains_slow(type.name())) {
+    if (type.name() == "MediaStream") {
+        scoped_generator.set("type", "MediaCapture::MediaStream");
+    } else if (type.name() == "MediaStreamTrack") {
+        scoped_generator.set("type", "MediaCapture::MediaStreamTrack");
+    } else if (!libweb_interface_namespaces.span().contains_slow(type.name())) {
         if (is_javascript_builtin(type))
             scoped_generator.set("type", ByteString::formatted("JS::{}", type.name()));
         else
@@ -5056,6 +5084,7 @@ using namespace Web::IndexedDB;
 using namespace Web::Internals;
 using namespace Web::IntersectionObserver;
 using namespace Web::MediaCapabilitiesAPI;
+using namespace Web::MediaCapture;
 using namespace Web::MediaSourceExtensions;
 using namespace Web::NavigationTiming;
 using namespace Web::NotificationsAPI;

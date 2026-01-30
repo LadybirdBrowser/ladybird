@@ -1,0 +1,20 @@
+Harness status: Error
+
+Found 15 tests
+
+15 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "check-frozen-array"
+Pass	Executing "transfer-frozen-array"
+Pass	Audit report
+Pass	> [check-frozen-array] 
+Pass	  |inputs| is frozen is true.
+Pass	  |outputs| is frozen is true.
+Pass	< [check-frozen-array] All assertions passed. (total 2 assertions)
+Pass	> [transfer-frozen-array] 
+Pass	  Transferring inputs/outputs, an individual input/output array, or a channel Float32Array is not allowed as expected. is true.
+Pass	  |inputs| is frozen is true.
+Pass	  |outputs| is frozen is true.
+Pass	  Transferring ArrayBuffers was successful as expected. is true.
+Pass	< [transfer-frozen-array] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 2 tasks ran successfully.

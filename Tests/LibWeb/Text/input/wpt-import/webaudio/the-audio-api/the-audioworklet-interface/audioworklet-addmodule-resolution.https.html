@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test the invocation order of AudioWorklet.addModule() and BaseAudioContext
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(async () => {
+        const sampleRate = 48000;
+        const realtimeContext = new AudioContext();
+        const offlineContext =
+            new OfflineAudioContext(1, sampleRate, sampleRate);
+
+        const filePath = 'processors/dummy-processor.js';
+
+        await Promise.all([
+            realtimeContext.audioWorklet.addModule(filePath),
+            offlineContext.audioWorklet.addModule(filePath)
+        ]);
+
+        // Test if the browser does not crash upon addModule() call after the
+        // realtime context construction.
+        const dummyWorkletNodeRealtime =
+            new AudioWorkletNode(realtimeContext, 'dummy');
+        dummyWorkletNodeRealtime.connect(realtimeContext.destination);
+        assert_true(dummyWorkletNodeRealtime instanceof AudioWorkletNode,
+            '"dummyWorkletNodeRealtime" is an instance of AudioWorkletNode ' +
+            'from realtime context');
+
+        // Test if the browser does not crash upon addModule() call after the
+        // offline context construction.
+        const dummyWorkletNodeOffline =
+            new AudioWorkletNode(offlineContext, 'dummy');
+        dummyWorkletNodeOffline.connect(offlineContext.destination);
+        assert_true(dummyWorkletNodeOffline instanceof AudioWorkletNode,
+            '"dummyWorkletNodeOffline" is an instance of AudioWorkletNode ' +
+            'from offline context');
+      }, 'Test the invocation order of AudioWorklet.addModule() ' +
+          'and BaseAudioContext');
+    </script>
+  </body>
+</html>

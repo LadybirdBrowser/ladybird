@@ -8,6 +8,7 @@
 
 #include <AK/ByteReader.h>
 #include <AK/MemoryStream.h>
+#include <AK/Vector.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Decoder.h>
@@ -53,7 +54,20 @@ MessagePort::~MessagePort() = default;
 
 void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
 {
-    for (auto port : all_message_ports())
+    auto& ports = all_message_ports();
+    ports.remove_all_matching([](GC::RawPtr<MessagePort> const& port) {
+        return !port;
+    });
+
+    Vector<GC::Root<MessagePort>> strong_ports;
+    strong_ports.ensure_capacity(ports.size());
+    for (auto port : ports) {
+        if (!port)
+            continue;
+        strong_ports.append(GC::make_root(*port));
+    }
+
+    for (auto& port : strong_ports)
         callback(*port);
 }
 
@@ -307,18 +321,24 @@ void MessagePort::read_from_transport()
     auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
         FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
         IPC::Decoder decoder { stream, raw_message.fds };
-
         auto serialized_transfer_record = MUST(decoder.decode<SerializedTransferRecord>());
-
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
-            this->post_message_task_steps(serialized_transfer_record);
-        }));
+        auto weak_this = GC::Weak { *this };
+        queue_global_task(m_task_source, relevant_global_object(*this),
+            GC::create_function(heap(), [weak_this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
+                if (!weak_this)
+                    return;
+                weak_this->post_message_task_steps(serialized_transfer_record);
+            }));
     });
 
     if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes) {
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
-            this->close();
-        }));
+        auto weak_this = GC::Weak { *this };
+        queue_global_task(m_task_source, relevant_global_object(*this),
+            GC::create_function(heap(), [weak_this] {
+                if (!weak_this)
+                    return;
+                weak_this->close();
+            }));
     }
 }
 

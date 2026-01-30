@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Verify k-rate 'attack' with input on DynamicsCompressorNode
+Pass	Verify k-rate 'knee' with input on DynamicsCompressorNode
+Pass	Verify k-rate 'ratio' with input on DynamicsCompressorNode
+Pass	Verify k-rate 'release' with input on DynamicsCompressorNode
+Pass	Verify k-rate 'threshold' with input on DynamicsCompressorNode

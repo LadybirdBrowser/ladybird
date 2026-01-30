@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      biquad-allpass.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/biquad-filters.js"></script>
+    <script src="../../../webaudio/resources/biquad-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {label: 'test', description: 'Biquad allpass filter'},
+          function(task, should) {
+
+            // Create offline audio context.
+            let context = new OfflineAudioContext(
+                2, sampleRate * renderLengthSeconds, sampleRate);
+
+            let filterParameters = [
+              {cutoff: 0, q: 10, gain: 1},
+              {cutoff: 1, q: 10, gain: 1},
+              {cutoff: .5, q: 0, gain: 1},
+              {cutoff: 0.25, q: 10, gain: 1},
+            ];
+            createTestAndRun(context, 'allpass', {
+              should: should,
+              threshold: 3.9337e-8,
+              filterParameters: filterParameters
+            }).then(task.done.bind(task));
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

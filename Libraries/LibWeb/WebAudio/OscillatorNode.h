@@ -41,6 +41,8 @@ public:
     WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
+    GC::Ptr<PeriodicWave> periodic_wave() const { return m_periodic_wave; }
+
 protected:
     OscillatorNode(JS::Realm&, GC::Ref<BaseAudioContext>, OscillatorOptions const& = {});
 

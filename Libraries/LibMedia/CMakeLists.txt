@@ -3,9 +3,12 @@ include(audio)
 include(ffmpeg)
 
 set(SOURCES
+    Audio/AudioDecoding.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     IncrementallyPopulatedStream.cpp
+    MediaCapture/AudioInputDevices.cpp
+    MediaCapture/AudioOutputDevices.cpp
     PlaybackManager.cpp
     PlaybackStates/PausedStateHandler.cpp
     PlaybackStates/PlaybackStateHandler.cpp
@@ -20,7 +23,7 @@ set(SOURCES
 )
 
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
+target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibAudioServerClient LibThreading LibUnicode)
 
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp

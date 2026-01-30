@@ -63,10 +63,17 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+    if (m_audio_server_client)
+        m_audio_server_client->on_death = {};
+
+    if (m_image_decoder_client)
+        m_image_decoder_client->on_death = {};
+
+    if (m_request_server_client)
+        m_request_server_client->on_request_server_died = {};
+
     // Explicitly delete the settings observer first, as the observer destructor will refer to Application::the().
     m_settings_observer.clear();
-
-    s_the = nullptr;
 }
 
 ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
@@ -311,10 +318,11 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
 {
     auto request_server_socket = TRY(connect_new_request_server_client());
     auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+    auto audio_server_socket = TRY(connect_new_audio_server_client());
 
     if (view.has_value())
-        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket));
-    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket));
+        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket), move(audio_server_socket));
+    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket), move(audio_server_socket));
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
@@ -333,11 +341,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 
 void Application::launch_spare_web_content_process()
 {
-    // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (browser_options().debug_helper_process == ProcessType::WebContent)
-        return;
-    // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
-    if (browser_options().profile_helper_process == ProcessType::WebContent)
+    if (m_process_manager && !ProcessPolicyRouter::should_maintain_spare_web_content_process(browser_options()))
         return;
 
     if (m_has_queued_task_to_launch_spare_web_content_process)
@@ -397,8 +401,27 @@ ErrorOr<void> Application::launch_services()
         }
     }
 
-    TRY(launch_request_server());
-    TRY(launch_image_decoder_server());
+    // Phase A: encode current process policy defaults without behavior change.
+    {
+        for (auto type : ProcessPolicyRouter::singleton_services_to_launch()) {
+            switch (type) {
+            case ProcessType::RequestServer:
+                TRY(launch_request_server());
+                break;
+            case ProcessType::ImageDecoder:
+                TRY(launch_image_decoder_server());
+                break;
+            case ProcessType::AudioServer:
+                TRY(launch_audio_server());
+                break;
+            case ProcessType::WebAudioWorker:
+            case ProcessType::Browser:
+            case ProcessType::WebContent:
+            case ProcessType::WebWorker:
+                VERIFY_NOT_REACHED();
+            }
+        }
+    }
 
     if (m_browser_options.devtools_port.has_value())
         TRY(launch_devtools_server());
@@ -415,6 +438,8 @@ ErrorOr<void> Application::launch_request_server()
     };
 
     m_request_server_client->on_request_server_died = [this]() {
+        // FIXME: This restart + ConnectNewClients + per-WebContent socket redistribution pattern
+        // should be factored into a shared helper and reused by ImageDecoder and AudioServer.
         m_request_server_client = nullptr;
 
         if (Core::EventLoop::current().was_exit_requested())
@@ -449,6 +474,7 @@ ErrorOr<void> Application::launch_image_decoder_server()
     m_image_decoder_client = TRY(launch_image_decoder_process());
 
     m_image_decoder_client->on_death = [this]() {
+        // FIXME: Share restart + socket redistribution logic with RequestServer/AudioServer.
         m_image_decoder_client = nullptr;
 
         if (Core::EventLoop::current().was_exit_requested())
@@ -470,6 +496,44 @@ ErrorOr<void> Application::launch_image_decoder_server()
             client.async_connect_to_image_decoder(sockets.take_last());
             return IterationDecision::Continue;
         });
+    };
+
+    return {};
+}
+
+ErrorOr<void> Application::launch_audio_server()
+{
+    m_audio_server_client = TRY(launch_audio_server_process());
+
+    m_audio_server_client->on_death = [this]() {
+        // FIXME: Share restart + socket redistribution logic with RequestServer/ImageDecoder.
+        m_audio_server_client = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
+        if (auto result = launch_audio_server(); result.is_error()) {
+            dbgln("Failed to restart AudioServer: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        auto client_count = WebContentClient::client_count();
+        auto new_sockets = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerServer::ConnectNewClients>(client_count);
+        if (!new_sockets || new_sockets->sockets().is_empty()) {
+            dbgln("Failed to connect {} new clients to AudioServer", client_count);
+            VERIFY_NOT_REACHED();
+        }
+
+        WebContentClient::for_each_client([sockets = new_sockets->take_sockets()](WebContentClient& client) mutable {
+            client.async_connect_to_audio_server(sockets.take_last());
+            return IterationDecision::Continue;
+        });
+
+        // FIXME: WebAudioWorker instances will need the same treatment when they exist.
+        // Proposed direction: keep a simple dependency graph in the broker and notify only
+        // dependents. Notifications should be of the form "service X, instance Y is now at
+        // endpoint Z". Helpers can then update their cached endpoint to Z if they depend on
+        // that particular instance.
     };
 
     return {};
@@ -625,6 +689,12 @@ void Application::process_did_exit(Process&& process)
     case ProcessType::WebWorker:
         dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebWorker {} died, not sure what to do.", process.pid());
         break;
+    case ProcessType::AudioServer:
+        dbgln_if(WEBVIEW_PROCESS_DEBUG, "AudioServer {} died, not sure what to do.", process.pid());
+        break;
+    case ProcessType::WebAudioWorker:
+        dbgln_if(WEBVIEW_PROCESS_DEBUG, "WebAudioWorker {} died, not sure what to do.", process.pid());
+        break;
     case ProcessType::Browser:
         dbgln("Invalid process type to be dying: Browser");
         VERIFY_NOT_REACHED();
@@ -702,7 +772,7 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
             promise->resolve(sizes);
         })
         .when_rejected([promise](Error& error) {
-            promise->reject(move(error));
+            promise->reject(static_cast<Error&&>(error));
         });
 
     return promise;

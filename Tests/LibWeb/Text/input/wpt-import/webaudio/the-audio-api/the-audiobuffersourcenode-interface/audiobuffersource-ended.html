@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audiobuffersource-ended.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audiobuffersource-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      let context;
+      let source;
+
+      audit.define(
+          'AudioBufferSourceNode calls its onended EventListener',
+          function(task, should) {
+            let sampleRate = 44100.0;
+            let numberOfFrames = 32;
+            context = new OfflineAudioContext(1, numberOfFrames, sampleRate);
+            source = context.createBufferSource();
+            source.buffer = createTestBuffer(context, numberOfFrames);
+            source.connect(context.destination);
+            source.onended = function() {
+              should(true, 'source.onended called').beTrue();
+              task.done();
+            };
+            source.start(0);
+            context.startRendering();
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

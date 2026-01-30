@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "channel-count-test"
+Pass	Audit report
+Pass	> [channel-count-test] 
+Pass	  ConvolverNode with buffer of 1 channels did not throw an exception.
+Pass	  ConvolverNode with buffer of 2 channels did not throw an exception.
+Pass	  ConvolverNode with buffer of 3 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 4 channels did not throw an exception.
+Pass	  ConvolverNode with buffer of 5 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 6 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 7 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 8 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 9 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 10 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 11 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 12 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 13 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 14 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 15 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 16 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 17 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 18 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 19 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 20 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 21 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 22 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 23 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 24 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 25 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 26 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 27 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 28 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 29 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 30 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 31 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	  ConvolverNode with buffer of 32 channels threw NotSupportedError: "Convolver buffer is incompatible with this context".
+Pass	< [channel-count-test] All assertions passed. (total 32 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

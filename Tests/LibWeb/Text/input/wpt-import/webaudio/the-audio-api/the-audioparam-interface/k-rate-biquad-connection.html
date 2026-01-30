@@ -1,0 +1,456 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam Inputs for BiquadFilterNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // sampleRate and duration are fairly arbitrary.  We use low values to
+      // limit the complexity of the test.
+      let sampleRate = 8192;
+      let testDuration = 0.5;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {label: 'Frequency AudioParam', description: 'k-rate input works'},
+          async (task, should) => {
+            // Test frequency AudioParam using a lowpass filter whose bandwidth
+            // is initially larger than the oscillator frequency.  Then automate
+            // the frequency to 0 so that the output of the filter is 0 (because
+            // the cutoff is 0).
+            let oscFrequency = 440;
+
+            let options = {
+              sampleRate: sampleRate,
+              paramName: 'frequency',
+              oscFrequency: oscFrequency,
+              testDuration: testDuration,
+              filterOptions: {type: 'lowpass', frequency: 0},
+              autoStart:
+                  {method: 'setValueAtTime', args: [2 * oscFrequency, 0]},
+              autoEnd: {
+                method: 'linearRampToValueAtTime',
+                args: [0, testDuration / 4]
+              }
+            };
+
+            let buffer = await doTest(should, options);
+            let expected = buffer.getChannelData(0);
+            let actual = buffer.getChannelData(1);
+            let halfLength = expected.length / 2;
+
+            // Sanity check.  The expected output should not be zero for
+            // the first half, but should be zero for the second half
+            // (because the filter bandwidth is exactly 0).
+            const prefix = 'Expected k-rate frequency with automation';
+
+            should(
+                expected.slice(0, halfLength),
+                `${prefix} output[0:${halfLength - 1}]`)
+                .notBeConstantValueOf(0);
+            should(
+                expected.slice(expected.length),
+                `${prefix} output[${halfLength}:]`)
+                .beConstantValueOf(0);
+
+            // Outputs should be the same.  Break the message into two
+            // parts so we can see the expected outputs.
+            checkForSameOutput(should, options.paramName, actual, expected);
+
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Q AudioParam', description: 'k-rate input works'},
+          async (task, should) => {
+            // Test Q AudioParam.  Use a bandpass filter whose center frequency
+            // is fairly far from the oscillator frequency.  Then start with a Q
+            // value of 0 (so everything goes through) and then increase Q to
+            // some large value such that the out-of-band signals are basically
+            // cutoff.
+            let frequency = 440;
+            let oscFrequency = 4 * frequency;
+
+            let options = {
+              sampleRate: sampleRate,
+              oscFrequency: oscFrequency,
+              testDuration: testDuration,
+              paramName: 'Q',
+              filterOptions: {type: 'bandpass', frequency: frequency, Q: 0},
+              autoStart: {method: 'setValueAtTime', args: [0, 0]},
+              autoEnd: {
+                method: 'linearRampToValueAtTime',
+                args: [100, testDuration / 4]
+              }
+            };
+
+            const buffer = await doTest(should, options);
+            let expected = buffer.getChannelData(0);
+            let actual = buffer.getChannelData(1);
+
+            // Outputs should be the same
+            checkForSameOutput(should, options.paramName, actual, expected);
+
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Gain AudioParam', description: 'k-rate input works'},
+          async (task, should) => {
+            // Test gain AudioParam.  Use a peaking filter with a large Q so the
+            // peak is narrow with a center frequency the same as the oscillator
+            // frequency.  Start with a gain of 0 so everything goes through and
+            // then ramp the gain down to -100 so that the oscillator is
+            // filtered out.
+            let oscFrequency = 4 * 440;
+
+            let options = {
+              sampleRate: sampleRate,
+              oscFrequency: oscFrequency,
+              testDuration: testDuration,
+              paramName: 'gain',
+              filterOptions:
+                  {type: 'peaking', frequency: oscFrequency, Q: 100, gain: 0},
+              autoStart: {method: 'setValueAtTime', args: [0, 0]},
+              autoEnd: {
+                method: 'linearRampToValueAtTime',
+                args: [-100, testDuration / 4]
+              }
+            };
+
+            const buffer = await doTest(should, options);
+            let expected = buffer.getChannelData(0);
+            let actual = buffer.getChannelData(1);
+
+            // Outputs should be the same
+            checkForSameOutput(should, options.paramName, actual, expected);
+
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Detune AudioParam', description: 'k-rate input works'},
+          async (task, should) => {
+            // Test detune AudioParam.  The basic idea is the same as the
+            // frequency test above, but insteda of automating the frequency, we
+            // automate the detune value so that initially the filter cutuff is
+            // unchanged and then changing the detune until the cutoff goes to 1
+            // Hz, which would cause the oscillator to be filtered out.
+            let oscFrequency = 440;
+            let filterFrequency = 5 * oscFrequency;
+
+            // For a detune value d, the computed frequency, fc, of the filter
+            // is fc = f*2^(d/1200), where f is the frequency of the filter.  Or
+            // d = 1200*log2(fc/f).  Compute the detune value to produce a final
+            // cutoff frequency of 1 Hz.
+            let detuneEnd = 1200 * Math.log2(1 / filterFrequency);
+
+            let options = {
+              sampleRate: sampleRate,
+              oscFrequency: oscFrequency,
+              testDuration: testDuration,
+              paramName: 'detune',
+              filterOptions: {
+                type: 'lowpass',
+                frequency: filterFrequency,
+                detune: 0,
+                gain: 0
+              },
+              autoStart: {method: 'setValueAtTime', args: [0, 0]},
+              autoEnd: {
+                method: 'linearRampToValueAtTime',
+                args: [detuneEnd, testDuration / 4]
+              }
+            };
+
+            const buffer = await doTest(should, options);
+            let expected = buffer.getChannelData(0);
+            let actual = buffer.getChannelData(1);
+
+            // Outputs should be the same
+            checkForSameOutput(should, options.paramName, actual, expected);
+
+            task.done();
+          });
+
+      audit.define('All k-rate inputs', async (task, should) => {
+        // Test the case where all AudioParams are set to k-rate with an input
+        // to each AudioParam.  Similar to the above tests except all the params
+        // are k-rate.
+        let testFrames = testDuration * sampleRate;
+        let context = new OfflineAudioContext(
+            {numberOfChannels: 2, sampleRate: sampleRate, length: testFrames});
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        let src = new OscillatorNode(context);
+
+        // The peaking filter uses all four AudioParams, so this is the node to
+        // test.
+        let filterOptions =
+            {type: 'peaking', frequency: 0, detune: 0, gain: 0, Q: 0};
+        let refNode;
+        should(
+            () => refNode = new BiquadFilterNode(context, filterOptions),
+            `Create: refNode = new BiquadFilterNode(context, ${
+                JSON.stringify(filterOptions)})`)
+            .notThrow();
+
+        let tstNode;
+        should(
+            () => tstNode = new BiquadFilterNode(context, filterOptions),
+            `Create: tstNode = new BiquadFilterNode(context, ${
+                JSON.stringify(filterOptions)})`)
+            .notThrow();
+        ;
+
+        // Make all the AudioParams k-rate.
+        ['frequency', 'Q', 'gain', 'detune'].forEach(param => {
+          should(
+              () => refNode[param].automationRate = 'k-rate',
+              `Set rate: refNode[${param}].automationRate = 'k-rate'`)
+              .notThrow();
+          should(
+              () => tstNode[param].automationRate = 'k-rate',
+              `Set rate: tstNode[${param}].automationRate = 'k-rate'`)
+              .notThrow();
+        });
+
+        // One input for each AudioParam.
+        let mod = {};
+        ['frequency', 'Q', 'gain', 'detune'].forEach(param => {
+          should(
+              () => mod[param] = new ConstantSourceNode(context, {offset: 0}),
+              `Create: mod[${
+                  param}] = new ConstantSourceNode(context, {offset: 0})`)
+              .notThrow();
+          ;
+          should(
+              () => mod[param].offset.automationRate = 'a-rate',
+              `Set rate: mod[${param}].offset.automationRate = 'a-rate'`)
+              .notThrow();
+        });
+
+        // Set up automations for refNode.  We want to start the filter with
+        // parameters that let the oscillator signal through more or less
+        // untouched.  Then change the filter parameters to filter out the
+        // oscillator.  What happens in between doesn't reall matter for this
+        // test.  Hence, set the initial parameters with a center frequency well
+        // above the oscillator and a Q and gain of 0 to pass everthing.
+        [['frequency', [4 * src.frequency.value, 0]], ['Q', [0, 0]],
+         ['gain', [0, 0]], ['detune', [4 * 1200, 0]]]
+            .forEach(param => {
+              should(
+                  () => refNode[param[0]].setValueAtTime(...param[1]),
+                  `Automate 0: refNode.${param[0]}.setValueAtTime(${
+                      param[1][0]}, ${param[1][1]})`)
+                  .notThrow();
+              should(
+                  () => mod[param[0]].offset.setValueAtTime(...param[1]),
+                  `Automate 0: mod[${param[0]}].offset.setValueAtTime(${
+                      param[1][0]}, ${param[1][1]})`)
+                  .notThrow();
+            });
+
+        // Now move the filter frequency to the oscillator frequency with a high
+        // Q and very low gain to remove the oscillator signal.
+        [['frequency', [src.frequency.value, testDuration / 4]],
+         ['Q', [40, testDuration / 4]], ['gain', [-100, testDuration / 4]], [
+           'detune', [0, testDuration / 4]
+         ]].forEach(param => {
+          should(
+              () => refNode[param[0]].linearRampToValueAtTime(...param[1]),
+              `Automate 1: refNode[${param[0]}].linearRampToValueAtTime(${
+                  param[1][0]}, ${param[1][1]})`)
+              .notThrow();
+          should(
+              () => mod[param[0]].offset.linearRampToValueAtTime(...param[1]),
+              `Automate 1: mod[${param[0]}].offset.linearRampToValueAtTime(${
+                  param[1][0]}, ${param[1][1]})`)
+              .notThrow();
+        });
+
+        // Connect everything
+        src.connect(refNode).connect(merger, 0, 0);
+        src.connect(tstNode).connect(merger, 0, 1);
+
+        src.start();
+        for (let param in mod) {
+          should(
+              () => mod[param].connect(tstNode[param]),
+              `Connect: mod[${param}].connect(tstNode.${param})`)
+              .notThrow();
+        }
+
+        for (let param in mod) {
+          should(() => mod[param].start(), `Start: mod[${param}].start()`)
+              .notThrow();
+        }
+
+        const buffer = await context.startRendering();
+        let expected = buffer.getChannelData(0);
+        let actual = buffer.getChannelData(1);
+
+        // Sanity check that the output isn't all zeroes.
+        should(actual, 'All k-rate AudioParams').notBeConstantValueOf(0);
+        should(actual, 'All k-rate AudioParams').beCloseToArray(expected, {
+          absoluteThreshold: 0
+        });
+
+        task.done();
+      });
+
+      audit.run();
+
+      async function doTest(should, options) {
+        // Test that a k-rate AudioParam with an input reads the input value and
+        // is actually k-rate.
+        //
+        // A refNode is created with an automation timeline.  This is the
+        // expected output.
+        //
+        // The testNode is the same, but it has a node connected to the k-rate
+        // AudioParam.  The input to the node is an a-rate ConstantSourceNode
+        // whose output is automated in exactly the same was as the refNode.  If
+        // the test passes, the outputs of the two nodes MUST match exactly.
+
+        // The options argument MUST contain the following members:
+        //   sampleRate - the sample rate for the offline context
+        //   testDuration - duration of the offline context, in sec.
+        //   paramName  - the name of the AudioParam to be tested
+        //   oscFrequency - frequency of oscillator source
+        //   filterOptions - options used to construct the BiquadFilterNode
+        //   autoStart     - information about how to start the automation
+        //   autoEnd       - information about how to end the automation
+        //
+        //   The autoStart and autoEnd options are themselves dictionaries with
+        //   the following required members:
+        //     method - name of the automation method to be applied
+        //     args   - array of arguments to be supplied to the method.
+        let {
+          sampleRate,
+          paramName,
+          oscFrequency,
+          autoStart,
+          autoEnd,
+          testDuration,
+          filterOptions
+        } = options;
+
+        let testFrames = testDuration * sampleRate;
+        let context = new OfflineAudioContext(
+            {numberOfChannels: 2, sampleRate: sampleRate, length: testFrames});
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Any calls to |should| are meant to be informational so we can see
+        // what nodes are created and the automations used.
+        let src;
+
+        // Create the source.
+        should(
+            () => {
+              src = new OscillatorNode(context, {frequency: oscFrequency});
+            },
+            `${paramName}: new OscillatorNode(context, {frequency: ${
+                oscFrequency}})`)
+            .notThrow();
+
+        // The refNode automates the AudioParam with k-rate automations, no
+        // inputs.
+        let refNode;
+        should(
+            () => {
+              refNode = new BiquadFilterNode(context, filterOptions);
+            },
+            `Reference BiquadFilterNode(c, ${JSON.stringify(filterOptions)})`)
+            .notThrow();
+
+        refNode[paramName].automationRate = 'k-rate';
+
+        // Set up automations for the reference node.
+        should(
+            () => {
+              refNode[paramName][autoStart.method](...autoStart.args);
+            },
+            `refNode.${paramName}.${autoStart.method}(${autoStart.args})`)
+            .notThrow();
+        should(
+            () => {
+              refNode[paramName][autoEnd.method](...autoEnd.args);
+            },
+            `refNode.${paramName}.${autoEnd.method}.(${autoEnd.args})`)
+            .notThrow();
+
+        // The tstNode does the same automation, but it comes from the input
+        // connected to the AudioParam.
+        let tstNode;
+        should(
+            () => {
+              tstNode = new BiquadFilterNode(context, filterOptions);
+            },
+            `Test BiquadFilterNode(context, ${JSON.stringify(filterOptions)})`)
+            .notThrow();
+        tstNode[paramName].automationRate = 'k-rate';
+
+        // Create the input to the AudioParam of the test node.  The output of
+        // this node MUST have the same set of automations as the reference
+        // node, and MUST be a-rate to make sure we're handling k-rate inputs
+        // correctly.
+        let mod = new ConstantSourceNode(context);
+        mod.offset.automationRate = 'a-rate';
+        should(
+            () => {
+              mod.offset[autoStart.method](...autoStart.args);
+            },
+            `${paramName}: mod.offset.${autoStart.method}(${autoStart.args})`)
+            .notThrow();
+        should(
+            () => {
+              mod.offset[autoEnd.method](...autoEnd.args);
+            },
+            `${paramName}: mod.offset.${autoEnd.method}(${autoEnd.args})`)
+            .notThrow();
+
+        // Create graph
+        mod.connect(tstNode[paramName]);
+        src.connect(refNode).connect(merger, 0, 0);
+        src.connect(tstNode).connect(merger, 0, 1);
+
+        // Run!
+        src.start();
+        mod.start();
+        return context.startRendering();
+      }
+
+      function checkForSameOutput(should, paramName, actual, expected) {
+        let halfLength = expected.length / 2;
+
+        // Outputs should be the same.  We break the check into halves so we can
+        // see the expected outputs.  Mostly for a simple visual check that the
+        // output from the second half is small because the tests generally try
+        // to filter out the signal so that the last half of the output is
+        // small.
+        should(
+            actual.slice(0, halfLength),
+            `k-rate ${paramName} with input: output[0,${halfLength}]`)
+            .beCloseToArray(
+                expected.slice(0, halfLength), {absoluteThreshold: 0});
+        should(
+            actual.slice(halfLength),
+            `k-rate ${paramName} with input: output[${halfLength}:]`)
+            .beCloseToArray(expected.slice(halfLength), {absoluteThreshold: 0});
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      cancelScheduledValues
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+
+      const sampleRate = 8000;
+      const renderFrames = 8000;
+
+
+      test(t => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length: renderFrames,
+          sampleRate: sampleRate
+        });
+
+        const source = new ConstantSourceNode(context);
+        source.connect(context.destination);
+
+        assert_throws_js(RangeError,
+          () => source.offset.cancelScheduledValues(-1),
+          'cancelScheduledValues(-1)');
+
+        // |cancelTime| is a double, so NaN and Infinity must throw TypeError.
+        assert_throws_js(TypeError,
+          () => source.offset.cancelScheduledValues(NaN),
+          'cancelScheduledValues(NaN)');
+
+        assert_throws_js(TypeError,
+          () => source.offset.cancelScheduledValues(Infinity),
+          'cancelScheduledValues(Infinity)');
+      }, 'cancel‑time: handle cancelTime values');
+
+      promise_test(async t => {
+        const context = new OfflineAudioContext({
+          numberOfChannels: 1,
+          length: renderFrames,
+          sampleRate: sampleRate
+        });
+
+        const source = new ConstantSourceNode(context);
+        const gain = new GainNode(context);
+        source.connect(gain).connect(context.destination);
+
+        // Initial time and value for first automation (setValue)
+        const time0 = 0;
+        const value0 = 0.5;
+
+        // Time and duration of the setValueCurve. We'll also schedule a
+        // setValue at the same time.
+        const value1 = 1.5;
+        const curveStartTime = 0.25;
+        const curveDuration = 0.25;
+
+        // Time at which to cancel events
+        const cancelTime = 0.3;
+
+        // Time and value for event added after cancelScheduledValues has
+        // been called.
+        const time2 = curveStartTime + curveDuration / 2;
+        const value2 = 3;
+
+        // Self‑consistency checks for the test.
+        assert_greater_than(cancelTime, curveStartTime,
+                            'cancelTime is after curve start');
+        assert_less_than(cancelTime, curveStartTime + curveDuration,
+                         'cancelTime is before curve ends');
+
+        // These assertions are just to show what's happening
+        gain.gain.setValueAtTime(value0, time0);
+        // setValue at the same time as the curve, to test that this event
+        // wasn't removed.
+        gain.gain.setValueAtTime(value1, curveStartTime);
+
+        gain.gain.setValueCurveAtTime([1, -1], curveStartTime, curveDuration);
+
+        // An event after the curve to verify this is removed.
+        gain.gain.setValueAtTime(99, curveStartTime + curveDuration);
+
+        // Cancel events now.
+        gain.gain.cancelScheduledValues(cancelTime);
+
+        // Simple check that the setValueCurve is gone, by scheduling
+        // something in the middle of the (now deleted) event
+        gain.gain.setValueAtTime(value2, time2);
+
+        source.start();
+        const buffer = await context.startRendering();
+        const audio = buffer.getChannelData(0);
+
+        const curveFrame = curveStartTime * context.sampleRate;
+        const time2Frame = time2 * context.sampleRate;
+
+        assert_constant_value(audio.slice(0, curveFrame),
+                              value0,
+                              `output[0:${curveFrame - 1}]`);
+
+        assert_constant_value(audio.slice(curveFrame, time2Frame),
+                              value1,
+                              `output[${curveFrame}:${time2Frame - 1}]`);
+
+        assert_constant_value(audio.slice(time2Frame),
+                              value2,
+                              `output[${time2Frame}:]`);
+      }, 'cancel1: cancel setValueCurve');
+    </script>
+  </body>
+</html>

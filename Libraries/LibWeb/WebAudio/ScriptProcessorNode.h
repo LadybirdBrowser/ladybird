@@ -37,6 +37,9 @@ public:
     WebIDL::Long buffer_size() const { return m_buffer_size; }
     WebIDL::ExceptionOr<void> set_buffer_size(WebIDL::Long buffer_size);
 
+    WebIDL::UnsignedLong number_of_input_channels() const { return m_number_of_input_channels; }
+    WebIDL::UnsignedLong number_of_output_channels() const { return m_number_of_output_channels; }
+
 private:
     ScriptProcessorNode(JS::Realm&, GC::Ref<BaseAudioContext>, u8 number_of_input_channels,
         u8 number_of_output_channels);

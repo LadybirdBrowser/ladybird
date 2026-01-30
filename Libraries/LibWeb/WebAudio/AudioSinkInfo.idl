@@ -1,0 +1,13 @@
+// https://webaudio.github.io/web-audio-api/#AudioSinkOptions
+enum AudioSinkType { "none" };
+
+// https://webaudio.github.io/web-audio-api/#AudioSinkOptions
+dictionary AudioSinkOptions {
+    required AudioSinkType type;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioSinkInfo
+[Exposed=Window]
+interface AudioSinkInfo {
+    readonly attribute AudioSinkType type;
+};

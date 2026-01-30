@@ -7,6 +7,7 @@
  */
 
 #include <AK/SourceLocation.h>
+#include <LibAudioServerClient/Client.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -614,6 +615,11 @@ void Page::toggle_media_controls_state()
 void Page::toggle_page_mute_state()
 {
     m_mute_state = HTML::invert_mute_state(m_mute_state);
+
+    if (auto client = AudioServerClient::Client::default_client(); client) {
+        bool muted = (m_mute_state == HTML::MuteState::Muted);
+        (void)client->set_muted(muted);
+    }
 
     for_each_media_element([&](auto& media_element) {
         media_element.page_mute_state_changed({});

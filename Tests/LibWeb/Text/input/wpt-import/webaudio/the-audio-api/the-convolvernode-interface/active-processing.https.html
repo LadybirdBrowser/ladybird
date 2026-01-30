@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test Active Processing for ConvolverNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // AudioProcessor that sends a message to its AudioWorkletNode
+      // whenever the number of channels on its input changes.
+      const filePath =
+          '../the-audioworklet-interface/processors/active-processing.js';
+
+      let context;
+
+      promise_test(async () => {
+        // Create context and load the module
+        context = new AudioContext();
+        await context.audioWorklet.addModule(filePath);
+      }, 'AudioWorklet module should load successfully');
+
+      promise_test(async () => {
+        const src = new OscillatorNode(context);
+
+        const response = new AudioBuffer({
+          numberOfChannels: 2,
+          length: 150,
+          sampleRate: context.sampleRate
+        });
+
+        const conv = new ConvolverNode(context, {buffer: response});
+
+        const testerNode =
+            new AudioWorkletNode(context, 'active-processing-tester', {
+              // Use as short a duration as possible to keep the test from
+              // taking too much time.
+              processorOptions: {testDuration: 0.5},
+            });
+
+        // Expected number of output channels from the convolver node.
+        // We should start with the number of inputs, because the
+        // source (oscillator) is actively processing. When the source
+        // stops, the number of channels should change to 0.
+        const expectedValues = [2, 0];
+        let index = 0;
+
+        return new Promise(resolve => {
+          testerNode.port.onmessage = event => {
+            const count = event.data.channelCount;
+            const finished = event.data.finished;
+
+            // If we're finished, end testing.
+            if (finished) {
+              // Verify that we got the expected number of changes.
+              assert_equals(
+                  index, expectedValues.length,
+                  'Number of distinct values');
+              resolve();
+              return;
+            }
+
+            if (index < expectedValues.length) {
+              // Verify that the number of channels matches the expected
+              // number of channels.
+              assert_equals(
+                  count, expectedValues[index],
+                  `Test ${index}: Number of convolver output channels`);
+            }
+
+            ++index;
+          };
+
+          // Create the graph and go
+          src.connect(conv).connect(testerNode).connect(context.destination);
+          src.start();
+
+          // Stop the source after a short time so we can test that the
+          // convolver changes to not actively processing and thus
+          // produces a single channel of silence.
+          src.stop(context.currentTime + 0.1);
+        });
+      }, 'ConvolverNode should stop active processing after source stops');
+    </script>
+  </body>
+</html>

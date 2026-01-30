@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioWorkletGlobalScope's registerProcessor() called on globalThis
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      const audit = Audit.createTaskRunner();
+      const realtimeContext = new AudioContext();
+      const filePath = 'processors/dummy-processor-globalthis.js';
+
+      audit.define('registerprocessor-called-on-globalthis', (task, should) => {
+        realtimeContext.audioWorklet.addModule(filePath).then(() => {
+          const dummyWorkletNode = new AudioWorkletNode(realtimeContext, 'dummy-globalthis');
+          should(dummyWorkletNode instanceof AudioWorkletNode,
+            '"dummyWorkletNode" is an instance of AudioWorkletNode').beTrue();
+          task.done();
+        });
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

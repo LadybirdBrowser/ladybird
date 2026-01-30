@@ -6,34 +6,30 @@
 
 #include "PulseAudioWrappers.h"
 
+#include <AK/NeverDestroyed.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibThreading/Mutex.h>
 
 namespace Audio {
 
-static PulseAudioContext* s_pulse_audio_context;
-static Threading::Mutex s_pulse_audio_context_mutex;
+static Threading::Mutex& pulse_audio_context_mutex()
+{
+    static NeverDestroyed<Threading::Mutex> mutex;
+    return mutex.get();
+}
+
+static Optional<NonnullRefPtr<PulseAudioContext>>& pulse_audio_context_instance()
+{
+    static NeverDestroyed<Optional<NonnullRefPtr<PulseAudioContext>>> instance;
+    return instance.get();
+}
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
-    auto instantiation_locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    auto instantiation_locker = Threading::MutexLocker(pulse_audio_context_mutex());
 
-    // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
-    // exit.
-    static bool registered_atexit_callback = false;
-    if (!registered_atexit_callback) {
-        auto atexit_result = atexit([]() {
-            s_pulse_audio_context_mutex.lock();
-            s_pulse_audio_context_mutex.unlock();
-        });
-        if (atexit_result)
-            return Error::from_string_literal("Unable to set PulseAudioContext atexit action");
-        registered_atexit_callback = true;
-    }
-
-    RefPtr<PulseAudioContext> strong_instance_pointer = RefPtr<PulseAudioContext>(s_pulse_audio_context);
-
-    if (strong_instance_pointer == nullptr) {
+    auto& instance = pulse_audio_context_instance();
+    if (!instance.has_value()) {
         auto* main_loop = pa_threaded_mainloop_new();
         if (main_loop == nullptr)
             return Error::from_string_literal("Failed to create PulseAudio main loop");
@@ -46,7 +42,7 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
         if (context == nullptr)
             return Error::from_string_literal("Failed to get PulseAudio connection context");
 
-        strong_instance_pointer = make_ref_counted<PulseAudioContext>(main_loop, api, context);
+        NonnullRefPtr<PulseAudioContext> strong_instance_pointer = make_ref_counted<PulseAudioContext>(main_loop, api, context);
 
         // Set a callback to signal ourselves to wake when the state changes, so that we can
         // synchronously wait for the connection.
@@ -104,16 +100,16 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
             //        when it changes and somehow reinitialize any existing streams.
         }
 
-        s_pulse_audio_context = strong_instance_pointer;
+        instance = move(strong_instance_pointer);
     }
 
-    return strong_instance_pointer.release_nonnull();
+    return instance.value();
 }
 
 bool PulseAudioContext::is_connected()
 {
-    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
-    return s_pulse_audio_context != nullptr;
+    auto locker = Threading::MutexLocker(pulse_audio_context_mutex());
+    return pulse_audio_context_instance().has_value();
 }
 
 PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloop_api* api, pa_context* context)
@@ -125,7 +121,7 @@ PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloo
 
 PulseAudioContext::~PulseAudioContext()
 {
-    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    auto locker = Threading::MutexLocker(pulse_audio_context_mutex());
 
     {
         auto loop_locker = main_loop_locker();
@@ -135,7 +131,8 @@ PulseAudioContext::~PulseAudioContext()
     pa_threaded_mainloop_stop(m_main_loop);
     pa_threaded_mainloop_free(m_main_loop);
 
-    s_pulse_audio_context = nullptr;
+    if (pulse_audio_context_instance().has_value() && pulse_audio_context_instance().value().ptr() == this)
+        pulse_audio_context_instance().clear();
 }
 
 bool PulseAudioContext::current_thread_is_main_loop_thread()
@@ -582,6 +579,18 @@ ErrorOr<void> PulseAudioStream::set_volume(double volume)
 
     auto* operation = pa_context_set_sink_input_volume(m_context->m_context, index, &per_channel_volumes, STREAM_SIGNAL_CALLBACK(this));
     return wait_for_operation(operation, "Failed to set PulseAudio stream volume"sv);
+}
+
+ErrorOr<void> PulseAudioStream::set_muted(bool muted)
+{
+    auto locker = m_context->main_loop_locker();
+
+    auto index = pa_stream_get_index(m_stream);
+    if (index == PA_INVALID_INDEX)
+        return Error::from_string_literal("Failed to get PulseAudio stream index while setting mute");
+
+    auto* operation = pa_context_set_sink_input_mute(m_context->m_context, index, muted ? 1 : 0, STREAM_SIGNAL_CALLBACK(this));
+    return wait_for_operation(operation, "Failed to set PulseAudio stream mute"sv);
 }
 
 #define ENUMERATE_CHANNEL_POSITIONS(C)                                               \

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+Tests that an audio-rate signal (AudioNode output) can be connected to an
+AudioParam.  Specifically, this tests that an audio-rate signal coming from an
+AudioBufferSourceNode playing an AudioBuffer containing a specific curve can be
+connected to an AudioGainNode's .gain attribute (an AudioParam).  Another
+AudioBufferSourceNode will be the audio source having its gain changed.  We load
+this one with an AudioBuffer containing a constant value of 1.  Thus it's easy
+to check that the resultant signal should be equal to the gain-scaling curve.
+-->
+<html>
+  <head>
+    <title>
+      audioparam-connect-audioratesignal.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 44100.0;
+      const lengthInSeconds = 1;
+
+      let context;
+      let constantOneBuffer;
+      let linearRampBuffer;
+
+      function checkResult(renderedBuffer) {
+        const renderedData = renderedBuffer.getChannelData(0);
+        const expectedData = linearRampBuffer.getChannelData(0);
+        const n = renderedBuffer.length;
+
+        assert_equals(
+            n,
+            linearRampBuffer.length,
+            'Rendered signal length should match control buffer length');
+
+        // Check that the rendered result exactly matches the buffer used to
+        // control gain.  This is because we're changing the gain of a signal
+        // having constant value 1.
+        let success = true;
+        for (let i = 0; i < n; ++i) {
+          if (renderedData[i] != expectedData[i]) {
+            success = false;
+            break;
+          }
+        }
+
+        assert_true(
+            success,
+            `Rendered signal exactly matches ` +
+                `the audio-rate gain changing signal`);
+      }
+
+      promise_test(async t => {
+        const sampleFrameLength = sampleRate * lengthInSeconds;
+
+        // Create offline audio context.
+        context = new OfflineAudioContext(1, sampleFrameLength, sampleRate);
+
+        // Create buffer used by the source which will have its gain controlled.
+        constantOneBuffer = createConstantBuffer(context, sampleFrameLength, 1);
+
+        // Create buffer used to control gain.
+        linearRampBuffer = createLinearRampBuffer(context, sampleFrameLength);
+
+        // Create the two sources.
+
+        const constantSource = new AudioBufferSourceNode(context, {
+          buffer: constantOneBuffer,
+        });
+
+        const gainChangingSource = new AudioBufferSourceNode(context, {
+          buffer: linearRampBuffer,
+        });
+
+        // Create a gain node controlling the gain of constantSource and make
+        // the connections.
+        const gainNode = new GainNode(context, {gain: 0});
+
+        constantSource.connect(gainNode).connect(context.destination);
+
+        // Connect an audio-rate signal to control the .gain AudioParam.
+        // This is the heart of what is being tested.
+        gainChangingSource.connect(gainNode.gain);
+
+        // Start both sources at time 0.
+        constantSource.start();
+        gainChangingSource.start();
+
+        const renderedBuffer = await context.startRendering();
+        checkResult(renderedBuffer);
+      }, `AudioParam accepts an audio-rate signal from an AudioNode` +
+          ` and scales a constant source exactly`);
+    </script>
+  </body>
+</html>

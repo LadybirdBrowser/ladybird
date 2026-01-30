@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test if |outputs| argument is all zero in AudioWorkletProcessor.process()
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+
+  <body>
+    <script>
+      const audit = Audit.createTaskRunner();
+      const filePath = 'processors/zero-outputs-check-processor.js';
+      const context = new AudioContext();
+
+      // Test if the incoming arrays are frozen as expected.
+      audit.define('check-zero-outputs', (task, should) => {
+        context.audioWorklet.addModule(filePath).then(() => {
+          const workletNode =
+              new AudioWorkletNode(context, 'zero-outputs-check-processor');
+          workletNode.port.onmessage = (message) => {
+            const actual = message.data;
+            if (actual.type === 'assertion') {
+              should(actual.success, actual.message).beTrue();
+              task.done();
+            }
+          };
+        });
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

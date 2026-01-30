@@ -1,0 +1,423 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test Sub-Sample Accurate Scheduling for ABSN
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script>
+      // Power of two so there's no roundoff converting from integer frames to
+      // time.
+      let sampleRate = 32768;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('sub-sample accurate start', (task, should) => {
+        // There are two channels, one for each source.  Only need to render
+        // quanta for this test.
+        let context = new OfflineAudioContext(
+            {numberOfChannels: 2, length: 8192, sampleRate: sampleRate});
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+
+        merger.connect(context.destination);
+
+        // Use a simple linear ramp for the sources with integer steps starting
+        // at 1 to make it easy to verify and test that have sub-sample accurate
+        // start.  Ramp starts at 1 so we can easily tell when the source
+        // starts.
+        let rampBuffer = new AudioBuffer(
+            {length: context.length, sampleRate: context.sampleRate});
+        let r = rampBuffer.getChannelData(0);
+        for (let k = 0; k < r.length; ++k) {
+          r[k] = k + 1;
+        }
+
+        const src0 = new AudioBufferSourceNode(context, {buffer: rampBuffer});
+        const src1 = new AudioBufferSourceNode(context, {buffer: rampBuffer});
+
+        // Frame where sources should start. This is pretty arbitrary, but one
+        // should be close to an integer and the other should be close to the
+        // next integer.  We do this to catch the case where rounding of the
+        // start frame is being done.  Rounding is incorrect.
+        const startFrame = 33;
+        const startFrame0 = startFrame + 0.1;
+        const startFrame1 = startFrame + 0.9;
+
+        src0.connect(merger, 0, 0);
+        src1.connect(merger, 0, 1);
+
+        src0.start(startFrame0 / context.sampleRate);
+        src1.start(startFrame1 / context.sampleRate);
+
+        context.startRendering()
+            .then(audioBuffer => {
+              const output0 = audioBuffer.getChannelData(0);
+              const output1 = audioBuffer.getChannelData(1);
+
+              // Compute the expected output by interpolating the ramp buffer of
+              // the sources if they started at the given frame.
+              const ramp = rampBuffer.getChannelData(0);
+              const expected0 = interpolateRamp(ramp, startFrame0);
+              const expected1 = interpolateRamp(ramp, startFrame1);
+
+              // Verify output0 has the correct values
+
+              // For information only
+              should(startFrame0, 'src0 start frame').beEqualTo(startFrame0);
+
+              // Output must be zero before the source start frame, and it must
+              // be interpolated correctly after the start frame.  The
+              // absoluteThreshold below is currently set for Chrome which does
+              // linear interpolation.  This needs to be updated eventually if
+              // other browsers do not user interpolation.
+              should(
+                  output0.slice(0, startFrame + 1), `output0[0:${startFrame}]`)
+                  .beConstantValueOf(0);
+              should(
+                  output0.slice(startFrame + 1, expected0.length),
+                  `output0[${startFrame + 1}:${expected0.length - 1}]`)
+                  .beCloseToArray(
+                      expected0.slice(startFrame + 1), {absoluteThreshold: 0});
+
+              // Verify output1 has the correct values.  Same approach as for
+              // output0.
+              should(startFrame1, 'src1 start frame').beEqualTo(startFrame1);
+
+              should(
+                  output1.slice(0, startFrame + 1), `output1[0:${startFrame}]`)
+                  .beConstantValueOf(0);
+              should(
+                  output1.slice(startFrame + 1, expected1.length),
+                  `output1[${startFrame + 1}:${expected1.length - 1}]`)
+                  .beCloseToArray(
+                      expected1.slice(startFrame + 1), {absoluteThreshold: 0});
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('sub-sample accurate stop', (task, should) => {
+        // There are threes channesl, one for each source.  Only need to render
+        // quanta for this test.
+        let context = new OfflineAudioContext(
+            {numberOfChannels: 3, length: 128, sampleRate: sampleRate});
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+
+        merger.connect(context.destination);
+
+        // The source can be as simple constant for this test.
+        let buffer = new AudioBuffer(
+            {length: context.length, sampleRate: context.sampleRate});
+        buffer.getChannelData(0).fill(1);
+
+        const src0 = new AudioBufferSourceNode(context, {buffer: buffer});
+        const src1 = new AudioBufferSourceNode(context, {buffer: buffer});
+        const src2 = new AudioBufferSourceNode(context, {buffer: buffer});
+
+        // Frame where sources should start. This is pretty arbitrary, but one
+        // should be an integer, one should be close to an integer and the other
+        // should be close to the next integer.  This is to catch the case where
+        // rounding is used for the end frame.  Rounding is incorrect.
+        const endFrame = 33;
+        const endFrame1 = endFrame + 0.1;
+        const endFrame2 = endFrame + 0.9;
+
+        src0.connect(merger, 0, 0);
+        src1.connect(merger, 0, 1);
+        src2.connect(merger, 0, 2);
+
+        src0.start(0);
+        src1.start(0);
+        src2.start(0);
+        src0.stop(endFrame / context.sampleRate);
+        src1.stop(endFrame1 / context.sampleRate);
+        src2.stop(endFrame2 / context.sampleRate);
+
+        context.startRendering()
+          .then(audioBuffer => {
+            let actual0 = audioBuffer.getChannelData(0);
+            let actual1 = audioBuffer.getChannelData(1);
+            let actual2 = audioBuffer.getChannelData(2);
+
+            // Just verify that we stopped at the right time.
+
+            // This is case where the end frame is an integer.  Since the first
+            // output ends on an exact frame, the output must be zero at that
+            // frame number.  We print the end frame for information only; it
+            // makes interpretation of the rest easier.
+            should(endFrame - 1, 'src0 end frame')
+              .beEqualTo(endFrame - 1);
+            should(actual0[endFrame - 1], `output0[${endFrame - 1}]`)
+              .notBeEqualTo(0);
+            should(actual0.slice(endFrame),
+                   `output0[${endFrame}:]`)
+              .beConstantValueOf(0);
+
+            // The case where the end frame is just a little above an integer.
+            // The output must not be zero just before the end and must be zero
+            // after.
+            should(endFrame1, 'src1 end frame')
+              .beEqualTo(endFrame1);
+            should(actual1[endFrame], `output1[${endFrame}]`)
+              .notBeEqualTo(0);
+            should(actual1.slice(endFrame + 1),
+                   `output1[${endFrame + 1}:]`)
+              .beConstantValueOf(0);
+
+            // The case where the end frame is just a little below an integer.
+            // The output must not be zero just before the end and must be zero
+            // after.
+            should(endFrame2, 'src2 end frame')
+              .beEqualTo(endFrame2);
+            should(actual2[endFrame], `output2[${endFrame}]`)
+              .notBeEqualTo(0);
+            should(actual2.slice(endFrame + 1),
+                   `output2[${endFrame + 1}:]`)
+              .beConstantValueOf(0);
+          })
+          .then(() => task.done());
+      });
+
+      audit.define('sub-sample-grain', (task, should) => {
+        let context = new OfflineAudioContext(
+            {numberOfChannels: 2, length: 128, sampleRate: sampleRate});
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+
+        merger.connect(context.destination);
+
+        // The source can be as simple constant for this test.
+        let buffer = new AudioBuffer(
+            {length: context.length, sampleRate: context.sampleRate});
+        buffer.getChannelData(0).fill(1);
+
+        let src0 = new AudioBufferSourceNode(context, {buffer: buffer});
+        let src1 = new AudioBufferSourceNode(context, {buffer: buffer});
+
+        src0.connect(merger, 0, 0);
+        src1.connect(merger, 0, 1);
+
+        // Start a short grain.
+        const src0StartGrain = 3.1;
+        const src0EndGrain = 37.2;
+        src0.start(
+            src0StartGrain / context.sampleRate, 0,
+            (src0EndGrain - src0StartGrain) / context.sampleRate);
+
+        const src1StartGrain = 5.8;
+        const src1EndGrain = 43.9;
+        src1.start(
+            src1StartGrain / context.sampleRate, 0,
+            (src1EndGrain - src1StartGrain) / context.sampleRate);
+
+        context.startRendering()
+            .then(audioBuffer => {
+              let output0 = audioBuffer.getChannelData(0);
+              let output1 = audioBuffer.getChannelData(1);
+
+              let expected = new Float32Array(context.length);
+
+              // Compute the expected output for output0 and verify the actual
+              // output matches.
+              expected.fill(1);
+              for (let k = 0; k <= Math.floor(src0StartGrain); ++k) {
+                expected[k] = 0;
+              }
+              for (let k = Math.ceil(src0EndGrain); k < expected.length; ++k) {
+                expected[k] = 0;
+              }
+
+              verifyGrain(should, output0, {
+                startGrain: src0StartGrain,
+                endGrain: src0EndGrain,
+                sourceName: 'src0',
+                outputName: 'output0'
+              });
+
+              verifyGrain(should, output1, {
+                startGrain: src1StartGrain,
+                endGrain: src1EndGrain,
+                sourceName: 'src1',
+                outputName: 'output1'
+              });
+            })
+            .then(() => task.done());
+      });
+
+      audit.define(
+          'sub-sample accurate start with playbackRate', (task, should) => {
+            // There are two channels, one for each source.  Only need to render
+            // quanta for this test.
+            let context = new OfflineAudioContext(
+                {numberOfChannels: 2, length: 8192, sampleRate: sampleRate});
+            let merger = new ChannelMergerNode(
+                context, {numberOfInputs: context.destination.channelCount});
+
+            merger.connect(context.destination);
+
+            // Use a simple linear ramp for the sources with integer steps
+            // starting at 1 to make it easy to verify and test that have
+            // sub-sample accurate start.  Ramp starts at 1 so we can easily
+            // tell when the source starts.
+            let buffer = new AudioBuffer(
+                {length: context.length, sampleRate: context.sampleRate});
+            let r = buffer.getChannelData(0);
+            for (let k = 0; k < r.length; ++k) {
+              r[k] = k + 1;
+            }
+
+            // Two sources with different playback rates
+            const src0 = new AudioBufferSourceNode(
+                context, {buffer: buffer, playbackRate: .25});
+            const src1 = new AudioBufferSourceNode(
+                context, {buffer: buffer, playbackRate: 4});
+
+            // Frame where sources start.  Pretty arbitrary but should not be an
+            // integer.
+            const startFrame = 17.8;
+
+            src0.connect(merger, 0, 0);
+            src1.connect(merger, 0, 1);
+
+            src0.start(startFrame / context.sampleRate);
+            src1.start(startFrame / context.sampleRate);
+
+            context.startRendering()
+                .then(audioBuffer => {
+                  const output0 = audioBuffer.getChannelData(0);
+                  const output1 = audioBuffer.getChannelData(1);
+
+                  const frameBefore = Math.floor(startFrame);
+                  const frameAfter = frameBefore + 1;
+
+                  // Informative message so we know what the following output
+                  // indices really mean.
+                  should(startFrame, 'Source start frame')
+                      .beEqualTo(startFrame);
+
+                  // Verify the output
+
+                  // With a startFrame of 17.8, the first output is at frame 18,
+                  // but the actual start is at 17.8.  So we would interpolate
+                  // the output 0.2 fraction of the way between 17.8 and 18, for
+                  // an output of 1.2 for our ramp.  But the playback rate is
+                  // 0.25, so we're really only 1/4 as far along as we think so
+                  // the output is .2*0.25 of the way between 1 and 2 or 1.05.
+
+                  const ramp0 = buffer.getChannelData(0)[0];
+                  const ramp1 = buffer.getChannelData(0)[1];
+
+                  const src0Output = ramp0 +
+                      (ramp1 - ramp0) * (frameAfter - startFrame) *
+                          src0.playbackRate.value;
+
+                  let playbackMessage =
+                      `With playbackRate ${src0.playbackRate.value}:`;
+
+                  should(
+                      output0[frameBefore],
+                      `${playbackMessage} output0[${frameBefore}]`)
+                      .beEqualTo(0);
+                  should(
+                      output0[frameAfter],
+                      `${playbackMessage} output0[${frameAfter}]`)
+                      .beCloseTo(src0Output, {threshold: 4.542e-8});
+
+                  const src1Output = ramp0 +
+                      (ramp1 - ramp0) * (frameAfter - startFrame) *
+                          src1.playbackRate.value;
+
+                  playbackMessage =
+                      `With playbackRate ${src1.playbackRate.value}:`;
+
+                  should(
+                      output1[frameBefore],
+                      `${playbackMessage} output1[${frameBefore}]`)
+                      .beEqualTo(0);
+                  should(
+                      output1[frameAfter],
+                      `${playbackMessage} output1[${frameAfter}]`)
+                      .beCloseTo(src1Output, {threshold: 4.542e-8});
+                })
+                .then(() => task.done());
+          });
+
+      audit.run();
+
+      // Given an input ramp in |rampBuffer|, interpolate the signal assuming
+      // this ramp is used for an ABSN that starts at frame |startFrame|, which
+      // is not necessarily an integer.  For simplicity we just use linear
+      // interpolation here.  The interpolation is not part of the spec but
+      // this should be pretty close to whatever interpolation is being done.
+      function interpolateRamp(rampBuffer, startFrame) {
+        // |start| is the last zero sample before the ABSN actually starts.
+        const start = Math.floor(startFrame);
+        // One less than the rampBuffer because we can't linearly interpolate
+        // the last frame.
+        let result = new Float32Array(rampBuffer.length - 1);
+
+        for (let k = 0; k <= start; ++k) {
+          result[k] = 0;
+        }
+
+        // Now start linear interpolation.
+        let frame = startFrame;
+        let index = 1;
+        for (let k = start + 1; k < result.length; ++k) {
+          let s0 = rampBuffer[index];
+          let s1 = rampBuffer[index - 1];
+          let delta = frame - k;
+          let s = s1 - delta * (s0 - s1);
+          result[k] = s;
+          ++frame;
+          ++index;
+        }
+
+        return result;
+      }
+
+      function verifyGrain(should, output, options) {
+        let {startGrain, endGrain, sourceName, outputName} = options;
+        let expected = new Float32Array(output.length);
+        // Compute the expected output for output and verify the actual
+        // output matches.
+        expected.fill(1);
+        for (let k = 0; k <= Math.floor(startGrain); ++k) {
+          expected[k] = 0;
+        }
+        for (let k = Math.ceil(endGrain); k < expected.length; ++k) {
+          expected[k] = 0;
+        }
+
+        should(startGrain, `${sourceName} grain start`).beEqualTo(startGrain);
+        should(endGrain - startGrain, `${sourceName} grain duration`)
+            .beEqualTo(endGrain - startGrain);
+        should(endGrain, `${sourceName} grain end`).beEqualTo(endGrain);
+        should(output, outputName).beEqualToArray(expected);
+        should(
+            output[Math.floor(startGrain)],
+            `${outputName}[${Math.floor(startGrain)}]`)
+            .beEqualTo(0);
+        should(
+            output[1 + Math.floor(startGrain)],
+            `${outputName}[${1 + Math.floor(startGrain)}]`)
+            .notBeEqualTo(0);
+        should(
+            output[Math.floor(endGrain)],
+            `${outputName}[${Math.floor(endGrain)}]`)
+            .notBeEqualTo(0);
+        should(
+            output[1 + Math.floor(endGrain)],
+            `${outputName}[${1 + Math.floor(endGrain)}]`)
+            .beEqualTo(0);
+      }
+    </script>
+  </body>
+</html>

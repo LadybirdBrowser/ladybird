@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioParam.setTargetAtTime
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audioparam-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Play a long DC signal out through an AudioGainNode, and call
+      // setValueAtTime() and setTargetAtTime at regular intervals to set the
+      // starting value and the target value. Each time interval has a ramp with
+      // a different starting and target value so that there is a discontinuity
+      // at each time interval boundary. The discontinuity is for testing
+      // timing.  Also, we alternate between an increasing and decreasing ramp
+      // for each interval.
+
+      // Number of tests to run.
+      let numberOfTests = 100;
+
+      // Max allowed difference between the rendered data and the expected
+      // result.
+      let maxAllowedError = 6.5683e-4
+
+      // The AudioGainNode starts with this value instead of the default value.
+      let initialValue = 100;
+
+      // Set the gain node value to the specified value at the specified time.
+      function setValue(value, time) {
+        gainNode.gain.setValueAtTime(value, time);
+      }
+
+      // Generate an exponential approach starting at |startTime| with a target
+      // value of |value|.
+      function automation(value, startTime, endTime){
+          // endTime is not used for setTargetAtTime.
+          gainNode.gain.setTargetAtTime(value, startTime, timeConstant)}
+
+      audit.define(
+          {
+            label: 'test',
+            description: 'AudioParam setTargetAtTime() functionality.'
+          },
+          function(task, should) {
+            createAudioGraphAndTest(
+                task, should, numberOfTests, initialValue, setValue, automation,
+                'setTargetAtTime()', maxAllowedError,
+                createExponentialApproachArray);
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

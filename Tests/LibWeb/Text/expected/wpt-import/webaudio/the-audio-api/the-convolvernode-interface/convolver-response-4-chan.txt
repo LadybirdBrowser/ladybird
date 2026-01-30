@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 51 tests
+
+51 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "1-channel input"
+Pass	Executing "2-channel input"
+Pass	Executing "3-channel input"
+Pass	Executing "4-channel input"
+Pass	Executing "5.1-channel input"
+Pass	Executing "delayed buffer set"
+Pass	Executing "count 1, 2-channel in"
+Pass	Executing "count 1, 4-channel in"
+Pass	Executing "count 1, 5.1-channel in"
+Pass	Audit report
+Pass	> [initialize] Convolver response with one channel
+Pass	  new AudioBuffer({numberOfChannels: 2, length: 4, sampleRate: 8192}) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [1-channel input] produces 2-channel output
+Pass	  1: Channel 0 equals [0,1,1,2,2,2,2,2,2,2,2,0,0,-2,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	  1: Channel 1 equals [0,0,1,1,2,2,2,2,2,2,2,2,0,0,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	< [1-channel input] All assertions passed. (total 2 assertions)
+Pass	> [2-channel input] produces 2-channel output
+Pass	  2: Channel 0 equals [0,1,1,2,2,2,2,2,2,2,0,-2,-2,-2,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	  2: Channel 1 equals [0,0,1,1,2,2,2,2,2,2,2,0,-2,-2,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	< [2-channel input] All assertions passed. (total 2 assertions)
+Pass	> [3-channel input] 3->2 downmix producing 2-channel output
+Pass	  3: Channel 0 equals [0,1,1,2,2,2,2,2,2,2,0,-2,-2,-2,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	  3: Channel 1 equals [0,0,1,1,2,2,2,2,2,2,2,0,-2,-2,-2,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	< [3-channel input] All assertions passed. (total 2 assertions)
+Pass	> [4-channel input] 4->2 downmix producing 2-channel output
+Pass	  4: Channel 0 equals [0,1,1,2,2,2,1,0,0,0,-1,0,0,0,0,-2...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	  4: Channel 1 equals [0,0,1,1,2,2,2,1,0,0,0,-1,0,0,0,0...] with an element-wise tolerance of {"absoluteThreshold":7.152557373046875e-7,"relativeThreshold":0}.
+Pass	< [4-channel input] All assertions passed. (total 2 assertions)
+Pass	> [5.1-channel input] 5.1->2 downmix producing 2-channel output
+Pass	  5.1: Channel 0 equals [0,2.4142136573791504,2.4142136573791504,4.828427314758301,4.828427314758301,3.4142136573791504,0.5857864618301392,0.5857864618301392,0.5857864618301392,2,0,-3.4142136573791504,-3.4142136573791504,-2,0.8284270763397217,-0.5857864618301392...] with an element-wise tolerance of {"absoluteThreshold":0.0000017267801015661442,"relativeThreshold":0}.
+Pass	  5.1: Channel 1 equals [0,0,2.4142136573791504,2.4142136573791504,4.828427314758301,4.828427314758301,3.4142136573791504,0.5857864618301392,0.5857864618301392,0.5857864618301392,2,0,-3.4142136573791504,-3.4142136573791504,-2,0.8284270763397217...] with an element-wise tolerance of {"absoluteThreshold":0.0000017267801015661442,"relativeThreshold":0}.
+Pass	< [5.1-channel input] All assertions passed. (total 2 assertions)
+Pass	> [delayed buffer set] Delayed set of 4-channel response
+Pass	  Output with delayed setting of convolver buffer is not constantly 0 (contains 768 different values).
+Pass	< [delayed buffer set] All assertions passed. (total 1 assertions)
+Pass	> [count 1, 2-channel in] 2->1 downmix because channel count is 1
+Pass	  Convolver count 1, stereo in: output 0 is identical to the array [-6.661338147750939e-16,1,1,2,2,2,2,2,2,2,2,5.246955650283012e-16,9.458950329677964e-16,-2,-2,-2...].
+Pass	  Convolver count 1, stereo in: output 1 is identical to the array [0,-2.220446049250313e-16,1,1,2,2,2,2,2,2,2,2,1.2226013176483855e-17,3.2249530093110285e-16,-2,-2...].
+Pass	< [count 1, 2-channel in] All assertions passed. (total 2 assertions)
+Pass	> [count 1, 4-channel in] 4->1 downmix because channel count is 1
+Pass	  Convolver count 1, 4-channel in: output 0 is identical to the array [-2.5673907444456745e-16,1,1,2,2,1.5,1,0.5,-0.5,-6.674579257949994e-17,-0.5,1.2196490934985715e-16,-3.200546747552631e-17,-0.5,3.6875854644423823e-16,-1...].
+Pass	  Convolver count 1, 4-channel in: output 1 is identical to the array [0,-2.3723106525379856e-17,1,1,2,2,1.5,1,0.5,-0.5,-6.884192780871342e-17,-0.5,2.744932357435973e-17,-5.258642256500508e-17,-0.5,3.5445263642114593e-16...].
+Pass	< [count 1, 4-channel in] All assertions passed. (total 2 assertions)
+Pass	> [count 1, 5.1-channel in] 5.1->1 downmix because channel count is 1
+Pass	  Convolver count 1, 5.1 channel in: output 0 is identical to the array [-1.3322676295501878e-15,3.4142136573791504,3.4142136573791504,6.828427314758301,5.828427314758301,4.828427314758301,1.8284271955490112,1.8284271955490112,-0.5857864618301392,-0.5857864618301392,-1,-2.4142136573791504,-1.4142135381698608,-1.8284270763397217,1.5857864618301392,-1.4142135381698608...].
+Pass	  Convolver count 1, 5.1 channel in: output 1 is identical to the array [4.440892098500626e-16,-5.551115123125783e-16,3.4142136573791504,3.4142136573791504,6.828427314758301,5.828427314758301,4.828427314758301,1.8284271955490112,1.8284271955490112,-0.5857864618301392,-0.5857864618301392,-1,-2.4142136573791504,-1.4142135381698608,-1.8284270763397217,1.5857864618301392...].
+Pass	< [count 1, 5.1-channel in] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 10 tasks ran successfully.

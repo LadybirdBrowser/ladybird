@@ -10,6 +10,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/Optional.h>
 #include <AK/Swift.h>
+#include <LibAudioServerClient/Client.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibDatabase/Forward.h>
@@ -54,6 +55,7 @@ public:
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+    static AudioServerClient::Client& audio_server_client() { return *the().m_audio_server_client; }
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
     static StorageJar& storage_jar() { return *the().m_storage_jar; }
@@ -159,6 +161,7 @@ private:
     void launch_spare_web_content_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
+    ErrorOr<void> launch_audio_server();
     ErrorOr<void> launch_devtools_server();
 
     void initialize_actions();
@@ -212,7 +215,7 @@ private:
 
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
-
+    RefPtr<AudioServerClient::Client> m_audio_server_client;
     RefPtr<WebContentClient> m_spare_web_content_process;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
 

@@ -1,0 +1,6 @@
+parameters.size: 2
+gain is AudioParam: true
+gain.value: 0.80
+detune.value: 0
+iterated names: gain,detune
+PASS

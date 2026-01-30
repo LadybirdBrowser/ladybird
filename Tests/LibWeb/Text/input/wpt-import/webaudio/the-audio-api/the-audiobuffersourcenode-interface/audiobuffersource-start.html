@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audiobuffersource-start.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audiobuffersource-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+
+      // The following test cases assume an AudioBuffer of length 8 whose PCM
+      // data is a linear ramp, 0, 1, 2, 3,...
+
+      const tests = [
+
+        {
+          description:
+              'start(when): implicitly play whole buffer from beginning to end',
+          offsetFrame: 'none',
+          durationFrames: 'none',
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 0): play whole buffer from beginning to end explicitly giving offset of 0',
+          offsetFrame: 0,
+          durationFrames: 'none',
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 0, 8_frames): play whole buffer from beginning to end explicitly giving offset of 0 and duration of 8 frames',
+          offsetFrame: 0,
+          durationFrames: 8,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 4_frames): play with explicit non-zero offset',
+          offsetFrame: 4,
+          durationFrames: 'none',
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 4_frames, 4_frames): play with explicit non-zero offset and duration',
+          offsetFrame: 4,
+          durationFrames: 4,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 7_frames): play with explicit non-zero offset near end of buffer',
+          offsetFrame: 7,
+          durationFrames: 1,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 8_frames): play with explicit offset at end of buffer',
+          offsetFrame: 8,
+          durationFrames: 0,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        {
+          description:
+              'start(when, 9_frames): play with explicit offset past end of buffer',
+          offsetFrame: 8,
+          durationFrames: 0,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        // When the duration exceeds the buffer, just play to the end of the
+        // buffer. (This is different from the case when we're looping, which is
+        // tested in loop-comprehensive.)
+        {
+          description:
+              'start(when, 0, 15_frames): play with whole buffer, with long duration (clipped)',
+          offsetFrame: 0,
+          durationFrames: 15,
+          renderFrames: 16,
+          playbackRate: 1,
+          expected: [0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0]
+        },
+
+        // Enable test when AudioBufferSourceNode hack is fixed:
+        // https://bugs.webkit.org/show_bug.cgi?id=77224 { description:
+        // "start(when, 3_frames, 3_frames): play a middle section with explicit
+        // offset and duration",
+        //   offsetFrame: 3, durationFrames: 3, renderFrames: 16, playbackRate:
+        //   1, expected: [4,5,6,7,0,0,0,0,0,0,0,0,0,0,0,0] },
+
+      ];
+
+      const sampleRate = 44100;
+      const bufferFrameLength = 8;
+      const testSpacingFrames = 32;
+      const testSpacingSeconds = testSpacingFrames / sampleRate;
+      const totalRenderLengthFrames = tests.length * testSpacingFrames;
+
+      promise_test(async t => {
+        const context = new OfflineAudioContext(
+            /* channels */ 1,
+            /* length   */ totalRenderLengthFrames,
+            /* rate     */ sampleRate);
+
+        const buffer = createTestBuffer(context, bufferFrameLength);
+
+        // Schedule each scenario at a unique, non‑overlapping time offset.
+        tests.forEach((test, index) => {
+          const source = new AudioBufferSourceNode(context);
+          source.buffer = buffer;
+          source.playbackRate.value = test.playbackRate;
+          source.connect(context.destination);
+
+          const startTime = index * testSpacingSeconds;
+
+          if (test.offsetFrame === 'none' && test.durationFrames === 'none') {
+            source.start(startTime);
+          } else if (test.durationFrames === 'none') {
+            source.start(startTime, test.offsetFrame / sampleRate);
+          } else {
+            source.start(
+              startTime,
+              test.offsetFrame / sampleRate,
+              test.durationFrames / sampleRate);
+          }
+        });
+
+        const rendered = await context.startRendering();
+        const renderedData = rendered.getChannelData(0);
+
+        // Validate every scenario’s rendered segment.
+        tests.forEach((test, index) => {
+          const begin = index * testSpacingFrames;
+          const end   = begin + test.renderFrames;
+          const actual = renderedData.slice(begin, end);
+
+          assert_array_equals(
+            actual,
+            test.expected,
+            `${test.description} – rendered output matches expectation`);
+        });
+      }, 'AudioBufferSourceNode start() – sub‑sample scheduling semantics');
+    </script>
+  </body>
+</html>

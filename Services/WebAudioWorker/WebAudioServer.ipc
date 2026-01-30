@@ -1,0 +1,50 @@
+#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/File.h>
+#include <AudioServer/AudioInputDeviceInfo.h>
+#include <AudioServer/AudioInputStreamDescriptor.h>
+#include <LibWeb/WebAudio/Engine/StreamTransportIPC.h>
+#include <LibWeb/WebAudio/Worklet/WorkletNodeDefinitionIPC.h>
+
+endpoint WebAudioServer
+{
+    // WebAudio: out-of-process render and AudioWorklet hosting (initial scaffolding).
+    get_output_device_format() => (u32 sample_rate, u32 channel_count)
+    create_webaudio_session(u32 target_latency_ms) => (u64 session_id, u32 sample_rate, u32 channel_count, Core::AnonymousBuffer timing_buffer, IPC::File timing_notify_fd)
+    destroy_webaudio_session(u64 session_id) => ()
+
+    // Send AudioWorklet module sources to the AudioServer-side worklet VM.
+    webaudio_session_add_worklet_module(u64 session_id, u64 module_id, ByteString url, ByteString source_text) => ()
+
+    // Send a serialized render graph snapshot/update to the AudioServer-side renderer.
+    webaudio_session_set_render_graph(u64 session_id, ByteBuffer encoded_graph) => ()
+
+    // Control-plane: suspend/resume the WebAudio context timeline.
+    webaudio_session_set_suspended(u64 session_id, bool suspended, u64 generation) => ()
+
+    // Control-plane: bind MediaElementAudioSource provider_id to a shared-memory stream.
+    webaudio_session_set_media_element_audio_source_streams(u64 session_id, Vector<Web::WebAudio::Render::MediaElementAudioSourceStreamDescriptor> streams) => ()
+
+    // Control-plane: bind MediaStreamAudioSource provider_id to an AudioServer input stream.
+    webaudio_session_set_media_stream_audio_source_streams(u64 session_id, Vector<Web::WebAudio::Render::MediaStreamAudioSourceStreamDescriptor> streams) => ()
+
+    // Control-plane: bind ScriptProcessorNode node_id to shared-memory request/response streams.
+    webaudio_session_set_script_processor_streams(u64 session_id, Vector<Web::WebAudio::Render::ScriptProcessorStreamDescriptor> streams) => ()
+
+    // Control-plane: bind AudioWorkletNode node_id to the processor-side MessagePort transport fd.
+    webaudio_session_set_worklet_node_ports(u64 session_id, Vector<Web::WebAudio::Render::WorkletNodePortDescriptor> ports) => ()
+
+    // Control-plane: publish AudioWorkletNode definitions (including unconnected nodes).
+    webaudio_session_set_worklet_node_definitions(u64 session_id, Vector<Web::WebAudio::Render::WorkletNodeDefinition> definitions) => ()
+
+    // Create (or replace) an analyser snapshot stream bound to a WebAudio session.
+    webaudio_session_create_analyser_stream(u64 session_id, u64 analyser_node_id, u32 fft_size, u32 block_count) => (Core::AnonymousBuffer pool_buffer, Core::AnonymousBuffer ready_ring_buffer, Core::AnonymousBuffer free_ring_buffer)
+
+    // Create (or replace) a dynamics compressor reduction stream bound to a WebAudio session.
+    webaudio_session_create_dynamics_compressor_stream(u64 session_id, u64 compressor_node_id, u32 block_count) => (Core::AnonymousBuffer pool_buffer, Core::AnonymousBuffer ready_ring_buffer, Core::AnonymousBuffer free_ring_buffer)
+
+    // Audio input capture streams (AudioServer-backed).
+    webaudio_session_create_audio_input_stream(u64 session_id, AudioServer::AudioInputDeviceID device_id, u32 sample_rate_hz, u32 channel_count, u64 capacity_frames, u8 overflow_policy) => (AudioServer::AudioInputStreamID stream_id)
+    webaudio_session_destroy_audio_input_stream(u64 session_id, AudioServer::AudioInputStreamID stream_id) => ()
+}

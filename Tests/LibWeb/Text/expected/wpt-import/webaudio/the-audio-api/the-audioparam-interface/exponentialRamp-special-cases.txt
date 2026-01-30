@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	v0 and v1 have opposite signs
+Pass	v0 is zero

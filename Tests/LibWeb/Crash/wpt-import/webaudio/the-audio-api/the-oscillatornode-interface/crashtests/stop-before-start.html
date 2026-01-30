@@ -1,0 +1,16 @@
+<html class="test-wait">
+<head>
+  <title>
+    Test stop() time before start() time on OscillatorNode with AudioParam
+  </title>
+</head>
+<script>
+  const ac = new OfflineAudioContext({length: 136, sampleRate: 48000});
+  const osc = new OscillatorNode(ac);
+  osc.start(61/ac.sampleRate);
+  osc.stop(31/ac.sampleRate);
+  osc.detune.setValueAtTime(2.0, 1/ac.sampleRate);
+  ac.startRendering().then(
+    () => document.documentElement.removeAttribute("class"));
+</script>
+</html>

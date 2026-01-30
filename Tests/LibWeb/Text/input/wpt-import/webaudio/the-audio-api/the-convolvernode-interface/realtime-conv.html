@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Convolver on Real-time Context
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/convolution-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      // Choose a length that is large enough to cause multiple threads to be
+      // used in the convolver. For browsers that don't support this, this value
+      // doesn't matter.
+      const pulseLength = 16384;
+
+      // The computed SNR should be at least this large.  This value depends on
+      // the platform and browser.  Don't set this value to be too much lower
+      // than this. It probably indicates a fairly inaccurate convolver or
+      // ConstantSourceNode automations that should be fixed instead.
+      //
+      // Any major change of operating system or CPU architecture might affect
+      // this value significantly. See: https://crbug.com/1339291
+      const minRequiredSNR = 68.40;
+
+      // To test the real‑time convolver, we convolve two square pulses
+      // together to produce a triangular pulse. To verify the result
+      // is correct we compare it against a ConstantSourceNode
+      // configured to generate the expected ramp.
+      promise_test(t => new Promise(resolve => {
+        // Use a power of two for the sample‑rate to eliminate
+        // round‑off in computing times from frames.
+        const context = new AudioContext({sampleRate: 16384});
+
+        // Square pulse for the ConvolverNode impulse response.
+        const squarePulse = new AudioBuffer(
+            {length: pulseLength, sampleRate: context.sampleRate});
+        squarePulse.getChannelData(0).fill(1);
+
+        const convolver = new ConvolverNode(
+            context, {buffer: squarePulse, disableNormalization: true});
+
+        // Square pulse for testing.
+        const srcSquare = new ConstantSourceNode(context, {offset: 0});
+        srcSquare.connect(convolver);
+
+        // Reference ramp. Automations on this ConstantSourceNode will
+        // generate the desired ramp.
+        const srcRamp = new ConstantSourceNode(context, {offset: 0});
+
+        // Use these GainNodes to compute the difference between the convolver
+        // output and the expected ramp to create the error signal.
+        const inverter = new GainNode(context, {gain: -1});
+        const sum = new GainNode(context, {gain: 1});
+        convolver.connect(sum);
+        srcRamp.connect(inverter).connect(sum);
+
+        // Square the error signal using this GainNode.
+        const squarer = new GainNode(context, {gain: 0});
+        sum.connect(squarer);
+        sum.connect(squarer.gain);
+
+        // Merge the error signal and the square source so we can integrate
+        // the error signal to find an SNR.
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+        squarer.connect(merger, 0, 0);
+        srcSquare.connect(merger, 0, 1);
+
+        // For simplicity, use a ScriptProcessor to integrate the error
+        // signal. The square pulse signal is used as a gate over which the
+        // integration is done.  When the pulse ends, the SNR is computed and
+        // the test ends.
+
+        // |doSum| is used to determine when to integrate and when it becomes
+        // false, it signals the end of integration.
+        let doSum = false;
+
+        // |signalSum| is the energy in the square pulse.  |errorSum| is the
+        // energy in the error signal.
+        let signalSum = 0;
+        let errorSum = 0;
+
+        const spn = context.createScriptProcessor(0, 2, 1);
+        spn.onaudioprocess = event => {
+          // Sum the values on the first channel when the second channel is
+          // not zero.  When the second channel goes from non‑zero to 0,
+          // dump the value out and terminate the test.
+          const c0 = event.inputBuffer.getChannelData(0);
+          const c1 = event.inputBuffer.getChannelData(1);
+
+          for (let k = 0; k < c1.length; ++k) {
+            if (c1[k] === 0) {
+              if (doSum) {
+                doSum = false;
+                // Square wave is now silent and we were integrating, so we
+                // can stop now and verify the SNR.
+                const snr = 10 * Math.log10(signalSum / errorSum);
+                t.step(() =>
+                  assert_greater_than_equal(snr, minRequiredSNR, 'SNR')
+                );
+                spn.onaudioprocess = null;
+                context.close().then(resolve);
+              }
+            } else {
+              // Signal is non‑zero so sum up the values.
+              doSum = true;
+              errorSum += c0[k];
+              signalSum += c1[k] * c1[k];
+            }
+          }
+        };
+
+        merger.connect(spn).connect(context.destination);
+
+        // Schedule everything to start a bit in the future from now, and end
+        // |pulseLength| frames later.
+        const now = context.currentTime;
+
+        // |startFrame| is the number of frames to schedule ahead for testing.
+        const startFrame = 512;
+        const startTime = startFrame / context.sampleRate;
+        const pulseDuration = pulseLength / context.sampleRate;
+
+        // Create a square pulse in the ConstantSourceNode.
+        srcSquare.offset.setValueAtTime(1, now + startTime);
+        srcSquare.offset.setValueAtTime(0, now + startTime + pulseDuration);
+
+        // Create the reference ramp.
+        srcRamp.offset.setValueAtTime(1, now + startTime);
+        srcRamp.offset.linearRampToValueAtTime(
+            pulseLength,
+            now + startTime + pulseDuration - 1 / context.sampleRate);
+        srcRamp.offset.linearRampToValueAtTime(
+            0,
+            now + startTime + 2 * pulseDuration - 1 / context.sampleRate);
+
+        // Start the ramps!
+        srcRamp.start();
+        srcSquare.start();
+      }), 'Test convolver with real‑time context');
+    </script>
+  </body>
+</html>

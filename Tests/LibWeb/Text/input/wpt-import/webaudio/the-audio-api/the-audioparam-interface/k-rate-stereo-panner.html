@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam of StereoPannerNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="automation-rate-testing.js"></script>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define('Test k-rate StereoPannerNode', (task, should) => {
+        // Arbitrary sample rate and duration.
+        let sampleRate = 8000;
+        let testDuration = 1;
+        let context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        doTest(context, should, {
+          nodeName: 'StereoPannerNode',
+          nodeOptions: null,
+          prefix: 'StereoPannerNode',
+          // Set all AudioParams to k-rate.
+          rateSettings: [{name: 'pan', value: 'k-rate'}],
+          // Automate just the frequency.
+          automations: [{
+            name: 'pan',
+            methods: [
+              {name: 'setValueAtTime', options: [0, 0]}, {
+                name: 'linearRampToValueAtTime',
+                options: [.5, testDuration]
+              }
+            ]
+          }]
+        }).then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

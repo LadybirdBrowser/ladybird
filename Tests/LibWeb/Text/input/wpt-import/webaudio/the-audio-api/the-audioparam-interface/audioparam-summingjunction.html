@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      audioparam-summingjunction.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/mix-testing.js"></script>
+  </head>
+  <body>
+    <script>
+      // Tests that multiple audio-rate signals (AudioNode outputs)
+      // can be connected to an AudioParam and that these signals
+      // are summed, along with the AudioParams intrinsic value.
+      const sampleRate = 44100.0;
+      const lengthInSeconds = 1;
+
+      // Buffers used by the two gain controlling sources.
+      let linearRampBuffer;
+      let toneBuffer;
+      const toneFrequency = 440;
+      // Arbitrary non-zero value.
+      const baselineGain = 5;
+
+      const maxAllowedError = 1e-6;
+
+      function checkResult(renderedBuffer) {
+        let renderedData = renderedBuffer.getChannelData(0);
+
+        // Get buffer data from the two sources used to control gain.
+        const linearRampData = linearRampBuffer.getChannelData(0);
+        const toneData = toneBuffer.getChannelData(0);
+
+        const n = renderedBuffer.length;
+
+        assert_equals(n, linearRampBuffer.length, 'Rendered signal length');
+
+        // Check that the rendered result exactly matches the sum of the
+        // intrinsic gain plus the two sources used to control gain. This is
+        // because we're changing the gain of a signal having constant value 1.
+        let success = true;
+        for (let i = 0; i < n; ++i) {
+          const expectedValue = baselineGain + linearRampData[i] + toneData[i];
+          const error = Math.abs(expectedValue - renderedData[i]);
+
+          if (error > maxAllowedError) {
+            success = false;
+            break;
+          }
+        }
+
+        assert_true(
+            success,
+            'Rendered signal matches sum of two audio-rate gain changing ' +
+                'signals plus baseline gain'
+        );
+      }
+
+      promise_test(async t => {
+        const sampleFrameLength = sampleRate * lengthInSeconds;
+
+        const context =
+            new OfflineAudioContext(1, sampleFrameLength, sampleRate);
+
+        // Create buffer used by the source which will have its gain controlled.
+        const constantOneBuffer =
+            createConstantBuffer(context, sampleFrameLength, 1);
+        let constantSource = new AudioBufferSourceNode(context);
+        constantSource.buffer = constantOneBuffer;
+
+        // Create 1st buffer used to control gain (a linear ramp).
+        linearRampBuffer = createLinearRampBuffer(context, sampleFrameLength);
+        let gainSource1 = new AudioBufferSourceNode(context);
+        gainSource1.buffer = linearRampBuffer;
+
+        // Create 2st buffer used to control gain (a simple sine wave tone).
+        toneBuffer =
+            createToneBuffer(context, toneFrequency, lengthInSeconds, 1);
+        let gainSource2 = new AudioBufferSourceNode(context);
+        gainSource2.buffer = toneBuffer;
+
+        // Create a gain node controlling the gain of constantSource and make
+        // the connections.
+        let gainNode = new GainNode(context);
+
+        // Intrinsic baseline gain.
+        // This gain value should be summed with gainSource1 and gainSource2.
+        gainNode.gain.value = baselineGain;
+
+        constantSource.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        // Connect two audio-rate signals to control the .gain AudioParam.
+        gainSource1.connect(gainNode.gain);
+        gainSource2.connect(gainNode.gain);
+
+        // Start all sources at time 0.
+        constantSource.start(0);
+        gainSource1.start(0);
+        gainSource2.start(0);
+
+        const renderedBuffer = await context.startRendering();
+        checkResult(renderedBuffer);
+      }, 'Test summing junction behavior of AudioParam with multiple ' +
+          'audio-rate sources and intrinsic gain');
+    </script>
+  </body>
+</html>

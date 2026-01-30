@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test if AudioWorkletProcessor with invalid parameters array getter
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Arbitrarily determined. Any numbers should work.
+      const sampleRate = 16000;
+      const renderLength = 1280;
+      const filePath = 'processors/invalid-param-array-processor.js';
+
+      promise_test(async () => {
+        const context = new OfflineAudioContext(1, renderLength, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+
+        // Use modern AudioBuffer constructor.
+        const buffer = new AudioBuffer({
+          length: 2,
+          numberOfChannels: 1,
+          sampleRate: context.sampleRate
+        });
+        buffer.getChannelData(0)[0] = 1;
+
+        // Use AudioBufferSourceNode constructor with options.
+        const source = new AudioBufferSourceNode(context, {
+          buffer: buffer,
+          loop: true
+        });
+        source.start();
+
+        const workletNode1 =
+            new AudioWorkletNode(context, 'invalid-param-array-1');
+        const workletNode2 =
+            new AudioWorkletNode(context, 'invalid-param-array-2');
+        workletNode1.connect(workletNode2).connect(context.destination);
+
+        // Manually invoke the param getter.
+        source.connect(workletNode2.parameters.get('invalidParam'));
+
+        const renderedBuffer = await context.startRendering();
+
+        // |workletNode2| should be no-op after the parameter getter is
+        // invoked. Therefore, the rendered result should be silent.
+        const actual = renderedBuffer.getChannelData(0);
+        assert_array_constant_value(actual, 0, 'The rendered buffer');
+      }, 'Test if AudioWorkletProcessor with invalid parameters array getter');
+    </script>
+  </body>
+</html>

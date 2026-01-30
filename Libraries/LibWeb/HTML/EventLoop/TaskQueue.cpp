@@ -61,13 +61,29 @@ bool TaskQueue::has_runnable_tasks() const
     if (m_event_loop->execution_paused())
         return false;
 
-    for (auto& task : m_tasks) {
+    for (auto const& task : m_tasks) {
         if (m_event_loop->running_rendering_task() && task->source() == Task::Source::Rendering)
             continue;
         if (task->is_runnable())
             return true;
     }
     return false;
+}
+
+GC::Ptr<Task> TaskQueue::take_first_runnable_with_source(HTML::Task::Source source)
+{
+    if (m_event_loop->execution_paused())
+        return nullptr;
+
+    for (size_t i = 0; i < m_tasks.size(); ++i) {
+        if (m_event_loop->running_rendering_task() && m_tasks[i]->source() == Task::Source::Rendering)
+            continue;
+        if (m_tasks[i]->source() != source)
+            continue;
+        if (m_tasks[i]->is_runnable())
+            return m_tasks.take(i);
+    }
+    return nullptr;
 }
 
 void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)

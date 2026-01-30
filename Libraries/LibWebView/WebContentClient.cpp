@@ -13,6 +13,10 @@
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
 
+#include <LibCore/System.h>
+
+#include <LibWebAudioWorkerClient/Client.h>
+
 namespace WebView {
 
 HashTable<WebContentClient*> WebContentClient::s_clients;
@@ -64,6 +68,7 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 void WebContentClient::unregister_view(u64 page_id)
 {
     m_views.remove(page_id);
+    m_webaudio_renderer_clients.remove(page_id);
     if (m_views.is_empty())
         async_close_server();
 }
@@ -93,6 +98,18 @@ void WebContentClient::notify_all_views_of_crash()
                 view->on_web_content_crashed();
         });
     }
+}
+
+Optional<pid_t> WebContentClient::webaudio_worker_pid_for_page_id(u64 page_id) const
+{
+    auto client = m_webaudio_renderer_clients.get(page_id);
+    if (!client.has_value() || !client.value())
+        return {};
+
+    pid_t pid = client.value()->pid();
+    if (pid <= 0)
+        return {};
+    return pid;
 }
 
 void WebContentClient::did_paint(u64 page_id, Gfx::IntRect rect, i32 bitmap_id)
@@ -723,7 +740,7 @@ void WebContentClient::did_request_select_dropdown(u64 page_id, Gfx::IntPoint co
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_select_dropdown)
-            view->on_request_select_dropdown(view->to_widget_position(content_position), minimum_width / view->device_pixel_ratio(), items);
+            view->on_request_select_dropdown(view->to_widget_position(content_position), static_cast<i32>(minimum_width / view->device_pixel_ratio()), items);
     }
 }
 
@@ -783,6 +800,65 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
     }
 
     return IPC::File {};
+}
+
+Messages::WebContentClient::RequestWebaudioClientResponse WebContentClient::request_webaudio_client(u64 page_id)
+{
+    auto existing_client = m_webaudio_renderer_clients.get(page_id);
+    if (!existing_client.has_value() || !existing_client.value() || !existing_client.value()->is_open()) {
+        auto client_or_error = WebView::launch_webaudio_renderer_process();
+        if (client_or_error.is_error()) {
+            dbgln("WebContentClient: failed to launch WebAudioWorker: {}", client_or_error.error());
+            // The IPC contract requires returning a valid file descriptor.
+            // If we cannot launch the helper, return a disconnected socket to avoid crashing.
+            int socket_fds[2] {};
+            MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
+            MUST(Core::System::close(socket_fds[0]));
+            return IPC::File::adopt_fd(socket_fds[1]);
+        }
+
+        auto client = client_or_error.release_value();
+        auto* client_ptr = client.ptr();
+        client->on_death = [this, page_id, client_ptr]() {
+            if (auto it = m_webaudio_renderer_clients.get(page_id); it.has_value() && it.value() == client_ptr)
+                m_webaudio_renderer_clients.remove(page_id);
+        };
+        m_webaudio_renderer_clients.set(page_id, client);
+        existing_client = client;
+    }
+
+    auto file_or_error = existing_client.value()->connect_new_webaudio_client_socket();
+    if (!file_or_error.is_error())
+        return file_or_error.release_value();
+
+    dbgln("WebContentClient: request_webaudio_client failed: {} (retrying)", file_or_error.error());
+
+    // The helper may have died between our is_open() check and the mint request.
+    // Drop it, relaunch once, and retry.
+    m_webaudio_renderer_clients.remove(page_id);
+    auto retry_client_or_error = WebView::launch_webaudio_renderer_process();
+    if (!retry_client_or_error.is_error()) {
+        auto retry_client = retry_client_or_error.release_value();
+        auto* retry_client_ptr = retry_client.ptr();
+        retry_client->on_death = [this, page_id, retry_client_ptr]() {
+            if (auto it = m_webaudio_renderer_clients.get(page_id); it.has_value() && it.value() == retry_client_ptr)
+                m_webaudio_renderer_clients.remove(page_id);
+        };
+        m_webaudio_renderer_clients.set(page_id, retry_client);
+
+        auto retry_file_or_error = retry_client->connect_new_webaudio_client_socket();
+        if (!retry_file_or_error.is_error())
+            return retry_file_or_error.release_value();
+
+        dbgln("WebContentClient: request_webaudio_client retry failed: {}", retry_file_or_error.error());
+    } else {
+        dbgln("WebContentClient: failed to relaunch WebAudioWorker for retry: {}", retry_client_or_error.error());
+    }
+
+    int socket_fds[2] {};
+    MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
+    MUST(Core::System::close(socket_fds[0]));
+    return IPC::File::adopt_fd(socket_fds[1]);
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

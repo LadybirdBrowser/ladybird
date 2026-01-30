@@ -18,8 +18,10 @@
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -179,7 +181,9 @@ void EventLoop::process()
         task_start_time = HighResolutionTime::unsafe_shared_current_time();
 
         // 3. Set oldestTask to the first runnable task in taskQueue, and remove it from taskQueue.
-        oldest_task = task_queue->take_first_runnable();
+        oldest_task = task_queue->take_first_runnable_with_source(Task::Source::AudioWorklet);
+        if (!oldest_task)
+            oldest_task = task_queue->take_first_runnable();
 
         // FIXME: 4. If oldestTask's document is not null, then record task start time given taskStartTime and oldestTask's document.
 
@@ -449,7 +453,7 @@ void EventLoop::update_the_rendering()
             // 3. For each element element with 'auto' used value of 'content-visibility':
             auto* document_element = document->document_element();
             if (document_element) {
-                for (auto& paintable_box : document->paintable()->paintable_boxes_with_auto_content_visibility()) {
+                for (auto const& paintable_box : document->paintable()->paintable_boxes_with_auto_content_visibility()) {
                     auto& element = as<DOM::Element>(*paintable_box->dom_node());
 
                     // 1. Let checkForInitialDetermination be true if element's proximity to the viewport is not determined and it is not relevant to the user. Otherwise, let checkForInitialDetermination be false.
@@ -597,7 +601,7 @@ void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void(
     // FIXME: 7. Set microtask's script evaluation environment settings object set to an empty set.
 
     // 8. Enqueue microtask on event loop's microtask queue.
-    (void)event_loop.microtask_queue().enqueue(microtask);
+    event_loop.microtask_queue().enqueue(microtask);
 }
 
 void perform_a_microtask_checkpoint()
@@ -640,8 +644,18 @@ void EventLoop::perform_a_microtask_checkpoint()
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
     auto environments = GC::RootVector { heap(), m_related_environment_settings_objects };
     for (auto& environment_settings_object : environments) {
-        auto& global = as<HTML::UniversalGlobalScopeMixin>(environment_settings_object->global_object());
-        global.notify_about_rejected_promises({});
+        auto& global_object = environment_settings_object->global_object();
+
+        if (is<HTML::Window>(global_object)) {
+            auto& global = as<HTML::Window>(global_object);
+            global.notify_about_rejected_promises({});
+        } else if (is<HTML::WorkerGlobalScope>(global_object)) {
+            auto& global = as<HTML::WorkerGlobalScope>(global_object);
+            global.notify_about_rejected_promises({});
+        } else if (is<HTML::ShadowRealmGlobalScope>(global_object)) {
+            auto& global = as<HTML::ShadowRealmGlobalScope>(global_object);
+            global.notify_about_rejected_promises({});
+        }
     }
 
     // 5. Cleanup Indexed Database transactions.
@@ -659,7 +673,7 @@ void EventLoop::perform_a_microtask_checkpoint()
 Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const
 {
     Vector<GC::Root<DOM::Document>> documents;
-    for (auto& document : m_documents) {
+    for (auto const& document : m_documents) {
         VERIFY(document);
         if (document->is_decoded_svg())
             continue;

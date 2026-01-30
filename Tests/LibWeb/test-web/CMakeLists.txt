@@ -1,5 +1,6 @@
 set(SOURCES
     Application.cpp
+    Debug.cpp
     Fixture.cpp
     Fuzzy.cpp
     TestWebView.cpp
@@ -7,7 +8,7 @@ set(SOURCES
 )
 
 add_executable(test-web ${SOURCES})
-add_dependencies(test-web ladybird_build_resource_files ImageDecoder RequestServer WebContent WebWorker)
+add_dependencies(test-web ladybird_build_resource_files AudioServer ImageDecoder RequestServer WebAudioWorker WebContent WebWorker)
 target_link_libraries(test-web PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
 
 if (APPLE)

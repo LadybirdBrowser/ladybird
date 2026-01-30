@@ -187,6 +187,7 @@
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/TextEvent.h>
+#include <LibWeb/WebAudio/BackgroundAudioDecoder.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -616,6 +617,9 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_svg_roots_needing_relayout);
 
     visitor.visit(m_shared_resource_requests);
+
+    if (m_background_audio_decoder)
+        m_background_audio_decoder->visit_edges(visitor);
 
     visitor.visit(m_associated_animation_timelines);
     visitor.visit(m_list_of_available_images);
@@ -4306,6 +4310,9 @@ void Document::run_unloading_cleanup_steps()
         // 1. For each EventSource object eventSource whose relevant global object is equal to window, forcibly close eventSource.
         window.forcibly_close_all_event_sources();
 
+        // AD-HOC: We'll do this here, but keep an eye on https://github.com/whatwg/html/issues/8906
+        window.forcibly_close_all_audio_contexts();
+
         // 2. Clear window's map of active timers.
         window.clear_map_of_active_timers();
     }
@@ -5552,6 +5559,13 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()
 {
     return m_shared_resource_requests;
+}
+
+WebAudio::BackgroundAudioDecoder& Document::background_audio_decoder()
+{
+    if (!m_background_audio_decoder)
+        m_background_audio_decoder = make<WebAudio::BackgroundAudioDecoder>(*this);
+    return *m_background_audio_decoder;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-document-timeline

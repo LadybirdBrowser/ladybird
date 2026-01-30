@@ -1,0 +1,48 @@
+#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <AK/Vector.h>
+#include <AudioServer/AudioInputDeviceIPC.h>
+#include <AudioServer/AudioInputStreamIPC.h>
+#include <AudioServer/AudioOutputDeviceIPC.h>
+#include <LibCore/AnonymousBuffer.h>
+
+endpoint AudioServerServer
+{
+	init_transport(int peer_pid) => (int peer_pid)
+
+	create_shared_single_producer_circular_buffer(size_t capacity) => (Core::AnonymousBuffer shm_buffer)
+
+	// Shared buffer pool + two SPSC descriptor rings for high-rate data delivery.
+	create_shared_buffer_stream(u32 block_size, u32 block_count) => (Core::AnonymousBuffer pool_buffer, Core::AnonymousBuffer ready_ring_buffer, Core::AnonymousBuffer free_ring_buffer)
+
+	// Query-only: starts the output device if needed, but does not create a session.
+	get_output_device_format() => (u32 sample_rate, u32 channel_count)
+
+	// Query-only: list output devices with AudioServer handles.
+	get_audio_output_devices() => (Vector<AudioServer::AudioOutputDeviceInfo> devices)
+
+	// Query-only: list input devices with AudioServer handles.
+	get_audio_input_devices() => (Vector<AudioServer::AudioInputDeviceInfo> devices)
+
+	// Create a shared-memory ring stream for an input device.
+	create_audio_input_stream(AudioServer::AudioInputDeviceID device_id, u32 sample_rate_hz, u32 channel_count, u64 capacity_frames, u8 overflow_policy) => (AudioServer::AudioInputStreamDescriptor descriptor)
+
+	// Destroy a previously created input stream.
+	destroy_audio_input_stream(AudioServer::AudioInputStreamID stream_id) => ()
+
+	// Connection-scoped: mute/unmute all audio produced by sessions owned by this client.
+	// The server still drains the session rings so internal timing continues to advance.
+	set_muted(bool muted) => ()
+
+	create_audio_output_session(u32 target_latency_ms, AudioServer::AudioOutputDeviceID device_id) => (u64 session_id, u32 sample_rate, u32 channel_count, Core::AnonymousBuffer shm_buffer)
+
+	// Async variant: returns a session id immediately. The server later notifies the client
+	// via AudioServerClient::audio_output_session_ready/failed when the output device format
+	// (and shared ring buffer) are available.
+	create_audio_output_session_async(u32 target_latency_ms, AudioServer::AudioOutputDeviceID device_id) => (u64 session_id)
+
+	destroy_audio_output_session(u64 session_id) => ()
+
+	// Create more AudioServerServer connections.
+	connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // Render 2 quanta so we can observe the one-shot stop.
+        const context = new OfflineAudioContext(1, 256, 44100);
+
+        await context.audioWorklet.addModule("../../data/AudioWorklet-one-shot-processor.js");
+
+        const node = new AudioWorkletNode(context, "one-shot");
+        node.connect(context.destination);
+
+        const buffer = await context.startRendering();
+        const data = buffer.getChannelData(0);
+
+        // First quantum should be filled with 1.0.
+        println("sample0: " + data[0].toFixed(1));
+        // Second quantum should be silent because process() returned false.
+        println("sample128: " + data[128].toFixed(1));
+        done();
+    });
+</script>

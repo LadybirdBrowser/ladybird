@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Panner k‑rate vs a‑rate – positionX
+Pass	Panner k‑rate vs a‑rate – positionY
+Pass	Panner k‑rate vs a‑rate – orientationX
+Pass	Panner k‑rate vs a‑rate – orientationY
+Pass	Panner k‑rate vs a‑rate – orientationZ
+Pass	Listener k-rate positionX
+Pass	Listener k-rate positionY
+Pass	Listener k-rate positionZ
+Pass	Listener k-rate forwardX
+Pass	Listener k-rate forwardY
+Pass	Listener k-rate forwardZ
+Pass	Listener k-rate upX
+Pass	Listener k-rate upY
+Pass	Listener k-rate upZ

@@ -37,4 +37,6 @@ if (ENABLE_SWIFT)
     add_test(NAME TestLibWebSwift COMMAND TestLibWebSwift)
 endif()
 
+add_subdirectory("webaudio-units")
+
 add_subdirectory("test-web")

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	ConvolverNode: invalid constructor throws TypeError
+Pass	ConvolverNode: default constructor and attributes
+Pass	ConvolverNode constructor: AudioNodeOptions are correctly handled
+Pass	ConvolverNode: nullable buffer
+Pass	ConvolverNode: illegal sample rate buffer throws NotSupportedError
+Pass	ConvolverNode: construct with buffer and normalization options

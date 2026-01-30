@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "detune overflow"
+Pass	Audit report
+Pass	> [detune overflow] 
+Pass	  Osc freq and detune outside nominal range contains only the constant 0.
+Pass	< [detune overflow] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

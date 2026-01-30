@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<title>Test that DelayNode output channelCount matches that of the delayed input</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+// See https://github.com/WebAudio/web-audio-api/issues/25
+
+// sampleRate is a power of two so that delay times are exact in base-2
+// floating point arithmetic.
+const SAMPLE_RATE = 32768;
+// Arbitrary delay time in frames (but this is assumed a multiple of block
+// size below):
+const DELAY_FRAMES = 3 * 128;
+// Implementations may apply interpolation to input samples, which can spread
+// the effect of input with larger channel counts over neighbouring blocks.
+// This test ignores enough neighbouring blocks to ignore the effects of
+// filter radius of up to this number of frames:
+const INTERPOLATION_GRACE = 128;
+// Number of frames of DelayNode output that are known to be stereo:
+const STEREO_FRAMES = 128;
+// The delay will be increased at this frame to switch DelayNode output back
+// to mono.
+const MONO_OUTPUT_START_FRAME =
+  DELAY_FRAMES + INTERPOLATION_GRACE + STEREO_FRAMES;
+// Number of frames of output that are known to be mono after the known stereo
+// and interpolation grace.
+const MONO_FRAMES = 128;
+// Total length allows for interpolation after effects of stereo input are
+// finished and one block to test return to mono output:
+const TOTAL_LENGTH =
+  MONO_OUTPUT_START_FRAME + INTERPOLATION_GRACE + MONO_FRAMES;
+// maxDelayTime, is a multiple of block size, because the Gecko implementation
+// once had a bug with delayTime = maxDelayTime in this situation:
+const MAX_DELAY_FRAMES = TOTAL_LENGTH + INTERPOLATION_GRACE;
+
+promise_test(() => {
+  let context = new OfflineAudioContext({numberOfChannels: 1,
+                                         length: TOTAL_LENGTH,
+                                         sampleRate: SAMPLE_RATE});
+
+  // Only channel 1 of the splitter is connected to the destination.
+  let splitter = new ChannelSplitterNode(context, {numberOfOutputs: 2});
+  splitter.connect(context.destination, 1);
+
+  // A gain node has channelCountMode "max" and channelInterpretation
+  // "speakers", and so will up-mix a mono input when there is stereo input.
+  let gain = new GainNode(context);
+  gain.connect(splitter);
+
+  // The delay node initially outputs a single channel of silence, when it
+  // does not have enough signal in its history to output what it has
+  // previously received.  After the delay period, it will then output the
+  // stereo signal it received.
+  let delay =
+      new DelayNode(context,
+                    {maxDelayTime: MAX_DELAY_FRAMES / context.sampleRate,
+                     delayTime: DELAY_FRAMES / context.sampleRate});
+  // Schedule an increase in the delay to return to mono silent output from
+  // the unfilled portion of the DelayNode's buffer.
+  delay.delayTime.setValueAtTime(MAX_DELAY_FRAMES / context.sampleRate,
+                                 MONO_OUTPUT_START_FRAME / context.sampleRate);
+  delay.connect(gain);
+
+  let stereoMerger = new ChannelMergerNode(context, {numberOfInputs: 2});
+  stereoMerger.connect(delay);
+
+  let leftOffset = 0.125;
+  let rightOffset = 0.5;
+  let leftSource = new ConstantSourceNode(context, {offset: leftOffset});
+  let rightSource = new ConstantSourceNode(context, {offset: rightOffset});
+  leftSource.start();
+  rightSource.start();
+  leftSource.connect(stereoMerger, 0, 0);
+  rightSource.connect(stereoMerger, 0, 1);
+  // Connect a mono source directly to the gain, so that even stereo silence
+  // will be detected in channel 1 of the gain output because it will cause
+  // the mono source to be up-mixed.
+  let monoOffset = 0.25
+  let monoSource = new ConstantSourceNode(context, {offset: monoOffset});
+  monoSource.start();
+  monoSource.connect(gain);
+
+  return context.startRendering().
+    then((buffer) => {
+      let output = buffer.getChannelData(0);
+
+      function assert_samples_equal(startIndex, length, expected, description)
+      {
+        for (let i = startIndex; i < startIndex + length; ++i) {
+          assert_equals(output[i], expected, description + ` at ${i}`);
+        }
+      }
+
+      assert_samples_equal(0, DELAY_FRAMES - INTERPOLATION_GRACE,
+                           0, "Initial mono");
+      assert_samples_equal(DELAY_FRAMES + INTERPOLATION_GRACE, STEREO_FRAMES,
+                           monoOffset + rightOffset, "Stereo");
+      assert_samples_equal(MONO_OUTPUT_START_FRAME + INTERPOLATION_GRACE,
+                           MONO_FRAMES,
+                           0, "Final mono");
+    });
+});
+
+</script>

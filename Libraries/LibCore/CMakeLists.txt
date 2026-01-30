@@ -54,6 +54,7 @@ set(SOURCES
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
     SharedVersion.cpp
+    SharedSingleProducerCircularBuffer.cpp
     SystemServerTakeover.cpp
     ThreadEventQueue.cpp
     Timer.cpp

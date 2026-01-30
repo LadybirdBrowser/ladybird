@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam of DelayNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="automation-rate-testing.js"></script>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define('Test k-rate DelayNode', (task, should) => {
+        // Arbitrary sample rate and duration.
+        let sampleRate = 8000;
+        let testDuration = 1;
+        let context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+
+        doTest(context, should, {
+          nodeName: 'DelayNode',
+          nodeOptions: null,
+          prefix: 'DelayNode',
+          // Set all AudioParams to k-rate
+          rateSettings: [{name: 'delayTime', value: 'k-rate'}],
+          // Automate just the frequency
+          automations: [{
+            name: 'delayTime',
+            methods: [
+              {name: 'setValueAtTime', options: [0, 0]}, {
+                name: 'linearRampToValueAtTime',
+                options: [.5, testDuration]
+              }
+            ]
+          }]
+        }).then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

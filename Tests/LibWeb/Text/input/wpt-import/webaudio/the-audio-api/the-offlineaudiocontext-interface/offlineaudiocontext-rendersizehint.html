@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>Test OfflineAudioContextOptions renderSizeHint</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+const SAMPLE_RATE = 44100;
+const SIX_SECONDS_SAMPLES = SAMPLE_RATE * 6;
+
+test(function() {
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE});
+  assert_equals(context.renderQuantumSize, 128,
+      'renderQuantumSize with no hint');
+}, 'OfflineAudioContext with no renderSizeHint');
+
+test(function() {
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE, renderSizeHint: 'default'});
+  assert_equals(context.renderQuantumSize, 128,
+      'renderQuantumSize with "default" hint');
+}, 'OfflineAudioContext with renderSizeHint: "default"');
+
+test(function() {
+  // For OfflineAudioContext, "hardware" falls back to 128.
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE, renderSizeHint: 'hardware'});
+  assert_equals(context.renderQuantumSize, 128,
+      'renderQuantumSize with "hardware" hint');
+}, 'OfflineAudioContext with renderSizeHint: "hardware"');
+
+test(function() {
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE, renderSizeHint: 256});
+  assert_equals(context.renderQuantumSize, 256,
+      'renderQuantumSize with 256 hint');
+}, 'OfflineAudioContext with renderSizeHint: 256');
+
+test(function() {
+  // 1 is a valid render quantum size for OfflineAudioContext.
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE, renderSizeHint: 1});
+  assert_equals(context.renderQuantumSize, 1, 'renderQuantumSize with 1 hint');
+}, 'OfflineAudioContext with renderSizeHint: 1');
+
+test(function() {
+  const context = new OfflineAudioContext(
+      {length: 1000, sampleRate: SAMPLE_RATE,
+        renderSizeHint: SIX_SECONDS_SAMPLES});
+  assert_equals(context.renderQuantumSize, SIX_SECONDS_SAMPLES,
+      'renderQuantumSize at 6s boundary');
+}, 'OfflineAudioContext with renderSizeHint at 6s boundary');
+
+test(function() {
+  assert_throws_dom('NotSupportedError', () => {
+    new OfflineAudioContext(
+        {length: 1000, sampleRate: SAMPLE_RATE, renderSizeHint: 0});
+  }, 'new OfflineAudioContext({renderSizeHint: 0})');
+}, 'OfflineAudioContext with invalid renderSizeHint (0)' +
+    'throws NotSupportedError');
+
+test(function() {
+  assert_throws_dom('NotSupportedError', () => {
+    new OfflineAudioContext(
+        {length: 1000, sampleRate: SAMPLE_RATE,
+          renderSizeHint: SIX_SECONDS_SAMPLES + 1});
+  }, `new OfflineAudioContext({renderSizeHint: ${SIX_SECONDS_SAMPLES + 1}})`);
+}, 'OfflineAudioContext with renderSizeHint > 6s boundary' +
+    'throws NotSupportedError');
+</script>

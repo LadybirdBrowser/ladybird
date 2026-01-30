@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Exceptions from setValueCurveAtTime
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let sampleRate = 48000;
+      // Some short duration because we don't need to run the test for very
+      // long.
+      let testDurationSec = 0.125;
+      let testDurationFrames = testDurationSec * sampleRate;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define('setValueCurve', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+        let curve = new Float32Array(2);
+
+        // Start time and duration for setValueCurveAtTime
+        let curveStartTime = 0.1 * testDurationSec;
+        let duration = 0.1 * testDurationSec;
+
+        // Some time that is known to be during the setValueCurveTime interval.
+        let automationTime = curveStartTime + duration / 2;
+
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, curveStartTime, duration);
+            },
+            'setValueCurveAtTime(curve, ' + curveStartTime + ', ' + duration +
+                ')')
+            .notThrow();
+
+        should(
+            function() {
+              g.gain.setValueAtTime(1, automationTime);
+            },
+            'setValueAtTime(1, ' + automationTime + ')')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              g.gain.linearRampToValueAtTime(1, automationTime);
+            },
+            'linearRampToValueAtTime(1, ' + automationTime + ')')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              g.gain.exponentialRampToValueAtTime(1, automationTime);
+            },
+            'exponentialRampToValueAtTime(1, ' + automationTime + ')')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              g.gain.setTargetAtTime(1, automationTime, 1);
+            },
+            'setTargetAtTime(1, ' + automationTime + ', 1)')
+            .throw(DOMException, 'NotSupportedError');
+
+        should(
+            function() {
+              g.gain.setValueAtTime(1, curveStartTime + 1.1 * duration);
+            },
+            'setValueAtTime(1, ' + (curveStartTime + 1.1 * duration) + ')')
+            .notThrow();
+
+        task.done();
+      });
+
+      audit.define('value setter', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+        let curve = new Float32Array(2);
+
+        // Start time and duration for setValueCurveAtTime
+        let curveStartTime = 0.;
+        let duration = 0.2 * testDurationSec;
+
+        // Some time that is known to be during the setValueCurveTime interval.
+        let automationTime = 0.;
+
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, curveStartTime, duration);
+            },
+            'setValueCurveAtTime(curve, ' + curveStartTime + ', ' + duration +
+                ')')
+            .notThrow();
+
+        should(
+            function() {
+              g.gain.value = 0.;
+            },
+            'value setter')
+            .throw(DOMException, 'NotSupportedError');
+
+        task.done();
+      });
+
+      audit.define('automations', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+
+        let curve = new Float32Array(2);
+        // Start time and duration for setValueCurveAtTime
+        let startTime = 0;
+        let timeInterval = testDurationSec / 10;
+        let time;
+
+        startTime += timeInterval;
+        should(() => {
+          g.gain.linearRampToValueAtTime(1, startTime);
+        }, 'linearRampToValueAtTime(1, ' + startTime + ')').notThrow();
+
+        startTime += timeInterval;
+        should(() => {
+          g.gain.exponentialRampToValueAtTime(1, startTime);
+        }, 'exponentialRampToValueAtTime(1, ' + startTime + ')').notThrow();
+
+        startTime += timeInterval;
+        should(() => {
+          g.gain.setTargetAtTime(1, startTime, 0.1);
+        }, 'setTargetAtTime(1, ' + startTime + ', 0.1)').notThrow();
+
+        startTime += timeInterval;
+        should(() => {
+          g.gain.setValueCurveAtTime(curve, startTime, 0.1);
+        }, 'setValueCurveAtTime(curve, ' + startTime + ', 0.1)').notThrow();
+
+        // Now try to setValueCurve that overlaps each of the above automations
+        startTime = timeInterval / 2;
+
+        for (let k = 0; k < 4; ++k) {
+          time = startTime + timeInterval * k;
+          should(
+              () => {
+                g.gain.setValueCurveAtTime(curve, time, 0.01);
+              },
+              'setValueCurveAtTime(curve, ' + time + ', 0.01)')
+              .throw(DOMException, 'NotSupportedError');
+        }
+
+        // Elements of setValueCurve should be finite.
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(
+                  Float32Array.from([NaN, NaN]), time, 0.01);
+            },
+            'setValueCurveAtTime([NaN, NaN], ' + time + ', 0.01)')
+            .throw(TypeError);
+
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(
+                  Float32Array.from([1, Infinity]), time, 0.01);
+            },
+            'setValueCurveAtTime([1, Infinity], ' + time + ', 0.01)')
+            .throw(TypeError);
+
+        let d = context.createDelay();
+        // Check that we get warnings for out-of-range values and also throw for
+        // non-finite values.
+        should(
+            () => {
+              d.delayTime.setValueCurveAtTime(
+                  Float32Array.from([1, 5]), time, 0.01);
+            },
+            'delayTime.setValueCurveAtTime([1, 5], ' + time + ', 0.01)')
+            .notThrow();
+
+        should(
+            () => {
+              d.delayTime.setValueCurveAtTime(
+                  Float32Array.from([1, 5, Infinity]), time, 0.01);
+            },
+            'delayTime.setValueCurveAtTime([1, 5, Infinity], ' + time +
+                ', 0.01)')
+            .throw(TypeError);
+
+        // One last test that prints out lots of digits for the time.
+        time = Math.PI / 100;
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, time, 0.01);
+            },
+            'setValueCurveAtTime(curve, ' + time + ', 0.01)')
+            .throw(DOMException, 'NotSupportedError');
+
+        task.done();
+      });
+
+      audit.define('catch-exception', (task, should) => {
+        // Verify that the curve isn't inserted into the time line even if we
+        // catch the exception.
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let gain = context.createGain();
+        let source = context.createBufferSource();
+        let buffer = context.createBuffer(1, 1, context.sampleRate);
+        buffer.getChannelData(0)[0] = 1;
+        source.buffer = buffer;
+        source.loop = true;
+
+        source.connect(gain);
+        gain.connect(context.destination);
+
+        gain.gain.setValueAtTime(1, 0);
+        try {
+          // The value curve has an invalid element. This automation shouldn't
+          // be inserted into the timeline at all.
+          gain.gain.setValueCurveAtTime(
+              Float32Array.from([0, NaN]), 128 / context.sampleRate, .5);
+        } catch (e) {
+        };
+        source.start();
+
+        context.startRendering()
+            .then(function(resultBuffer) {
+              // Since the setValueCurve wasn't inserted, the output should be
+              // exactly 1 for the entire duration.
+              should(
+                  resultBuffer.getChannelData(0),
+                  'Handled setValueCurve exception so output')
+                  .beConstantValueOf(1);
+
+            })
+            .then(() => task.done());
+      });
+
+      audit.define('start-end', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+        let curve = new Float32Array(2);
+
+        // Verify that a setValueCurve can start at the end of an automation.
+        let time = 0;
+        let timeInterval = testDurationSec / 50;
+        should(() => {
+          g.gain.setValueAtTime(1, time);
+        }, 'setValueAtTime(1, ' + time + ')').notThrow();
+
+        time += timeInterval;
+        should(() => {
+          g.gain.linearRampToValueAtTime(0, time);
+        }, 'linearRampToValueAtTime(0, ' + time + ')').notThrow();
+
+        // setValueCurve starts at the end of the linear ramp. This should be
+        // fine.
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, time, timeInterval);
+            },
+            'setValueCurveAtTime(..., ' + time + ', ' + timeInterval + ')')
+            .notThrow();
+
+        // exponentialRamp ending one interval past the setValueCurve should be
+        // fine.
+        time += 2 * timeInterval;
+        should(() => {
+          g.gain.exponentialRampToValueAtTime(1, time);
+        }, 'exponentialRampToValueAtTime(1, ' + time + ')').notThrow();
+
+        // setValueCurve starts at the end of the exponential ramp. This should
+        // be fine.
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, time, timeInterval);
+            },
+            'setValueCurveAtTime(..., ' + time + ', ' + timeInterval + ')')
+            .notThrow();
+
+        // setValueCurve at the end of the setValueCurve should be fine.
+        time += timeInterval;
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, time, timeInterval);
+            },
+            'setValueCurveAtTime(..., ' + time + ', ' + timeInterval + ')')
+            .notThrow();
+
+        // setValueAtTime at the end of setValueCurve should be fine.
+        time += timeInterval;
+        should(() => {
+          g.gain.setValueAtTime(0, time);
+        }, 'setValueAtTime(0, ' + time + ')').notThrow();
+
+        // setValueCurve at the end of setValueAtTime should be fine.
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, time, timeInterval);
+            },
+            'setValueCurveAtTime(..., ' + time + ', ' + timeInterval + ')')
+            .notThrow();
+
+        // setTarget starting at the end of setValueCurve should be fine.
+        time += timeInterval;
+        should(() => {
+          g.gain.setTargetAtTime(1, time, 1);
+        }, 'setTargetAtTime(1, ' + time + ', 1)').notThrow();
+
+        task.done();
+      });
+
+      audit.define('curve overlap', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+        let startTime = 5;
+        let startTimeLater = 10;
+        let startTimeEarlier = 2.5;
+        let curveDuration = 10;
+        let curveDurationShorter = 5;
+        let curve = [1, 2, 3];
+
+        // An initial curve event
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTime, curveDuration);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTime}, ${curveDuration})`)
+            .notThrow();
+
+        // Check that an exception is thrown when trying to overlap two curves,
+        // in various ways
+
+        // Same start time and end time (curve exactly overlapping)
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTime, curveDuration);
+            },
+            `second g.gain.setValueCurveAtTime([${curve}], ${startTime}, ${curveDuration})`)
+            .throw(DOMException, 'NotSupportedError');
+        // Same start time, shorter end time
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTime, curveDurationShorter);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTime}, ${curveDurationShorter})`)
+            .throw(DOMException, 'NotSupportedError');
+        // Earlier start time, end time after the start time an another curve
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTimeEarlier, curveDuration);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTimeEarlier}, ${curveDuration})`)
+            .throw(DOMException, 'NotSupportedError');
+        // Start time after the start time of the other curve, but earlier than
+        // its end.
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTimeLater, curveDuration);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTimeLater}, ${curveDuration})`)
+            .throw(DOMException, 'NotSupportedError');
+
+        // New event wholly contained inside existing event
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTime + 1, curveDuration - 1);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTime+1}, ${curveDuration-1})`)
+            .throw(DOMException, 'NotSupportedError');
+        // Old event completely contained inside new event
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(curve, startTime - 1, curveDuration + 1);
+            },
+            `g.gain.setValueCurveAtTime([${curve}], ${startTime-1}, ${curveDuration+1})`)
+            .throw(DOMException, 'NotSupportedError');
+        // Setting an event exactly at the end of the curve should work.
+        should(
+            () => {
+              g.gain.setValueAtTime(1.0, startTime + curveDuration);
+            },
+            `g.gain.setValueAtTime(1.0, ${startTime + curveDuration})`)
+            .notThrow();
+
+        task.done();
+      });
+
+      audit.define('curve lengths', (task, should) => {
+        let context =
+            new OfflineAudioContext(1, testDurationFrames, sampleRate);
+        let g = context.createGain();
+        let time = 0;
+
+        // Check for invalid curve lengths
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(Float32Array.from([]), time, 0.01);
+            },
+            'setValueCurveAtTime([], ' + time + ', 0.01)')
+            .throw(DOMException, 'InvalidStateError');
+
+        should(
+            () => {
+              g.gain.setValueCurveAtTime(Float32Array.from([1]), time, 0.01);
+            },
+            'setValueCurveAtTime([1], ' + time + ', 0.01)')
+            .throw(DOMException, 'InvalidStateError');
+
+        should(() => {
+          g.gain.setValueCurveAtTime(Float32Array.from([1, 2]), time, 0.01);
+        }, 'setValueCurveAtTime([1,2], ' + time + ', 0.01)').notThrow();
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "check-zero-outputs"
+Pass	Audit report
+Pass	> [check-zero-outputs] 
+Pass	  |outputs| has been all zeros for 1 seconds as expected. is true.
+Pass	< [check-zero-outputs] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

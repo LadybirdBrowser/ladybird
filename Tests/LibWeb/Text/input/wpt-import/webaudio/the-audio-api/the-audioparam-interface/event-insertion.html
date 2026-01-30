@@ -1,0 +1,411 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test Handling of Event Insertion
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/audio-param.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      // Use a power of two for the sample rate so there's no round-off in
+      // computing time from frame.
+      let sampleRate = 16384;
+
+      audit.define(
+          {label: 'Insert same event at same time'}, (task, should) => {
+            // Context for testing.
+            let context = new OfflineAudioContext(
+                {length: 16384, sampleRate: sampleRate});
+
+            // The source node to use.  Automations will be scheduled here.
+            let src = new ConstantSourceNode(context, {offset: 0});
+            src.connect(context.destination);
+
+            // An array of tests to be done.  Each entry specifies the event
+            // type and the event time.  The events are inserted in the order
+            // given (in |values|), and the second event should be inserted
+            // after the first one, as required by the spec.
+            let testCases = [
+              {
+                event: 'setValueAtTime',
+                frame: RENDER_QUANTUM_FRAMES,
+                values: [99, 1],
+                outputTestFrame: RENDER_QUANTUM_FRAMES,
+                expectedOutputValue: 1
+              },
+              {
+                event: 'linearRampToValueAtTime',
+                frame: 2 * RENDER_QUANTUM_FRAMES,
+                values: [99, 2],
+                outputTestFrame: 2 * RENDER_QUANTUM_FRAMES,
+                expectedOutputValue: 2
+              },
+              {
+                event: 'exponentialRampToValueAtTime',
+                frame: 3 * RENDER_QUANTUM_FRAMES,
+                values: [99, 3],
+                outputTestFrame: 3 * RENDER_QUANTUM_FRAMES,
+                expectedOutputValue: 3
+              },
+              {
+                event: 'setValueCurveAtTime',
+                frame: 3 * RENDER_QUANTUM_FRAMES,
+                values: [[3, 4]],
+                extraArgs: RENDER_QUANTUM_FRAMES / context.sampleRate,
+                outputTestFrame: 4 * RENDER_QUANTUM_FRAMES,
+                expectedOutputValue: 4
+              },
+              {
+                event: 'setValueAtTime',
+                frame: 5 * RENDER_QUANTUM_FRAMES - 1,
+                values: [99, 1, 5],
+                outputTestFrame: 5 * RENDER_QUANTUM_FRAMES,
+                expectedOutputValue: 5
+              }
+            ];
+
+            testCases.forEach(entry => {
+              entry.values.forEach(value => {
+                let eventTime = entry.frame / context.sampleRate;
+                let message = eventToString(
+                    entry.event, value, eventTime, entry.extraArgs);
+                // This is mostly to print out the event that is getting
+                // inserted.  It should never ever throw.
+                should(() => {
+                  src.offset[entry.event](value, eventTime, entry.extraArgs);
+                }, message).notThrow();
+              });
+            });
+
+            src.start();
+
+            context.startRendering()
+                .then(audioBuffer => {
+                  let audio = audioBuffer.getChannelData(0);
+
+                  // Look through the test cases to figure out what the correct
+                  // output values should be.
+                  testCases.forEach(entry => {
+                    let expected = entry.expectedOutputValue;
+                    let frame = entry.outputTestFrame;
+                    let time = frame / context.sampleRate;
+                    should(
+                        audio[frame], `Output at frame ${frame} (time ${time})`)
+                        .beEqualTo(expected);
+                  });
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'Linear + Expo',
+            description: 'Different events at same time'
+          },
+          (task, should) => {
+            // Should be a linear ramp up to the event time, and after a
+            // constant value because the exponential ramp has ended.
+            let testCase = [
+              {event: 'linearRampToValueAtTime', value: 2, relError: 0},
+              {event: 'setValueAtTime', value: 99},
+              {event: 'exponentialRampToValueAtTime', value: 3},
+            ];
+            let eventFrame = 2 * RENDER_QUANTUM_FRAMES;
+            let prefix = 'Linear+Expo: ';
+
+            testEventInsertion(prefix, should, eventFrame, testCase)
+                .then(expectConstant(prefix, should, eventFrame, testCase))
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'Expo + Linear',
+            description: 'Different events at same time',
+          },
+          (task, should) => {
+            // Should be an exponential ramp up to the event time, and after a
+            // constant value because the linear ramp has ended.
+            let testCase = [
+              {
+                event: 'exponentialRampToValueAtTime',
+                value: 3,
+                relError: 4.2533e-6
+              },
+              {event: 'setValueAtTime', value: 99},
+              {event: 'linearRampToValueAtTime', value: 2},
+            ];
+            let eventFrame = 2 * RENDER_QUANTUM_FRAMES;
+            let prefix = 'Expo+Linear: ';
+
+            testEventInsertion(prefix, should, eventFrame, testCase)
+                .then(expectConstant(prefix, should, eventFrame, testCase))
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'Linear + SetTarget',
+            description: 'Different events at same time',
+          },
+          (task, should) => {
+            // Should be a linear ramp up to the event time, and then a
+            // decaying value.
+            let testCase = [
+              {event: 'linearRampToValueAtTime', value: 3, relError: 0},
+              {event: 'setValueAtTime', value: 100},
+              {event: 'setTargetAtTime', value: 0, extraArgs: 0.1},
+            ];
+            let eventFrame = 2 * RENDER_QUANTUM_FRAMES;
+            let prefix = 'Linear+SetTarget: ';
+
+            testEventInsertion(prefix, should, eventFrame, testCase)
+                .then(audioBuffer => {
+                  let audio = audioBuffer.getChannelData(0);
+                  let prefix = 'Linear+SetTarget: ';
+                  let eventTime = eventFrame / sampleRate;
+                  let expectedValue = methodMap[testCase[0].event](
+                      (eventFrame - 1) / sampleRate, 1, 0, testCase[0].value,
+                      eventTime);
+                  should(
+                      audio[eventFrame - 1],
+                      prefix +
+                          `At time ${
+                                     (eventFrame - 1) / sampleRate
+                                   } (frame ${eventFrame - 1}) output`)
+                      .beCloseTo(
+                          expectedValue,
+                          {threshold: testCase[0].relError || 0});
+
+                  // The setValue should have taken effect
+                  should(
+                      audio[eventFrame],
+                      prefix +
+                          `At time ${eventTime} (frame ${eventFrame}) output`)
+                      .beEqualTo(testCase[1].value);
+
+                  // The final event is setTarget.  Compute the expected output.
+                  let actual = audio.slice(eventFrame);
+                  let expected = new Float32Array(actual.length);
+                  for (let k = 0; k < expected.length; ++k) {
+                    let t = (eventFrame + k) / sampleRate;
+                    expected[k] = audioParamSetTarget(
+                        t, testCase[1].value, eventTime, testCase[2].value,
+                        testCase[2].extraArgs);
+                  }
+                  should(
+                      actual,
+                      prefix +
+                          `At time ${eventTime} (frame ${
+                                                         eventFrame
+                                                       }) and later`)
+                      .beCloseToArray(expected, {relativeThreshold: 2.6694e-7});
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'Multiple linear ramps at the same time',
+            description: 'Verify output'
+          },
+          (task, should) => {
+            testMultipleSameEvents(should, {
+              method: 'linearRampToValueAtTime',
+              prefix: 'Multiple linear ramps: ',
+              threshold: 0
+            }).then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'Multiple exponential ramps at the same time',
+            description: 'Verify output'
+          },
+          (task, should) => {
+            testMultipleSameEvents(should, {
+              method: 'exponentialRampToValueAtTime',
+              prefix: 'Multiple exponential ramps: ',
+              threshold: 5.3924e-7
+            }).then(() => task.done());
+          });
+
+      audit.run();
+
+      // Takes a list of |testCases| consisting of automation methods and
+      // schedules them to occur at |eventFrame|. |prefix| is a prefix for
+      // messages produced by |should|.
+      //
+      // Each item in |testCases| is a dictionary with members:
+      //   event     - the name of automation method to be inserted,
+      //   value     - the value for the event,
+      //   extraArgs - extra arguments if the event needs more than the value
+      //               and time (such as setTargetAtTime).
+      function testEventInsertion(prefix, should, eventFrame, testCases) {
+        let context = new OfflineAudioContext(
+            {length: 4 * RENDER_QUANTUM_FRAMES, sampleRate: sampleRate});
+
+        // The source node to use.  Automations will be scheduled here.
+        let src = new ConstantSourceNode(context, {offset: 0});
+        src.connect(context.destination);
+
+        // Initialize value to 1 at the beginning.
+        src.offset.setValueAtTime(1, 0);
+
+        // Test automations have this event time.
+        let eventTime = eventFrame / context.sampleRate;
+
+        // Sanity check that context is long enough for the test
+        should(
+            eventFrame < context.length,
+            prefix + 'Context length is long enough for the test')
+            .beTrue();
+
+        // Automations to be tested.  The first event should be the actual
+        // output up to the event time.  The last event should be the final
+        // output from the event time and onwards.
+        testCases.forEach(entry => {
+          should(
+              () => {
+                src.offset[entry.event](
+                    entry.value, eventTime, entry.extraArgs);
+              },
+              prefix +
+                  eventToString(
+                      entry.event, entry.value, eventTime, entry.extraArgs))
+              .notThrow();
+        });
+
+        src.start();
+
+        return context.startRendering();
+      }
+
+      // Verify output of test where the final value of the automation is
+      // expected to be constant.
+      function expectConstant(prefix, should, eventFrame, testCases) {
+        return audioBuffer => {
+          let audio = audioBuffer.getChannelData(0);
+
+          let eventTime = eventFrame / sampleRate;
+
+          // Compute the expected value of the first automation one frame before
+          // the event time.  This is a quick check that the correct automation
+          // was done.
+          let expectedValue = methodMap[testCases[0].event](
+              (eventFrame - 1) / sampleRate, 1, 0, testCases[0].value,
+              eventTime);
+          should(
+              audio[eventFrame - 1],
+              prefix +
+                  `At time ${
+                             (eventFrame - 1) / sampleRate
+                           } (frame ${eventFrame - 1}) output`)
+              .beCloseTo(expectedValue, {threshold: testCases[0].relError});
+
+          // The last event scheduled is expected to set the value for all
+          // future times.  Verify that the output has the expected value.
+          should(
+              audio.slice(eventFrame),
+              prefix +
+                  `At time ${eventTime} (frame ${
+                                                 eventFrame
+                                               }) and later, output`)
+              .beConstantValueOf(testCases[testCases.length - 1].value);
+        };
+      }
+
+      // Test output when two events of the same time are scheduled at the same
+      // time.
+      function testMultipleSameEvents(should, options) {
+        let {method, prefix, threshold} = options;
+
+        // Context for testing.
+        let context =
+            new OfflineAudioContext({length: 16384, sampleRate: sampleRate});
+
+        let src = new ConstantSourceNode(context);
+        src.connect(context.destination);
+
+        let initialValue = 1;
+
+        // Informative print
+        should(() => {
+          src.offset.setValueAtTime(initialValue, 0);
+        }, prefix + `setValueAtTime(${initialValue}, 0)`).notThrow();
+
+        let frame = 64;
+        let time = frame / context.sampleRate;
+        let values = [2, 7, 10];
+
+        // Schedule two events of the same type at the same time, but with
+        // different values.
+
+        values.forEach(value => {
+          // Informative prints to show what we're doing in this test.
+          should(
+              () => {
+                src.offset[method](value, time);
+              },
+              prefix +
+                  eventToString(
+                      method,
+                      value,
+                      time,
+                      ))
+              .notThrow();
+        })
+
+        src.start();
+
+        return context.startRendering().then(audioBuffer => {
+          let actual = audioBuffer.getChannelData(0);
+
+          // The output should be a ramp from time 0 to the event time.  But we
+          // only verify the value just before the event time, which should be
+          // fairly close to values[0].  (But compute the actual expected value
+          // to be sure.)
+          let expected = methodMap[method](
+              (frame - 1) / context.sampleRate, initialValue, 0, values[0],
+              time);
+          should(actual[frame - 1], prefix + `Output at frame ${frame - 1}`)
+              .beCloseTo(expected, {threshold: threshold, precision: 3});
+
+          // Any other values shouldn't show up in the output.  Only the value
+          // from last event should appear.  We only check the value at the
+          // event time.
+          should(
+              actual[frame], prefix + `Output at frame ${frame} (${time} sec)`)
+              .beEqualTo(values[values.length - 1]);
+        });
+      }
+
+      // Convert an automation method to a string for printing.
+      function eventToString(method, value, time, extras) {
+        let string = method + '(';
+        string += (value instanceof Array) ? `[${value}]` : value;
+        string += ', ' + time;
+        if (extras) {
+          string += ', ' + extras;
+        }
+        string += ')';
+        return string;
+      }
+
+      // Map between the automation method name and a function that computes the
+      // output value of the automation method.
+      const methodMap = {
+        linearRampToValueAtTime: audioParamLinearRamp,
+        exponentialRampToValueAtTime: audioParamExponentialRamp,
+        setValueAtTime: (t, v) => v
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Simple AudioWorklet I/O
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Arbitrary sample rate
+      const sampleRate = 48000;
+
+      // The offset to be applied by the worklet to its inputs.
+      const offset = 1;
+
+      // Location of the worklet's code
+      const filePath = 'processors/add-offset.js';
+
+      promise_test(async () => {
+        // Two channels for testing.  Channel 0 is the output of the
+        // AudioWorklet.  Channel 1 is the oscillator so we can compare
+        // the outputs.
+        const context = new OfflineAudioContext(
+            {numberOfChannels: 2, length: sampleRate, sampleRate: sampleRate});
+
+        // Load up the code for the worklet.
+        await context.audioWorklet.addModule(filePath);
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfChannels: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        const src = new OscillatorNode(context);
+
+        const worklet = new AudioWorkletNode(
+            context, 'add-offset-processor',
+            {processorOptions: {offset: offset}});
+
+        src.connect(worklet).connect(merger, 0, 0);
+        src.connect(merger, 0, 1);
+
+        // Start and stop the source.  The stop time is fairly arbitrary,
+        // but use a render quantum boundary for simplicity.
+        const stopFrame = RENDER_QUANTUM_FRAMES;
+        src.start();
+        src.stop(stopFrame / context.sampleRate);
+
+        const resultBuffer = await context.startRendering();
+        const ch0 = resultBuffer.getChannelData(0);
+        const ch1 = resultBuffer.getChannelData(1);
+
+        const shifted = ch1.slice(0, stopFrame).map(x => x + offset);
+
+        // The initial part of the output should be the oscillator
+        // shifted by |offset|.
+        assert_array_equal_within_eps(
+            ch0.slice(0, stopFrame),
+            shifted,
+            {absoluteThreshold: 0},
+            `AudioWorklet output[0:${stopFrame - 1}]`);
+
+        // Output should be constant after the source has stopped.
+        assert_array_equals(
+            ch0.slice(stopFrame),
+            new Float32Array(ch0.slice(stopFrame).length).fill(offset),
+            `AudioWorklet output[${stopFrame}:]`);
+      }, 'Simple AudioWorklet I/O');
+    </script>
+  </body>
+</html>

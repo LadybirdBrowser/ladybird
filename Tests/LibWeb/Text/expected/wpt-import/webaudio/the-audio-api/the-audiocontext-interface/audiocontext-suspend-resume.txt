@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Test suspend() for offline context
+Pass	Test resume() for offline context
+Pass	Test state after context closed
+Pass	Test resuming a running online context

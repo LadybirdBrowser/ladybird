@@ -34,11 +34,17 @@ void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, We
     glBufferData(target, size, 0, usage);
 }
 
-void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> data, WebIDL::UnsignedLong usage)
+void WebGLRenderingContextOverloads::buffer_data(WebIDL::UnsignedLong target, Optional<GC::Root<WebIDL::BufferSource>> data, WebIDL::UnsignedLong usage)
 {
     m_context->make_current();
 
-    auto span = MUST(get_offset_span<u8 const>(*data, /* src_offset= */ 0));
+    // If data is null, the WebGL spec defines a zero sized data store allocation.
+    if (!data.has_value()) {
+        glBufferData(target, 0, nullptr, usage);
+        return;
+    }
+
+    auto span = MUST(get_offset_span<u8 const>(*data.value(), /* src_offset= */ 0));
     glBufferData(target, span.size(), span.data(), usage);
 }
 

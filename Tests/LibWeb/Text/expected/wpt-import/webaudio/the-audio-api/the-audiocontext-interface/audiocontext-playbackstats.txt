@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Test that the stats increase during playback
+Pass	Test that toJSON reflects the current stats
+Pass	Test PlaybackStats.resetLatency()
+Pass	Test that stats are unchanged within the same execution cycle.

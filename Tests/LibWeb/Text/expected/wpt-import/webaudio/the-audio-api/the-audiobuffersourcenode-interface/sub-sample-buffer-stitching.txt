@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	buffer-stitching-1
+Pass	buffer-stitching-2

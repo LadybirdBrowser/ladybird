@@ -24,73 +24,76 @@ class Task final : public JS::Cell {
 
 public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#generic-task-sources
-    enum class Source {
-        Unspecified,
-        DOMManipulation,
-        UserInteraction,
-        Networking,
-        HistoryTraversal,
-        IdleTask,
-        PostedMessage,
-        Microtask,
-        TimerTask,
-        JavaScriptEngine,
+    enum class Source : u16 {
+        Unspecified = 0,
+        DOMManipulation = 1,
+        UserInteraction = 2,
+        Networking = 3,
+        HistoryTraversal = 4,
+        IdleTask = 5,
+        PostedMessage = 6,
+        Microtask = 7,
+        TimerTask = 8,
+        JavaScriptEngine = 9,
 
         // https://w3c.github.io/geolocation/#dfn-geolocation-task-source
-        Geolocation,
+        Geolocation = 10,
 
         // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#bitmap-task-source
-        BitmapTask,
+        BitmapTask = 11,
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#navigation-and-traversal-task-source
-        NavigationAndTraversal,
+        NavigationAndTraversal = 12,
 
         // https://w3c.github.io/FileAPI/#fileReadingTaskSource
-        FileReading,
+        FileReading = 13,
 
         // https://www.w3.org/TR/intersection-observer/#intersectionobserver-task-source
-        IntersectionObserver,
+        IntersectionObserver = 14,
 
         // https://w3c.github.io/performance-timeline/#dfn-performance-timeline-task-source
-        PerformanceTimeline,
+        PerformanceTimeline = 15,
 
         // https://html.spec.whatwg.org/multipage/canvas.html#canvas-blob-serialisation-task-source
-        CanvasBlobSerializationTask,
+        CanvasBlobSerializationTask = 16,
 
         // https://w3c.github.io/clipboard-apis/#clipboard-task-source
-        Clipboard,
+        Clipboard = 17,
 
         // https://w3c.github.io/permissions/#permissions-task-source
-        Permissions,
+        Permissions = 18,
 
         // https://drafts.csswg.org/css-font-loading/#task-source
-        FontLoading,
+        FontLoading = 19,
 
         // https://html.spec.whatwg.org/multipage/server-sent-events.html#remote-event-task-source
-        RemoteEvent,
+        RemoteEvent = 20,
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-task-source
-        Rendering,
+        Rendering = 21,
 
         // https://w3c.github.io/IndexedDB/#database-access-task-source
-        DatabaseAccess,
+        DatabaseAccess = 22,
 
         // https://websockets.spec.whatwg.org/#websocket-task-source
-        WebSocket,
+        WebSocket = 23,
 
         // https://w3c.github.io/media-capabilities/#media-capabilities-task-source
-        MediaCapabilities,
+        MediaCapabilities = 24,
 
         // https://w3c.github.io/gamepad/#dfn-gamepad-task-source
-        Gamepad,
+        Gamepad = 25,
 
         // https://www.w3.org/TR/webcrypto-2/#dfn-crypto-task-source
-        Crypto,
+        Crypto = 26,
+
+        // AD-HOC: AudioWorklet control tasks.
+        AudioWorklet = 27,
 
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.
         // Some elements, such as the HTMLMediaElement, must have a unique task source per instance.
-        UniqueTaskSourceStart
+        UniqueTaskSourceStart = 256
     };
 
     static GC::Ref<Task> create(JS::VM&, Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
@@ -110,7 +113,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    TaskID m_id {};
+    TaskID m_id;
     Source m_source { Source::Unspecified };
     GC::Ref<GC::Function<void()>> m_steps;
     GC::Ptr<DOM::Document const> m_document;

@@ -1,0 +1,12 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <MediaCapture/MediaDeviceInfo.idl>
+#import <MediaCapture/MediaStream.idl>
+
+// https://w3c.github.io/mediacapture-main/#mediadevices
+[Exposed=Window, SecureContext]
+interface MediaDevices : EventTarget {
+    attribute EventHandler ondevicechange;
+    Promise<sequence<MediaDeviceInfo>> enumerateDevices();
+    Promise<MediaStream> getUserMedia(optional object constraints = {});
+};

@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "cascade-mono"
+Pass	Audit report
+Pass	> [cascade-mono] Cascaded mono convolvers
+Pass	  Output of cascaded mono convolvers is not constantly 0 (contains 2000 different values).
+Pass	< [cascade-mono] All assertions passed. (total 1 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

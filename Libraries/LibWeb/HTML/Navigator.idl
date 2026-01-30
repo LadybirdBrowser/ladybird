@@ -13,6 +13,7 @@
 #import <HTML/NavigatorOnLine.idl>
 #import <HTML/PluginArray.idl>
 #import <HTML/UserActivation.idl>
+#import <MediaCapture/MediaDevices.idl>
 #import <MediaCapabilitiesAPI/MediaCapabilities.idl>
 #import <Serial/Serial.idl>
 #import <ServiceWorker/ServiceWorkerContainer.idl>
@@ -44,6 +45,9 @@ interface Navigator {
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://w3c.github.io/mediacapture-main/#dom-navigator-mediadevices
+    [SecureContext, SameObject] readonly attribute MediaDevices mediaDevices;
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
     [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;

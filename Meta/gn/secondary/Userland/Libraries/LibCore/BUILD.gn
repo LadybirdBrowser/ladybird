@@ -75,6 +75,8 @@ source_set("sources") {
     "ResourceImplementation.cpp",
     "ResourceImplementationFile.cpp",
     "SharedCircularQueue.h",
+    "SharedSingleProducerCircularBuffer.cpp",
+    "SharedSingleProducerCircularBuffer.h",
     "Socket.cpp",
     "Socket.h",
     "SocketAddress.h",

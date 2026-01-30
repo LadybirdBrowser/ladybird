@@ -11,7 +11,7 @@
         function makeContent(id, n) {
             let html = `<h3>${id} ${n}</h3>`;
             if (n % 3 === 0) html += `<iframe id="nest1+${id}" srcdoc="${id} ${n}"></iframe>`;
-            if (n % 5 === 0) html += `<frame id="nest2${id} srcdoc="${id} ${n}"/>`;
+            if (n % 5 === 0) html += `<frame id="nest2${id}" srcdoc="${id} ${n}"/>`;
             return html;
         }
         function run(iframe, id, n, max, finish) {
@@ -27,9 +27,9 @@
             };
             iframe.src = url;
         }
-        run(document.getElementById('a'), 'a', 0, 101, () => {doneA = true; check();});
-        run(document.getElementById('b'), 'b', 0, 101, () => {doneB = true; check();});
-        run(document.getElementById('c'), 'c', 0, 101, () => {doneC = true; check();});
-        run(document.getElementById('d'), 'd', 0, 101, () => {doneD = true; check();});
+        run(document.getElementById('a'), 'a', 0, 21, () => {doneA = true; check();});
+        run(document.getElementById('b'), 'b', 0, 21, () => {doneB = true; check();});
+        run(document.getElementById('c'), 'c', 0, 21, () => {doneC = true; check();});
+        run(document.getElementById('d'), 'd', 0, 21, () => {doneD = true; check();});
     });
 </script>

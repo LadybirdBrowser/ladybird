@@ -300,4 +300,66 @@ void PlaybackManager::set_volume(double volume)
         m_audio_sink->set_volume(volume);
 }
 
+void PlaybackManager::set_audio_tap(AudioTapCallback callback, Optional<Audio::SampleSpecification> override_sample_specification)
+{
+    if (!m_audio_sink)
+        return;
+
+    if (!callback) {
+        clear_audio_tap();
+        return;
+    }
+
+    Optional<Track> selected_track = m_preferred_audio_track;
+    if (!selected_track.has_value() && !m_audio_tracks.is_empty())
+        selected_track = m_audio_tracks.first();
+
+    if (!m_audio_tap_active) {
+        m_audio_track_enabled_before_tap.clear();
+        for (auto const& track : m_audio_tracks) {
+            bool enabled = m_audio_sink->provider(track) != nullptr;
+            m_audio_track_enabled_before_tap.set(track, enabled);
+        }
+    }
+
+    for (auto const& track : m_audio_tracks) {
+        bool should_enable = selected_track.has_value() && track == selected_track.value();
+        bool is_enabled = m_audio_sink->provider(track) != nullptr;
+
+        if (should_enable && !is_enabled) {
+            enable_an_audio_track(track);
+        } else if (!should_enable && is_enabled) {
+            disable_an_audio_track(track);
+        }
+    }
+
+    m_audio_tap_selected_track = selected_track;
+    m_audio_tap_active = true;
+    m_audio_sink->set_tap(move(callback), override_sample_specification);
+}
+
+void PlaybackManager::clear_audio_tap()
+{
+    if (!m_audio_sink)
+        return;
+
+    m_audio_sink->clear_tap();
+
+    if (!m_audio_tap_active)
+        return;
+
+    for (auto const& track : m_audio_tracks) {
+        bool was_enabled = m_audio_track_enabled_before_tap.get(track).value_or(false);
+        bool is_enabled = m_audio_sink->provider(track) != nullptr;
+        if (was_enabled && !is_enabled)
+            enable_an_audio_track(track);
+        else if (!was_enabled && is_enabled)
+            disable_an_audio_track(track);
+    }
+
+    m_audio_track_enabled_before_tap.clear();
+    m_audio_tap_selected_track.clear();
+    m_audio_tap_active = false;
+}
+
 }

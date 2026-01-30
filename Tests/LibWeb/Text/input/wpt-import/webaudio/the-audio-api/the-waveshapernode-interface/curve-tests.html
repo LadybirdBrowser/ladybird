@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+    <title>WaveShaperNode interface - Curve tests | WebAudio</title>
+
+    <script type="text/javascript" src="../../../resources/testharness.js"></script>
+    <script type="text/javascript" src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+    <div id="log">
+    </div>
+
+    <script type="text/javascript">
+        var sampleRate=44100.0;
+        var tolerance=0.01;
+
+        /*
+        Testing that -1, 0 and +1 map correctly to curve (with 1:1 correlation)
+        =======================================================================
+        From the specification:
+            The input signal is nominally within the range -1 -> +1.
+            Each input sample within this range will index into the shaping curve with a signal level of zero corresponding
+                to the center value of the curve array.
+        */
+        (function() {
+            var threeElementCurve=[2.0, -3.0, 4.0];
+            var inputData=[-1.0, 0, 1.0];
+            var expectedData=[2.0, -3.0, 4.0];
+            executeTest(threeElementCurve, inputData, expectedData, "Testing that -1, 0 and +1 map correctly to curve (with 1:1 correlation)");
+        })();
+
+        /*
+        Testing interpolation (where inputs don't correlate directly to curve elements)
+        ===============================================================================
+        From the specification:
+            The implementation must perform linear interpolation between adjacent points in the curve.
+        */
+        (function() {
+            var threeElementCurve=[2.0, -3.0, 4.0];
+            var inputData=[-0.5, +0.5, +0.75];
+            var expectedData=[-0.5, +0.5, +2.25];
+            executeTest(threeElementCurve, inputData, expectedData, "Testing interpolation (where inputs don't correlate directly to curve elements)");
+        })();
+
+        /*
+        Testing out-of-range inputs (should be mapped to the first/last elements of the curve)
+        ======================================================================================
+        From the specification:
+            Any sample value less than -1 will correspond to the first value in the curve array.
+            Any sample value greater than +1 will correspond to the last value in the curve array.
+        */
+        (function() {
+            var threeElementCurve=[2.0, -3.0, 4.0];
+            var inputData=[-1.5, +1.5];
+            var expectedData=[2.0, 4.0];
+            executeTest(threeElementCurve, inputData, expectedData, "Testing out-of-range inputs (should be mapped to the first/last elements of the curve)");
+        })();
+
+        /*
+        Testing a 2-element curve (does not have a middle element)
+        ==========================================================
+        From the specification:
+            Each input sample within this range will index into the shaping curve with a signal level of zero corresponding
+                to the center value of the curve array.
+            The implementation must perform linear interpolation between adjacent points in the curve.
+        */
+        (function() {
+            var twoElementCurve=[2.0, -2.0];
+            var inputData=[-1.0, 0, 1.0];
+            var expectedData=[2.0, 0.0, -2.0];
+            executeTest(twoElementCurve, inputData, expectedData, "Testing a 2-element curve (does not have a middle element)");
+        })();
+
+        /*
+        Testing a 4-element curve (does not have a middle element)
+        ==========================================================
+        From the specification:
+            Each input sample within this range will index into the shaping curve with a signal level of zero corresponding
+                to the center value of the curve array.
+            The implementation must perform linear interpolation between adjacent points in the curve.
+        */
+        (function() {
+            var fourElementCurve=[1.0, 2.0, 4.0, 7.0];
+            var inputData=[-1.0, 0, 1.0];
+            var expectedData=[1.0, 3.0, 7.0];
+            executeTest(fourElementCurve, inputData, expectedData, "Testing a 4-element curve (does not have a middle element)");
+        })();
+
+        /*
+        Testing a huge curve
+        ====================
+        From the specification:
+            Each input sample within this range will index into the shaping curve with a signal level of zero corresponding
+                to the center value of the curve array.
+        */
+        (function() {
+            var bigCurve=[];
+            for(var i=0;i<=60000;i++) { bigCurve.push(i/3.5435); }
+            var inputData=[-1.0, 0, 1.0];
+            var expectedData=[bigCurve[0], bigCurve[30000], bigCurve[60000]];
+            executeTest(bigCurve, inputData, expectedData, "Testing a huge curve");
+        })();
+
+        /*
+        Testing single-element curve (boundary condition)
+        =================================================
+        From the specification:
+            Each input sample within this range will index into the shaping curve with a signal level of zero corresponding
+                to the center value of the curve array.
+            Any sample value less than -1 will correspond to the first value in the curve array.
+            Any sample value greater than +1 will correspond to the last value in the curve array.
+            The implementation must perform linear interpolation between adjacent points in the curve.
+        */
+
+        /*
+        Testing null curve (should return input values)
+        ===============================================
+        From the specification:
+            Initially the curve attribute is null, which means that the WaveShaperNode will pass its input to its output
+                without modification.
+        */
+        (function() {
+            var inputData=[-1.0, 0, 1.0, 2.0];
+            var expectedData=[-1.0, 0.0, 1.0, 2.0];
+            executeTest(null, inputData, expectedData, "Testing null curve (should return input values)");
+        })();
+
+        /**
+        * Function that does the actual testing (using an asynchronous test).
+        * @param {?Array.<number>} curveData - Array containing values for the WaveShaper curve.
+        * @param {!Array.<number>} inputData - Array containing values for the input stream.
+        * @param {!Array.<number>} expectedData - Array containing expected results for each of the corresponding inputs.
+        * @param {!string} testName - Name of the test case.
+        */
+        function executeTest(curveData, inputData, expectedData, testName) {
+            var stTest=async_test("WaveShaperNode - "+testName);
+            stTest.step(function() {
+
+                // Create offline audio context.
+                var ac=new OfflineAudioContext(1, inputData.length, sampleRate);
+
+                // Create the WaveShaper and its curve.
+                var waveShaper=ac.createWaveShaper();
+                if(curveData!=null) {
+                    var curve=new Float32Array(curveData.length);
+                    for(var i=0;i<curveData.length;i++) { curve[i]=curveData[i]; }
+                    waveShaper.curve=curve;
+                }
+                waveShaper.connect(ac.destination);
+
+                // Create buffer containing the input values.
+                var inputBuffer=ac.createBuffer(1, Math.max(inputData.length, 2), sampleRate);
+                var d=inputBuffer.getChannelData(0);
+                for(var i=0;i<inputData.length;i++) { d[i]=inputData[i]; }
+
+                // Play the input buffer through the WaveShaper.
+                var src=ac.createBufferSource();
+                src.buffer=inputBuffer;
+                src.connect(waveShaper);
+                src.start();
+
+                // Test the outputs match the expected values.
+                ac.oncomplete=stTest.step_func_done(function(ev) {
+                    var d=ev.renderedBuffer.getChannelData(0);
+
+                    for(var i=0;i<expectedData.length;i++) {
+                        var curveText="null";
+                        if(curve!=null) {
+                            if(curveData.length<20) {
+                                curveText=curveData.join(",");
+                            } else {
+                                curveText="TooBigToDisplay ("+(curveData.length-1)+" elements)";
+                            }
+                        }
+                        var comment="Input="+inputData[i]+", Curve=["+curveText+"] >>> ";
+                        assert_approx_equals(d[i], expectedData[i], tolerance, comment);
+                    }
+                });
+                ac.startRendering();
+            });
+        }
+    </script>
+</body>
+</html>

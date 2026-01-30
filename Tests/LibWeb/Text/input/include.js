@@ -62,6 +62,20 @@ window.addEventListener(
     { signal: __testErrorHandlerController.signal }
 );
 
+window.addEventListener(
+    "unhandledrejection",
+    event => {
+        let message = "(no reason)";
+        if (event && "reason" in event) {
+            if (event.reason instanceof Error) message = event.reason.message;
+            else message = String(event.reason);
+        }
+        println(`Unhandled Promise Rejection In Test: ${message}`);
+        __finishTest();
+    },
+    { signal: __testErrorHandlerController.signal }
+);
+
 function removeTestErrorHandler() {
     __testErrorHandlerController.abort();
 }
@@ -94,11 +108,17 @@ function asyncTest(f) {
 }
 
 function promiseTest(f) {
+    __preventMultipleTestFunctions();
     document.addEventListener("DOMContentLoaded", () => {
-        f().then(() => {
-            __preventMultipleTestFunctions();
-            __finishTest();
-        });
+        Promise.resolve()
+            .then(f)
+            .then(() => {
+                __finishTest();
+            })
+            .catch(error => {
+                println(`Caught error while running promise test: ${error}`);
+                __finishTest();
+            });
     });
 }
 

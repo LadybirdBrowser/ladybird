@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test given arrays within AudioWorkletProcessor.process() method
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+
+  <body>
+    <script>
+      const audit = Audit.createTaskRunner();
+      const filePath = 'processors/array-check-processor.js';
+      const context = new AudioContext();
+
+      // Test if the incoming arrays are frozen as expected.
+      audit.define('check-frozen-array', (task, should) => {
+        context.audioWorklet.addModule(filePath).then(() => {
+          const workletNode =
+              new AudioWorkletNode(context, 'array-frozen-processor');
+          workletNode.port.onmessage = (message) => {
+            const actual = message.data;
+            should(actual.isInputFrozen, '|inputs| is frozen').beTrue();
+            should(actual.isOutputFrozen, '|outputs| is frozen').beTrue();
+            task.done();
+          };
+        });
+      });
+
+      // The incoming arrays should not be transferred, but the associated
+      // ArrayBuffers can be transferred. See the `array-transfer-processor`
+      // definition for the details.
+      audit.define('transfer-frozen-array', (task, should) => {
+        const sourceNode = new ConstantSourceNode(context);
+        const workletNode =
+            new AudioWorkletNode(context, 'array-transfer-processor');
+        workletNode.port.onmessage = (message) => {
+          const actual = message.data;
+          if (actual.type === 'assertion')
+            should(actual.success, actual.message).beTrue();
+          if (actual.done)
+            task.done();
+        };
+        // To have valid ArrayBuffers for both input and output, we need
+        // both connections.
+        // See: https://github.com/WebAudio/web-audio-api/issues/2566
+        sourceNode.connect(workletNode).connect(context.destination);
+        sourceNode.start();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

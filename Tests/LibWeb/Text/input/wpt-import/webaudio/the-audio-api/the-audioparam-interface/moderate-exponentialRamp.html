@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>Test exponentialRampToValueAtTime() with a moderate ratio of change</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+promise_test(async function() {
+  const bufferSize = 128;
+  const sampleRate = 16384;
+  // 3 * 2^6, not a power of two, so that there is some rounding error in the
+  // exponent
+  const rampEndSample = 192;
+  // These values are chosen so that there is rounding error in
+  // (offset1/offset0)^(1/rampEndSample).
+  const offset0 = 4.;
+  const offset1 = 7.;
+  // 8 units in the last place (ulp) is a generous tolerance if single
+  // precision powf() is used.  Math.pow(2, -23) ~ 1 ulp.
+  // A simple recurrence relation formulation with only single precision
+  // arithmetic applied across the whole rendering quantum would accumulate
+  // error up to 50 ulp, losing 5.6 of the 24 bits of precision.
+  const relativeTolerance = 8 * Math.pow(2, -23);
+
+  const context = new OfflineAudioContext(1, bufferSize, sampleRate);
+
+  const source = new ConstantSourceNode(context);
+  source.start();
+  // Explicit event to work around
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1265393
+  source.offset.setValueAtTime(offset0, 0.);
+  source.offset.exponentialRampToValueAtTime(offset1, rampEndSample/sampleRate);
+  source.connect(context.destination);
+
+  const buffer = await context.startRendering();
+  assert_equals(buffer.length, bufferSize, "output buffer length");
+  const output = buffer.getChannelData(0);
+  const ratio = offset1 / offset0;
+  for (let i = 0; i < bufferSize; ++i) {
+    // Math.pow() uses double precision, while `output` has single precision,
+    // but `tolerance` is more than enough to accommodate differences.
+    const expected = offset0 * Math.pow(offset1/offset0, i/rampEndSample);
+    assert_approx_equals(
+      output[i],
+      expected,
+      relativeTolerance * expected,
+      "scheduled value at " + i);
+  }
+});
+</script>

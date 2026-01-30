@@ -79,8 +79,8 @@ Pass	  node5.channelInterpretation is equal to speakers.
 Pass	  node6 = new PannerNode(c, {"channelInterpretation":"discrete"}) did not throw an exception.
 Pass	  node6.channelInterpretation is equal to discrete.
 Pass	  new PannerNode(c, {"channelInterpretation":"foobar"}) threw TypeError: "Invalid value 'foobar' for enumeration type 'ChannelInterpretation'".
-Pass	  new PannerNode(c, {"maxDistance":-1}) threw RangeError: "maxDistance cannot be negative".
-Pass	  node.maxDistance = -1 threw RangeError: "maxDistance cannot be negative".
+Pass	  new PannerNode(c, {"maxDistance":-1}) threw RangeError: "maxDistance must be positive".
+Pass	  node.maxDistance = -1 threw RangeError: "maxDistance must be positive".
 Pass	  node.maxDistance after setting to -1 is equal to 10000.
 Pass	  node7 = new PannerNode(c, {"maxDistance":100}) did not throw an exception.
 Pass	  node7.maxDistance is equal to 100.

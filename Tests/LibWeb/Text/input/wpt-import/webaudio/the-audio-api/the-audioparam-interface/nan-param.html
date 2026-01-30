@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Flushing of NaN to Zero in AudioParams</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // See
+      // https://webaudio.github.io/web-audio-api/#computation-of-value.
+      //
+      // The computed value must replace NaN values in the output with
+      // the default value of the param.
+      promise_test(async () => {
+        // For testing, we only need a small number of frames; and
+        // a low sample rate is perfectly fine.  Use two channels.
+        // The first channel is for the AudioParam output.  The
+        // second channel is for the AudioParam input.
+        const context = new OfflineAudioContext(
+            {numberOfChannels: 2, length: 256, sampleRate: 8192});
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // A constant source with a huge value.
+        const mod = new ConstantSourceNode(context, {offset: 1e30});
+
+        // Gain nodes with a huge positive gain and huge negative
+        // gain.  Combined with the huge offset in |mod|, the
+        // output of the gain nodes are +Infinity and -Infinity.
+        const gainPos = new GainNode(context, {gain: 1e30});
+        const gainNeg = new GainNode(context, {gain: -1e30});
+
+        mod.connect(gainPos);
+        mod.connect(gainNeg);
+
+        // Connect these to the second merger channel. This is a
+        // sanity check that the AudioParam input really is NaN.
+        gainPos.connect(merger, 0, 1);
+        gainNeg.connect(merger, 0, 1);
+
+        // Source whose AudioParam is connected to the graph
+        // that produces NaN values.  Use a non-default value offset
+        // just in case something is wrong we get default for some
+        // other reason.
+        const src = new ConstantSourceNode(context, {offset: 100});
+
+        gainPos.connect(src.offset);
+        gainNeg.connect(src.offset);
+
+        // AudioParam output goes to channel 1 of the destination.
+        src.connect(merger, 0, 0);
+
+        // Let's go!
+        mod.start();
+        src.start();
+
+        const buffer = await context.startRendering();
+
+        const input = buffer.getChannelData(1);
+        const output = buffer.getChannelData(0);
+
+        // Have to test manually for NaN values in the input because
+        // NaN fails all comparisons.
+        let isNaN = true;
+        for (let k = 0; k < input.length; ++k) {
+          if (!Number.isNaN(input[k])) {
+            isNaN = false;
+            break;
+          }
+        }
+
+        assert_true(isNaN, 'AudioParam input contains only NaN');
+
+        // Output of the AudioParam should have all NaN values
+        // replaced by the default.
+        assert_constant_value(
+            output, src.offset.defaultValue,
+            'AudioParam output should flush NaN to default');
+      }, 'AudioParam NaN should be flushed to default value');
+    </script>
+  </body>
+</html>
