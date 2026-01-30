@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/NonnullRawPtr.h>
 #include <AK/SourceLocation.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/ConnectionToServer.h>
@@ -150,8 +151,7 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
-    // FIXME: Does a HashMap holding references make sense?
-    HashMap<u64, ViewImplementation*> m_views;
+    HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
 
     ProcessHandle m_process_handle;
 
