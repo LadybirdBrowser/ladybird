@@ -308,40 +308,40 @@ public:
         : m_value(color)
     {
     }
-    SVGPaint(URL const& url)
+    SVGPaint(CSSURL const& url)
         : m_value(url)
     {
     }
 
     bool is_color() const { return m_value.has<Color>(); }
-    bool is_url() const { return m_value.has<URL>(); }
+    bool is_url() const { return m_value.has<CSSURL>(); }
     Color as_color() const { return m_value.get<Color>(); }
-    URL const& as_url() const { return m_value.get<URL>(); }
+    CSSURL const& as_url() const { return m_value.get<CSSURL>(); }
 
 private:
-    Variant<URL, Color> m_value;
+    Variant<CSSURL, Color> m_value;
 };
 
 // https://drafts.fxtf.org/css-masking-1/#typedef-mask-reference
 class MaskReference {
 public:
     // TODO: Support other mask types.
-    MaskReference(URL const& url)
+    MaskReference(CSSURL const& url)
         : m_url(url)
     {
     }
 
-    URL const& url() const { return m_url; }
+    CSSURL const& url() const { return m_url; }
 
 private:
-    URL m_url;
+    CSSURL m_url;
 };
 
 // https://drafts.fxtf.org/css-masking/#the-clip-path
 // TODO: Support clip sources.
 class ClipPathReference {
 public:
-    ClipPathReference(URL const& url)
+    ClipPathReference(CSSURL const& url)
         : m_clip_source(url)
     {
     }
@@ -353,16 +353,16 @@ public:
 
     bool is_basic_shape() const { return m_clip_source.has<BasicShape>(); }
 
-    bool is_url() const { return m_clip_source.has<URL>(); }
+    bool is_url() const { return m_clip_source.has<CSSURL>(); }
 
-    URL const& url() const { return m_clip_source.get<URL>(); }
+    CSSURL const& url() const { return m_clip_source.get<CSSURL>(); }
 
     BasicShapeStyleValue const& basic_shape() const { return *m_clip_source.get<BasicShape>(); }
 
 private:
     using BasicShape = NonnullRefPtr<BasicShapeStyleValue const>;
 
-    Variant<URL, BasicShape> m_clip_source;
+    Variant<CSSURL, BasicShape> m_clip_source;
 };
 
 struct BackgroundLayerData {

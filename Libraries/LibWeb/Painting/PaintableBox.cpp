@@ -1299,7 +1299,7 @@ void PaintableBox::resolve_paint_properties()
                         .angle_degrees = hue_rotate.angle_degrees(),
                     });
                 },
-                [&](CSS::URL const& css_url) {
+                [&](CSS::CSSURL const& css_url) {
                     auto& url_string = css_url.url();
                     if (url_string.is_empty() || !url_string.starts_with('#'))
                         return;

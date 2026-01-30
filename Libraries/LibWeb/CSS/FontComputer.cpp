@@ -117,7 +117,7 @@ OwnFontFaceKey::operator FontFaceKey() const
         && slope == other.slope;
 }
 
-FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
+FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<CSSURL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
     : m_font_computer(font_computer)
     , m_rule_or_declaration(rule_or_declaration)
     , m_family_name(move(family_name))
@@ -616,10 +616,10 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
     };
 
     // FIXME: Pass the sources directly, so the font loader can make use of the format information, or load local fonts.
-    Vector<URL> urls;
+    Vector<CSSURL> urls;
     for (auto const& source : font_face.sources()) {
-        if (source.local_or_url.has<URL>())
-            urls.append(source.local_or_url.get<URL>());
+        if (source.local_or_url.has<CSSURL>())
+            urls.append(source.local_or_url.get<CSSURL>());
         // FIXME: Handle local()
     }
 

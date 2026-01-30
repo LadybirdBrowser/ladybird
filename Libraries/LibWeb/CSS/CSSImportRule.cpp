@@ -28,12 +28,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+GC::Ref<CSSImportRule> CSSImportRule::create(JS::Realm& realm, CSSURL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
 {
     return realm.create<CSSImportRule>(realm, move(url), document, move(layer), move(supports), move(media));
 }
 
-CSSImportRule::CSSImportRule(JS::Realm& realm, URL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
+CSSImportRule::CSSImportRule(JS::Realm& realm, CSSURL url, GC::Ptr<DOM::Document> document, Optional<FlyString> layer, RefPtr<Supports> supports, GC::Ref<MediaList> media)
     : CSSRule(realm, Type::Import)
     , m_url(move(url))
     , m_document(document)
@@ -149,7 +149,7 @@ void CSSImportRule::fetch()
             .parent_style_sheet = &parent_style_sheet,
         }
     };
-    (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
+    (void)fetch_a_style_resource(CSSURL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
         [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document](auto response, auto maybe_byte_stream) {
             // AD-HOC: Stop delaying the load event.
             ScopeGuard guard = [strong_this, document] {

@@ -139,8 +139,8 @@ static RefPtr<StyleValue const> interpolate_scale(DOM::Element& element, Calcula
 // https://drafts.fxtf.org/filter-effects/#interpolation-of-filter-functions
 static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, CalculationContext const& calculation_context, FilterValue const& from, FilterValue const& to, float delta, AllowDiscrete allow_discrete)
 {
-    VERIFY(!from.has<URL>());
-    VERIFY(!to.has<URL>());
+    VERIFY(!from.has<CSSURL>());
+    VERIFY(!to.has<CSSURL>());
 
     if (from.index() != to.index()) {
         return {};
@@ -233,7 +233,7 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
                 .color = result_shadow.color()
             };
         },
-        [](URL const&) -> Optional<FilterValue> {
+        [](CSSURL const&) -> Optional<FilterValue> {
             // URL filters cannot be interpolated
             return {};
         });
@@ -2248,7 +2248,7 @@ Vector<FilterValue> accumulate_filter_function(FilterValueListStyleValue const& 
                     .color = accumulated_color
                 };
             },
-            [&](URL const&) -> Optional<FilterValue> {
+            [&](CSSURL const&) -> Optional<FilterValue> {
                 return {};
             });
     };

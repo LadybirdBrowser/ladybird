@@ -23,11 +23,11 @@ class WEB_API CSSImportRule final
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, GC::Ref<MediaList>);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(JS::Realm&, CSSURL, GC::Ptr<DOM::Document>, Optional<FlyString> layer, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual ~CSSImportRule() override;
 
-    URL const& url() const { return m_url; }
+    CSSURL const& url() const { return m_url; }
     String href() const { return m_url.url(); }
 
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
@@ -44,7 +44,7 @@ public:
     Optional<FlyString> internal_qualified_layer_name(Badge<StyleScope>) const;
 
 private:
-    CSSImportRule(JS::Realm&, URL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, GC::Ref<MediaList>);
+    CSSImportRule(JS::Realm&, CSSURL, GC::Ptr<DOM::Document>, Optional<FlyString>, RefPtr<Supports>, GC::Ref<MediaList>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -59,7 +59,7 @@ private:
     void fetch();
     void set_style_sheet(GC::Ref<CSSStyleSheet>);
 
-    URL m_url;
+    CSSURL m_url;
     GC::Ptr<DOM::Document> m_document;
     Optional<FlyString> m_layer;
     Optional<FlyString> m_layer_internal;

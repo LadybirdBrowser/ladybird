@@ -18,7 +18,7 @@ public:
     struct Local {
         NonnullRefPtr<StyleValue const> name;
     };
-    using Source = Variant<Local, URL>;
+    using Source = Variant<Local, CSSURL>;
 
     static ValueComparingNonnullRefPtr<FontSourceStyleValue const> create(Source source, Optional<FlyString> format, Vector<FontTech> tech)
     {
