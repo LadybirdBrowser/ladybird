@@ -70,6 +70,7 @@ private:
         void exit();
 
         void wait_for_start();
+        bool should_thread_exit_while_locked() const;
         bool should_thread_exit() const;
         bool handle_suspension();
         template<typename Invokee>

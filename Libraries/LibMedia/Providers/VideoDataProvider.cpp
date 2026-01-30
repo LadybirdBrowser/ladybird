@@ -193,10 +193,15 @@ void VideoDataProvider::ThreadData::wait_for_start()
         m_wait_condition.wait();
 }
 
+bool VideoDataProvider::ThreadData::should_thread_exit_while_locked() const
+{
+    return m_requested_state == RequestedState::Exit;
+}
+
 bool VideoDataProvider::ThreadData::should_thread_exit() const
 {
     auto locker = take_lock();
-    return m_requested_state == RequestedState::Exit;
+    return should_thread_exit_while_locked();
 }
 
 template<typename Invokee>
@@ -523,7 +528,7 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
                 {
                     auto locker = take_lock();
                     m_wait_condition.wait();
-                    if (should_thread_exit())
+                    if (should_thread_exit_while_locked())
                         return;
                     queue_size = m_queue.size();
                 }
