@@ -1160,16 +1160,8 @@ void PaintableBox::resolve_paint_properties()
     auto const& box_shadow_data = computed_values.box_shadow();
     Vector<Painting::ShadowData> resolved_box_shadow_data;
     resolved_box_shadow_data.ensure_capacity(box_shadow_data.size());
-    for (auto const& layer : box_shadow_data) {
-        resolved_box_shadow_data.empend(
-            layer.color,
-            layer.offset_x.to_px(layout_node),
-            layer.offset_y.to_px(layout_node),
-            layer.blur_radius.to_px(layout_node),
-            layer.spread_distance.to_px(layout_node),
-            layer.placement == CSS::ShadowPlacement::Outer ? Painting::ShadowPlacement::Outer
-                                                           : Painting::ShadowPlacement::Inner);
-    }
+    for (auto const& layer : box_shadow_data)
+        resolved_box_shadow_data.unchecked_append(ShadowData::from_css(layer, layout_node));
     set_box_shadow_data(move(resolved_box_shadow_data));
 
     // Outlines
