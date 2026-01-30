@@ -850,3 +850,64 @@ TEST_CASE(find_code_unit_offset_ignoring_case)
     EXPECT_EQ(7u, view.find_code_unit_offset_ignoring_case(u"baR"sv).value());
     EXPECT(!view.find_code_unit_offset_ignoring_case(u"baz"sv).has_value());
 }
+
+TEST_CASE(previous_code_point_at)
+{
+    // ASCII text.
+    {
+        Utf16View view { u"abc"sv };
+        size_t index = 3;
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'c');
+        EXPECT_EQ(index, 2u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'b');
+        EXPECT_EQ(index, 1u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'a');
+        EXPECT_EQ(index, 0u);
+    }
+
+    // Surrogate pair (emoji).
+    {
+        Utf16View view { u"a😀b"sv };
+        size_t index = 4;
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'b');
+        EXPECT_EQ(index, 3u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)0x1f600);
+        EXPECT_EQ(index, 1u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'a');
+        EXPECT_EQ(index, 0u);
+    }
+
+    // Unpaired low surrogate.
+    {
+        Utf16View view { u"a\xdc00g"sv };
+        size_t index = 3;
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'g');
+        EXPECT_EQ(index, 2u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)0xdc00);
+        EXPECT_EQ(index, 1u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'a');
+        EXPECT_EQ(index, 0u);
+    }
+
+    // Unpaired high surrogate.
+    {
+        Utf16View view { u"a\xd800g"sv };
+        size_t index = 3;
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'g');
+        EXPECT_EQ(index, 2u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)0xd800);
+        EXPECT_EQ(index, 1u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)'a');
+        EXPECT_EQ(index, 0u);
+    }
+
+    // Two consecutive unpaired low surrogates.
+    {
+        Utf16View view { u"\xdc00\xdc00"sv };
+        size_t index = 2;
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)0xdc00);
+        EXPECT_EQ(index, 1u);
+        EXPECT_EQ(view.previous_code_point_at(index), (u32)0xdc00);
+        EXPECT_EQ(index, 0u);
+    }
+}
