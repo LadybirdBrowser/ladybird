@@ -15,4 +15,6 @@ endif()
 ladybird_lib(LibWasm wasm EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWasm PRIVATE LibCore)
 
+set_target_properties(LibWasm PROPERTIES UNITY_BUILD ON)
+
 include(wasm_spec_tests)
