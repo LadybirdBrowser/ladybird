@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-system">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_system(value) {
+  test_valid_counter_style_descriptor('system', value);
+}
+
+function test_invalid_system(value) {
+  test_invalid_counter_style_descriptor('system', value);
+}
+
+// cyclic | numeric | alphabetic | symbolic | additive |
+// [fixed <integer>?] | [ extends <counter-style-name> ]
+
+test_valid_system('cyclic');
+test_valid_system('fixed');
+test_valid_system('fixed 100');
+test_valid_system('fixed -1');
+test_valid_system('symbolic');
+test_valid_system('alphabetic');
+test_valid_system('numeric');
+test_valid_system('additive');
+test_valid_system('extends bar');
+
+test_invalid_system('float');
+test_invalid_system('cyclic cyclic');
+
+// The following are not valid counter style names
+test_invalid_system('extends none');
+test_invalid_system('extends initial');
+test_invalid_system('extends inherit');
+test_invalid_system('extends unset');
+
+</script>

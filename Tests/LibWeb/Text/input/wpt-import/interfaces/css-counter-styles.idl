@@ -1,0 +1,23 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: CSS Counter Styles Module Level 3 (https://drafts.csswg.org/css-counter-styles-3/)
+
+partial interface CSSRule {
+    const unsigned short COUNTER_STYLE_RULE = 11;
+};
+
+[Exposed=Window]
+interface CSSCounterStyleRule : CSSRule {
+  attribute CSSOMString name;
+  attribute CSSOMString system;
+  attribute CSSOMString symbols;
+  attribute CSSOMString additiveSymbols;
+  attribute CSSOMString negative;
+  attribute CSSOMString prefix;
+  attribute CSSOMString suffix;
+  attribute CSSOMString range;
+  attribute CSSOMString pad;
+  attribute CSSOMString speakAs;
+  attribute CSSOMString fallback;
+};

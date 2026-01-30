@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-pad">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_pad(value, expected) {
+  test_valid_counter_style_descriptor('pad', value, expected);
+}
+
+function test_invalid_pad(value) {
+  test_invalid_counter_style_descriptor('pad', value);
+}
+
+// <integer [0,∞]> && <symbol>
+
+test_invalid_pad('10');
+test_invalid_pad('"X"');
+test_valid_pad('0 "X"');
+test_valid_pad('10 "X"');
+test_valid_pad('"X" 10', '10 "X"');
+test_invalid_pad('-1 "X"');
+test_invalid_pad('"X" -1');
+test_invalid_pad('10 "X" "Y"');
+test_invalid_pad('10 10 "X"');
+
+</script>
