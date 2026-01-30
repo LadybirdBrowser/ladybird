@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: parsing list-style-type with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-list-style-type">
+<link rel="help" href="https://www.w3.org/TR/CSS2/generate.html#propdef-list-style-type">
+<meta name="assert" content="list-style-type supports the full grammar '<counter-style> | <string> | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('list-style-type', 'none');
+
+test_valid_value('list-style-type', 'disc');
+test_valid_value('list-style-type', 'circle');
+test_valid_value('list-style-type', 'square');
+test_valid_value('list-style-type', 'disclosure-open');
+test_valid_value('list-style-type', 'disclosure-closed');
+test_valid_value('list-style-type', 'decimal');
+test_valid_value('list-style-type', 'decimal-leading-zero');
+test_valid_value('list-style-type', 'lower-roman');
+test_valid_value('list-style-type', 'upper-roman');
+test_valid_value('list-style-type', 'lower-greek');
+test_valid_value('list-style-type', 'lower-latin');
+test_valid_value('list-style-type', 'upper-latin');
+test_valid_value('list-style-type', 'armenian');
+test_valid_value('list-style-type', 'georgian');
+test_valid_value('list-style-type', 'lower-alpha');
+test_valid_value('list-style-type', 'upper-alpha');
+
+// <string>
+test_valid_value('list-style-type', '"marker string"');
+test_valid_value('list-style-type', '"Note: "');
+
+// <counter-style> = <counter-style-name> | symbols();
+test_valid_value('list-style-type', 'counter-Style-Name');
+test_valid_value('list-style-type', 'CounterStyleName');
+
+// symbols() = symbols( <symbols-type>? [ <string> | <image> ]+ );
+// <symbols-type> = cyclic | numeric | alphabetic | symbolic | fixed;
+test_valid_value('list-style-type', 'symbols(cyclic "string")');
+test_valid_value('list-style-type', 'symbols(cyclic "○" "●")');
+test_valid_value('list-style-type', 'symbols(fixed "1")');
+test_valid_value('list-style-type', 'symbols(symbolic "string")', 'symbols("string")');
+test_valid_value('list-style-type', 'symbols(alphabetic "first" "second")');
+test_valid_value('list-style-type', 'symbols(numeric "first" "second")');
+</script>
+</body>
+</html>

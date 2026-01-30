@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+17 Pass
+10 Fail
+Pass	Property list-style-type value 'none'
+Pass	Property list-style-type value 'disc'
+Pass	Property list-style-type value 'circle'
+Pass	Property list-style-type value 'square'
+Pass	Property list-style-type value 'disclosure-open'
+Pass	Property list-style-type value 'disclosure-closed'
+Pass	Property list-style-type value 'decimal'
+Pass	Property list-style-type value 'decimal-leading-zero'
+Pass	Property list-style-type value 'lower-roman'
+Pass	Property list-style-type value 'upper-roman'
+Pass	Property list-style-type value 'lower-greek'
+Pass	Property list-style-type value 'lower-latin'
+Pass	Property list-style-type value 'upper-latin'
+Fail	Property list-style-type value 'armenian'
+Fail	Property list-style-type value 'georgian'
+Pass	Property list-style-type value 'lower-alpha'
+Pass	Property list-style-type value 'upper-alpha'
+Pass	Property list-style-type value '"marker string"'
+Pass	Property list-style-type value '"Note: "'
+Fail	Property list-style-type value 'counter-Style-Name'
+Fail	Property list-style-type value 'CounterStyleName'
+Fail	Property list-style-type value 'symbols(cyclic "string")'
+Fail	Property list-style-type value 'symbols(cyclic "○" "●")'
+Fail	Property list-style-type value 'symbols(fixed "1")'
+Fail	Property list-style-type value 'symbols("string")'
+Fail	Property list-style-type value 'symbols(alphabetic "first" "second")'
+Fail	Property list-style-type value 'symbols(numeric "first" "second")'

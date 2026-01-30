@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 27 tests
+
+17 Pass
+10 Fail
+Pass	e.style['list-style-type'] = "none" should set the property value
+Pass	e.style['list-style-type'] = "disc" should set the property value
+Pass	e.style['list-style-type'] = "circle" should set the property value
+Pass	e.style['list-style-type'] = "square" should set the property value
+Pass	e.style['list-style-type'] = "disclosure-open" should set the property value
+Pass	e.style['list-style-type'] = "disclosure-closed" should set the property value
+Pass	e.style['list-style-type'] = "decimal" should set the property value
+Pass	e.style['list-style-type'] = "decimal-leading-zero" should set the property value
+Pass	e.style['list-style-type'] = "lower-roman" should set the property value
+Pass	e.style['list-style-type'] = "upper-roman" should set the property value
+Pass	e.style['list-style-type'] = "lower-greek" should set the property value
+Pass	e.style['list-style-type'] = "lower-latin" should set the property value
+Pass	e.style['list-style-type'] = "upper-latin" should set the property value
+Fail	e.style['list-style-type'] = "armenian" should set the property value
+Fail	e.style['list-style-type'] = "georgian" should set the property value
+Pass	e.style['list-style-type'] = "lower-alpha" should set the property value
+Pass	e.style['list-style-type'] = "upper-alpha" should set the property value
+Pass	e.style['list-style-type'] = "\"marker string\"" should set the property value
+Pass	e.style['list-style-type'] = "\"Note: \"" should set the property value
+Fail	e.style['list-style-type'] = "counter-Style-Name" should set the property value
+Fail	e.style['list-style-type'] = "CounterStyleName" should set the property value
+Fail	e.style['list-style-type'] = "symbols(cyclic \"string\")" should set the property value
+Fail	e.style['list-style-type'] = "symbols(cyclic \"○\" \"●\")" should set the property value
+Fail	e.style['list-style-type'] = "symbols(fixed \"1\")" should set the property value
+Fail	e.style['list-style-type'] = "symbols(symbolic \"string\")" should set the property value
+Fail	e.style['list-style-type'] = "symbols(alphabetic \"first\" \"second\")" should set the property value
+Fail	e.style['list-style-type'] = "symbols(numeric \"first\" \"second\")" should set the property value

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: parsing list-style-type with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#propdef-list-style-type">
+<meta name="assert" content="list-style-type supports only the grammar '<counter-style> | <string> | none'.">
+<meta name="assert" content="If the system is alphabetic or numeric, there must be at least two <string>s or <image>s, or else the function is invalid.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('list-style-type', '"marker string" none');
+test_invalid_value('list-style-type', 'counter-Style-Name "marker string"');
+test_invalid_value('list-style-type', 'symbols(cyclic)');
+test_invalid_value('list-style-type', 'symbols(numeric "n")');
+test_invalid_value('list-style-type', 'symbols(alphabetic "a")');
+test_invalid_value('list-style-type', 'symbols("s" symbolic)');
+test_invalid_value('list-style-type', 'symbols(fixed url("https://example.com"))');
+
+// Example in an early spec.
+test_invalid_value('list-style-type', "symbols(repeating '○' '●')");
+
+</script>
+</body>
+</html>
