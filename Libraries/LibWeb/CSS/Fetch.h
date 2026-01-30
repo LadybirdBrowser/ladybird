@@ -19,7 +19,7 @@ enum class CorsMode {
     Cors,
 };
 
-using StyleResourceURL = Variant<::URL::URL, CSS::URL>;
+using StyleResourceURL = Variant<URL::URL, CSS::CSSURL>;
 
 // FIXME: This awkward API represents a CSS rule or a css declaration block. This could be a variant of
 //        those two classes, but ImageStyleValue does not have ready access to those types but still
@@ -44,6 +44,6 @@ GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleReso
 GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const&, RuleOrDeclaration, DOM::Document&);
 
 // https://drafts.csswg.org/css-values-5/#apply-request-modifiers-from-url-value
-void apply_request_modifiers_from_url_value(URL const&, GC::Ref<Fetch::Infrastructure::Request>);
+void apply_request_modifiers_from_url_value(CSSURL const&, GC::Ref<Fetch::Infrastructure::Request>);
 
 }
