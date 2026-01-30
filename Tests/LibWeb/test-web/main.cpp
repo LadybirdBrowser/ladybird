@@ -448,8 +448,6 @@ static ByteString test_mode_to_string(TestMode mode)
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
-    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-        return {};
 
     // Count results
     size_t fail_count = 0;
@@ -524,8 +522,6 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 static ErrorOr<void> write_test_diff_to_results(Test const& test, ByteBuffer const& expectation)
 {
     auto& app = Application::the();
-    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-        return {};
 
     // Create the directory structure
     auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
@@ -853,25 +849,12 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             return {};
         };
 
-        if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
-            auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
-            TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
+        auto output_dir = LexicalPath::join(app.results_directory, LexicalPath::dirname(test.safe_relative_path)).string();
+        TRY(Core::Directory::create(output_dir, Core::Directory::CreateDirectories::Yes));
 
-            auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
-            TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("{}.actual.png", base_path)));
-            TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("{}.expected.png", base_path)));
-        } else if (app.dump_failed_ref_tests) {
-            warnln("\033[33;1mRef test {} failed; dumping screenshots\033[0m", test.relative_path);
-
-            TRY(Core::Directory::create("test-dumps"sv, Core::Directory::CreateDirectories::Yes));
-
-            auto title = LexicalPath::title(URL::percent_decode(url.serialize_path()));
-            TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("test-dumps/{}.png", title)));
-            TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("test-dumps/{}-ref.png", title)));
-
-            outln("\033[33;1mDumped test-dumps/{}.png\033[0m", title);
-            outln("\033[33;1mDumped test-dumps/{}-ref.png\033[0m", title);
-        }
+        auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path).string();
+        TRY(dump_screenshot(*test.actual_screenshot, ByteString::formatted("{}.actual.png", base_path)));
+        TRY(dump_screenshot(*test.expectation_screenshot, ByteString::formatted("{}.expected.png", base_path)));
 
         return TestResult::Fail;
     };
@@ -1454,7 +1437,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     // Generate result files (JSON data and HTML index)
-    if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
+    if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty()) {
         if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
             warnln("Failed to generate result files: {}", result.error());
         else

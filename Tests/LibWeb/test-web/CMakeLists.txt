@@ -29,7 +29,7 @@ if (BUILD_TESTING)
 
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --dump-failed-ref-tests --per-test-timeout 120 -v -v
+        COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120 -v -v
     )
 
     set_tests_properties(LibWeb PROPERTIES

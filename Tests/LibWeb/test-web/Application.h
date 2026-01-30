@@ -37,7 +37,6 @@ public:
 
     ByteString python_executable_path;
 
-    bool dump_failed_ref_tests { false };
     bool dump_gc_graph { false };
 
     bool test_dry_run { false };
