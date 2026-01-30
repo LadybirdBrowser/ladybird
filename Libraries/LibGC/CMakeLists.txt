@@ -16,6 +16,8 @@ set(SOURCES
 ladybird_lib(LibGC gc EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibGC PRIVATE LibCore)
 
+set_target_properties(LibGC PROPERTIES UNITY_BUILD ON)
+
 if (ENABLE_SWIFT)
     generate_clang_module_map(LibGC)
     target_sources(LibGC PRIVATE
