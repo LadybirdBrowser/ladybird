@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/FlyString.h>
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
@@ -23,8 +23,8 @@ class WEB_API SlottableMixin {
 public:
     virtual ~SlottableMixin();
 
-    String const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
-    void set_slottable_name(String name) { m_name = move(name); }
+    FlyString const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
+    void set_slottable_name(FlyString name) { m_name = move(name); }
 
     GC::Ptr<HTML::HTMLSlotElement> assigned_slot();
 
@@ -39,7 +39,7 @@ protected:
 
 private:
     // https://dom.spec.whatwg.org/#slotable-name
-    String m_name;
+    FlyString m_name;
 
     // https://dom.spec.whatwg.org/#slotable-assigned-slot
     GC::Ptr<HTML::HTMLSlotElement> m_assigned_slot;
