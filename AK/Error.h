@@ -7,24 +7,95 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/CheckedFormatString.h>
 #include <AK/StringView.h>
 #include <AK/Variant.h>
 #include <errno.h>
 
 namespace AK {
+namespace Detail {
+struct ExplicitStaticString {
+    explicit constexpr ExplicitStaticString(StringView str)
+        : string(str)
+    {
+    }
+    StringView string;
+};
+
+template<typename T>
+constexpr bool CanBePlacedInErrorFormattedString = IsOneOf<T, bool, u8, u16, u32, u64, i8, i16, i32, i64, ExplicitStaticString>;
+
+template<typename... Ts>
+consteval size_t error_formatted_string_buffer_encoded_size()
+{
+    return ((sizeof(Ts) + 1) + ...);
+}
+}
+
+// Error Format Buffer :
+//   Type ::= u8 { Nothing{s=0}, U<n>{s=n/8}, I<n>{s=n/8}, Bool{s=1}, ExplicitStaticString{s=sizeof(StringView)} } where n \in {8,16,32,64}
+//   FormatBufferEntry ::= Type [ u8 * Type.s ]
+//   FormatBuffer ::= FormatBufferEntry* Type::Nothing
+
+enum class ErrorFormattedStringType : u8 {
+    Nothing = 0,
+    U8 = 1,
+    U16 = 2,
+    U32 = 3,
+    U64 = 4,
+    I8 = 5,
+    I16 = 6,
+    I32 = 7,
+    I64 = 8,
+    Bool = 9,
+    ExplicitStaticString = 10,
+};
+
+template<typename FormatBuffer, typename... Ts>
+constexpr bool FitsInErrorFormattedStringBuffer = requires {
+    requires(Detail::CanBePlacedInErrorFormattedString<Ts> && ...);
+    requires Detail::error_formatted_string_buffer_encoded_size<Ts...>() <= sizeof(FormatBuffer) - sizeof(ErrorFormattedStringType);
+};
 
 class [[nodiscard]] Error {
+    struct Syscall {
+        StringView name;
+        int code;
+
+        bool operator==(Syscall const&) const = default;
+    };
+
+    struct ErrnoCode {
+        int code;
+        bool operator==(ErrnoCode const&) const = default;
+    };
+
+    struct WindowsError {
+        u32 code;
+        bool operator==(WindowsError const&) const = default;
+    };
+
+    struct FormattedString {
+        using Type = ErrorFormattedStringType;
+        bool operator==(FormattedString const&) const = default;
+
+        StringView format_string;
+        Array<u8, 64 - sizeof(StringView)> buffer;
+    };
+    static_assert(sizeof(FormattedString) == 64, "Broken alignment on Error::FormattedString");
+
 public:
     enum class Kind : u8 {
         Errno,
         Syscall,
         Windows,
         StringLiteral,
+        FormattedString,
     };
 
     static Error from_errno(int code)
     {
-        return Error(code, Kind::Errno);
+        return Error(code);
     }
 
     static Error from_syscall(StringView syscall_name, int code)
@@ -59,6 +130,13 @@ public:
         VERIFY_NOT_REACHED();
     }
 
+    template<typename... Ts>
+    requires(FitsInErrorFormattedStringBuffer<decltype(FormattedString::buffer), Ts...>)
+    static Error formatted_error(CheckedFormatString<Ts...> format_string, Ts... args)
+    {
+        return Error(format_string, args...);
+    }
+
 #ifdef AK_OS_WINDOWS
     static Error from_windows_error(u32 windows_error);
     static Error from_windows_error();
@@ -74,43 +152,118 @@ public:
 
     bool operator==(Error const& other) const
     {
-        return m_code == other.m_code && m_string_literal == other.m_string_literal && m_kind == other.m_kind;
+        return m_data.visit([&]<typename T>(T const& self) {
+            if (auto const* p = other.m_data.get_pointer<T>())
+                return self == *p;
+            return false;
+        });
     }
 
-    bool is_errno() const { return m_kind == Kind::Errno || m_kind == Kind::Syscall; }
-    bool is_windows_error() const { return m_kind == Kind::Windows; }
+    bool is_errno() const { return m_data.has<ErrnoCode>() || m_data.has<Syscall>(); }
+    bool is_windows_error() const { return m_data.has<WindowsError>(); }
+    bool is_formatted_string() const { return m_data.has<FormattedString>(); }
 
-    StringView string_literal() const { return m_string_literal; }
-    int code() const { return m_code; }
-    Kind kind() const { return m_kind; }
+    StringView string_literal() const
+    {
+        return m_data.visit(
+            [](StringView const& str) { return str; },
+            [](Syscall const& syscall) {
+                return syscall.name;
+            },
+            [](auto const&) -> StringView {
+                return {};
+            });
+    }
+    int code() const {
+        return m_data.visit(
+            [](OneOf<ErrnoCode, Syscall> auto const& value) { return value.code; },
+            [](auto const&) -> int { return 0; }
+        );
+    }
+    Kind kind() const
+    {
+        return m_data.visit(
+            [](ErrnoCode const&) { return Kind::Errno; },
+            [](Syscall const&) { return Kind::Syscall; },
+            [](WindowsError const&) { return Kind::Windows; },
+            [](FormattedString const&) { return Kind::FormattedString; },
+            [](StringView const&) { return Kind::StringLiteral; });
+    }
+
+    template<typename R>
+    R format_impl() const;
 
 private:
-    Error(int code, Kind kind)
-        : m_code(code)
-        , m_kind(kind)
+    Error(int code)
+        : m_data(ErrnoCode { code })
     {
         VERIFY(code != 0);
     }
 
     Error(StringView string_literal)
-        : m_string_literal(string_literal)
-        , m_kind(Kind::StringLiteral)
+        : m_data(string_literal)
     {
     }
 
     Error(StringView syscall_name, int code)
-        : m_string_literal(syscall_name)
-        , m_code(code)
-        , m_kind(Kind::Syscall)
+        : m_data(Syscall { syscall_name, code })
     {
+    }
+
+    template<typename... Ts>
+    Error(CheckedFormatString<Ts...> format_string, Ts... args)
+        : m_data(FormattedString(format_string.view(), pack(args...)))
+    {
+    }
+
+    template<typename... Ts>
+    static decltype(auto) pack(Ts... values)
+    {
+        decltype(FormattedString::buffer) buffer {};
+        size_t offset = 0;
+        ([&]<typename T>(T const& value) {
+            auto size = sizeof(T);
+            if (offset + size + 2 >= buffer.size())
+                VERIFY_NOT_REACHED(); // Should be caught by FitsInErrorFormattedStringBuffer
+            
+            ErrorFormattedStringType tag;
+            if constexpr (IsSame<T, u8>) {
+                tag = ErrorFormattedStringType::U8;
+            } else if constexpr (IsSame<T, u16>) {
+                tag = ErrorFormattedStringType::U16;
+            } else if constexpr (IsSame<T, u32>) {
+                tag = ErrorFormattedStringType::U32;
+            } else if constexpr (IsSame<T, u64>) {
+                tag = ErrorFormattedStringType::U64;
+            } else if constexpr (IsSame<T, i8>) {
+                tag = ErrorFormattedStringType::I8;
+            } else if constexpr (IsSame<T, i16>) {
+                tag = ErrorFormattedStringType::I16;
+            } else if constexpr (IsSame<T, i32>) {
+                tag = ErrorFormattedStringType::I32;
+            } else if constexpr (IsSame<T, i64>) {
+                tag = ErrorFormattedStringType::I64;
+            } else if constexpr (IsSame<T, bool>) {
+                tag = ErrorFormattedStringType::Bool;
+            } else if constexpr (IsSame<T, Detail::ExplicitStaticString>) {
+                tag = ErrorFormattedStringType::ExplicitStaticString;
+            } else {
+                static_assert(DependentFalse<T>, "Error::formatted() can only be passed ExplicitStaticString, or integral types");
+            }
+
+            buffer[offset] = to_underlying(tag);
+            memcpy(&buffer[offset + 1], reinterpret_cast<u8 const*>(&value), size);
+            offset += size + 1;
+        }(values), ...);
+
+        buffer[offset] = to_underlying(ErrorFormattedStringType::Nothing);
+        return buffer;
     }
 
     Error(Error const&) = default;
     Error& operator=(Error const&) = default;
 
-    StringView m_string_literal;
-    int m_code { 0 };
-    Kind m_kind {};
+    Variant<ErrnoCode, Syscall, WindowsError, FormattedString, StringView> m_data;
 };
 
 template<typename T, typename E>
