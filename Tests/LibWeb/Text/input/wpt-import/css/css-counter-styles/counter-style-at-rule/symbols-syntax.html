@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_symbols(value, expected) {
+  test_valid_counter_style_descriptor('symbols', value, expected);
+}
+
+function test_invalid_symbols(value) {
+  test_invalid_counter_style_descriptor('symbols', value);
+}
+
+// <symbol>+
+
+test_valid_symbols('"X"');
+test_valid_symbols('"X" "X"');
+test_valid_symbols('ident "X"');
+test_valid_symbols('ident "X" url("foo.jpg")');
+
+test_invalid_symbols('');
+test_invalid_symbols('initial "X" "X"');
+test_invalid_symbols('inherit "X" "X"');
+test_invalid_symbols('unset "X" "X"');
+test_invalid_symbols('default "X"');
+test_invalid_symbols('revert "X"');
+test_invalid_symbols('revert-layer "X"');
+</script>

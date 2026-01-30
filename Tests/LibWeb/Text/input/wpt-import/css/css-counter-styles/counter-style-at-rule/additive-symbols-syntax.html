@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_additive_symbols(value, expected) {
+  test_valid_counter_style_descriptor('additive-symbols', value, expected);
+}
+
+function test_invalid_additive_symbols(value) {
+  test_invalid_counter_style_descriptor('additive-symbols', value);
+}
+
+// [ <integer [0,∞]> && <symbol> ]#
+
+test_valid_additive_symbols('0 "X"');
+test_valid_additive_symbols('1 "X"');
+test_valid_additive_symbols('"X" 1', '1 "X"');
+test_valid_additive_symbols('5 "V", 1 "I"');
+
+test_invalid_additive_symbols('');
+
+// Weights must be non-negative
+test_invalid_additive_symbols('-1 "X"');
+
+// Weights must be in strictly decreasing order
+test_invalid_additive_symbols('1 "I", 5 "V"');
+test_invalid_additive_symbols('1 "X", 1 "Y"');
+</script>

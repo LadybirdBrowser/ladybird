@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	@counter-style 'negative: "X"' is valid
+Fail	@counter-style 'negative: "X" "X"' is valid
+Pass	@counter-style 'negative: "X" "X" "X"' is invalid
