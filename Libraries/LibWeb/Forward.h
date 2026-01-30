@@ -237,6 +237,7 @@ class CounterStyleValue;
 class CountersSet;
 class CSSAnimation;
 class CSSConditionRule;
+class CSSCounterStyleRule;
 class CSSDescriptors;
 class CSSFontFaceDescriptors;
 class CSSFontFaceRule;

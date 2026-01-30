@@ -284,6 +284,7 @@ private:
     bool is_valid_in_the_current_context(QualifiedRule const&) const;
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
+    GC::Ptr<CSSCounterStyleRule> convert_to_counter_style_rule(AtRule const&);
     GC::Ptr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
     GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
@@ -408,6 +409,7 @@ private:
     RefPtr<StyleValue const> parse_color_scheme_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_corner_shape_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_counter_value(TokenStream<ComponentValue>&);
+    Optional<FlyString> parse_counter_style_name(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,
         Yes,

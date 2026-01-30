@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 17 tests
 
-11 Pass
-6 Fail
-Fail	@counter-style name foo is valid
-Fail	@counter-style name decimal-leading-zero is valid
-Fail	@counter-style name lower-alpha is valid
-Fail	@counter-style name cjk-decimal is valid
-Fail	@counter-style name japanese-informal is valid
-Fail	@counter-style name ethiopic-numeric is valid
+17 Pass
+Pass	@counter-style name foo is valid
+Pass	@counter-style name decimal-leading-zero is valid
+Pass	@counter-style name lower-alpha is valid
+Pass	@counter-style name cjk-decimal is valid
+Pass	@counter-style name japanese-informal is valid
+Pass	@counter-style name ethiopic-numeric is valid
 Pass	@counter-style name  is invalid
 Pass	@counter-style name none is invalid
 Pass	@counter-style name initial is invalid
