@@ -14,6 +14,7 @@ namespace Web::CSS::Parser {
 enum class RuleContext : u8 {
     Unknown,
     Style,
+    AtCounterStyle,
     AtMedia,
     AtFontFace,
     AtKeyframes,

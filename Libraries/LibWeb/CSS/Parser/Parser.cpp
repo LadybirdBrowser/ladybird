@@ -1453,6 +1453,10 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
             return RuleContext::AtPage;
         case AtRuleID::Property:
             return RuleContext::AtProperty;
+        case AtRuleID::CounterStyle:
+            // NB: We don't actually have a `CSSDescriptors` for `@counter-style` so this function shouldn't ever be
+            //     called with `AtRuleID::CounterStyle`.
+            VERIFY_NOT_REACHED();
         }
         VERIFY_NOT_REACHED();
     }();
@@ -1509,6 +1513,7 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
         // Grouping rules can contain declarations if they are themselves inside a style rule
         return m_rule_context.contains_slow(RuleContext::Style);
 
+    case RuleContext::AtCounterStyle:
     case RuleContext::AtFontFace:
     case RuleContext::AtPage:
     case RuleContext::AtProperty:
@@ -1561,6 +1566,7 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         // @page rules can contain margin rules
         return is_margin_rule_name(at_rule.name);
 
+    case RuleContext::AtCounterStyle:
     case RuleContext::AtFontFace:
     case RuleContext::AtKeyframes:
     case RuleContext::Keyframe:
@@ -1604,6 +1610,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
         // @supports cannot check qualified rules
         return false;
 
+    case RuleContext::AtCounterStyle:
     case RuleContext::AtFontFace:
     case RuleContext::AtPage:
     case RuleContext::AtProperty:

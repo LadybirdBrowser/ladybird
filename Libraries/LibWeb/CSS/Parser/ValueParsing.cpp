@@ -2684,6 +2684,32 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style-name
+Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>& tokens)
+{
+    // <counter-style-name> is a <custom-ident> that is not an ASCII case-insensitive match for none.
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    auto custom_ident = parse_custom_ident(tokens, { { "none"sv } });
+    if (!custom_ident.has_value())
+        return {};
+
+    // https://drafts.csswg.org/css-counter-styles-3/#the-counter-style-rule
+    // Counter style names are case-sensitive. However, the names defined in this specification are ASCII lowercased
+    // on parse wherever they are used as counter styles, e.g. in the list-style set of properties, in the
+    // @counter-style rule, and in the counter() functions.
+
+    // NB: The "names defined in this specification" are defined in the `CounterStyleNameKeyword` enum
+    // FIXME: Include the rest of the defined names in `CounterStyleNameKeyword`
+    auto const& keyword = keyword_from_string(custom_ident.value());
+    if (keyword.has_value() && keyword_to_counter_style_name_keyword(keyword.value()).has_value())
+        custom_ident = custom_ident->to_ascii_lowercase();
+
+    transaction.commit();
+    return custom_ident;
+}
+
 RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto ratio = parse_ratio(tokens); ratio.has_value())
