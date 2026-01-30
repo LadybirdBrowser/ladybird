@@ -1271,7 +1271,10 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         VERIFY(abstract_element.pseudo_element().has_value());
-        did_match_any_pseudo_element_rules = !matching_rule_set.author_rules.is_empty()
+        auto author_rules_has_any_rules = any_of(matching_rule_set.author_rules, [](auto const& layer) {
+            return !layer.rules.is_empty();
+        });
+        did_match_any_pseudo_element_rules = author_rules_has_any_rules
             || !matching_rule_set.user_rules.is_empty()
             || !matching_rule_set.user_agent_rules.is_empty();
     }
