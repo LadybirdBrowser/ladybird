@@ -248,6 +248,8 @@ bool VideoDataProvider::ThreadData::handle_suspension()
     while (!handle_seek()) {
         auto locker = take_lock();
         m_wait_condition.wait();
+        if (should_thread_exit_while_locked())
+            return true;
     }
 
     return true;
@@ -472,6 +474,8 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
             {
                 auto locker = take_lock();
                 m_wait_condition.wait();
+                if (should_thread_exit_while_locked())
+                    return;
             }
         }
     };
