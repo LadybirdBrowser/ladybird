@@ -24,6 +24,8 @@ set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 ladybird_lib(LibUnicode unicode)
 
+set_target_properties(LibUnicode PROPERTIES UNITY_BUILD ${LADYBIRD_ENABLE_UNITY_BUILD})
+
 find_package(ICU 78 REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
