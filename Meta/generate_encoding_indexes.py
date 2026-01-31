@@ -215,21 +215,21 @@ namespace TextCodec {
 
 def main():
     parser = argparse.ArgumentParser(description="Generate text codec lookup tables", add_help=False)
-    parser.add_argument("-H", action="help", help="Show this help message and exit")
+    parser.add_argument("--help", action="help", help="Show this help message and exit")
     parser.add_argument(
-        "-h", "-generated-header-path", required=True, help="Path to the lookup table header file to generate"
+        "-h", "--generated-header-path", required=True, help="Path to the lookup table header file to generate"
     )
     parser.add_argument(
         "-c",
-        "-generated_implementation_path",
+        "--generated-implementation-path",
         required=True,
         help="Path to the lookup table implementation file to generate",
     )
-    parser.add_argument("-j", "-json-path", required=True, help="Path to the JSON file to read from")
+    parser.add_argument("-j", "--json-path", required=True, help="Path to the JSON file to read from")
 
     args = parser.parse_args()
 
-    with open(args.j, "r") as f:
+    with open(args.json_path, "r") as f:
         data = json.load(f)
 
     gb18030_table = prepare_table(data["gb18030"], GenerateAccessor.YES)
@@ -300,8 +300,8 @@ def main():
         },
     )
 
-    generate_header_file(tables, Path(args.h))
-    generate_implementation_file(tables, Path(args.c))
+    generate_header_file(tables, Path(args.generated_header_path))
+    generate_implementation_file(tables, Path(args.generated_implementation_path))
 
 
 if __name__ == "__main__":
