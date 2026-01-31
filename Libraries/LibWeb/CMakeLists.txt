@@ -243,6 +243,7 @@ set(SOURCES
     CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
+    CSS/StyleValues/CounterStyleSystemStyleValue.cpp
     CSS/StyleValues/CounterStyleValue.cpp
     CSS/StyleValues/CursorStyleValue.cpp
     CSS/StyleValues/CustomIdentStyleValue.cpp

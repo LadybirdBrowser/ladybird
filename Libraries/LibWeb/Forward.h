@@ -233,6 +233,7 @@ class ComputedProperties;
 class ConicGradientStyleValue;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;
+class CounterStyleSystemStyleValue;
 class CounterStyleValue;
 class CountersSet;
 class CSSAnimation;

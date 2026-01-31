@@ -4,7 +4,7 @@
 [Exposed=Window]
 interface CSSCounterStyleRule : CSSRule {
     attribute CSSOMString name;
-    [FIXME] attribute CSSOMString system;
+    attribute CSSOMString system;
     [FIXME] attribute CSSOMString symbols;
     [FIXME] attribute CSSOMString additiveSymbols;
     [FIXME] attribute CSSOMString negative;
