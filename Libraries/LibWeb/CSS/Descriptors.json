@@ -192,6 +192,13 @@
   },
   "counter-style": {
     "spec": "https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule",
-    "descriptors": {}
+    "descriptors": {
+      "system": {
+        "initial": "symbolic",
+        "syntax": [
+          "<counter-style-system>"
+        ]
+      }
+    }
   }
 }

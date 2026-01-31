@@ -872,9 +872,23 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
         return nullptr;
     }
 
-    // TODO: Parse descriptors
+    RefPtr<StyleValue const> system;
 
-    return CSSCounterStyleRule::create(realm(), name.release_value());
+    rule.for_each_as_declaration_list([&](auto& declaration) {
+        auto const& descriptor = convert_to_descriptor(AtRuleID::CounterStyle, declaration);
+        if (!descriptor.has_value())
+            return;
+
+        switch (descriptor->descriptor_id) {
+        case DescriptorID::System:
+            system = descriptor->value;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    });
+
+    return CSSCounterStyleRule::create(realm(), name.release_value(), move(system));
 }
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)

@@ -8,21 +8,23 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name);
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
-
+    , m_system(move(system))
 {
 }
 
@@ -30,6 +32,13 @@ String CSSCounterStyleRule::serialized() const
 {
     StringBuilder builder;
     builder.appendff("@counter-style {} {{", serialize_an_identifier(m_name));
+
+    if (m_system) {
+        builder.append(" system: "sv);
+        m_system->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
     builder.append(" }"sv);
     return MUST(builder.to_string());
 }
@@ -49,6 +58,39 @@ void CSSCounterStyleRule::set_name(FlyString name)
 
     // 3. Replace the associated rule’s name with an identifier equal to the value.
     m_name = move(name);
+}
+
+FlyString CSSCounterStyleRule::system() const
+{
+    if (!m_system)
+        return ""_fly_string;
+
+    return m_system->to_string(SerializationMode::Normal);
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#dom-csscounterstylerule-system
+void CSSCounterStyleRule::set_system(FlyString const& system)
+{
+    // 1. parse the given value as the descriptor associated with the attribute.
+    Parser::ParsingParams parsing_params { realm() };
+    auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::System, system);
+
+    // 2. If the result is invalid according to the given descriptor’s grammar, or would cause the @counter-style rule
+    //    to not define a counter style, do nothing and abort these steps. (For example, some systems require the
+    //    symbols descriptor to contain two values.)
+    // NB: Since we only allow changing parameters of the system, not the algorithm itself (see below), we know this
+    //     change can't cause the @counter-style to not define a counter style.
+    if (!value)
+        return;
+
+    // 3. If the attribute being set is system, and the new value would change the algorithm used, do nothing and abort
+    //    these steps.
+    // Note: It’s okay to change an aspect of the algorithm, like the first symbol value of a fixed system.
+    if (!m_system || m_system->as_counter_style_system().algorithm_differs_from(value->as_counter_style_system()))
+        return;
+
+    // 4. Set the descriptor to the value.
+    m_system = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)
