@@ -222,6 +222,12 @@
         "syntax": [
           "<counter-style-range>"
         ]
+      },
+      "pad": {
+        "initial": "0 \"\"",
+        "syntax": [
+          "<counter-style-pad>"
+        ]
       }
     }
   }
