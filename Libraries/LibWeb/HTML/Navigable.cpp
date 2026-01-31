@@ -2905,7 +2905,12 @@ GC::Ref<WebIDL::Promise> Navigable::perform_a_scroll_of_the_viewport(CSSPixelPoi
     //     from this step.
     // FIXME: Get a Promise from this.
     vv->scroll_by({ visual_dx, visual_dy });
-    doc->set_needs_display(InvalidateDisplayList::No);
+    if (visual_dx != 0.0 || visual_dy != 0.0) {
+        doc->set_needs_accumulated_visual_contexts_update(true);
+        doc->set_needs_display(InvalidateDisplayList::Yes);
+    } else {
+        doc->set_needs_display(InvalidateDisplayList::No);
+    }
 
     // 16. Let scrollPromise be a new Promise.
     auto scroll_promise = WebIDL::create_promise(doc->realm());

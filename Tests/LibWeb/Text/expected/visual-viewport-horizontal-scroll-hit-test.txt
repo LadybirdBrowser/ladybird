@@ -2,4 +2,4 @@ scale: 2
 offsetLeft before scroll: 0
 before scroll: left
 offsetLeft after scroll: 400
-after scroll: left
+after scroll: right
