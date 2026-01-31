@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .row {
+        display: flex;
+    }
+    #left, #right {
+        width: 400px;
+        height: 300px;
+    }
+    #left { background: red; }
+    #right { background: blue; }
+    .spacer { height: 2000px; }
+</style>
+<div class="row">
+    <div id="left"></div>
+    <div id="right"></div>
+</div>
+<div class="spacer"></div>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const vv = window.visualViewport;
+
+        vv.addEventListener("resize", function onResize() {
+            vv.removeEventListener("resize", onResize);
+
+            const results = [];
+
+            results.push(`scale: ${vv.scale}`);
+            results.push(`offsetLeft before scroll: ${vv.offsetLeft}`);
+
+            // At zoom=2 with offset (0,0), screen (200, 150) maps to layout (100, 75) -> inside #left
+            let hit = internals.hitTest(200, 150);
+            results.push(`before scroll: ${hit.node.id}`);
+
+            // Scroll right by 400 to pan the visual viewport to the right half
+            internals.wheel(200, 150, 400, 0);
+
+            // Do not call println() here — DOM mutation triggers layout which
+            // rebuilds AccumulatedVisualContext, masking bugs in scroll invalidation.
+
+            results.push(`offsetLeft after scroll: ${vv.offsetLeft}`);
+
+            // After scrolling, screen (200, 150) should map to layout (500, 75) -> inside #right
+            hit = internals.hitTest(200, 150);
+            results.push(`after scroll: ${hit.node.id}`);
+
+            // Print all results at the end
+            for (const r of results) println(r);
+            done();
+        });
+
+        requestAnimationFrame(() => {
+            internals.pinch(0, 0, 1.0);
+        });
+    });
+</script>
