@@ -17,12 +17,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols), move(speak_as));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
@@ -34,6 +34,7 @@ CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPt
     , m_fallback(move(fallback))
     , m_symbols(move(symbols))
     , m_additive_symbols(move(additive_symbols))
+    , m_speak_as(move(speak_as))
 {
 }
 
@@ -93,6 +94,12 @@ String CSSCounterStyleRule::serialized() const
     if (m_additive_symbols) {
         builder.append(" additive-symbols: "sv);
         m_additive_symbols->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_speak_as) {
+        builder.append(" speak-as: "sv);
+        m_speak_as->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -306,6 +313,22 @@ void CSSCounterStyleRule::set_additive_symbols(FlyString const& additive_symbols
 
     // 4. Set the descriptor to the value.
     m_additive_symbols = value;
+}
+
+FlyString CSSCounterStyleRule::speak_as() const
+{
+    if (!m_speak_as)
+        return ""_fly_string;
+
+    return m_speak_as->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_speak_as(FlyString const& speak_as)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::SpeakAs, speak_as))
+        m_speak_as = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)
