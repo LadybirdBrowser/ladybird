@@ -16,7 +16,7 @@ class CSSCounterStyleRule : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
-    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix);
+    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range);
     virtual ~CSSCounterStyleRule() = default;
 
     virtual String serialized() const override;
@@ -36,6 +36,9 @@ public:
     FlyString suffix() const;
     void set_suffix(FlyString const& suffix);
 
+    FlyString range() const;
+    void set_range(FlyString const& range);
+
     // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
     static bool matches_non_overridable_counter_style_name(FlyString const& name)
     {
@@ -44,13 +47,14 @@ public:
     }
 
 protected:
-    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix);
+    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range);
 
     FlyString m_name;
     RefPtr<StyleValue const> m_system;
     RefPtr<StyleValue const> m_negative;
     RefPtr<StyleValue const> m_prefix;
     RefPtr<StyleValue const> m_suffix;
+    RefPtr<StyleValue const> m_range;
 
     virtual void initialize(JS::Realm&) override;
 };

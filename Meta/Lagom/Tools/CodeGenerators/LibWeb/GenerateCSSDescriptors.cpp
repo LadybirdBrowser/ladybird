@@ -119,6 +119,7 @@ struct DescriptorMetadata {
         // FIXME: Parse the grammar instead of hard-coding all the options!
         CounterStyleSystem,
         CounterStyleNegative,
+        CounterStyleRange,
         CropOrCross,
         FamilyName,
         FontSrcList,
@@ -408,6 +409,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "CounterStyleNegative"_string;
                         if (syntax_string == "<symbol>"sv)
                             return "Symbol"_string;
+                        if (syntax_string == "<counter-style-range>"sv)
+                            return "CounterStyleRange"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();

@@ -216,6 +216,12 @@
         "syntax": [
           "<symbol>"
         ]
+      },
+      "range": {
+        "initial": "auto",
+        "syntax": [
+          "<counter-style-range>"
+        ]
       }
     }
   }

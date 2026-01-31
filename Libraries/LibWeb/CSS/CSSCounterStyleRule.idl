@@ -10,7 +10,7 @@ interface CSSCounterStyleRule : CSSRule {
     attribute CSSOMString negative;
     attribute CSSOMString prefix;
     attribute CSSOMString suffix;
-    [FIXME] attribute CSSOMString range;
+    attribute CSSOMString range;
     [FIXME] attribute CSSOMString pad;
     [FIXME] attribute CSSOMString speakAs;
     [FIXME] attribute CSSOMString fallback;
