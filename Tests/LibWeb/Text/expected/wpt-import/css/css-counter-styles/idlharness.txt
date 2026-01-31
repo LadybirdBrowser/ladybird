@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 37 tests
 
-21 Pass
-16 Fail
+25 Pass
+12 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -19,8 +19,8 @@ Pass	CSSCounterStyleRule interface: attribute system
 Fail	CSSCounterStyleRule interface: attribute symbols
 Fail	CSSCounterStyleRule interface: attribute additiveSymbols
 Pass	CSSCounterStyleRule interface: attribute negative
-Fail	CSSCounterStyleRule interface: attribute prefix
-Fail	CSSCounterStyleRule interface: attribute suffix
+Pass	CSSCounterStyleRule interface: attribute prefix
+Pass	CSSCounterStyleRule interface: attribute suffix
 Fail	CSSCounterStyleRule interface: attribute range
 Fail	CSSCounterStyleRule interface: attribute pad
 Fail	CSSCounterStyleRule interface: attribute speakAs
@@ -32,8 +32,8 @@ Pass	CSSCounterStyleRule interface: counter must inherit property "system" with 
 Fail	CSSCounterStyleRule interface: counter must inherit property "symbols" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "additiveSymbols" with the proper type
 Pass	CSSCounterStyleRule interface: counter must inherit property "negative" with the proper type
-Fail	CSSCounterStyleRule interface: counter must inherit property "prefix" with the proper type
-Fail	CSSCounterStyleRule interface: counter must inherit property "suffix" with the proper type
+Pass	CSSCounterStyleRule interface: counter must inherit property "prefix" with the proper type
+Pass	CSSCounterStyleRule interface: counter must inherit property "suffix" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "range" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "pad" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "speakAs" with the proper type
