@@ -125,7 +125,7 @@ public:
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
     // ^FormAssociatedTextControlElement
-    virtual void did_edit_text_node(FlyString const& input_type) override;
+    virtual void did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data) override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
@@ -165,6 +165,7 @@ private:
 
     RefPtr<Core::Timer> m_input_event_timer;
     FlyString m_pending_input_event_type;
+    Optional<Utf16String> m_pending_input_event_data;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-dirty
     bool m_dirty_value { false };

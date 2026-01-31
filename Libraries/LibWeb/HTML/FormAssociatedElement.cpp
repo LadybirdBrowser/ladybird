@@ -862,7 +862,14 @@ void FormAssociatedTextControlElement::handle_insert(FlyString const& input_type
     MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
-    did_edit_text_node(input_type);
+
+    // The input event's data attribute is only set for certain input types according to:
+    // https://w3c.github.io/input-events/#overview
+    Optional<Utf16String> data_for_input_event;
+    if (first_is_one_of(input_type, UIEvents::InputTypes::insertText, UIEvents::InputTypes::insertFromPaste))
+        data_for_input_event = data_for_insertion;
+
+    did_edit_text_node(input_type, data_for_input_event);
 }
 
 void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type)
@@ -887,7 +894,7 @@ void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type
     MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingDeletion);
-    did_edit_text_node(input_type);
+    did_edit_text_node(input_type, {});
 }
 
 Optional<Utf16String> FormAssociatedTextControlElement::selected_text_for_stringifier() const

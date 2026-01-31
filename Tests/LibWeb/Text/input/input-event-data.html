@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<input type="text">
+<textarea></textarea>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const input = document.querySelector("input");
+        const textarea = document.querySelector("textarea");
+
+        // The data property for insertText on input elements should be the inserted text.
+        input.value = "";
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`insertText on input: data="${e.data}", inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendText(input, "a");
+        });
+
+        // The data property for insertText on textarea elements should be the inserted text.
+        textarea.value = "";
+        await new Promise(resolve => {
+            textarea.addEventListener("input", e => {
+                println(`insertText on textarea: data="${e.data}", inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            textarea.focus();
+            internals.sendText(textarea, "b");
+        });
+
+        // The data property for deleteContentBackward should be null.
+        input.value = "x";
+        input.setSelectionRange(1, 1);
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`deleteContentBackward: data=${e.data}, inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendKey(input, "Backspace");
+        });
+
+        // The data property for deleteContentForward should be null
+        input.value = "y";
+        input.setSelectionRange(0, 0);
+        await new Promise(resolve => {
+            input.addEventListener("input", e => {
+                println(`deleteContentForward: data=${e.data}, inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            input.focus();
+            internals.sendKey(input, "Delete");
+        });
+
+        // The data property for insertLineBreak on textarea should be null.
+        textarea.value = "";
+        await new Promise(resolve => {
+            textarea.addEventListener("input", e => {
+                println(`Enter in textarea: data=${e.data}, inputType="${e.inputType}"`);
+                resolve();
+            }, { once: true });
+            textarea.focus();
+            internals.sendKey(textarea, "Return");
+        });
+    });
+</script>

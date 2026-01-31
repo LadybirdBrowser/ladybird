@@ -420,7 +420,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     }
 }
 
-void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type)
+void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type, Optional<Utf16String> const& data)
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
@@ -431,6 +431,7 @@ void HTMLTextAreaElement::did_edit_text_node(FlyString const& input_type)
     // interaction before queuing the task; for example, a user agent could wait for the user to have not hit a key for
     // 100ms, so as to only fire the event when the user pauses, instead of continuously for each keystroke.
     m_pending_input_event_type = input_type;
+    m_pending_input_event_data = data;
     m_input_event_timer->restart(100);
 
     // A textarea element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the raw value.
@@ -449,11 +450,11 @@ void HTMLTextAreaElement::queue_firing_input_event()
 {
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
         // https://w3c.github.io/uievents/#event-type-input
-        // FIXME: If a string was added to this textarea, this input event's .data should be set to it.
         UIEvents::InputEventInit input_event_init;
         input_event_init.bubbles = true;
         input_event_init.composed = true;
         input_event_init.input_type = m_pending_input_event_type;
+        input_event_init.data = m_pending_input_event_data;
         auto input_event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, input_event_init);
         dispatch_event(input_event);
     });
