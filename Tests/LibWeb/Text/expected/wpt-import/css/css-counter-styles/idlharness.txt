@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 37 tests
 
-17 Pass
-20 Fail
+19 Pass
+18 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -15,7 +15,7 @@ Pass	CSSCounterStyleRule interface: existence and properties of interface protot
 Pass	CSSCounterStyleRule interface: existence and properties of interface prototype object's "constructor" property
 Pass	CSSCounterStyleRule interface: existence and properties of interface prototype object's @@unscopables property
 Pass	CSSCounterStyleRule interface: attribute name
-Fail	CSSCounterStyleRule interface: attribute system
+Pass	CSSCounterStyleRule interface: attribute system
 Fail	CSSCounterStyleRule interface: attribute symbols
 Fail	CSSCounterStyleRule interface: attribute additiveSymbols
 Fail	CSSCounterStyleRule interface: attribute negative
@@ -28,7 +28,7 @@ Fail	CSSCounterStyleRule interface: attribute fallback
 Pass	CSSCounterStyleRule must be primary interface of counter
 Pass	Stringification of counter
 Pass	CSSCounterStyleRule interface: counter must inherit property "name" with the proper type
-Fail	CSSCounterStyleRule interface: counter must inherit property "system" with the proper type
+Pass	CSSCounterStyleRule interface: counter must inherit property "system" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "symbols" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "additiveSymbols" with the proper type
 Fail	CSSCounterStyleRule interface: counter must inherit property "negative" with the proper type

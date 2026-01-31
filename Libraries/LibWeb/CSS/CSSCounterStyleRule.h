@@ -16,13 +16,16 @@ class CSSCounterStyleRule : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
-    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name);
+    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system);
     virtual ~CSSCounterStyleRule() = default;
 
     virtual String serialized() const override;
 
     FlyString name() const { return m_name; }
     void set_name(FlyString name);
+
+    FlyString system() const;
+    void set_system(FlyString const& system);
 
     // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
     static bool matches_non_overridable_counter_style_name(FlyString const& name)
@@ -32,9 +35,10 @@ public:
     }
 
 protected:
-    CSSCounterStyleRule(JS::Realm&, FlyString name);
+    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system);
 
     FlyString m_name;
+    RefPtr<StyleValue const> m_system;
 
     virtual void initialize(JS::Realm&) override;
 };

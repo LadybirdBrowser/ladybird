@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -60,6 +61,34 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
             },
             [&](DescriptorMetadata::ValueType value_type) -> RefPtr<StyleValue const> {
                 switch (value_type) {
+                case DescriptorMetadata::ValueType::CounterStyleSystem: {
+                    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-system
+                    // cyclic | numeric | alphabetic | symbolic | additive | [fixed <integer>?] | [ extends <counter-style-name> ]
+                    auto keyword_value = parse_keyword_value(tokens);
+
+                    if (!keyword_value)
+                        return nullptr;
+
+                    if (auto system = keyword_to_counter_style_system(keyword_value->to_keyword()); system.has_value())
+                        return CounterStyleSystemStyleValue::create(system.release_value());
+
+                    if (keyword_value->to_keyword() == Keyword::Fixed) {
+                        auto integer_value = parse_integer_value(tokens);
+
+                        return CounterStyleSystemStyleValue::create_fixed(integer_value);
+                    }
+
+                    if (keyword_value->to_keyword() == Keyword::Extends) {
+                        auto counter_style_name = parse_counter_style_name(tokens);
+
+                        if (!counter_style_name.has_value())
+                            return nullptr;
+
+                        return CounterStyleSystemStyleValue::create_extends(counter_style_name.release_value());
+                    }
+
+                    return nullptr;
+                }
                 case DescriptorMetadata::ValueType::CropOrCross: {
                     // crop || cross
                     auto first = parse_keyword_value(tokens);

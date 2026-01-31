@@ -208,6 +208,13 @@
     "upper-latin",
     "upper-roman"
   ],
+  "counter-style-system": [
+    "cyclic",
+    "numeric",
+    "alphabetic",
+    "symbolic",
+    "additive"
+  ],
   "cross-origin-modifier-value": [
     "anonymous",
     "use-credentials"

@@ -117,6 +117,7 @@ RefPtr<StyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
 struct DescriptorMetadata {
     enum class ValueType {
         // FIXME: Parse the grammar instead of hard-coding all the options!
+        CounterStyleSystem,
         CropOrCross,
         FamilyName,
         FontSrcList,
@@ -399,6 +400,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "String"_string;
                         if (syntax_string == "<unicode-range-token>#"sv)
                             return "UnicodeRangeTokens"_string;
+                        if (syntax_string == "<counter-style-system>"sv)
+                            return "CounterStyleSystem"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();
