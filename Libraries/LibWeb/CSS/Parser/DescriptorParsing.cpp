@@ -104,6 +104,11 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                     return StyleValueList::create({ first_symbol.release_nonnull(), second_symbol.release_nonnull() }, StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
                 }
+                case DescriptorMetadata::ValueType::CounterStylePad: {
+                    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-pad
+                    // <integer [0,∞]> && <symbol>
+                    return parse_nonnegative_integer_symbol_pair_value(tokens);
+                }
                 case DescriptorMetadata::ValueType::CounterStyleRange: {
                     // https://drafts.csswg.org/css-counter-styles-3/#counter-style-range
                     // [ [ <integer> | infinite ]{2} ]# | auto

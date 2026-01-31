@@ -2733,6 +2733,48 @@ RefPtr<StyleValue const> Parser::parse_symbol_value(TokenStream<ComponentValue>&
     return nullptr;
 }
 
+RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    RefPtr<StyleValue const> integer;
+    RefPtr<StyleValue const> symbol;
+
+    while (tokens.has_next_token()) {
+        if (auto integer_value = parse_integer_value(tokens)) {
+            if (integer)
+                return nullptr;
+
+            // FIXME: Do we need to support CalculatedStyleValue here?
+            if (!integer_value->is_integer() || integer_value->as_integer().integer() < 0)
+                return nullptr;
+
+            integer = integer_value;
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        if (auto symbol_value = parse_symbol_value(tokens)) {
+            if (symbol)
+                return nullptr;
+
+            symbol = symbol_value;
+            tokens.discard_whitespace();
+            continue;
+        }
+
+        break;
+    }
+
+    if (!integer || !symbol)
+        return nullptr;
+
+    transaction.commit();
+
+    return StyleValueList::create({ integer.release_nonnull(), symbol.release_nonnull() }, StyleValueList::Separator::Space);
+}
+
 RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto ratio = parse_ratio(tokens); ratio.has_value())
