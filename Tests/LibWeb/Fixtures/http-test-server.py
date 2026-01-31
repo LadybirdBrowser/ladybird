@@ -73,7 +73,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 echo.method is None
                 or echo.path is None
                 or echo.status is None
-                or (echo.body is not None and echo.reflect_headers_in_body)
+                or (echo.body is not None and "$HEADERS" not in echo.body and echo.reflect_headers_in_body)
                 or is_using_reserved_path
             ):
                 self.send_response(400)
@@ -179,7 +179,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 headers = defaultdict(list)
                 for key in self.headers.keys():
                     headers[key] = self.headers.get_all(key)
-                response_body = json.dumps(headers)
+                headers = json.dumps(headers)
+                response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
             else:
                 response_body = echo.body or ""
 
