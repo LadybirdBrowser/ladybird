@@ -1,0 +1,61 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        const reflectorUrl = await server.createEcho("GET", "/referrer-policy-meta-tag/reflector", {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            reflect_headers_in_body: true,
+        });
+
+        const iframeUrl = await server.createEcho("GET", "/referrer-policy-meta-tag/iframe", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/html",
+            },
+            body: `
+                <!DOCTYPE html>
+                <meta name="referrer">
+                <script>
+                    (async () => {
+                        const meta = document.querySelector("meta");
+                        for (const policy of ["no-referrer", "empty", "origin", "strict-origin", "unsafe-url", "always"]) {
+                            meta.content = policy;
+
+                            const response = await fetch("reflector");
+                            const headers = await response.json();
+                            let referrer = null;
+
+                            if ("Referer" in headers) {
+                                const url = new URL(headers["Referer"][0]);
+                                url.port = "";
+                                referrer = url.href;
+                            }
+
+                            parent.postMessage({policy, referrer}, "*");
+                        }
+
+                        parent.postMessage("DONE", "*");
+                    })();
+                <\/script>`,
+        });
+
+        window.onmessage = e => {
+            if (e.data === "DONE") {
+                done();
+                return;
+            }
+
+            const { policy, referrer } = e.data;
+            println(`Referrer with referrer policy ${policy}: ${referrer}`);
+        };
+
+        document.querySelector("iframe").src = iframeUrl;
+    });
+</script>
+<iframe></iframe>
