@@ -38,7 +38,7 @@ Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle>
     , m_storage_bottle(move(storage_bottle))
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
+        .supports_indexed_properties = false,
         .supports_named_properties = true,
         .has_indexed_property_setter = true,
         .has_named_property_setter = true,
