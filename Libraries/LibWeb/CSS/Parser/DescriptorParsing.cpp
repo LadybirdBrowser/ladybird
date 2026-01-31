@@ -63,6 +63,34 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
             },
             [&](DescriptorMetadata::ValueType value_type) -> RefPtr<StyleValue const> {
                 switch (value_type) {
+                case DescriptorMetadata::ValueType::CounterStyleAdditiveSymbols: {
+                    // [ <integer [0,∞]> && <symbol> ]#
+                    auto additive_tuples = parse_comma_separated_value_list(tokens, [this](auto& tokens) {
+                        return parse_nonnegative_integer_symbol_pair_value(tokens);
+                    });
+
+                    if (!additive_tuples)
+                        return nullptr;
+
+                    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols
+                    // Each entry in the additive-symbols descriptor’s value defines an additive tuple, which consists
+                    // of a counter symbol and an integer weight. Each weight must be a non-negative integer, and the
+                    // additive tuples must be specified in order of strictly descending weight; otherwise, the
+                    // declaration is invalid and must be ignored.
+                    i64 previous_weight = NumericLimits<i64>::max();
+
+                    for (auto const& tuple_style_value : additive_tuples->as_value_list().values()) {
+                        auto const& weight = tuple_style_value->as_value_list().value_at(0, false);
+
+                        // FIXME: How are calculated values handled here?
+                        if (weight->is_integer() && weight->as_integer().integer() >= previous_weight)
+                            return nullptr;
+
+                        previous_weight = weight->as_integer().integer();
+                    }
+
+                    return additive_tuples;
+                }
                 case DescriptorMetadata::ValueType::CounterStyleSystem: {
                     // https://drafts.csswg.org/css-counter-styles-3/#counter-style-system
                     // cyclic | numeric | alphabetic | symbolic | additive | [fixed <integer>?] | [ extends <counter-style-name> ]
