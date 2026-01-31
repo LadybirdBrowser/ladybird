@@ -4509,9 +4509,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     // 3. Let forwardId be the identifier argument of the [PutForwards] extended attribute.
     auto forward_id = "@put_forwards_identifier@"_utf16_fly_string;
 
-    // FIXME: 4. Perform ? Set(Q, forwardId, V, false).
+    // 4. Perform ? Set(Q, forwardId, V, false).
     if (receiver != JS::js_null())
-        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
+        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::No));
 
     // 5. Return undefined.
     return JS::js_undefined();
