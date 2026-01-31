@@ -204,6 +204,18 @@
         "syntax": [
           "<counter-style-negative>"
         ]
+      },
+      "prefix": {
+        "initial": "",
+        "syntax": [
+          "<symbol>"
+        ]
+      },
+      "suffix": {
+        "initial": ". ",
+        "syntax": [
+          "<symbol>"
+        ]
       }
     }
   }

@@ -8,8 +8,8 @@ interface CSSCounterStyleRule : CSSRule {
     [FIXME] attribute CSSOMString symbols;
     [FIXME] attribute CSSOMString additiveSymbols;
     attribute CSSOMString negative;
-    [FIXME] attribute CSSOMString prefix;
-    [FIXME] attribute CSSOMString suffix;
+    attribute CSSOMString prefix;
+    attribute CSSOMString suffix;
     [FIXME] attribute CSSOMString range;
     [FIXME] attribute CSSOMString pad;
     [FIXME] attribute CSSOMString speakAs;
