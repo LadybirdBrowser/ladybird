@@ -2710,6 +2710,29 @@ Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>
     return custom_ident;
 }
 
+// https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol
+RefPtr<StyleValue const> Parser::parse_symbol_value(TokenStream<ComponentValue>& tokens)
+{
+    // <symbol> = <string> | <image> | <custom-ident>
+    // Note: The <image> syntax in <symbol> is currently at-risk. No implementations have plans to implement it
+    //       currently, and it complicates some usages of counter() in ways that haven’t been fully handled.
+    // NB: Given the above we don't currently support <image> here - we may need to revisit this if other browsers implement it.
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (auto string_value = parse_string_value(tokens)) {
+        transaction.commit();
+        return string_value;
+    }
+
+    if (auto custom_ident_value = parse_custom_ident_value(tokens, {})) {
+        transaction.commit();
+        return custom_ident_value;
+    }
+
+    return nullptr;
+}
+
 RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto ratio = parse_ratio(tokens); ratio.has_value())
