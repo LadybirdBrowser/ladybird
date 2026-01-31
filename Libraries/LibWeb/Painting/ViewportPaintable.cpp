@@ -1,10 +1,11 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -183,6 +184,36 @@ static Optional<TransformData> compute_transform(PaintableBox const& paintable_b
     return TransformData { matrix, { origin_x, origin_y } };
 }
 
+// https://drafts.csswg.org/css-transforms-2/#perspective-matrix
+static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+{
+    auto perspective = computed_values.perspective();
+    if (!perspective.has_value())
+        return {};
+
+    // The perspective matrix is computed as follows:
+
+    // 1. Start with the identity matrix.
+    // 2. Translate by the computed X and Y values of 'perspective-origin'
+    // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
+    // Percentages: refer to the size of the reference box
+    auto reference_box = paintable_box.transform_reference_box();
+    auto perspective_origin = computed_values.perspective_origin().resolved(paintable_box.layout_node(), reference_box);
+    auto computed_x = perspective_origin.x().to_float();
+    auto computed_y = perspective_origin.y().to_float();
+    auto perspective_matrix = Gfx::translation_matrix(Vector3<float>(computed_x, computed_y, 0));
+
+    // 3. Multiply by the matrix that would be obtained from the 'perspective()' transform function, where the
+    //    length is provided by the value of the perspective property
+    // NB: Length values less than 1px being clamped to 1px is handled by the perspective() function already.
+    // FIXME: Create the matrix directly.
+    perspective_matrix = perspective_matrix * CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Perspective, CSS::StyleValueVector { CSS::LengthStyleValue::create(CSS::Length::make_px(perspective.value())) })->to_matrix({}).release_value();
+
+    // 4. Translate by the negated computed X and Y values of 'perspective-origin'
+    perspective_matrix = perspective_matrix * Gfx::translation_matrix(Vector3<float>(-computed_x, -computed_y, 0));
+    return perspective_matrix;
+}
+
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     m_next_accumulated_visual_context_id = 1;
@@ -272,8 +303,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         // Build state for descendants: own state + perspective + clip + scroll.
         RefPtr<AccumulatedVisualContext const> state_for_descendants = own_state;
 
-        if (auto perspective = paintable_box.perspective_matrix(); perspective.has_value())
-            state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective });
+        if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value())
+            state_for_descendants = append_node(state_for_descendants, PerspectiveData { *perspective_matrix });
 
         auto overflow_x = computed_values.overflow_x();
         auto overflow_y = computed_values.overflow_y();
