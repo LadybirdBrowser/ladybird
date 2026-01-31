@@ -34,6 +34,7 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& context) const override;
     bool algorithm_differs_from(CounterStyleSystemStyleValue const& other) const;
     bool is_valid_symbol_count(size_t count) const;
+    bool is_valid_additive_symbol_count(size_t count) const;
 
     bool properties_equal(CounterStyleSystemStyleValue const& other) const { return m_value == other.m_value; }
 

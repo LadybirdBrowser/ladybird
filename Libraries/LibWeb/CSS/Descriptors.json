@@ -239,6 +239,11 @@
         "syntax": [
           "<symbol>+"
         ]
+      },
+      "additive-symbols": {
+        "syntax": [
+          "<counter-style-additive-symbols>"
+        ]
       }
     }
   }
