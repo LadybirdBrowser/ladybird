@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 26 tests
 
-10 Pass
-16 Fail
-Fail	@counter-style 'prefix: "string"' is valid
-Fail	@counter-style 'suffix: "string"' is valid
-Fail	@counter-style 'prefix: "initial"' is valid
-Fail	@counter-style 'suffix: "initial"' is valid
-Fail	@counter-style 'prefix: "inherit"' is valid
-Fail	@counter-style 'suffix: "inherit"' is valid
-Fail	@counter-style 'prefix: "unset"' is valid
-Fail	@counter-style 'suffix: "unset"' is valid
-Fail	@counter-style 'prefix: custom-ident' is valid
-Fail	@counter-style 'suffix: custom-ident' is valid
+20 Pass
+6 Fail
+Pass	@counter-style 'prefix: "string"' is valid
+Pass	@counter-style 'suffix: "string"' is valid
+Pass	@counter-style 'prefix: "initial"' is valid
+Pass	@counter-style 'suffix: "initial"' is valid
+Pass	@counter-style 'prefix: "inherit"' is valid
+Pass	@counter-style 'suffix: "inherit"' is valid
+Pass	@counter-style 'prefix: "unset"' is valid
+Pass	@counter-style 'suffix: "unset"' is valid
+Pass	@counter-style 'prefix: custom-ident' is valid
+Pass	@counter-style 'suffix: custom-ident' is valid
 Pass	@counter-style 'prefix: initial' is invalid
 Pass	@counter-style 'suffix: initial' is invalid
 Pass	@counter-style 'prefix: inherit' is invalid

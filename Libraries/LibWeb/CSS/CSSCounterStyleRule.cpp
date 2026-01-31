@@ -16,16 +16,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
     , m_negative(move(negative))
+    , m_prefix(move(prefix))
+    , m_suffix(move(suffix))
 {
 }
 
@@ -43,6 +45,18 @@ String CSSCounterStyleRule::serialized() const
     if (m_negative) {
         builder.append(" negative: "sv);
         m_negative->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_prefix) {
+        builder.append(" prefix: "sv);
+        m_prefix->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_suffix) {
+        builder.append(" suffix: "sv);
+        m_suffix->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -114,6 +128,38 @@ void CSSCounterStyleRule::set_negative(FlyString const& negative)
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Negative, negative))
         m_negative = value;
+}
+
+FlyString CSSCounterStyleRule::prefix() const
+{
+    if (!m_prefix)
+        return ""_fly_string;
+
+    return m_prefix->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_prefix(FlyString const& prefix)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Prefix, prefix))
+        m_prefix = value;
+}
+
+FlyString CSSCounterStyleRule::suffix() const
+{
+    if (!m_suffix)
+        return ""_fly_string;
+
+    return m_suffix->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_suffix(FlyString const& suffix)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Suffix, suffix))
+        m_suffix = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)

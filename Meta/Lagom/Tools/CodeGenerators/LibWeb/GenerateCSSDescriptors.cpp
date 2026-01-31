@@ -127,6 +127,7 @@ struct DescriptorMetadata {
         PageSize,
         PositivePercentage,
         String,
+        Symbol,
         UnicodeRangeTokens,
     };
     Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
@@ -405,6 +406,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "CounterStyleSystem"_string;
                         if (syntax_string == "<counter-style-negative>"sv)
                             return "CounterStyleNegative"_string;
+                        if (syntax_string == "<symbol>"sv)
+                            return "Symbol"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();

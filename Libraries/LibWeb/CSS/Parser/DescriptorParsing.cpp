@@ -244,6 +244,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 }
                 case DescriptorMetadata::ValueType::String:
                     return parse_string_value(tokens);
+                case DescriptorMetadata::ValueType::Symbol:
+                    return parse_symbol_value(tokens);
                 case DescriptorMetadata::ValueType::UnicodeRangeTokens: {
                     return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<StyleValue const> {
                         return parse_unicode_range_value(tokens);
