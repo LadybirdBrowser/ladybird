@@ -137,17 +137,16 @@ Optional<String> PublicSuffixData::get_public_suffix(StringView string)
 
 def main():
     parser = argparse.ArgumentParser(description="Generate public suffix data files", add_help=False)
-    parser.add_argument("-H", action="help", help="Show this help message and exit")
-    parser.add_argument("-h", "-generated-header-path", required=True, help="Path to the header file to generate")
+    parser.add_argument("--help", action="help", help="Show this help message and exit")
+    parser.add_argument("-h", "--generated-header-path", required=True, help="Path to the header file to generate")
     parser.add_argument(
-        "-c", "-generated_implementation_path", required=True, help="Path to the implementation file to generate"
+        "-c", "--generated-implementation-path", required=True, help="Path to the implementation file to generate"
     )
-    parser.add_argument("-p", "-public-suffix-list-path", required=True, help="Path to the public suffix list")
-
+    parser.add_argument("-p", "--public-suffix-list-path", required=True, help="Path to the public suffix list")
     args = parser.parse_args()
 
-    generate_header_file(Path(args.h))
-    generate_implementation_file(Path(args.p), Path(args.c))
+    generate_header_file(Path(args.generated_header_path))
+    generate_implementation_file(Path(args.public_suffix_list_path), Path(args.generated_implementation_path))
 
 
 if __name__ == "__main__":
