@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .outer {
+        width: 200px;
+        height: 200px;
+        transform: translateX(50px);
+    }
+    .inner {
+        width: 100px;
+        height: 100px;
+        background-color: gray;
+        transform: translateX(10px);
+    }
+</style>
+<div class="outer">
+    <div class="inner" onClick="
+        println(`offsetX: ${event.offsetX}`);
+        println(`offsetY: ${event.offsetY}`);
+    "></div>
+</div>
+
+<script src="../include.js"></script>
+
+<script>
+    test(() => {
+        // Click at (65, 5) which hits the inner div.
+        // Inner's layout position is (0, 0). It is painted at (60, 0)
+        // due to outer's translateX(50px) + inner's translateX(10px).
+        internals.click(65, 5);
+    });
+</script>
