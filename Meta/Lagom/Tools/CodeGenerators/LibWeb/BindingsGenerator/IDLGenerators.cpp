@@ -4503,15 +4503,18 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
                 attribute_generator.append(R"~~~(
     // 1. Let Q be ? Get(jsValue, id).
+    auto receiver_value = TRY(impl->get("@attribute.name@"_utf16_fly_string));
+
     // 2. If Q is not an Object, then throw a TypeError.
-    auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
+    if (!receiver_value.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, receiver_value);
+    auto& receiver = receiver_value.as_object();
 
     // 3. Let forwardId be the identifier argument of the [PutForwards] extended attribute.
     auto forward_id = "@put_forwards_identifier@"_utf16_fly_string;
 
     // 4. Perform ? Set(Q, forwardId, V, false).
-    if (receiver != JS::js_null())
-        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::No));
+    TRY(receiver.set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::No));
 
     // 5. Return undefined.
     return JS::js_undefined();

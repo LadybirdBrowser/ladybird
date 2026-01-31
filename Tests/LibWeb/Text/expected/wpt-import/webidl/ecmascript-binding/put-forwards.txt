@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 11 tests
 
-7 Pass
-4 Fail
-Fail	Overriding getter of [PutForwards] attribute
+11 Pass
+Pass	Overriding getter of [PutForwards] attribute
 Pass	Overriding setter of [PutForwards] target attribute
-Fail	Overriding target of [PutForwards] attribute
-Fail	Exception propagation from getter of [PutForwards] attribute
+Pass	Overriding target of [PutForwards] attribute
+Pass	Exception propagation from getter of [PutForwards] attribute
 Pass	Exception propagation from setter of [PutForwards] target attribute
-Fail	TypeError when getter of [PutForwards] attribute returns non-object
+Pass	TypeError when getter of [PutForwards] attribute returns non-object
 Pass	Does not throw when setter of [PutForwards] attribute returns false
 Pass	Setting a.relList to noreferrer is reflected in rel
 Pass	Setting area.relList to noreferrer is reflected in rel
