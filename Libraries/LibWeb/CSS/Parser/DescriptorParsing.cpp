@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -89,6 +90,14 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     }
 
                     return nullptr;
+                }
+                case DescriptorMetadata::ValueType::CounterStyleName: {
+                    auto counter_style_name = parse_counter_style_name(tokens);
+
+                    if (!counter_style_name.has_value())
+                        return nullptr;
+
+                    return CustomIdentStyleValue::create(counter_style_name.release_value());
                 }
                 case DescriptorMetadata::ValueType::CounterStyleNegative: {
                     // https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative

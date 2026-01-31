@@ -16,12 +16,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
@@ -30,6 +30,7 @@ CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPt
     , m_suffix(move(suffix))
     , m_range(move(range))
     , m_pad(move(pad))
+    , m_fallback(move(fallback))
 {
 }
 
@@ -71,6 +72,12 @@ String CSSCounterStyleRule::serialized() const
     if (m_pad) {
         builder.append(" pad: "sv);
         m_pad->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_fallback) {
+        builder.append(" fallback: "sv);
+        m_fallback->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -206,6 +213,22 @@ void CSSCounterStyleRule::set_pad(FlyString const& pad)
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Pad, pad))
         m_pad = value;
+}
+
+FlyString CSSCounterStyleRule::fallback() const
+{
+    if (!m_fallback)
+        return ""_fly_string;
+
+    return m_fallback->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_fallback(FlyString const& fallback)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Fallback, fallback))
+        m_fallback = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)
