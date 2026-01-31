@@ -198,6 +198,12 @@
         "syntax": [
           "<counter-style-system>"
         ]
+      },
+      "negative": {
+        "initial": "-",
+        "syntax": [
+          "<counter-style-negative>"
+        ]
       }
     }
   }

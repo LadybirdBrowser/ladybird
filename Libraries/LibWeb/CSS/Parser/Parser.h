@@ -410,6 +410,7 @@ private:
     RefPtr<StyleValue const> parse_corner_shape_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_counter_value(TokenStream<ComponentValue>&);
     Optional<FlyString> parse_counter_style_name(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_symbol_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,
         Yes,
