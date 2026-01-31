@@ -234,6 +234,11 @@
         "syntax": [
           "<counter-style-name>"
         ]
+      },
+      "symbols": {
+        "syntax": [
+          "<symbol>+"
+        ]
       }
     }
   }
