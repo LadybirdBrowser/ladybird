@@ -89,6 +89,20 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                     return nullptr;
                 }
+                case DescriptorMetadata::ValueType::CounterStyleNegative: {
+                    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative
+                    // <symbol> <symbol>?
+                    auto first_symbol = parse_symbol_value(tokens);
+                    auto second_symbol = parse_symbol_value(tokens);
+
+                    if (!first_symbol)
+                        return nullptr;
+
+                    if (!second_symbol)
+                        return StyleValueList::create({ first_symbol.release_nonnull() }, StyleValueList::Separator::Space);
+
+                    return StyleValueList::create({ first_symbol.release_nonnull(), second_symbol.release_nonnull() }, StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+                }
                 case DescriptorMetadata::ValueType::CropOrCross: {
                     // crop || cross
                     auto first = parse_keyword_value(tokens);

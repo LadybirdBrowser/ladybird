@@ -7,7 +7,7 @@ interface CSSCounterStyleRule : CSSRule {
     attribute CSSOMString system;
     [FIXME] attribute CSSOMString symbols;
     [FIXME] attribute CSSOMString additiveSymbols;
-    [FIXME] attribute CSSOMString negative;
+    attribute CSSOMString negative;
     [FIXME] attribute CSSOMString prefix;
     [FIXME] attribute CSSOMString suffix;
     [FIXME] attribute CSSOMString range;

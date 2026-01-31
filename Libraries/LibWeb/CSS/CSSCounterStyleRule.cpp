@@ -16,15 +16,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
+    , m_negative(move(negative))
 {
 }
 
@@ -36,6 +37,12 @@ String CSSCounterStyleRule::serialized() const
     if (m_system) {
         builder.append(" system: "sv);
         m_system->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_negative) {
+        builder.append(" negative: "sv);
+        m_negative->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -91,6 +98,22 @@ void CSSCounterStyleRule::set_system(FlyString const& system)
 
     // 4. Set the descriptor to the value.
     m_system = value;
+}
+
+FlyString CSSCounterStyleRule::negative() const
+{
+    if (!m_negative)
+        return ""_fly_string;
+
+    return m_negative->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_negative(FlyString const& negative)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Negative, negative))
+        m_negative = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)
