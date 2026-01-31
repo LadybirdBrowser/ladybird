@@ -334,8 +334,11 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             }
         }
 
-        if (paintable_box.own_scroll_frame() && !paintable_box.is_sticky_position())
-            state_for_descendants = append_node(state_for_descendants, ScrollData { paintable_box.own_scroll_frame()->id(), false });
+        if (paintable_box.own_scroll_frame()) {
+            auto is_sticky_without_scrollable_overflow = paintable_box.is_sticky_position() && paintable_box.enclosing_scroll_frame() == paintable_box.own_scroll_frame();
+            if (!is_sticky_without_scrollable_overflow)
+                state_for_descendants = append_node(state_for_descendants, ScrollData { paintable_box.own_scroll_frame()->id(), false });
+        }
 
         paintable_box.set_accumulated_visual_context_for_descendants(state_for_descendants);
 
