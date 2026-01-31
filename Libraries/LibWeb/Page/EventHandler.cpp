@@ -201,19 +201,15 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     };
 
     // ignoring the transforms that apply to the element and its ancestors,
-    if (paintable.layout_node().has_css_transform()) {
-        auto const& paintable_box = static_cast<Painting::PaintableBox const&>(paintable);
-        auto const affine_transform = Gfx::extract_2d_affine_transform(paintable_box.transform().inverse());
-
-        auto const& origin = paintable_box.transform_origin();
-        Gfx::Point<float> const precision_origin = {
-            origin.x().to_double(),
-            origin.y().to_double()
-        };
-
-        precision_offset.translate_by(-precision_origin);
-        precision_offset.transform_by(affine_transform);
-        precision_offset.translate_by(precision_origin);
+    RefPtr<Painting::AccumulatedVisualContext const> visual_context;
+    if (is<Painting::PaintableBox>(paintable)) {
+        visual_context = static_cast<Painting::PaintableBox const&>(paintable).accumulated_visual_context();
+    } else if (auto* containing_block = paintable.containing_block()) {
+        visual_context = containing_block->accumulated_visual_context();
+    }
+    if (visual_context) {
+        auto transformed = visual_context->inverse_transform_point(position);
+        precision_offset = { transformed.x().to_double(), transformed.y().to_double() };
     }
 
     // relative to the origin of the padding edge of the target node
