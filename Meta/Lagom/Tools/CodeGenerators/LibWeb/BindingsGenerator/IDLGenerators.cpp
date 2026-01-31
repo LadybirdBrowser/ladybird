@@ -4621,10 +4621,12 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
 
-    // FIXME: 1. Let V be undefined.
-    // FIXME: 2. If any arguments were passed, then set V to the value of the first argument passed.
-    if (vm.argument_count() < 1)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
+    // 1. Let V be undefined.
+    auto value = JS::js_undefined();
+
+    // 2. If any arguments were passed, then set V to the value of the first argument passed.
+    if (vm.argument_count() > 0)
+        value = vm.argument(0);
 
     // 3. Let id be attribute’s identifier.
     // 4. Let idlObject be null.
@@ -4642,7 +4644,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             if (attribute.extended_attributes.contains("Replaceable"sv)) {
                 attribute_generator.append(R"~~~(
     // 1. Perform ? CreateDataPropertyOrThrow(jsValue, id, V).
-    JS::PropertyDescriptor descriptor { .value = vm.argument(0), .writable = true };
+    JS::PropertyDescriptor descriptor { .value = value, .writable = true };
     TRY(impl->internal_define_own_property("@attribute.name@"_utf16_fly_string, descriptor));
 
     // 2. Return undefined.
@@ -4667,7 +4669,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
     // FIXME: 4. Perform ? Set(Q, forwardId, V, false).
     if (receiver != JS::js_null())
-        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, vm.argument(0), JS::Object::ShouldThrowExceptions::Yes));
+        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
 
     // 5. Return undefined.
     return JS::js_undefined();
