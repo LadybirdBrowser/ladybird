@@ -113,4 +113,29 @@ bool CounterStyleSystemStyleValue::is_valid_symbol_count(size_t count) const
         });
 }
 
+bool CounterStyleSystemStyleValue::is_valid_additive_symbol_count(size_t count) const
+{
+    return m_value.visit(
+        [&](CounterStyleSystem const& system) -> bool {
+            // https://drafts.csswg.org/css-counter-styles-3/#additive-system
+            // If the system is additive, the additive-symbols descriptor must contain at least one additive tuple,
+            // otherwise the rule does not define a counter style (but is still a valid rule).
+            if (system == CounterStyleSystem::Additive)
+                return count >= 1;
+
+            // NB: Other systems ignore rely on the `symbols` descriptor instead and `additive-symbols` is ignored.
+            return true;
+        },
+        [&](Fixed const&) -> bool {
+            // NB: Fixed relies on the `symbols` descriptor instead and `additive-symbols` is ignored.
+            return true;
+        },
+        [&](Extends const&) -> bool {
+            // https://drafts.csswg.org/css-counter-styles-3/#extends-system
+            // If a @counter-style uses the extends system, it must not contain a symbols or additive-symbols
+            // descriptor, otherwise the rule does not define a counter style (but is still a valid rule).
+            return false;
+        });
+}
+
 }

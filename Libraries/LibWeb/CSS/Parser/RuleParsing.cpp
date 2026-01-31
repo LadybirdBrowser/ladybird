@@ -880,6 +880,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     RefPtr<StyleValue const> pad;
     RefPtr<StyleValue const> fallback;
     RefPtr<StyleValue const> symbols;
+    RefPtr<StyleValue const> additive_symbols;
 
     rule.for_each_as_declaration_list([&](auto& declaration) {
         auto const& descriptor = convert_to_descriptor(AtRuleID::CounterStyle, declaration);
@@ -911,12 +912,15 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
         case DescriptorID::Symbols:
             symbols = descriptor->value;
             break;
+        case DescriptorID::AdditiveSymbols:
+            additive_symbols = descriptor->value;
+            break;
         default:
             VERIFY_NOT_REACHED();
         }
     });
 
-    return CSSCounterStyleRule::create(realm(), name.release_value(), move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols));
+    return CSSCounterStyleRule::create(realm(), name.release_value(), move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols), move(additive_symbols));
 }
 
 GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
