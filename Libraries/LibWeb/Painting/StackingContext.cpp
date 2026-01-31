@@ -9,8 +9,6 @@
 
 #include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
-#include <LibGfx/AffineTransform.h>
-#include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -281,13 +279,6 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     }
 }
 
-// FIXME: This extracts the affine 2D part of the full transformation matrix.
-//  Use the whole matrix when we get better transformation support in LibGfx or use LibGL for drawing the bitmap
-Gfx::AffineTransform StackingContext::affine_transform_matrix() const
-{
-    return Gfx::extract_2d_affine_transform(paintable_box().transform());
-}
-
 void StackingContext::paint(DisplayListRecordingContext& context) const
 {
     if (paintable_box().computed_values().opacity() == 0.0f)
@@ -470,10 +461,9 @@ void StackingContext::dump(StringBuilder& builder, int indent) const
         builder.append("auto"sv);
     builder.append(')');
 
-    auto affine_transform = affine_transform_matrix();
-    if (!affine_transform.is_identity()) {
-        builder.appendff(", transform: {}", affine_transform);
-    }
+    if (paintable_box().has_css_transform())
+        builder.append(", has_transform"sv);
+
     builder.append('\n');
     for (auto& child : m_children)
         child->dump(builder, indent + 1);

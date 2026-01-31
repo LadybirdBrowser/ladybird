@@ -40,8 +40,6 @@ public:
 
     [[nodiscard]] TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
-    Gfx::AffineTransform affine_transform_matrix() const;
-
     void dump(StringBuilder&, int indent = 0) const;
 
     void sort();

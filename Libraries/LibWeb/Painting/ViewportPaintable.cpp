@@ -162,6 +162,27 @@ static CSSPixelRect effective_css_clip_rect(CSSPixelRect const& css_clip)
     return css_clip;
 }
 
+static Optional<TransformData> compute_transform(PaintableBox const& paintable_box, CSS::ComputedValues const& computed_values)
+{
+    if (!paintable_box.has_css_transform())
+        return {};
+
+    auto matrix = Gfx::FloatMatrix4x4::identity();
+    if (auto const& translate = computed_values.translate())
+        matrix = matrix * translate->to_matrix(paintable_box).release_value();
+    if (auto const& rotate = computed_values.rotate())
+        matrix = matrix * rotate->to_matrix(paintable_box).release_value();
+    if (auto const& scale = computed_values.scale())
+        matrix = matrix * scale->to_matrix(paintable_box).release_value();
+    for (auto const& transform : computed_values.transformations())
+        matrix = matrix * transform->to_matrix(paintable_box).release_value();
+    auto const& css_transform_origin = computed_values.transform_origin();
+    auto reference_box = paintable_box.transform_reference_box();
+    auto origin_x = reference_box.left() + css_transform_origin.x.to_px(paintable_box.layout_node(), reference_box.width());
+    auto origin_y = reference_box.top() + css_transform_origin.y.to_px(paintable_box.layout_node(), reference_box.height());
+    return TransformData { matrix, { origin_x, origin_y } };
+}
+
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     m_next_accumulated_visual_context_id = 1;
@@ -226,8 +247,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         if (effects.needs_layer())
             own_state = append_node(own_state, move(effects));
 
-        if (paintable_box.has_css_transform())
-            own_state = append_node(own_state, TransformData { paintable_box.transform(), paintable_box.transform_origin() });
+        if (auto transform_data = compute_transform(paintable_box, computed_values); transform_data.has_value())
+            own_state = append_node(own_state, *transform_data);
 
         if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value())
             own_state = append_node(own_state, ClipData { effective_css_clip_rect(*css_clip), {} });
