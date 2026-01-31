@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022-2025, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -193,9 +193,6 @@ public:
     void set_box_shadow_data(Vector<ShadowData> box_shadow_data) { m_box_shadow_data = move(box_shadow_data); }
     Vector<ShadowData> const& box_shadow_data() const { return m_box_shadow_data; }
 
-    void set_perspective_matrix(Optional<Gfx::FloatMatrix4x4> perspective_matrix) { m_perspective_matrix = perspective_matrix; }
-    Optional<Gfx::FloatMatrix4x4> const& perspective_matrix() const { return m_perspective_matrix; }
-
     void set_outline_data(Optional<BordersData> outline_data) { m_outline_data = outline_data; }
     Optional<BordersData> const& outline_data() const { return m_outline_data; }
 
@@ -331,8 +328,6 @@ private:
 
     BorderRadiiData m_border_radii_data;
     Vector<ShadowData> m_box_shadow_data;
-    Optional<Gfx::FloatMatrix4x4> m_perspective_matrix {};
-
     Optional<BordersData> m_outline_data;
     CSSPixels m_outline_offset { 0 };
 
