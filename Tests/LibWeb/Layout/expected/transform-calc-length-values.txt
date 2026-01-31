@@ -8,4 +8,4 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x118] [children: 1] (z-index: auto)
-  SC for BlockContainer<BODY> [9,9 100x100] [children: 0] (z-index: auto), transform: [1 0 0 1 50 100]
+  SC for BlockContainer<BODY> [9,9 100x100] [children: 0] (z-index: auto), has_transform

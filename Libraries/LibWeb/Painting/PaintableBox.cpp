@@ -1155,27 +1155,6 @@ void PaintableBox::resolve_paint_properties()
     }
     set_box_shadow_data(move(resolved_box_shadow_data));
 
-    auto const& transformations = computed_values.transformations();
-    auto const& translate = computed_values.translate();
-    auto const& rotate = computed_values.rotate();
-    auto const& scale = computed_values.scale();
-    auto matrix = Gfx::FloatMatrix4x4::identity();
-    if (translate)
-        matrix = matrix * translate->to_matrix(*this).release_value();
-    if (rotate)
-        matrix = matrix * rotate->to_matrix(*this).release_value();
-    if (scale)
-        matrix = matrix * scale->to_matrix(*this).release_value();
-    for (auto const& transform : transformations)
-        matrix = matrix * transform->to_matrix(*this).release_value();
-    set_transform(matrix);
-
-    auto const& transform_origin = computed_values.transform_origin();
-    auto reference_box = transform_reference_box();
-    auto x = reference_box.left() + transform_origin.x.to_px(layout_node, reference_box.width());
-    auto y = reference_box.top() + transform_origin.y.to_px(layout_node, reference_box.height());
-    set_transform_origin({ x, y });
-
     // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
     if (auto perspective = computed_values.perspective(); perspective.has_value()) {
         // The perspective matrix is computed as follows:
@@ -1184,6 +1163,7 @@ void PaintableBox::resolve_paint_properties()
         // 2. Translate by the computed X and Y values of 'perspective-origin'
         // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
         // Percentages: refer to the size of the reference box
+        auto reference_box = transform_reference_box();
         auto perspective_origin = computed_values.perspective_origin().resolved(layout_node, reference_box).to_type<float>();
         auto computed_x = perspective_origin.x();
         auto computed_y = perspective_origin.y();
