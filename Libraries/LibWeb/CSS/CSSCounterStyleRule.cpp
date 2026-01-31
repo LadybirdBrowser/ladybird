@@ -16,18 +16,19 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
     , m_negative(move(negative))
     , m_prefix(move(prefix))
     , m_suffix(move(suffix))
+    , m_range(move(range))
 {
 }
 
@@ -57,6 +58,12 @@ String CSSCounterStyleRule::serialized() const
     if (m_suffix) {
         builder.append(" suffix: "sv);
         m_suffix->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_range) {
+        builder.append(" range: "sv);
+        m_range->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -160,6 +167,22 @@ void CSSCounterStyleRule::set_suffix(FlyString const& suffix)
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Suffix, suffix))
         m_suffix = value;
+}
+
+FlyString CSSCounterStyleRule::range() const
+{
+    if (!m_range)
+        return ""_fly_string;
+
+    return m_range->to_string(SerializationMode::Normal);
+}
+
+void CSSCounterStyleRule::set_range(FlyString const& range)
+{
+    Parser::ParsingParams parsing_params { realm() };
+
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Range, range))
+        m_range = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)
