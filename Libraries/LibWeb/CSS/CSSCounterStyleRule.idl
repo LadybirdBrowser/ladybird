@@ -12,6 +12,6 @@ interface CSSCounterStyleRule : CSSRule {
     attribute CSSOMString suffix;
     attribute CSSOMString range;
     attribute CSSOMString pad;
-    [FIXME] attribute CSSOMString speakAs;
+    attribute CSSOMString speakAs;
     attribute CSSOMString fallback;
 };

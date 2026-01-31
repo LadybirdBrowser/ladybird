@@ -244,6 +244,17 @@
         "syntax": [
           "<counter-style-additive-symbols>"
         ]
+      },
+      "speak-as": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "bullets",
+          "numbers",
+          "words",
+          "spell-out",
+          "<counter-style-name>"
+        ]
       }
     }
   }

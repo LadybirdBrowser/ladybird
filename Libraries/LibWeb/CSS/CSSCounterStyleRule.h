@@ -16,7 +16,7 @@ class CSSCounterStyleRule : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
-    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols);
+    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
     virtual ~CSSCounterStyleRule() = default;
 
     virtual String serialized() const override;
@@ -51,6 +51,9 @@ public:
     FlyString additive_symbols() const;
     void set_additive_symbols(FlyString const& additive_symbols);
 
+    FlyString speak_as() const;
+    void set_speak_as(FlyString const& speak_as);
+
     // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
     static bool matches_non_overridable_counter_style_name(FlyString const& name)
     {
@@ -59,7 +62,7 @@ public:
     }
 
 protected:
-    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols);
+    CSSCounterStyleRule(JS::Realm&, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
 
     FlyString m_name;
     RefPtr<StyleValue const> m_system;
@@ -71,6 +74,7 @@ protected:
     RefPtr<StyleValue const> m_fallback;
     RefPtr<StyleValue const> m_symbols;
     RefPtr<StyleValue const> m_additive_symbols;
+    RefPtr<StyleValue const> m_speak_as;
 
     virtual void initialize(JS::Realm&) override;
 };
