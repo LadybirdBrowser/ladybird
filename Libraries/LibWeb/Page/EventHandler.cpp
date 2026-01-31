@@ -17,6 +17,7 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -1431,10 +1432,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (key == UIEvents::KeyCode::Key_Return && (significant_modifiers == UIEvents::Mod_None || significant_modifiers == UIEvents::Mod_Shift)) {
             auto input_type = significant_modifiers == UIEvents::Mod_Shift ? UIEvents::InputTypes::insertLineBreak : UIEvents::InputTypes::insertParagraph;
 
+            // Form controls always use insertLineBreak rather than insertParagraph.
+            if (is<HTML::FormAssociatedTextControlElement>(target)) {
+                input_type = UIEvents::InputTypes::insertLineBreak;
+            }
             // If the editing host is contenteditable="plaintext-only", we force a line break.
             // NB: We check the selection's editing host rather than focused_area because with nested
             //     contenteditable elements, the focused element may differ from where the selection is.
-            if (auto selection = document->get_selection(); selection && selection->range()) {
+            else if (auto selection = document->get_selection(); selection && selection->range()) {
                 if (auto editing_host = selection->range()->start_container()->editing_host(); editing_host
                     && as<HTML::HTMLElement>(*editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly) {
                     input_type = UIEvents::InputTypes::insertLineBreak;
