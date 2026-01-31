@@ -1,0 +1,5 @@
+insertText on input: data="a", inputType="insertText"
+insertText on textarea: data="b", inputType="insertText"
+deleteContentBackward: data=null, inputType="deleteContentBackward"
+deleteContentForward: data=null, inputType="deleteContentForward"
+Enter in textarea: data=null, inputType="insertLineBreak"
