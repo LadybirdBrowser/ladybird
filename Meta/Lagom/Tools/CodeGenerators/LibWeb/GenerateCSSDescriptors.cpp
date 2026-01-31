@@ -131,6 +131,7 @@ struct DescriptorMetadata {
         PositivePercentage,
         String,
         Symbol,
+        Symbols,
         UnicodeRangeTokens,
     };
     Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
@@ -411,6 +412,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "CounterStyleNegative"_string;
                         if (syntax_string == "<symbol>"sv)
                             return "Symbol"_string;
+                        if (syntax_string == "<symbol>+"sv)
+                            return "Symbols"_string;
                         if (syntax_string == "<counter-style-range>"sv)
                             return "CounterStyleRange"_string;
                         if (syntax_string == "<counter-style-pad>"sv)

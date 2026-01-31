@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 10 tests
 
-2 Pass
-8 Fail
+4 Pass
+6 Fail
 Fail	sibling-index() should not be allowed in @page properties
 Fail	sibling-count() should not be allowed in @page properties
 Pass	sibling-index() should not be allowed in @font-face descriptors
 Pass	sibling-count() should not be allowed in @font-face descriptors
 Fail	sibling-index() should not be allowed in @font-palette-values descriptors
 Fail	sibling-count() should not be allowed in @font-palette-values descriptors
-Fail	sibling-index() should not be allowed in @counter-style descriptors
-Fail	sibling-count() should not be allowed in @counter-style descriptors
+Pass	sibling-index() should not be allowed in @counter-style descriptors
+Pass	sibling-count() should not be allowed in @counter-style descriptors
 Fail	sibling-index() should not be allowed in @font-feature-values descriptors
 Fail	sibling-count() should not be allowed in @font-feature-values descriptors

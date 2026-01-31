@@ -293,6 +293,21 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     return parse_string_value(tokens);
                 case DescriptorMetadata::ValueType::Symbol:
                     return parse_symbol_value(tokens);
+                case DescriptorMetadata::ValueType::Symbols: {
+                    // <symbol>+
+                    StyleValueVector symbols;
+                    while (tokens.has_next_token()) {
+                        auto symbol = parse_symbol_value(tokens);
+                        if (!symbol)
+                            break;
+                        symbols.append(symbol.release_nonnull());
+                    }
+
+                    if (symbols.is_empty())
+                        return nullptr;
+
+                    return StyleValueList::create(move(symbols), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+                }
                 case DescriptorMetadata::ValueType::UnicodeRangeTokens: {
                     return parse_comma_separated_value_list(tokens, [this](auto& tokens) -> RefPtr<StyleValue const> {
                         return parse_unicode_range_value(tokens);

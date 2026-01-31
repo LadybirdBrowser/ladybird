@@ -68,4 +68,33 @@ bool CounterStyleSystemStyleValue::algorithm_differs_from(CounterStyleSystemStyl
         });
 }
 
+bool CounterStyleSystemStyleValue::is_valid_symbol_count(size_t count) const
+{
+    return m_value.visit(
+        [&](CounterStyleSystem const& system) -> bool {
+            switch (system) {
+            case CounterStyleSystem::Cyclic:
+            case CounterStyleSystem::Symbolic:
+                return count >= 1;
+            case CounterStyleSystem::Alphabetic:
+            case CounterStyleSystem::Numeric:
+                return count >= 2;
+            case CounterStyleSystem::Additive:
+                // NB: Additive relies on the `additive-symbols` descriptor instead
+                return true;
+            }
+
+            VERIFY_NOT_REACHED();
+        },
+        [&](Fixed const&) -> bool {
+            return count >= 1;
+        },
+        [&](Extends const&) -> bool {
+            // https://drafts.csswg.org/css-counter-styles-3/#extends-system
+            // If a @counter-style uses the extends system, it must not contain a symbols or additive-symbols
+            // descriptor, otherwise the rule does not define a counter style (but is still a valid rule).
+            return false;
+        });
+}
+
 }
