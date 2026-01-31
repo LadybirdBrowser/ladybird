@@ -4614,40 +4614,66 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     return JS::js_undefined();
 }
 )~~~");
-        } else if (attribute.extended_attributes.contains("Replaceable"sv)) {
+        } else if (attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+            // https://webidl.spec.whatwg.org/#dfn-attribute-setter
             attribute_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 {
     WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
+
+    // FIXME: 1. Let V be undefined.
+    // FIXME: 2. If any arguments were passed, then set V to the value of the first argument passed.
     if (vm.argument_count() < 1)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
 
+    // 3. Let id be attribute’s identifier.
+    // 4. Let idlObject be null.
+    // 5. If attribute is a regular attribute:
+
+    // FIXME: 1. Let jsValue be the this value, if it is not null or undefined, or realm’s global object otherwise. (This will subsequently cause a TypeError in a few steps, if the global object does not implement target and [LegacyLenientThis] is not specified.)
     auto* impl = TRY(impl_from(vm));
+
+    // FIXME: 2. If jsValue is a platform object, then perform a security check, passing jsValue, id, and "setter".
+    // FIXME: 3. Let validThis be true if jsValue implements target, or false otherwise.
+    // FIXME: 4. If validThis is false and attribute was not specified with the [LegacyLenientThis] extended attribute, then throw a TypeError.
+)~~~");
+
+            // 5. If attribute is declared with the [Replaceable] extended attribute, then:
+            if (attribute.extended_attributes.contains("Replaceable"sv)) {
+                attribute_generator.append(R"~~~(
+    // 1. Perform ? CreateDataPropertyOrThrow(jsValue, id, V).
     JS::PropertyDescriptor descriptor { .value = vm.argument(0), .writable = true };
     TRY(impl->internal_define_own_property("@attribute.name@"_utf16_fly_string, descriptor));
+
+    // 2. Return undefined.
     return JS::js_undefined();
 }
 )~~~");
-        } else if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
-            attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
-            VERIFY(!put_forwards_identifier->is_empty() && !is_ascii_digit(put_forwards_identifier->byte_at(0))); // Ensure `PropertyKey`s are not Numbers.
+            }
+            // FIXME: 6. If validThis is false, then return undefined.
+            // FIXME: 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
+            // 8. If attribute is declared with a [PutForwards] extended attribute, then:
+            if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
+                attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
+                VERIFY(!put_forwards_identifier->is_empty() && !is_ascii_digit(put_forwards_identifier->byte_at(0))); // Ensure `PropertyKey`s are not Numbers.
 
-            attribute_generator.append(R"~~~(
-JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
-{
-    WebIDL::log_trace(vm, "@class_name@::@attribute.setter_callback@");
-    auto* impl = TRY(impl_from(vm));
-    if (vm.argument_count() < 1)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::BadArgCountOne, "@namespaced_name@ setter");
-    auto value = vm.argument(0);
-
+                attribute_generator.append(R"~~~(
+    // 1. Let Q be ? Get(jsValue, id).
+    // 2. If Q is not an Object, then throw a TypeError.
     auto receiver = TRY(throw_dom_exception_if_needed(vm, [&]() { return impl->@attribute.cpp_name@(); }));
-    if (receiver != JS::js_null())
-        TRY(receiver->set(JS::PropertyKey { "@put_forwards_identifier@"_utf16_fly_string, JS::PropertyKey::StringMayBeNumber::No }, value, JS::Object::ShouldThrowExceptions::Yes));
 
+    // 3. Let forwardId be the identifier argument of the [PutForwards] extended attribute.
+    auto forward_id = "@put_forwards_identifier@"_utf16_fly_string;
+
+    // FIXME: 4. Perform ? Set(Q, forwardId, V, false).
+    if (receiver != JS::js_null())
+        TRY(receiver->set(JS::PropertyKey { forward_id, JS::PropertyKey::StringMayBeNumber::No }, vm.argument(0), JS::Object::ShouldThrowExceptions::Yes));
+
+    // 5. Return undefined.
     return JS::js_undefined();
 }
 )~~~");
+            }
         }
     }
 
