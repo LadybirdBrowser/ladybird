@@ -228,6 +228,12 @@
         "syntax": [
           "<counter-style-pad>"
         ]
+      },
+      "fallback": {
+        "initial": "decimal",
+        "syntax": [
+          "<counter-style-name>"
+        ]
       }
     }
   }

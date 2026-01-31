@@ -118,6 +118,7 @@ struct DescriptorMetadata {
     enum class ValueType {
         // FIXME: Parse the grammar instead of hard-coding all the options!
         CounterStyleSystem,
+        CounterStyleName,
         CounterStyleNegative,
         CounterStylePad,
         CounterStyleRange,
@@ -414,6 +415,8 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "CounterStyleRange"_string;
                         if (syntax_string == "<counter-style-pad>"sv)
                             return "CounterStylePad"_string;
+                        if (syntax_string == "<counter-style-name>"sv)
+                            return "CounterStyleName"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();
