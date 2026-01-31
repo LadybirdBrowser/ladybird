@@ -94,6 +94,7 @@ public:
     void dump(StringBuilder&) const;
 
     Optional<CSSPixelPoint> transform_point_for_hit_test(CSSPixelPoint screen_point, ScrollStateSnapshot const& scroll_state) const;
+    CSSPixelPoint inverse_transform_point(CSSPixelPoint point) const;
     CSSPixelRect transform_rect_to_viewport(CSSPixelRect const&, ScrollStateSnapshot const&) const;
 
 private:

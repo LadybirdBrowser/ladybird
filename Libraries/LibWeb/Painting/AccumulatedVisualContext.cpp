@@ -84,6 +84,38 @@ Optional<CSSPixelPoint> AccumulatedVisualContext::transform_point_for_hit_test(C
     return point;
 }
 
+CSSPixelPoint AccumulatedVisualContext::inverse_transform_point(CSSPixelPoint screen_point) const
+{
+    Vector<AccumulatedVisualContext const*> chain;
+    for (auto const* node = this; node; node = node->parent().ptr())
+        chain.append(node);
+
+    auto point = screen_point;
+    for (size_t i = chain.size(); i > 0; --i) {
+        auto const* node = chain[i - 1];
+
+        node->data().visit(
+            [&](PerspectiveData const& perspective) {
+                auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
+                auto inverse = affine.inverse();
+                if (inverse.has_value())
+                    point = inverse->map(point.to_type<float>()).to_type<CSSPixels>();
+            },
+            [&](TransformData const& transform) {
+                auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
+                auto inverse = affine.inverse();
+                if (inverse.has_value()) {
+                    auto offset_point = point - transform.origin;
+                    auto transformed = inverse->map(offset_point.to_type<float>()).to_type<CSSPixels>();
+                    point = transformed + transform.origin;
+                }
+            },
+            [&](auto const&) {});
+    }
+
+    return point;
+}
+
 CSSPixelRect AccumulatedVisualContext::transform_rect_to_viewport(CSSPixelRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
 {
     Vector<AccumulatedVisualContext const*> chain;
