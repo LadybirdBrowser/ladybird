@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -102,6 +103,38 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                         return StyleValueList::create({ first_symbol.release_nonnull() }, StyleValueList::Separator::Space);
 
                     return StyleValueList::create({ first_symbol.release_nonnull(), second_symbol.release_nonnull() }, StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+                }
+                case DescriptorMetadata::ValueType::CounterStyleRange: {
+                    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-range
+                    // [ [ <integer> | infinite ]{2} ]# | auto
+                    if (auto value = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+                        return value;
+
+                    return parse_comma_separated_value_list(tokens, [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
+                        auto const parse_value = [&]() -> RefPtr<StyleValue const> {
+                            if (auto keyword_value = parse_keyword_value(tokens); keyword_value && keyword_value->to_keyword() == Keyword::Infinite)
+                                return keyword_value;
+
+                            if (auto integer_value = parse_integer_value(tokens); integer_value)
+                                return integer_value;
+
+                            return nullptr;
+                        };
+
+                        auto first_value = parse_value();
+                        auto second_value = parse_value();
+
+                        if (!first_value || !second_value)
+                            return nullptr;
+
+                        // If the lower bound of any range is higher than the upper bound, the entire descriptor is
+                        // invalid and must be ignored.
+                        // FIXME: Do we need to account for calc() here?
+                        if (first_value->is_integer() && second_value->is_integer() && first_value->as_integer().integer() > second_value->as_integer().integer())
+                            return nullptr;
+
+                        return StyleValueList::create({ first_value.release_nonnull(), second_value.release_nonnull() }, StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+                    });
                 }
                 case DescriptorMetadata::ValueType::CropOrCross: {
                     // crop || cross
