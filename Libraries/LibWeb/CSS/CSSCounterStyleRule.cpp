@@ -11,17 +11,18 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSCounterStyleRule);
 
-GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback)
+GC::Ref<CSSCounterStyleRule> CSSCounterStyleRule::create(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols)
 {
-    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback));
+    return realm.create<CSSCounterStyleRule>(realm, name, move(system), move(negative), move(prefix), move(suffix), move(range), move(pad), move(fallback), move(symbols));
 }
 
-CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback)
+CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols)
     : CSSRule(realm, Type::CounterStyle)
     , m_name(move(name))
     , m_system(move(system))
@@ -31,6 +32,7 @@ CSSCounterStyleRule::CSSCounterStyleRule(JS::Realm& realm, FlyString name, RefPt
     , m_range(move(range))
     , m_pad(move(pad))
     , m_fallback(move(fallback))
+    , m_symbols(move(symbols))
 {
 }
 
@@ -78,6 +80,12 @@ String CSSCounterStyleRule::serialized() const
     if (m_fallback) {
         builder.append(" fallback: "sv);
         m_fallback->serialize(builder, SerializationMode::Normal);
+        builder.append(';');
+    }
+
+    if (m_symbols) {
+        builder.append(" symbols: "sv);
+        m_symbols->serialize(builder, SerializationMode::Normal);
         builder.append(';');
     }
 
@@ -229,6 +237,37 @@ void CSSCounterStyleRule::set_fallback(FlyString const& fallback)
 
     if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Fallback, fallback))
         m_fallback = value;
+}
+
+FlyString CSSCounterStyleRule::symbols() const
+{
+    if (!m_symbols)
+        return ""_fly_string;
+
+    return m_symbols->to_string(SerializationMode::Normal);
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#dom-csscounterstylerule-symbols
+void CSSCounterStyleRule::set_symbols(FlyString const& symbols)
+{
+    // On setting, run the following steps:
+
+    // 1. parse the given value as the descriptor associated with the attribute.
+    Parser::ParsingParams parsing_params { realm() };
+
+    auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, CSS::DescriptorID::Symbols, symbols);
+
+    // 2. If the result is invalid according to the given descriptor’s grammar, or would cause the @counter-style rule
+    //    to not define a counter style, do nothing and abort these steps. (For example, some systems require the
+    //    symbols descriptor to contain two values.)
+    if (!value || (m_system && !m_system->as_counter_style_system().is_valid_symbol_count(value->as_value_list().size())))
+        return;
+
+    // 3. If the attribute being set is system, and the new value would change the algorithm used, do nothing and abort
+    //    these steps. It’s okay to change an aspect of the algorithm, like the first symbol value of a fixed system.
+
+    // 4. Set the descriptor to the value.
+    m_symbols = value;
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)

@@ -69,4 +69,48 @@ bool CounterStyleSystemStyleValue::algorithm_differs_from(CounterStyleSystemStyl
         });
 }
 
+bool CounterStyleSystemStyleValue::is_valid_symbol_count(size_t count) const
+{
+    return m_value.visit(
+        [&](CounterStyleSystem const& system) -> bool {
+            switch (system) {
+            // https://drafts.csswg.org/css-counter-styles-3/#cyclic-system
+            // If the system is cyclic, the symbols descriptor must contain at least one counter symbol, otherwise the
+            // rule does not define a counter style (but is still a valid rule)
+            case CounterStyleSystem::Cyclic:
+            // https://drafts.csswg.org/css-counter-styles-3/#symbolic-system
+            // If the system is symbolic, the symbols descriptor must contain at least one counter symbol, otherwise the
+            // rule does not define a counter style (but is still a valid rule).
+            case CounterStyleSystem::Symbolic:
+                return count >= 1;
+            // https://drafts.csswg.org/css-counter-styles-3/#alphabetic-system
+            // If the system is alphabetic, the symbols descriptor must contain at least two counter symbols, otherwise
+            // the rule does not define a counter style (but is still a valid rule).
+            case CounterStyleSystem::Alphabetic:
+            // https://drafts.csswg.org/css-counter-styles-3/#numeric-system
+            // If the system is numeric, the symbols descriptor must contain at least two counter symbols, otherwise the
+            // rule does not define a counter style (but is still a valid rule).
+            case CounterStyleSystem::Numeric:
+                return count >= 2;
+            case CounterStyleSystem::Additive:
+                // NB: Additive relies on the `additive-symbols` descriptor instead and `symbols` is ignored.
+                return true;
+            }
+
+            VERIFY_NOT_REACHED();
+        },
+        [&](Fixed const&) -> bool {
+            // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
+            // If the system is fixed, the symbols descriptor must contain at least one counter symbol, otherwise the
+            // rule does not define a counter style (but is still a valid rule).
+            return count >= 1;
+        },
+        [&](Extends const&) -> bool {
+            // https://drafts.csswg.org/css-counter-styles-3/#extends-system
+            // If a @counter-style uses the extends system, it must not contain a symbols or additive-symbols
+            // descriptor, otherwise the rule does not define a counter style (but is still a valid rule).
+            return false;
+        });
+}
+
 }

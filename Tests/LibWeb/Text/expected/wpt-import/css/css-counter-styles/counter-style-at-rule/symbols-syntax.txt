@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 11 tests
 
-7 Pass
-4 Fail
-Fail	@counter-style 'symbols: "X"' is valid
-Fail	@counter-style 'symbols: "X" "X"' is valid
-Fail	@counter-style 'symbols: ident "X"' is valid
+10 Pass
+1 Fail
+Pass	@counter-style 'symbols: "X"' is valid
+Pass	@counter-style 'symbols: "X" "X"' is valid
+Pass	@counter-style 'symbols: ident "X"' is valid
 Fail	@counter-style 'symbols: ident "X" url("foo.jpg")' is valid
 Pass	@counter-style 'symbols: ' is invalid
 Pass	@counter-style 'symbols: initial "X" "X"' is invalid
