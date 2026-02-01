@@ -6,20 +6,19 @@
 
 #pragma once
 
+#include <LibWeb/HTML/Canvas/AbstractCanvasRenderingContext2DBase.h>
 #include <LibWeb/HTML/ImageData.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvascompositing
-class CanvasCompositing {
+class CanvasCompositing : virtual public AbstractCanvasRenderingContext2DBase {
 public:
-    virtual ~CanvasCompositing() = default;
+    float global_alpha() const;
+    void set_global_alpha(float);
 
-    virtual float global_alpha() const = 0;
-    virtual void set_global_alpha(float) = 0;
-
-    virtual String global_composite_operation() const = 0;
-    virtual void set_global_composite_operation(String) = 0;
+    String global_composite_operation() const;
+    void set_global_composite_operation(String);
 
 protected:
     CanvasCompositing() = default;
