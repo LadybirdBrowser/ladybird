@@ -478,7 +478,7 @@ void LayoutState::commit(Box& root)
                 // For sticky positioned boxes, the inset is instead relative to the relevant scrollport’s size.
                 // Negative values are allowed.
 
-                auto sticky_insets = make<Painting::PaintableBox::StickyInsets>();
+                auto sticky_insets = make<Painting::StickyInsets>();
                 auto const& inset = node.computed_values().inset();
 
                 auto const* nearest_scrollable_ancestor = paintable_box->nearest_scrollable_ancestor();
