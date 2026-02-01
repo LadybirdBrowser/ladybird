@@ -28,15 +28,29 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     if (NOT MSVC)
         add_cxx_compile_options(-ggdb3)
+        add_cxx_compile_options(-Og)
     endif()
-    add_cxx_compile_options(-Og)
 elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    add_cxx_compile_options(-O2)
     if (NOT MSVC)
+        add_cxx_compile_options(-O2)
         add_cxx_compile_options(-g1)
+    else()
+        # Add OPT:REF either way as it doesn't impact debugging experience negatively and decreases binary size
+        # see: https://learn.microsoft.com/en-us/cpp/build/reference/opt-optimizations?view=msvc-170
+        # This doesn't play nicely with ASAN
+        if (NOT ENABLE_ADDRESS_SANITIZER)
+            add_cxx_link_options(/OPT:REF)
+        endif()
+        # Override /Ob1 that cmake adds to allow inlining on all functions.
+        # This makes debugging worse but is closer to a normal build for profiling and testing.
+        add_cxx_compile_options(/O2)
     endif()
 else()
-    add_cxx_compile_options(-O3)
+    if (NOT MSVC)
+        add_cxx_compile_options(-O3)
+    else()
+        add_cxx_compile_options(/O2)
+    endif()
 
     if (ENABLE_LTO_FOR_RELEASE)
         include(CheckIPOSupported)
@@ -49,20 +63,11 @@ else()
     endif()
 endif()
 
-function(add_cxx_linker_flag_if_supported flag)
-    include(CheckLinkerFlag)
-
-    check_linker_flag(CXX ${flag} LAGOM_LINKER_SUPPORTS_${flag})
-    if (${LAGOM_LINKER_SUPPORTS_${flag}})
-        add_cxx_link_options(${flag})
-    endif()
-endfunction()
-
 if (NOT WIN32)
-    add_cxx_linker_flag_if_supported(LINKER:--gdb-index)
+    add_cxx_link_option_if_supported(LINKER:--gdb-index)
 
     if (NOT ENABLE_FUZZERS)
-        add_cxx_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
+        add_cxx_link_option_if_supported(LINKER:-Bsymbolic-non-weak-functions)
     endif()
 endif()
 

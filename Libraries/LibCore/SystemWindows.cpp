@@ -213,10 +213,10 @@ ErrorOr<int> dup(int handle)
         return Error::from_windows_error(ERROR_INVALID_HANDLE);
     }
     if (is_socket(handle)) {
-        WSAPROTOCOL_INFO pi = {};
-        if (WSADuplicateSocket(handle, GetCurrentProcessId(), &pi))
+        WSAPROTOCOL_INFOW pi = {};
+        if (WSADuplicateSocketW(handle, GetCurrentProcessId(), &pi))
             return Error::from_windows_error();
-        SOCKET socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+        SOCKET socket = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
         if (socket == INVALID_SOCKET)
             return Error::from_windows_error();
         return socket;

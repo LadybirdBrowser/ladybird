@@ -31,11 +31,13 @@ OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 }
 
+#ifndef AK_OS_WINDOWS
 static void handle_signal(int signal)
 {
     VERIFY(signal == SIGINT || signal == SIGTERM);
     Core::EventLoop::current().quit(0);
 }
+#endif
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -75,8 +77,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     Core::EventLoop event_loop;
+    // FIXME: Have another way to signal the event loop to gracefully quit on windows.
+#ifndef AK_OS_WINDOWS
     Core::EventLoop::register_signal(SIGINT, handle_signal);
     Core::EventLoop::register_signal(SIGTERM, handle_signal);
+#endif
 
 #if defined(AK_OS_MACOS)
     if (!mach_server_name.is_empty())
