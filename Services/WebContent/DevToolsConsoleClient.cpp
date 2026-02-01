@@ -145,8 +145,36 @@ void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_o
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
 JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::LogLevel log_level, PrinterArguments arguments)
 {
+    if (log_level == JS::Console::LogLevel::Trace) {
+        auto const& trace = arguments.get<JS::Console::Trace>();
+
+        m_console->output_debug_message(log_level, trace.label);
+
+        Vector<WebView::StackFrame> stack_frames;
+        stack_frames.ensure_capacity(trace.stack.size());
+
+        for (auto const& frame : trace.stack) {
+            stack_frames.unchecked_append(WebView::StackFrame {
+                .function = frame.function_name,
+                .file = frame.source_file,
+                .line = frame.line,
+                .column = frame.column,
+            });
+        }
+
+        send_console_output({
+            .timestamp = UnixDateTime::now(),
+            .output = WebView::ConsoleTrace {
+                .label = trace.label,
+                .stack = move(stack_frames),
+            },
+        });
+
+        return JS::js_undefined();
+    }
+
     // FIXME: Implement these.
-    if (first_is_one_of(log_level, JS::Console::LogLevel::Table, JS::Console::LogLevel::Trace, JS::Console::LogLevel::Group, JS::Console::LogLevel::GroupCollapsed))
+    if (first_is_one_of(log_level, JS::Console::LogLevel::Table, JS::Console::LogLevel::Group, JS::Console::LogLevel::GroupCollapsed))
         return JS::js_undefined();
 
     auto const& argument_values = arguments.get<GC::RootVector<JS::Value>>();
