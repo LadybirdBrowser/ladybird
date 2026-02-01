@@ -50,9 +50,6 @@ public:
 
     virtual ~Cell() = default;
 
-    bool is_marked() const { return m_mark; }
-    void set_marked(bool b) { m_mark = b; }
-
     enum class State : bool {
         Live,
         Dead,
@@ -217,7 +214,6 @@ protected:
     Cell() = default;
 
 private:
-    bool m_mark { false };
     State m_state { State::Live };
 } SWIFT_UNSAFE_REFERENCE;
 
