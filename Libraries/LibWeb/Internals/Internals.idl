@@ -72,4 +72,6 @@ interface Internals {
 
     InternalGamepad connectVirtualGamepad();
 
+    undefined setHighlightedNode(Node? node);
+
 };

@@ -85,6 +85,8 @@ public:
 
     void perform_per_test_cleanup();
 
+    void set_highlighted_node(GC::Ptr<DOM::Node> node);
+
 private:
     explicit Internals(JS::Realm&);
 
