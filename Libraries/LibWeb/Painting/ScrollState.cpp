@@ -13,7 +13,7 @@ ScrollStateSnapshot ScrollStateSnapshot::create(Vector<NonnullRefPtr<ScrollFrame
     ScrollStateSnapshot snapshot;
     snapshot.own_offsets.ensure_capacity(scroll_frames.size());
     for (auto const& scroll_frame : scroll_frames)
-        snapshot.own_offsets.append({ scroll_frame->own_offset() });
+        snapshot.own_offsets.append({ scroll_frame->m_own_offset });
     return snapshot;
 }
 

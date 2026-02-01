@@ -41,11 +41,6 @@ public:
         return scroll_frame;
     }
 
-    CSSPixelPoint own_offset_for_frame_with_id(size_t id) const
-    {
-        return m_scroll_frames[id]->own_offset();
-    }
-
     template<typename Callback>
     void for_each_scroll_frame(Callback callback) const
     {

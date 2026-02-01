@@ -247,12 +247,6 @@ public:
 
     [[nodiscard]] RefPtr<ScrollFrame const> own_scroll_frame() const { return m_own_scroll_frame; }
     [[nodiscard]] Optional<int> own_scroll_frame_id() const;
-    [[nodiscard]] CSSPixelPoint own_scroll_frame_offset() const
-    {
-        if (m_own_scroll_frame)
-            return m_own_scroll_frame->own_offset();
-        return {};
-    }
 
 protected:
     explicit PaintableBox(Layout::Box const&);
