@@ -67,7 +67,7 @@ public:
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
 
-    void process_cookie_changes(Vector<Cookie::Cookie> const&);
+    void process_cookie_changes(Vector<Cookie::Cookie>);
 
 private:
     CookieStore(JS::Realm&, PageClient&);

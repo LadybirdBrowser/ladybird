@@ -1354,13 +1354,14 @@ void ConnectionFromClient::system_time_zone_changed()
     Unicode::clear_system_time_zone_cache();
 }
 
-void ConnectionFromClient::cookies_changed(Vector<Web::Cookie::Cookie> cookies)
+void ConnectionFromClient::cookies_changed(u64 page_id, Vector<Web::Cookie::Cookie> cookies)
 {
-    for (auto& navigable : Web::HTML::all_navigables()) {
-        auto window = navigable->active_window();
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto window = page->page().top_level_traversable()->active_window();
         if (!window)
             return;
-        window->cookie_store()->process_cookie_changes(cookies);
+
+        window->cookie_store()->process_cookie_changes(move(cookies));
     }
 }
 

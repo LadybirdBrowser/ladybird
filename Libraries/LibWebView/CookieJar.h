@@ -90,6 +90,9 @@ private:
         }
 
     private:
+        using CookieEntry = decltype(declval<Cookies>().take_all_matching(nullptr))::ValueType;
+        static void send_cookie_changed_notifications(ReadonlySpan<CookieEntry>);
+
         Cookies m_cookies;
         Cookies m_dirty_cookies;
     };
