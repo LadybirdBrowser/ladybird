@@ -51,13 +51,27 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase)
         }
 
         auto const& caption_state = m_state.get(child_box);
+
+        CSSPixels visual_bottom = caption_state.offset.y() + caption_state.content_height() + caption_state.margin_box_bottom();
+        for (auto* child = child_box.first_child(); child; child = child->next_sibling()) {
+            if (child->is_absolutely_positioned() || child->is_floating())
+                continue;
+            if (!is<Box>(*child))
+                continue;
+            auto const& child_state = m_state.get(static_cast<Box const&>(*child));
+            CSSPixels child_bottom = child_state.offset.y() + child_state.content_height() + child_state.margin_box_bottom();
+            visual_bottom = max(visual_bottom, child_bottom);
+        }
+
+        CSSPixels caption_visual_height = visual_bottom - caption_state.offset.y();
+
         if (phase == CSS::CaptionSide::Top) {
-            m_state.get_mutable(table_box()).set_content_y(caption_state.content_height() + caption_state.margin_box_bottom());
+            m_state.get_mutable(table_box()).set_content_y(caption_visual_height);
         } else {
             m_state.get_mutable(child_box).set_content_y(
-                m_state.get(table_box()).margin_box_height() + caption_state.margin_box_top());
+                m_state.get(table_box()).border_box_height() + caption_state.margin_box_top());
         }
-        caption_height += caption_state.margin_box_height();
+        caption_height += caption_visual_height;
     }
     return caption_height;
 }
