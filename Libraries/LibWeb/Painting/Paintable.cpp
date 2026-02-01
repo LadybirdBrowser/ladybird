@@ -170,7 +170,9 @@ StackingContext* Paintable::enclosing_stacking_context()
 void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
 {
     auto& display_list_recorder = context.display_list_recorder();
-    if (auto const* paintable_box = as_if<PaintableBox>(this))
+    auto const* paintable_box = is<PaintableBox>(this) ? as<PaintableBox>(this) : this->first_ancestor_of_type<PaintableBox>();
+
+    if (paintable_box)
         display_list_recorder.set_accumulated_visual_context(paintable_box->accumulated_visual_context());
     paint_inspector_overlay_internal(context);
     display_list_recorder.set_accumulated_visual_context({});
