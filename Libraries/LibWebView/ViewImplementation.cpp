@@ -48,7 +48,8 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
 }
 
 ViewImplementation::ViewImplementation()
-    : m_view_id(s_view_count++)
+    : m_document_cookie_version_buffer(Core::create_shared_version_buffer())
+    , m_view_id(s_view_count++)
 {
     s_all_views.set(m_view_id, this);
 
@@ -259,9 +260,42 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     client().async_set_preferred_motion(page_id(), motion);
 }
 
-void ViewImplementation::notify_cookies_changed(ReadonlySpan<Web::Cookie::Cookie> cookies)
+void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<Web::Cookie::Cookie> cookies)
 {
-    client().async_cookies_changed(page_id(), cookies);
+    for (auto const& domain : changed_domains) {
+        if (auto document_index = m_document_cookie_version_indices.get(domain); document_index.has_value())
+            Core::increment_shared_version(m_document_cookie_version_buffer, *document_index);
+    }
+
+    if (!cookies.is_empty())
+        client().async_cookies_changed(page_id(), cookies);
+}
+
+ErrorOr<Core::SharedVersionIndex> ViewImplementation::ensure_document_cookie_version_index(Badge<WebContentClient>, String const& domain)
+{
+    return m_document_cookie_version_indices.try_ensure(domain, [&]() -> ErrorOr<Core::SharedVersionIndex> {
+        Core::SharedVersionIndex document_index = m_document_cookie_version_indices.size();
+
+        if (!Core::initialize_shared_version(m_document_cookie_version_buffer, document_index)) {
+            dbgln("Reached maximum document cookie version count for {}, cannot create new version for {}", m_url, domain);
+            return Error::from_string_literal("Reached maximum document cookie version count");
+        }
+
+        return document_index;
+    });
+}
+
+Optional<Core::SharedVersion> ViewImplementation::document_cookie_version(URL::URL const& url) const
+{
+    auto domain = Web::Cookie::canonicalize_domain(url);
+    if (!domain.has_value())
+        return {};
+
+    auto document_index = m_document_cookie_version_indices.get(*domain);
+    if (!document_index.has_value())
+        return {};
+
+    return Core::get_shared_version(m_document_cookie_version_buffer, *document_index);
 }
 
 ByteString ViewImplementation::selected_text()
@@ -592,6 +626,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_device_pixel_ratio(m_client_state.page_index, m_device_pixel_ratio);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
+    client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
 
     if (auto webdriver_content_ipc_path = Application::browser_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
         client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);

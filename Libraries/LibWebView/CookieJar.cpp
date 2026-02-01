@@ -564,12 +564,16 @@ void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, Web::Cookie::
     if (cookie.expiry_time < now && !m_cookies.contains(key))
         return;
 
-    m_cookies.set(key, cookie);
-
     // We skip notifying about updating expired cookies, as they will be notified as being expired immediately after instead
-    if (cookie.expiry_time >= now)
-        send_cookie_changed_notifications({ { CookieEntry { {}, cookie } } });
+    if (cookie.expiry_time >= now) {
+        auto cookie_value_changed = true;
+        if (auto old_cookie = m_cookies.get(key); old_cookie.has_value())
+            cookie_value_changed = old_cookie->value != cookie.value;
 
+        send_cookie_changed_notifications({ { CookieEntry { {}, cookie } } }, cookie_value_changed);
+    }
+
+    m_cookies.set(key, cookie);
     m_dirty_cookies.set(move(key), move(cookie));
 }
 
@@ -623,23 +627,25 @@ Requests::CacheSizes CookieJar::TransientStorage::estimate_storage_size_accessed
     return sizes;
 }
 
-void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan<CookieEntry> cookies)
+void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan<CookieEntry> cookies, bool inform_web_view_about_changed_domains)
 {
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
         auto retrieval_host_canonical = Web::Cookie::canonicalize_domain(view.url());
         if (!retrieval_host_canonical.has_value())
             return IterationDecision::Continue;
 
+        HashTable<String> changed_domains;
         Vector<Web::Cookie::Cookie> matching_cookies;
 
         for (auto const& cookie : cookies) {
+            if (inform_web_view_about_changed_domains)
+                changed_domains.set(cookie.value.domain);
+
             if (Web::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical))
                 matching_cookies.append(cookie.value);
         }
 
-        if (!matching_cookies.is_empty())
-            view.notify_cookies_changed(matching_cookies);
-
+        view.notify_cookies_changed(changed_domains, matching_cookies);
         return IterationDecision::Continue;
     });
 }

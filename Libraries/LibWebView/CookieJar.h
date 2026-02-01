@@ -91,7 +91,7 @@ private:
 
     private:
         using CookieEntry = decltype(declval<Cookies>().take_all_matching(nullptr))::ValueType;
-        static void send_cookie_changed_notifications(ReadonlySpan<CookieEntry>);
+        static void send_cookie_changed_notifications(ReadonlySpan<CookieEntry>, bool inform_web_view_about_changed_domains = true);
 
         Cookies m_cookies;
         Cookies m_dirty_cookies;

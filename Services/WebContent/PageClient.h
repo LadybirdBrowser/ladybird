@@ -152,10 +152,14 @@ private:
     virtual void page_did_request_accept_dialog() override;
     virtual void page_did_request_dismiss_dialog() override;
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
+    virtual Optional<Core::SharedVersion> page_did_request_document_cookie_version(Core::SharedVersionIndex document_index) override;
+    virtual void page_did_receive_document_cookie_version_buffer(Core::AnonymousBuffer document_cookie_version_buffer) override;
+    virtual void page_did_request_document_cookie_version_index(Web::UniqueNodeID document_id, String const& domain) override;
+    virtual void page_did_receive_document_cookie_version_index(Web::UniqueNodeID document_id, Core::SharedVersionIndex document_index) override;
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) override;
     virtual Vector<Web::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) override;
     virtual Optional<Web::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) override;
-    virtual String page_did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
+    virtual Web::Cookie::VersionedCookie page_did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void page_did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
     virtual void page_did_update_cookie(Web::Cookie::Cookie const&) override;
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) override;
@@ -210,6 +214,8 @@ private:
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
+
+    Core::AnonymousBuffer m_document_cookie_version_buffer;
 
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;

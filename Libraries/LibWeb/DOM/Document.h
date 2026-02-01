@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
+#include <LibCore/SharedVersion.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
@@ -223,6 +224,9 @@ public:
     WebIDL::ExceptionOr<void> set_cookie(StringView, Cookie::Source = Cookie::Source::NonHttp);
     bool is_cookie_averse() const;
     void enable_cookies_on_file_domains(Badge<Internals::Internals>) { m_enable_cookies_on_file_domains = true; }
+
+    void set_cookie_version_index(Core::SharedVersionIndex cookie_version_index) { m_cookie_version_index = cookie_version_index; }
+    void reset_cookie_version() { m_cookie_version = Core::INVALID_SHARED_VERSION; }
 
     String fg_color() const;
     void set_fg_color(String const&);
@@ -1036,6 +1040,8 @@ private:
 
     void build_registered_properties_cache();
 
+    void ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url = {});
+
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::FontComputer> m_font_computer;
@@ -1326,6 +1332,10 @@ private:
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
     GC::Weak<HTML::Navigable> m_cached_navigable;
+
+    Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
+    Optional<Core::SharedVersionIndex> m_cookie_version_index;
+    String m_cookie;
 
     bool m_enable_cookies_on_file_domains { false };
 

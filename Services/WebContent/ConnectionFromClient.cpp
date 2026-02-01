@@ -53,6 +53,7 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebView/Attribute.h>
+#include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -1354,6 +1355,18 @@ void ConnectionFromClient::system_time_zone_changed()
 {
     JS::clear_system_time_zone_cache();
     Unicode::clear_system_time_zone_cache();
+}
+
+void ConnectionFromClient::set_document_cookie_version_buffer(u64 page_id, Core::AnonymousBuffer document_cookie_version_buffer)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().client().page_did_receive_document_cookie_version_buffer(move(document_cookie_version_buffer));
+}
+
+void ConnectionFromClient::set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().client().page_did_receive_document_cookie_version_index(document_id, document_index);
 }
 
 void ConnectionFromClient::cookies_changed(u64 page_id, Vector<Web::Cookie::Cookie> cookies)

@@ -527,6 +527,8 @@ void Document::initialize(JS::Realm& realm)
     m_list_of_available_images = realm.create<HTML::ListOfAvailableImages>();
 
     page().client().page_did_create_new_document(*this);
+
+    ensure_cookie_version_index(m_url);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#populate-with-html/head/body
@@ -1234,6 +1236,8 @@ void Document::set_url(URL::URL const& url)
     // OPTIMIZATION: Avoid unnecessary work if the URL is already set.
     if (m_url == url)
         return;
+
+    ensure_cookie_version_index(url, m_url);
 
     // To set the URL for a Document document to a URL record url:
 
@@ -3186,7 +3190,19 @@ WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 
     // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
     // UTF-8 decode without BOM.
-    return page().client().page_did_request_cookie(m_url, source);
+    if (m_cookie_version_index.has_value()) {
+        if (m_cookie_version == page().client().page_did_request_document_cookie_version(*m_cookie_version_index))
+            return m_cookie;
+    }
+
+    auto [cookie_version, cookie] = page().client().page_did_request_cookie(m_url, source);
+
+    if (cookie_version.has_value()) {
+        m_cookie_version = *cookie_version;
+        m_cookie = cookie;
+    }
+
+    return cookie;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
@@ -7125,6 +7141,21 @@ void Document::build_registered_properties_cache()
                 m_cached_registered_properties_from_css_property_rules.set(property_rule->name(), property_rule->to_registration());
         });
     });
+}
+
+void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url)
+{
+    auto new_domain = Cookie::canonicalize_domain(new_url);
+    if (!new_domain.has_value()) {
+        m_cookie_version_index = {};
+        return;
+    }
+
+    if (m_cookie_version_index.has_value() && *new_domain == Cookie::canonicalize_domain(old_url))
+        return;
+
+    page().client().page_did_request_document_cookie_version_index(unique_id(), *new_domain);
+    m_cookie_version_index = {};
 }
 
 GC::Ptr<Element> ElementByIdMap::get(FlyString const& element_id) const

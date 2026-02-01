@@ -537,6 +537,14 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
     }
 }
 
+void WebContentClient::did_request_document_cookie_version_index(u64 page_id, i64 document_id, String domain)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (auto document_index = view->ensure_document_cookie_version_index({}, domain); !document_index.is_error())
+            async_set_document_cookie_version_index(page_id, document_id, document_index.value());
+    }
+}
+
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
 {
     return Application::cookie_jar().get_all_cookies_webdriver(url);
@@ -552,9 +560,17 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
     return Application::cookie_jar().get_named_cookie(url, name);
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(URL::URL url, Web::Cookie::Source source)
+Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, Web::Cookie::Source source)
 {
-    return Application::cookie_jar().get_cookie(url, source);
+    Web::Cookie::VersionedCookie cookie;
+    cookie.cookie = Application::cookie_jar().get_cookie(url, source);
+
+    if (source == Web::Cookie::Source::NonHttp) {
+        if (auto view = view_for_page_id(page_id); view.has_value())
+            cookie.cookie_version = view->document_cookie_version(url);
+    }
+
+    return cookie;
 }
 
 void WebContentClient::did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source)

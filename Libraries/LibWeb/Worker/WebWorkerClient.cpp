@@ -24,7 +24,7 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
 {
     if (on_request_cookie)
         return on_request_cookie(url, source);
-    return String {};
+    return Cookie::VersionedCookie {};
 }
 
 Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_worker_agent(Web::Bindings::AgentType worker_type)

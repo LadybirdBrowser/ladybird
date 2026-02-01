@@ -202,7 +202,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     auto cookies = ([&] {
         auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm()));
-        return page.client().page_did_request_cookie(url_record, Cookie::Source::Http);
+        return page.client().page_did_request_cookie(url_record, Cookie::Source::Http).cookie;
     })();
 
     if (!cookies.is_empty()) {

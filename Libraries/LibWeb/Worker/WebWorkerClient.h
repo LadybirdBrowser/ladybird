@@ -27,7 +27,7 @@ public:
     virtual Messages::WebWorkerClient::RequestWorkerAgentResponse request_worker_agent(Web::Bindings::AgentType worker_type) override;
 
     Function<void()> on_worker_close;
-    Function<String(URL::URL const&, Cookie::Source)> on_request_cookie;
+    Function<Cookie::VersionedCookie(URL::URL const&, Cookie::Source)> on_request_cookie;
     Function<IPC::File(Web::Bindings::AgentType)> on_request_worker_agent;
 
     IPC::File clone_transport();
