@@ -33,8 +33,6 @@ public:
     void set_width(double width) { m_rect.set_width(width); }
     void set_height(double height) { m_rect.set_height(height); }
 
-    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::DOMRect; }
-
 private:
     DOMRect(JS::Realm&, double x, double y, double width, double height);
     explicit DOMRect(JS::Realm&);

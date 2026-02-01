@@ -28,7 +28,7 @@ class TestEnvironmentClass : JS::Environment {
 };
 
 class TestPlatformClass : Web::Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(TestPlatformClass, Web::Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(TestPlatformClass, Web::Bindings::PlatformObject);
 };
 
 namespace JS {

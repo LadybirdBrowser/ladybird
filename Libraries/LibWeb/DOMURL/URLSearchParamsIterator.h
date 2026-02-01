@@ -12,7 +12,7 @@
 namespace Web::DOMURL {
 
 class URLSearchParamsIterator : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(URLSearchParamsIterator, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(URLSearchParamsIterator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(URLSearchParamsIterator);
 
 public:

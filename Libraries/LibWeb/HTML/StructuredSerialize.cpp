@@ -444,7 +444,7 @@ public:
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
                 serialized.encode(ValueTag::SerializableObject);
-                serialized.encode(serializable->serialize_type());
+                serialized.encode(as<Bindings::PlatformObject>(serializable)->interface_name());
 
                 // 4. Set deep to true
                 deep = true;
@@ -856,10 +856,10 @@ public:
             VERIFY(tag == ValueTag::SerializableObject);
 
             // 1. Let interfaceName be serialized.[[Type]].
-            auto interface_name = m_serialized.decode<SerializeType>();
+            auto interface_name = m_serialized.decode<Bindings::InterfaceName>();
 
             // 2. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
-            if (!is_serializable_interface_exposed_on_target_realm(interface_name, realm))
+            if (!is_exposed(interface_name, realm))
                 return WebIDL::DataCloneError::create(realm, "Unsupported type"_utf16);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
@@ -942,83 +942,40 @@ public:
     }
 
 private:
-    static bool is_serializable_interface_exposed_on_target_realm(SerializeType name, JS::Realm& realm)
-    {
-        auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
-        switch (name) {
-        case SerializeType::Blob:
-            return intrinsics.is_interface_exposed<Bindings::BlobPrototype>(realm);
-        case SerializeType::File:
-            return intrinsics.is_interface_exposed<Bindings::FilePrototype>(realm);
-        case SerializeType::FileList:
-            return intrinsics.is_interface_exposed<Bindings::FileListPrototype>(realm);
-        case SerializeType::DOMException:
-            return intrinsics.is_interface_exposed<Bindings::DOMExceptionPrototype>(realm);
-        case SerializeType::DOMMatrixReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMMatrixReadOnlyPrototype>(realm);
-        case SerializeType::DOMMatrix:
-            return intrinsics.is_interface_exposed<Bindings::DOMMatrixPrototype>(realm);
-        case SerializeType::DOMPointReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMPointReadOnlyPrototype>(realm);
-        case SerializeType::DOMPoint:
-            return intrinsics.is_interface_exposed<Bindings::DOMPointPrototype>(realm);
-        case SerializeType::DOMRectReadOnly:
-            return intrinsics.is_interface_exposed<Bindings::DOMRectReadOnlyPrototype>(realm);
-        case SerializeType::DOMRect:
-            return intrinsics.is_interface_exposed<Bindings::DOMRectPrototype>(realm);
-        case SerializeType::CryptoKey:
-            return intrinsics.is_interface_exposed<Bindings::CryptoKeyPrototype>(realm);
-        case SerializeType::DOMQuad:
-            return intrinsics.is_interface_exposed<Bindings::DOMQuadPrototype>(realm);
-        case SerializeType::ImageData:
-            return intrinsics.is_interface_exposed<Bindings::ImageDataPrototype>(realm);
-        case SerializeType::ImageBitmap:
-            return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
-        case SerializeType::QuotaExceededError:
-            return intrinsics.is_interface_exposed<Bindings::QuotaExceededErrorPrototype>(realm);
-        case SerializeType::Unknown:
-            dbgln("Unknown interface type for serialization: {}", to_underlying(name));
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-        return false;
-    }
-
-    static GC::Ref<Bindings::PlatformObject> create_serialized_type(SerializeType serialize_type, JS::Realm& realm)
+    static GC::Ref<Bindings::PlatformObject> create_serialized_type(Bindings::InterfaceName serialize_type, JS::Realm& realm)
     {
         switch (serialize_type) {
-        case SerializeType::Blob:
+        case Bindings::InterfaceName::Blob:
             return FileAPI::Blob::create(realm);
-        case SerializeType::File:
+        case Bindings::InterfaceName::File:
             return FileAPI::File::create(realm);
-        case SerializeType::FileList:
+        case Bindings::InterfaceName::FileList:
             return FileAPI::FileList::create(realm);
-        case SerializeType::DOMException:
+        case Bindings::InterfaceName::DOMException:
             return WebIDL::DOMException::create(realm);
-        case SerializeType::DOMMatrixReadOnly:
+        case Bindings::InterfaceName::DOMMatrixReadOnly:
             return Geometry::DOMMatrixReadOnly::create(realm);
-        case SerializeType::DOMMatrix:
+        case Bindings::InterfaceName::DOMMatrix:
             return Geometry::DOMMatrix::create(realm);
-        case SerializeType::DOMPointReadOnly:
+        case Bindings::InterfaceName::DOMPointReadOnly:
             return Geometry::DOMPointReadOnly::create(realm);
-        case SerializeType::DOMPoint:
+        case Bindings::InterfaceName::DOMPoint:
             return Geometry::DOMPoint::create(realm);
-        case SerializeType::DOMRectReadOnly:
+        case Bindings::InterfaceName::DOMRectReadOnly:
             return Geometry::DOMRectReadOnly::create(realm);
-        case SerializeType::DOMRect:
+        case Bindings::InterfaceName::DOMRect:
             return Geometry::DOMRect::create(realm);
-        case SerializeType::CryptoKey:
+        case Bindings::InterfaceName::CryptoKey:
             return Crypto::CryptoKey::create(realm);
-        case SerializeType::DOMQuad:
+        case Bindings::InterfaceName::DOMQuad:
             return Geometry::DOMQuad::create(realm);
-        case SerializeType::ImageData:
+        case Bindings::InterfaceName::ImageData:
             return ImageData::create(realm);
-        case SerializeType::ImageBitmap:
+        case Bindings::InterfaceName::ImageBitmap:
             return ImageBitmap::create(realm);
-        case SerializeType::QuotaExceededError:
+        case Bindings::InterfaceName::QuotaExceededError:
             return WebIDL::QuotaExceededError::create(realm);
-        case SerializeType::Unknown:
+        case Bindings::InterfaceName::Unknown:
         default:
             VERIFY_NOT_REACHED();
         }
@@ -1141,18 +1098,17 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
 static bool is_transferable_interface_exposed_on_target_realm(TransferType name, JS::Realm& realm)
 {
-    auto const& intrinsics = Bindings::host_defined_intrinsics(realm);
     switch (name) {
     case TransferType::MessagePort:
-        return intrinsics.is_interface_exposed<Bindings::MessagePortPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::MessagePort, realm);
     case TransferType::ReadableStream:
-        return intrinsics.is_interface_exposed<Bindings::ReadableStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::ReadableStream, realm);
     case TransferType::WritableStream:
-        return intrinsics.is_interface_exposed<Bindings::WritableStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::WritableStream, realm);
     case TransferType::TransformStream:
-        return intrinsics.is_interface_exposed<Bindings::TransformStreamPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::TransformStream, realm);
     case TransferType::ImageBitmap:
-        return intrinsics.is_interface_exposed<Bindings::ImageBitmapPrototype>(realm);
+        return is_exposed(Bindings::InterfaceName::ImageBitmap, realm);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;

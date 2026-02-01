@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class MediaTrackBase : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaTrackBase, Bindings::PlatformObject);
+    WEB_NON_IDL_PLATFORM_OBJECT(MediaTrackBase, Bindings::PlatformObject);
 
 public:
     virtual ~MediaTrackBase() override;

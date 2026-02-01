@@ -27,7 +27,6 @@ public:
 
     static ExceptionOr<GC::Ref<QuotaExceededError>> construct_impl(JS::Realm&, Utf16String const& message = {}, QuotaExceededErrorOptions const& options = {});
 
-    virtual HTML::SerializeType serialize_type() const override { return HTML::SerializeType::QuotaExceededError; }
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(HTML::TransferDataDecoder&, HTML::DeserializationMemory&) override;
 

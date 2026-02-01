@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/IntrinsicDefinitions.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
@@ -15,8 +16,6 @@ namespace Web::Bindings {
 class Serializable {
 public:
     virtual ~Serializable() = default;
-
-    virtual HTML::SerializeType serialize_type() const = 0;
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#serialization-steps
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::TransferDataEncoder&, bool for_storage, HTML::SerializationMemory&) = 0;
