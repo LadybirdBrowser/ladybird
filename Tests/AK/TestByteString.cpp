@@ -101,7 +101,7 @@ TEST_CASE(ends_with)
 TEST_CASE(copy_string)
 {
     ByteString test_string = "ABCDEF";
-    auto test_string_copy = test_string;
+    auto const& test_string_copy = test_string;
     EXPECT_EQ(test_string, test_string_copy);
     EXPECT_EQ(test_string.characters(), test_string_copy.characters());
 }

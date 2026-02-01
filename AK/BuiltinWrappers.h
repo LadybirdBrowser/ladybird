@@ -11,7 +11,7 @@
 namespace AK {
 
 template<Unsigned IntType>
-inline constexpr int popcount(IntType value)
+constexpr int popcount(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
     static_assert(sizeof(IntType) <= sizeof(unsigned long long));
@@ -39,7 +39,7 @@ inline constexpr int popcount(IntType value)
 // this function can be called with zero, the use of
 // count_trailing_zeroes_safe is preferred.
 template<Unsigned IntType>
-inline constexpr int count_trailing_zeroes(IntType value)
+constexpr int count_trailing_zeroes(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
     static_assert(sizeof(IntType) <= sizeof(unsigned long long));
@@ -64,7 +64,7 @@ inline constexpr int count_trailing_zeroes(IntType value)
 // the given number is zero, this function will return the number of bits
 // bits in the IntType.
 template<Unsigned IntType>
-inline constexpr int count_trailing_zeroes_safe(IntType value)
+constexpr int count_trailing_zeroes_safe(IntType value)
 {
     if (value == 0)
         return 8 * sizeof(IntType);
@@ -77,7 +77,7 @@ inline constexpr int count_trailing_zeroes_safe(IntType value)
 // this function can be called with zero, the use of
 // count_leading_zeroes_safe is preferred.
 template<Unsigned IntType>
-inline constexpr int count_leading_zeroes(IntType value)
+constexpr int count_leading_zeroes(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
     static_assert(sizeof(IntType) <= sizeof(unsigned long long));
@@ -101,7 +101,7 @@ inline constexpr int count_leading_zeroes(IntType value)
 
 #ifdef __SIZEOF_INT128__
 // This is required for math.cpp internal_scalbn
-inline constexpr int count_leading_zeroes(unsigned __int128 value)
+constexpr int count_leading_zeroes(unsigned __int128 value)
 {
 #    if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
     return (value > __UINT64_MAX__) ? __builtin_clzll(value >> 64) : 64 + __builtin_clzll(value);
@@ -121,7 +121,7 @@ inline constexpr int count_leading_zeroes(unsigned __int128 value)
 // the given number is zero, this function will return the number of bits
 // in the IntType.
 template<Unsigned IntType>
-inline constexpr int count_leading_zeroes_safe(IntType value)
+constexpr int count_leading_zeroes_safe(IntType value)
 {
     if (value == 0)
         return 8 * sizeof(IntType);
@@ -133,7 +133,7 @@ inline constexpr int count_leading_zeroes_safe(IntType value)
 //
 // For numbers above zero, bit_scan_forward(n) == count_trailing_zeroes(n) + 1.
 template<Integral IntType>
-inline constexpr int bit_scan_forward(IntType value)
+constexpr int bit_scan_forward(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || (defined(AK_COMPILER_GCC) && (!ARCH(RISCV64) || defined(__riscv_zbb)))
     static_assert(sizeof(IntType) <= sizeof(unsigned long long));
@@ -153,7 +153,7 @@ inline constexpr int bit_scan_forward(IntType value)
 
 // Counts the minimum number of bits required to represent the value (i.e. ignoring leading null bits).
 template<Unsigned IntType>
-inline constexpr size_t count_required_bits(IntType value)
+constexpr size_t count_required_bits(IntType value)
 {
     if (value == 0)
         return 1;

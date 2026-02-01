@@ -242,7 +242,7 @@ ErrorOr<ReadonlyBytes> AllocatingMemoryStream::next_read_range(size_t read_offse
 
     size_t const chunk_index = read_offset / CHUNK_SIZE;
     size_t const chunk_offset = read_offset % CHUNK_SIZE;
-    size_t const read_size = min(CHUNK_SIZE - read_offset % CHUNK_SIZE, m_write_offset - read_offset);
+    size_t const read_size = min(CHUNK_SIZE - (read_offset % CHUNK_SIZE), m_write_offset - read_offset);
 
     if (read_size == 0)
         return ReadonlyBytes { static_cast<u8*>(nullptr), 0 };
@@ -258,7 +258,7 @@ ErrorOr<Bytes> AllocatingMemoryStream::next_write_range()
 
     size_t const chunk_index = m_write_offset / CHUNK_SIZE;
     size_t const chunk_offset = m_write_offset % CHUNK_SIZE;
-    size_t const write_size = CHUNK_SIZE - m_write_offset % CHUNK_SIZE;
+    size_t const write_size = CHUNK_SIZE - (m_write_offset % CHUNK_SIZE);
 
     if (chunk_index >= m_chunks.size())
         TRY(m_chunks.try_append(TRY(Chunk::create_uninitialized(CHUNK_SIZE))));

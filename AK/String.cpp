@@ -478,7 +478,7 @@ String String::bijective_base_from(size_t value, Case target_case, unsigned base
     VERIFY(base >= 2 && base <= map.length());
 
     // The '8 bits per byte' assumption may need to go?
-    Array<char, round_up_to_power_of_two(sizeof(size_t) * 8 + 1, 2)> buffer;
+    Array<char, round_up_to_power_of_two((sizeof(size_t) * 8) + 1, 2)> buffer;
     size_t i = 0;
     do {
         auto remainder = value % base;

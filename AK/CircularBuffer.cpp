@@ -154,8 +154,7 @@ size_t CircularBuffer::write(ReadonlyBytes bytes)
         m_used_space += written_bytes;
 
         m_seekback_limit += written_bytes;
-        if (m_seekback_limit > capacity())
-            m_seekback_limit = capacity();
+        m_seekback_limit = min(m_seekback_limit, capacity());
 
         remaining -= written_bytes;
     }
@@ -227,8 +226,7 @@ ErrorOr<size_t> CircularBuffer::fill_from_stream(Stream& stream)
     m_used_space += bytes.size();
 
     m_seekback_limit += bytes.size();
-    if (m_seekback_limit > capacity())
-        m_seekback_limit = capacity();
+    m_seekback_limit = min(m_seekback_limit, capacity());
 
     return bytes.size();
 }
@@ -328,8 +326,7 @@ Optional<SearchableCircularBuffer::Match> SearchableCircularBuffer::find_copy_in
     VERIFY(minimum_length > 0);
 
     // Clip the maximum length to the amount of data that we actually store.
-    if (maximum_length > m_used_space)
-        maximum_length = m_used_space;
+    maximum_length = min(maximum_length, m_used_space);
 
     if (maximum_length < minimum_length)
         return {};
@@ -470,8 +467,7 @@ Optional<SearchableCircularBuffer::Match> SearchableCircularBuffer::find_copy_in
     VERIFY(minimum_length > 0);
 
     // Clip the maximum length to the amount of data that we actually store.
-    if (maximum_length > m_used_space)
-        maximum_length = m_used_space;
+    maximum_length = min(maximum_length, m_used_space);
 
     if (maximum_length < minimum_length)
         return Optional<Match> {};
