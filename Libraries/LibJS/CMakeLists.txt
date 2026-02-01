@@ -277,6 +277,8 @@ set(GENERATED_SOURCES Bytecode/Op.cpp)
 
 ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 
+set_target_properties(LibJS PROPERTIES UNITY_BUILD ON)
+
 find_package(simdjson CONFIG REQUIRED)
 target_link_libraries(LibJS PRIVATE simdjson::simdjson)
 

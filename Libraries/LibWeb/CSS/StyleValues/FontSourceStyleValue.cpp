@@ -33,7 +33,7 @@ void FontSourceStyleValue::serialize(StringBuilder& builder, SerializationMode) 
             local.name->serialize(builder, SerializationMode::Normal);
             builder.append(')');
         },
-        [this, &builder](URL const& url) {
+        [this, &builder](CSSURL const& url) {
             // <url> [ format(<font-format>)]? [ tech( <font-tech>#)]?
             builder.append(url.to_string());
 
@@ -62,8 +62,8 @@ bool FontSourceStyleValue::properties_equal(FontSourceStyleValue const& other) c
             }
             return false;
         },
-        [&other](URL const& url) {
-            if (auto* other_url = other.m_source.get_pointer<URL>()) {
+        [&other](CSSURL const& url) {
+            if (auto* other_url = other.m_source.get_pointer<CSSURL>()) {
                 return url == *other_url;
             }
             return false;

@@ -22,6 +22,10 @@ set(SOURCES
 ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
+set_target_properties(LibMedia PROPERTIES UNITY_BUILD ON)
+#TODO: Undef ENUMARATE_CHANNEL_POSITIONS at end of file instead
+set_source_files_properties(Audio/PlaybackStreamAudioUnit.cpp Audio/PulseAudioWrappers.cpp Audio/PlaybackStreamWasapi.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
 target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
