@@ -40,7 +40,6 @@ public:
         });
     }
 
-    CSSPixelPoint own_offset() const { return m_own_offset; }
     void set_own_offset(CSSPixelPoint offset)
     {
         m_cached_cumulative_offset.clear();
@@ -55,6 +54,8 @@ public:
     StickyConstraints const& sticky_constraints() const { return m_sticky_constraints.value(); }
 
 private:
+    friend class ScrollStateSnapshot;
+
     GC::Weak<PaintableBox> m_paintable_box;
     size_t m_id { 0 };
     bool m_sticky { false };
