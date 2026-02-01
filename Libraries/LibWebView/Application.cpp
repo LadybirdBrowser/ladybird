@@ -887,7 +887,13 @@ void Application::initialize_actions()
     m_debug_menu->add_action(Action::create("Dump GC graph"sv, ActionID::DumpGCGraph, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             auto gc_graph_path = view->dump_gc_graph();
-            warnln("\033[33;1mDumped GC-graph into {}\033[0m", gc_graph_path);
+            if (gc_graph_path.is_error()) {
+                warnln("\033[31;1mFailed to dump GC graph: {}\033[0m", gc_graph_path.error());
+            } else {
+                warnln("\033[33;1mDumped GC graph into {}\033[0m", gc_graph_path.value());
+                if (auto source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); source_dir.has_value())
+                    warnln("\033[33;1mGC graph explorer: file://{}/Meta/gc-heap-explorer.html?script=file://{}\033[0m", *source_dir, gc_graph_path.value());
+            }
         }
     }));
     m_debug_menu->add_separator();
