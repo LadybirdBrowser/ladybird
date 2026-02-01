@@ -7,6 +7,12 @@
 #include <AK/Format.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
+#if defined(USE_VULKAN_UTILS)
+#    include <vulkan/vk_enum_string_helper.h>
+#    define get_vkresult(result) string_VkResult(result)
+#else
+#    define get_vkresult(result) to_underlying(result)
+#endif
 
 namespace Gfx {
 
@@ -28,7 +34,7 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
 
     auto result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS) {
-        dbgln("vkCreateInstance returned {}", to_underlying(result));
+        dbgln("vkCreateInstance returned '{}'", get_vkresult(result));
         return Error::from_string_literal("Application instance creation failed");
     }
 
@@ -65,6 +71,45 @@ static ErrorOr<VkPhysicalDevice> pick_physical_device(VkInstance instance)
     VERIFY_NOT_REACHED();
 }
 
+typedef struct {
+    char const* name;
+    bool required;
+} DesiredExtension;
+
+#ifdef USE_VULKAN_IMAGES
+static Array<DesiredExtension, 4> desired_extensions = { {
+    { VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, true },
+    { VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME, true },
+    { VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, false },
+    { VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME, false },
+} };
+#else
+static Array<DesiredExtension, 0> desired_extensions;
+#endif
+
+static ErrorOr<Vector<char const*>> get_physical_device_supported_extensions(VkPhysicalDevice physical_device)
+{
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, NULL);
+    Vector<VkExtensionProperties> available;
+    available.resize(extension_count);
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, available.data());
+
+    Vector<char const*> supported;
+
+    for (auto ext : desired_extensions) {
+        if (!available.find_if([&ext](auto const& prop) { return !strcmp(prop.extensionName, ext.name); }).is_end()) {
+            supported.append(ext.name);
+        } else {
+            if (ext.required) {
+                dbgln("Missing required Vulkan extension: '{}'", ext.name);
+                return Error::from_string_literal("Missing Vulkan extension");
+            }
+        }
+    }
+    return supported;
+}
+
 static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device, uint32_t* graphics_queue_family)
 {
     VkDevice device;
@@ -99,25 +144,20 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     queue_create_info.pQueuePriorities = &queue_priority;
 
     VkPhysicalDeviceFeatures deviceFeatures {};
-#ifdef USE_VULKAN_IMAGES
-    Array<char const*, 4> device_extensions = {
-        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
-        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
-        VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
-    };
-#else
-    Array<char const*, 0> device_extensions;
-#endif
+
+    Vector<char const*> extensions = TRY(get_physical_device_supported_extensions(physical_device));
+
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
-    create_device_info.enabledExtensionCount = device_extensions.size();
-    create_device_info.ppEnabledExtensionNames = device_extensions.data();
+    create_device_info.enabledExtensionCount = extensions.size();
+    create_device_info.ppEnabledExtensionNames = extensions.data();
 
-    if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
+    VkResult result = vkCreateDevice(physical_device, &create_device_info, nullptr, &device);
+    if (result != VK_SUCCESS) {
+        dbgln("vkCreateDevice returned '{}'", get_vkresult(result));
         return Error::from_string_literal("Logical device creation failed");
     }
 
@@ -136,7 +176,7 @@ static ErrorOr<VkCommandPool> create_command_pool(VkDevice logical_device, uint3
     VkCommandPool command_pool = VK_NULL_HANDLE;
     VkResult result = vkCreateCommandPool(logical_device, &command_pool_info, nullptr, &command_pool);
     if (result != VK_SUCCESS) {
-        dbgln("vkCreateCommandPool returned {}", to_underlying(result));
+        dbgln("vkCreateCommandPool returned '{}'", get_vkresult(result));
         return Error::from_string_literal("command pool creation failed");
     }
     return command_pool;
@@ -154,7 +194,7 @@ static ErrorOr<VkCommandBuffer> allocate_command_buffer(VkDevice logical_device,
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
     VkResult result = vkAllocateCommandBuffers(logical_device, &command_buffer_alloc_info, &command_buffer);
     if (result != VK_SUCCESS) {
-        dbgln("vkAllocateCommandBuffers returned {}", to_underlying(result));
+        dbgln("vkAllocateCommandBuffers returned '{}'", get_vkresult(result));
         return Error::from_string_literal("command buffer allocation failed");
     }
     return command_buffer;
@@ -271,7 +311,7 @@ int VulkanImage::get_dma_buf_fd()
     int fd = -1;
     VkResult result = context.ext_procs.get_memory_fd(context.logical_device, &get_fd_info, &fd);
     if (result != VK_SUCCESS) {
-        dbgln("vkGetMemoryFdKHR returned {}", to_underlying(result));
+        dbgln("vkGetMemoryFdKHR returned {}", get_vkresult(result));
         return -1;
     }
     return fd;
@@ -340,7 +380,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     };
     auto result = vkCreateImage(context.logical_device, &image_info, nullptr, &image->image);
     if (result != VK_SUCCESS) {
-        dbgln("vkCreateImage returned {}", to_underlying(result));
+        dbgln("vkCreateImage returned '{}'", get_vkresult(result));
         return Error::from_string_literal("image creation failed");
     }
 
@@ -380,13 +420,13 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     };
     result = vkAllocateMemory(context.logical_device, &mem_alloc_info, nullptr, &image->memory);
     if (result != VK_SUCCESS) {
-        dbgln("vkAllocateMemory returned {}", to_underlying(result));
+        dbgln("vkAllocateMemory returned '{}'", get_vkresult(result));
         return Error::from_string_literal("image memory allocation failed");
     }
 
     result = vkBindImageMemory(context.logical_device, image->image, image->memory, 0);
     if (result != VK_SUCCESS) {
-        dbgln("vkBindImageMemory returned {}", to_underlying(result));
+        dbgln("vkBindImageMemory returned '{}'", get_vkresult(result));
         return Error::from_string_literal("bind image memory failed");
     }
 
@@ -399,7 +439,7 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     image_format_mod_props.pNext = nullptr;
     result = context.ext_procs.get_image_drm_format_modifier_properties(context.logical_device, image->image, &image_format_mod_props);
     if (result != VK_SUCCESS) {
-        dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned {}", to_underlying(result));
+        dbgln("vkGetImageDrmFormatModifierPropertiesEXT returned '{}'", get_vkresult(result));
         return Error::from_string_literal("image format modifier retrieval failed");
     }
 

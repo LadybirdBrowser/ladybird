@@ -216,6 +216,7 @@
       ]
     },
     "vulkan-headers",
+    "vulkan-utility-libraries",
     "woff2",
     "zlib"
   ],
