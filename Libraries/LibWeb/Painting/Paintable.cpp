@@ -172,8 +172,30 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
     auto& display_list_recorder = context.display_list_recorder();
     auto const* paintable_box = is<PaintableBox>(this) ? as<PaintableBox>(this) : this->first_ancestor_of_type<PaintableBox>();
 
-    if (paintable_box)
-        display_list_recorder.set_accumulated_visual_context(paintable_box->accumulated_visual_context());
+    if (paintable_box) {
+        Vector<RefPtr<AccumulatedVisualContext const>> relevant_contexts;
+        for (auto visual_context = paintable_box->accumulated_visual_context(); visual_context != nullptr; visual_context = visual_context->parent()) {
+            auto should_keep_entry = visual_context->data().visit(
+                [](ScrollData const&) -> bool { return true; },
+                [](ClipData const&) -> bool { return false; },
+                [](TransformData const&) -> bool { return true; },
+                [](PerspectiveData const&) -> bool { return true; },
+                [](ClipPathData const&) -> bool { return false; },
+                [](EffectsData const&) -> bool { return false; });
+
+            if (should_keep_entry)
+                relevant_contexts.append(visual_context);
+        }
+
+        auto visual_context_id = 1;
+        RefPtr<AccumulatedVisualContext> copied_visual_context;
+        for (auto const& original_visual_context : relevant_contexts.in_reverse())
+            copied_visual_context = AccumulatedVisualContext::create(visual_context_id++, original_visual_context->data(), copied_visual_context);
+
+        if (copied_visual_context)
+            display_list_recorder.set_accumulated_visual_context(copied_visual_context);
+    }
+
     paint_inspector_overlay_internal(context);
     display_list_recorder.set_accumulated_visual_context({});
 }

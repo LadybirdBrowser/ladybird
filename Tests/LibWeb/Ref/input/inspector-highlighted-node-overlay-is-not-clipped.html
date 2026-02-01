@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inspector-highlighted-node-overlay-is-not-clipped-ref.html" />
+<style>
+#outer {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  background-color: blue;
+  clip-path: inset(50px);
+}
+#inner {
+  position: absolute;
+  left: 100px;
+  top: 100px;
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+</style>
+<div id="outer"><div id="inner"></div></div>
+<script>
+if (!window.internals?.setHighlightedNode) {
+  document.body.innerText = "FAIL";
+} else {
+  const elementToHighlight = document.getElementById("inner");
+  window.internals.setHighlightedNode(elementToHighlight);
+}
+</script>
