@@ -47,6 +47,7 @@ public:
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
     void expire_cookies_accessed_since(UnixDateTime since);
+    void clear_cookies_for_registered_domain(URL::Origin const& origin);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
 private:
