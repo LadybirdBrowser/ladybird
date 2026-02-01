@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <script>document.documentElement.innerHTML = ''</script>
+  <rect width="50" height="100" fill="green"/>
+  <script>document.querySelector('rect').setAttribute('width', '0')</script>
+  <rect x="50" width="50" height="100" fill="green"/>
+  <script>void 0</script>
+</svg>
