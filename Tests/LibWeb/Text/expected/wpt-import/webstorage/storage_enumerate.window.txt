@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	sessionStorage: enumerate a Storage object and get only the keys as a result and the built-in properties of the Storage object should be ignored
+Pass	sessionStorage: test enumeration of numeric and non-numeric keys
