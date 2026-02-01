@@ -55,7 +55,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLParser);
 
-static inline void log_parse_error(SourceLocation const& location = SourceLocation::current())
+static inline void log_parser_error(SourceLocation const& location = SourceLocation::current())
 {
     dbgln_if(HTML_PARSER_DEBUG, "Parse error! {}", location);
 }
@@ -591,7 +591,7 @@ void HTMLParser::handle_initial(HTMLToken& token)
         // If the DOCTYPE token's name is not "html", or the token's public identifier is not missing,
         // or the token's system identifier is neither missing nor "about:legacy-compat", then there is a parse error.
         if (token.doctype_data().name != "html" || !token.doctype_data().missing_public_identifier || (!token.doctype_data().missing_system_identifier && token.doctype_data().system_identifier != "about:legacy-compat")) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // Append a DocumentType node to the Document node, with its name set to the name given in the DOCTYPE token,
@@ -622,7 +622,7 @@ void HTMLParser::handle_initial(HTMLToken& token)
 
     // FIXME: If the document is not an iframe srcdoc document, then this is a parse error
 
-    log_parse_error();
+    log_parser_error();
 
     // if the parser cannot change the mode flag is false, set the Document to quirks mode.
     if (!document().parser_cannot_change_the_mode())
@@ -640,7 +640,7 @@ void HTMLParser::handle_before_html(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -679,7 +679,7 @@ void HTMLParser::handle_before_html(HTMLToken& token)
     // -> Any other end tag
     if (token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -951,7 +951,7 @@ void HTMLParser::handle_before_head(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -984,7 +984,7 @@ void HTMLParser::handle_before_head(HTMLToken& token)
     // -> Any other end tag
     if (token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1030,7 +1030,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1282,7 +1282,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
         // If there is no template element on the stack of open elements, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.contains_template_element()) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -1293,7 +1293,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
 
         // 2. If the current node is not a template element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::template_)
-            log_parse_error();
+            log_parser_error();
 
         // 3. Pop elements from the stack of open elements until a template element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::template_);
@@ -1313,7 +1313,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     // -> Any other end tag
     if ((token.is_start_tag() && token.tag_name() == HTML::TagNames::head) || token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1337,7 +1337,7 @@ void HTMLParser::handle_in_head_noscript(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1381,7 +1381,7 @@ void HTMLParser::handle_in_head_noscript(HTMLToken& token)
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::head, HTML::TagNames::noscript))
         || token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1389,7 +1389,7 @@ void HTMLParser::handle_in_head_noscript(HTMLToken& token)
     {
     AnythingElse:
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // Pop the current node (which will be a noscript element) from the stack of open elements; the new current node will be a head element.
         (void)m_stack_of_open_elements.pop();
@@ -1496,7 +1496,7 @@ void HTMLParser::handle_after_head(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1534,7 +1534,7 @@ void HTMLParser::handle_after_head(HTMLToken& token)
     //    "style", "template", "title"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title)) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // Push the node pointed to by the head element pointer onto the stack of open elements.
         m_stack_of_open_elements.push(*m_head_element);
@@ -1567,7 +1567,7 @@ void HTMLParser::handle_after_head(HTMLToken& token)
     // -> Any other end tag
     if ((token.is_start_tag() && token.tag_name() == HTML::TagNames::head) || token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1603,7 +1603,7 @@ void HTMLParser::close_a_p_element()
 {
     generate_implied_end_tags(HTML::TagNames::p);
     if (current_node()->local_name() != HTML::TagNames::p) {
-        log_parse_error();
+        log_parser_error();
     }
     m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::p);
 }
@@ -1630,7 +1630,7 @@ void HTMLParser::handle_after_body(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -1646,7 +1646,7 @@ void HTMLParser::handle_after_body(HTMLToken& token)
         // If the parser was created as part of the HTML fragment parsing algorithm, this is a parse error; ignore the
         // token. (fragment case)
         if (m_parsing_fragment) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -1664,7 +1664,7 @@ void HTMLParser::handle_after_body(HTMLToken& token)
 
     // -> Anything else
     //    Parse error. Switch the insertion mode to "in body" and reprocess the token.
-    log_parse_error();
+    log_parser_error();
     m_insertion_mode = InsertionMode::InBody;
     process_using_the_rules_for(InsertionMode::InBody, token);
 }
@@ -1699,7 +1699,7 @@ void HTMLParser::handle_after_after_body(HTMLToken& token)
 
     // -> Anything else
     //    Parse error. Switch the insertion mode to "in body" and reprocess the token.
-    log_parse_error();
+    log_parser_error();
     m_insertion_mode = InsertionMode::InBody;
     process_using_the_rules_for(m_insertion_mode, token);
 }
@@ -1795,7 +1795,7 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
         // 4. If formattingElement is not in the stack of open elements,
         if (!m_stack_of_open_elements.contains(*formatting_element)) {
             // then this is a parse error;
-            log_parse_error();
+            log_parser_error();
             // remove the element from the list,
             m_list_of_active_formatting_elements.remove(*formatting_element);
             // and return.
@@ -1805,7 +1805,7 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
         // 5. If formattingElement is in the stack of open elements, but the element is not in scope,
         if (!m_stack_of_open_elements.has_in_scope(*formatting_element)) {
             // then this is a parse error;
-            log_parse_error();
+            log_parser_error();
             // return.
             return AdoptionAgencyAlgorithmOutcome::DoNothing;
         }
@@ -1813,7 +1813,7 @@ HTMLParser::AdoptionAgencyAlgorithmOutcome HTMLParser::run_the_adoption_agency_a
         // 6. If formattingElement is not the current node,
         if (formatting_element != current_node()) {
             // this is a parse error. (But do not return.)
-            log_parse_error();
+            log_parser_error();
         }
 
         // 7. Let furthestBlock be the topmost node in the stack of open elements that is lower in the stack than formattingElement,
@@ -2056,7 +2056,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // -> A character token that is U+0000 NULL
         if (token.code_point() == 0) {
             // Parse error. Ignore the token.
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2092,14 +2092,14 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
     // -> A start tag whose tag name is "html"`
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If there is a template element on the stack of open elements, then ignore the token.
         if (m_stack_of_open_elements.contains_template_element())
@@ -2128,7 +2128,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A start tag whose tag name is "body"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::body) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If the stack of open elements has only one node on it,
         // or if the second element on the stack of open elements is not a body element,
@@ -2156,7 +2156,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A start tag whose tag name is "frameset"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::frameset) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If the stack of open elements has only one node on it, or if the second element on the stack of open elements is not a body element, then ignore the token.
         // (fragment case or there is a template element on the stack)
@@ -2204,7 +2204,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         //    element, a th element, a thead element, a tr element, the body element, or the html element, then this is a parse error.
         for (auto& node : m_stack_of_open_elements.elements()) {
             if (!node->local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt, HTML::TagNames::li, HTML::TagNames::optgroup, HTML::TagNames::option, HTML::TagNames::p, HTML::TagNames::rb, HTML::TagNames::rp, HTML::TagNames::rt, HTML::TagNames::rtc, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::body, HTML::TagNames::html)) {
-                log_parse_error();
+                log_parser_error();
                 break;
             }
         }
@@ -2218,7 +2218,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::body) {
         // If the stack of open elements does not have a body element in scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(HTML::TagNames::body)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2227,7 +2227,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // th element, a thead element, a tr element, the body element, or the html element, then this is a parse error.
         for (auto& node : m_stack_of_open_elements.elements()) {
             if (!node->local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt, HTML::TagNames::li, HTML::TagNames::optgroup, HTML::TagNames::option, HTML::TagNames::p, HTML::TagNames::rb, HTML::TagNames::rp, HTML::TagNames::rt, HTML::TagNames::rtc, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::body, HTML::TagNames::html)) {
-                log_parse_error();
+                log_parser_error();
                 break;
             }
         }
@@ -2241,7 +2241,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::html) {
         // If the stack of open elements does not have a body element in scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(HTML::TagNames::body)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2250,7 +2250,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // a thead element, a tr element, the body element, or the html element, then this is a parse error.
         for (auto& node : m_stack_of_open_elements.elements()) {
             if (!node->local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt, HTML::TagNames::li, HTML::TagNames::optgroup, HTML::TagNames::option, HTML::TagNames::p, HTML::TagNames::rb, HTML::TagNames::rp, HTML::TagNames::rt, HTML::TagNames::rtc, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::body, HTML::TagNames::html)) {
-                log_parse_error();
+                log_parser_error();
                 break;
             }
         }
@@ -2282,7 +2282,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // If the current node is an HTML element whose tag name is one of "h1", "h2", "h3", "h4", "h5", or "h6", then this is a parse error; pop the current node off the stack of open elements.
         if (current_node()->local_name().is_one_of(HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6)) {
-            log_parse_error();
+            log_parser_error();
             (void)m_stack_of_open_elements.pop();
         }
 
@@ -2315,7 +2315,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::form) {
         // If the form element pointer is not null, and there is no template element on the stack of open elements, then this is a parse error; ignore the token.
         if (m_form_element.ptr() && !m_stack_of_open_elements.contains_template_element()) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2347,7 +2347,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
                 // 2. If the current node is not an li element, then this is a parse error.
                 if (current_node()->local_name() != HTML::TagNames::li) {
-                    log_parse_error();
+                    log_parser_error();
                 }
 
                 // 3. Pop elements from the stack of open elements until an li element has been popped from the stack.
@@ -2388,7 +2388,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
                 generate_implied_end_tags(HTML::TagNames::dd);
                 // 2. If the current node is not a dd element, then this is a parse error.
                 if (current_node()->local_name() != HTML::TagNames::dd) {
-                    log_parse_error();
+                    log_parser_error();
                 }
 
                 // 3. Pop elements from the stack of open elements until a dd element has been popped from the stack.
@@ -2403,7 +2403,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
                 // 2. If the current node is not a dt element, then this is a parse error.
                 generate_implied_end_tags(HTML::TagNames::dt);
                 if (current_node()->local_name() != HTML::TagNames::dt) {
-                    log_parse_error();
+                    log_parser_error();
                 }
                 // 3. Pop elements from the stack of open elements until a dt element has been popped from the stack.
                 m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::dt);
@@ -2447,7 +2447,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 1. If the stack of open elements has a button element in scope, then run these substeps:
         if (m_stack_of_open_elements.has_in_button_scope(HTML::TagNames::button)) {
             // 1. Parse error.
-            log_parse_error();
+            log_parser_error();
 
             // 2. Generate implied end tags.
             generate_implied_end_tags();
@@ -2473,7 +2473,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::address, HTML::TagNames::article, HTML::TagNames::aside, HTML::TagNames::blockquote, HTML::TagNames::button, HTML::TagNames::center, HTML::TagNames::details, HTML::TagNames::dialog, HTML::TagNames::dir, HTML::TagNames::div, HTML::TagNames::dl, HTML::TagNames::fieldset, HTML::TagNames::figcaption, HTML::TagNames::figure, HTML::TagNames::footer, HTML::TagNames::header, HTML::TagNames::hgroup, HTML::TagNames::listing, HTML::TagNames::main, HTML::TagNames::menu, HTML::TagNames::nav, HTML::TagNames::ol, HTML::TagNames::pre, HTML::TagNames::search, HTML::TagNames::section, HTML::TagNames::select, HTML::TagNames::summary, HTML::TagNames::ul)) {
         // If the stack of open elements does not have an element in scope that is an HTML element with the same tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2483,7 +2483,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 2. If the current node is not an HTML element with the same tag name as that of the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token has been popped from the stack.
@@ -2503,7 +2503,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
             // 3. If node is null or if the stack of open elements does not have node in scope, then this is a parse error; return and ignore the token.
             if (!node || !m_stack_of_open_elements.has_in_scope(*node)) {
-                log_parse_error();
+                log_parser_error();
                 return;
             }
 
@@ -2512,7 +2512,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
             // 5. If the current node is not node, then this is a parse error.
             if (current_node() != node) {
-                log_parse_error();
+                log_parser_error();
             }
 
             // 6. Remove node from the stack of open elements.
@@ -2522,7 +2522,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         else {
             // 1. If the stack of open elements does not have a form element in scope, then this is a parse error; return and ignore the token.
             if (!m_stack_of_open_elements.has_in_scope(HTML::TagNames::form)) {
-                log_parse_error();
+                log_parser_error();
                 return;
             }
 
@@ -2531,7 +2531,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
             // 3. If the current node is not a form element, then this is a parse error.
             if (current_node()->local_name() != HTML::TagNames::form) {
-                log_parse_error();
+                log_parser_error();
             }
 
             // 4. Pop elements from the stack of open elements until a form element has been popped from the stack.
@@ -2544,7 +2544,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::p) {
         // If the stack of open elements does not have a p element in button scope, then this is a parse error; insert an HTML element for a "p" start tag token with no attributes.
         if (!m_stack_of_open_elements.has_in_button_scope(HTML::TagNames::p)) {
-            log_parse_error();
+            log_parser_error();
             (void)insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::p));
         }
 
@@ -2557,7 +2557,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::li) {
         // If the stack of open elements does not have an li element in list item scope, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_list_item_scope(HTML::TagNames::li)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2567,7 +2567,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 2. If the current node is not an li element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::li) {
-            log_parse_error();
+            log_parser_error();
             dbgln("Expected <li> current node, but had <{}>", current_node()->local_name());
         }
 
@@ -2580,7 +2580,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)) {
         // If the stack of open elements does not have an element in scope that is an HTML element with the same tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2590,7 +2590,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 2. If the current node is not an HTML element with the same tag name as that of the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token has been popped from the stack.
@@ -2607,7 +2607,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
             && !m_stack_of_open_elements.has_in_scope(HTML::TagNames::h4)
             && !m_stack_of_open_elements.has_in_scope(HTML::TagNames::h5)
             && !m_stack_of_open_elements.has_in_scope(HTML::TagNames::h6)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2617,7 +2617,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 2. If the current node is not an HTML element with the same tag name as that of the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // 3. Pop elements from the stack of open elements until an HTML element whose tag name is one of "h1", "h2", "h3", "h4", "h5", or "h6" has been popped from the stack.
@@ -2641,7 +2641,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // is no marker on the list), then this is a parse error; run the adoption agency algorithm for the token, then remove that element from the list of active formatting
         // elements and the stack of open elements if the adoption agency algorithm didn't already remove it (it might not have if the element is not in table scope).
         if (auto* element = m_list_of_active_formatting_elements.last_element_with_tag_name_before_marker(HTML::TagNames::a)) {
-            log_parse_error();
+            log_parser_error();
             if (run_the_adoption_agency_algorithm(token) == AdoptionAgencyAlgorithmOutcome::RunAnyOtherEndTagSteps)
                 goto AnyOtherEndTag;
             m_list_of_active_formatting_elements.remove(*element);
@@ -2677,7 +2677,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // If the stack of open elements has a nobr element in scope, then this is a parse error; run the adoption agency algorithm for the token, then once again reconstruct the active formatting elements, if any.
         if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::nobr)) {
-            log_parse_error();
+            log_parser_error();
             run_the_adoption_agency_algorithm(token);
             reconstruct_the_active_formatting_elements();
         }
@@ -2716,7 +2716,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::applet, HTML::TagNames::marquee, HTML::TagNames::object)) {
         // If the stack of open elements does not have an element in scope that is an HTML element with the same tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -2726,7 +2726,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 2. If the current node is not an HTML element with the same tag name as that of the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token has been popped from the stack.
@@ -2760,7 +2760,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> An end tag whose tag name is "br"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::br) {
         // Parse error. Drop the attributes from the token, and act as described in the next entry; i.e. act as if this was a "br" start tag token with no attributes, rather than the end tag token that it actually is.
-        log_parse_error();
+        log_parser_error();
         token.drop_attributes();
         goto BRStartTag;
     }
@@ -2790,7 +2790,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (m_parsing_fragment && m_context_element->local_name() == HTML::TagNames::select) {
             // 1. Parse error.
             // 2. Ignore the token.
-            log_parse_error();
+            log_parser_error();
 
             // 3. Return.
             return;
@@ -2799,7 +2799,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // If the stack of open elements has a select element in scope:
         if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::select)) {
             // 1. Parse error.
-            log_parse_error();
+            log_parser_error();
 
             // 2. Pop elements from the stack of open elements until a select element has been popped from the stack.
             m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
@@ -2848,7 +2848,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
             // 2. If the stack of open elements has an option element in scope or has an optgroup element in scope, then
             //    this is a parse error.
             if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option) || m_stack_of_open_elements.has_in_scope(HTML::TagNames::optgroup))
-                log_parse_error();
+                log_parser_error();
         }
 
         // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
@@ -2866,7 +2866,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A start tag whose tag name is "image"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::image) {
         // Parse error. Change the token's tag name to HTML::TagNames::img and reprocess it. (Don't ask.)
-        log_parse_error();
+        log_parser_error();
         token.set_tag_name("img"_fly_string);
         process_using_the_rules_for(m_insertion_mode, token);
         return;
@@ -2939,13 +2939,13 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (m_parsing_fragment && m_context_element->local_name() == HTML::TagNames::select) {
             // 1. Parse error.
             // 2. Ignore the token.
-            log_parse_error();
+            log_parser_error();
         }
         // Otherwise, if the stack of open elements has a select element in scope:
         else if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::select)) {
             // 1. Parse error.
             // 2. Ignore the token.
-            log_parse_error();
+            log_parser_error();
 
             // 3. Pop elements from the stack of open elements until a select element has been popped from the stack.
             m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
@@ -2973,7 +2973,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
             // 2. If the stack of open elements has an option element in scope, then this is a parse error.
             if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option))
-                log_parse_error();
+                log_parser_error();
         }
         // Otherwise, if the current node is an option element, then pop the current node from the stack of open elements.
         else if (current_node()->local_name() == HTML::TagNames::option) {
@@ -2999,7 +2999,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
             // 2. If the stack of open elements has an option element in scope or has an optgroup element in scope, then
             //    this is a parse error.
             if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option) || m_stack_of_open_elements.has_in_scope(HTML::TagNames::optgroup))
-                log_parse_error();
+                log_parser_error();
         }
         // Otherwise, if the current node is an option element, then pop the current node from the stack of open elements.
         else if (current_node()->local_name() == HTML::TagNames::option) {
@@ -3020,7 +3020,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::ruby))
             generate_implied_end_tags();
         if (current_node()->local_name() != HTML::TagNames::ruby)
-            log_parse_error();
+            log_parser_error();
 
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
@@ -3033,7 +3033,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::ruby))
             generate_implied_end_tags(HTML::TagNames::rtc);
         if (current_node()->local_name() != HTML::TagNames::rtc || current_node()->local_name() != HTML::TagNames::ruby)
-            log_parse_error();
+            log_parser_error();
 
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
@@ -3087,7 +3087,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A start tag whose tag name is one of: "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr"
     if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::frame, HTML::TagNames::head, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr))) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3116,7 +3116,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
                 // 2. If node is not the current node, then this is a parse error.
                 if (node != current_node()) {
-                    log_parse_error();
+                    log_parser_error();
                 }
 
                 // 3. Pop all the nodes from the current node up to node, including node, then stop these steps.
@@ -3129,7 +3129,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
             // 3. Otherwise, if node is in the special category, then this is a parse error; ignore the token, and return.
             if (is_special_tag(node->local_name(), node->namespace_uri())) {
-                log_parse_error();
+                log_parser_error();
                 return;
             }
 
@@ -3323,7 +3323,7 @@ void HTMLParser::handle_text(HTMLToken& token)
     // -> An end-of-file token
     if (token.is_end_of_file()) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If the current node is a script element, then set its already started to true.
         if (current_node()->local_name() == HTML::TagNames::script)
@@ -3518,7 +3518,7 @@ void HTMLParser::handle_in_row(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::tr) {
         // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tr)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3540,7 +3540,7 @@ void HTMLParser::handle_in_row(HTMLToken& token)
 
         // If the stack of open elements does not have a tr element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tr)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3562,7 +3562,7 @@ void HTMLParser::handle_in_row(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
         // If the stack of open elements does not have an element in table scope that is an HTML element with the same tag name as the token, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3588,7 +3588,7 @@ void HTMLParser::handle_in_row(HTMLToken& token)
     // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::td, HTML::TagNames::th)) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3601,7 +3601,7 @@ void HTMLParser::close_the_cell()
 {
     generate_implied_end_tags();
     if (!current_node()->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
-        log_parse_error();
+        log_parser_error();
     }
     while (!current_node()->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th))
         (void)m_stack_of_open_elements.pop();
@@ -3618,7 +3618,7 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
         // If the stack of open elements does not have an element in table scope that is an HTML element with the same
         // tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3628,7 +3628,7 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
 
         // 2. Now, if the current node is not an HTML element with the same tag name as the token, then this is a parse error.
         if (current_node()->local_name() != token.tag_name()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // 3. Pop elements from the stack of open elements until an HTML element with the same tag name as the token
@@ -3649,7 +3649,7 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
         // FIXME: We're only asserting that we're parsing a fragment in that case, is this still necessary?
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::td) && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::th)) {
             VERIFY(m_parsing_fragment);
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3662,7 +3662,7 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
     // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html)) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3671,7 +3671,7 @@ void HTMLParser::handle_in_cell(HTMLToken& token)
         // If the stack of open elements does not have an element in table scope that is an HTML element with the same
         // tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3693,7 +3693,7 @@ void HTMLParser::handle_in_table_text(HTMLToken& token)
         // -> A character token that is U+0000 NULL
         if (token.code_point() == 0) {
             // Parse error. Ignore the token.
-            log_parse_error();
+            log_parser_error();
             return;
         }
         // -> Any other character token
@@ -3709,7 +3709,7 @@ void HTMLParser::handle_in_table_text(HTMLToken& token)
         // reprocess the character tokens in the pending table character tokens list using
         // the rules given in the "anything else" entry in the "in table" insertion mode.
         if (any_of(m_pending_table_character_tokens, [](auto const& token) { return !token.is_parser_whitespace(); })) {
-            log_parse_error();
+            log_parser_error();
             for (auto& pending_token : m_pending_table_character_tokens) {
                 m_foster_parenting = true;
                 process_using_the_rules_for(InsertionMode::InBody, pending_token);
@@ -3745,7 +3745,7 @@ void HTMLParser::handle_in_table_body(HTMLToken& token)
     // -> A start tag whose tag name is one of: "th", "td"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::th, HTML::TagNames::td)) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // Clear the stack back to a table body context. (See below.)
         clear_the_stack_back_to_a_table_body_context();
@@ -3764,7 +3764,7 @@ void HTMLParser::handle_in_table_body(HTMLToken& token)
         // If the stack of open elements does not have an element in table scope that is an HTML element with the same
         // tag name as the token, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name())) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3788,7 +3788,7 @@ void HTMLParser::handle_in_table_body(HTMLToken& token)
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tbody)
             && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::thead)
             && !m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::tfoot)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3808,7 +3808,7 @@ void HTMLParser::handle_in_table_body(HTMLToken& token)
     // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "td", "th", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::tr)) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3843,7 +3843,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3914,7 +3914,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     // -> A start tag whose tag name is "table"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::table) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If the stack of open elements does not have a table element in table scope, ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::table))
@@ -3936,7 +3936,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::table) {
         // If the stack of open elements does not have a table element in table scope, this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::table)) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -3952,7 +3952,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     // -> An end tag whose tag name is one of: "body", "caption", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::caption, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr)) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -3977,7 +3977,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
 
         // Otherwise:
         // 1. Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // 2. Insert an HTML element for the token.
         (void)insert_html_element(token);
@@ -3993,7 +3993,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     // -> A start tag whose tag name is "form"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::form) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // If there is a template element on the stack of open elements,
         // or if the form element pointer is not null, ignore the token.
@@ -4021,7 +4021,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
     {
     AnythingElse:
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // Enable foster parenting, process the token using the rules for the "in body" insertion mode, and then disable foster parenting.
         m_foster_parenting = true;
@@ -4039,7 +4039,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
         // the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::caption)) {
             VERIFY(m_parsing_fragment);
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -4049,7 +4049,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
 
         // 2. Now, if the current node is not a caption element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::caption)
-            log_parse_error();
+            log_parser_error();
 
         // 3. Pop elements from this stack until a caption element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::caption);
@@ -4071,7 +4071,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
         // the token. (fragment case)
         if (!m_stack_of_open_elements.has_in_table_scope(HTML::TagNames::caption)) {
             VERIFY(m_parsing_fragment);
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -4081,7 +4081,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
 
         // 2. Now, if the current node is not a caption element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::caption)
-            log_parse_error();
+            log_parser_error();
 
         // 3. Pop elements from this stack until a caption element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::caption);
@@ -4100,7 +4100,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
     // -> An end tag whose tag name is one of: "body", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::body, HTML::TagNames::col, HTML::TagNames::colgroup, HTML::TagNames::html, HTML::TagNames::tbody, HTML::TagNames::td, HTML::TagNames::tfoot, HTML::TagNames::th, HTML::TagNames::thead, HTML::TagNames::tr)) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4130,7 +4130,7 @@ void HTMLParser::handle_in_column_group(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4156,7 +4156,7 @@ void HTMLParser::handle_in_column_group(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::colgroup) {
         // If the current node is not a colgroup element, then this is a parse error; ignore the token.
         if (current_node()->local_name() != HTML::TagNames::colgroup) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -4169,7 +4169,7 @@ void HTMLParser::handle_in_column_group(HTMLToken& token)
     // -> An end tag whose tag name is "col"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::col) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4192,7 +4192,7 @@ void HTMLParser::handle_in_column_group(HTMLToken& token)
     {
         // If the current node is not a colgroup element, then this is a parse error; ignore the token.
         if (current_node()->local_name() != HTML::TagNames::colgroup) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -4301,7 +4301,7 @@ void HTMLParser::handle_in_template(HTMLToken& token)
     // -> Any other end tag
     if (token.is_end_tag()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4315,7 +4315,7 @@ void HTMLParser::handle_in_template(HTMLToken& token)
         }
 
         // Otherwise, this is a parse error.
-        log_parse_error();
+        log_parser_error();
 
         // Pop elements from the stack of open elements until a template element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::template_);
@@ -4355,7 +4355,7 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4377,7 +4377,7 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::frameset) {
         // If the current node is the root html element, then this is a parse error; ignore the token. (fragment case)
         if (current_node()->is_document_element()) {
-            log_parse_error();
+            log_parser_error();
             return;
         }
 
@@ -4416,7 +4416,7 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
     if (token.is_end_of_file()) {
         // If the current node is not the root html element, then this is a parse error.
         if (!current_node()->is_document_element()) {
-            log_parse_error();
+            log_parser_error();
         }
 
         // Stop parsing.
@@ -4427,7 +4427,7 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
     // -> Anything else
 
     // Parse error. Ignore the token.
-    log_parse_error();
+    log_parser_error();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterframeset
@@ -4451,7 +4451,7 @@ void HTMLParser::handle_after_frameset(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4485,7 +4485,7 @@ void HTMLParser::handle_after_frameset(HTMLToken& token)
 
     // -> Anything else
     //    Parse error. Ignore the token.
-    log_parse_error();
+    log_parser_error();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-frameset-insertion-mode
@@ -4524,7 +4524,7 @@ void HTMLParser::handle_after_after_frameset(HTMLToken& token)
 
     // -> Anything else
     //    Parse error. Ignore the token.
-    log_parse_error();
+    log_parser_error();
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign
@@ -4534,7 +4534,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         // -> A character token that is U+0000 NULL
         if (token.code_point() == 0) {
             // Parse error. Insert a U+FFFD REPLACEMENT CHARACTER character.
-            log_parse_error();
+            log_parser_error();
             insert_character(0xFFFD);
             return;
         }
@@ -4561,7 +4561,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     // -> A DOCTYPE token
     if (token.is_doctype()) {
         // Parse error. Ignore the token.
-        log_parse_error();
+        log_parser_error();
         return;
     }
 
@@ -4572,7 +4572,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
         || (token.is_start_tag() && token.tag_name() == HTML::TagNames::font && (token.has_attribute(HTML::AttributeNames::color) || token.has_attribute(HTML::AttributeNames::face) || token.has_attribute(HTML::AttributeNames::size)))
         || (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::br, HTML::TagNames::p))) {
         // Parse error.
-        log_parse_error();
+        log_parser_error();
 
         // While the current node is not a MathML text integration point, an HTML integration point, or an element in the HTML namespace, pop elements from the stack of open elements.
         while (!is_mathml_text_integration_point(*current_node())
@@ -4675,7 +4675,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 
         // 2. If node's tag name, converted to ASCII lowercase, is not the same as the tag name of the token, then this is a parse error.
         if (node->tag_name().equals_ignoring_ascii_case(token.tag_name()))
-            log_parse_error();
+            log_parser_error();
 
         // 3. Loop: If node is the topmost element in the stack of open elements, then return. (fragment case)
         for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
