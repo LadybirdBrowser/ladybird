@@ -4452,6 +4452,20 @@ bool Element::is_focusable() const
     return HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex)).has_value();
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#sequentially-focusable
+bool Element::is_sequentially_focusable() const
+{
+    for (auto element = this; element; element = element->parent_element()) {
+        if (element->computed_properties() && element->computed_properties()->display().is_none())
+            return false;
+    }
+
+    auto tabindex = HTML::parse_integer(get_attribute_value(HTML::AttributeNames::tabindex)).value_or(default_tab_index_value());
+    auto is_hidden = computed_properties() && computed_properties()->visibility() == CSS::Visibility::Hidden;
+
+    return is_focusable() && tabindex >= 0 && !is_hidden;
+}
+
 void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)
 {
     m_had_duplicate_attribute_during_tokenization = true;
