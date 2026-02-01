@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 21 tests
+
+21 Pass
+Pass	Finishing an animation with a zero playback rate throws
+Pass	Finishing an animation seeks to the end time
+Pass	Finishing an animation with a current time past the effect end jumps back to the end
+Pass	Finishing a reversed animation jumps to zero time
+Pass	Finishing a reversed animation with a current time less than zero makes it jump back to zero
+Pass	Finishing an animation while play-pending resolves the pending task immediately
+Pass	Finishing an animation attached to inactive timeline while play-pending doesn't resolves the pending task
+Pass	Finishing an animation resolves the finished promise synchronously
+Pass	A pending ready promise is resolved and not replaced when the animation is finished
+Pass	Finishing an animation fires finish event on orphaned element
+Pass	Finishing a canceled animation sets the current and start times
+Pass	Finishing idle animation produces correct state and fires finish event.
+Pass	Finishing idle animation attached to inactive timeline pauses the animation.
+Pass	Finishing running animation produces correct state and fires finish event.
+Pass	Finishing running animation attached to inactive timeline pauses the animation.
+Pass	Finishing a paused animation resolves the start time
+Pass	Finishing a pause-pending animation resolves the pending task immediately and update the start time
+Pass	Finishing a pause-pending animation with negative playback rate resolves the pending task immediately
+Pass	Finishing an animation during an aborted pause makes it finished immediately
+Pass	A pending playback rate should be applied immediately when an animation is finished
+Pass	An exception should be thrown if the effective playback rate is zero

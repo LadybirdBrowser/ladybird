@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 16 tests
+
+9 Pass
+7 Fail
+Pass	Playing an animations aligns the start time with the start of the active range
+Pass	Playing an animations with a negative playback rate aligns the start time with the end of the active range
+Pass	Start time set while play pending is preserved.
+Pass	Current time set while play pending is preserved.
+Fail	Playing a running animation resets a sticky start time
+Fail	Playing a finished animation restarts the animation aligned at the start
+Fail	Playing a finished and reversed animation restarts the animation aligned at the end
+Fail	Playing a pause-pending but previously finished animation realigns with the scroll position
+Fail	Playing a finished animation clears the start time
+Pass	The ready promise should be replaced if the animation is not already pending
+Pass	A pending ready promise should be resolved and not replaced when the animation enters the running state
+Fail	Resuming an animation from paused realigns with scroll position.
+Pass	If a pause operation is interrupted, the ready promise is reused
+Fail	A pending playback rate is used when determining timeline range alignment
+Pass	Playing a canceled animation sets the start time
+Pass	Playing a canceled animation backwards sets the start time

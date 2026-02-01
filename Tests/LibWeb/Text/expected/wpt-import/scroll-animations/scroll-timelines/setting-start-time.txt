@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+10 Pass
+4 Fail
+Pass	Setting the start time to an absolute time value throws exception
+Pass	Setting the start time clears the hold time
+Pass	Setting the start time clears the hold time when the timeline is inactive
+Fail	Setting an unresolved start time sets the hold time
+Fail	Setting an unresolved start time sets the hold time to unresolved when the timeline is inactive
+Pass	Setting the start time resolves a pending ready promise
+Pass	Setting the start time resolves a pending ready promise when the timelineis inactive
+Fail	Setting an unresolved start time on a play-pending animation makes it idle
+Pass	Setting the start time updates the finished state
+Pass	Setting the start time on a running animation updates the play state
+Pass	Setting the start time on a reverse running animation updates the play state
+Fail	Setting the start time resolves a pending pause task
+Pass	Setting the start time of a play-pending animation applies a pending playback rate
+Pass	Setting the start time of a playing animation applies a pending playback rate

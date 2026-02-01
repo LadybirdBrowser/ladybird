@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Play pending task doesn't run when the timeline is inactive.
+Pass	Animation start and current times are correct if scroll timeline is activated after animation.play call.
+Pass	Animation start and current times are correct if scroll timeline is activated after setting start time.
+Pass	Animation current time is correct when the timeline becomes newly inactive and then active again.

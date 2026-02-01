@@ -104,6 +104,7 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
+// https://drafts.csswg.org/web-animations-2/#setting-the-timeline
 void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 {
     // 1. Let old timeline be the current timeline of animation, if any.
@@ -113,22 +114,98 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     if (new_timeline == old_timeline)
         return;
 
-    // 3. Let the timeline of animation be new timeline.
+    // 3. Let previous play state be animation’s play state.
+    auto previous_play_state = play_state();
+
+    // 4. Let previous current time be the animation’s current time.
+    auto previous_current_time = current_time();
+
+    // 5. Set previous progress based in the first condition that applies:
+    auto previous_progress = [&]() -> Optional<double> {
+        // If previous current time is unresolved:
+        // Set previous progress to unresolved.
+        if (!previous_current_time.has_value())
+            return {};
+
+        // If end time is zero:
+        // Set previous progress to zero.
+        if (m_effect && m_effect->end_time().value == 0)
+            return 0;
+
+        // Otherwise
+        // Set previous progress = previous current time / end time
+        return previous_current_time.value() / m_effect->end_time();
+    }();
+
+    // 6. Let from finite timeline be true if old timeline is not null and not monotonically increasing.
+    auto from_finite_timeline = old_timeline && !old_timeline->is_monotonically_increasing();
+
+    // 7. Let to finite timeline be true if timeline is not null and not monotonically increasing.
+    auto to_finite_timeline = new_timeline && !new_timeline->is_monotonically_increasing();
+
+    // 8. Let the timeline of animation be new timeline.
     if (m_timeline)
         m_timeline->disassociate_with_animation(*this);
     m_timeline = new_timeline;
     if (m_timeline)
         m_timeline->associate_with_animation(*this);
 
-    // 4. If the start time of animation is resolved, make animation’s hold time unresolved.
-    if (m_start_time.has_value())
-        m_hold_time = {};
+    auto const previous_progress_multiplied_by_end_time = [&]() -> TimeValue {
+        // AD-HOC: The spec doesn't say what to do if we have no effect so we just assume an end time of 0
+        if (!m_effect)
+            return TimeValue::create_zero(m_timeline);
+
+        return TimeValue {
+            m_timeline && m_timeline->is_progress_based() ? TimeValue::Type::Percentage : TimeValue::Type::Milliseconds,
+            m_effect->end_time().value * previous_progress.value()
+        };
+    };
 
     // AD-HOC: The normalization of the specified timing of the associated effect depends on the associated timeline.
+    //         This must be done before calling set_current_time_for_bindings() to ensure consistent units
     if (m_effect)
         m_effect->normalize_specified_timing();
 
-    // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
+    // 9. Perform the steps corresponding to the first matching condition from the following, if any:
+    // If to finite timeline,
+    if (to_finite_timeline) {
+        // 1. Apply any pending playback rate on animation
+        apply_any_pending_playback_rate();
+
+        // 2. set auto align start time to true.
+        m_auto_align_start_time = true;
+
+        // 3. Set start time to unresolved.
+        m_start_time = {};
+
+        // 4. Set hold time to unresolved.
+        m_hold_time = {};
+
+        // 5. If previous play state is "finished" or "running"
+        if (first_is_one_of(previous_play_state, Bindings::AnimationPlayState::Finished, Bindings::AnimationPlayState::Running)) {
+            // 1. Schedule a pending play task
+            m_pending_play_task = TaskState::Scheduled;
+        }
+
+        // 6. If previous play state is "paused" and previous progress is resolved:
+        if (previous_play_state == Bindings::AnimationPlayState::Paused && previous_progress.has_value()) {
+            // 1. Set hold time to previous progress * end time.
+            m_hold_time = previous_progress_multiplied_by_end_time();
+        }
+        // NOTE: This step ensures that previous progress is preserved even in the case of a pause-pending animation with a resolved start time.
+    }
+    // If from finite timeline and previous progress is resolved,
+    else if (from_finite_timeline && previous_progress.has_value()) {
+        // Run the procedure to set the current time to previous progress * end time.
+        // NB: We know that the time we are passing is valid so we can wrap this in a MUST() to avoid error handling
+        MUST(set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish(realm())));
+    }
+
+    // 10. If the start time of animation is resolved, make animation’s hold time unresolved.
+    if (m_start_time.has_value())
+        m_hold_time = {};
+
+    // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
@@ -138,15 +215,25 @@ WebIDL::ExceptionOr<Optional<TimeValue>> Animation::validate_a_css_numberish_tim
 {
     // The procedure to validate a CSSNumberish time for an input value of time is based on the first condition that matches:
 
-    // FIXME: If all of the following conditions are true:
-    // The animation is associated with a progress-based timeline, and
-    // time is not a CSSNumeric value with percent units:
-    // throw a TypeError.
-    // return false;
+    // If all of the following conditions are true:
+    if (
+        // The animation is associated with a progress-based timeline, and
+        m_timeline && m_timeline->is_progress_based() &&
+
+        // time is not a CSSNumeric value with percent units:
+        (!time.has_value() || !time->has<GC::Root<CSS::CSSNumericValue>>() || !time->get<GC::Root<CSS::CSSNumericValue>>()->type().matches_percentage())) {
+        // throw a TypeError.
+        // return false;
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            "CSSNumberish must be a percentage for progress-based animations"sv
+        };
+    }
 
     // If all of the following conditions are true:
     if (
-        // FIXME: The animation is not associated with a progress-based timeline, and
+        // The animation is not associated with a progress-based timeline, and
+        (!m_timeline || !m_timeline->is_progress_based()) &&
 
         // time is a CSSNumericValue, and
         time.has_value() && time->has<GC::Root<CSS::CSSNumericValue>>() &&
@@ -194,7 +281,8 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::C
     //         there is no need to assign the `valid start time` variable here.
     auto new_start_time = TRY(validate_a_css_numberish_time(raw_new_start_time));
 
-    // FIXME: 3. Set auto align start time to false.
+    // 3. Set auto align start time to false.
+    m_auto_align_start_time = false;
 
     // 4. Let timeline time be the current time value of the timeline that animation is associated with. If there is no
     //    timeline associated with animation or the associated timeline is inactive, let the timeline time be
@@ -241,6 +329,47 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(Optional<CSS::C
     update_finished_state(DidSeek::Yes, SynchronouslyNotify::No);
 
     return {};
+}
+
+// https://drafts.csswg.org/web-animations-2/#auto-aligning-start-time
+void Animation::calculate_auto_aligned_start_time()
+{
+    VERIFY(m_timeline && m_timeline->is_progress_based());
+
+    // 1. If the auto-align start time flag is false, abort this procedure.
+    if (!m_auto_align_start_time)
+        return;
+
+    // 2. If the timeline is inactive, abort this procedure.
+    if (!m_timeline || m_timeline->is_inactive())
+        return;
+
+    // 3. If play state is idle, abort this procedure.
+    if (is_idle())
+        return;
+
+    // 4. If play state is paused, and hold time is resolved, abort this procedure.
+    if (play_state() == Bindings::AnimationPlayState::Paused && m_hold_time.has_value())
+        return;
+
+    // 5. FIXME: Let start offset be the resolved timeline time corresponding to the start of the animation attachment
+    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
+    //           range.
+    auto start_offset = TimeValue { TimeValue::Type::Percentage, 0 };
+
+    // 6. FIXME: Let end offset be the resolved timeline time corresponding to the end of the animation attachment
+    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
+    //           range.
+    auto end_offset = TimeValue { TimeValue::Type::Percentage, 100 };
+
+    // 7. Set start time to start offset if effective playback rate ≥ 0, and end offset otherwise.
+    if (effective_playback_rate() >= 0.0)
+        m_start_time = start_offset;
+    else
+        m_start_time = end_offset;
+
+    // 8. Clear hold time.
+    m_hold_time = {};
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-current-time
@@ -329,7 +458,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
     // -> If animation is associated with a monotonically increasing timeline and the previous time is resolved,
     if (m_timeline && m_timeline->is_monotonically_increasing() && previous_time.has_value()) {
         // set the current time of animation to previous time.
-        TRY(set_current_time_for_bindings(previous_time->as_css_numberish()));
+        TRY(set_current_time_for_bindings(previous_time->as_css_numberish(realm())));
     }
     // -> If animation is associated with a non-null timeline that is not monotonically increasing, the start time of
     //    animation is resolved, associated effect end is not infinity, and either:
@@ -526,7 +655,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
         //    not associated with an active timeline, let timeline time be an unresolved time value.
         // 9. Set cancelEvent’s timelineTime to timeline time. If timeline time is unresolved, set it to null.
         AnimationPlaybackEventInit init;
-        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); }) : Optional<CSS::CSSNumberish> {};
+        init.timeline_time = m_timeline && !m_timeline->is_inactive() ? m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); }) : Optional<CSS::CSSNumberish> {};
         auto cancel_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::cancel, init);
 
         // 10. If animation has a document for timing, then append cancelEvent to its document for timing's pending
@@ -636,6 +765,7 @@ WebIDL::ExceptionOr<void> Animation::play()
 }
 
 // https://drafts.csswg.org/web-animations-1/#playing-an-animation-section
+// https://drafts.csswg.org/web-animations-2/#play-an-animation
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
 {
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
@@ -644,70 +774,55 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
     // 2. Let has pending ready promise be a boolean flag that is initially false.
     auto has_pending_ready_promise = false;
 
-    // 3. Let seek time be a time value that is initially unresolved.
-    Optional<TimeValue> seek_time;
-
-    // 4. If the auto-rewind flag is true, perform the steps corresponding to the first matching condition from the
-    // following, if any:
-    if (auto_rewind == AutoRewind::Yes) {
-        auto effective_playback_rate = this->effective_playback_rate();
-        auto current_time = this->current_time();
-        auto associated_effect_end = this->associated_effect_end();
-
-        // -> If animation’s effective playback rate ≥ 0, and animation’s current time is either:
-        //    - unresolved, or
-        //    - less than zero, or
-        //    - greater than or equal to associated effect end,
-        if (effective_playback_rate >= 0.0 && (!current_time.has_value() || current_time->value < 0 || current_time.value() >= associated_effect_end)) {
-            // Set seek time to zero.
-            seek_time = TimeValue::create_zero(m_timeline);
-        }
-        // -> If animation’s effective playback rate < 0, and animation’s current time is either:
-        //    - unresolved, or
-        //    - less than or equal to zero, or
-        //    - greater than associated effect end,
-        else if (effective_playback_rate < 0.0 && (!current_time.has_value() || current_time->value <= 0 || current_time.value() > associated_effect_end)) {
-            // -> If associated effect end is positive infinity,
-            if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
-                // throw an "InvalidStateError" DOMException and abort these steps.
-                return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
-            }
-            // -> Otherwise,
-            //    Set seek time to animation’s associated effect end.
-            seek_time = associated_effect_end;
-        }
-    }
-
-    // 5. If the following three conditions are all satisfied:
-    //    - seek time is unresolved, and
-    //    - animation’s start time is unresolved, and
-    //    - animation’s current time is unresolved,
-    if (!seek_time.has_value() && !m_start_time.has_value() && !current_time().has_value()) {
-        // set seek time to zero.
-        seek_time = TimeValue::create_zero(m_timeline);
-    }
-
-    // 6. Let has finite timeline be true if animation has an associated timeline that is not monotonically increasing.
+    // 3. Let has finite timeline be true if animation has an associated timeline that is not monotonically increasing.
     auto has_finite_timeline = m_timeline && !m_timeline->is_monotonically_increasing();
 
-    // 7. If seek time is resolved,
-    if (seek_time.has_value()) {
-        // -> If has finite timeline is true,
-        if (has_finite_timeline) {
-            // 1. Set animation’s start time to seek time.
-            m_start_time = seek_time;
+    // 4. Let previous current time be the animation’s current time
+    auto previous_current_time = current_time();
 
-            // 2. Let animation’s hold time be unresolved.
-            m_hold_time = {};
+    // 5. Let enable seek be true if the auto-rewind flag is true and has finite timeline is false. Otherwise,
+    //    initialize to false.
+    auto enable_seek = (auto_rewind == AutoRewind::Yes) && !has_finite_timeline;
 
-            // 3. Apply any pending playback rate on animation.
-            apply_any_pending_playback_rate();
+    // 6. Perform the steps corresponding to the first matching condition from the following, if any:
+    auto const& effective_playback_rate = this->effective_playback_rate();
+    auto const& associated_effect_end = this->associated_effect_end();
+
+    // -> If animation’s effective playback rate > 0, enable seek is true and either animation’s:
+    //    - previous current time is unresolved, or
+    //    - previous current time < zero, or
+    //    - previous current time ≥ associated effect end,
+    if (effective_playback_rate > 0.0 && enable_seek && (!previous_current_time.has_value() || previous_current_time->value < 0 || previous_current_time.value() >= associated_effect_end)) {
+        // Set the animation’s hold time to zero.
+        m_hold_time = TimeValue::create_zero(m_timeline);
+    }
+
+    // -> If animation’s effective playback rate < 0, enable seek is true and either animation’s:
+    //    - previous current time is unresolved, or
+    //    - previous current time ≤ zero, or
+    //    - previous current time > associated effect end,
+    else if (effective_playback_rate < 0 && enable_seek && (!previous_current_time.has_value() || previous_current_time->value <= 0 || previous_current_time.value() > associated_effect_end)) {
+        // -> If associated effect end is positive infinity,
+        if (isinf(associated_effect_end.value) && associated_effect_end.value > 0) {
+            // throw an "InvalidStateError" DOMException and abort these steps.
+            return WebIDL::InvalidStateError::create(realm(), "Cannot rewind an animation with an infinite effect end"_utf16);
         }
-        // Otherwise,
-        else {
-            // Set animation’s hold time to seek time.
-            m_hold_time = seek_time;
-        }
+
+        // -> Otherwise,
+        //    Set the animation’s hold time to the animation’s associated effect end.
+        m_hold_time = associated_effect_end;
+    }
+
+    // -> If animation’s effective playback rate = 0 and animation’s current time is unresolved,
+    else if (effective_playback_rate == 0.0 && !previous_current_time.has_value()) {
+        // Set the animation’s hold time to zero.
+        m_hold_time = TimeValue::create_zero(m_timeline);
+    }
+
+    // 7. If has finite timeline and previous current time is unresolved:
+    if (has_finite_timeline && !previous_current_time.has_value()) {
+        // Set the flag auto align start time to true.
+        m_auto_align_start_time = true;
     }
 
     // 8. If animation’s hold time is resolved, let its start time be unresolved.
@@ -724,12 +839,14 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind)
         has_pending_ready_promise = true;
     }
 
-    // 10. If the following four conditions are all satisfied:
+    // 10. If the following three conditions are all satisfied:
     //     - animation’s hold time is unresolved, and
-    //     - seek time is unresolved, and
     //     - aborted pause is false, and
     //     - animation does not have a pending playback rate,
-    if (!m_hold_time.has_value() && !seek_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value()) {
+    // AD-HOC: We also don't abort if we have a pending auto-alignment of the start time, see
+    //         https://github.com/w3c/csswg-drafts/issues/13236
+    auto pending_auto_aligned_start_time = m_auto_align_start_time && !m_start_time.has_value();
+    if (!m_hold_time.has_value() && !aborted_pause && !m_pending_playback_rate.has_value() && !pending_auto_aligned_start_time) {
         // abort this procedure.
         return {};
     }
@@ -1003,8 +1120,15 @@ GC::Ptr<DOM::Document> Animation::document_for_timing() const
 
 void Animation::update()
 {
-    // Update finished state if not already finished; prevents recurring invalidation when the timeline updates.
-    if (!m_is_finished)
+    // https://drafts.csswg.org/scroll-animations-1/#event-loop
+    // When updating timeline current time, the start time of any attached animation is conditionally updated. For each
+    // attached animation, run the procedure for calculating an auto-aligned start time.
+    if (m_timeline && m_timeline->is_progress_based())
+        calculate_auto_aligned_start_time();
+
+    // Prevent unnecessary work if the animation is already finished and can't exit the finished state due to timeline
+    // changes
+    if (!m_is_finished || !m_timeline->is_monotonically_increasing())
         update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
 
     // Act on the pending play or pause task
@@ -1075,7 +1199,8 @@ WebIDL::ExceptionOr<void> Animation::silently_set_current_time(Optional<TimeValu
     // 3. If valid seek time is false, abort this procedure.
     // AD-HOC: We have already validated in the caller.
 
-    // FIXME: 4. Set auto align start time to false.
+    // 4. Set auto align start time to false.
+    m_auto_align_start_time = false;
 
     // 5. Update either animation’s hold time or start time as follows:
 
@@ -1202,9 +1327,9 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    associated. If animation is not associated with a timeline, or the timeline is inactive, let
             //    timelineTime be null.
             AnimationPlaybackEventInit init;
-            init.current_time = current_time()->as_css_numberish();
+            init.current_time = current_time()->as_css_numberish(realm);
             if (m_timeline && !m_timeline->is_inactive())
-                init.timeline_time = m_timeline->current_time().map([](auto const& value) { return value.as_css_numberish(); });
+                init.timeline_time = m_timeline->current_time().map([&](auto const& value) { return value.as_css_numberish(realm); });
 
             auto finish_event = AnimationPlaybackEvent::create(realm, HTML::EventNames::finish, init);
 

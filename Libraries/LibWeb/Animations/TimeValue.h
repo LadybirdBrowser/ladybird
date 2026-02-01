@@ -13,17 +13,11 @@ namespace Web::Animations {
 
 struct TimeValue {
     static TimeValue from_css_numberish(CSS::CSSNumberish const&, DOM::AbstractElement const&);
-    static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline)
-    {
-        // FIXME: Return 0% rather than 0ms for progress based timelines
-        (void)timeline;
-
-        return TimeValue { Type::Milliseconds, 0.0 };
-    }
+    static TimeValue create_zero(GC::Ptr<AnimationTimeline> const& timeline);
 
     enum class Type : u8 {
         Milliseconds,
-        // FIXME: Support percentages
+        Percentage
     };
     Type type;
     double value;
@@ -77,15 +71,7 @@ struct TimeValue {
         return type == other.type && value == other.value;
     }
 
-    CSS::CSSNumberish as_css_numberish() const
-    {
-        switch (type) {
-        case Type::Milliseconds:
-            return value;
-        }
-
-        VERIFY_NOT_REACHED();
-    }
+    CSS::CSSNumberish as_css_numberish(JS::Realm& realm) const;
 };
 
 // FIXME: This struct is required since our IDL generator requires us to return nullable union types as
@@ -94,10 +80,10 @@ struct TimeValue {
 struct NullableCSSNumberish : FlattenVariant<Variant<Empty>, CSS::CSSNumberish> {
     using Variant::Variant;
 
-    static NullableCSSNumberish from_optional_css_numberish_time(Optional<TimeValue> const& value)
+    static NullableCSSNumberish from_optional_css_numberish_time(JS::Realm& realm, Optional<TimeValue> const& value)
     {
         if (value.has_value())
-            return value->as_css_numberish();
+            return value->as_css_numberish(realm);
 
         return {};
     }
@@ -112,6 +98,8 @@ struct AK::Formatter<Web::Animations::TimeValue> : Formatter<FormatString> {
         switch (time.type) {
         case Web::Animations::TimeValue::Type::Milliseconds:
             return Formatter<FormatString>::format(builder, "{}ms"sv, time.value);
+        case Web::Animations::TimeValue::Type::Percentage:
+            return Formatter<FormatString>::format(builder, "{}%"sv, time.value);
         }
         return {};
     }

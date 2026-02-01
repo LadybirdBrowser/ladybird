@@ -46,15 +46,17 @@ public:
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
     NullableCSSNumberish start_time_for_bindings() const
     {
-        return NullableCSSNumberish::from_optional_css_numberish_time(start_time());
+        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), start_time());
     }
     Optional<TimeValue> start_time() const { return m_start_time; }
     WebIDL::ExceptionOr<void> set_start_time_for_bindings(Optional<CSS::CSSNumberish> const&);
 
+    void calculate_auto_aligned_start_time();
+
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
     NullableCSSNumberish current_time_for_bindings() const
     {
-        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
+        return NullableCSSNumberish::from_optional_css_numberish_time(realm(), current_time());
     }
     Optional<TimeValue> current_time() const;
     WebIDL::ExceptionOr<void> set_current_time_for_bindings(Optional<CSS::CSSNumberish> const&);
@@ -190,6 +192,8 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#animation-start-time
     Optional<TimeValue> m_start_time {};
+
+    bool m_auto_align_start_time { false };
 
     // https://www.w3.org/TR/web-animations-1/#animation-hold-time
     Optional<TimeValue> m_hold_time {};

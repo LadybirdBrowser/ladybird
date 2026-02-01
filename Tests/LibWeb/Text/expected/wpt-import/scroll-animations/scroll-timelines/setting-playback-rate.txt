@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Zero current time is not affected by playbackRate set while the animation is in idle state.
+Pass	Zero current time is not affected by playbackRate set while the animation is in play-pending state.
+Pass	Initial current time is scaled by playbackRate set while scroll-linked animation is in running state.
+Pass	The current time is scaled by playbackRate set while the scroll-linked animation is in play state.
+Pass	The playback rate set before scroll-linked animation started playing affects the rate of progress of the current time
+Pass	The playback rate affects the rate of progress of the current time when scrolling
+Pass	Setting the playback rate while play-pending does not scale current time.
+Pass	Setting the playback rate while playing scales current time.
+Pass	Setting the playback rate while playing scales the set current time.
+Pass	Negative initial playback rate should correctly modify initial current time.
+Pass	Reversing the playback rate while playing correctly impacts current time during future scrolls
+Pass	Zero initial playback rate should correctly modify initial current time.
+Pass	Setting a zero playback rate while running preserves the start time
+Pass	Reversing an animation with non-boundary aligned start time symmetrically adjusts the start time

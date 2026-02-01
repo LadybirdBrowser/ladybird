@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Seamlessly updating the playback rate of an animation</title>
+<link rel="help"
+  href="https://drafts.csswg.org/web-animations-1/#seamlessly-updating-the-playback-rate-of-an-animation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="testcommon.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  height: 100px;
+  width: 100px;
+  will-change: transform;
+}
+
+.contents {
+  height: 1000px;
+  width: 100%;
+}
+</style>
+<body>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  animation.play();
+  await animation.ready;
+
+  animation.currentTime = CSSNumericValue.parse("50%");
+
+  animation.updatePlaybackRate(0.5);
+  await animation.ready;
+  assert_percents_equal(animation.currentTime, 50,
+                        'Reducing the playback rate should not change the ' +
+                        'current time of a playing animation');
+
+  animation.updatePlaybackRate(2);
+  await animation.ready;
+  assert_percents_equal(animation.currentTime, 50,
+                        'Increasing the playback rate should not change the ' +
+                        'current time of a playing animation');
+}, 'Updating the playback rate maintains the current time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  await animation.ready;
+
+  assert_false(animation.pending);
+  animation.updatePlaybackRate(2);
+  assert_true(animation.pending);
+}, 'Updating the playback rate while running makes the animation pending');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  animation.currentTime = CSSNumericValue.parse("50%");
+  assert_true(animation.pending);
+
+  animation.updatePlaybackRate(0.5);
+
+  // Check that the hold time is updated as expected
+  assert_percents_equal(animation.currentTime, 50);
+
+  await animation.ready;
+
+  // As above, check that the currentTime is not calculated by simply
+  // substituting in the updated playbackRate without updating the startTime.
+  assert_percents_equal(animation.currentTime, 50,
+                        'Reducing the playback rate should not change the ' +
+                        'current time of a play-pending animation');
+}, 'Updating the playback rate on a play-pending animation maintains the ' +
+   'current time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  animation.currentTime = CSSNumericValue.parse("50%");
+  await animation.ready;
+
+  animation.pause();
+  animation.updatePlaybackRate(0.5);
+
+  assert_percents_equal(animation.currentTime, 50);
+}, 'Updating the playback rate on a pause-pending animation maintains the ' +
+   'current time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+
+  animation.updatePlaybackRate(2);
+  animation.updatePlaybackRate(3);
+  animation.updatePlaybackRate(4);
+
+  assert_equals(animation.playbackRate, 1);
+  await animation.ready;
+
+  assert_equals(animation.playbackRate, 4);
+}, 'If a pending playback rate is set multiple times, the latest wins');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  animation.cancel();
+
+  animation.updatePlaybackRate(2);
+  assert_equals(animation.playbackRate, 2);
+  assert_false(animation.pending);
+}, 'In the idle state, the playback rate is applied immediately');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.pause();
+  await animation.ready;
+
+  animation.updatePlaybackRate(2);
+  assert_equals(animation.playbackRate, 2);
+  assert_false(animation.pending);
+}, 'In the paused state, the playback rate is applied immediately');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  animation.finish();
+  assert_percents_equal(animation.currentTime, 100);
+  assert_false(animation.pending);
+
+  animation.updatePlaybackRate(2);
+  assert_equals(animation.playbackRate, 2);
+  assert_percents_equal(animation.currentTime, 100);
+  assert_false(animation.pending);
+}, 'Updating the playback rate on a finished animation maintains the current ' +
+   'time');
+
+promise_test(async t => {
+  const animation = createScrollLinkedAnimation(t);
+  // Wait for new animation frame which allows the timeline to compute new
+  // current time.
+  await waitForNextFrame();
+  animation.play();
+  animation.finish();
+  assert_percents_equal(animation.currentTime, 100);
+  assert_false(animation.pending);
+
+  animation.updatePlaybackRate(0);
+  assert_equals(animation.playbackRate, 0);
+  assert_percents_equal(animation.currentTime, 100);
+  assert_false(animation.pending);
+}, 'Updating the playback rate to zero on a finished animation maintains the ' +
+   'current time');
+
+</script>
+</body>
