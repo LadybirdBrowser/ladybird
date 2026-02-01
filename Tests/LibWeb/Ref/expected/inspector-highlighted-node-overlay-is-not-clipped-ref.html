@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+#outer {
+  position: relative;
+  top: 50px;
+  left: 50px;
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+}
+#inner {
+  position: absolute;
+  left: 50px;
+  top: 50px;
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+</style>
+<div id="outer"><div id="inner"></div></div>
+<script>
+const elementToHighlight = document.getElementById("inner");
+window.internals.setHighlightedNode(elementToHighlight);
+</script>
