@@ -33,6 +33,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
 {
     auto page_client = SVGPageClient::create(Bindings::main_thread_vm(), host_page);
     auto page = Page::create(Bindings::main_thread_vm(), *page_client);
+    page->set_is_scripting_enabled(false);
     page_client->m_svg_page = page.ptr();
     page->set_top_level_traversable(MUST(Web::HTML::TraversableNavigable::create_a_new_top_level_traversable(*page, nullptr, {})));
     GC::Ref<HTML::Navigable> navigable = page->top_level_traversable();
@@ -63,14 +64,16 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     document->browsing_context()->window_proxy()->set_window(window);
 
     XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
-    XMLDocumentBuilder builder { document };
+    XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };
     auto result = parser.parse_with_listener(builder);
-    (void)result;
+    if (result.is_error())
+        dbgln("SVGDecodedImageData: Failed to parse SVG: {}", result.error());
 
     auto* svg_root = document->first_child_of_type<SVG::SVGSVGElement>();
-    if (!svg_root)
+    if (!svg_root) {
+        dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
-
+    }
     return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
 }
 

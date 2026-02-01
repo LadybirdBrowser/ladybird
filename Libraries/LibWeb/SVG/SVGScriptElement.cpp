@@ -71,6 +71,10 @@ void SVGScriptElement::process_the_script_element()
     if (m_already_processed || !in_a_document_tree())
         return;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#enabling-and-disabling-scripting
+    if (is_scripting_disabled())
+        return;
+
     // https://svgwg.org/svg2-draft/interact.html#ScriptElement
     // Before attempting to execute the ‘script’ element the resolved media type value for ‘type’ must be inspected.
     // If the SVG user agent does not support the scripting language then the ‘script’ element must not be executed.
