@@ -38,6 +38,7 @@ public:
 
     void click(double x, double y);
     void doubleclick(double x, double y);
+    void tripleclick(double x, double y);
     void middle_click(double x, double y);
     void mouse_down(double x, double y);
     void move_pointer_to(double x, double y);
