@@ -110,6 +110,7 @@ void ViewportPaintable::assign_scroll_frames()
             .border_box_size = sticky_border_box_rect.size(),
             .containing_block_region = containing_block_region,
             .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
+            .insets = paintable_box.sticky_insets(),
         });
     };
 
@@ -358,7 +359,7 @@ void ViewportPaintable::refresh_scroll_state()
             return;
 
         auto const& sticky_data = scroll_frame->sticky_constraints();
-        auto const& sticky_insets = scroll_frame->paintable_box().sticky_insets();
+        auto const& sticky_insets = sticky_data.insets;
         auto const& scroll_ancestor_paintable = nearest_scrolling_ancestor_frame->paintable_box();
 
         // For nested sticky elements, the parent sticky's offset is applied via cumulative_offset.

@@ -13,11 +13,19 @@
 
 namespace Web::Painting {
 
+struct StickyInsets {
+    Optional<CSSPixels> top;
+    Optional<CSSPixels> right;
+    Optional<CSSPixels> bottom;
+    Optional<CSSPixels> left;
+};
+
 struct StickyConstraints {
     CSSPixelPoint position_relative_to_scroll_ancestor;
     CSSPixelSize border_box_size;
     CSSPixelRect containing_block_region;
     bool needs_parent_offset_adjustment { false };
+    StickyInsets insets;
 };
 
 class ScrollFrame : public RefCounted<ScrollFrame> {

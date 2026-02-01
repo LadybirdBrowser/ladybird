@@ -19,6 +19,7 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
+#include <LibWeb/Painting/ScrollFrame.h>
 
 namespace Web::Painting {
 
@@ -216,12 +217,7 @@ public:
 
     PaintableBox const* nearest_scrollable_ancestor() const;
 
-    struct StickyInsets {
-        Optional<CSSPixels> top;
-        Optional<CSSPixels> right;
-        Optional<CSSPixels> bottom;
-        Optional<CSSPixels> left;
-    };
+    using StickyInsets = Painting::StickyInsets;
     StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
