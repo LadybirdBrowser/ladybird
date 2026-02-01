@@ -46,6 +46,13 @@ public:
     int fd() const { return m_impl ? m_impl->fd() : -1; }
     size_t size() const { return m_impl ? m_impl->size() : 0; }
 
+    ReadonlyBytes bytes() const
+    {
+        if (!m_impl)
+            return {};
+        return ReadonlyBytes { m_impl->data(), m_impl->size() };
+    }
+
     template<typename T>
     T* data()
     {
