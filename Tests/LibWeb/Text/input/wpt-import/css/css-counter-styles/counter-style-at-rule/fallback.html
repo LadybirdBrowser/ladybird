@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-fallback">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_fallback(value) {
+  test_valid_counter_style_descriptor('fallback', value);
+}
+
+function test_invalid_fallback(value) {
+  test_invalid_counter_style_descriptor('fallback', value);
+}
+
+// <counter-style-name>
+
+test_valid_fallback('bar');
+
+// Counter style names are custom identifiers, not strings
+test_invalid_fallback('"bar"');
+
+// The following are not valid counter style names
+test_invalid_fallback('none');
+test_invalid_fallback('initial');
+test_invalid_fallback('inherit');
+test_invalid_fallback('unset');
+
+</script>

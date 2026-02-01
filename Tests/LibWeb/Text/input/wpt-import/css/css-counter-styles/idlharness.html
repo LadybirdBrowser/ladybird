@@ -1,0 +1,33 @@
+<!doctype html>
+<title>css-counter-styles IDL tests</title>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+
+<style>
+  @counter-style triangle {
+    system: cyclic;
+    symbols: ‣;
+    suffix: " ";
+  }
+</style>
+<script>
+  'use strict';
+  idl_test(
+    ['css-counter-styles'],
+    ['cssom'],
+    idl_array => {
+      try {
+        self.counter = document.styleSheets[0].rules[0];
+      } catch (e) {
+        // Will be surfaced when counter is undefined below.
+      }
+
+      idl_array.add_objects({
+        CSSCounterStyleRule: ['counter'],
+      });
+    }
+  );
+</script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles-3/#counter-style-range">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/counter-style-testcommon.js"></script>
+<script>
+function test_valid_range(value) {
+  test_valid_counter_style_descriptor('range', value);
+}
+
+function test_invalid_range(value) {
+  test_invalid_counter_style_descriptor('range', value);
+}
+
+// [ <integer> | infinite ]{2} ]# | auto
+
+test_valid_range('auto');
+
+test_valid_range('infinite infinite');
+test_valid_range('infinite 0');
+test_valid_range('0 infinite');
+
+test_valid_range('infinite 0, 5 10, 100 infinite');
+test_valid_range('infinite 10, 5 20, 15 infinite');
+
+test_invalid_range('');
+test_invalid_range('0 -1');
+</script>

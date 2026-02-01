@@ -3,15 +3,15 @@
 // https://drafts.csswg.org/css-counter-styles/#the-csscounterstylerule-interface
 [Exposed=Window]
 interface CSSCounterStyleRule : CSSRule {
-    [FIXME] attribute CSSOMString name;
-    [FIXME] attribute CSSOMString system;
-    [FIXME] attribute CSSOMString symbols;
-    [FIXME] attribute CSSOMString additiveSymbols;
-    [FIXME] attribute CSSOMString negative;
-    [FIXME] attribute CSSOMString prefix;
-    [FIXME] attribute CSSOMString suffix;
-    [FIXME] attribute CSSOMString range;
-    [FIXME] attribute CSSOMString pad;
-    [FIXME] attribute CSSOMString speakAs;
-    [FIXME] attribute CSSOMString fallback;
+    attribute CSSOMString name;
+    attribute CSSOMString system;
+    attribute CSSOMString symbols;
+    attribute CSSOMString additiveSymbols;
+    attribute CSSOMString negative;
+    attribute CSSOMString prefix;
+    attribute CSSOMString suffix;
+    attribute CSSOMString range;
+    attribute CSSOMString pad;
+    attribute CSSOMString speakAs;
+    attribute CSSOMString fallback;
 };

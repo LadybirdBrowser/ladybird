@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	@counter-style 'range: auto' is valid
+Pass	@counter-style 'range: infinite infinite' is valid
+Pass	@counter-style 'range: infinite 0' is valid
+Pass	@counter-style 'range: 0 infinite' is valid
+Pass	@counter-style 'range: infinite 0, 5 10, 100 infinite' is valid
+Pass	@counter-style 'range: infinite 10, 5 20, 15 infinite' is valid
+Pass	@counter-style 'range: ' is invalid
+Pass	@counter-style 'range: 0 -1' is invalid

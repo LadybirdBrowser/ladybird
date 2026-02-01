@@ -61,7 +61,7 @@ void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) c
     }
 
     auto first_value = m_properties.values.first();
-    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma) {
+    if (all_of(m_properties.values, [&](auto const& property) { return property == first_value; }) && m_properties.separator != Separator::Comma && m_properties.collapsible == Collapsible::Yes) {
         first_value->serialize(builder, mode);
         return;
     }

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	@counter-style 'additive-symbols: 0 "X"' is valid
+Pass	@counter-style 'additive-symbols: 1 "X"' is valid
+Pass	@counter-style 'additive-symbols: "X" 1' is valid
+Pass	@counter-style 'additive-symbols: 5 "V", 1 "I"' is valid
+Pass	@counter-style 'additive-symbols: ' is invalid
+Pass	@counter-style 'additive-symbols: -1 "X"' is invalid
+Pass	@counter-style 'additive-symbols: 1 "I", 5 "V"' is invalid
+Pass	@counter-style 'additive-symbols: 1 "X", 1 "Y"' is invalid

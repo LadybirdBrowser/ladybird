@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	@counter-style 'fallback: bar' is valid
+Pass	@counter-style 'fallback: "bar"' is invalid
+Pass	@counter-style 'fallback: none' is invalid
+Pass	@counter-style 'fallback: initial' is invalid
+Pass	@counter-style 'fallback: inherit' is invalid
+Pass	@counter-style 'fallback: unset' is invalid

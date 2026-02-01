@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	@counter-style 'speak-as: auto' is valid
+Pass	@counter-style 'speak-as: bullets' is valid
+Pass	@counter-style 'speak-as: numbers' is valid
+Pass	@counter-style 'speak-as: words' is valid
+Pass	@counter-style 'speak-as: spell-out' is valid
+Pass	@counter-style 'speak-as: bar' is valid
+Pass	@counter-style 'speak-as: spellout' is valid
+Pass	@counter-style 'speak-as: bullets numbers' is invalid
+Pass	@counter-style 'speak-as: none' is invalid
+Pass	@counter-style 'speak-as: initial' is invalid
+Pass	@counter-style 'speak-as: inherit' is invalid
+Pass	@counter-style 'speak-as: unset' is invalid

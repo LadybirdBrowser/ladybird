@@ -189,5 +189,73 @@
         ]
       }
     }
+  },
+  "counter-style": {
+    "spec": "https://drafts.csswg.org/css-counter-styles/#the-counter-style-rule",
+    "descriptors": {
+      "system": {
+        "initial": "symbolic",
+        "syntax": [
+          "<counter-style-system>"
+        ]
+      },
+      "negative": {
+        "initial": "-",
+        "syntax": [
+          "<counter-style-negative>"
+        ]
+      },
+      "prefix": {
+        "initial": "",
+        "syntax": [
+          "<symbol>"
+        ]
+      },
+      "suffix": {
+        "initial": ". ",
+        "syntax": [
+          "<symbol>"
+        ]
+      },
+      "range": {
+        "initial": "auto",
+        "syntax": [
+          "<counter-style-range>"
+        ]
+      },
+      "pad": {
+        "initial": "0 \"\"",
+        "syntax": [
+          "<counter-style-pad>"
+        ]
+      },
+      "fallback": {
+        "initial": "decimal",
+        "syntax": [
+          "<counter-style-name>"
+        ]
+      },
+      "symbols": {
+        "syntax": [
+          "<symbol>+"
+        ]
+      },
+      "additive-symbols": {
+        "syntax": [
+          "<counter-style-additive-symbols>"
+        ]
+      },
+      "speak-as": {
+        "initial": "auto",
+        "syntax": [
+          "auto",
+          "bullets",
+          "numbers",
+          "words",
+          "spell-out",
+          "<counter-style-name>"
+        ]
+      }
+    }
   }
 }

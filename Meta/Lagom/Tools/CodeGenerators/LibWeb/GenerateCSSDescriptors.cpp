@@ -117,6 +117,12 @@ RefPtr<StyleValue const> descriptor_initial_value(AtRuleID, DescriptorID);
 struct DescriptorMetadata {
     enum class ValueType {
         // FIXME: Parse the grammar instead of hard-coding all the options!
+        CounterStyleSystem,
+        CounterStyleAdditiveSymbols,
+        CounterStyleName,
+        CounterStyleNegative,
+        CounterStylePad,
+        CounterStyleRange,
         CropOrCross,
         FamilyName,
         FontSrcList,
@@ -125,6 +131,8 @@ struct DescriptorMetadata {
         PageSize,
         PositivePercentage,
         String,
+        Symbol,
+        Symbols,
         UnicodeRangeTokens,
     };
     Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
@@ -399,6 +407,22 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
                             return "String"_string;
                         if (syntax_string == "<unicode-range-token>#"sv)
                             return "UnicodeRangeTokens"_string;
+                        if (syntax_string == "<counter-style-system>"sv)
+                            return "CounterStyleSystem"_string;
+                        if (syntax_string == "<counter-style-negative>"sv)
+                            return "CounterStyleNegative"_string;
+                        if (syntax_string == "<symbol>"sv)
+                            return "Symbol"_string;
+                        if (syntax_string == "<symbol>+"sv)
+                            return "Symbols"_string;
+                        if (syntax_string == "<counter-style-range>"sv)
+                            return "CounterStyleRange"_string;
+                        if (syntax_string == "<counter-style-pad>"sv)
+                            return "CounterStylePad"_string;
+                        if (syntax_string == "<counter-style-name>"sv)
+                            return "CounterStyleName"_string;
+                        if (syntax_string == "<counter-style-additive-symbols>"sv)
+                            return "CounterStyleAdditiveSymbols"_string;
                         dbgln("Unrecognized value type: `{}`", syntax_string);
                         VERIFY_NOT_REACHED();
                     }();
