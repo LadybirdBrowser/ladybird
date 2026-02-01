@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/OfflineAudioContextPrototype.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/OfflineAudioRenderThread.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -54,7 +55,16 @@ private:
 
     GC::Ptr<AudioBuffer> m_rendered_buffer;
 
+    // State for an in-progress startRendering(), consumed on completion.
+    Optional<GC::Ref<WebIDL::Promise>> m_pending_render_promise;
+
+    RefPtr<Core::Notifier> m_render_completion_notifier;
+    int m_render_completion_read_fd { -1 };
+
+    OwnPtr<OfflineAudioRenderThread> m_render_thread;
+
     void begin_offline_rendering(GC::Ref<WebIDL::Promise> promise);
+    void handle_offline_render_completion();
 };
 
 }

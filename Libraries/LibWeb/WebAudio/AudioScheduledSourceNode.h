@@ -24,6 +24,11 @@ public:
     WebIDL::ExceptionOr<void> start(double when = 0);
     WebIDL::ExceptionOr<void> stop(double when = 0);
 
+    // Exposed as internal helpers for the rendering implementation.
+    // These are the scheduled times captured from start()/stop() calls.
+    Optional<double> start_when_for_rendering() const { return m_start_when; }
+    Optional<double> stop_when_for_rendering() const { return m_stop_when; }
+
 protected:
     AudioScheduledSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>);
 
@@ -36,6 +41,10 @@ protected:
 private:
     // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-source-started-slot
     bool m_source_started { false };
+
+    // Control-thread owned scheduling state.
+    Optional<double> m_start_when;
+    Optional<double> m_stop_when;
 };
 
 }
