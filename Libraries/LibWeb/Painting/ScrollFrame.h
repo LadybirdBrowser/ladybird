@@ -23,6 +23,7 @@ struct StickyInsets {
 struct StickyConstraints {
     CSSPixelPoint position_relative_to_scroll_ancestor;
     CSSPixelSize border_box_size;
+    CSSPixelSize scrollport_size;
     CSSPixelRect containing_block_region;
     bool needs_parent_offset_adjustment { false };
     StickyInsets insets;
