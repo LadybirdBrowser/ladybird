@@ -408,7 +408,7 @@ Optional<CSSPixelRect> PaintableBox::absolute_scrollbar_rect(ScrollDirection dir
     return scrollbar_rect;
 }
 
-Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, ChromeMetrics const& metrics, AdjustThumbRectForScrollOffset adjust_thumb_rect_for_scroll_offset) const
+Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction, ChromeMetrics const& metrics, ScrollStateSnapshot const* scroll_state_snapshot) const
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     auto orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
@@ -454,8 +454,9 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     if (scrollable_overflow_length > scrollport_size)
         scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
-    if (adjust_thumb_rect_for_scroll_offset == AdjustThumbRectForScrollOffset::Yes) {
-        CSSPixels scroll_offset = is_horizontal ? -own_scroll_frame_offset().x() : -own_scroll_frame_offset().y();
+    if (scroll_state_snapshot) {
+        auto own_offset = scroll_state_snapshot->own_offset_for_frame_with_id(own_scroll_frame_id().value());
+        CSSPixels scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         CSSPixels thumb_offset = scroll_offset * scrollbar_data.thumb_travel_to_scroll_ratio;
 
         scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_offset);
@@ -843,7 +844,8 @@ void PaintableBox::scroll_to_mouse_position(CSSPixelPoint position, ChromeMetric
 {
     VERIFY(m_scroll_thumb_dragging_direction.has_value());
 
-    auto scrollbar_data = compute_scrollbar_data(m_scroll_thumb_dragging_direction.value(), metrics, AdjustThumbRectForScrollOffset::Yes);
+    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
+    auto scrollbar_data = compute_scrollbar_data(m_scroll_thumb_dragging_direction.value(), metrics, &scroll_state);
     VERIFY(scrollbar_data.has_value());
 
     auto orientation = m_scroll_thumb_dragging_direction == ScrollDirection::Horizontal ? Orientation::Horizontal : Orientation::Vertical;
