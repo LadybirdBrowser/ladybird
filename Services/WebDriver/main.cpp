@@ -139,10 +139,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto client = maybe_client.release_value();
-        client->on_death = [&] {
+        client->on_death = [&clients, client] {
             clients.remove(client);
         };
-        clients.set(move(client));
+        clients.set(client);
     };
 
     TRY(server->listen(ipv4_address.value(), port, Core::TCPServer::AllowAddressReuse::Yes));
