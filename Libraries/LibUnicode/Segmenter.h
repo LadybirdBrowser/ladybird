@@ -15,6 +15,7 @@ namespace Unicode {
 
 enum class SegmenterGranularity {
     Grapheme,
+    Line,
     Sentence,
     Word,
 };
