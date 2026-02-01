@@ -35,7 +35,7 @@ public:
     virtual RefPtr<Gfx::Font> default_font(float point_size) = 0;
     virtual Gfx::Font& default_fixed_width_font() = 0;
 
-    virtual FlyString generic_font_name(GenericFont) = 0;
+    virtual FlyString generic_font_name(GenericFont, int weight, int slope) = 0;
     virtual Vector<FlyString> symbol_font_names() = 0;
 
     virtual bool is_layout_test_mode() const = 0;
