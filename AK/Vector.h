@@ -20,6 +20,7 @@
 #include <AK/TypedTransfer.h>
 #include <AK/kmalloc.h>
 #include <initializer_list>
+#include <string.h>
 
 namespace AK {
 
@@ -351,7 +352,7 @@ public:
     ALWAYS_INLINE void unchecked_append(U&& value)
     requires(CanBePlacedInsideVector<U>)
     {
-        VERIFY(m_size < capacity());
+        ASSERT(m_size < capacity());
         if constexpr (want_fast_last_access) {
             ++m_metadata.last_slot;
             ++m_size;
@@ -501,7 +502,7 @@ public:
     {
         VERIFY(index < m_size);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(slot(index), slot(index + 1), m_size - index - 1);
         } else {
             at(index).~StorageType();
@@ -522,7 +523,7 @@ public:
         VERIFY(index + count > index);
         VERIFY(index + count <= m_size);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(slot(index), slot(index + count), m_size - index - count);
         } else {
             for (size_t i = index; i < index + count; i++)
@@ -554,7 +555,7 @@ public:
                 ++it;
                 next_remove_index = it != end ? to_index(it) : m_size;
             } else {
-                if constexpr (Traits<StorageType>::is_trivial()) {
+                if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
                     __builtin_memcpy(slot(write_index), slot(read_index), sizeof(StorageType));
                 } else {
                     new (slot(write_index)) StorageType(move(raw_at(read_index)));
@@ -694,7 +695,7 @@ public:
             return try_append(forward<U>(value));
         TRY(try_grow_capacity(size() + 1));
         ++m_size;
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyDestructible<StorageType> && IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::move(slot(index + 1), slot(index), m_size - index - 1);
         } else {
             for (size_t i = size() - 1; i > index; --i) {
@@ -752,7 +753,7 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_append(T&& value)
+    ALWAYS_INLINE ErrorOr<void> try_append(T&& value)
     {
         TRY(try_grow_capacity(size() + 1));
         if constexpr (contains_reference)
@@ -764,13 +765,13 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_append(T const& value)
+    ALWAYS_INLINE ErrorOr<void> try_append(T const& value)
     requires(!contains_reference)
     {
         return try_append(T(value));
     }
 
-    ErrorOr<void> try_append(StorageType const* values, size_t count)
+    ALWAYS_INLINE ErrorOr<void> try_append(StorageType const* values, size_t count)
     {
         if (count == 0)
             return {};
@@ -836,7 +837,7 @@ public:
         return {};
     }
 
-    ErrorOr<void> try_grow_capacity(size_t needed_capacity)
+    ALWAYS_INLINE ErrorOr<void> try_grow_capacity(size_t needed_capacity)
     {
         if (m_capacity >= needed_capacity)
             return {};
@@ -852,7 +853,7 @@ public:
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
 
-        if constexpr (Traits<StorageType>::is_trivial()) {
+        if constexpr (IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(new_buffer, data(), m_size);
         } else {
             for (size_t i = 0; i < m_size; ++i) {
@@ -878,8 +879,14 @@ public:
 
         TRY(try_ensure_capacity(new_size));
 
-        for (size_t i = size(); i < new_size; ++i)
-            new (slot(i)) StorageType {};
+        if constexpr (IsTriviallyConstructible<StorageType>) {
+            // For trivial types, we can just zero the new memory.
+            size_t old_size = size();
+            memset(slot(old_size), 0, (new_size - old_size) * sizeof(StorageType));
+        } else {
+            for (size_t i = size(); i < new_size; ++i)
+                new (slot(i)) StorageType {};
+        }
         m_size = new_size;
         update_metadata(); // We have *some* space, try_ensure_capacity above ensured nonzero.
         return {};
@@ -938,6 +945,17 @@ public:
         }
         m_size = new_size;
         update_metadata(); // We have *some* space, as new_size can't be zero here.
+    }
+
+    void unsafe_shrink(size_t new_size)
+    requires(want_fast_last_access)
+    {
+        if constexpr (!IsTriviallyDestructible<StorageType>) {
+            for (size_t i = new_size; i < size(); ++i)
+                at(i).~StorageType();
+        }
+        m_size = new_size;
+        update_metadata(); // We have at least an allocation, as we are not freeing anything.
     }
 
     void resize(size_t new_size, bool keep_capacity = false)
@@ -1054,7 +1072,7 @@ public:
     }
 
 private:
-    void reset_capacity()
+    ALWAYS_INLINE void reset_capacity()
     {
         m_capacity = inline_capacity;
     }

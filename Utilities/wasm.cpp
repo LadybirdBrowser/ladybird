@@ -441,7 +441,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
             Wasm::FunctionType function_type = { move(params), move(results) };
             auto host_function = Wasm::HostFunction {
-                [&vm, &function, formal_params, returns, name](Wasm::Configuration&, Vector<Wasm::Value>& args) mutable -> Wasm::Result {
+                [&vm, &function, formal_params, returns, name](Wasm::Configuration&, Span<Wasm::Value> args) mutable -> Wasm::Result {
                     Vector<JS::Value> js_args;
                     js_args.ensure_capacity(args.size());
                     for (size_t i = 0; i < formal_params.size(); ++i) {
@@ -671,7 +671,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     continue;
                 auto type = parse_result->type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
                 auto address = machine.store().allocate(Wasm::HostFunction(
-                    [name = entry.name, type = type](auto&, auto& arguments) -> Wasm::Result {
+                    [name = entry.name, type = type](auto&, auto arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
                         bool first = true;
                         size_t index = 0;
@@ -740,17 +740,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 }
 
                 TRY(g_stdout->write_until_depleted(ByteString::formatted("Function #{}{} (stack usage = {}):\n", address.value(), export_name, expression.stack_usage_hint())));
+
                 Wasm::Printer printer { *g_stdout, 1 };
                 for (size_t ip = 0; ip < expression.compiled_instructions.dispatches.size(); ++ip) {
                     auto& dispatch = expression.compiled_instructions.dispatches[ip];
+                    auto& addresses = expression.compiled_instructions.src_dst_mappings[ip];
                     ByteString regs;
                     auto first = true;
                     ssize_t in_count = 0;
-                    bool has_out = false;
+                    ssize_t out_count = 0;
 #define M(name, _, ins, outs)              \
     case Wasm::Instructions::name.value(): \
         in_count = ins;                    \
-        has_out = outs != 0;               \
+        out_count = outs;                  \
         break;
                     switch (dispatch.instruction->opcode().value()) {
                         ENUMERATE_WASM_OPCODES(M)
@@ -759,31 +761,43 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     constexpr auto reg_name = [](Wasm::Dispatch::RegisterOrStack reg) -> ByteString {
                         if (reg == Wasm::Dispatch::RegisterOrStack::Stack)
                             return "stack"sv;
+                        if (reg >= Wasm::Dispatch::RegisterOrStack::CallRecord)
+                            return ByteString::formatted("cr{}", to_underlying(reg) - to_underlying(Wasm::Dispatch::RegisterOrStack::CallRecord));
                         return ByteString::formatted("reg{}", to_underlying(reg));
                     };
                     if (in_count > -1) {
                         for (ssize_t index = 0; index < in_count; ++index) {
                             if (first)
-                                regs = ByteString::formatted("{} ({}", regs, reg_name(dispatch.sources[index]));
+                                regs = ByteString::formatted("{} ({}", regs, reg_name(addresses.sources[index]));
                             else
-                                regs = ByteString::formatted("{}, {}", regs, reg_name(dispatch.sources[index]));
+                                regs = ByteString::formatted("{}, {}", regs, reg_name(addresses.sources[index]));
                             first = false;
                         }
-                        if (has_out) {
+                        if (out_count > 0) {
                             if (first)
-                                regs = ByteString::formatted(" () -> {}", reg_name(dispatch.destination));
+                                regs = ByteString::formatted(" () -> {}", reg_name(addresses.destination));
                             else
-                                regs = ByteString::formatted("{}) -> {}", regs, reg_name(dispatch.destination));
-                        } else {
+                                regs = ByteString::formatted("{}) -> {}", regs, reg_name(addresses.destination));
+                        } else if (out_count == 0) {
                             if (first)
                                 regs = ByteString::formatted(" () -x");
                             else
                                 regs = ByteString::formatted("{}) -x", regs);
+                        } else {
+                            if (first)
+                                regs = ByteString::formatted(" () -?");
+                            else
+                                regs = ByteString::formatted("{}) -?", regs);
                         }
+                    } else if (dispatch.instruction->opcode() == Wasm::Instructions::call || dispatch.instruction->opcode() == Wasm::Instructions::call_indirect) {
+                        if (addresses.destination != Wasm::Dispatch::RegisterOrStack::Stack)
+                            regs = ByteString::formatted("(?) -> {}", reg_name(addresses.destination));
                     }
 
-                    if (!regs.is_empty())
-                        regs = ByteString::formatted(" {{{:<33} }}", regs);
+                    if (regs.is_empty())
+                        regs = ByteString::formatted(" {{{:-<34}}}", regs);
+                    else
+                        regs = ByteString::formatted(" {{{: <33} }}", regs);
 
                     TRY(g_stdout->write_until_depleted(ByteString::formatted("  [{:>03}]", ip)));
                     TRY(g_stdout->write_until_depleted(regs.bytes()));

@@ -489,7 +489,6 @@ namespace Instructions {
     M(synthetic_i32_addconstlocal, 0xfe00000000000001ull, 0, 1)  \
     M(synthetic_i32_andconstlocal, 0xfe00000000000002ull, 0, 1)  \
     M(synthetic_i32_storelocal, 0xfe00000000000003ull, 1, 0)     \
-    M(synthetic_i64_storelocal, 0xfe00000000000004ull, 1, 0)     \
     M(synthetic_local_seti32_const, 0xfe00000000000005ull, 0, 0) \
     M(synthetic_call_00, 0xfe00000000000006ull, 0, 0)            \
     M(synthetic_call_01, 0xfe00000000000007ull, 0, 1)            \
@@ -499,7 +498,52 @@ namespace Instructions {
     M(synthetic_call_21, 0xfe0000000000000bull, 2, 1)            \
     M(synthetic_call_30, 0xfe0000000000000cull, 3, 0)            \
     M(synthetic_call_31, 0xfe0000000000000dull, 3, 1)            \
-    M(synthetic_end_expression, 0xfe0000000000000eull, 0, 0)
+    M(synthetic_end_expression, 0xfe0000000000000eull, 0, 0)     \
+    M(synthetic_argument_get, 0xfe0000000000000full, 0, 1)       \
+    M(synthetic_argument_set, 0xfe00000000000010ull, 1, 0)       \
+    M(synthetic_argument_tee, 0xfe00000000000011ull, 1, 1)       \
+    M(synthetic_call_with_record_0, 0xfe00000000000012ull, 0, 0) \
+    M(synthetic_call_with_record_1, 0xfe00000000000013ull, 0, 1) \
+    M(synthetic_local_get_0, 0xfe00000000000014ull, 0, 1)        \
+    M(synthetic_local_get_1, 0xfe00000000000015ull, 0, 1)        \
+    M(synthetic_local_get_2, 0xfe00000000000016ull, 0, 1)        \
+    M(synthetic_local_get_3, 0xfe00000000000017ull, 0, 1)        \
+    M(synthetic_local_get_4, 0xfe00000000000018ull, 0, 1)        \
+    M(synthetic_local_get_5, 0xfe00000000000019ull, 0, 1)        \
+    M(synthetic_local_get_6, 0xfe0000000000001aull, 0, 1)        \
+    M(synthetic_local_get_7, 0xfe0000000000001bull, 0, 1)        \
+    M(synthetic_br_nostack, 0xfe0000000000001cull, 0, -1)        \
+    M(synthetic_br_if_nostack, 0xfe0000000000001dull, 1, -1)     \
+    M(synthetic_local_set_0, 0xfe0000000000001eull, 1, 0)        \
+    M(synthetic_local_set_1, 0xfe0000000000001full, 1, 0)        \
+    M(synthetic_local_set_2, 0xfe00000000000020ull, 1, 0)        \
+    M(synthetic_local_set_3, 0xfe00000000000021ull, 1, 0)        \
+    M(synthetic_local_set_4, 0xfe00000000000022ull, 1, 0)        \
+    M(synthetic_local_set_5, 0xfe00000000000023ull, 1, 0)        \
+    M(synthetic_local_set_6, 0xfe00000000000024ull, 1, 0)        \
+    M(synthetic_local_set_7, 0xfe00000000000025ull, 1, 0)        \
+    M(synthetic_local_copy, 0xfe00000000000026ull, 0, 0)         \
+    M(synthetic_i32_sub2local, 0xfe00000000000027ull, 0, 1)      \
+    M(synthetic_i32_mul2local, 0xfe00000000000028ull, 0, 1)      \
+    M(synthetic_i32_and2local, 0xfe00000000000029ull, 0, 1)      \
+    M(synthetic_i32_or2local, 0xfe0000000000002aull, 0, 1)       \
+    M(synthetic_i32_xor2local, 0xfe0000000000002bull, 0, 1)      \
+    M(synthetic_i32_shl2local, 0xfe0000000000002cull, 0, 1)      \
+    M(synthetic_i32_shru2local, 0xfe0000000000002dull, 0, 1)     \
+    M(synthetic_i32_shrs2local, 0xfe0000000000002eull, 0, 1)     \
+    M(synthetic_i64_add2local, 0xfe0000000000002full, 0, 1)      \
+    M(synthetic_i64_addconstlocal, 0xfe00000000000030ull, 0, 1)  \
+    M(synthetic_i64_andconstlocal, 0xfe00000000000031ull, 0, 1)  \
+    M(synthetic_i64_storelocal, 0xfe00000000000032ull, 1, 0)     \
+    M(synthetic_i64_sub2local, 0xfe00000000000033ull, 0, 1)      \
+    M(synthetic_i64_mul2local, 0xfe00000000000034ull, 0, 1)      \
+    M(synthetic_i64_and2local, 0xfe00000000000035ull, 0, 1)      \
+    M(synthetic_i64_or2local, 0xfe00000000000036ull, 0, 1)       \
+    M(synthetic_i64_xor2local, 0xfe00000000000037ull, 0, 1)      \
+    M(synthetic_i64_shl2local, 0xfe00000000000038ull, 0, 1)      \
+    M(synthetic_i64_shru2local, 0xfe00000000000039ull, 0, 1)     \
+    M(synthetic_i64_shrs2local, 0xfe0000000000003aull, 0, 1)     \
+    M(synthetic_local_seti64_const, 0xfe0000000000003bull, 0, 0)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
@@ -510,7 +554,7 @@ ENUMERATE_WASM_OPCODES(M)
 #undef M
 
 static constexpr inline OpCode SyntheticInstructionBase = 0xfe00000000000000ull;
-static constexpr inline size_t SyntheticInstructionCount = 15;
+static constexpr inline size_t SyntheticInstructionCount = 61;
 
 }
 

@@ -188,6 +188,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         return InstantiationError { ByteString::formatted("Validation failed: {}", result.error()) };
 
     auto main_module_instance_pointer = make<ModuleInstance>();
+    main_module_instance_pointer->cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
     auto& main_module_instance = *main_module_instance_pointer;
 
     main_module_instance.types() = module.type_section().types();
@@ -195,6 +196,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     Vector<Value> global_values;
     Vector<Vector<Reference>> elements;
     ModuleInstance auxiliary_instance;
+
+    auxiliary_instance.cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
 
     for (auto [i, import_] : enumerate(module.import_section().imports())) {
         auto extern_ = externs.at(i);
@@ -291,12 +294,11 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         Configuration config { m_store };
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
-        config.set_frame(Frame {
+        config.set_frame(IsTailcall::No,
             auxiliary_instance,
-            Vector<Value> {},
+            Vector<Value, ArgumentsStaticSize> {},
             entry.expression(),
-            1,
-        });
+            1);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Global instantiation trapped", move(result.trap()) };
@@ -313,12 +315,11 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             Configuration config { m_store };
             if (m_should_limit_instruction_count)
                 config.enable_instruction_count_limit();
-            config.set_frame(Frame {
+            config.set_frame(IsTailcall::No,
                 main_module_instance,
-                Vector<Value> {},
+                Vector<Value, ArgumentsStaticSize> {},
                 entry,
-                entry.instructions().size() - 1,
-            });
+                entry.instructions().size() - 1);
             auto result = config.execute(interpreter);
             if (result.is_trap())
                 return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
@@ -348,12 +349,11 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         Configuration config { m_store };
         if (m_should_limit_instruction_count)
             config.enable_instruction_count_limit();
-        config.set_frame(Frame {
+        config.set_frame(IsTailcall::No,
             main_module_instance,
-            Vector<Value> {},
+            Vector<Value, ArgumentsStaticSize> {},
             active_ptr->expression,
-            1,
-        });
+            1);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
@@ -383,12 +383,11 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 Configuration config { m_store };
                 if (m_should_limit_instruction_count)
                     config.enable_instruction_count_limit();
-                config.set_frame(Frame {
+                config.set_frame(IsTailcall::No,
                     main_module_instance,
-                    Vector<Value> {},
+                    Vector<Value, ArgumentsStaticSize> {},
                     data.offset,
-                    1,
-                });
+                    1);
                 auto result = config.execute(interpreter);
                 if (result.is_trap())
                     return InstantiationError { "Data section initialisation trapped", move(result.trap()) };
@@ -561,7 +560,9 @@ Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address
     Configuration configuration { m_store };
     if (m_should_limit_instruction_count)
         configuration.enable_instruction_count_limit();
-    return configuration.call(interpreter, address, move(arguments));
+
+    Vector<Value, ArgumentsStaticSize> args = move(arguments);
+    return configuration.call(interpreter, address, args);
 }
 
 void Linker::link(ModuleInstance const& instance)
