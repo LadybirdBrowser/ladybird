@@ -48,6 +48,7 @@
 #include <LibWeb/Layout/CheckBox.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/RadioButton.h>
+#include <LibWeb/Layout/TextInputBox.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
@@ -136,16 +137,28 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::Computed
         return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
     }
 
-    if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
+    switch (type_state()) {
+
+    case TypeAttributeState::SubmitButton:
+    case TypeAttributeState::Button:
+    case TypeAttributeState::ResetButton:
         return heap().allocate<Layout::BlockContainer>(document(), this, move(style));
-
-    if (type_state() == TypeAttributeState::Checkbox)
+    case TypeAttributeState::Checkbox:
         return heap().allocate<Layout::CheckBox>(document(), *this, move(style));
-
-    if (type_state() == TypeAttributeState::RadioButton)
+    case TypeAttributeState::RadioButton:
         return heap().allocate<Layout::RadioButton>(document(), *this, move(style));
-
-    return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Search:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::Email:
+    case TypeAttributeState::Password:
+    case TypeAttributeState::Number:
+        // FIXME: text padding issues
+        return heap().allocate<Layout::TextInputBox>(document(), *this, move(style));
+    default:
+        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    }
 }
 
 void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)

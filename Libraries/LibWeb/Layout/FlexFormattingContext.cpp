@@ -97,10 +97,6 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
     // 3. Determine the flex base size and hypothetical main size of each item
     for (auto& item : m_flex_items) {
-        if (item.box->is_replaced_box()) {
-            // FIXME: Get rid of prepare_for_replaced_layout() and make replaced elements figure out their intrinsic size lazily.
-            static_cast<ReplacedBox&>(*item.box).prepare_for_replaced_layout();
-        }
         determine_flex_base_size(item);
     }
 
@@ -775,8 +771,9 @@ void FlexFormattingContext::determine_flex_base_size(FlexItem& item)
     //         - using stretch-fit main size if the flex basis is indefinite, there is no
     //           intrinsic size and no cross size to resolve the ratio against.
     //         - in response to cross size min/max constraints.
-    if (item.box->has_natural_aspect_ratio()) {
-        if (!item.used_flex_basis_is_definite && !item.box->has_natural_width() && !item.box->has_natural_height() && !has_definite_cross_size(item)) {
+    auto auto_size = item.box->auto_content_box_size();
+    if (auto_size.has_aspect_ratio()) {
+        if (!item.used_flex_basis_is_definite && !auto_size.has_width() && !auto_size.has_height() && !has_definite_cross_size(item)) {
             item.flex_base_size = inner_main_size(m_flex_container_state);
         }
         item.flex_base_size = adjust_main_size_through_aspect_ratio_for_cross_size_min_max_constraints(child_box, item.flex_base_size, computed_cross_min_size(child_box), computed_cross_max_size(child_box));
@@ -1187,7 +1184,8 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     }
 
     if (item.box->has_preferred_aspect_ratio()) {
-        if (item.used_flex_basis_is_definite || (item.box->has_natural_width() && item.box->has_natural_height())) {
+        auto auto_size = item.box->auto_content_box_size();
+        if (item.used_flex_basis_is_definite || (auto_size.has_width() && auto_size.has_height())) {
             item.hypothetical_cross_size = calculate_cross_size_from_main_size_and_aspect_ratio(item.main_size.value(), item.box->preferred_aspect_ratio().value());
             return;
         }
@@ -2042,13 +2040,14 @@ bool FlexFormattingContext::should_treat_cross_max_size_as_none(Box const& box) 
 
 CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexItem const& item, bool resolve_percentage_min_max_sizes) const
 {
+    bool cross_size_auto = should_treat_cross_size_as_auto(item.box);
     auto size = [&] {
-        if (should_treat_cross_size_as_auto(item.box))
+        if (cross_size_auto)
             return calculate_min_content_cross_size(item);
         return !is_row_layout() ? get_pixel_width(item, computed_cross_size(item.box)) : get_pixel_height(item, computed_cross_size(item.box));
     }();
 
-    if (item.box->has_preferred_aspect_ratio())
+    if (cross_size_auto && item.box->has_preferred_aspect_ratio())
         size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);
@@ -2064,13 +2063,14 @@ CSSPixels FlexFormattingContext::calculate_cross_min_content_contribution(FlexIt
 
 CSSPixels FlexFormattingContext::calculate_cross_max_content_contribution(FlexItem const& item, bool resolve_percentage_min_max_sizes) const
 {
+    bool cross_size_auto = should_treat_cross_size_as_auto(item.box);
     auto size = [&] {
-        if (should_treat_cross_size_as_auto(item.box))
+        if (cross_size_auto)
             return calculate_max_content_cross_size(item);
         return !is_row_layout() ? get_pixel_width(item, computed_cross_size(item.box)) : get_pixel_height(item, computed_cross_size(item.box));
     }();
 
-    if (item.box->has_preferred_aspect_ratio())
+    if (cross_size_auto && item.box->has_preferred_aspect_ratio())
         size = adjust_cross_size_through_aspect_ratio_for_main_size_min_max_constraints(item.box, size, computed_main_min_size(item.box), computed_main_max_size(item.box));
 
     auto const& computed_min_size = this->computed_cross_min_size(item.box);

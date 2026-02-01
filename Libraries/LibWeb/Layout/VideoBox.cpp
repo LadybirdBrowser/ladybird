@@ -37,18 +37,13 @@ HTML::HTMLVideoElement const& VideoBox::dom_node() const
     return static_cast<HTML::HTMLVideoElement const&>(*ReplacedBox::dom_node());
 }
 
-void VideoBox::prepare_for_replaced_layout()
+CSS::SizeWithAspectRatio VideoBox::natural_size() const
 {
     CSSPixels width = dom_node().video_width();
-    set_natural_width(width);
-
     CSSPixels height = dom_node().video_height();
-    set_natural_height(height);
-
-    if (width != 0 && height != 0)
-        set_natural_aspect_ratio(width / height);
-    else
-        set_natural_aspect_ratio({});
+    if (width > 0 && height > 0)
+        return { width, height, CSSPixelFraction(width, height) };
+    return { width, height, {} };
 }
 
 void VideoBox::did_set_viewport_rect(CSSPixelRect const&)
