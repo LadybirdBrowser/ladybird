@@ -15,8 +15,8 @@ class AVIFLoadingContext;
 
 class AVIFImageDecoderPlugin final : public ImageDecoderPlugin {
 public:
-    static bool sniff(ReadonlyBytes);
-    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(ReadonlyBytes);
+    static bool sniff(NonnullRefPtr<ImageDecoderStream>);
+    static ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> create(NonnullRefPtr<ImageDecoderStream>);
 
     virtual ~AVIFImageDecoderPlugin() override;
 
@@ -30,7 +30,7 @@ public:
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() override;
 
 private:
-    AVIFImageDecoderPlugin(ReadonlyBytes, OwnPtr<AVIFLoadingContext>);
+    AVIFImageDecoderPlugin(OwnPtr<AVIFLoadingContext>);
 
     OwnPtr<AVIFLoadingContext> m_context;
 };

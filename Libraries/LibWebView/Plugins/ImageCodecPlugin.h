@@ -18,7 +18,9 @@ public:
     explicit ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
     virtual ~ImageCodecPlugin() override;
 
-    virtual NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
+    virtual PendingDecode start_decoding_image(Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
+    virtual void partial_image_data_became_available(PendingDecode const& pending_decode, ReadonlyBytes encoded_data) override;
+    virtual void no_more_data_for_image(PendingDecode const& pending_decode) override;
 
     void set_client(NonnullRefPtr<ImageDecoderClient::Client>);
 

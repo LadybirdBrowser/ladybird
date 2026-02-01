@@ -6,7 +6,7 @@
 
 #pragma once
 
-namespace WebContent {
+namespace ImageDecoder {
 
 class ConnectionFromClient;
 class PageHost;

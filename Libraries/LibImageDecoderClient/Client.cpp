@@ -22,7 +22,7 @@ void Client::die()
     m_pending_decoded_images.clear();
 }
 
-NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes encoded_data, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
+InFlightDecoding Client::start_decoding_image(Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type)
 {
     auto promise = Core::Promise<DecodedImage>::construct();
     if (on_resolved)
@@ -30,31 +30,32 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     if (on_rejected)
         promise->on_rejection = move(on_rejected);
 
-    if (encoded_data.is_empty()) {
-        promise->reject(Error::from_string_literal("No encoded data"));
-        return promise;
-    }
-
-    auto encoded_buffer_or_error = Core::AnonymousBuffer::create_with_size(encoded_data.size());
-    if (encoded_buffer_or_error.is_error()) {
-        dbgln("Could not allocate encoded buffer: {}", encoded_buffer_or_error.error());
-        promise->reject(encoded_buffer_or_error.release_error());
-        return promise;
-    }
-    auto encoded_buffer = encoded_buffer_or_error.release_value();
-
-    memcpy(encoded_buffer.data<void>(), encoded_data.data(), encoded_data.size());
-
-    auto response = send_sync_but_allow_failure<Messages::ImageDecoderServer::DecodeImage>(move(encoded_buffer), ideal_size, mime_type);
+    auto response = send_sync_but_allow_failure<Messages::ImageDecoderServer::StartDecodingImage>(ideal_size, mime_type);
     if (!response) {
         dbgln("ImageDecoder disconnected trying to decode image");
         promise->reject(Error::from_string_literal("ImageDecoder disconnected"));
-        return promise;
+        return InFlightDecoding {
+            .image_id = -1,
+            .promise = promise,
+        };
     }
 
     m_pending_decoded_images.set(response->image_id(), promise);
 
-    return promise;
+    return InFlightDecoding {
+        .image_id = response->image_id(),
+        .promise = promise,
+    };
+}
+
+void Client::partial_image_data_became_available(i64 image_id, ReadonlyBytes encoded_data)
+{
+    async_partial_image_data_became_available(image_id, encoded_data);
+}
+
+void Client::no_more_data_for_image(i64 image_id)
+{
+    async_no_more_data_for_image(image_id);
 }
 
 void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence bitmap_sequence, Vector<u32> durations, Gfx::FloatPoint scale, Gfx::ColorSpace color_space)

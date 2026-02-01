@@ -35,7 +35,14 @@ public:
 
     virtual ~ImageCodecPlugin();
 
-    virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, ESCAPING Function<ErrorOr<void>(DecodedImage&)> on_resolved, ESCAPING Function<void(Error&)> on_rejected) = 0;
+    struct PendingDecode {
+        i64 image_id { 0 };
+        NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> promise;
+    };
+
+    virtual PendingDecode start_decoding_image(ESCAPING Function<ErrorOr<void>(DecodedImage&)> on_resolved, ESCAPING Function<void(Error&)> on_rejected) = 0;
+    virtual void partial_image_data_became_available(PendingDecode const& pending_decode, ReadonlyBytes encoded_data) = 0;
+    virtual void no_more_data_for_image(PendingDecode const& pending_decode) = 0;
 };
 
 }

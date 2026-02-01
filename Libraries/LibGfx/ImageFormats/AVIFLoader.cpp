@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <LibGfx/ImageFormats/AVIFLoader.h>
+#include <LibGfx/ImageFormats/ImageDecoderStream.h>
 
 #include <avif/avif.h>
 
@@ -26,9 +27,11 @@ public:
     };
 
     State state { State::NotDecoded };
-    ReadonlyBytes data;
+    NonnullRefPtr<ImageDecoderStream> data;
+    ByteBuffer current_read_buffer;
 
     avifDecoder* decoder { nullptr };
+    avifIO io {};
 
     // image properties
     Optional<IntSize> size;
@@ -39,7 +42,44 @@ public:
 
     Vector<ImageFrameDescriptor> frame_descriptors;
 
-    AVIFLoadingContext() = default;
+    AVIFLoadingContext(NonnullRefPtr<ImageDecoderStream> stream)
+        : data(move(stream))
+    {
+        // Since we don't know the size straight away, we have to set a reasonable limit.
+        io.sizeHint = NumericLimits<u32>::max();
+
+        // We don't preserve the read buffer between read calls, so the data is not persistent.
+        io.persistent = AVIF_FALSE;
+
+        io.data = this;
+
+        io.read = [](avifIO* io, u32 read_flags, u64 offset, size_t size, avifROData* out) -> avifResult {
+            auto* loading_context = static_cast<AVIFLoadingContext*>(io->data);
+
+            if (read_flags != 0)
+                return AVIF_RESULT_IO_ERROR;
+
+            auto maybe_seek_error = loading_context->data->seek(offset, SeekMode::SetPosition);
+            if (maybe_seek_error.is_error())
+                return AVIF_RESULT_IO_ERROR;
+
+            auto maybe_buffer_error = ByteBuffer::create_uninitialized(size);
+            if (maybe_buffer_error.is_error())
+                return AVIF_RESULT_OUT_OF_MEMORY;
+
+            loading_context->current_read_buffer = maybe_buffer_error.release_value();
+
+            auto maybe_read_error = loading_context->data->read_some(loading_context->current_read_buffer.span());
+            if (maybe_read_error.is_error())
+                return AVIF_RESULT_IO_ERROR;
+
+            auto read_result = maybe_read_error.release_value();
+            out->data = read_result.data();
+            out->size = read_result.size();
+            return AVIF_RESULT_OK;
+        };
+    }
+
     ~AVIFLoadingContext()
     {
         avifDecoderDestroy(decoder);
@@ -47,10 +87,9 @@ public:
     }
 };
 
-AVIFImageDecoderPlugin::AVIFImageDecoderPlugin(ReadonlyBytes data, OwnPtr<AVIFLoadingContext> context)
+AVIFImageDecoderPlugin::AVIFImageDecoderPlugin(OwnPtr<AVIFLoadingContext> context)
     : m_context(move(context))
 {
-    m_context->data = data;
 }
 
 AVIFImageDecoderPlugin::~AVIFImageDecoderPlugin()
@@ -75,11 +114,9 @@ static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
         context.decoder->strictFlags &= ~AVIF_STRICT_PIXI_REQUIRED;
     }
 
-    avifResult result = avifDecoderSetIOMemory(context.decoder, context.data.data(), context.data.size());
-    if (result != AVIF_RESULT_OK)
-        return Error::from_string_literal("Cannot set IO on avifDecoder");
+    avifDecoderSetIO(context.decoder, &context.io);
 
-    result = avifDecoderParse(context.decoder);
+    avifResult result = avifDecoderParse(context.decoder);
     if (result != AVIF_RESULT_OK)
         return Error::from_string_literal("Failed to decode AVIF");
 
@@ -131,17 +168,16 @@ IntSize AVIFImageDecoderPlugin::size()
     return m_context->size.value();
 }
 
-bool AVIFImageDecoderPlugin::sniff(ReadonlyBytes data)
+bool AVIFImageDecoderPlugin::sniff(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    AVIFLoadingContext context;
-    context.data = data;
-    return !decode_avif_header(context).is_error();
+    auto context = make<AVIFLoadingContext>(move(stream));
+    return !decode_avif_header(*context).is_error();
 }
 
-ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> AVIFImageDecoderPlugin::create(ReadonlyBytes data)
+ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> AVIFImageDecoderPlugin::create(NonnullRefPtr<ImageDecoderStream> stream)
 {
-    auto context = TRY(try_make<AVIFLoadingContext>());
-    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) AVIFImageDecoderPlugin(data, move(context))));
+    auto context = make<AVIFLoadingContext>(move(stream));
+    auto plugin = TRY(adopt_nonnull_own_or_enomem(new (nothrow) AVIFImageDecoderPlugin(move(context))));
     TRY(decode_avif_header(*plugin->m_context));
     return plugin;
 }
