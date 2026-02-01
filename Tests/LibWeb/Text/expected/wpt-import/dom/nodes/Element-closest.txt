@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 29 tests
 
-28 Pass
-1 Fail
+29 Pass
 Pass	Element.closest with context node 'test12' and selector 'select'
 Pass	Element.closest with context node 'test13' and selector 'fieldset'
 Pass	Element.closest with context node 'test13' and selector 'div'
@@ -32,4 +31,4 @@ Pass	Element.closest with context node 'test11' and selector ':invalid'
 Pass	Element.closest with context node 'test4' and selector ':scope'
 Pass	Element.closest with context node 'test4' and selector 'select > :scope'
 Pass	Element.closest with context node 'test4' and selector 'div > :scope'
-Fail	Element.closest with context node 'test4' and selector ':has(> :scope)'
+Pass	Element.closest with context node 'test4' and selector ':has(> :scope)'
