@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Parser.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
@@ -511,7 +512,9 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                     move(function_name),
                     realm,
                     environment,
-                    private_environment);
+                    private_environment,
+                    MakeConstructor::Invoke,
+                    nullptr);
 
                 // 2. Perform ! env.InitializeBinding(dn, fo, normal).
                 MUST(environment->initialize_binding(vm, name, function, Environment::InitializeBindingHint::Normal));

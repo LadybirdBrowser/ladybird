@@ -12,6 +12,7 @@
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/FormatOperand.h>
+#include <LibJS/Bytecode/FunctionDefinitionKind.h>
 #include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -1022,8 +1023,11 @@ inline ThrowCompletionOr<void> throw_if_needed_for_call(Interpreter& interpreter
 }
 
 // 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString const& given_name)
+static Value instantiate_ordinary_function_expression(Interpreter& interpreter, FunctionNode const& function_node, Utf16FlyString const& given_name, MakeConstructor make_constructor)
 {
+    // NB:  If make_constructor is Invoke, this acts like 15.2.5 (Function Expression) and calls MakeConstructor internally;
+    // if it's Skip, it acts like 15.4.4 (DefineMethod) and skips MakeConstructor.
+
     auto own_name = function_node.name();
     auto has_own_name = !own_name.is_empty();
 
@@ -1037,10 +1041,9 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
 
     auto private_environment = interpreter.running_execution_context().private_environment;
 
-    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment);
+    auto closure = ECMAScriptFunctionObject::create_from_function_node(function_node, used_name, interpreter.realm(), environment, private_environment, make_constructor, nullptr);
 
     // FIXME: 6. Perform SetFunctionName(closure, name).
-    // FIXME: 7. Perform MakeConstructor(closure).
 
     if (has_own_name)
         MUST(environment->initialize_binding(interpreter.vm(), own_name, closure, Environment::InitializeBindingHint::Normal));
@@ -1048,23 +1051,29 @@ static Value instantiate_ordinary_function_expression(Interpreter& interpreter, 
     return closure;
 }
 
-inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object)
+inline Value new_function(Interpreter& interpreter, FunctionNode const& function_node, Optional<IdentifierTableIndex> const lhs_name, Optional<Operand> const home_object, FunctionDefinitionKind definition_kind)
 {
     auto& vm = interpreter.vm();
     Value value;
 
+    auto make_constructor = definition_kind == FunctionDefinitionKind::MethodDefinition
+        ? MakeConstructor::Skip
+        : MakeConstructor::Invoke;
+
     if (!function_node.has_name()) {
         if (lhs_name.has_value())
-            value = instantiate_ordinary_function_expression(interpreter, function_node, interpreter.get_identifier(lhs_name.value()));
+            value = instantiate_ordinary_function_expression(interpreter, function_node, interpreter.get_identifier(lhs_name.value()), make_constructor);
         else
-            value = instantiate_ordinary_function_expression(interpreter, function_node, {});
+            value = instantiate_ordinary_function_expression(interpreter, function_node, {}, make_constructor);
     } else {
         value = ECMAScriptFunctionObject::create_from_function_node(
             function_node,
             function_node.name(),
             *vm.current_realm(),
             vm.lexical_environment(),
-            vm.running_execution_context().private_environment);
+            vm.running_execution_context().private_environment,
+            make_constructor,
+            nullptr);
     }
 
     if (home_object.has_value()) {
@@ -2853,7 +2862,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
 void NewFunction::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object));
+    interpreter.set(dst(), new_function(interpreter, m_function_node, m_lhs_name, m_home_object, m_definition_kind));
 }
 
 void Return::execute_impl(Bytecode::Interpreter& interpreter) const
