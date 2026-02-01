@@ -489,4 +489,9 @@ void Internals::perform_per_test_cleanup()
     m_gamepads.clear();
 }
 
+void Internals::set_highlighted_node(GC::Ptr<DOM::Node> node)
+{
+    window().associated_document().set_highlighted_node(node, {});
+}
+
 }
