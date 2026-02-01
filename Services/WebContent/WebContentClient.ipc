@@ -75,18 +75,22 @@ endpoint WebContentClient
     did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) =|
 
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
+
+    did_request_document_cookie_version_index(u64 page_id, i64 document_id, String domain) =|
     did_request_all_cookies_webdriver(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
     did_request_all_cookies_cookiestore(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)
     did_request_named_cookie(URL::URL url, String name) => (Optional<Web::Cookie::Cookie> cookie)
-    did_request_cookie(URL::URL url, Web::Cookie::Source source) => (String cookie)
+    did_request_cookie(u64 page_id, URL::URL url, Web::Cookie::Source source) => (Web::Cookie::VersionedCookie cookie)
     did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source) => ()
     did_update_cookie(Web::Cookie::Cookie cookie) =|
     did_expire_cookies_with_time_offset(AK::Duration offset) =|
+
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)
     did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageSetResult result)
     did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => ()
     did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<String> keys)
     did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
+
     did_update_resource_count(u64 page_id, i32 count_waiting) =|
     did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) => (String handle)
     did_request_activate_tab(u64 page_id) =|

@@ -1,3 +1,4 @@
+#include <LibCore/SharedVersion.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>
 #include <LibURL/URL.h>
@@ -134,5 +135,7 @@ endpoint WebContentServer
 
     system_time_zone_changed() =|
 
+    set_document_cookie_version_buffer(u64 page_id, Core::AnonymousBuffer document_cookie_version_buffer) =|
+    set_document_cookie_version_index(u64 page_id, i64 document_id, Core::SharedVersionIndex document_index) =|
     cookies_changed(u64 page_id, Vector<Web::Cookie::Cookie> cookies) =|
 }

@@ -1729,7 +1729,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 //    with the user agent’s cookie store and httpRequest’s current URL.
                 auto cookies = ([&] {
                     auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
-                    return page.client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http);
+                    return page.client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http).cookie;
                 })();
 
                 // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.

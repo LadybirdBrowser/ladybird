@@ -27,6 +27,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWebView/SiteIsolation.h>
+#include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/PageClient.h>
@@ -489,6 +490,28 @@ void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
     client().async_did_change_favicon(m_id, favicon.to_shareable_bitmap());
 }
 
+Optional<Core::SharedVersion> PageClient::page_did_request_document_cookie_version(Core::SharedVersionIndex document_index)
+{
+    return Core::get_shared_version(m_document_cookie_version_buffer, document_index);
+}
+
+void PageClient::page_did_receive_document_cookie_version_buffer(Core::AnonymousBuffer document_cookie_version_buffer)
+{
+    m_document_cookie_version_buffer = move(document_cookie_version_buffer);
+}
+
+void PageClient::page_did_request_document_cookie_version_index(Web::UniqueNodeID document_id, String const& domain)
+{
+    // FIXME: Support transferring DistinctNumeric over IPC.
+    client().async_did_request_document_cookie_version_index(m_id, document_id.value(), domain);
+}
+
+void PageClient::page_did_receive_document_cookie_version_index(Web::UniqueNodeID document_id, Core::SharedVersionIndex document_index)
+{
+    if (auto* document = as_if<Web::DOM::Document>(Web::DOM::Node::from_unique_id(document_id)))
+        document->set_cookie_version_index(document_index);
+}
+
 Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url)
 {
     return client().did_request_all_cookies_webdriver(url);
@@ -504,9 +527,9 @@ Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL
     return client().did_request_named_cookie(url, name);
 }
 
-String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
+Web::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(url, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, url, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
         exit(0);
@@ -526,11 +549,19 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
 void PageClient::page_did_update_cookie(Web::Cookie::Cookie const& cookie)
 {
     client().async_did_update_cookie(cookie);
+
+    // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
+    if (auto* document = page().top_level_browsing_context().active_document())
+        document->reset_cookie_version();
 }
 
 void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
 {
     client().async_did_expire_cookies_with_time_offset(offset);
+
+    // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
+    if (auto* document = page().top_level_browsing_context().active_document())
+        document->reset_cookie_version();
 }
 
 Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)

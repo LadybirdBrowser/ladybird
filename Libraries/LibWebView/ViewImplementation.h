@@ -16,6 +16,7 @@
 #include <AK/Utf16String.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
+#include <LibCore/SharedVersion.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibHTTP/Header.h>
@@ -86,7 +87,9 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
 
-    void notify_cookies_changed(ReadonlySpan<Web::Cookie::Cookie>);
+    void notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<Web::Cookie::Cookie>);
+    ErrorOr<Core::SharedVersionIndex> ensure_document_cookie_version_index(Badge<WebContentClient>, String const&);
+    Optional<Core::SharedVersion> document_cookie_version(URL::URL const&) const;
 
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
@@ -367,6 +370,9 @@ protected:
     size_t m_number_of_elements_playing_audio { 0 };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    Core::AnonymousBuffer m_document_cookie_version_buffer;
+    HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;
 
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.

@@ -228,3 +228,21 @@ ErrorOr<Web::Cookie::Cookie> IPC::decode(Decoder& decoder)
 
     return Web::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::VersionedCookie const& cookie)
+{
+    TRY(encoder.encode(cookie.cookie_version));
+    TRY(encoder.encode(cookie.cookie));
+
+    return {};
+}
+
+template<>
+ErrorOr<Web::Cookie::VersionedCookie> IPC::decode(Decoder& decoder)
+{
+    auto cookie_version = TRY(decoder.decode<Optional<Core::SharedVersion>>());
+    auto cookie = TRY(decoder.decode<String>());
+
+    return Web::Cookie::VersionedCookie { cookie_version, move(cookie) };
+}
