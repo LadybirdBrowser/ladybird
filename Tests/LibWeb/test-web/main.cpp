@@ -1447,6 +1447,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     return s_fail_count + s_timeout_count + s_crashed_count + tests_remaining;
 }
 
+#if !defined(AK_OS_WINDOWS)
 static void handle_signal(int signal)
 {
     VERIFY(signal == SIGINT || signal == SIGTERM);
@@ -1481,6 +1482,7 @@ static void handle_signal(int signal)
             ? Error::from_string_view("SIGINT received"sv)
             : Error::from_string_view("SIGTERM received"sv));
 }
+#endif
 
 }
 
@@ -1492,8 +1494,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
 
+    // FIXME: Implement equivalent test interruption on Windows
+#if !defined(AK_OS_WINDOWS)
     Core::EventLoop::register_signal(SIGINT, TestWeb::handle_signal);
     Core::EventLoop::register_signal(SIGTERM, TestWeb::handle_signal);
+#endif
 
     auto theme_path = LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
