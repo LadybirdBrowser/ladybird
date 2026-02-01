@@ -108,6 +108,7 @@ void ViewportPaintable::assign_scroll_frames()
         sticky_frame.set_sticky_constraints({
             .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
             .border_box_size = sticky_border_box_rect.size(),
+            .scrollport_size = scroll_ancestor_paintable.absolute_rect().size(),
             .containing_block_region = containing_block_region,
             .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
             .insets = paintable_box.sticky_insets(),
@@ -380,7 +381,7 @@ void ViewportPaintable::refresh_scroll_state()
             containing_block_region.bottom() - sticky_data.border_box_size.height()
         };
 
-        CSSPixelRect scrollport_rect { scroll_ancestor_paintable.scroll_offset(), scroll_ancestor_paintable.absolute_rect().size() };
+        CSSPixelRect scrollport_rect { scroll_ancestor_paintable.scroll_offset(), sticky_data.scrollport_size };
         CSSPixelPoint sticky_offset;
 
         if (sticky_insets.top.has_value()) {
