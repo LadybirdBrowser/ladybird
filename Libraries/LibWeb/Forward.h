@@ -1257,6 +1257,12 @@ struct OscillatorOptions;
 
 }
 
+namespace Web::WebCodecs {
+
+class AudioData;
+
+}
+
 namespace Web::WebGL {
 
 class OpenGLContext;

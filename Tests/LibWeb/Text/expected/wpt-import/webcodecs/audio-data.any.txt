@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Verify AudioData constructors
+Pass	AudioData close
+Pass	Verify closing and cloning AudioData
+Pass	Test we can construct AudioData with a negative timestamp.
+Pass	Test input array is copied on construction
+Pass	Test that copyTo throws if copying from interleaved with a non-zero planeIndex
+Pass	Test conversion of u8 to u8
+Pass	Test conversion of u8 to s16
+Pass	Test conversion of u8 to s32
+Pass	Test conversion of u8 to f32
+Pass	Test conversion of s16 to u8
+Pass	Test conversion of s16 to s16
+Pass	Test conversion of s16 to s32
+Pass	Test conversion of s16 to f32
+Pass	Test conversion of s32 to u8
+Pass	Test conversion of s32 to s16
+Pass	Test conversion of s32 to s32
+Pass	Test conversion of s32 to f32
+Pass	Test conversion of f32 to u8
+Pass	Test conversion of f32 to s16
+Pass	Test conversion of f32 to s32
+Pass	Test conversion of f32 to f32
