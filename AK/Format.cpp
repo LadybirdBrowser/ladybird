@@ -1186,17 +1186,8 @@ ErrorOr<void> Formatter<Error>::format_windows_error(FormatBuilder&, Error const
 
 ErrorOr<void> Formatter<Error>::format(FormatBuilder& builder, Error const& error)
 {
-    switch (error.kind()) {
-    case Error::Kind::Syscall:
-        return Formatter<FormatString>::format(builder, "{}: {} (errno={})"sv, error.string_literal(), strerror(error.code()), error.code());
-    case Error::Kind::Errno:
-        return Formatter<FormatString>::format(builder, "{} (errno={})"sv, strerror(error.code()), error.code());
-    case Error::Kind::Windows:
-        return Formatter<Error>::format_windows_error(builder, error);
-    case Error::Kind::StringLiteral:
-        return Formatter<FormatString>::format(builder, "{}"sv, error.string_literal());
-    }
-    VERIFY_NOT_REACHED();
+    Formatter<FormatString> formatter;
+    return formatter.format(builder, "{}"sv, TRY(error.format_impl<ErrorOr<String>>()));
 }
 
 #ifdef AK_OS_ANDROID
