@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 17 tests
+
+14 Pass
+3 Fail
+Pass	String attribute setter should throw if this value is invalid
+Pass	String attribute setter should treat no arguments as undefined
+Pass	String attribute setter called with undefined should behave in the same way as no arguments
+Pass	String attribute setter called with string should just work
+Pass	Object attribute setter should throw if this value is invalid
+Pass	Object attribute setter should treat no arguments as undefined
+Pass	Object attribute setter called with undefined should behave in the same way as no arguments
+Pass	[Replaceable] setter should treat no arguments as undefined
+Pass	[Replaceable] setter called with undefined should behave in the same way as no arguments
+Pass	[Replaceable] setter called with other value should just work
+Fail	[LegacyLenientThis] setter should not throw even if this value is invalid, regardless of the arguments count
+Pass	[LegacyLenientThis] setter should treat no arguments as undefined
+Pass	[LegacyLenientThis] setter called with undefined should behave in the same way as no arguments
+Fail	[LegacyLenientSetter] setter should treat no arguments as undefined
+Fail	[LegacyLenientSetter] setter called with undefined should behave in the same way as no arguments
+Pass	[PutForward] setter should treat no arguments as undefined
+Pass	[PutForward] setter called with undefined should behave in the same way as no arguments
