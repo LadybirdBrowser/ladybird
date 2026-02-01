@@ -1060,7 +1060,7 @@
                 <button class="file-input-btn" onclick="document.getElementById('file-input').click()">
                     Choose File
                 </button>
-                <input type="file" id="file-input" accept=".json">
+                <input type="file" id="file-input" accept=".json,.js">
             </div>
         </div>
     </div>
@@ -1242,7 +1242,12 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const data = JSON.parse(e.target.result);
+                    let text = e.target.result;
+                    // Strip "var GC_GRAPH_DUMP = " prefix and trailing ";\n" if present (.js format)
+                    const prefix = 'var GC_GRAPH_DUMP = ';
+                    if (text.startsWith(prefix))
+                        text = text.slice(prefix.length).replace(/;\s*$/, '');
+                    const data = JSON.parse(text);
                     processData(data);
                     dropZone.classList.add('hidden');
                     mainApp.classList.add('visible');
@@ -1844,6 +1849,35 @@
                 if (e.key === 'Enter') searchByAddress();
             });
         });
+
+        // Auto-load heap data via <script> tag to avoid CORS issues with file:// URLs.
+        // Usage: ?script=file:///path/to/gc-graph.js (the .js file sets var GC_GRAPH_DUMP = {...})
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const scriptUrl = params.get('script');
+            if (scriptUrl) {
+                loading.classList.remove('hidden');
+                const script = document.createElement('script');
+                script.src = scriptUrl;
+                script.onload = function() {
+                    if (typeof GC_GRAPH_DUMP !== 'undefined') {
+                        const name = scriptUrl.split('/').pop().replace('.js', '.json') || 'heap.json';
+                        document.getElementById('file-name').textContent = name;
+                        processData(GC_GRAPH_DUMP);
+                        dropZone.classList.add('hidden');
+                        mainApp.classList.add('visible');
+                    } else {
+                        alert('Script loaded but GC_GRAPH_DUMP was not defined');
+                    }
+                    loading.classList.add('hidden');
+                };
+                script.onerror = function() {
+                    alert('Failed to load script: ' + scriptUrl);
+                    loading.classList.add('hidden');
+                };
+                document.head.appendChild(script);
+            }
+        })();
 
         // Handle window resize
         window.addEventListener('resize', () => {

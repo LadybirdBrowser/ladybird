@@ -1429,10 +1429,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     if (app.dump_gc_graph) {
         for (auto& view : views) {
-            if (auto path = view->dump_gc_graph(); path.is_error())
+            if (auto path = view->dump_gc_graph(); path.is_error()) {
                 warnln("Failed to dump GC graph: {}", path.error());
-            else
+            } else {
                 outln("GC graph dumped to {}", path.value());
+                auto source_root = LexicalPath(app.test_root_path).parent().parent().string();
+                outln("GC graph explorer: file://{}/Meta/gc-heap-explorer.html?script=file://{}", source_root, path.value());
+            }
         }
     }
 
