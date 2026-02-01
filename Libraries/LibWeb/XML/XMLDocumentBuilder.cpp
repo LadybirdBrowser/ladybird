@@ -306,8 +306,9 @@ void XMLDocumentBuilder::document_end()
     // Pop all the nodes off the stack of open elements.
     // NOTE: Noop.
 
-    if (!m_document->browsing_context()) {
-        // Parsed via DOMParser, no need to wait for load events.
+    if (!m_document->browsing_context() || m_document->is_decoded_svg()) {
+        // No need to spin the event loop waiting for scripts or load events
+        // when parsed via DOMParser or as a decoded SVG image.
         m_document->update_readiness(HTML::DocumentReadyState::Complete);
         return;
     }
