@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inspector-highlighted-text-node-with-scroll-offset-ref.html" />
+<style>
+html {
+  height: calc(100vh + 200px);
+  scrollbar-width: none;
+}
+#spacer { height: 200px; }
+</style>
+<div id="spacer"></div>
+<div id="highlight-parent">Hello world</div>
+<script>
+if (!window.internals?.setHighlightedNode) {
+  document.body.innerText = "FAIL";
+} else {
+  window.scrollTo(0, 200);
+  const highlightParent = document.getElementById("highlight-parent");
+  window.internals.setHighlightedNode(highlightParent.childNodes[0]);
+}
+</script>
