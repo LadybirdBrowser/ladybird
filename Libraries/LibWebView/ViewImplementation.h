@@ -163,7 +163,7 @@ public:
     virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
 
     NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
-    void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, String const&);
+    void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, Optional<Core::AnonymousBuffer> const&);
 
     ErrorOr<LexicalPath> dump_gc_graph();
 

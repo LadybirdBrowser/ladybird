@@ -72,7 +72,7 @@ endpoint WebContentClient
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|
 
-    did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String info) =|
+    did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info) =|
 
     did_change_favicon(u64 page_id, Gfx::ShareableBitmap favicon) =|
     did_request_all_cookies_webdriver(URL::URL url) => (Vector<Web::Cookie::Cookie> cookies)

@@ -1024,7 +1024,7 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_did_get_internal_page_info(page_id, type, "(no page)"_string);
+        async_did_get_internal_page_info(page_id, type, {});
         return;
     }
 
@@ -1058,7 +1058,9 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         append_gc_graph(builder);
     }
 
-    async_did_get_internal_page_info(page_id, type, MUST(builder.to_string()));
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(builder.length()));
+    memcpy(buffer.data<void>(), builder.string_view().characters_without_null_termination(), builder.length());
+    async_did_get_internal_page_info(page_id, type, buffer);
 }
 
 Messages::WebContentServer::GetSelectedTextResponse ConnectionFromClient::get_selected_text(u64 page_id)

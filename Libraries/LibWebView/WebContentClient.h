@@ -94,7 +94,7 @@ private:
     virtual void did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> stylesheets) override;
     virtual void did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL, String source) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;
-    virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String) override;
+    virtual void did_get_internal_page_info(u64 page_id, PageInfoType, Optional<Core::AnonymousBuffer>) override;
     virtual void did_execute_js_console_input(u64 page_id, JsonValue) override;
     virtual void did_output_js_console_message(u64 page_id, ConsoleOutput) override;
     virtual void did_start_network_request(u64 page_id, u64 request_id, URL::URL, ByteString method, Vector<HTTP::Header>, ByteBuffer request_body, Optional<String> initiator_type) override;

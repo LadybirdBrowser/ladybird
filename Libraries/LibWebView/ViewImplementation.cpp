@@ -786,11 +786,17 @@ NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_i
     return promise;
 }
 
-void ViewImplementation::did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, String const& info)
+void ViewImplementation::did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, Optional<Core::AnonymousBuffer> const& info)
 {
     VERIFY(m_pending_info_request);
 
-    m_pending_info_request->resolve(String { info });
+    String info_string;
+    if (!info.has_value()) {
+        info_string = "(no page)"_string;
+    } else {
+        info_string = MUST(String::from_utf8(info->bytes()));
+    }
+    m_pending_info_request->resolve(move(info_string));
     m_pending_info_request = nullptr;
 }
 
