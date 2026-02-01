@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Font/FontVariant.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
@@ -329,8 +328,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             x = tab_stop_dist.to_float();
         }
 
-        auto shape_features = text_node->computed_values().font_features();
-        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, shape_features);
+        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 

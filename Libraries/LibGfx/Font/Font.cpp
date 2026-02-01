@@ -22,11 +22,12 @@
 
 namespace Gfx {
 
-Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations)
+Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features)
     : m_typeface(move(typeface))
     , m_point_width(point_width)
     , m_point_height(point_height)
     , m_font_variation_settings(move(variations))
+    , m_shape_features(features)
 {
     float const units_per_em = m_typeface->units_per_em();
     m_x_scale = (point_width * dpi_x) / (POINTS_PER_INCH * units_per_em);
@@ -64,12 +65,12 @@ ScaledFontMetrics Font::metrics() const
     return metrics;
 }
 
-float Font::width(Utf16View const& view) const { return measure_text_width(view, *this, {}); }
+float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
 
 float Font::glyph_width(u32 code_point) const
 {
     auto string = Utf16String::from_code_point(code_point);
-    return measure_text_width(string.utf16_view(), *this, {});
+    return measure_text_width(string.utf16_view(), *this);
 }
 
 NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const
@@ -77,7 +78,7 @@ NonnullRefPtr<Font> Font::scaled_with_size(float point_size) const
     if (point_size == m_point_height && point_size == m_point_width)
         return *const_cast<Font*>(this);
 
-    // FIXME: Should we be discarding m_font_variation_settings here?
+    // FIXME: Should we be discarding m_font_variation_settings and m_shape_features here?
     return m_typeface->font(point_size);
 }
 

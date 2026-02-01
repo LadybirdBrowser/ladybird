@@ -169,6 +169,7 @@ set(SOURCES
     CSS/FontFace.cpp
     CSS/FontFaceSet.cpp
     CSS/FontFaceSetLoadEvent.cpp
+    CSS/FontFeatureData.cpp
     CSS/Frequency.cpp
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp

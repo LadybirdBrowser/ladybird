@@ -65,8 +65,8 @@ private:
     mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&);
-float measure_text_width(Utf16View const&, Gfx::Font const& font, ShapeFeatures const& features);
+float measure_text_width(Utf16View const&, Gfx::Font const& font);
 
 }

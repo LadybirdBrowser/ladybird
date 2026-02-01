@@ -54,9 +54,9 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 
 FontPlugin::~FontPlugin() = default;
 
-RefPtr<Gfx::Font> FontPlugin::default_font(float point_size)
+RefPtr<Gfx::Font> FontPlugin::default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
-    return Gfx::FontDatabase::the().get(m_default_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
+    return Gfx::FontDatabase::the().get(m_default_font_name, point_size, 400, Gfx::FontWidth::Normal, 0, font_variation_settings, shape_features);
 }
 
 Gfx::Font& FontPlugin::default_fixed_width_font()
