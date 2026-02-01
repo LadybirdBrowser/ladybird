@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,9 +11,9 @@
 
 namespace URL {
 
-Origin Origin::create_opaque()
+Origin Origin::create_opaque(OpaqueData::Type type)
 {
-    return Origin { AK::get_random<Nonce>() };
+    return Origin { OpaqueData { get_random<OpaqueData::Nonce>(), type } };
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#same-site
@@ -67,8 +67,8 @@ namespace AK {
 unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 {
     if (origin.is_opaque()) {
-        auto const& nonce = origin.nonce();
-        // Random data, so the first u32 is as good as hashing the entire thing.
+        auto const& nonce = origin.opaque_data().nonce;
+        // Random data, so the first u32 of the nonce is as good as hashing the entire thing.
         return (static_cast<u32>(nonce[0]) << 24)
             | (static_cast<u32>(nonce[1]) << 16)
             | (static_cast<u32>(nonce[2]) << 8)

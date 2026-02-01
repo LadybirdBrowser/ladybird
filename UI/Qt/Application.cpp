@@ -94,9 +94,16 @@ public:
 Application::Application() = default;
 Application::~Application() = default;
 
+void Application::create_platform_arguments(Core::ArgsParser& args_parser)
+{
+    args_parser.add_option(m_file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
+}
+
 void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)
 {
     web_content_options.config_path = Settings::the()->directory();
+    if (m_file_scheme_urls_have_tuple_origins)
+        URL::set_file_scheme_urls_have_tuple_origins();
 }
 
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()

@@ -770,7 +770,7 @@ TEST_CASE(same_origin_domain)
     auto file2 = URL::Parser::basic_parse("file:///tmp/b.txt"sv).value().origin();
 
     // File scheme
-    EXPECT(file1.is_same_origin_domain(file2));
+    EXPECT(!file1.is_same_origin_domain(file2));
 
     auto a_relaxed = URL::Origin { "https"_string, "a.ladybird.org"_string, 443, "ladybird.org"_string };
     auto b_relaxed = URL::Origin { "https"_string, "b.ladybird.org"_string, 443, "ladybird.org"_string };

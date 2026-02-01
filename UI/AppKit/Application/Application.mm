@@ -5,6 +5,7 @@
  */
 
 #include <Application/EventLoopImplementationMacOS.h>
+#include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <Utilities/Conversions.h>
@@ -22,6 +23,17 @@
 namespace Ladybird {
 
 Application::Application() = default;
+
+void Application::create_platform_arguments(Core::ArgsParser& args_parser)
+{
+    args_parser.add_option(m_file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
+}
+
+void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&)
+{
+    if (m_file_scheme_urls_have_tuple_origins)
+        URL::set_file_scheme_urls_have_tuple_origins();
+}
 
 NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
 {
