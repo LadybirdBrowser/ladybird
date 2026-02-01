@@ -296,7 +296,7 @@ void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable con
         if (!glyph_run)
             return;
 
-        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
+        auto selection_rect = context.rounded_device_rect(fragment.selection_rect()).to_type<int>();
         if (!selection_rect.is_empty())
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
 

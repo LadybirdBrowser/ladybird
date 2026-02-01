@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-530" />
+<link rel="match" href="../expected/selection-trailing-whitespace-ref.html" />
+<style>
+body { margin: 0; }
+#container { width: 100px; }
+</style>
+<!-- Test that trailing whitespace at end of wrapped lines is included in selection highlight. -->
+<div id="container"><span id="text">one two three four</span></div>
+<script>
+  let range = document.createRange();
+  range.selectNodeContents(text);
+  window.getSelection().addRange(range);
+</script>
