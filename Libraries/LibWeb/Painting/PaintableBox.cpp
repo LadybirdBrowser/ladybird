@@ -1294,7 +1294,9 @@ RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
     while (paintable) {
         if (paintable->own_scroll_frame())
             return paintable->own_scroll_frame();
-        if (paintable->is_fixed_position())
+        // Sticky elements need to find a scroll container even through fixed-position ancestors,
+        // because they must reference a scrollport for their sticky offset computation.
+        if (paintable->is_fixed_position() && !is_sticky_position())
             return nullptr;
         paintable = paintable->containing_block();
     }

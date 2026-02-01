@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Positioned Layout Test: a sticky element inside a fixed ancestor</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-position/sticky/reference/position-sticky-fixed-ancestor-002-ref.html">
+  <link rel="help" href="https://www.w3.org/TR/css-position-3/#sticky-pos">
+
+  <meta name="flags" content="">
+
+  <style>
+  html, body, div
+    {
+      height: 100%;
+      margin: 0;
+      width: 100%;
+    }
+
+  div#positioned-container
+    {
+      background-color: red;
+      color: yellow;
+      font-size: 40vh;
+      position: absolute;
+    }
+
+  div#sticky
+    {
+      background-color: green;
+      bottom: 0;
+      color: white;
+      position: sticky;
+    }
+  </style>
+
+  <script type="text/javascript">
+  function startTest()
+  {
+  document.getElementById("positioned-container").style.position = "fixed";
+  }
+  </script>
+
+ <body onload="startTest();">
+
+    <div id="positioned-container">
+
+      <div id="vertical-spacer">FAIL</div>
+
+      <div id="sticky">PASS</div>
+
+    </div>
