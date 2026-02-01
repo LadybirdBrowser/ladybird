@@ -422,7 +422,7 @@ void WebContentClient::did_take_screenshot(u64 page_id, Gfx::ShareableBitmap scr
         view->did_receive_screenshot({}, screenshot);
 }
 
-void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, String info)
+void WebContentClient::did_get_internal_page_info(u64 page_id, WebView::PageInfoType type, Optional<Core::AnonymousBuffer> info)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_receive_internal_page_info({}, type, info);
