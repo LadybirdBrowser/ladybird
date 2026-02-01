@@ -1722,7 +1722,7 @@ void TableFormattingContext::run(AvailableSpace const& available_space)
 
 CSSPixels TableFormattingContext::automatic_content_width() const
 {
-    return greatest_child_width(context_box());
+    return m_state.get(table_box()).content_width();
 }
 
 CSSPixels TableFormattingContext::automatic_content_height() const
