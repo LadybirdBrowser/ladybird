@@ -158,15 +158,38 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
             }
         }
     }
+    // https://drafts.csswg.org/css-shadow-1/#selectordef-part
+    // The ::part() pseudo-element can be followed by other pseudo-elements to style pseudo-elements of the part itself.
     auto pseudo_element_count = 0;
+    Optional<PseudoElement> first_pseudo_element;
+    Optional<PseudoElement> second_pseudo_element;
     for (auto const& simple_selector : parsed_selector->compound_selectors().last().simple_selectors) {
-        if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement)
+        if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
             ++pseudo_element_count;
+            if (!first_pseudo_element.has_value())
+                first_pseudo_element = simple_selector.pseudo_element().type();
+            else if (!second_pseudo_element.has_value())
+                second_pseudo_element = simple_selector.pseudo_element().type();
+        }
     }
     if (pseudo_element_count > 1) {
+        bool is_valid_part_chain = first_pseudo_element.has_value()
+            && first_pseudo_element.value() == PseudoElement::Part
+            && second_pseudo_element.has_value()
+            && second_pseudo_element.value() != PseudoElement::Part;
+        if (!is_valid_part_chain) {
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = parsed_selector->serialize(),
+                .description = "Multiple pseudo elements in a selector is only supported when the first is ::part() followed by a non-::part() pseudo-element."_string,
+            });
+            return ParseError::SyntaxError;
+        }
+    }
+
+    if (pseudo_element_count > 2) {
         ErrorReporter::the().report(InvalidSelectorError {
             .value_string = parsed_selector->serialize(),
-            .description = "Multiple pseudo elements in a selector is not yet supported."_string,
+            .description = "Maximum 2 pseudo-elements allowed in a selector (::part followed by one other)."_string,
         });
         return ParseError::SyntaxError;
     }
