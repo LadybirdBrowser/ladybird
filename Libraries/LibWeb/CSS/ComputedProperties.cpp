@@ -267,38 +267,6 @@ Size ComputedProperties::size_value(PropertyID id) const
     return Size::make_auto();
 }
 
-Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id, Layout::NodeWithStyle const& layout_node, ClampNegativeLengths disallow_negative_lengths) const
-{
-    auto const& value = property(id);
-
-    if (value.is_calculated())
-        return LengthPercentage { value.as_calculated() };
-
-    if (value.is_percentage()) {
-        auto percentage = value.as_percentage().percentage();
-
-        // FIXME: This value can be negative as interpolation does not yet clamp values to allowed ranges - remove this
-        //        once we do that.
-        if (disallow_negative_lengths == ClampNegativeLengths::Yes && percentage.as_fraction() < 0)
-            return {};
-
-        return percentage;
-    }
-
-    if (value.is_length()) {
-        auto length = value.as_length().length();
-
-        // FIXME: This value can be negative as interpolation does not yet clamp values to allowed ranges - remove this
-        //        once we do that.
-        if (disallow_negative_lengths == ClampNegativeLengths::Yes && length.to_px(layout_node) < 0)
-            return {};
-
-        return length;
-    }
-
-    return {};
-}
-
 Length ComputedProperties::length(PropertyID property_id) const
 {
     return property(property_id).as_length().length();

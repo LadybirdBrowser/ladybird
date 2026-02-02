@@ -810,18 +810,13 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_grid_template_areas(computed_style.grid_template_areas());
     computed_values.set_grid_auto_flow(computed_style.grid_auto_flow());
 
-    if (auto cx_value = computed_style.length_percentage(CSS::PropertyID::Cx, *this, CSS::ComputedProperties::ClampNegativeLengths::No); cx_value.has_value())
-        computed_values.set_cx(*cx_value);
-    if (auto cy_value = computed_style.length_percentage(CSS::PropertyID::Cy, *this, CSS::ComputedProperties::ClampNegativeLengths::No); cy_value.has_value())
-        computed_values.set_cy(*cy_value);
-    if (auto r_value = computed_style.length_percentage(CSS::PropertyID::R, *this, CSS::ComputedProperties::ClampNegativeLengths::No); r_value.has_value())
-        computed_values.set_r(*r_value);
+    computed_values.set_cx(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cx)));
+    computed_values.set_cy(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Cy)));
+    computed_values.set_r(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::R)));
     computed_values.set_rx(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Rx)));
     computed_values.set_ry(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Ry)));
-    if (auto x_value = computed_style.length_percentage(CSS::PropertyID::X, *this, CSS::ComputedProperties::ClampNegativeLengths::No); x_value.has_value())
-        computed_values.set_x(*x_value);
-    if (auto y_value = computed_style.length_percentage(CSS::PropertyID::Y, *this, CSS::ComputedProperties::ClampNegativeLengths::No); y_value.has_value())
-        computed_values.set_y(*y_value);
+    computed_values.set_x(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X)));
+    computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
 
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
