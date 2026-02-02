@@ -35,6 +35,7 @@ public:
     void stop();
 
     void set_callback(Function<void()>);
+    void set_interval(i32 milliseconds);
 
 private:
     Timer(JS::Object& window, i32 milliseconds, Function<void()> callback, i32 id, Repeating);
