@@ -56,4 +56,10 @@ void Timer::set_callback(Function<void()> callback)
     m_timer->on_timeout = move(callback);
 }
 
+void Timer::set_interval(i32 milliseconds)
+{
+    if (m_timer->interval() != milliseconds)
+        m_timer->restart(milliseconds);
+}
+
 }
