@@ -29,6 +29,8 @@ bool GridSize::is_auto(Layout::AvailableSize const& available_size) const
     if (auto const* size = m_value.get_pointer<Size>()) {
         if (size->is_auto())
             return true;
+        if (size->is_fit_content())
+            return false;
         if (size->contains_percentage())
             return !available_size.is_definite();
         return false;
