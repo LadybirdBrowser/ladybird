@@ -139,6 +139,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         send_incomplete_response = "X-Ladybird-Respond-With-Incomplete-Response" in self.headers
 
+        set_invalid_cookie = "X-Ladybird-Set-Invalid-Cookie" in self.headers
+
         if key in echo_store:
             echo = echo_store[key]
             response_headers = echo.headers.copy()
@@ -157,6 +159,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 elif send_incomplete_response:
                     # We emulate an incomplete response by advertising a 10KB file, but only sending 2KB.
                     response_headers["Content-Length"] = str(10 * 1024)
+
+            if set_invalid_cookie:
+                response_headers["Set-Cookie"] = "invalid=foo; Domain=\xc3\xa9\x6c\xc3\xa8\x76\x65\xff"
 
             # Set only the headers defined in the echo definition
             if response_headers:
