@@ -90,9 +90,7 @@ bool Size::contains_percentage() const
     case Type::None:
         return false;
     case Type::FitContent:
-        // FIXME: This should return m_length_percentage.contains_percentage()
-        //        but we have to update a lot of code to handle this.
-        return false;
+        return m_length_percentage.has_value() && m_length_percentage->contains_percentage();
     default:
         return m_length_percentage->contains_percentage();
     }

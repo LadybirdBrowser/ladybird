@@ -701,6 +701,14 @@ void GridFormattingContext::initialize_track_sizes(GridDimension dimension)
         if (track.is_gap)
             continue;
 
+        // Normalize fit-content tracks with unresolvable percentage arguments to max-content,
+        // since the percentage cannot be resolved against an indefinite available size.
+        if (!available_size.is_definite()
+            && track.max_track_sizing_function.is_fit_content()
+            && track.max_track_sizing_function.css_size().contains_percentage()) {
+            track.max_track_sizing_function = CSS::GridSize(CSS::Size::make_max_content());
+        }
+
         if (track.min_track_sizing_function.is_fixed(available_size)) {
             track.base_size = track.min_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
         } else if (track.min_track_sizing_function.is_intrinsic(available_size)) {
@@ -1042,11 +1050,9 @@ void GridFormattingContext::increase_sizes_to_accommodate_spanning_items_crossin
                 track.growth_limit.value() += track.planned_increase;
                 if (track.growth_limit.value() < track.base_size)
                     track.growth_limit = track.base_size;
-                if (available_size.is_definite()) {
-                    auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
-                    if (track.growth_limit.value() > fit_content_limit)
-                        track.growth_limit = max(track.base_size, fit_content_limit);
-                }
+                auto fit_content_limit = track.max_track_sizing_function.css_size().to_px(grid_container(), available_size.to_px_or_zero());
+                if (track.growth_limit.value() > fit_content_limit)
+                    track.growth_limit = max(track.base_size, fit_content_limit);
             } else if (!track.growth_limit.has_value()) {
                 // If the affected size is an infinite growth limit, set it to the track’s base size plus the planned increase.
                 track.growth_limit = track.base_size + track.planned_increase;
