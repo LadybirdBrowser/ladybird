@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 6 tests
 
-2 Pass
-4 Fail
-Fail	elementsFromPoint for each corner of a simple div
+4 Pass
+2 Fail
+Pass	elementsFromPoint for each corner of a simple div
 Fail	elementsFromPoint for each corner of a div that has a pseudo-element
 Fail	elementsFromPoint for each corner of a div that is between another div and its pseudo-element
-Fail	elementsFromPoint for each corner of a div that has a margin
+Pass	elementsFromPoint for each corner of a div that has a margin
 Pass	elementsFromPoint for each corner of a div with pointer-events:none
 Pass	elementsFromPoint for each corner of a div with a 3d transform

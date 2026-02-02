@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	:user-valid selector should respond to user action
+2 Pass
+2 Fail
+Pass	:user-valid selector should respond to user action
 Pass	:user-valid selector properly interacts with submit & reset buttons
 Fail	Checkboxes should match :user-valid after the user clicks on it.
 Fail	Date inputs should match :user-valid after the user types a value into it.

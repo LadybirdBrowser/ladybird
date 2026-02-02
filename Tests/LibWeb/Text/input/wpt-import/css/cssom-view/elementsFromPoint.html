@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<title>cssom-view - elementsFromPoint</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .size {
+    width:60px;
+    height:60px;
+  }
+  .overlay {
+    position:absolute;
+    top:69px;
+    pointer-events:none;
+  }
+  .purple {
+    background-color: rebeccapurple;
+  }
+  .yellow {
+    background-color: yellow;
+  }
+  .teal {
+    background-color: teal;
+  }
+  .pink {
+    background-color: pink;
+  }
+</style>
+<body>
+  <div id='purple' class="size purple" >&nbsp;</div>
+  <div id='yellow' class="size yellow">&nbsp;</div>
+  <div id='teal' class="size overlay teal">&nbsp;</div>
+  <iframe id=iframe-1 src="iframe.html" style='display:none;position:absolute; left:300px;'></iframe>
+  <iframe id=iframe-2 src="iframe.html" width="" height=""></iframe>
+  <iframe id=iframe-3 width="" height=""></iframe>
+  <svg id=squiggle xmlns="http://www.w3.org/2000/svg" height="98" width="500" viewBox="0 0 581 98">
+    <path stroke-dashoffset="0.00" stroke-dasharray="" d="M62.9 14.9c-25-7.74-56.6 4.8-60.4 24.3-3.73 19.6 21.6 35 39.6 37.6 42.8 6.2 72.9-53.4 116-58.9 65-18.2 191 101 215 28.8 5-16.7-7-49.1-34-44-34 11.5-31 46.5-14 69.3 9.38 12.6 24.2 20.6 39.8 22.9 91.4 9.05 102-98.9 176-86.7 18.8 3.81 33 17.3 36.7 34.6 2.01 10.2.124 21.1-5.18 30.1" stroke="#000" stroke-width="4.3" fill="none">
+    </path>
+  </svg>
+  <svg id=svg-transform width="180" height="140"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <!-- Now we add a text element and apply rotate and translate to both -->
+  <rect x="50" y="50" height="60" width="60" style="stroke:#000; fill: #0086B2" transform="translate(30) rotate(45 50 50)"></rect>
+  <text x="60" y="105" transform="translate(30) rotate(45 50 50)"> Hello! </text>
+
+</svg>
+  <div id='pink' class='size pink' style='transform: translate(10px)'>&nbsp;</div>
+  <div id='anotherteal' class='size teal' style='pointer-events:none'>Another teal</div>
+  <script>
+    setup({explicit_done:true});
+    window.onload = function () {
+      test(function () {
+              assert_array_equals(document.elementsFromPoint(-1, -1), [],
+                "both co-ordinates passed in are negative so should have returned a []");
+              assert_array_equals(document.elementsFromPoint(-1, -1), [],
+                "x co-ordinates passed in are negative so should have returned a []");
+              assert_array_equals(document.elementsFromPoint(-1, -1), [],
+                "y co-ordinates passed in are negative so should have returned a []");
+                  }, "Negative co-ordinates");
+
+      test(function () {
+              var viewportX = window.innerWidth;
+              var viewportY = window.innerHeight;
+              assert_array_equals(document.elementsFromPoint(viewportX + 100, 10), [],
+                "X co-ordinates larger than viewport so should have returned a []");
+              assert_array_equals(document.elementsFromPoint(10, viewportY + 100), [],
+                "Y co-ordinates larger than viewport so should have returned a []");
+              assert_array_equals(document.elementsFromPoint(viewportX + 100, viewportY + 100), [],
+                "X, Y co-ordinates larger than viewport so should have returned a []");
+      }, "co-ordinates larger than the viewport");
+
+      test(function () {
+              var viewportX = window.frames[1].innerWidth;
+              var viewportY = window.frames[1].innerHeight;
+              var iframeRect = document.getElementById('iframe-2').getBoundingClientRect();
+              assert_array_equals([], window.frames[1].document.elementsFromPoint(iframeRect.right + viewportX + 100, 10),
+                "X co-ordinates larger than viewport so should have returned a []");
+              assert_array_equals([], window.frames[1].document.elementsFromPoint(10, iframeRect.bottom + viewportY + 100),
+                "Y co-ordinates larger than viewport so should have returned a []");
+              assert_array_equals([], window.frames[1].document.elementsFromPoint(iframeRect.right + viewportX + 100,
+                                                                                  iframeRect.bottom + viewportY + 100),
+                "X, Y co-ordinates larger than viewport so should have returned a []");
+      }, "co-ordinates larger than the viewport from in iframe");
+
+      test(function () {
+              assert_array_equals(document.elementsFromPoint(10, 10),
+                                  [document.getElementById('purple'), document.body, document.querySelector('html')],
+                                  "Should have returned a sequence with `[purple element, document.body, html]`");
+            }, "Return first element that is the target for hit testing");
+
+      test(function () {
+              assert_array_equals(document.elementsFromPoint(10, 80),
+                                  [document.getElementById('yellow'), document.body, document.querySelector('html')],
+                "Should have returned a sequence with `[yellow element, document.body, html]`");
+            }, "First element to get mouse events with pointer-events css");
+
+      test(function () {
+             var svg = document.getElementById('squiggle');
+             var svgRect = svg.getBoundingClientRect();
+             assert_array_equals(document.elementsFromPoint(svgRect.left + Math.round(svgRect.width/2),
+                                                            svgRect.top + Math.round(svgRect.height/2)),
+                           [svg, document.body, document.querySelector('html')],
+                           "Should have returned a sequence with [svg, body, html]");
+      }, "SVG element at x,y");
+
+      test(function () {
+              var svg = document.getElementById('svg-transform');
+              var svgRect = svg.getBoundingClientRect();
+              assert_array_equals(document.elementsFromPoint(svgRect.left + Math.round(svgRect.width/2),
+                                                             svgRect.top + Math.round(svgRect.height/2)),
+                            [svg.querySelector("rect"), svg, document.body, document.querySelector('html')],
+                            "Should have returned [svg rect, svg, body, html]");
+
+              var pink = document.getElementById('pink');
+              var pinkRect = pink.getBoundingClientRect();
+              assert_array_equals(document.elementsFromPoint(pinkRect.left + Math.round(pinkRect.width/2),
+                                                             pinkRect.top + Math.round(pinkRect.height/2)),
+                            [pink, document.body, document.querySelector('html')],
+                            "Should have returned a sequence with [pink, body, html]");
+
+      }, "transformed element at x,y");
+
+      test(function () {
+            var anotherteal = document.getElementById('anotherteal');
+            var anothertealRect = anotherteal.getBoundingClientRect();
+            assert_array_equals(document.elementsFromPoint(anothertealRect.left + Math.round(anothertealRect.width/2),
+                                                           anothertealRect.top + Math.round(anothertealRect.height/2)),
+                          [document.body, document.querySelector('html')],
+                          "Should have returned the sequence [body, html]");
+
+            var doc = frames[1].document;
+            assert_array_equals([doc.querySelector('html')], doc.elementsFromPoint(0, 100),
+                                "Should have returned the sequence [html]")
+
+            var doc = frames[2].document;
+            doc.removeChild(doc.documentElement);
+            assert_array_equals(doc.elementsFromPoint(0, 0), [],
+                          "Should have returned [] as no root element");
+
+      }, "no hit target at x,y");
+
+      test(function () {
+            var doc = document.implementation.createHTMLDocument('foo');
+            assert_array_equals(doc.elementsFromPoint(0, 0), [],
+                          "Should have returned []")
+      }, "No viewport available");
+      done();
+    }
+ </script>
