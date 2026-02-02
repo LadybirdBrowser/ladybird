@@ -6,40 +6,46 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <LibWeb/CSS/PseudoClass.h>
 
 namespace Web::CSS {
 
 class PseudoClassBitmap {
 public:
+    static constexpr size_t bits_per_word = 64;
+    static constexpr size_t word_count = (to_underlying(PseudoClass::__Count) + bits_per_word - 1) / bits_per_word;
+
     PseudoClassBitmap() = default;
     ~PseudoClassBitmap() = default;
 
     void set(PseudoClass pseudo_class, bool bit)
     {
         size_t const index = to_underlying(pseudo_class);
+        size_t const word_index = index / bits_per_word;
+        size_t const bit_index = index % bits_per_word;
         if (bit)
-            m_bits |= 1LLU << index;
+            m_bits[word_index] |= 1LLU << bit_index;
         else
-            m_bits &= ~(1LLU << index);
+            m_bits[word_index] &= ~(1LLU << bit_index);
     }
 
     bool get(PseudoClass pseudo_class) const
     {
         size_t const index = to_underlying(pseudo_class);
-        return (m_bits & (1LLU << index)) != 0;
+        size_t const word_index = index / bits_per_word;
+        size_t const bit_index = index % bits_per_word;
+        return (m_bits[word_index] & (1LLU << bit_index)) != 0;
     }
 
     void operator|=(PseudoClassBitmap const& other)
     {
-        m_bits |= other.m_bits;
+        for (size_t i = 0; i < word_count; ++i)
+            m_bits[i] |= other.m_bits[i];
     }
 
 private:
-    u64 m_bits { 0 };
+    Array<u64, word_count> m_bits {};
 };
-
-// NOTE: If this changes, we'll have to tweak PseudoClassBitmap a little bit :)
-static_assert(to_underlying(PseudoClass::__Count) <= 64);
 
 }
