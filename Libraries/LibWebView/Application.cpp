@@ -629,25 +629,22 @@ void Application::process_did_exit(Process&& process)
 
 ErrorOr<LexicalPath> Application::path_for_downloaded_file(StringView file) const
 {
-    auto downloads_directory = Core::StandardPaths::downloads_directory();
+    if (browser_options().headless_mode.has_value()) {
+        auto downloads_directory = Core::StandardPaths::downloads_directory();
 
-    if (!FileSystem::is_directory(downloads_directory)) {
-        if (browser_options().headless_mode.has_value()) {
+        if (!FileSystem::is_directory(downloads_directory)) {
             dbgln("Unable to ask user for download folder in headless mode, please ensure {} is a directory or use the XDG_DOWNLOAD_DIR environment variable to set a new download directory", downloads_directory);
             return Error::from_errno(ENOENT);
         }
 
-        auto maybe_downloads_directory = ask_user_for_download_folder();
-        if (!maybe_downloads_directory.has_value())
-            return Error::from_errno(ECANCELED);
-
-        downloads_directory = maybe_downloads_directory.release_value();
+        return LexicalPath::join(downloads_directory, file);
     }
 
-    if (!FileSystem::is_directory(downloads_directory))
-        return Error::from_errno(ENOENT);
+    auto download_path = ask_user_for_download_path(file);
+    if (!download_path.has_value())
+        return Error::from_errno(ECANCELED);
 
-    return LexicalPath::join(downloads_directory, file);
+    return LexicalPath { download_path.release_value() };
 }
 
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const

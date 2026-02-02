@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -52,13 +52,11 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return [[tab web_view] view];
 }
 
-Optional<ByteString> Application::ask_user_for_download_folder() const
+Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
 {
-    auto* panel = [NSOpenPanel openPanel];
-    [panel setAllowsMultipleSelection:NO];
-    [panel setCanChooseDirectories:YES];
-    [panel setCanChooseFiles:NO];
-    [panel setMessage:@"Select download directory"];
+    auto* panel = [NSSavePanel savePanel];
+    [panel setNameFieldStringValue:Ladybird::string_to_ns_string(file)];
+    [panel setTitle:@"Select save location"];
 
     if ([panel runModal] != NSModalResponseOK)
         return {};

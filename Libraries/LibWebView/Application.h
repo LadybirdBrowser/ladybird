@@ -144,7 +144,7 @@ protected:
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
-    virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
+    virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] StringView file) const { return {}; }
 
     virtual void on_devtools_enabled() const;
     virtual void on_devtools_disabled() const;
