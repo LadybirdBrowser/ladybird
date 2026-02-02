@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibCore/MappedFile.h>
 #include <LibIDL/ExposedTo.h>
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
@@ -463,25 +464,25 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     // Read in all IDL files, we must own the storage for all of these for the lifetime of the program
-    Vector<ByteString> file_contents;
+    Vector<NonnullOwnPtr<Core::MappedFile>> files;
+    files.ensure_capacity(paths.size());
     for (ByteString const& path : paths) {
-        auto file_or_error = Core::File::open(path, Core::File::OpenMode::Read);
+        auto file_or_error = Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly);
         if (file_or_error.is_error()) {
             s_error_string = ByteString::formatted("Unable to open file {}", path);
             return Error::from_string_view(s_error_string.view());
         }
-        auto file = file_or_error.release_value();
-        auto string = MUST(file->read_until_eof());
-        file_contents.append(ByteString(ReadonlyBytes(string)));
+        files.append(file_or_error.release_value());
     }
-    VERIFY(paths.size() == file_contents.size());
+    VERIFY(paths.size() == files.size());
 
     Vector<IDL::Parser> parsers;
     InterfaceSets interface_sets;
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
-        IDL::Parser parser(path, file_contents[i], lexical_bases);
+        StringView file_contents = files[i]->bytes();
+        IDL::Parser parser(path, file_contents, lexical_bases);
         auto& interface = parser.parse();
         if (interface.name.is_empty()) {
             s_error_string = ByteString::formatted("Interface for file {} missing", path);
