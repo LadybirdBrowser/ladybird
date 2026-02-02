@@ -33,6 +33,9 @@ static constexpr auto noexn_heap_reference_tag = 0x74;
 static constexpr auto nullable_reference_tag_tag = 0x63;
 static constexpr auto non_nullable_reference_tag_tag = 0x64;
 
+// Composite
+static constexpr auto struct_tag = 0x5f;
+
 // Function
 static constexpr auto function_signature_tag = 0x60;
 

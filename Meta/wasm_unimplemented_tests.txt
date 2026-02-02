@@ -101,6 +101,8 @@ module select.0
 module struct.0
 module struct.10
 module struct.2
+module struct.3
+module struct.4
 module struct.5
 module struct.7
 module struct.9

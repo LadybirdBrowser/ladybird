@@ -150,17 +150,33 @@ ParseResult<ResultType> ResultType::parse(ConstrainedStream& stream)
 ParseResult<FunctionType> FunctionType::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("FunctionType"sv);
-    auto tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
-
-    if (tag != Constants::function_signature_tag) {
-        dbgln("Expected 0x60, but found {:#x}", tag);
-        return with_eof_check(stream, ParseError::InvalidTag);
-    }
 
     auto parameters_result = TRY(parse_vector<ValueType>(stream));
     auto results_result = TRY(parse_vector<ValueType>(stream));
 
     return FunctionType { parameters_result, results_result };
+}
+
+ParseResult<FieldType> FieldType::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("FieldType"sv);
+
+    auto type_ = TRY(ValueType::parse(stream));
+
+    auto mutable_ = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+    if (mutable_ > 1)
+        return with_eof_check(stream, ParseError::InvalidTag);
+
+    return FieldType { mutable_ == 0x01, type_ };
+}
+
+ParseResult<StructType> StructType::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("StructType"sv);
+
+    auto fields = TRY(parse_vector<FieldType>(stream));
+
+    return StructType { fields };
 }
 
 ParseResult<Limits> Limits::parse(ConstrainedStream& stream)
@@ -992,10 +1008,25 @@ ParseResult<CustomSection> CustomSection::parse(ConstrainedStream& stream)
     return CustomSection(name, move(data_buffer));
 }
 
+ParseResult<TypeSection::Type> TypeSection::Type::parse(ConstrainedStream& stream)
+{
+    ScopeLogger<WASM_BINPARSER_DEBUG> logger("Type"sv);
+    auto tag = TRY_READ(stream, u8, ParseError::ExpectedKindTag);
+
+    switch (tag) {
+    case Constants::function_signature_tag:
+        return Type { TRY(FunctionType::parse(stream)) };
+    case Constants::struct_tag:
+        return Type { TRY(StructType::parse(stream)) };
+    default:
+        return ParseError::InvalidTag;
+    }
+}
+
 ParseResult<TypeSection> TypeSection::parse(ConstrainedStream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger("TypeSection"sv);
-    auto types = TRY(parse_vector<FunctionType>(stream));
+    auto types = TRY(parse_vector<Type>(stream));
     return TypeSection { types };
 }
 

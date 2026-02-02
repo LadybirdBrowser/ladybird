@@ -254,6 +254,41 @@ private:
     Vector<ValueType> m_results;
 };
 
+// https://webassembly.github.io/spec/core/bikeshed/#composite-types%E2%91%A0
+class FieldType {
+public:
+    FieldType(bool is_mutable, ValueType type_)
+        : m_is_mutable(is_mutable)
+        , m_type(type_)
+    {
+    }
+
+    auto& type() const { return m_type; }
+    auto is_mutable() const { return m_is_mutable; }
+
+    static ParseResult<FieldType> parse(ConstrainedStream& stream);
+
+private:
+    bool m_is_mutable { false };
+    ValueType m_type;
+};
+
+// https://webassembly.github.io/spec/core/bikeshed/#composite-types%E2%91%A0
+class StructType {
+public:
+    StructType(Vector<FieldType> fields)
+        : m_fields(move(fields))
+    {
+    }
+
+    auto& fields() const { return m_fields; }
+
+    static ParseResult<StructType> parse(ConstrainedStream& stream);
+
+private:
+    Vector<FieldType> m_fields;
+};
+
 // https://webassembly.github.io/memory64/core/bikeshed/#address-type%E2%91%A0
 enum class AddressType : u8 {
     I32,
@@ -754,9 +789,41 @@ private:
 
 class TypeSection {
 public:
+    class Type {
+    private:
+        using TypeDesc = Variant<FunctionType, StructType>;
+
+    public:
+        Type(TypeDesc type)
+            : m_description(type)
+        {
+        }
+
+        auto& description() const { return m_description; }
+
+        auto& function() const { return m_description.get<FunctionType>(); }
+        auto& unsafe_function() const { return m_description.unsafe_get<FunctionType>(); }
+        bool is_function() const { return m_description.has<FunctionType>(); }
+
+        auto& struct_() const { return m_description.get<StructType>(); }
+        bool is_struct() const { return m_description.has<StructType>(); }
+
+        ByteString name() const
+        {
+            return m_description.visit(
+                [](FunctionType const&) -> ByteString { return "function type"; },
+                [](StructType const&) -> ByteString { return "struct type"; });
+        }
+
+        static ParseResult<Type> parse(ConstrainedStream& stream);
+
+    private:
+        TypeDesc m_description;
+    };
+
     TypeSection() = default;
 
-    explicit TypeSection(Vector<FunctionType> types)
+    explicit TypeSection(Vector<Type> types)
         : m_types(move(types))
     {
     }
@@ -766,7 +833,7 @@ public:
     static ParseResult<TypeSection> parse(ConstrainedStream& stream);
 
 private:
-    Vector<FunctionType> m_types;
+    Vector<Type> m_types;
 };
 
 class ImportSection {

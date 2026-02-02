@@ -728,6 +728,45 @@ void Printer::print(Wasm::TypeSection const& section)
     print(")\n");
 }
 
+void Printer::print(Wasm::TypeSection::Type const& type)
+{
+    type.description().visit(
+        [&](Wasm::FunctionType const& func) { print(func); },
+        [&](Wasm::StructType const& struct_) { print(struct_); });
+}
+
+void Printer::print(Wasm::StructType const& struct_)
+{
+    print_indent();
+    print("(type struct\n");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        print_indent();
+        print("(fields\n");
+        {
+            TemporaryChange change { m_indent, m_indent + 1 };
+            for (auto& field : struct_.fields())
+                print(field);
+        }
+        print_indent();
+        print(")\n");
+    }
+    print_indent();
+    print(")\n");
+}
+
+void Printer::print(Wasm::FieldType const& type)
+{
+    print_indent();
+    print("({}mutable\n", type.is_mutable() ? "" : "im");
+    {
+        TemporaryChange change { m_indent, m_indent + 1 };
+        print(type.type());
+    }
+    print_indent();
+    print(")\n");
+}
+
 void Printer::print(Wasm::ValueType const& type)
 {
     print_indent();
