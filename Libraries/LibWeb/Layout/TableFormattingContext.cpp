@@ -390,6 +390,10 @@ void TableFormattingContext::compute_table_measures()
                     if (baseline_max_content_size != 0) {
                         cell_min_contribution += CSSPixels::nearest_value_for(rows_or_columns[rc_index].max_size / static_cast<double>(baseline_max_content_size))
                             * max(CSSPixels(0), cell_min_size<RowOrColumn>(cell) - baseline_max_content_size - baseline_border_spacing);
+                    } else {
+                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally.
+                        //         This matches how undefined ratios are handled elsewhere.
+                        cell_min_contribution += max(CSSPixels(0), cell_min_size<RowOrColumn>(cell) - baseline_border_spacing) / cell_span_value;
                     }
 
                     // The contribution of the cell is the sum of:
@@ -401,6 +405,10 @@ void TableFormattingContext::compute_table_measures()
                     if (baseline_max_content_size != 0) {
                         cell_max_contribution += CSSPixels::nearest_value_for(rows_or_columns[rc_index].max_size / static_cast<double>(baseline_max_content_size))
                             * max(CSSPixels(0), cell_max_size<RowOrColumn>(cell) - baseline_max_content_size - baseline_border_spacing);
+                    } else {
+                        // AD-HOC: The spec does not define behavior when baseline is zero. We distribute equally,
+                        //         This matches how undefined ratios are handled elsewhere.
+                        cell_max_contribution += max(CSSPixels(0), cell_max_size<RowOrColumn>(cell) - baseline_border_spacing) / cell_span_value;
                     }
                     cell_min_contributions_by_rc_index[rc_index].append(cell_min_contribution);
                     cell_max_contributions_by_rc_index[rc_index].append(cell_max_contribution);

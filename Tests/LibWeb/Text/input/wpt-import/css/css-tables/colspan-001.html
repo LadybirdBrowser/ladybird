@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1430449">
+<p>There should be five squares.</p>
+<table cellspacing="0" cellpadding="0">
+  <tr>
+    <td colspan="2" style="background:blue;" data-expected-width="75" data-expected-height="75">
+      <div style="width:50px; height:75px;"></div>
+    </td>
+    <td colspan="2" style="background:green;" data-expected-width="75" data-expected-height="75">
+      <div style="width:50px; height:75px;"></div>
+    </td>
+  </tr>
+  <tr>
+    <td style="background:black;" data-expected-width="50" data-expected-height="50">
+      <div style="width:50px; height:50px;"></div>
+    </td>
+    <td colspan="2" style="background:lime;" data-expected-width="50" data-expected-height="50">
+      <div style="width:50px; height:50px;"></div>
+    </td>
+    <td style="background:hotpink;" data-expected-width="50" data-expected-height="50">
+      <div style="width:50px; height:50px;"></div>
+    </td>
+  </tr>
+</table>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+  checkLayout('td')
+</script>
