@@ -1287,8 +1287,9 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                     s_view_display_states[view_id].start_time = test.start_time;
                 }
                 render_live_display();
+            } else if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
+                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path);
             } else {
-                // Non-TTY mode: print each test as it starts
                 outln("{}/{}: {}", test.index + 1, tests.size(), test.relative_path);
             }
 
