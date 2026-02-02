@@ -109,7 +109,7 @@ static void store_response_cookies(Page& page, URL::URL const& url, ByteString c
     auto cookie = Cookie::parse_cookie(url, set_cookie_entry);
     if (!cookie.has_value())
         return;
-    page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http); // FIXME: Determine cookie source correctly
+    page.client().page_did_set_cookie(url, cookie.value(), Cookie::Source::Http);
 }
 
 static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
