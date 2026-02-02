@@ -5755,6 +5755,17 @@ WebIDL::ExceptionOr<void> Document::set_design_mode(String const& design_mode)
     return {};
 }
 
+static Element* retarget_from_ua_internal_shadow_root(Element& element)
+{
+    auto* result = &element;
+    while (auto shadow_root = result->containing_shadow_root()) {
+        if (!shadow_root->is_user_agent_internal())
+            break;
+        result = shadow_root->host();
+    }
+    return result;
+}
+
 // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
 Element const* Document::element_from_point(double x, double y)
 {
@@ -5772,19 +5783,20 @@ Element const* Document::element_from_point(double x, double y)
 
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying the transforms
     //    that apply to the descendants of the viewport, return the associated element and terminate these steps.
-    Optional<Painting::HitTestResult> hit_test_result;
-    if (auto const* paintable_box = this->paintable_box(); paintable_box) {
+    GC::Ptr<Element> hit_element;
+    if (auto const* paintable_box = this->paintable_box()) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
-            auto* dom_node = result.dom_node();
-            if (dom_node && dom_node->is_element()) {
-                hit_test_result = result;
+            if (auto* element = as_if<Element>(result.dom_node())) {
+                hit_element = element;
                 return TraversalDecision::Break;
             }
             return TraversalDecision::Continue;
         });
     }
-    if (hit_test_result.has_value())
-        return static_cast<Element*>(hit_test_result->dom_node());
+    if (hit_element) {
+        // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
+        return retarget_from_ua_internal_shadow_root(*hit_element);
+    }
 
     // 3. If the document has a root element, return the root element and terminate these steps.
     if (auto const* root_element = document_element())
@@ -5817,8 +5829,13 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     //    apply to the descendants of the viewport, append the associated element to sequence.
     if (auto const* paintable_box = this->paintable_box()) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
-            if (auto* element = as_if<Element>(result.dom_node()))
-                sequence.append(*element);
+            if (auto* element = as_if<Element>(result.dom_node())) {
+                // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
+                element = retarget_from_ua_internal_shadow_root(*element);
+                // AD-HOC: Avoid adding duplicates when multiple internal elements retarget to the same host.
+                if (sequence.is_empty() || sequence.last() != element)
+                    sequence.append(*element);
+            }
             return TraversalDecision::Continue;
         });
     }

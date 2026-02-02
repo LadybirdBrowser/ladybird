@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	The dialog element should support :open.
 Pass	The details element should support :open.
-Fail	The select element should support :open.
+Pass	The select element should support :open.

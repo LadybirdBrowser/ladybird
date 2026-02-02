@@ -1,0 +1,83 @@
+<!DOCTYPE HTML>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/elementsFromPoint.js"></script>
+<script>
+var loadedFrameCount = 0;
+var t1 = async_test('elementsFromPoint on the root document for points in iframe elements');
+var t2 = async_test('elementsFromPoint on inner documents');
+
+function onFrameLoaded() {
+    loadedFrameCount++;
+    if (loadedFrameCount < 2)
+        return;
+
+    var body = document.body;
+    var html = document.documentElement;
+    var iframe = document.getElementById('iframe');
+    var scrollableIframe = document.getElementById('scrollableIframe');
+    t1.step(function() {
+        checkElementsFromPointFourCorners('document', 'iframe',
+            [iframe, body,  html],
+            [iframe, body, html],
+            [iframe, body, html],
+            [scrollableIframe, iframe, body, html]);
+
+        checkElementsFromPointFourCorners('document', 'scrollableIframe',
+            [scrollableIframe, iframe, body, html],
+            [scrollableIframe, iframe, body, html],
+            [scrollableIframe, iframe, body, html],
+            [scrollableIframe, iframe, body, html]);
+    });
+    t1.done();
+
+    t2.step(function() {
+        var iframeDocument = document.getElementById('iframe').contentDocument;
+        var iframeRoot = iframeDocument.documentElement;
+        var iframeBody = iframeDocument.body;
+        var iframeDiv = iframeDocument.getElementById('div');
+        checkElementsFromPointFourCorners('document.getElementById(\'iframe\').contentDocument', 'div',
+            [iframeDiv, iframeBody, iframeRoot],
+            [iframeDiv, iframeBody, iframeRoot],
+            [iframeDiv, iframeBody, iframeRoot],
+            [iframeDiv, iframeBody, iframeRoot]);
+
+        var iframeDocument2 = document.getElementById('scrollableIframe').contentDocument;
+        var iframeRoot2 = iframeDocument2.documentElement;
+        var iframeBody2 = iframeDocument2.body;
+        var iframeSmallDiv = iframeDocument2.getElementById('small');
+        var iframeBigDiv = iframeDocument2.getElementById('big');
+        checkElementsFromPointFourCorners('document.getElementById(\'scrollableIframe\').contentDocument', 'big',
+            [iframeSmallDiv, iframeBigDiv, iframeBody2, iframeRoot2],
+            [iframeBigDiv, iframeBody2, iframeRoot2],
+            [],
+            []);
+    });
+    t2.done();
+}
+</script>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+}
+body {
+    height: 500px;
+}
+#iframe {
+    width: 200px;
+    height: 200px;
+}
+#scrollableIframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(50px, 50px);
+    width: 150px;
+    height: 150px;
+    overflow-y: scroll;
+    overflow-x: scroll;
+}
+</style>
+<iframe id="iframe" src="resources/iframe1.html"></iframe>
+<iframe id="scrollableIframe" src="resources/iframe2.html"></iframe>
