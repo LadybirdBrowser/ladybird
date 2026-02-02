@@ -1808,7 +1808,9 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
         // In quirks mode, walk up to find an ancestor with explicit height or the viewport.
         // NOTE: Flex/grid items resolve percentage heights against their container, not via quirk.
         bool is_flex_or_grid_item = box.parent() && (box.parent()->display().is_flex_inside() || box.parent()->display().is_grid_inside());
-        if (box.document().in_quirks_mode() && !box.is_anonymous() && !is_flex_or_grid_item) {
+        auto shadow_root = box.dom_node() ? box.dom_node()->containing_shadow_root() : nullptr;
+        bool is_in_ua_shadow_tree = shadow_root && shadow_root->is_user_agent_internal();
+        if (box.document().in_quirks_mode() && !box.is_anonymous() && !is_flex_or_grid_item && !is_in_ua_shadow_tree) {
             while (containing_block && !containing_block->is_viewport()
                 && containing_block->computed_values().height().is_auto())
                 containing_block = containing_block->containing_block();
@@ -1944,6 +1946,11 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
                     return false;
                 if (auto* parent = box.parent(); parent && parent->display().is_grid_inside())
                     return false;
+                // The quirk should not apply inside user agent shadow trees.
+                if (auto const* dom_node = box.dom_node()) {
+                    if (auto shadow_root = dom_node->containing_shadow_root(); shadow_root && shadow_root->is_user_agent_internal())
+                        return false;
+                }
                 return true;
             }();
             if (!percentage_height_quirk_applies) {

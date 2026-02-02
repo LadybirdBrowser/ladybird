@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
@@ -834,7 +835,9 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     AvailableSpace available_space_for_height_resolution = available_space;
     auto is_table_box = box.display().is_table_row() || box.display().is_table_row_group() || box.display().is_table_header_group() || box.display().is_table_footer_group() || box.display().is_table_cell() || box.display().is_table_caption();
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
-    if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box) {
+    auto shadow_root = box.dom_node() ? box.dom_node()->containing_shadow_root() : nullptr;
+    bool is_in_ua_internal_shadow_tree = shadow_root && shadow_root->is_user_agent_internal();
+    if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box && !is_in_ua_internal_shadow_tree) {
         // In quirks mode, for the purpose of calculating the height of an element, if the
         // computed value of the position property of element is relative or static, the specified value
         // for the height property of element is a <percentage>, and element does not have a computed
