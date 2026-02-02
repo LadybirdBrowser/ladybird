@@ -914,6 +914,32 @@ button, meter, progress, select {
     animation-play-state: inherit;
 }
 
+/* Fullscreen API defaults https://fullscreen.spec.whatwg.org/#user-agent-level-style-sheet-defaults */
+*|*:not(:root):fullscreen {
+  position:fixed !important;
+  inset:0 !important;
+  margin:0 !important;
+  box-sizing:border-box !important;
+  min-width:0 !important;
+  max-width:none !important;
+  min-height:0 !important;
+  max-height:none !important;
+  width:100% !important;
+  height:100% !important;
+  transform:none !important;
+  /* intentionally not !important */
+  object-fit:contain;
+}
+
+iframe:fullscreen {
+  border:none !important;
+  padding:0 !important;
+}
+
+*|*:not(:root):fullscreen::backdrop {
+  background:black;
+}
+
 /* Default cross-fade transition */
 @keyframes -ua-view-transition-fade-out {
     to { opacity: 0; }

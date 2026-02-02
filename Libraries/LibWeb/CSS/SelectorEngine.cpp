@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -556,6 +557,10 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::FocusWithin: {
         auto focused_area = element.document().focused_area();
         return focused_area && element.is_inclusive_ancestor_of(*focused_area);
+    }
+    case CSS::PseudoClass::Fullscreen: {
+        // FIXME: Add fullscreen support
+        return false;
     }
     case CSS::PseudoClass::FirstChild:
         if (context.collect_per_element_selector_involvement_metadata) {
