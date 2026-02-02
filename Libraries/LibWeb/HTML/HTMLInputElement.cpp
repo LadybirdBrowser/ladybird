@@ -1086,6 +1086,7 @@ void HTMLInputElement::update_shadow_tree()
 void HTMLInputElement::create_button_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
     auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
     text_container->set_attribute_value(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string);
@@ -1098,6 +1099,7 @@ void HTMLInputElement::create_button_input_shadow_tree()
 void HTMLInputElement::create_text_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
     auto element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
@@ -1225,6 +1227,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 void HTMLInputElement::create_color_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
 
     auto color = value_sanitization_algorithm(m_value);
 
@@ -1264,6 +1267,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
     auto& realm = this->realm();
 
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
 
     m_file_button = DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_file_button->set_use_pseudo_element(CSS::PseudoElement::FileSelectorButton);
@@ -1309,6 +1313,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
 void HTMLInputElement::create_range_input_shadow_tree()
 {
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));

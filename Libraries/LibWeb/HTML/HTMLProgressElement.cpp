@@ -107,6 +107,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
         return;
 
     auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
     auto progress_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));

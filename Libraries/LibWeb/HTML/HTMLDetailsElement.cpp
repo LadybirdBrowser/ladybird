@@ -234,6 +234,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     // The details element is expected to have an internal shadow tree with three child elements:
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
     shadow_root->set_slot_assignment(Bindings::SlotAssignmentMode::Manual);
 
     // The first child element is a slot that is expected to take the details element's first summary element child, if any.
