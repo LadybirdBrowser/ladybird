@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,8 @@
 #include "ColorMixStyleValue.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Interpolation.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
@@ -199,6 +202,48 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
         return {};
 
     return interpolate_color(from_color.value(), to_color.value(), delta, ColorSyntax::Modern);
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(ComputationContext const& context) const
+{
+    // FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
+
+    auto normalized_percentages = normalize_percentages();
+    ColorResolutionContext color_resolution_context {
+        .color_scheme = context.color_scheme,
+        .current_color = {},
+        .accent_color = {},
+        .document = context.abstract_element.map([](auto& it) { return &it.document(); }).value_or(nullptr),
+        .calculation_resolution_context = CalculationResolutionContext::from_computation_context(context),
+    };
+    auto absolutized_first_color = m_properties.first_component.color->absolutized(context);
+    auto absolutized_second_color = m_properties.second_component.color->absolutized(context);
+
+    auto from_color = absolutized_first_color->to_color(color_resolution_context);
+    auto to_color = absolutized_second_color->to_color(color_resolution_context);
+    auto delta = normalized_percentages.p2.value() / 100;
+
+    if (from_color.has_value() && to_color.has_value()) {
+        // FIXME: Interpolation should produce a StyleValue of some kind instead of a Gfx::Color, and use the interpolation color space.
+        auto interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, ColorSyntax::Modern);
+        return ColorFunctionStyleValue::create(
+            "srgb"sv,
+            NumberStyleValue::create(interpolated_color.red() / 255.0f),
+            NumberStyleValue::create(interpolated_color.green() / 255.0f),
+            NumberStyleValue::create(interpolated_color.blue() / 255.0f),
+            NumberStyleValue::create(interpolated_color.alpha() / 255.0f));
+    }
+
+    // Fall back to returning a color-mix() with absolutized values if we can't compute completely.
+    // Currently, this is only the case if one of our colors relies on `currentcolor`, as that does not compute to a color value.
+    if (absolutized_first_color == m_properties.first_component.color && normalized_percentages.p1 == m_properties.first_component.percentage
+        && absolutized_second_color == m_properties.second_component.color && normalized_percentages.p2 == m_properties.second_component.percentage)
+        return *this;
+
+    return ColorMixStyleValue::create(
+        m_properties.color_interpolation_method,
+        ColorMixComponent { .color = move(absolutized_first_color), .percentage = normalized_percentages.p1 },
+        ColorMixComponent { .color = move(absolutized_second_color), .percentage = normalized_percentages.p2 });
 }
 
 }
