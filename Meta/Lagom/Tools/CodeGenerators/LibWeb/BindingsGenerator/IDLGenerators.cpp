@@ -606,7 +606,7 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
     scoped_generator.set("enforce_range", parameter.extended_attributes.contains("EnforceRange") ? "Yes" : "No");
     scoped_generator.set("clamp", parameter.extended_attributes.contains("Clamp") ? "Yes" : "No");
 
-    if ((!optional && !parameter.type->is_nullable()) || optional_default_value.has_value()) {
+    if ((!optional && !parameter.type->is_nullable()) || (optional_default_value.has_value() && optional_default_value != "null"sv)) {
         scoped_generator.append(R"~~~(
     @cpp_type@ @cpp_name@;
 )~~~");
