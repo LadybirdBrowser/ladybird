@@ -42,6 +42,7 @@ void SVGUseElement::initialize(JS::Realm& realm)
     //       This doesn't actually match other browsers, and there's a spec issue to change it.
     //       Spec bug: https://github.com/w3c/svgwg/issues/875
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
 
     // The user agent must create a use-element shadow tree whose host is the ‘use’ element itself
     set_shadow_root(shadow_root);
