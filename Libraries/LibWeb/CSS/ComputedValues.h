@@ -1112,8 +1112,8 @@ public:
     void set_cx(LengthPercentage cx) { m_noninherited.cx = move(cx); }
     void set_cy(LengthPercentage cy) { m_noninherited.cy = move(cy); }
     void set_r(LengthPercentage r) { m_noninherited.r = move(r); }
-    void set_rx(LengthPercentage rx) { m_noninherited.rx = move(rx); }
-    void set_ry(LengthPercentage ry) { m_noninherited.ry = move(ry); }
+    void set_rx(LengthPercentageOrAuto rx) { m_noninherited.rx = move(rx); }
+    void set_ry(LengthPercentageOrAuto ry) { m_noninherited.ry = move(ry); }
     void set_x(LengthPercentage x) { m_noninherited.x = move(x); }
     void set_y(LengthPercentage y) { m_noninherited.y = move(y); }
 

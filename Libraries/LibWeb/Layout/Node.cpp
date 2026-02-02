@@ -816,10 +816,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_cy(*cy_value);
     if (auto r_value = computed_style.length_percentage(CSS::PropertyID::R, *this, CSS::ComputedProperties::ClampNegativeLengths::No); r_value.has_value())
         computed_values.set_r(*r_value);
-    if (auto rx_value = computed_style.length_percentage(CSS::PropertyID::Rx, *this, CSS::ComputedProperties::ClampNegativeLengths::No); rx_value.has_value())
-        computed_values.set_rx(*rx_value);
-    if (auto ry_value = computed_style.length_percentage(CSS::PropertyID::Ry, *this, CSS::ComputedProperties::ClampNegativeLengths::No); ry_value.has_value())
-        computed_values.set_ry(*ry_value);
+    computed_values.set_rx(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Rx)));
+    computed_values.set_ry(CSS::LengthPercentageOrAuto::from_style_value(computed_style.property(CSS::PropertyID::Ry)));
     if (auto x_value = computed_style.length_percentage(CSS::PropertyID::X, *this, CSS::ComputedProperties::ClampNegativeLengths::No); x_value.has_value())
         computed_values.set_x(*x_value);
     if (auto y_value = computed_style.length_percentage(CSS::PropertyID::Y, *this, CSS::ComputedProperties::ClampNegativeLengths::No); y_value.has_value())
