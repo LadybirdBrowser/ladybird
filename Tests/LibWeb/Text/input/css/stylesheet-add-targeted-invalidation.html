@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target-class" class="foo">class target</div>
+<div id="non-target-class" class="bar">class non-target</div>
+<div id="target-id">id target</div>
+<div id="non-target-id">id non-target</div>
+<p id="target-tag">tag target</p>
+<div id="non-target-tag">tag non-target</div>
+<div id="target-attr" data-x="1">attr target</div>
+<div id="non-target-attr" data-y="1">attr non-target</div>
+<div id="target-compound" class="a b">compound target</div>
+<div id="non-target-compound" class="a">compound non-target (missing class b)</div>
+<a id="target-link" href="#">link target</a>
+<div id="non-target-link">link non-target</div>
+<div id="universal-target">universal target</div>
+<div id="has-only-match"><span class="needle">has-only match</span></div>
+<div id="has-only-no-match">has-only no match</div>
+<div id="has-class-match" class="haystack"><span class="needle">has+class match</span></div>
+<div id="has-class-no-child" class="haystack">has+class no matching child</div>
+<div id="has-class-no-class"><span class="needle">has+class no class</span></div>
+<div id="has-direct-match"><span class="direct-target">has direct child</span></div>
+<div id="has-direct-no-match"><b><span class="direct-target">has nested (not direct) child</span></b></div>
+<div id="nested-target"><span class="inner">nested target</span></div>
+<div id="multi-selector-a" class="ms-a">multi-selector A</div>
+<div id="multi-selector-b" class="ms-b">multi-selector B</div>
+<div id="non-multi-selector" class="ms-c">multi-selector non-target</div>
+<script>
+    function addSheetAndCheck(description, css, checks) {
+        document.body.offsetWidth;
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.appendChild(style);
+        let pass = true;
+        for (const [id, property, expected] of checks) {
+            const actual = getComputedStyle(document.getElementById(id))[property];
+            if (actual !== expected) {
+                println(`FAIL: ${description} - ${id}: expected ${expected}, got ${actual}`);
+                pass = false;
+            }
+        }
+        if (pass)
+            println(`PASS: ${description}`);
+        style.remove();
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        const BLACK = "rgb(0, 0, 0)";
+        const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+        addSheetAndCheck("class selector", ".foo { color: rgb(255, 0, 0); }", [
+            ["target-class", "color", "rgb(255, 0, 0)"],
+            ["non-target-class", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("id selector", "#target-id { color: rgb(0, 128, 0); }", [
+            ["target-id", "color", "rgb(0, 128, 0)"],
+            ["non-target-id", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("tag selector", "p { color: rgb(0, 0, 255); }", [
+            ["target-tag", "color", "rgb(0, 0, 255)"],
+            ["non-target-tag", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("attr selector", "[data-x] { color: rgb(128, 0, 128); }", [
+            ["target-attr", "color", "rgb(128, 0, 128)"],
+            ["non-target-attr", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("compound selector", ".a.b { color: rgb(255, 165, 0); }", [
+            ["target-compound", "color", "rgb(255, 165, 0)"],
+        ]);
+
+        addSheetAndCheck("descendant selector", "div .inner { color: rgb(0, 255, 255); }", [
+            ["nested-target", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("multi selector", ".ms-a, .ms-b { color: rgb(255, 0, 255); }", [
+            ["multi-selector-a", "color", "rgb(255, 0, 255)"],
+            ["multi-selector-b", "color", "rgb(255, 0, 255)"],
+            ["non-multi-selector", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("link pseudo-class", ":link { color: rgb(0, 100, 0); }", [
+            ["target-link", "color", "rgb(0, 100, 0)"],
+            ["non-target-link", "color", BLACK],
+        ]);
+
+        addSheetAndCheck("multi-rule sheet",
+            ".foo { background-color: rgb(255, 0, 0); } #target-id { background-color: rgb(0, 128, 0); } p { background-color: rgb(0, 0, 255); }", [
+            ["target-class", "backgroundColor", "rgb(255, 0, 0)"],
+            ["target-id", "backgroundColor", "rgb(0, 128, 0)"],
+            ["target-tag", "backgroundColor", "rgb(0, 0, 255)"],
+            ["non-target-attr", "backgroundColor", TRANSPARENT],
+        ]);
+
+        // :has() as sole subject feature — no identifying features on the subject,
+        // so this must fall back to full invalidation
+        addSheetAndCheck(":has() as sole feature", ":has(.needle) { background-color: rgb(0, 200, 100); }", [
+            ["has-only-match", "backgroundColor", "rgb(0, 200, 100)"],
+            ["has-only-no-match", "backgroundColor", TRANSPARENT],
+        ]);
+
+        // :has() combined with class — targeted invalidation via the class,
+        // only .haystack elements need invalidation
+        addSheetAndCheck(":has() with class", ".haystack:has(.needle) { background-color: rgb(100, 50, 200); }", [
+            ["has-class-match", "backgroundColor", "rgb(100, 50, 200)"],
+            ["has-class-no-child", "backgroundColor", TRANSPARENT],
+            ["has-class-no-class", "backgroundColor", TRANSPARENT],
+        ]);
+
+        // :has() with direct child combinator
+        addSheetAndCheck(":has() with direct child", ":has(> .direct-target) { background-color: rgb(200, 100, 50); }", [
+            ["has-direct-match", "backgroundColor", "rgb(200, 100, 50)"],
+            ["has-direct-no-match", "backgroundColor", TRANSPARENT],
+        ]);
+
+        // Empty stylesheet should not cause any invalidation issues
+        addSheetAndCheck("empty sheet", "", []);
+    });
+</script>

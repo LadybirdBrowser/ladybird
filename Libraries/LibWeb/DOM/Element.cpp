@@ -1747,6 +1747,13 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
             case CSS::PseudoClass::LocalLink: {
                 return matches_local_link_pseudo_class();
             }
+            case CSS::PseudoClass::Root:
+                return is<HTML::HTMLHtmlElement>(*this);
+            case CSS::PseudoClass::Host:
+                return is_shadow_host();
+            case CSS::PseudoClass::Required:
+            case CSS::PseudoClass::Optional:
+                return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this);
             default:
                 VERIFY_NOT_REACHED();
             }

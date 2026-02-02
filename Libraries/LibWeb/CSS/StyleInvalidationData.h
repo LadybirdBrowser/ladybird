@@ -8,9 +8,24 @@
 
 #include <AK/HashMap.h>
 #include <LibWeb/CSS/InvalidationSet.h>
+#include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
+
+enum class ExcludePropertiesNestedInNotPseudoClass : bool {
+    No,
+    Yes,
+};
+
+enum class InsideNthChildPseudoClass {
+    No,
+    Yes,
+};
+
+struct StyleInvalidationData;
+
+void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&, InvalidationSet&, ExcludePropertiesNestedInNotPseudoClass, StyleInvalidationData&, InsideNthChildPseudoClass);
 
 struct StyleInvalidationData {
     HashMap<InvalidationSet::Property, InvalidationSet> descendant_invalidation_sets;
