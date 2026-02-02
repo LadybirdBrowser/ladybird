@@ -17,6 +17,7 @@
 #include <QFileOpenEvent>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QStandardPaths>
 
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
@@ -144,9 +145,16 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return tab.view();
 }
 
-Optional<ByteString> Application::ask_user_for_download_folder() const
+Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
 {
-    auto path = QFileDialog::getExistingDirectory(nullptr, "Select download directory", QDir::homePath());
+    auto default_path = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+
+    if (default_path.isNull() || default_path.isEmpty())
+        default_path = qstring_from_ak_string(file);
+    else
+        default_path = QDir { default_path }.filePath(qstring_from_ak_string(file));
+
+    auto path = QFileDialog::getSaveFileName(nullptr, "Select save location", default_path);
     if (path.isNull())
         return {};
 
