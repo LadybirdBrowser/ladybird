@@ -1,0 +1,13 @@
+PASS: class selector
+PASS: id selector
+PASS: tag selector
+PASS: attr selector
+PASS: compound selector
+PASS: descendant selector
+PASS: multi selector
+PASS: link pseudo-class
+PASS: multi-rule sheet
+PASS: :has() as sole feature
+PASS: :has() with class
+PASS: :has() with direct child
+PASS: empty sheet

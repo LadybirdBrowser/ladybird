@@ -96,21 +96,11 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
     }
 }
 
-enum class ExcludePropertiesNestedInNotPseudoClass : bool {
-    No,
-    Yes,
-};
-
-enum class InsideNthChildPseudoClass {
-    No,
-    Yes
-};
-
 static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class);
 
 static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(Selector const& selector, StyleInvalidationData& style_invalidation_data);
 
-static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector)
+void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector)
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
