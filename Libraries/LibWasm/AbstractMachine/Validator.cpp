@@ -35,11 +35,18 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& import_ : module.import_section().imports()) {
         TRY(import_.description().visit(
             [&](TypeIndex const& index) -> ErrorOr<void, ValidationError> {
-                if (m_context.types.size() > index.value())
-                    m_context.functions.append(m_context.types[index.value()]);
-                else
+                if (m_context.types.size() > index.value()) {
+                    m_context.types[index.value()].description().visit(
+                        [&](FunctionType const& func) {
+                            m_context.functions.append(func);
+                            m_context.imported_function_count++;
+                        },
+                        [&](StructType const& struct_) {
+                            m_context.structs.append(struct_);
+                        });
+                } else {
                     return Errors::invalid("TypeIndex"sv);
-                m_context.imported_function_count++;
+                }
                 return {};
             },
             [&](FunctionType const& type) -> ErrorOr<void, ValidationError> {
@@ -71,8 +78,8 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
 
     m_context.functions.ensure_capacity(module.function_section().types().size() + m_context.functions.size());
     for (auto& index : module.function_section().types())
-        if (m_context.types.size() > index.value())
-            m_context.functions.append(m_context.types[index.value()]);
+        if (m_context.types.size() > index.value() && m_context.types[index.value()].is_function())
+            m_context.functions.append(m_context.types[index.value()].function());
         else
             return Errors::invalid("TypeIndex"sv);
 
@@ -321,8 +328,13 @@ ErrorOr<void, ValidationError> Validator::validate(Wasm::TagType const& tag_type
     // The function type t1^n -> t2^m must be valid
     TRY(validate(tag_type.type()));
     auto& type = m_context.types[tag_type.type().value()];
+    if (!type.is_function())
+        return Errors::invalid("TagType"sv);
+
+    auto& func = type.function();
+
     // The type sequence t2^m must be empty
-    if (!type.results().is_empty())
+    if (!func.results().is_empty())
         return Errors::invalid("TagType"sv);
     return {};
 }
@@ -331,7 +343,11 @@ ErrorOr<FunctionType, ValidationError> Validator::validate(BlockType const& type
 {
     if (type.kind() == BlockType::Index) {
         TRY(validate(type.type_index()));
-        return m_context.types[type.type_index().value()];
+
+        if (!m_context.types[type.type_index().value()].is_function())
+            return Errors::invalid("BlockType"sv);
+
+        return m_context.types[type.type_index().value()].function();
     }
 
     if (type.kind() == BlockType::Type) {
@@ -2171,10 +2187,16 @@ VALIDATE_INSTRUCTION(throw_)
 
     auto tag_type = m_context.tags[tag_index.value()];
     auto& type = m_context.types[tag_type.type().value()];
-    if (!type.results().is_empty())
-        return Errors::invalid("throw type"sv, "empty"sv, type.results());
 
-    for (auto const& parameter : type.parameters().in_reverse())
+    if (!type.is_function())
+        return Errors::invalid("throw type"sv, "a function type"sv, type);
+
+    auto& func = type.function();
+
+    if (!func.results().is_empty())
+        return Errors::invalid("throw type"sv, "empty"sv, func.results());
+
+    for (auto const& parameter : func.parameters().in_reverse())
         TRY(stack.take(parameter));
 
     m_frames.last().unreachable = true;
@@ -2225,13 +2247,19 @@ VALIDATE_INSTRUCTION(try_table)
             TRY(validate(tag.value()));
             auto tag_type = m_context.tags[tag->value()];
             auto& type = m_context.types[tag_type.type().value()];
-            if (!type.results().is_empty())
-                return Errors::invalid("catch type"sv, "empty"sv, type.results());
 
-            Span<ValueType const> parameters_to_check = type.parameters().span();
+            if (!type.is_function())
+                return Errors::invalid("catch type"sv, "a function type"sv, type);
+
+            auto& func = type.function();
+
+            if (!func.results().is_empty())
+                return Errors::invalid("catch type"sv, "empty"sv, func.results());
+
+            Span<ValueType const> parameters_to_check = func.parameters().span();
             if (catch_.is_ref()) {
                 // catch_ref x l
-                auto& parameters = type.parameters();
+                auto& parameters = func.parameters();
                 if (parameters.is_empty() || parameters.last().kind() != ValueType::ExceptionReference)
                     return Errors::invalid("catch_ref type"sv, "[..., exnref]"sv, parameters);
                 parameters_to_check = parameters_to_check.slice(0, parameters.size() - 1);
@@ -2377,12 +2405,16 @@ VALIDATE_INSTRUCTION(call_indirect)
 
     auto& type = m_context.types[args.type.value()];
 
+    if (!type.is_function())
+        return Errors::invalid("type for call.indirect"sv, "a function type"sv, type);
+
+    auto& func = type.function();
     TRY(stack.take(table.limits().address_value_type()));
 
-    for (size_t i = 0; i < type.parameters().size(); ++i)
-        TRY(stack.take(type.parameters()[type.parameters().size() - i - 1]));
+    for (size_t i = 0; i < func.parameters().size(); ++i)
+        TRY(stack.take(func.parameters()[func.parameters().size() - i - 1]));
 
-    for (auto& type : type.results())
+    for (auto& type : func.results())
         stack.append(type);
 
     return {};
@@ -2418,15 +2450,19 @@ VALIDATE_INSTRUCTION(return_call_indirect)
         return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
     auto& type = m_context.types[args.type.value()];
+    if (!type.is_function())
+        return Errors::invalid("type for return_call_indirect"sv, "a function type"sv, table.element_type());
+
+    auto& func = type.function();
 
     TRY(stack.take<ValueType::I32>());
 
-    for (size_t i = 0; i < type.parameters().size(); ++i)
-        TRY(stack.take(type.parameters()[type.parameters().size() - i - 1]));
+    for (size_t i = 0; i < func.parameters().size(); ++i)
+        TRY(stack.take(func.parameters()[func.parameters().size() - i - 1]));
 
     auto& return_types = m_frames.first().type.results();
-    if (return_types != type.results())
-        return Errors::invalid("return_call_indirect target"sv, type.results(), return_types);
+    if (return_types != func.results())
+        return Errors::invalid("return_call_indirect target"sv, func.results(), return_types);
 
     m_frames.last().unreachable = true;
     stack.resize(m_frames.last().initial_size);

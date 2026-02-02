@@ -670,14 +670,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 if (!entry.type.has<Wasm::TypeIndex>())
                     continue;
                 auto type = parse_result->type_section().types()[entry.type.get<Wasm::TypeIndex>().value()];
+
+                if (!type.is_function())
+                    continue;
+                auto& func = type.function();
+
                 auto address = machine.store().allocate(Wasm::HostFunction(
-                    [name = entry.name, type = type](auto&, auto arguments) -> Wasm::Result {
+                    [name = entry.name, func = func](auto&, auto arguments) -> Wasm::Result {
                         StringBuilder argument_builder;
                         bool first = true;
                         size_t index = 0;
                         for (auto& argument : arguments) {
                             AllocatingMemoryStream stream;
-                            auto value_type = type.parameters()[index];
+                            auto value_type = func.parameters()[index];
                             Wasm::Printer { stream }.print(argument, value_type);
                             if (first)
                                 first = false;
@@ -690,12 +695,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         }
                         dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, argument_builder.to_byte_string());
                         Vector<Wasm::Value> result;
-                        result.ensure_capacity(type.results().size());
-                        for (auto expect_result : type.results())
+                        result.ensure_capacity(func.results().size());
+                        for (auto expect_result : func.results())
                             result.append(Wasm::Value(expect_result));
                         return Wasm::Result { move(result) };
                     },
-                    type,
+                    func,
                     entry.name));
                 exports.set(entry, *address);
             }

@@ -320,7 +320,7 @@ private:
 class ModuleInstance {
 public:
     explicit ModuleInstance(
-        Vector<FunctionType> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports, size_t minimum_call_record_allocation_size)
+        Vector<TypeSection::Type> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports, size_t minimum_call_record_allocation_size)
         : cached_minimum_call_record_allocation_size(minimum_call_record_allocation_size)
         , m_types(move(types))
         , m_tag_types(move(tag_types))
@@ -361,7 +361,7 @@ public:
     size_t cached_minimum_call_record_allocation_size { 0 };
 
 private:
-    Vector<FunctionType> m_types;
+    Vector<TypeSection::Type> m_types;
     Vector<TagType> m_tag_types;
     Vector<FunctionAddress> m_functions;
     Vector<TableAddress> m_tables;

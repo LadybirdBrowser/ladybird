@@ -22,8 +22,9 @@ struct Context {
         RedBlackTree<size_t, FunctionIndex> tree;
     };
 
-    COWVector<FunctionType> types;
+    COWVector<TypeSection::Type> types;
     COWVector<FunctionType> functions;
+    COWVector<StructType> structs;
     COWVector<TableType> tables;
     COWVector<MemoryType> memories;
     COWVector<GlobalType> globals;
@@ -433,5 +434,13 @@ struct AK::Formatter<Wasm::ValidationError> : public AK::Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Wasm::ValidationError const& error)
     {
         return Formatter<StringView>::format(builder, error.error_string);
+    }
+};
+
+template<>
+struct AK::Formatter<Wasm::TypeSection::Type> : public AK::Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Wasm::TypeSection::Type const& type)
+    {
+        return Formatter<StringView>::format(builder, type.name());
     }
 };

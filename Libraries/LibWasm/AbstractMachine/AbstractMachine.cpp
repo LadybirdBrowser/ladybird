@@ -20,7 +20,7 @@ Optional<FunctionAddress> Store::allocate(ModuleInstance& instance, Module const
     if (type_index.value() >= instance.types().size())
         return {};
 
-    auto& type = instance.types()[type_index.value()];
+    auto& type = instance.types()[type_index.value()].function();
     m_functions.empend(WasmFunction { type, instance, module, code });
     return address;
 }
@@ -248,7 +248,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
 
                 auto& this_type = module.type_section().types()[type.type().value()];
 
-                if (other_tag_instance->type().parameters() != this_type.parameters())
+                if (other_tag_instance->type().parameters() != this_type.function().parameters())
                     return "Tag import and extern do not match"sv;
                 return {};
             },
@@ -256,7 +256,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                 if (!extern_.has<FunctionAddress>())
                     return "Expected function import"sv;
                 auto other_type = m_store.get(extern_.get<FunctionAddress>())->visit([&](WasmFunction const& wasm_func) { return wasm_func.type(); }, [&](HostFunction const& host_func) { return host_func.type(); });
-                auto& type = module.type_section().types()[type_index.value()];
+                auto& type = module.type_section().types()[type_index.value()].function();
                 if (type.results() != other_type.results())
                     return ByteString::formatted("Function import and extern do not match, results: {} vs {}", type.results(), other_type.results());
                 if (type.parameters() != other_type.parameters())
@@ -482,7 +482,7 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     for (auto& entry : module.tag_section().tags()) {
         auto& type = module.type_section().types()[entry.type().value()];
-        auto address = m_store.allocate(type, entry.flags());
+        auto address = m_store.allocate(type.function(), entry.flags());
         VERIFY(address.has_value());
         module_instance.tags().append(*address);
     }

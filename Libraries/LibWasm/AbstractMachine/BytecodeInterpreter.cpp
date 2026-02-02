@@ -2008,7 +2008,7 @@ HANDLE_INSTRUCTION(call_indirect)
     TRAP_IN_LOOP_IF_NOT(element.ref().template has<Reference::Func>());
     auto address = element.ref().template get<Reference::Func>().address;
     auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[args.type.value()];
+    auto const& type_expected = configuration.frame().module().types()[args.type.value()].unsafe_function();
     TRAP_IN_LOOP_IF_NOT(type_actual.parameters().size() == type_expected.parameters().size());
     TRAP_IN_LOOP_IF_NOT(type_actual.results().size() == type_expected.results().size());
     TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());
@@ -2035,7 +2035,7 @@ HANDLE_INSTRUCTION(return_call_indirect)
     TRAP_IN_LOOP_IF_NOT(element.ref().template has<Reference::Func>());
     auto address = element.ref().template get<Reference::Func>().address;
     auto const& type_actual = configuration.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
-    auto const& type_expected = configuration.frame().module().types()[args.type.value()];
+    auto const& type_expected = configuration.frame().module().types()[args.type.value()].unsafe_function();
     TRAP_IN_LOOP_IF_NOT(type_actual.parameters().size() == type_expected.parameters().size());
     TRAP_IN_LOOP_IF_NOT(type_actual.results().size() == type_expected.results().size());
     TRAP_IN_LOOP_IF_NOT(type_actual.parameters() == type_expected.parameters());

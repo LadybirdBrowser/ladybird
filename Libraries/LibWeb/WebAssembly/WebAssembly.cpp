@@ -255,6 +255,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     if (!import_.is_function())
                         return vm.throw_completion<LinkError>(JS::ErrorType::IsNotAEvaluatedFrom, import_, "function"_string, MUST(String::formatted("[wasm import object][\"{}\"]", import_name.name)));
                     auto& function = import_.as_function();
+                    auto& function_type = type.function();
 
                     // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
                     Optional<Wasm::FunctionAddress> address;
@@ -272,16 +273,16 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                                 GC::RootVector<JS::Value> argument_values { vm.heap() };
                                 size_t index = 0;
                                 for (auto& entry : arguments) {
-                                    argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
+                                    argument_values.append(to_js_value(vm, entry, function_type.parameters()[index]));
                                     ++index;
                                 }
 
                                 auto result = TRY_OR_RETURN_TRAP(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
-                                if (type.results().is_empty())
+                                if (function_type.results().is_empty())
                                     return Wasm::Result { Vector<Wasm::Value> {} };
 
-                                if (type.results().size() == 1)
-                                    return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, type.results().first())) } };
+                                if (function_type.results().size() == 1)
+                                    return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(vm, result, function_type.results().first())) } };
 
                                 auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
                                 if (!method)
@@ -289,19 +290,19 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
                                 auto values = TRY_OR_RETURN_TRAP(JS::iterator_to_list(vm, TRY_OR_RETURN_TRAP(JS::get_iterator_from_method(vm, result, *method))));
 
-                                if (values.size() != type.results().size())
-                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size())));
+                                if (values.size() != function_type.results().size())
+                                    return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(ByteString::formatted("Invalid number of return values for multi-value wasm return of {} objects", function_type.results().size())));
 
                                 Vector<Wasm::Value> wasm_values;
                                 TRY_OR_RETURN_OOM_TRAP(vm, wasm_values.try_ensure_capacity(values.size()));
 
                                 size_t i = 0;
                                 for (auto& value : values)
-                                    wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, type.results()[i++])));
+                                    wasm_values.append(TRY_OR_RETURN_TRAP(to_webassembly_value(vm, value, function_type.results()[i++])));
 
                                 return Wasm::Result { move(wasm_values) };
                             },
-                            type,
+                            function_type,
                             ByteString::formatted("func{}", resolved_imports.size()),
                         };
                         address = cache.abstract_machine().store().allocate(move(host_function));
