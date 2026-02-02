@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // With 4ms clamping after nesting level 5, running for 100ms should yield
+        // roughly 5-6 unclamped calls plus approximately 25 clamped calls.
+        // Without clamping, we'd get thousands of calls.
+        // We test that the count is bounded, proving clamping is working.
+        const testDurationMilliseconds = 100;
+        let callCount = 0;
+
+        const id = setInterval(() => {
+            callCount++;
+        }, 0);
+
+        setTimeout(() => {
+            clearInterval(id);
+
+            println(`Callback count bounded (< 100 in 100ms): ${callCount < 100}`);
+            done();
+        }, testDurationMilliseconds);
+    });
+</script>
