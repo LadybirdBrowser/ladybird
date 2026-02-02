@@ -799,7 +799,8 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
                 .viewport_rect = viewport_rect(),
                 .font_metrics = font_metrics,
                 .root_font_metrics = m_root_element_font_metrics },
-            .abstract_element = abstract_element
+            .abstract_element = abstract_element,
+            .color_scheme = computed_properties.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes()),
         };
 
         // NOTE: This doesn't necessarily return the specified value if we reach into computed_properties but that
@@ -1569,7 +1570,8 @@ void StyleComputer::compute_property_values(ComputedProperties& style, Optional<
             .font_metrics = font_metrics,
             .root_font_metrics = m_root_element_font_metrics,
         },
-        .abstract_element = abstract_element
+        .abstract_element = abstract_element,
+        .color_scheme = style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes())
     };
 
     // NOTE: This doesn't necessarily return the specified value if we have already computed this property but that

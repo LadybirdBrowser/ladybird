@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,8 @@
 #include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
@@ -356,6 +358,35 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
     default:
         return {};
     }
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(ComputationContext const& context) const
+{
+    if (!has_color())
+        return *this;
+
+    // The currentcolor keyword computes to itself.
+    // https://drafts.csswg.org/css-color-4/#resolving-other-colors
+    if (keyword() == Keyword::Currentcolor)
+        return *this;
+
+    ColorResolutionContext color_resolution_context;
+    if (context.abstract_element.has_value()) {
+        color_resolution_context.document = context.abstract_element->document();
+        color_resolution_context.calculation_resolution_context = CalculationResolutionContext::from_computation_context(context);
+        color_resolution_context.color_scheme = context.color_scheme;
+    }
+
+    auto resolved_color = to_color(color_resolution_context);
+    if (!resolved_color.has_value())
+        return *this;
+
+    return RGBColorStyleValue::create(
+        NumberStyleValue::create(resolved_color->red()),
+        NumberStyleValue::create(resolved_color->green()),
+        NumberStyleValue::create(resolved_color->blue()),
+        NumberStyleValue::create(resolved_color->alpha() / 255.0f),
+        ColorSyntax::Legacy);
 }
 
 Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const

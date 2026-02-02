@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -50,6 +50,7 @@ public:
     static bool is_color(Keyword);
     virtual bool has_color() const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
