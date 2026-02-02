@@ -619,27 +619,17 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
 
-    auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> Optional<CSS::BorderRadiusData> {
+    auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> CSS::BorderRadiusData {
         return CSS::BorderRadiusData {
             CSS::LengthPercentage::from_style_value(value.as_border_radius().horizontal_radius()),
             CSS::LengthPercentage::from_style_value(value.as_border_radius().vertical_radius())
         };
-
-        VERIFY_NOT_REACHED();
     };
 
-    auto const& border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
-    if (auto data = border_radius_data_from_style_value(border_bottom_left_radius); data.has_value())
-        computed_values.set_border_bottom_left_radius(data.release_value());
-    auto const& border_bottom_right_radius = computed_style.property(CSS::PropertyID::BorderBottomRightRadius);
-    if (auto data = border_radius_data_from_style_value(border_bottom_right_radius); data.has_value())
-        computed_values.set_border_bottom_right_radius(data.release_value());
-    auto const& border_top_left_radius = computed_style.property(CSS::PropertyID::BorderTopLeftRadius);
-    if (auto data = border_radius_data_from_style_value(border_top_left_radius); data.has_value())
-        computed_values.set_border_top_left_radius(data.release_value());
-    auto const& border_top_right_radius = computed_style.property(CSS::PropertyID::BorderTopRightRadius);
-    if (auto data = border_radius_data_from_style_value(border_top_right_radius); data.has_value())
-        computed_values.set_border_top_right_radius(data.release_value());
+    computed_values.set_border_bottom_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomLeftRadius)));
+    computed_values.set_border_bottom_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomRightRadius)));
+    computed_values.set_border_top_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopLeftRadius)));
+    computed_values.set_border_top_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopRightRadius)));
     computed_values.set_display(computed_style.display());
     computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
