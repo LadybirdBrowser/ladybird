@@ -3,4 +3,4 @@ Harness status: OK
 Found 1 tests
 
 1 Pass
-Pass	svg 1: undefined
+Pass	svg 1
