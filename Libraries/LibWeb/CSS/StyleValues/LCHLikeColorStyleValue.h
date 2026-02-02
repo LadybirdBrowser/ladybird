@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
@@ -56,6 +57,7 @@ public:
     virtual ~LCHColorStyleValue() override = default;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 };
@@ -69,6 +71,7 @@ public:
     virtual ~OKLCHColorStyleValue() override = default;
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 };

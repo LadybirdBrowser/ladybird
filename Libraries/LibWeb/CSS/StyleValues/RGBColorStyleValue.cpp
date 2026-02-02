@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -70,6 +70,17 @@ Optional<Color> RGBColorStyleValue::to_color(ColorResolutionContext color_resolu
         return {};
 
     return Color(r_val.value(), g_val.value(), b_val.value(), alpha_val.value());
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> RGBColorStyleValue::absolutized(ComputationContext const& context) const
+{
+    auto r = m_properties.r->absolutized(context);
+    auto g = m_properties.g->absolutized(context);
+    auto b = m_properties.b->absolutized(context);
+    auto alpha = m_properties.alpha->absolutized(context);
+    if (r == m_properties.r && g == m_properties.g && b == m_properties.b && alpha == m_properties.alpha)
+        return *this;
+    return RGBColorStyleValue::create(move(r), move(g), move(b), move(alpha), color_syntax());
 }
 
 bool RGBColorStyleValue::equals(StyleValue const& other) const
