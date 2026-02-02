@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 120 tests
 
-104 Pass
-16 Fail
+112 Pass
+8 Fail
 Pass	Property color value 'lab(0 0 0)'
 Pass	Property color value 'lab(0 0 0 / 1)'
 Pass	Property color value 'lab(0 0 0 / 0.5)'
@@ -108,14 +108,14 @@ Pass	Property color value 'lch(20% 80% 10/0.5)'
 Pass	Property color value 'oklch(20% 60% 10/0.5)'
 Pass	Property color value 'oklch(calc(NaN) 0 0)'
 Pass	Property color value 'oklch(calc(0 / 0) 0 0)'
-Fail	Property color value 'lab(calc(50 + (sign(1em - 10px) * 10)) 30 50 / 50%)'
-Fail	Property color value 'oklab(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 0.5 / 50%)'
-Fail	Property color value 'lab(60 30 50 / calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'oklab(0.6 0.3 0.5 / calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'lch(calc(50 + (sign(1em - 10px) * 10)) 30 50deg / 50%)'
-Fail	Property color value 'oklch(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 50deg / 50%)'
-Fail	Property color value 'lch(60 30 50deg / calc(50% + (sign(1em - 10px) * 10%)))'
-Fail	Property color value 'oklch(0.6 0.3 50deg / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'lab(calc(50 + (sign(1em - 10px) * 10)) 30 50 / 50%)'
+Pass	Property color value 'oklab(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 0.5 / 50%)'
+Pass	Property color value 'lab(60 30 50 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'oklab(0.6 0.3 0.5 / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'lch(calc(50 + (sign(1em - 10px) * 10)) 30 50deg / 50%)'
+Pass	Property color value 'oklch(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 50deg / 50%)'
+Pass	Property color value 'lch(60 30 50deg / calc(50% + (sign(1em - 10px) * 10%)))'
+Pass	Property color value 'oklch(0.6 0.3 50deg / calc(50% + (sign(1em - 10px) * 10%)))'
 Fail	Property color value 'lab(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.51)'
 Fail	Property color value 'oklab(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 0.5 / 0.51)'
 Fail	Property color value 'lch(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.51)'
