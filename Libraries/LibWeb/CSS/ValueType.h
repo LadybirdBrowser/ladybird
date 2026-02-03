@@ -22,6 +22,7 @@ enum class ValueType : u8 {
     Color,
     CornerShape,
     Counter,
+    CounterStyle,
     CustomIdent,
     DashedIdent,
     EasingFunction,

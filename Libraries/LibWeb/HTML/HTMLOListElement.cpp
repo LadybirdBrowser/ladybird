@@ -7,7 +7,7 @@
 #include <LibWeb/Bindings/HTMLOListElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
@@ -97,15 +97,15 @@ void HTMLOListElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::type) {
             if (value == "1"sv) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::Decimal));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("decimal"_fly_string));
             } else if (value == "a"sv) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::LowerAlpha));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("lower-alpha"_fly_string));
             } else if (value == "A"sv) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::UpperAlpha));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("upper-alpha"_fly_string));
             } else if (value == "i"sv) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::LowerRoman));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("lower-roman"_fly_string));
             } else if (value == "I"sv) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::UpperRoman));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("upper-roman"_fly_string));
             }
         }
     });

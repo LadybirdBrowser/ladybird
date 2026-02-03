@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -1367,7 +1368,11 @@ ListStyleType ComputedProperties::list_style_type() const
     if (value.is_string())
         return value.as_string().string_value().to_string();
 
-    return keyword_to_counter_style_name_keyword(value.to_keyword()).release_value();
+    if (auto keyword = value.as_counter_style().to_counter_style_name_keyword(); keyword.has_value())
+        return keyword.release_value();
+
+    // FIXME: Support user defined counter styles.
+    return Empty {};
 }
 
 ListStylePosition ComputedProperties::list_style_position() const

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 687 tests
 
-665 Pass
-22 Fail
+667 Pass
+20 Fail
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -471,8 +471,8 @@ Pass	list-style-type: upper-roman
 Pass	list-style-type: lower-greek
 Pass	list-style-type: lower-latin
 Pass	list-style-type: upper-latin
-Fail	list-style-type: armenian
-Fail	list-style-type: georgian
+Pass	list-style-type: armenian
+Pass	list-style-type: georgian
 Pass	list-style-type: lower-alpha
 Pass	list-style-type: upper-alpha
 Pass	list-style-type: none

@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/HTMLUListElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLUListElement.h>
 
@@ -45,11 +46,11 @@ void HTMLUListElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
             if (value.equals_ignoring_ascii_case("none"sv)) {
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::None));
             } else if (value.equals_ignoring_ascii_case("disc"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::Disc));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("disc"_fly_string));
             } else if (value.equals_ignoring_ascii_case("circle"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::Circle));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("circle"_fly_string));
             } else if (value.equals_ignoring_ascii_case("square"sv)) {
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::KeywordStyleValue::create(CSS::Keyword::Square));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CounterStyleStyleValue::create("square"_fly_string));
             }
         }
     });
