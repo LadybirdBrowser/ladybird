@@ -855,7 +855,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // 1. Return failure if any of the following conditions is true:
 
             //    - capturedElement’s new element has a flat tree ancestor that skips its contents.
-            for (auto ancestor = captured_element->new_element->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            for (auto ancestor = captured_element->new_element->flat_tree_parent_element(); ancestor; ancestor = ancestor->flat_tree_parent_element()) {
                 if (ancestor->skips_its_contents())
                     return Error::from_string_literal("capturedElement’s new element has a flat tree ancestor that skips its contents.");
             }
