@@ -936,7 +936,7 @@ public:
         return m_bytecode->at(state().instruction_position + 1 + offset);
     }
 
-    ALWAYS_INLINE StringView name() const;
+    ALWAYS_INLINE StringView name() const { return name(opcode_id()); }
     static StringView name(OpCodeId);
 
     ALWAYS_INLINE void set_state(MatchState const& state) { m_state = &state; }

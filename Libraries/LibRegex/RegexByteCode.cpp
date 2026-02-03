@@ -19,12 +19,6 @@ constexpr static u32 const ParagraphSeparator { 0x2029 };
 
 namespace regex {
 
-template<typename ByteCode>
-StringView OpCode<ByteCode>::name() const
-{
-    return name(opcode_id());
-}
-
 StringView execution_result_name(ExecutionResult result)
 {
     switch (result) {
