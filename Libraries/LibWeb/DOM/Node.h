@@ -157,6 +157,10 @@ public:
     Node const* parent_or_shadow_host_node() const;
     Element* parent_or_shadow_host_element();
     Element const* parent_or_shadow_host_element() const { return const_cast<Node*>(this)->parent_or_shadow_host_element(); }
+    ParentNode* flat_tree_parent();
+    ParentNode const* flat_tree_parent() const { return const_cast<Node*>(this)->flat_tree_parent(); }
+    Element* flat_tree_parent_element();
+    Element const* flat_tree_parent_element() const { return const_cast<Node*>(this)->flat_tree_parent_element(); }
 
     virtual ~Node();
 

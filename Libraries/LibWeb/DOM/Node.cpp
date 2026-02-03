@@ -1803,6 +1803,28 @@ Element* Node::parent_or_shadow_host_element()
     return nullptr;
 }
 
+ParentNode* Node::flat_tree_parent()
+{
+    // If we're assigned to a slot, that slot is our flat tree parent.
+    if (is_slottable()) {
+        auto& slottable = as_slottable().visit([](auto& node) -> SlottableMixin& { return *node; });
+        if (auto slot = slottable.assigned_slot())
+            return slot;
+    }
+
+    // Otherwise, this is the parent or shadow host.
+    return parent_or_shadow_host();
+}
+
+Element* Node::flat_tree_parent_element()
+{
+    for (auto* parent = flat_tree_parent(); parent; parent = parent->flat_tree_parent()) {
+        if (auto* element = as_if<Element>(parent))
+            return element;
+    }
+    return nullptr;
+}
+
 Node const* Node::parent_or_shadow_host_node() const
 {
     if (is<ShadowRoot>(*this))
