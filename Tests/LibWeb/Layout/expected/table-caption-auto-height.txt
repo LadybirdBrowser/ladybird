@@ -1,0 +1,44 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 192 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 160 0+0+16] children: not-inline
+      TableWrapper <(anonymous)> at [48,16] [40+0+0 106 0+0+638] [16+0+0 160 0+0+16] [BFC] children: not-inline
+        Box <figure> at [50,68] table-box [0+2+0 102 0+2+0] [0+2+0 52 0+2+54] [TFC] children: not-inline
+          Box <(anonymous)> at [50,68] table-row [0+0+0 102 0+0+0] [0+0+0 52 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [50,68] table-cell [0+0+0 102 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [50,68] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              BlockContainer <div.table-content> at [51,69] [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] children: not-inline
+              BlockContainer <(anonymous)> at [50,120] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+          BlockContainer <figcaption> at [50,16] [0+2+0 102 0+2+0] [0+2+0 50 0+2+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [50,16] [0+0+0 106 0+0+0] [0+0+0 18 0+0+0] children: inline
+              frag 0 from TextNode start: 9, length: 12, rect: [50,16 100.609375x18] baseline: 13.796875
+                  "Caption text"
+              TextNode <#text> (not painted)
+            BlockContainer <div.caption-content> at [51,35] [0+1+0 104 0+1+0] [0+1+0 30 0+1+0] children: not-inline
+            BlockContainer <(anonymous)> at [50,66] [0+0+0 106 0+0+0] [0+0+0 0 0+0+0] children: inline
+              TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,192] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x192]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x160]
+      PaintableWithLines (TableWrapper(anonymous)) [48,16 106x160]
+        PaintableBox (Box<FIGURE>) [48,66 106x56]
+          PaintableBox (Box(anonymous)) [50,68 102x52]
+            PaintableWithLines (BlockContainer(anonymous)) [50,68 102x52]
+              PaintableWithLines (BlockContainer(anonymous)) [50,68 102x0]
+              PaintableWithLines (BlockContainer<DIV>.table-content) [50,68 102x52]
+              PaintableWithLines (BlockContainer(anonymous)) [50,120 102x0]
+          PaintableWithLines (BlockContainer<FIGCAPTION>) [48,14 106x54]
+            PaintableWithLines (BlockContainer(anonymous)) [50,16 106x18]
+              TextPaintable (TextNode<#text>)
+            PaintableWithLines (BlockContainer<DIV>.caption-content) [50,34 106x32]
+            PaintableWithLines (BlockContainer(anonymous)) [50,66 106x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,192 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x192] [children: 0] (z-index: auto)
