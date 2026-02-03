@@ -295,7 +295,7 @@ GC::Ptr<SVGSVGElement> SVGElement::owner_svg_element()
     // The ownerSVGElement IDL attribute represents the nearest ancestor ‘svg’ element.
     // On getting ownerSVGElement, the nearest ancestor ‘svg’ element is returned;
     // if the current element is the outermost svg element, then null is returned.
-    return shadow_including_first_ancestor_of_type<SVGSVGElement>();
+    return first_flat_tree_ancestor_of_type<SVGSVGElement>();
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__viewportElement

@@ -465,13 +465,13 @@ public:
         return {};
     }
     template<typename U>
-    U const* shadow_including_first_ancestor_of_type() const
+    U const* first_flat_tree_ancestor_of_type() const
     {
-        return const_cast<Node*>(this)->template shadow_including_first_ancestor_of_type<U>();
+        return const_cast<Node*>(this)->template first_flat_tree_ancestor_of_type<U>();
     }
 
     template<typename U>
-    U* shadow_including_first_ancestor_of_type();
+    U* first_flat_tree_ancestor_of_type();
 
     template<typename Predicate>
     requires requires(Predicate& predicate, Node const& node) { { predicate(node) } -> ConvertibleTo<bool>; }
