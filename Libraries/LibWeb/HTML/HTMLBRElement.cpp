@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/HTMLBRElementPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/BreakNode.h>
@@ -31,6 +32,30 @@ void HTMLBRElement::initialize(JS::Realm& realm)
 GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::BreakNode>(document(), *this, move(style));
+}
+
+bool HTMLBRElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::clear;
+}
+
+void HTMLBRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+{
+    Base::apply_presentational_hints(cascaded_properties);
+    for_each_attribute([&](auto& name, auto& value) {
+        // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3
+        if (name == HTML::AttributeNames::clear) {
+            if (value.equals_ignoring_ascii_case("left"sv))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Left));
+            else if (value.equals_ignoring_ascii_case("right"sv))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Right));
+            else if (value.equals_ignoring_ascii_case("all"sv) || value.equals_ignoring_ascii_case("both"sv))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Clear, CSS::KeywordStyleValue::create(CSS::Keyword::Both));
+        }
+    });
 }
 
 void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties& style)
