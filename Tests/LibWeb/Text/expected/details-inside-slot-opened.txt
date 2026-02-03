@@ -1,0 +1,2 @@
+Height before opening: 18px
+Height after opening: 36px

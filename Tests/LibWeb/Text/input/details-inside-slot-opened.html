@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="wrapper">
+    <template shadowrootmode=open>
+        <div><slot></slot></div>
+    </template>
+    <details id="target">
+        <summary>Open sesame</summary>
+        <div>Insides</div>
+    </details>
+</div>
+<script>
+    test(() => {
+        println(`Height before opening: ${getComputedStyle(wrapper).height}`);
+        target.open = true;
+        println(`Height after opening: ${getComputedStyle(wrapper).height}`);
+    });
+</script>
