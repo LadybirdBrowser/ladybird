@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -25,6 +26,9 @@ public:
     // For <clipPath> element
     Optional<CSSPixelRect> get_svg_clip_area() const;
     RefPtr<DisplayList> calculate_svg_clip_display_list(DisplayListRecordingContext&, CSSPixelRect const& clip_area) const;
+
+private:
+    Gfx::AffineTransform target_svg_transform() const;
 };
 
 }

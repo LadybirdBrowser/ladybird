@@ -69,7 +69,7 @@ Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
 
 static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     DisplayListRecordingContext& context,
-    SVG::SVGGraphicsElement const& graphics_element,
+    Gfx::AffineTransform const& target_svg_transform,
     PaintableBox const& paintable,
     CSSPixelRect const& area,
     bool is_clip_path)
@@ -80,17 +80,20 @@ static RefPtr<DisplayList> paint_mask_or_clip_to_display_list(
     display_list_recorder.translate(-mask_rect.location().to_type<int>());
     auto paint_context = context.clone(display_list_recorder);
     auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());
-    // FIXME: Nested transformations are incorrect when clipPathUnits="objectBoundingBox".
-    paint_context.set_svg_transform(
-        // Transform the mask's content into the target's space.
-        graphics_element.get_transform()
-            // Undo any transformations already applied to the mask's parents.
-            .multiply(mask_element.get_transform().inverse().value())
-            // Re-apply the mask's own transformation since that is still needed.
-            .multiply(mask_element.element_transform()));
+    // Layout computes transforms only within the mask/clip subtree, so prepend the target's accumulated transform here.
+    auto svg_transform = Gfx::AffineTransform { target_svg_transform }.multiply(mask_element.element_transform());
+    paint_context.set_svg_transform(svg_transform);
     paint_context.set_draw_svg_geometry_for_clip_path(is_clip_path);
     StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
     return display_list;
+}
+
+Gfx::AffineTransform SVGMaskable::target_svg_transform() const
+{
+    // Only SVGGraphicsPaintable carries an SVG transform; other targets (e.g. foreign objects) use identity.
+    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(*this))
+        return svg_graphics_paintable->computed_transforms().svg_transform();
+    return {};
 }
 
 RefPtr<DisplayList> SVGMaskable::calculate_svg_mask_display_list(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const
@@ -100,7 +103,7 @@ RefPtr<DisplayList> SVGMaskable::calculate_svg_mask_display_list(DisplayListReco
     if (!mask_box)
         return nullptr;
     auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->first_paintable());
-    return paint_mask_or_clip_to_display_list(context, graphics_element, mask_paintable, mask_area, false);
+    return paint_mask_or_clip_to_display_list(context, target_svg_transform(), mask_paintable, mask_area, false);
 }
 
 RefPtr<DisplayList> SVGMaskable::calculate_svg_clip_display_list(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const
@@ -110,7 +113,7 @@ RefPtr<DisplayList> SVGMaskable::calculate_svg_clip_display_list(DisplayListReco
     if (!clip_box)
         return nullptr;
     auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->first_paintable());
-    return paint_mask_or_clip_to_display_list(context, graphics_element, clip_paintable, clip_area, true);
+    return paint_mask_or_clip_to_display_list(context, target_svg_transform(), clip_paintable, clip_area, true);
 }
 
 }

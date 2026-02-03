@@ -446,10 +446,26 @@ void SVGFormattingContext::layout_path_like_element(SVGGraphicsBox const& graphi
     graphics_box_state.set_computed_svg_path(move(path));
 }
 
+Gfx::AffineTransform SVGFormattingContext::get_parent_svg_transform(SVGGraphicsBox const& box) const
+{
+    // Mask/clip boxes are transform boundaries — the target's transform is applied separately at paint time.
+    for (auto* ancestor = box.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (is<SVGMaskBox>(*ancestor) || is<SVGClipBox>(*ancestor))
+            return {};
+        if (auto const* svg_graphics_ancestor = as_if<SVGGraphicsBox>(*ancestor)) {
+            auto const& ancestor_state = m_state.get(*svg_graphics_ancestor);
+            if (ancestor_state.computed_svg_transforms().has_value())
+                return ancestor_state.computed_svg_transforms()->svg_transform();
+        }
+    }
+    return {};
+}
+
 void SVGFormattingContext::layout_graphics_element(SVGGraphicsBox const& graphics_box)
 {
     auto& graphics_box_state = m_state.get_mutable(graphics_box);
-    auto svg_transform = const_cast<SVGGraphicsBox&>(graphics_box).dom_node().get_transform();
+    auto parent_svg_transform = get_parent_svg_transform(graphics_box);
+    auto svg_transform = parent_svg_transform.multiply(const_cast<SVGGraphicsBox&>(graphics_box).dom_node().element_transform());
     graphics_box_state.set_computed_svg_transforms(Painting::SVGGraphicsPaintable::ComputedTransforms(m_current_viewbox_transform, svg_transform));
 
     if (is_container_element(graphics_box)) {
