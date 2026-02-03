@@ -41,7 +41,7 @@ public:
     virtual void parent_context_did_dimension_child_root_box() override;
 
 private:
-    CSSPixels run_caption_layout(CSS::CaptionSide);
+    CSSPixels run_caption_layout(CSS::CaptionSide, AvailableSpace const&);
     CSSPixels compute_capmin();
     void compute_constrainedness();
     void compute_cell_measures();
