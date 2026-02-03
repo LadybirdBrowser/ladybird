@@ -891,6 +891,13 @@ void ViewImplementation::initialize_context_menus()
     m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
         load(m_context_menu_url);
     });
+    m_save_image_action = Action::create("Save Image As..."sv, ActionID::SaveImage, [this]() {
+        auto download_path = Application::the().path_for_downloaded_file(m_context_menu_url.basename());
+        if (download_path.is_error())
+            return;
+
+        Application::the().file_downloader().download_file(m_context_menu_url, download_path.release_value());
+    });
     m_copy_image_action = Action::create("Copy Image"sv, ActionID::CopyImage, [this]() {
         if (!m_image_context_menu_bitmap.has_value())
             return;
@@ -957,6 +964,8 @@ void ViewImplementation::initialize_context_menus()
     m_image_context_menu = Menu::create("Image Context Menu"sv);
     m_image_context_menu->add_action(*m_open_image_action);
     m_image_context_menu->add_action(*m_open_in_new_tab_action);
+    m_image_context_menu->add_separator();
+    m_image_context_menu->add_action(*m_save_image_action);
     m_image_context_menu->add_separator();
     m_image_context_menu->add_action(*m_copy_image_action);
     m_image_context_menu->add_action(*m_copy_url_action);

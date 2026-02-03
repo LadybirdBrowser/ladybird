@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -141,6 +141,9 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 
     case WebView::ActionID::OpenImage:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/filetype-image.png"sv));
+        break;
+    case WebView::ActionID::SaveImage:
+        qaction.setIcon(load_icon_from_uri("resource://icons/16x16/download.png"sv));
         break;
     case WebView::ActionID::CopyImage:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -178,6 +178,9 @@ static void initialize_native_control(WebView::Action& action, id control)
 
     case WebView::ActionID::OpenImage:
         set_control_image(control, @"photo");
+        break;
+    case WebView::ActionID::SaveImage:
+        set_control_image(control, @"square.and.arrow.down");
         break;
     case WebView::ActionID::CopyImage:
         set_control_image(control, @"document.on.document");
