@@ -59,6 +59,11 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                     // Adjust x offset so border-box aligns with the table wrapper.
                     caption_state.set_content_x(caption_state.offset.x() + caption_state.border_left + caption_state.padding_left);
                 }
+
+                if (child_box.computed_values().height().is_auto()) {
+                    auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_height();
+                    m_state.get_mutable(child_box).set_content_height(height);
+                }
             }
         }
 
