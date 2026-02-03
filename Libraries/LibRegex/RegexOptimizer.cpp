@@ -1677,6 +1677,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
     //          ForkStay bbM
     //          Checkpoint p
     //          Compare AnyChar
+    //          FailIfEmpty              (optional, noop for .*)
     //          JumpNonEmpty (back to ForkStay) p
     //     bbM: {O1}                     (optional non-matching ops)
     //          Compare C
@@ -1758,7 +1759,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
         bool found_following_block = false;
         for (size_t j = 0; j < basic_blocks.size(); ++j) {
             if (basic_blocks[j].start == fork_target) {
-                if (basic_blocks[j].start < basic_blocks[j].end) {
+                if (basic_blocks[j].start <= basic_blocks[j].end) {
                     following_block_idx = j;
                     found_following_block = true;
                     break;
@@ -1807,6 +1808,13 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
 
         state.instruction_position += third_op.size();
 
+        // (3.5) Skip FailIfEmpty if present
+        {
+            auto& maybe_fail_op = bytecode.get_opcode(state);
+            if (maybe_fail_op.opcode_id() == OpCodeId::FailIfEmpty)
+                state.instruction_position += maybe_fail_op.size();
+        }
+
         // (4) JumpNonEmpty back to ForkStay
         auto& fourth_op = bytecode.get_opcode(state);
         if (fourth_op.opcode_id() != OpCodeId::JumpNonEmpty) {
@@ -1832,7 +1840,7 @@ void Regex<Parser>::attempt_rewrite_dot_star_sequences_as_seek(BasicBlockList co
 
         // The following block must contain a Compare C, with only non-matching ops in between
         state.instruction_position = following_block.start;
-        while (state.instruction_position < following_block.end) {
+        while (state.instruction_position <= following_block.end) {
             auto& op = bytecode.get_opcode(state);
 
             switch (op.opcode_id()) {
