@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -64,14 +63,36 @@ void paint_box_shadow(DisplayListRecordingContext& context,
     }
 }
 
-void paint_text_shadow(DisplayListRecordingContext& context, PaintableFragment const& fragment, Vector<ShadowData> const& shadow_layers)
+void paint_text_shadow(DisplayListRecordingContext& context, PaintableFragment::FragmentSpan const& span)
 {
+    auto const& fragment = span.fragment;
+    auto const& shadow_layers = fragment.shadows();
+
     if (shadow_layers.is_empty())
         return;
 
     auto glyph_run = fragment.glyph_run();
     if (!glyph_run || glyph_run->glyphs().is_empty())
         return;
+
+    // If this is a partial span, slice the glyph run to only include the relevant glyphs.
+    auto const& glyphs = glyph_run->glyphs();
+    if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
+        size_t start_glyph = 0;
+        size_t glyph_count = 0;
+        size_t code_unit_offset = 0;
+        for (size_t i = 0; i < glyphs.size(); ++i) {
+            if (code_unit_offset == span.start_code_unit)
+                start_glyph = i;
+            code_unit_offset += glyphs[i].length_in_code_units;
+            if (code_unit_offset == span.end_code_unit) {
+                glyph_count = i - start_glyph + 1;
+                break;
+            }
+        }
+        if (glyph_count > 0)
+            glyph_run = glyph_run->slice(start_glyph, glyph_count);
+    }
 
     auto fragment_width = context.enclosing_device_pixels(fragment.width()).value();
     auto fragment_height = context.enclosing_device_pixels(fragment.height()).value();

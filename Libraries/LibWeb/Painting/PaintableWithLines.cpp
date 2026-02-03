@@ -8,7 +8,6 @@
  */
 
 #include <LibGfx/Font/Font.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
@@ -30,7 +29,8 @@ GC_DEFINE_ALLOCATOR(PaintableWithLines);
 static void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
 static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude);
 static void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
-static void paint_text_fragment(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&, PaintPhase);
+static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
+static void paint_text_fragment(DisplayListRecordingContext&, PaintableFragment::FragmentSpan const&);
 
 GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
@@ -263,52 +263,142 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
 
     context.display_list_recorder().set_accumulated_visual_context(accumulated_visual_context_for_descendants());
 
-    // Text shadows
-    // This is yet another loop, but done here because all shadows should appear under all text.
-    // So, we paint the shadows before painting any text.
-    // FIXME: Find a smarter way to do this?
     if (phase == PaintPhase::Foreground) {
-        for (auto& fragment : fragments())
-            paint_text_shadow(context, fragment, fragment.shadows());
-    }
+        Vector<PaintableFragment::FragmentSpan, 4> spans;
+        for (auto const& fragment : m_fragments)
+            compute_render_spans(fragment, spans);
 
-    for (auto const& fragment : m_fragments) {
-        if (is<TextPaintable>(fragment.paintable()))
-            paint_text_fragment(context, static_cast<TextPaintable const&>(fragment.paintable()), fragment, phase);
+        for (auto const& span : spans) {
+            if (span.background_color.alpha() > 0) {
+                auto selection_rect = context.rounded_device_rect(span.fragment.selection_rect()).to_type<int>();
+                context.display_list_recorder().fill_rect(selection_rect, span.background_color);
+            }
+        }
+
+        for (auto const& span : spans)
+            paint_text_shadow(context, span);
+
+        for (auto const& span : spans)
+            paint_text_fragment(context, span);
     }
 }
 
-void paint_text_fragment(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment, PaintPhase phase)
+void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFragment::FragmentSpan, 4>& spans)
 {
-    if (!paintable.is_visible())
+    auto const* text_paintable = as_if<TextPaintable>(fragment.paintable());
+    if (!text_paintable) {
+        // Non-text fragments still need shadow painting.
+        spans.append({
+            .fragment = fragment,
+            .start_code_unit = 0,
+            .end_code_unit = 0,
+            .text_color = Color::Transparent,
+            .background_color = Color::Transparent,
+        });
+        return;
+    }
+
+    if (!text_paintable->is_visible())
+        return;
+
+    auto text_color = text_paintable->computed_values().webkit_text_fill_color();
+    auto selection_offsets = fragment.selection_offsets();
+
+    // No selection: single span with base styling.
+    if (!selection_offsets.has_value()) {
+        spans.append({
+            .fragment = fragment,
+            .start_code_unit = 0,
+            .end_code_unit = fragment.length_in_code_units(),
+            .text_color = text_color,
+            .background_color = Color::Transparent,
+        });
+        return;
+    }
+
+    auto [selection_start, selection_end, _] = *selection_offsets;
+    auto selection_style = text_paintable->selection_style();
+    auto selection_text_color = selection_style.text_color.value_or(text_color);
+
+    // Before selection.
+    if (selection_start > 0) {
+        spans.append({
+            .fragment = fragment,
+            .start_code_unit = 0,
+            .end_code_unit = selection_start,
+            .text_color = text_color,
+            .background_color = Color::Transparent,
+        });
+    }
+
+    // Selected portion.
+    if (selection_start < selection_end) {
+        spans.append({
+            .fragment = fragment,
+            .start_code_unit = selection_start,
+            .end_code_unit = selection_end,
+            .text_color = selection_text_color,
+            .background_color = selection_style.background_color,
+        });
+    }
+
+    // After selection.
+    if (selection_end < fragment.length_in_code_units()) {
+        spans.append({
+            .fragment = fragment,
+            .start_code_unit = selection_end,
+            .end_code_unit = fragment.length_in_code_units(),
+            .text_color = text_color,
+            .background_color = Color::Transparent,
+        });
+    }
+}
+
+void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment::FragmentSpan const& span)
+{
+    auto const& fragment = span.fragment;
+
+    // Skip non-text spans (they're only for shadow painting).
+    if (span.start_code_unit == span.end_code_unit)
+        return;
+
+    auto const& text_paintable = as<TextPaintable>(fragment.paintable());
+
+    if (context.should_show_line_box_borders())
+        PaintableWithLines::paint_text_fragment_debug_highlight(context, fragment);
+
+    auto glyph_run = fragment.glyph_run();
+    if (!glyph_run)
         return;
 
     auto& painter = context.display_list_recorder();
+    auto fragment_absolute_rect = fragment.absolute_rect();
+    auto fragment_device_rect = context.enclosing_device_rect(fragment_absolute_rect).to_type<int>();
+    auto scale = context.device_pixels_per_css_pixel();
+    auto baseline_start = Gfx::FloatPoint {
+        fragment_absolute_rect.x().to_float(),
+        fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
+    } * scale;
 
-    if (phase == PaintPhase::Foreground) {
-        auto fragment_absolute_rect = fragment.absolute_rect();
-        auto fragment_enclosing_device_rect = context.enclosing_device_rect(fragment_absolute_rect).to_type<int>();
+    // Paint text, clipped to span range if not full fragment.
+    bool is_full_fragment = span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units();
+    if (is_full_fragment) {
+        painter.draw_glyph_run(baseline_start, *glyph_run, span.text_color, fragment_device_rect, scale, fragment.orientation());
+    } else {
+        auto range_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
+            fragment.start_offset() + span.start_code_unit,
+            fragment.start_offset() + span.end_code_unit);
+        auto span_rect = context.rounded_device_rect(range_rect).to_type<int>();
+        painter.save();
+        painter.add_clip_rect(span_rect);
+        painter.draw_glyph_run(baseline_start, *glyph_run, span.text_color, fragment_device_rect, scale, fragment.orientation());
+        painter.restore();
+    }
 
-        if (context.should_show_line_box_borders())
-            PaintableWithLines::paint_text_fragment_debug_highlight(context, fragment);
-
-        auto glyph_run = fragment.glyph_run();
-        if (!glyph_run)
-            return;
-
-        auto selection_rect = context.rounded_device_rect(fragment.selection_rect()).to_type<int>();
-        if (!selection_rect.is_empty())
-            painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
-
-        auto scale = context.device_pixels_per_css_pixel();
-        auto baseline_start = Gfx::FloatPoint {
-            fragment_absolute_rect.x().to_float(),
-            fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
-        } * scale;
-        painter.draw_glyph_run(baseline_start, *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_enclosing_device_rect, scale, fragment.orientation());
-
-        paint_text_decoration(context, paintable, fragment);
-        paint_cursor_if_needed(context, paintable, fragment);
+    // Paint decoration and cursor once per fragment (when this is the last span).
+    if (span.end_code_unit == fragment.length_in_code_units()) {
+        paint_text_decoration(context, text_paintable, fragment);
+        paint_cursor_if_needed(context, text_paintable, fragment);
     }
 }
 

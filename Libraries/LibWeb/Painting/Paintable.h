@@ -144,6 +144,13 @@ public:
     SelectionState selection_state() const { return m_selection_state; }
     void set_selection_state(SelectionState state) { m_selection_state = state; }
 
+    // https://drafts.csswg.org/css-pseudo-4/#highlight-styling
+    struct SelectionStyle {
+        Color background_color;
+        Optional<Color> text_color;
+    };
+    [[nodiscard]] SelectionStyle selection_style() const;
+
     virtual void resolve_paint_properties();
 
     [[nodiscard]] String debug_description() const;
