@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <table#full-table> at [10,44] table-box [0+2+0 59.046875 0+2+0] [0+2+0 74 0+2+36] [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
-          BlockContainer <caption> at [8,8] [0+0+0 59.046875 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+          BlockContainer <caption> at [8,8] [0+0+0 63.046875 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 5, length: 6, rect: [12.5,8 54.03125x18] baseline: 13.796875
                 "A long"
             frag 1 from TextNode start: 12, length: 7, rect: [10,26 59.046875x18] baseline: 13.796875
@@ -90,7 +90,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x148]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 63.046875x148]
         PaintableBox (Box<TABLE>#full-table) [8,42 63.046875x78]
-          PaintableWithLines (BlockContainer<CAPTION>) [8,8 59.046875x36]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,8 63.046875x36]
             TextPaintable (TextNode<#text>)
           PaintableBox (Box<THEAD>) [12,46 55.046875x22]
             PaintableBox (Box<TR>) [12,46 55.046875x22]

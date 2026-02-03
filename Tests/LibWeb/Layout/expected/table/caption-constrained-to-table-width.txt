@@ -1,0 +1,43 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 194 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 178 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 104 0+0+680] [0+0+0 178 0+0+0] [BFC] children: not-inline
+        Box <div.table> at [10,10] table-box [0+2+0 100 0+2+0] [0+2+0 100 0+2+74] [TFC] children: not-inline
+          Box <(anonymous)> at [10,10] table-row [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [10,10] [0+0+0 100 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+              ImageBox <img> at [10,10] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [10,110] [0+0+0 100 0+0+0] [0+0+0 0 0+0+0] children: inline
+                TextNode <#text> (not painted)
+          BlockContainer <div.caption> at [9,113] [0+1+0 102 0+1+0] [0+1+0 72 0+1+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 12, rect: [9,113 100.609375x18] baseline: 13.796875
+                "Caption text"
+            frag 1 from TextNode start: 13, length: 11, rect: [9,131 93.984375x18] baseline: 13.796875
+                "constrained"
+            frag 2 from TextNode start: 25, length: 8, rect: [9,149 63.84375x18] baseline: 13.796875
+                "to table"
+            frag 3 from TextNode start: 34, length: 5, rect: [9,167 39.796875x18] baseline: 13.796875
+                "width"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,186] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x194]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x178]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 104x178]
+        PaintableBox (Box<DIV>.table) [8,8 104x104]
+          PaintableBox (Box(anonymous)) [10,10 100x100]
+            PaintableWithLines (BlockContainer(anonymous)) [10,10 100x100]
+              PaintableWithLines (BlockContainer(anonymous)) [10,10 100x0]
+              ImagePaintable (ImageBox<IMG>) [10,10 100x100]
+              PaintableWithLines (BlockContainer(anonymous)) [10,110 100x0]
+          PaintableWithLines (BlockContainer<DIV>.caption) [8,112 104x74]
+            TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,186 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x194] [children: 0] (z-index: auto)

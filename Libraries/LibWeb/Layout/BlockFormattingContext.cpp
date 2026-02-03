@@ -1002,6 +1002,19 @@ void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, 
     box_state.padding_bottom = computed_values.padding().bottom().to_px_or_zero(box, width_of_containing_block);
 }
 
+void BlockFormattingContext::resolve_horizontal_box_model_metrics(Box const& box, CSSPixels width_of_containing_block)
+{
+    auto& box_state = m_state.get_mutable(box);
+    auto const& computed_values = box.computed_values();
+
+    box_state.margin_left = computed_values.margin().left().to_px_or_zero(box, width_of_containing_block);
+    box_state.margin_right = computed_values.margin().right().to_px_or_zero(box, width_of_containing_block);
+    box_state.border_left = computed_values.border_left().width;
+    box_state.border_right = computed_values.border_right().width;
+    box_state.padding_left = computed_values.padding().left().to_px_or_zero(box, width_of_containing_block);
+    box_state.padding_right = computed_values.padding().right().to_px_or_zero(box, width_of_containing_block);
+}
+
 BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floating_boxes(Node const& child_box, Optional<InlineFormattingContext&> inline_formatting_context)
 {
     auto const& computed_values = child_box.computed_values();

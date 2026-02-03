@@ -46,7 +46,19 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
             // FIXME: If caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
             //        We need to do it manually here.
             if (auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr())) {
-                block_context->resolve_vertical_box_model_metrics(child_box, caption_available_space.width.to_px_or_zero());
+                auto available_width = caption_available_space.width.to_px_or_zero();
+                block_context->resolve_vertical_box_model_metrics(child_box, available_width);
+                block_context->resolve_horizontal_box_model_metrics(child_box, available_width);
+
+                if (child_box.computed_values().width().is_auto()) {
+                    auto& caption_state = m_state.get_mutable(child_box);
+                    caption_state.set_content_width(available_width
+                        - caption_state.margin_left - caption_state.border_left - caption_state.padding_left
+                        - caption_state.padding_right - caption_state.border_right - caption_state.margin_right);
+
+                    // Adjust x offset so border-box aligns with the table wrapper.
+                    caption_state.set_content_x(caption_state.offset.x() + caption_state.border_left + caption_state.padding_left);
+                }
             }
         }
 
