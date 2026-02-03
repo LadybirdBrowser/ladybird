@@ -63,8 +63,6 @@ public:
         return 0;
     }
 
-    Gfx::AffineTransform get_transform() const;
-
     Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&) const;
     Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&) const;
 

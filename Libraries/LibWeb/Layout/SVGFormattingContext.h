@@ -36,6 +36,8 @@ private:
     [[nodiscard]] Gfx::Path compute_path_for_text(SVGTextBox const&) const;
     [[nodiscard]] Gfx::Path compute_path_for_text_path(SVGTextPathBox const&) const;
 
+    [[nodiscard]] Gfx::AffineTransform get_parent_svg_transform(SVGGraphicsBox const&) const;
+
     Gfx::AffineTransform m_parent_viewbox_transform {};
 
     Optional<AvailableSpace> m_available_space {};
