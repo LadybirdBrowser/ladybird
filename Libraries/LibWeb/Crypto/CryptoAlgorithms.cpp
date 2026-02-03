@@ -9887,13 +9887,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(AlgorithmPa
             return WebIDL::DataError::create(m_realm, "Invalid key type"_utf16);
 
         // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
-        // Specifically, those requirements are:
-        // * the member "k" is used to represent a symmetric key (or another key whose value is a single octet sequence).
-        // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
-        //   unless the application uses another means or convention to determine the algorithm used.
-        // NOTE: "k" is already checked in step 4.
-        if (!jwk.alg.has_value())
-            return WebIDL::DataError::create(m_realm, "Missing 'alg' field"_utf16);
+        // NB: Specifically, those requirements are:
+        // - ".k" is a valid bas64url encoded octet stream, which we do by just parsing it, in step 4.
+        // - ".alg" is checked only in step 5.
 
         // 4. Let data be the octet string obtained by decoding the k field of jwk.
         data = TRY(parse_jwk_symmetric_key(m_realm, jwk));

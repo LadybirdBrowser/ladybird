@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+
+    // Jwk format wants Base 64 without the typical padding at the end.
+    function byteArrayToUnpaddedBase64(byteArray){
+        var binaryString = "";
+        for (var i=0; i<byteArray.byteLength; i++){
+            binaryString += String.fromCharCode(byteArray[i]);
+        }
+        var base64String = btoa(binaryString);
+
+        return base64String.replace(/=/g, "");
+    }
+
+    asyncTest(async done => {
+        var subtle = self.crypto.subtle;
+
+
+        var keyData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
+
+        var jwk = {
+            kty: "oct",
+            k: byteArrayToUnpaddedBase64(keyData)
+            // alg MISSING
+        };
+
+        var key = await subtle.importKey(
+            "jwk",
+            jwk,
+            { name: "ChaCha20-Poly1305" },
+            true,
+            ["encrypt"]
+        );
+
+        println(key.extractable);
+        println(key.algorithm.name);
+        println(key.type);
+        println(key.usages.join(","));
+
+        done();
+    });
+
+</script>
