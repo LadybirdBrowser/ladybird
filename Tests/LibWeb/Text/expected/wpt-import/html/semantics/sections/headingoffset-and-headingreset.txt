@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 61 tests
 
-57 Pass
-4 Fail
+60 Pass
+1 Fail
 Pass	headingoffset (set via attribute) should change the level a heading matches against
 Pass	headingoffset (set via attribute) should change the level when a parent changes offset
 Pass	headingoffset (set via property) should change the level a heading matches against
@@ -49,12 +49,12 @@ Pass	case 31: heading level for <h1 data-expected-offset="3" headingoffset="2" h
 Pass	case 32: heading level for <h2 data-expected-offset="4" headingoffset="2" headingreset="">
         <!-- Level 4, h2 + 2 + (headingreset) -->
       </h2> should match based on expected document structure
-Fail	case 33: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
-Fail	case 34: heading level for <h4 data-expected-offset="6"><!-- Level 6, h4 + 1 + 1 --></h4> should match based on expected document structure
+Pass	case 33: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
+Pass	case 34: heading level for <h4 data-expected-offset="6"><!-- Level 6, h4 + 1 + 1 --></h4> should match based on expected document structure
 Pass	case 35: heading level for <h4 data-expected-offset="4" headingreset="">
     <!-- Level 4, h4 (headingreset) -->
   </h4> should match based on expected document structure
-Fail	case 36: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
+Pass	case 36: heading level for <h2 data-expected-offset="4"><!-- Level 4, h2 + 1 + 1 --></h2> should match based on expected document structure
 Pass	case 37: heading level for <h1 data-expected-offset="2" headingoffset="1"><!-- Level 2, h1 + 1 --></h1> should match based on expected document structure
 Pass	case 38: heading level for <h2 data-expected-offset="3" headingoffset="1"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
 Pass	case 39: heading level for <h1 data-expected-offset="3" headingoffset="2"><!-- Level 3, h1 + 2--></h1> should match based on expected document structure
