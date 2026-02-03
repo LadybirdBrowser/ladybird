@@ -2416,8 +2416,7 @@ WebIDL::UnsignedLong HTMLElement::computed_heading_offset() const
             return offset;
 
         // 5. Set inclusiveAncestor to the parent node of inclusiveAncestor within the flat tree.
-        // FIXME: Flat tree parent means following slots.
-        inclusive_ancestor = inclusive_ancestor->parent();
+        inclusive_ancestor = inclusive_ancestor->flat_tree_parent();
     }
 
     // 4. Return offset.
