@@ -1636,3 +1636,242 @@ TEST_CASE(ecma262_modifiers)
         EXPECT_EQ(result.success, test.matches);
     }
 }
+
+#define EXPECT_PATTERNS_IN_DUMP(re, ...)                                                              \
+    do {                                                                                              \
+        auto dump = bytecode_dump(re);                                                                \
+        if (!bytecode_matches_checks(dump, Array { __VA_ARGS__ })) {                                  \
+            warnln("Failed pattern expectation {} in dump lines:\n{}", Vector { __VA_ARGS__ }, dump); \
+            EXPECT(false && #__VA_ARGS__);                                                            \
+        }                                                                                             \
+    } while (0);
+
+#define EXPECT_NO_PATTERN_IN_DUMP(re, pattern)                                   \
+    do {                                                                         \
+        auto dump = bytecode_dump(re);                                           \
+        if (bytecode_contains_pattern(dump, pattern)) {                          \
+            warnln("Unexpected pattern '{}' found in dump:\n{}", pattern, dump); \
+            EXPECT(false && #pattern);                                           \
+        }                                                                        \
+    } while (0);
+
+static Vector<ByteString> bytecode_dump(Regex<ECMA262> const& re)
+{
+    Vector<ByteString> lines;
+    auto& bytecode = re.parser_result.bytecode.get<regex::FlatByteCode>();
+    auto state = regex::MatchState::only_for_enumeration();
+    while (state.instruction_position < bytecode.size()) {
+        auto& opcode = bytecode.get_opcode(state);
+        lines.append(ByteString::formatted("{} {}", opcode.name(), opcode.arguments_string()));
+        if (is<regex::OpCode_Exit<regex::FlatByteCode>>(opcode))
+            break;
+        state.instruction_position += opcode.size();
+    }
+    return lines;
+}
+
+template<auto N>
+static bool bytecode_matches_checks(Span<ByteString const> lines, Array<StringView, N> checks)
+{
+    size_t line_idx = 0;
+    for (auto check : checks) {
+        bool found = false;
+        for (; line_idx < lines.size(); ++line_idx) {
+            if (lines[line_idx].contains(check)) {
+                found = true;
+                ++line_idx;
+                break;
+            }
+        }
+        if (!found)
+            return false;
+    }
+    return true;
+}
+
+static bool bytecode_contains_pattern(Span<ByteString const> lines, StringView pattern)
+{
+    for (auto const& line : lines) {
+        if (line.contains(pattern))
+            return true;
+    }
+    return false;
+}
+
+TEST_CASE(optimizer_dot_star_to_rseekto)
+{
+    Regex<ECMA262> re(".*foo");
+
+    // 'f' = 102
+    EXPECT_PATTERNS_IN_DUMP(re, "RSeekTo before '102'"sv, "ForkStay"sv);
+
+    // Should still match correctly
+    EXPECT_EQ(re.match("xyzfoo"sv).success, true);
+    EXPECT_EQ(re.match("foo"sv).success, true);
+    EXPECT_EQ(re.match("xyzbar"sv).success, false);
+}
+
+TEST_CASE(optimizer_simple_compare_string)
+{
+    Regex<ECMA262> re(".?foo");
+
+    EXPECT_PATTERNS_IN_DUMP(re, "CompareSimple String \"foo\""sv);
+
+    EXPECT_EQ(re.match("foo"sv).success, true);
+    EXPECT_EQ(re.match("xyzbar"sv).success, false);
+}
+
+TEST_CASE(optimizer_dot_star_with_fail_if_empty)
+{
+    // FailIfEmpty within a .* loop should be ignored during RSeekTo detection.
+    Regex<ECMA262> re(".*foo");
+
+    // 'f' = 102
+    EXPECT_PATTERNS_IN_DUMP(re, "RSeekTo before '102'"sv);
+
+    EXPECT_EQ(re.match("foo"sv).success, true);
+    EXPECT_EQ(re.match("xyzfoo"sv).success, true);
+    EXPECT_EQ(re.match("bar"sv).success, false);
+}
+
+TEST_CASE(optimizer_dot_plus_no_rseekto)
+{
+    // .+ uses a `JumpNonEmpty ForkJump` loop structure without ForkStay at the start,
+    // so it is not eligible for the RSeekTo rewrite.
+    Regex<ECMA262> re(".+foo");
+    EXPECT_NO_PATTERN_IN_DUMP(re, "RSeekTo"sv);
+
+    EXPECT_EQ(re.match("xfoo"sv).success, true);
+    EXPECT_EQ(re.match("xyzfoo"sv).success, true);
+    EXPECT_EQ(re.match("foo"sv).success, false); // .+ requires at least one character
+    EXPECT_EQ(re.match("bar"sv).success, false);
+}
+
+TEST_CASE(optimizer_dot_star_in_capture_group)
+{
+    // .* inside a capture group should still produce RSeekTo
+    Regex<ECMA262> re("(.*)x");
+
+    // 'x' = 120
+    EXPECT_PATTERNS_IN_DUMP(re, "RSeekTo before '120'"sv);
+
+    EXPECT_EQ(re.match("abcx"sv).success, true);
+    EXPECT_EQ(re.match("x"sv).success, true);
+    EXPECT_EQ(re.match("abc"sv).success, false);
+}
+
+TEST_CASE(optimizer_no_rseekto_for_char_class)
+{
+    // .* followed by a char class cannot produce a RSeekTo (can't seek to a class)
+    {
+        Regex<ECMA262> re(".*\\d");
+        EXPECT_NO_PATTERN_IN_DUMP(re, "RSeekTo"sv);
+
+        EXPECT_EQ(re.match("abc5"sv).success, true);
+        EXPECT_EQ(re.match("abc"sv).success, false);
+    }
+
+    // .* followed by a range cannot produce RSeekTo
+    {
+        Regex<ECMA262> re(".*[abc]");
+        EXPECT_NO_PATTERN_IN_DUMP(re, "RSeekTo"sv);
+
+        EXPECT_EQ(re.match("xyzc"sv).success, true);
+        EXPECT_EQ(re.match("xyz"sv).success, false);
+    }
+}
+
+TEST_CASE(optimizer_atomic_rewrite_bytecode)
+{
+    // a+b: 'b' cannot be matched by 'a', so the a+ loop should be rewritten as atomic.
+    {
+        Regex<ECMA262> re("a+b");
+        EXPECT_PATTERNS_IN_DUMP(re, "ForkReplace"sv);
+
+        EXPECT_EQ(re.match("ab"sv).success, true);
+        EXPECT_EQ(re.match("aab"sv).success, true);
+        EXPECT_EQ(re.match("b"sv).success, false);
+        EXPECT_EQ(re.match("aaa"sv).success, false);
+    }
+
+    // [a-z]+[0-9]: char classes don't overlap, so it should be rewritten as atomic.
+    {
+        Regex<ECMA262> re("[a-z]+[0-9]");
+        EXPECT_PATTERNS_IN_DUMP(re, "ForkReplace"sv);
+
+        EXPECT_EQ(re.match("abc5"sv).success, true);
+        EXPECT_EQ(re.match("5"sv).success, false);
+        EXPECT_EQ(re.match("abc"sv).success, false);
+    }
+}
+
+TEST_CASE(optimizer_no_atomic_rewrite_with_overlap)
+{
+    // a+a: 'a' overlaps with 'a', so the loop cannot be rewritten as atomic
+    {
+        Regex<ECMA262> re("a+a");
+        EXPECT_NO_PATTERN_IN_DUMP(re, "ForkReplace"sv);
+
+        EXPECT_EQ(re.match("aa"sv).success, true);
+        EXPECT_EQ(re.match("aaa"sv).success, true);
+        EXPECT_EQ(re.match("a"sv).success, false);
+    }
+
+    // (a+)\1: backreference should prevent atomic rewrite.
+    {
+        Regex<ECMA262> re("(a+)\\1");
+        EXPECT_NO_PATTERN_IN_DUMP(re, "ForkReplace"sv);
+
+        EXPECT_EQ(re.match("aa"sv).success, true);
+        EXPECT_EQ(re.match("aaaa"sv).success, true);
+        EXPECT_EQ(re.match("a"sv).success, false);
+    }
+}
+
+TEST_CASE(optimizer_adjacent_char_to_string_compare)
+{
+    // Multiple adjacent single-character compares should be merged into a string compare
+    {
+        Regex<ECMA262> re(".?hello");
+        EXPECT_PATTERNS_IN_DUMP(re, "CompareSimple String \"hello\""sv);
+
+        EXPECT_EQ(re.match("hello"sv).success, true);
+        EXPECT_EQ(re.match("xhello"sv).success, true);
+        EXPECT_EQ(re.match("world"sv).success, false);
+    }
+
+    // Two characters should also be merged
+    {
+        Regex<ECMA262> re(".?ab");
+        EXPECT_PATTERNS_IN_DUMP(re, "CompareSimple String \"ab\""sv);
+
+        EXPECT_EQ(re.match("ab"sv).success, true);
+        EXPECT_EQ(re.match("xab"sv).success, true);
+        EXPECT_EQ(re.match("ba"sv).success, false);
+    }
+}
+
+TEST_CASE(optimizer_simple_compare_char)
+{
+    // A single character compare should become 'CompareSimple Char'
+    {
+        Regex<ECMA262> re(".*a");
+        EXPECT_PATTERNS_IN_DUMP(re, "CompareSimple Char 'a'"sv);
+
+        EXPECT_EQ(re.match("a"sv).success, true);
+        EXPECT_EQ(re.match("ba"sv).success, true);
+        EXPECT_EQ(re.match("b"sv).success, false);
+    }
+}
+
+TEST_CASE(optimizer_simple_compare_char_class)
+{
+    // A single char class compare should become 'CompareSimple CharClass'
+    {
+        Regex<ECMA262> re(".*\\d");
+        EXPECT_PATTERNS_IN_DUMP(re, "CompareSimple CharClass"sv);
+
+        EXPECT_EQ(re.match("abc5"sv).success, true);
+        EXPECT_EQ(re.match("abc"sv).success, false);
+    }
+}
