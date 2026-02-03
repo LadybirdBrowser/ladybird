@@ -321,9 +321,9 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     // ::part() can apply to anything in a shadow tree, that is either an element with a `part` attribute or a pseudo-element.
     // Rules from any ancestor style scope can apply.
     if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
-        for (auto* part_shadow_root = abstract_element.element().shadow_including_first_ancestor_of_type<DOM::ShadowRoot>();
+        for (auto* part_shadow_root = abstract_element.element().first_flat_tree_ancestor_of_type<DOM::ShadowRoot>();
             part_shadow_root;
-            part_shadow_root = part_shadow_root->shadow_including_first_ancestor_of_type<DOM::ShadowRoot>()) {
+            part_shadow_root = part_shadow_root->first_flat_tree_ancestor_of_type<DOM::ShadowRoot>()) {
 
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
                 add_rules_to_run(rule_cache->part_rules);

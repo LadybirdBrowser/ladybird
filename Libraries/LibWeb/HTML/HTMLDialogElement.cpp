@@ -585,7 +585,7 @@ GC::Ptr<HTMLDialogElement> HTMLDialogElement::nearest_clicked_dialog(UIEvents::P
             return current_dialog;
 
         // 2. Set currentNode to currentNode's parent in the flat tree.
-        current_node = current_node->shadow_including_first_ancestor_of_type<HTMLElement>();
+        current_node = current_node->first_flat_tree_ancestor_of_type<HTMLElement>();
     }
 
     // 5. Return null.
