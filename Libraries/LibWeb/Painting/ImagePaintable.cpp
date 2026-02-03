@@ -7,7 +7,6 @@
 
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -171,9 +170,9 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
         }
 
         if (selection_state() != SelectionState::None) {
-            context.display_list_recorder().fill_rect(
-                image_rect_device_pixels.to_type<int>(),
-                CSS::SystemColor::highlight(computed_values().color_scheme()));
+            auto selection_background_color = selection_style().background_color;
+            if (selection_background_color.alpha() > 0)
+                context.display_list_recorder().fill_rect(image_rect_device_pixels.to_type<int>(), selection_background_color);
         }
     }
 }

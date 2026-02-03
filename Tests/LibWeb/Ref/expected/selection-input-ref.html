@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+input {
+    font-size: 20px;
+    width: 200px;
+    outline: none;
+}
+
+input::selection {
+    background-color: red;
+}
+</style>
+
+<input value="Selected text">
+<script>
+document.querySelector("input").focus();
+document.querySelector("input").select();
+</script>

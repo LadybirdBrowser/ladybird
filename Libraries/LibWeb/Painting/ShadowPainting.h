@@ -23,6 +23,6 @@ WEB_API void paint_box_shadow(
     BordersData const& borders_data,
     BorderRadiiData const&,
     Vector<ShadowData> const&);
-WEB_API void paint_text_shadow(DisplayListRecordingContext&, PaintableFragment const&, Vector<ShadowData> const&);
+WEB_API void paint_text_shadow(DisplayListRecordingContext&, PaintableFragment::FragmentSpan const&);
 
 }

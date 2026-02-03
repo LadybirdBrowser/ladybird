@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-styling-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.bg-only::selection {
+    background-color: red;
+}
+
+.color-only::selection {
+    background-color: transparent;
+    color: green;
+}
+
+.both::selection {
+    background-color: blue;
+    color: yellow;
+}
+</style>
+
+<div id="container">
+<p class="bg-only">Background only</p>
+<p class="color-only">Color only</p>
+<p class="both">Both</p>
+<p>Default</p>
+</div>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("container"));
+getSelection().addRange(range);
+</script>

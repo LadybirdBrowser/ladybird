@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-input-ref.html">
+<style>
+input {
+    font-size: 20px;
+    width: 200px;
+    outline: none;
+}
+
+input::selection {
+    background-color: red;
+}
+</style>
+
+<input id="test" value="Selected text">
+
+<script>
+const input = document.getElementById("test");
+input.focus();
+input.select();
+</script>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-color-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.styled::selection {
+    background-color: transparent;
+    color: green;
+}
+.transparent::selection {
+    background-color: transparent;
+    color: transparent;
+}
+</style>
+
+<div id="container">
+<p class="styled"><span id="sel-start">Par</span>tial start</p>
+<p class="styled">Full selection</p>
+<p class="styled">Partial <span>end</span></p>
+<p class="transparent" id="sel-end">Invisible when selected</p>
+</div>
+
+<script>
+const range = document.createRange();
+range.setStart(document.getElementById("sel-start").firstChild, 1);
+range.setEnd(document.getElementById("sel-end").firstChild, 23);
+getSelection().addRange(range);
+</script>

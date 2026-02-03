@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-background-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+.styled::selection {
+    background-color: red;
+}
+</style>
+
+<div id="container">
+<p class="styled"><span id="sel-start">Par</span>tial start</p>
+<p class="styled">Full selection</p>
+<p class="styled">Partial <span id="sel-end">end</span></p>
+</div>
+
+<script>
+const range = document.createRange();
+range.setStart(document.getElementById("sel-start").firstChild, 1);
+range.setEnd(document.getElementById("sel-end").firstChild, 2);
+getSelection().addRange(range);
+</script>
