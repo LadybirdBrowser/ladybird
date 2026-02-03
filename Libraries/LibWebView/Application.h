@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
@@ -125,6 +126,8 @@ public:
     Action& view_source_action() { return *m_view_source_action; }
 
     Menu& debug_menu() { return *m_debug_menu; }
+
+    FileDownloader& file_downloader() { return m_file_downloader; }
 
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
 
@@ -255,6 +258,8 @@ private:
     StringView m_navigator_compatibility_mode;
 
     Optional<Web::Clipboard::SystemClipboardRepresentation> m_clipboard;
+
+    FileDownloader m_file_downloader;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;

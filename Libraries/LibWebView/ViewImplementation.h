@@ -334,6 +334,7 @@ protected:
     URL::URL m_context_menu_url;
 
     RefPtr<Action> m_open_image_action;
+    RefPtr<Action> m_save_image_action;
     RefPtr<Action> m_copy_image_action;
     Optional<Gfx::ShareableBitmap> m_image_context_menu_bitmap;
 
