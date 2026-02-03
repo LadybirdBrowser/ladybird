@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Cell.h>
+#include <LibGC/CellAllocator.h>
 
 #pragma once
 
