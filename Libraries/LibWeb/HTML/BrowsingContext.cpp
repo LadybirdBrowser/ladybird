@@ -313,8 +313,6 @@ GC::Ref<TraversableNavigable> BrowsingContext::top_level_traversable() const
 // https://html.spec.whatwg.org/multipage/browsers.html#top-level-browsing-context
 bool BrowsingContext::is_top_level() const
 {
-    // FIXME: Remove this. The active document's navigable is sometimes null when it shouldn't be, failing assertions.
-    return true;
     // A top-level browsing context is a browsing context whose active document's node navigable is a traversable navigable.
     return active_document() != nullptr && active_document()->navigable() != nullptr && active_document()->navigable()->is_traversable();
 }
