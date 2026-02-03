@@ -357,7 +357,7 @@ void HTMLObjectElement::resource_did_load(Fetch::Infrastructure::Response const&
     // 1. Let the resource type be unknown.
     Optional<MimeSniff::MimeType> resource_type;
 
-    // FIXME: 3. If the user agent is configured to strictly obey Content-Type headers for this resource, and the resource has
+    // FIXME: 2. If the user agent is configured to strictly obey Content-Type headers for this resource, and the resource has
     //           associated Content-Type metadata, then let the resource type be the type specified in the resource's Content-Type
     //           metadata, and jump to the step below labeled handler.
 
