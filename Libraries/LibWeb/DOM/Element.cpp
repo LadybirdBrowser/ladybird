@@ -3448,7 +3448,7 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
         return false;
 
     // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
-    for (auto element = parent_element(); element; element = element->parent_element()) {
+    for (auto* element = flat_tree_parent_element(); element; element = element->flat_tree_parent_element()) {
         if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
             return false;
     }
@@ -3457,25 +3457,28 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
     if (!options.has_value())
         return true;
 
-    // 3. If either the opacityProperty or the checkOpacity dictionary members of options are true, and this, or an ancestor of this in the flat tree, has a computed opacity value of 0, return false.
+    // 3. If either the opacityProperty or the checkOpacity dictionary members of options are true, and this, or an
+    //    ancestor of this in the flat tree, has a computed opacity value of 0, return false.
     if (options->opacity_property || options->check_opacity) {
-        for (auto* element = this; element; element = element->parent_element()) {
+        for (auto* element = this; element; element = element->flat_tree_parent_element()) {
             if (element->computed_properties()->opacity() == 0.0f)
                 return false;
         }
     }
 
-    // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this is invisible, return false.
+    // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this
+    //    is invisible, return false.
     if (options->visibility_property || options->check_visibility_css) {
         if (computed_properties()->visibility() == CSS::Visibility::Hidden)
             return false;
     }
 
-    // 5. If the contentVisibilityAuto dictionary member of options is true and an ancestor of this in the flat tree skips its contents due to content-visibility: auto, return false.
+    // 5. If the contentVisibilityAuto dictionary member of options is true and an ancestor of this in the flat tree
+    //    skips its contents due to content-visibility: auto, return false.
     // FIXME: Currently we do not skip any content if content-visibility is auto: https://drafts.csswg.org/css-contain-2/#proximity-to-the-viewport
     auto const skipped_contents_due_to_content_visibility_auto = false;
     if (options->content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
-        for (auto* element = this; element; element = element->parent_element()) {
+        for (auto* element = flat_tree_parent_element(); element; element = element->flat_tree_parent_element()) {
             if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
                 return false;
         }
