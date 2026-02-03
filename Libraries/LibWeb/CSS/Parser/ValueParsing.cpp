@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
@@ -2592,16 +2593,11 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
     };
 
     auto parse_counter_style = [this](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
-        // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style
-        // <counter-style> = <counter-style-name> | <symbols()>
-        // For now we just support <counter-style-name>, found here:
-        // https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style-name
-        // <counter-style-name> is a <custom-ident> that is not an ASCII case-insensitive match for none.
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
 
-        auto counter_style_name = parse_custom_ident_value(tokens, { { "none"sv } });
-        if (!counter_style_name)
+        auto counter_style = parse_counter_style_value(tokens);
+        if (!counter_style)
             return {};
 
         tokens.discard_whitespace();
@@ -2609,7 +2605,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
             return {};
 
         transaction.commit();
-        return counter_style_name.release_nonnull();
+        return counter_style.release_nonnull();
     };
 
     auto transaction = tokens.begin_transaction();
@@ -2637,7 +2633,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
                 return nullptr;
         } else {
             // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
-            counter_style = CustomIdentStyleValue::create("decimal"_fly_string);
+            counter_style = CounterStyleStyleValue::create("decimal"_fly_string);
         }
 
         transaction.commit();
@@ -2674,7 +2670,7 @@ RefPtr<StyleValue const> Parser::parse_counter_value(TokenStream<ComponentValue>
                 return nullptr;
         } else {
             // In both cases, if the <counter-style> argument is omitted it defaults to `decimal`.
-            counter_style = CustomIdentStyleValue::create("decimal"_fly_string);
+            counter_style = CounterStyleStyleValue::create("decimal"_fly_string);
         }
 
         transaction.commit();
@@ -2708,6 +2704,23 @@ Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>
 
     transaction.commit();
     return custom_ident;
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#typedef-counter-style
+RefPtr<StyleValue const> Parser::parse_counter_style_value(TokenStream<ComponentValue>& tokens)
+{
+    // <counter-style> = <counter-style-name> | <symbols()>
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+
+    if (auto const& counter_style_name = parse_counter_style_name(tokens); counter_style_name.has_value()) {
+        transaction.commit();
+        return CounterStyleStyleValue::create(counter_style_name.value());
+    }
+
+    // FIXME: Support <symbols()>
+
+    return nullptr;
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol
@@ -5558,6 +5571,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_corner_shape_value(tokens);
     case ValueType::Counter:
         return parse_counter_value(tokens);
+    case ValueType::CounterStyle:
+        return parse_counter_style_value(tokens);
     case ValueType::CustomIdent:
         // FIXME: Figure out how to pass the blacklist here
         return parse_custom_ident_value(tokens, {});

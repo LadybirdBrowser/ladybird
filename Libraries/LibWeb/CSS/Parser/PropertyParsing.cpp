@@ -217,6 +217,8 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::Counter); parsed.has_value())
         return parsed.release_value();
+    if (auto parsed = parse_for_type(ValueType::CounterStyle); parsed.has_value())
+        return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::DashedIdent); parsed.has_value())
         return parsed.release_value();
     if (auto parsed = parse_for_type(ValueType::EasingFunction); parsed.has_value())

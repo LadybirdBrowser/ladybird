@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 41 tests
 
-30 Pass
-11 Fail
+38 Pass
+3 Fail
 Pass	Property content value 'open-quote'
 Pass	Property content value 'open-quote / "alt text"'
 Pass	Property content value 'close-quote'
@@ -16,18 +16,18 @@ Pass	Property content value 'counter(counter-name)'
 Pass	Property content value 'counter(counter-name) / "alt text"'
 Pass	Property content value 'counter(counter-name, counter-style)'
 Pass	Property content value 'counter(counter-name, counter-style) / "alt text"'
-Fail	Property content value 'counter(counter-name, dECiMaL)'
-Fail	Property content value 'counter(counter-name, dECiMaL) / "alt text"'
-Fail	Property content value 'counter(counter-name, DECIMAL)'
-Fail	Property content value 'counter(counter-name, DECIMAL) / "alt text"'
+Pass	Property content value 'counter(counter-name, dECiMaL)'
+Pass	Property content value 'counter(counter-name, dECiMaL) / "alt text"'
+Pass	Property content value 'counter(counter-name, DECIMAL)'
+Pass	Property content value 'counter(counter-name, DECIMAL) / "alt text"'
 Pass	Property content value 'counters(counter-name, ".")'
 Pass	Property content value 'counters(counter-name, ".") / "alt text"'
 Pass	Property content value 'counters(counter-name, ".", counter-style)'
 Pass	Property content value 'counters(counter-name, ".", counter-style) / "alt text"'
-Fail	Property content value 'counters(counter-name, ".", dECiMaL)'
-Fail	Property content value 'counters(counter-name, ".", dECiMaL) / "alt text"'
-Fail	Property content value 'counters(counter-name, ".", DECIMAL)'
-Fail	Property content value 'counters(counter-name, ".", DECIMAL) / "alt text"'
+Pass	Property content value 'counters(counter-name, ".", dECiMaL)'
+Pass	Property content value 'counters(counter-name, ".", dECiMaL) / "alt text"'
+Pass	Property content value 'counters(counter-name, ".", DECIMAL)'
+Pass	Property content value 'counters(counter-name, ".", DECIMAL) / "alt text"'
 Pass	Property content value 'url("https://www.example.com/picture.svg")'
 Pass	Property content value 'url("https://www.example.com/picture.svg") / "alt text"'
 Pass	Property content value '"hello"'

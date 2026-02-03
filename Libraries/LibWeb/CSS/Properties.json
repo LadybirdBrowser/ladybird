@@ -2518,7 +2518,7 @@
     "inherited": true,
     "initial": "disc",
     "valid-types": [
-      "counter-style-name-keyword",
+      "counter-style",
       "string"
     ],
     "valid-identifiers": [

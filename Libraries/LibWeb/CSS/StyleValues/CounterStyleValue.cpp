@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -50,44 +51,40 @@ static String generate_a_counter_representation(StyleValue const& counter_style,
 
     // FIXME: Below is an ad-hoc implementation until we support @counter-style.
     //  It's based largely on the ListItemMarkerBox code, with minimal adjustments.
-    if (counter_style.is_custom_ident()) {
-        auto counter_style_name = counter_style.as_custom_ident().custom_ident();
-        auto keyword = keyword_from_string(counter_style_name);
-        if (keyword.has_value()) {
-            if (auto list_style_type = keyword_to_counter_style_name_keyword(*keyword); list_style_type.has_value()) {
-                switch (*list_style_type) {
-                case CounterStyleNameKeyword::Square:
-                    return "▪"_string;
-                case CounterStyleNameKeyword::Circle:
-                    return "◦"_string;
-                case CounterStyleNameKeyword::Disc:
-                    return "•"_string;
-                case CounterStyleNameKeyword::DisclosureClosed:
-                    return "▸"_string;
-                case CounterStyleNameKeyword::DisclosureOpen:
-                    return "▾"_string;
-                case CounterStyleNameKeyword::Decimal:
-                    return MUST(String::formatted("{}", value));
-                case CounterStyleNameKeyword::DecimalLeadingZero:
-                    // This is weird, but in accordance to spec.
-                    if (value < 10)
-                        return MUST(String::formatted("0{}", value));
-                    return MUST(String::formatted("{}", value));
-                case CounterStyleNameKeyword::LowerAlpha:
-                case CounterStyleNameKeyword::LowerLatin:
-                    return String::bijective_base_from(value - 1, String::Case::Lower);
-                case CounterStyleNameKeyword::UpperAlpha:
-                case CounterStyleNameKeyword::UpperLatin:
-                    return String::bijective_base_from(value - 1, String::Case::Upper);
-                case CounterStyleNameKeyword::LowerGreek:
-                    return String::greek_letter_from(value);
-                case CounterStyleNameKeyword::LowerRoman:
-                    return String::roman_number_from(value, String::Case::Lower);
-                case CounterStyleNameKeyword::UpperRoman:
-                    return String::roman_number_from(value, String::Case::Upper);
-                default:
-                    break;
-                }
+    if (counter_style.is_counter_style()) {
+        if (auto const& list_style_type = counter_style.as_counter_style().to_counter_style_name_keyword(); list_style_type.has_value()) {
+            switch (*list_style_type) {
+            case CounterStyleNameKeyword::Square:
+                return "▪"_string;
+            case CounterStyleNameKeyword::Circle:
+                return "◦"_string;
+            case CounterStyleNameKeyword::Disc:
+                return "•"_string;
+            case CounterStyleNameKeyword::DisclosureClosed:
+                return "▸"_string;
+            case CounterStyleNameKeyword::DisclosureOpen:
+                return "▾"_string;
+            case CounterStyleNameKeyword::Decimal:
+                return MUST(String::formatted("{}", value));
+            case CounterStyleNameKeyword::DecimalLeadingZero:
+                // This is weird, but in accordance to spec.
+                if (value < 10)
+                    return MUST(String::formatted("0{}", value));
+                return MUST(String::formatted("{}", value));
+            case CounterStyleNameKeyword::LowerAlpha:
+            case CounterStyleNameKeyword::LowerLatin:
+                return String::bijective_base_from(value - 1, String::Case::Lower);
+            case CounterStyleNameKeyword::UpperAlpha:
+            case CounterStyleNameKeyword::UpperLatin:
+                return String::bijective_base_from(value - 1, String::Case::Upper);
+            case CounterStyleNameKeyword::LowerGreek:
+                return String::greek_letter_from(value);
+            case CounterStyleNameKeyword::LowerRoman:
+                return String::roman_number_from(value, String::Case::Lower);
+            case CounterStyleNameKeyword::UpperRoman:
+                return String::roman_number_from(value, String::Case::Upper);
+            default:
+                break;
             }
         }
     }

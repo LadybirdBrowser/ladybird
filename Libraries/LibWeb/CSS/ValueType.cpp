@@ -25,6 +25,8 @@ Optional<ValueType> value_type_from_string(StringView string)
         return ValueType::Color;
     if (string.equals_ignoring_ascii_case("counter"sv))
         return ValueType::Counter;
+    if (string.equals_ignoring_ascii_case("counter-style"sv))
+        return ValueType::CounterStyle;
     if (string.equals_ignoring_ascii_case("custom-ident"sv))
         return ValueType::CustomIdent;
     if (string.equals_ignoring_ascii_case("dashed-ident"sv))
@@ -109,6 +111,8 @@ StringView value_type_to_string(ValueType value_type)
         return "CornerShape"sv;
     case Web::CSS::ValueType::Counter:
         return "Counter"sv;
+    case Web::CSS::ValueType::CounterStyle:
+        return "CounterStyle"sv;
     case Web::CSS::ValueType::CustomIdent:
         return "CustomIdent"sv;
     case Web::CSS::ValueType::DashedIdent:
