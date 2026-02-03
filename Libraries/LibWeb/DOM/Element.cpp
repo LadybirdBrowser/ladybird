@@ -3545,6 +3545,7 @@ bool Element::is_relevant_to_the_user()
         }
 
         // The element has a flat tree descendant that is captured in a view transition.
+        // FIXME: for_each_in_inclusive_subtree_of_type() doesn't walk the flat tree. For example, it doesn't walk from a slot to its assigned slottable.
         if (&element != this && element.captured_in_a_view_transition()) {
             has_relevant_contents = true;
             return TraversalDecision::Break;
