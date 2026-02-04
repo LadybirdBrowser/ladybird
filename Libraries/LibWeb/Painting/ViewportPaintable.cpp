@@ -334,7 +334,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         auto overflow_y = computed_values.overflow_y();
         auto has_hidden_overflow = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
 
-        if (has_hidden_overflow || paintable_box.layout_node().has_paint_containment()) {
+        auto should_clip_overflow = has_hidden_overflow && paintable_box.overflow_property_applies();
+        if (should_clip_overflow || paintable_box.layout_node().has_paint_containment()) {
             bool clip_x = overflow_x != CSS::Overflow::Visible;
             bool clip_y = overflow_y != CSS::Overflow::Visible;
 
