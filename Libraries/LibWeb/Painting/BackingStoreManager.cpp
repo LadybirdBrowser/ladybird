@@ -9,7 +9,6 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
-#include <WebContent/PageClient.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/IOSurface.h>
