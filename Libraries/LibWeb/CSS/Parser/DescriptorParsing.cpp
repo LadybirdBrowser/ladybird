@@ -178,6 +178,20 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                             return nullptr;
                         };
 
+                        auto const resolve_value = [&](StyleValue const& value, i64 infinite_value) -> Optional<i64> {
+                            if (value.is_integer())
+                                return value.as_integer().integer();
+
+                            if (value.is_keyword() && value.as_keyword().to_keyword() == Keyword::Infinite)
+                                return infinite_value;
+
+                            // FIXME: How should we actually handle calc() when we have no document to absolutize against
+                            if (!computation_context.has_value())
+                                return {};
+
+                            return value.absolutized(computation_context.value())->as_calculated().resolve_integer({}).value();
+                        };
+
                         auto first_value = parse_value();
                         auto second_value = parse_value();
 
@@ -186,8 +200,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                         // If the lower bound of any range is higher than the upper bound, the entire descriptor is
                         // invalid and must be ignored.
-                        // FIXME: Do we need to account for calc() here?
-                        if (first_value->is_integer() && second_value->is_integer() && first_value->as_integer().integer() > second_value->as_integer().integer())
+                        auto first_int = resolve_value(*first_value, NumericLimits<i64>::min());
+                        auto second_int = resolve_value(*second_value, NumericLimits<i64>::max());
+
+                        if (!first_int.has_value() || !second_int.has_value() || first_int.value() > second_int.value())
                             return nullptr;
 
                         return StyleValueList::create({ first_value.release_nonnull(), second_value.release_nonnull() }, StyleValueList::Separator::Space, StyleValueList::Collapsible::No);

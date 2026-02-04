@@ -1,0 +1,2 @@
+@counter-style valid { range: sign(1em - 1px) calc(1 + sign(1em - 1px)); }
+@counter-style invalid { }
