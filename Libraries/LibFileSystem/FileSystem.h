@@ -9,6 +9,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Error.h>
+#include <AK/LexicalPath.h>
 #include <AK/StringView.h>
 #include <LibCore/File.h>
 
@@ -64,5 +65,11 @@ ErrorOr<void> remove(StringView path, RecursionMode);
 ErrorOr<off_t> size_from_stat(StringView path);
 ErrorOr<off_t> size_from_fstat(int fd);
 bool can_delete_or_move(StringView path);
+
+struct DiskSpace {
+    u64 free_bytes { 0 };
+    u64 total_bytes { 0 };
+};
+ErrorOr<DiskSpace> compute_disk_space(LexicalPath const&);
 
 }
