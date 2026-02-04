@@ -124,6 +124,7 @@ bool HTMLFontElement::is_presentational_hint(FlyString const& name) const
 
 void HTMLFontElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
+    Base::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == AttributeNames::color) {
             // https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3:rules-for-parsing-a-legacy-colour-value

@@ -37,6 +37,8 @@ bool HTMLUListElement::is_presentational_hint(FlyString const& name) const
 
 void HTMLUListElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
+    Base::apply_presentational_hints(cascaded_properties);
+
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::type) {

@@ -2014,6 +2014,8 @@ bool HTMLInputElement::is_presentational_hint(FlyString const& name) const
 
 void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
+    Base::apply_presentational_hints(cascaded_properties);
+
     if (type_state() != TypeAttributeState::ImageButton)
         return;
 
