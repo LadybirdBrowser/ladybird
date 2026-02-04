@@ -140,7 +140,34 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                 // 3. Return S.
                 return MUST(String::join(""sv, symbols));
             }
-            case CounterStyleSystem::Alphabetic:
+            case CounterStyleSystem::Alphabetic: {
+                // https://drafts.csswg.org/css-counter-styles-3/#alphabetic-system
+                // If there are N counter symbols, the representation is a base N alphabetic number using the counter
+                // symbols as digits. To construct the representation, run the following algorithm:
+
+                // Let N be the length of the list of counter symbols, value initially be the counter value, S initially
+                // be the empty string, and symbol(n) be the nth counter symbol in the list of counter symbols
+                // (0-indexed).
+
+                // NB: Our string builder doesn't support prepending, so we use a vector and convert that to a string at
+                //     the end.
+                Vector<CounterStyleSymbol> symbols;
+
+                // While value is not equal to 0:
+                while (value != 0) {
+                    // 1. Set value to value - 1.
+                    value -= 1;
+
+                    // 2. Prepend symbol( value mod N ) to S.
+                    symbols.prepend(generic_algorithm.symbol_list[value % generic_algorithm.symbol_list.size()]);
+
+                    // 3. Set value to floor( value / N ).
+                    value /= generic_algorithm.symbol_list.size();
+                }
+
+                // Finally, return S.
+                return MUST(String::join(""sv, symbols));
+            }
             case CounterStyleSystem::Symbolic:
                 TODO();
             case CounterStyleSystem::Additive:
