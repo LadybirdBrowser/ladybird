@@ -390,13 +390,19 @@ template<typename... _Ignored>
 constexpr auto DependentFalse = false;
 
 template<typename T>
-inline constexpr bool IsSigned = IsSame<T, MakeSigned<T>>;
-
-template<typename T>
-inline constexpr bool IsUnsigned = IsSame<T, MakeUnsigned<T>>;
-
-template<typename T>
 inline constexpr bool IsArithmetic = IsIntegral<T> || IsFloatingPoint<T>;
+
+template<typename T, bool = IsArithmetic<T>>
+inline constexpr bool IsSigned = T(-1) < T(0);
+
+template<typename T>
+inline constexpr bool IsSigned<T, false> = false;
+
+template<typename T, bool = IsArithmetic<T>>
+inline constexpr bool IsUnsigned = T(0) < T(-1);
+
+template<typename T>
+inline constexpr bool IsUnsigned<T, false> = false;
 
 template<typename T>
 inline constexpr bool IsFundamental = IsArithmetic<T> || IsVoid<T> || IsNullPointer<T>;

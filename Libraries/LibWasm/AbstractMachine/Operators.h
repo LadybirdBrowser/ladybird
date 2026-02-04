@@ -522,8 +522,7 @@ struct Absolute {
     {
         if constexpr (IsFloatingPoint<Lhs>)
             return AK::abs(lhs);
-
-        if constexpr (IsSigned<Lhs>) {
+        else if constexpr (IsSigned<Lhs>) {
             if (lhs == NumericLimits<Lhs>::min())
                 return NumericLimits<Lhs>::min(); // Return the negation of _i_ modulo 2^N: https://www.w3.org/TR/wasm-core-2/#-hrefop-iabsmathrmiabs_n-i step 3
         }
@@ -540,8 +539,7 @@ struct Negate {
     {
         if constexpr (IsFloatingPoint<Lhs>)
             return -lhs;
-
-        if constexpr (IsSigned<Lhs>) {
+        else if constexpr (IsSigned<Lhs>) {
             if (lhs == NumericLimits<Lhs>::min())
                 return NumericLimits<Lhs>::min(); // Return the negation of _i_ modulo 2^N: https://www.w3.org/TR/wasm-core-2/#-hrefop-iabsmathrmiabs_n-i step 3
         }

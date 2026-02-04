@@ -267,7 +267,7 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
     // 8. If IsBigIntElementType(type) is true, return the BigInt value that corresponds to intValue.
     if constexpr (sizeof(UnderlyingBufferDataType) == 8) {
         if constexpr (IsSigned<UnderlyingBufferDataType>) {
-            static_assert(IsSame<UnderlyingBufferDataType, i64>);
+            static_assert(IsOneOf<UnderlyingBufferDataType, i64, double>);
             return BigInt::create(vm, Crypto::SignedBigInteger { int_value });
         } else {
             static_assert(IsOneOf<UnderlyingBufferDataType, u64, double>);
