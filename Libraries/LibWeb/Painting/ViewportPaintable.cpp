@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -301,6 +302,30 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         }
 
         paintable_box.set_accumulated_visual_context(own_state);
+
+        Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();
+        // For the root element, background properties may be propagated from the body element
+        if (paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {
+            if (auto* html_element = as_if<HTML::HTMLHtmlElement>(paintable_box.dom_node().ptr())) {
+                if (html_element->should_use_body_background_properties())
+                    background_layers = paintable_box.document().background_layers();
+            }
+        }
+
+        if (background_layers) {
+            bool has_fixed_background = false;
+            for (auto const& layer : *background_layers) {
+                if (layer.attachment == CSS::BackgroundAttachment::Fixed) {
+                    has_fixed_background = true;
+                    break;
+                }
+            }
+
+            if (has_fixed_background && own_scroll_frame()) {
+                auto fixed_bg_context = append_node(own_state, InverseViewportScrollData { own_scroll_frame()->id() });
+                paintable_box.set_fixed_background_visual_context(fixed_bg_context);
+            }
+        }
 
         // Build state for descendants: own state + perspective + clip + scroll.
         RefPtr<AccumulatedVisualContext const> state_for_descendants = own_state;

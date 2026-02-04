@@ -237,6 +237,9 @@ public:
     void set_accumulated_visual_context_for_descendants(auto state) { m_accumulated_visual_context_for_descendants = move(state); }
     [[nodiscard]] auto accumulated_visual_context_for_descendants() const { return m_accumulated_visual_context_for_descendants; }
 
+    void set_fixed_background_visual_context(auto state) { m_fixed_background_visual_context = move(state); }
+    [[nodiscard]] auto fixed_background_visual_context() const { return m_fixed_background_visual_context; }
+
     [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
     [[nodiscard]] Optional<int> scroll_frame_id() const;
     [[nodiscard]] CSSPixelPoint cumulative_offset_of_enclosing_scroll_frame() const;
@@ -308,6 +311,7 @@ private:
     RefPtr<ScrollFrame const> m_own_scroll_frame;
     RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context;
     RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context_for_descendants;
+    RefPtr<AccumulatedVisualContext const> m_fixed_background_visual_context;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;

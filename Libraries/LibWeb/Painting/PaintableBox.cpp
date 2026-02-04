@@ -100,6 +100,7 @@ void PaintableBox::reset_for_relayout()
     m_own_scroll_frame = nullptr;
     m_accumulated_visual_context = nullptr;
     m_accumulated_visual_context_for_descendants = nullptr;
+    m_fixed_background_visual_context = nullptr;
 
     m_used_values_for_grid_template_columns = nullptr;
     m_used_values_for_grid_template_rows = nullptr;

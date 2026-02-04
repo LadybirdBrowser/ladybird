@@ -181,7 +181,8 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
                 [](TransformData const&) -> bool { return true; },
                 [](PerspectiveData const&) -> bool { return true; },
                 [](ClipPathData const&) -> bool { return false; },
-                [](EffectsData const&) -> bool { return false; });
+                [](EffectsData const&) -> bool { return false; },
+                [](InverseViewportScrollData const&) -> bool { return true; });
 
             if (should_keep_entry)
                 relevant_contexts.append(visual_context);
