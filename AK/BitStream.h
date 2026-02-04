@@ -52,7 +52,7 @@ public:
     /// Depending on the number of bits to read, the return type can be chosen appropriately.
     /// This avoids a bunch of static_cast<>'s for the user.
     // TODO: Support u128, u256 etc. as well: The concepts would be quite complex.
-    template<Unsigned T = u64>
+    template<UnsignedIntegral T = u64>
     ErrorOr<T> read_bits(size_t count)
     {
         if constexpr (IsSame<bool, T>) {
@@ -131,7 +131,7 @@ protected:
     {
     }
 
-    template<Unsigned T>
+    template<UnsignedIntegral T>
     static constexpr T lsb_mask(T bits)
     {
         constexpr auto max = NumericLimits<T>::max();
@@ -204,7 +204,7 @@ public:
     /// Depending on the number of bits to read, the return type can be chosen appropriately.
     /// This avoids a bunch of static_cast<>'s for the user.
     // TODO: Support u128, u256 etc. as well: The concepts would be quite complex.
-    template<Unsigned T = u64>
+    template<UnsignedIntegral T = u64>
     ErrorOr<T> read_bits(size_t count)
     {
         auto result = TRY(peek_bits<T>(count));
@@ -213,7 +213,7 @@ public:
         return result;
     }
 
-    template<Unsigned T = u64>
+    template<UnsignedIntegral T = u64>
     ErrorOr<T> peek_bits(size_t count)
     {
         if (count > m_bit_count)
@@ -296,7 +296,7 @@ public:
         return m_stream->write_some(bytes);
     }
 
-    template<Unsigned T>
+    template<UnsignedIntegral T>
     ErrorOr<void> write_bits(T value, size_t bit_count)
     {
         VERIFY(m_bit_offset <= 7);
@@ -378,7 +378,7 @@ public:
         return m_stream->write_some(bytes);
     }
 
-    template<Unsigned T>
+    template<UnsignedIntegral T>
     ErrorOr<void> write_bits(T value, size_t count)
     {
         if (m_bit_count == bit_buffer_size) {

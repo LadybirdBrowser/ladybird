@@ -52,7 +52,7 @@ constexpr I pow(I base, I exponent)
     return res;
 }
 
-template<auto base, Unsigned U = decltype(base)>
+template<auto base, UnsignedIntegral U = decltype(base)>
 constexpr bool is_power_of(U x)
 {
     if constexpr (base == 1)
@@ -73,7 +73,7 @@ constexpr bool is_power_of(U x)
     return true;
 }
 
-template<Unsigned T>
+template<UnsignedIntegral T>
 constexpr T reinterpret_as_octal(T decimal)
 {
     T result = 0;
@@ -85,7 +85,7 @@ constexpr T reinterpret_as_octal(T decimal)
     return result;
 }
 
-template<Unsigned T>
+template<UnsignedIntegral T>
 constexpr T gcd(T x, T y)
 {
     if (x == 0)
@@ -128,7 +128,7 @@ constexpr T gcd(T x, T y)
     return gcd(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));
 }
 
-template<Unsigned T>
+template<UnsignedIntegral T>
 constexpr T lcm(T x, T y)
 {
     if (x == 0 || y == 0)

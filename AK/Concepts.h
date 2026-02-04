@@ -34,6 +34,9 @@ template<typename T>
 concept SignedIntegral = IsSigned<T> && IsIntegral<T>;
 
 template<typename T>
+concept UnsignedIntegral = IsUnsigned<T> && IsIntegral<T>;
+
+template<typename T>
 concept Enum = IsEnum<T>;
 
 template<typename T, typename U>
@@ -198,6 +201,7 @@ using AK::Concepts::Signed;
 using AK::Concepts::SignedIntegral;
 using AK::Concepts::SpecializationOf;
 using AK::Concepts::Unsigned;
+using AK::Concepts::UnsignedIntegral;
 using AK::Concepts::VoidFunction;
 #if !USING_AK_GLOBALLY
 

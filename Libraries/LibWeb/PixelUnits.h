@@ -112,7 +112,7 @@ public:
         return from_raw(raw_value);
     }
 
-    template<Unsigned U>
+    template<UnsignedIntegral U>
     constexpr CSSPixels(U value)
     {
         if (value > max_integer_value) [[unlikely]]

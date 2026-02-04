@@ -25,7 +25,7 @@ public:
     constexpr operator ValueType() const { return m_value; }
 
     static ErrorOr<LEB128<ValueType>> read_from_stream(Stream& stream)
-    requires(Unsigned<ValueType>)
+    requires(UnsignedIntegral<ValueType>)
     {
         // First byte is unrolled for speed
         u8 byte;

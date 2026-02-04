@@ -10,7 +10,7 @@
 
 namespace AK {
 
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr int popcount(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
@@ -38,7 +38,7 @@ inline constexpr int popcount(IntType value)
 // behavior, or it may return the number of bits in the number. If
 // this function can be called with zero, the use of
 // count_trailing_zeroes_safe is preferred.
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr int count_trailing_zeroes(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
@@ -63,7 +63,7 @@ inline constexpr int count_trailing_zeroes(IntType value)
 // The function will return the number of trailing zeroes in the type. If
 // the given number is zero, this function will return the number of bits
 // bits in the IntType.
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr int count_trailing_zeroes_safe(IntType value)
 {
     if (value == 0)
@@ -76,7 +76,7 @@ inline constexpr int count_trailing_zeroes_safe(IntType value)
 // behavior, or it may return the number of bits in the number. If
 // this function can be called with zero, the use of
 // count_leading_zeroes_safe is preferred.
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr int count_leading_zeroes(IntType value)
 {
 #if defined(AK_COMPILER_CLANG) || defined(AK_COMPILER_GCC)
@@ -120,7 +120,7 @@ inline constexpr int count_leading_zeroes(unsigned __int128 value)
 // The function will return the number of leading zeroes in the type. If
 // the given number is zero, this function will return the number of bits
 // in the IntType.
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr int count_leading_zeroes_safe(IntType value)
 {
     if (value == 0)
@@ -152,7 +152,7 @@ inline constexpr int bit_scan_forward(IntType value)
 }
 
 // Counts the minimum number of bits required to represent the value (i.e. ignoring leading null bits).
-template<Unsigned IntType>
+template<UnsignedIntegral IntType>
 inline constexpr size_t count_required_bits(IntType value)
 {
     if (value == 0)

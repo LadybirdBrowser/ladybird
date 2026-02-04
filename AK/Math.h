@@ -331,7 +331,7 @@ ALWAYS_INLINE I round_to(double value)
     return static_cast<I>(res);
 }
 
-template<Unsigned U>
+template<UnsignedIntegral U>
 ALWAYS_INLINE U round_to(float value)
 {
     if constexpr (sizeof(U) <= sizeof(u32)) {
@@ -348,7 +348,7 @@ ALWAYS_INLINE U round_to(float value)
     return static_cast<U>(res);
 }
 
-template<Unsigned U>
+template<UnsignedIntegral U>
 ALWAYS_INLINE U round_to(double value)
 {
     if constexpr (sizeof(U) <= sizeof(u32)) {
