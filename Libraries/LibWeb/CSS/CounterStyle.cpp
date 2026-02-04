@@ -104,7 +104,13 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
         },
         [&](GenericCounterStyleAlgorithm const& generic_algorithm) -> Optional<String> {
             switch (generic_algorithm.type) {
-            case CounterStyleSystem::Cyclic:
+            case CounterStyleSystem::Cyclic: {
+                // https://drafts.csswg.org/css-counter-styles-3/#cyclic-system
+                // If there are N counter symbols and a representation is being constructed for the integer value, the
+                // representation is the counter symbol at index ( (value-1) mod N) of the list of counter symbols
+                // (0-indexed).
+                return generic_algorithm.symbol_list[(value - 1) % generic_algorithm.symbol_list.size()].to_string();
+            }
             case CounterStyleSystem::Numeric:
             case CounterStyleSystem::Alphabetic:
             case CounterStyleSystem::Symbolic:
