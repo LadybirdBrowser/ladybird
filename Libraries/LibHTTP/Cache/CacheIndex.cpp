@@ -102,7 +102,12 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database)
     statements.select_entries = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
-    statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement("SELECT SUM(data_size) + SUM(OCTET_LENGTH(response_headers)) FROM CacheIndex WHERE last_access_time >= ?;"sv));
+
+    statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement(R"#(
+        SELECT SUM(data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers))
+        FROM CacheIndex
+        WHERE last_access_time >= ?;
+    )#"sv));
 
     return CacheIndex { database, statements };
 }
