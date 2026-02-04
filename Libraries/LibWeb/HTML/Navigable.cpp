@@ -984,7 +984,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             ongoing_navigation_changed_observer->set_ongoing_navigation_changed({});
 
             if (continuation_reason == NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged) {
-                if (!state_holder->navigable->ongoing_navigation().has<String>() || state_holder->navigable->ongoing_navigation().get<String>() != *state_holder->navigation_id) {
+                if (state_holder->navigable->ongoing_navigation() != *state_holder->navigation_id) {
                     state_holder->fetch_controller->abort(realm, {});
                     top_level_completion_steps->function()(Navigable::NullOrError {});
                     return;
@@ -1414,7 +1414,7 @@ void Navigable::populate_session_history_entry_document(
                 return;
 
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
-            if (navigation_id.has_value() && (!ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != *navigation_id)) {
+            if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
                 if (completion_steps) {
                     // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
                     signal_to_continue_session_history_processing->resolve({});
@@ -1855,7 +1855,7 @@ void Navigable::begin_navigation(NavigateParams params)
         auto unload_prompt_canceled = traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables());
 
         // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
-        if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || !ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != navigation_id) {
+        if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || ongoing_navigation() != navigation_id) {
             // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
             // 2. Abort these steps.
