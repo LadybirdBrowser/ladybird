@@ -595,6 +595,7 @@ float ComputedProperties::flex_shrink() const
 int ComputedProperties::order() const
 {
     auto const& value = property(PropertyID::Order);
+    // FIXME: Support calc()
     if (!value.is_integer())
         return 0;
     return value.as_integer().integer();
@@ -1633,12 +1634,7 @@ HashMap<FlyString, u8> ComputedProperties::font_feature_settings() const
         for (auto const& tag_value : feature_tags) {
             auto const& feature_tag = tag_value->as_open_type_tagged();
 
-            if (feature_tag.value()->is_integer()) {
-                result.set(feature_tag.tag(), feature_tag.value()->as_integer().integer());
-            } else {
-                VERIFY(feature_tag.value()->is_calculated());
-                result.set(feature_tag.tag(), feature_tag.value()->as_calculated().resolve_integer({}).value());
-            }
+            result.set(feature_tag.tag(), int_from_style_value(feature_tag.value()));
         }
         return result;
     }
@@ -2201,17 +2197,10 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
                 .is_reversed = counter.is_reversed,
                 .value = {},
             };
-            if (counter.value) {
-                if (counter.value->is_integer()) {
-                    data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
-                } else if (counter.value->is_calculated()) {
-                    auto maybe_int = counter.value->as_calculated().resolve_integer({});
-                    if (maybe_int.has_value())
-                        data.value = AK::clamp_to<i32>(*maybe_int);
-                } else {
-                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string(SerializationMode::Normal));
-                }
-            }
+
+            if (counter.value)
+                data.value = AK::clamp_to<i32>(int_from_style_value(*counter.value));
+
             result.append(move(data));
         }
         return result;

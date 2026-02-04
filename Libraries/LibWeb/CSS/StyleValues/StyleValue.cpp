@@ -186,6 +186,17 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const&)
     return StyleValueVector { *this };
 }
 
+i64 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+{
+    if (style_value->is_integer())
+        return style_value->as_integer().integer();
+
+    if (style_value->is_calculated())
+        return style_value->as_calculated().resolve_integer({}).value();
+
+    VERIFY_NOT_REACHED();
+}
+
 double number_from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<double> percentage_basis)
 {
     if (style_value->is_number())

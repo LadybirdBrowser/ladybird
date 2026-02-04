@@ -2804,16 +2804,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
         ? inheritance_parent->computed_properties()->math_style()
         : InitialValues::math_style();
 
-    auto resolve_integer = [&](StyleValue const& integer_value) {
-        if (integer_value.is_integer())
-            return integer_value.as_integer().integer();
-
-        if (integer_value.is_calculated())
-            return integer_value.as_calculated().resolve_integer({}).value();
-
-        VERIFY_NOT_REACHED();
-    };
-
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
@@ -2823,12 +2813,12 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
     // - If the specified value of math-depth is of the form add(<integer>) then the computed value of
     //   math-depth of the element is its inherited value plus the specified integer.
     if (absolutized_value->is_add_function())
-        return IntegerStyleValue::create(inherited_math_depth + resolve_integer(*absolutized_value->as_add_function().value()));
+        return IntegerStyleValue::create(inherited_math_depth + int_from_style_value(absolutized_value->as_add_function().value()));
 
     // - If the specified value of math-depth is of the form <integer> then the computed value of math-depth
     //   of the element is the specified integer.
     if (absolutized_value->is_integer() || absolutized_value->is_calculated())
-        return IntegerStyleValue::create(resolve_integer(*absolutized_value));
+        return IntegerStyleValue::create(int_from_style_value(absolutized_value));
 
     // - Otherwise, the computed value of math-depth of the element is the inherited one.
     return IntegerStyleValue::create(inherited_math_depth);

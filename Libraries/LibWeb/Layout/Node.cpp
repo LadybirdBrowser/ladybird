@@ -894,6 +894,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_text_anchor(computed_style.text_anchor());
 
+    // FIXME: Support calc()
     if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count.is_integer())
         computed_values.set_column_count(CSS::ColumnCount::make_integer(column_count.as_integer().integer()));
 
