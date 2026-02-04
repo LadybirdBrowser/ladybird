@@ -45,11 +45,59 @@ CounterStyle CounterStyle::from_counter_style_definition(CounterStyleDefinition 
         });
 }
 
-Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i32) const
+Optional<String> CounterStyle::generate_an_initial_representation_for_the_counter_value(i32 value) const
 {
     return m_algorithm.visit(
-        [&](AdditiveCounterStyleAlgorithm const&) -> Optional<String> {
-            TODO();
+        [&](AdditiveCounterStyleAlgorithm const& additive_algorithm) -> Optional<String> {
+            // https://drafts.csswg.org/css-counter-styles-3/#additive-system
+            // To construct the representation:
+
+            // 1. Let value initially be the counter value, S initially be the empty string, and symbol list initially
+            //    be the list of additive tuples.
+
+            // 2. If value is zero:
+            if (value == 0) {
+                // 1. If symbol list contains a tuple with a weight of zero, append that tuple’s counter symbol to S and
+                //    return S.
+                if (auto it = additive_algorithm.symbol_list.find_if([](auto const& tuple) { return tuple.weight == 0; }); it != additive_algorithm.symbol_list.end())
+                    return it->symbol.to_string();
+
+                // 2. Otherwise, the given counter value cannot be represented by this counter style, and must instead
+                //    be represented by the fallback counter style.
+                return {};
+            }
+
+            StringBuilder builder;
+
+            // 3. For each tuple in symbol list:
+            for (auto const& tuple : additive_algorithm.symbol_list) {
+                // 1. Let symbol and weight be tuple’s counter symbol and weight, respectively.
+
+                // 2. If weight is zero, or weight is greater than value, continue.
+                if (tuple.weight == 0 || tuple.weight > value)
+                    continue;
+
+                // 3. Let reps be floor( value / weight ).
+                auto reps = value / tuple.weight;
+
+                // 4. Append symbol to S reps times.
+                for (int i = 0; i < reps; ++i)
+                    builder.append(tuple.symbol);
+
+                // 5. Decrement value by weight * reps.
+                value -= tuple.weight * reps;
+
+                // 6. If value is zero, return S.
+                if (value == 0)
+                    return MUST(builder.to_string());
+            }
+
+            // Assertion: value is still non-zero.
+            VERIFY(value != 0);
+
+            // The given counter value cannot be represented by this counter style, and must instead be represented by
+            // the fallback counter style.
+            return {};
         },
         [&](FixedCounterStyleAlgorithm const&) -> Optional<String> {
             TODO();
