@@ -1,0 +1,18 @@
+<!doctype html>
+<style>
+    @counter-style valid {
+        range: calc(sign(1em - 1px)) calc(sign(1em - 1px) + 1);
+    }
+
+    @counter-style invalid {
+        range: calc(sign(1em - 1px) + 1) calc(sign(1em - 1px));
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const rule of document.styleSheets[0].cssRules) {
+            println(rule.cssText);
+        }
+    });
+</script>
