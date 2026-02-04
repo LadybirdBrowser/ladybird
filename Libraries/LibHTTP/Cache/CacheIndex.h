@@ -38,6 +38,7 @@ public:
 
     void create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key, u64 vary_key);
+    void remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
 
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
@@ -51,6 +52,7 @@ private:
     struct Statements {
         Database::StatementID insert_entry { 0 };
         Database::StatementID remove_entry { 0 };
+        Database::StatementID remove_entries_exceeding_cache_limit { 0 };
         Database::StatementID remove_entries_accessed_since { 0 };
         Database::StatementID select_entries { 0 };
         Database::StatementID update_response_headers { 0 };
@@ -58,14 +60,22 @@ private:
         Database::StatementID estimate_cache_size_accessed_since { 0 };
     };
 
-    CacheIndex(Database::Database&, Statements);
+    struct Limits {
+        u64 free_disk_space { 0 };
+        u64 maximum_disk_cache_size { 0 };
+    };
+
+    CacheIndex(Database::Database&, Statements, Limits);
 
     Optional<Entry&> get_entry(u64 cache_key, u64 vary_key);
+    void delete_entry(u64 cache_key, u64 vary_key);
 
     NonnullRawPtr<Database::Database> m_database;
     Statements m_statements;
 
     HashMap<u64, Vector<Entry>> m_entries;
+
+    Limits m_limits;
 };
 
 }
