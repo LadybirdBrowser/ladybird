@@ -26,22 +26,13 @@
 
 namespace Web::CSS {
 
-static FlyString extract_font_name(StyleValue const& value)
-{
-    if (value.is_string())
-        return value.as_string().string_value();
-    if (value.is_custom_ident())
-        return value.as_custom_ident().custom_ident();
-    return FlyString {};
-}
-
 Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleValue const& style_value)
 {
     Vector<Source> sources;
     auto add_source = [&sources](FontSourceStyleValue const& font_source) {
         font_source.source().visit(
             [&](FontSourceStyleValue::Local const& local) {
-                sources.empend(extract_font_name(local.name), OptionalNone {}, Vector<FontTech> {});
+                sources.empend(string_from_style_value(local.name), OptionalNone {}, Vector<FontTech> {});
             },
             [&](URL const& url) {
                 sources.empend(url, font_source.format(), font_source.tech());
@@ -74,7 +65,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
 
     FlyString font_family;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFamily))
-        font_family = extract_font_name(*value);
+        font_family = string_from_style_value(*value);
 
     ComputationContext computation_context {
         .length_resolution_context = Length::ResolutionContext::for_document(*descriptors.parent_rule()->parent_style_sheet()->owning_document())

@@ -2100,16 +2100,7 @@ Vector<ComputedProperties::AnimationProperties> ComputedProperties::animations(D
         auto delay = Time::from_style_value(animation_delay_style_value, {}).to_milliseconds();
         auto fill_mode = keyword_to_animation_fill_mode(animation_fill_mode_style_value->to_keyword()).value();
         auto composition = keyword_to_animation_composition(animation_composition_style_value->to_keyword()).value();
-
-        auto name = [&] {
-            if (animation_name_style_value->is_custom_ident())
-                return animation_name_style_value->as_custom_ident().custom_ident();
-
-            if (animation_name_style_value->is_string())
-                return animation_name_style_value->as_string().string_value();
-
-            VERIFY_NOT_REACHED();
-        }();
+        auto name = string_from_style_value(animation_name_style_value);
 
         // https://drafts.csswg.org/css-animations-2/#animation-timeline
         auto const& timeline = [&]() -> GC::Ptr<Animations::AnimationTimeline> {

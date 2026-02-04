@@ -281,12 +281,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 
 void FontFace::set_family_impl(NonnullRefPtr<StyleValue const> const& value)
 {
-    if (value->is_custom_ident())
-        m_family = value->as_custom_ident().custom_ident().to_string();
-    else if (value->is_string())
-        m_family = value->as_string().string_value().to_string();
-    else
-        VERIFY_NOT_REACHED();
+    m_family = string_from_style_value(value).to_string();
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style

@@ -230,22 +230,11 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
     //    that this may be more than just a single font face.
     for (auto const& font_family : font_family_list.values()) {
         // FIXME: The matching below is super basic. We currently just match font family names by their string value.
-        auto maybe_font_family_name = [&]() -> Optional<FlyString> {
-            if (font_family->is_string())
-                return font_family->as_string().string_value();
-
-            if (font_family->is_custom_ident())
-                return font_family->as_custom_ident().custom_ident();
-
-            return {};
-        }();
-
-        if (!maybe_font_family_name.has_value())
-            continue;
+        auto font_family_name = string_from_style_value(font_family);
 
         for (auto font_face_value : *available_font_faces) {
             auto& font_face = as<FontFace>(font_face_value.key.as_object());
-            if (font_face.family() != maybe_font_family_name.value())
+            if (font_face.family() != font_family_name)
                 continue;
 
             matched_font_faces->set_add(font_face_value.key);
