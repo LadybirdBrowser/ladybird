@@ -316,29 +316,172 @@
             margin: 16px auto;
         }
 
-        .image-compare {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            padding: 16px;
+        .image-diff-viewer {
+            padding: 0;
         }
 
-        .image-panel {
-            text-align: center;
+        .diff-mode-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
 
-        .image-panel-label {
+        .diff-mode-btn {
+            font-family: var(--font-mono);
             font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .image-panel img {
-            max-width: 100%;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
             border: 1px solid var(--border-primary);
             border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .diff-mode-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .diff-mode-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        .diff-slider-container {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .diff-slider-container.visible {
+            display: flex;
+        }
+
+        .diff-slider-container label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .diff-slider {
+            width: 200px;
+            height: 4px;
+            appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .diff-slider::slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .diff-image-wrapper {
+            padding: 16px;
+            overflow: auto;
+        }
+
+        .diff-image-container {
+            position: relative;
+            display: inline-block;
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            overflow: hidden;
+            background: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%) 50% / 16px 16px;
+        }
+
+        .diff-image-container img,
+        .diff-image-container canvas {
+            display: block;
+        }
+
+        .diff-image-actual {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .diff-slide-clip {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .diff-slide-clip img {
+            max-width: none;
+        }
+
+        .diff-slide-line {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--accent-blue);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .diff-slide-handle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            background: var(--accent-blue);
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: ew-resize;
+            z-index: 11;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .diff-slide-handle::before,
+        .diff-slide-handle::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: white;
+            border-radius: 1px;
+        }
+
+        .diff-slide-handle::before {
+            left: 8px;
+        }
+
+        .diff-slide-handle::after {
+            right: 8px;
+        }
+
+        .diff-toggle-label {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 8px;
         }
 
         .loading {
@@ -486,9 +629,7 @@
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
             } else if (test.mode === 'Ref') {
-                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, type: 'compare' });
-                tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.png`, type: 'image' });
-                tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.png`, type: 'image' });
+                tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, type: 'imageDiff' });
             }
 
             if (test.hasStdout) tabs.push({ id: 'stdout', label: 'stdout', file: `${test.name}.stdout.txt`, type: 'text' });
@@ -530,20 +671,251 @@
                 container.innerHTML = `<iframe class="preview-frame" src="${tab.file}"></iframe>`;
             } else if (tab.type === 'image') {
                 container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
-            } else if (tab.type === 'compare') {
-                container.innerHTML = `
-                    <div class="image-compare">
-                        <div class="image-panel">
-                            <div class="image-panel-label">Expected</div>
-                            <img src="${tab.expected}" alt="Expected">
-                        </div>
-                        <div class="image-panel">
-                            <div class="image-panel-label">Actual</div>
-                            <img src="${tab.actual}" alt="Actual">
+            } else if (tab.type === 'imageDiff') {
+                initImageDiffViewer(container, tab.expected, tab.actual);
+            }
+        }
+
+        function initImageDiffViewer(container, expectedSrc, actualSrc) {
+            const viewerId = 'diff-' + Math.random().toString(36).substr(2, 9);
+
+            container.innerHTML = `
+                <div class="image-diff-viewer" id="${viewerId}">
+                    <div class="diff-mode-bar">
+                        <button class="diff-mode-btn active" data-mode="toggle">Toggle</button>
+                        <button class="diff-mode-btn" data-mode="slide">Slide</button>
+                        <button class="diff-mode-btn" data-mode="fade">Fade</button>
+                        <button class="diff-mode-btn" data-mode="difference">Difference</button>
+                        <div class="diff-slider-container" id="${viewerId}-slider-container">
+                            <label>Opacity: <span id="${viewerId}-slider-value">50</span>%</label>
+                            <input type="range" class="diff-slider" id="${viewerId}-slider" min="0" max="100" value="50">
                         </div>
                     </div>
-                `;
+                    <div class="diff-image-wrapper">
+                        <div class="diff-image-container" id="${viewerId}-container">
+                            <div class="loading">Loading images...</div>
+                        </div>
+                        <div class="diff-toggle-label" id="${viewerId}-label" style="display: none;">Showing: Expected</div>
+                    </div>
+                </div>
+            `;
+
+            const viewer = document.getElementById(viewerId);
+            const imageContainer = document.getElementById(`${viewerId}-container`);
+            const sliderContainer = document.getElementById(`${viewerId}-slider-container`);
+            const slider = document.getElementById(`${viewerId}-slider`);
+            const sliderValue = document.getElementById(`${viewerId}-slider-value`);
+            const toggleLabel = document.getElementById(`${viewerId}-label`);
+
+            let expectedImg = new Image();
+            let actualImg = new Image();
+            let currentMode = 'toggle';
+            let showingExpected = true;
+            let imagesLoaded = 0;
+            let width, height;
+
+            expectedImg.onload = actualImg.onload = function() {
+                imagesLoaded++;
+                if (imagesLoaded === 2) {
+                    setupDiffViewer();
+                }
+            };
+
+            expectedImg.onerror = actualImg.onerror = function() {
+                imageContainer.innerHTML = '<div class="loading">Failed to load image</div>';
+            };
+
+            expectedImg.src = expectedSrc;
+            actualImg.src = actualSrc;
+
+            function setupDiffViewer() {
+                width = Math.max(expectedImg.naturalWidth, actualImg.naturalWidth);
+                height = Math.max(expectedImg.naturalHeight, actualImg.naturalHeight);
+
+                imageContainer.innerHTML = '';
+                imageContainer.style.width = width + 'px';
+                imageContainer.style.height = height + 'px';
+
+                renderToggleMode();
             }
+
+            function renderToggleMode() {
+                imageContainer.innerHTML = '';
+                const img = showingExpected ? expectedImg.cloneNode() : actualImg.cloneNode();
+                img.style.display = 'block';
+                imageContainer.appendChild(img);
+
+                toggleLabel.style.display = 'block';
+                toggleLabel.textContent = 'Showing: ' + (showingExpected ? 'Expected' : 'Actual') + ' (click image to toggle)';
+
+                imageContainer.style.cursor = 'pointer';
+                imageContainer.onclick = function() {
+                    showingExpected = !showingExpected;
+                    renderToggleMode();
+                };
+            }
+
+            function renderSlideMode() {
+                imageContainer.innerHTML = '';
+                imageContainer.style.cursor = 'ew-resize';
+
+                // Base layer: actual image
+                const actualClone = actualImg.cloneNode();
+                actualClone.style.display = 'block';
+                imageContainer.appendChild(actualClone);
+
+                // Clip layer: expected image (clipped from left)
+                const clipDiv = document.createElement('div');
+                clipDiv.className = 'diff-slide-clip';
+                clipDiv.style.width = (width / 2) + 'px';
+
+                const expectedClone = expectedImg.cloneNode();
+                expectedClone.style.display = 'block';
+                expectedClone.style.width = width + 'px';
+                expectedClone.style.maxWidth = 'none';
+                clipDiv.appendChild(expectedClone);
+                imageContainer.appendChild(clipDiv);
+
+                // Vertical line
+                const line = document.createElement('div');
+                line.className = 'diff-slide-line';
+                line.style.left = (width / 2) + 'px';
+                imageContainer.appendChild(line);
+
+                // Draggable handle on the line
+                const handle = document.createElement('div');
+                handle.className = 'diff-slide-handle';
+                handle.style.left = (width / 2) + 'px';
+                imageContainer.appendChild(handle);
+
+                let dragging = false;
+
+                function updatePosition(clientX) {
+                    const rect = imageContainer.getBoundingClientRect();
+                    let x = clientX - rect.left;
+                    x = Math.max(0, Math.min(width, x));
+                    clipDiv.style.width = x + 'px';
+                    line.style.left = x + 'px';
+                    handle.style.left = x + 'px';
+                }
+
+                function onMouseDown(e) {
+                    dragging = true;
+                    e.preventDefault();
+                    updatePosition(e.clientX);
+                }
+
+                function onMouseMove(e) {
+                    if (dragging) {
+                        updatePosition(e.clientX);
+                    }
+                }
+
+                function onMouseUp() {
+                    dragging = false;
+                }
+
+                handle.addEventListener('mousedown', onMouseDown);
+                imageContainer.addEventListener('mousedown', onMouseDown);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                // Store cleanup function
+                imageContainer._cleanup = function() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+            }
+
+            function renderFadeMode() {
+                const opacity = slider.value / 100;
+
+                imageContainer.innerHTML = '';
+                imageContainer.style.cursor = 'default';
+                imageContainer.onclick = null;
+
+                const expectedClone = expectedImg.cloneNode();
+                expectedClone.style.display = 'block';
+                expectedClone.style.position = 'relative';
+                imageContainer.appendChild(expectedClone);
+
+                const actualClone = actualImg.cloneNode();
+                actualClone.className = 'diff-image-actual';
+                actualClone.style.opacity = opacity;
+                imageContainer.appendChild(actualClone);
+            }
+
+            function renderDifferenceMode() {
+                imageContainer.innerHTML = '';
+                imageContainer.style.cursor = 'default';
+                imageContainer.onclick = null;
+
+                // Use CSS difference blend mode with contrast boost
+                imageContainer.style.filter = 'brightness(5) contrast(5)';
+
+                const expectedClone = expectedImg.cloneNode();
+                expectedClone.style.display = 'block';
+                imageContainer.appendChild(expectedClone);
+
+                const actualClone = actualImg.cloneNode();
+                actualClone.style.position = 'absolute';
+                actualClone.style.top = '0';
+                actualClone.style.left = '0';
+                actualClone.style.mixBlendMode = 'difference';
+                imageContainer.appendChild(actualClone);
+
+                toggleLabel.style.display = 'block';
+                toggleLabel.textContent = 'Difference mode: black = identical, colored = different';
+            }
+
+            function cleanupCurrentMode() {
+                if (imageContainer._cleanup) {
+                    imageContainer._cleanup();
+                    imageContainer._cleanup = null;
+                }
+                imageContainer.onclick = null;
+                imageContainer.style.filter = '';
+            }
+
+            function setMode(mode) {
+                cleanupCurrentMode();
+                currentMode = mode;
+                toggleLabel.style.display = 'none';
+
+                viewer.querySelectorAll('.diff-mode-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                });
+
+                if (mode === 'fade') {
+                    sliderContainer.classList.add('visible');
+                    slider.value = 50;
+                    sliderValue.textContent = '50';
+                } else {
+                    sliderContainer.classList.remove('visible');
+                }
+
+                switch (mode) {
+                    case 'toggle': renderToggleMode(); break;
+                    case 'slide': renderSlideMode(); break;
+                    case 'fade': renderFadeMode(); break;
+                    case 'difference': renderDifferenceMode(); break;
+                }
+            }
+
+            viewer.querySelectorAll('.diff-mode-btn').forEach(btn => {
+                btn.onclick = function() {
+                    setMode(this.dataset.mode);
+                };
+            });
+
+            slider.oninput = function() {
+                sliderValue.textContent = Math.round(this.value);
+                if (currentMode === 'fade') {
+                    const opacity = this.value / 100;
+                    const actual = imageContainer.querySelector('.diff-image-actual');
+                    if (actual) actual.style.opacity = opacity;
+                }
+            };
         }
 
         function setupKeyboardNav() {
