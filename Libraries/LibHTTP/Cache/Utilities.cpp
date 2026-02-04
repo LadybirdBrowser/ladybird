@@ -24,6 +24,21 @@ static Optional<UnixDateTime> parse_http_date(Optional<ByteString const&> date)
     return {};
 }
 
+u64 compute_maximum_disk_cache_size(u64 free_bytes)
+{
+    static constexpr u64 MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
+
+    if (free_bytes <= 100 * MiB)
+        return free_bytes * 8 / 10; // Up to 80 MiB
+    if (free_bytes <= 800 * MiB)
+        return free_bytes * 6 / 10; // Up to 480 MiB
+    if (free_bytes <= 2 * GiB)
+        return free_bytes * 4 / 10; // Up to 820 MiB
+    if (free_bytes <= 10 * GiB)
+        return free_bytes * 2 / 10; // Up to 2 GiB
+    return MAXIMUM_DISK_CACHE_SIZE;
+}
+
 String serialize_url_for_cache_storage(URL::URL const& url)
 {
     if (!url.fragment().has_value())

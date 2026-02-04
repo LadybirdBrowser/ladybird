@@ -230,6 +230,13 @@ bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_k
     return false;
 }
 
+void DiskCache::remove_entries_exceeding_cache_limit()
+{
+    m_index.remove_entries_exceeding_cache_limit([&](auto cache_key, auto vary_key) {
+        delete_entry(cache_key, vary_key);
+    });
+}
+
 Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime since)
 {
     return m_index.estimate_cache_size_accessed_since(since);
@@ -238,13 +245,7 @@ Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime 
 void DiskCache::remove_entries_accessed_since(UnixDateTime since)
 {
     m_index.remove_entries_accessed_since(since, [&](auto cache_key, auto vary_key) {
-        if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
-            for (auto const& [open_entry, _] : *open_entries)
-                open_entry->mark_for_deletion({});
-        }
-
-        auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
-        (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
+        delete_entry(cache_key, vary_key);
     });
 }
 
@@ -276,6 +277,17 @@ void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_en
             }
         });
     }
+}
+
+void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
+{
+    if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
+        for (auto const& [open_entry, _] : *open_entries)
+            open_entry->mark_for_deletion({});
+    }
+
+    auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
+    (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
 }
 
 }
