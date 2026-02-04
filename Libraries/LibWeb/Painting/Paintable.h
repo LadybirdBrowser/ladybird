@@ -11,6 +11,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TraversalDecision.h>
 #include <LibWeb/TreeNode.h>
@@ -148,6 +149,7 @@ public:
     struct SelectionStyle {
         Color background_color;
         Optional<Color> text_color;
+        Optional<Vector<ShadowData>> text_shadow;
     };
     [[nodiscard]] SelectionStyle selection_style() const;
 

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-text-shadow-ref.html">
+<style>
+p {
+    font-size: 20px;
+    margin: 20px;
+}
+
+#transparent::selection {
+    background-color: transparent;
+    text-shadow: 3px 3px 0 red;
+}
+
+#with-background::selection {
+    background-color: yellow;
+    text-shadow: 3px 3px 0 red;
+}
+</style>
+
+<p id="transparent">Selected text</p>
+<p id="with-background">With background</p>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("transparent"));
+range.setEnd(document.getElementById("with-background").firstChild, document.getElementById("with-background").textContent.length);
+getSelection().addRange(range);
+</script>

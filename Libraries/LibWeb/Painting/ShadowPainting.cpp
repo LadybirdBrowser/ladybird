@@ -66,7 +66,7 @@ void paint_box_shadow(DisplayListRecordingContext& context,
 void paint_text_shadow(DisplayListRecordingContext& context, PaintableFragment::FragmentSpan const& span)
 {
     auto const& fragment = span.fragment;
-    auto const& shadow_layers = fragment.shadows();
+    auto const& shadow_layers = span.shadow_layers.has_value() ? *span.shadow_layers : fragment.shadows();
 
     if (shadow_layers.is_empty())
         return;

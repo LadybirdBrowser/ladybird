@@ -57,6 +57,7 @@ public:
         size_t end_code_unit;
         Color text_color;
         Color background_color;
+        Optional<Vector<ShadowData>> shadow_layers;
     };
 
     CSSPixels width() const { return m_size.width(); }

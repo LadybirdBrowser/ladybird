@@ -328,6 +328,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .end_code_unit = selection_start,
             .text_color = text_color,
             .background_color = Color::Transparent,
+            .shadow_layers = {},
         });
     }
 
@@ -339,6 +340,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .end_code_unit = selection_end,
             .text_color = selection_text_color,
             .background_color = selection_style.background_color,
+            .shadow_layers = move(selection_style.text_shadow),
         });
     }
 
@@ -350,6 +352,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .end_code_unit = fragment.length_in_code_units(),
             .text_color = text_color,
             .background_color = Color::Transparent,
+            .shadow_layers = {},
         });
     }
 }
