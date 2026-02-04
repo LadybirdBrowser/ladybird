@@ -204,6 +204,7 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
     }
 
     m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
+    m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
     return {};

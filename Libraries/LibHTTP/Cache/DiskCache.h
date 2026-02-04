@@ -52,6 +52,8 @@ public:
     };
     Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
+    void remove_entries_exceeding_cache_limit();
+
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
@@ -67,6 +69,8 @@ private:
         Yes,
     };
     bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
+
+    void delete_entry(u64 cache_key, u64 vary_key);
 
     Mode m_mode;
 
