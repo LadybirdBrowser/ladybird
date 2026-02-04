@@ -99,8 +99,18 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
             // the fallback counter style.
             return {};
         },
-        [&](FixedCounterStyleAlgorithm const&) -> Optional<String> {
-            TODO();
+        [&](FixedCounterStyleAlgorithm const& fixed_algorithm) -> Optional<String> {
+            // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
+            // The first counter symbol is the representation for the first symbol value, and subsequent counter values
+            // are represented by subsequent counter symbols. Once the list of counter symbols is exhausted, further
+            // values cannot be represented by this counter style, and must instead be represented by the fallback
+            // counter style.
+            auto index = value - fixed_algorithm.first_symbol;
+
+            if (index < 0 || index >= static_cast<i64>(fixed_algorithm.symbol_list.size()))
+                return {};
+
+            return fixed_algorithm.symbol_list[index].to_string();
         },
         [&](GenericCounterStyleAlgorithm const& generic_algorithm) -> Optional<String> {
             switch (generic_algorithm.type) {
