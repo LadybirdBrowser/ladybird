@@ -356,6 +356,22 @@ bool PaintableBox::could_be_scrolled_by_wheel_event() const
     return could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal) || could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
 }
 
+bool PaintableBox::overflow_property_applies() const
+{
+    // https://drafts.csswg.org/css-overflow-3/#overflow-control
+    // Overflow properties apply to block containers, flex containers and grid containers.
+    // FIXME: Ideally we would check whether overflow applies positively rather than listing exceptions. However,
+    //        not all elements that should support overflow are currently identifiable that way.
+    auto const& display = computed_values().display();
+    if (layout_node().is_inline_node())
+        return false;
+    if (display.is_ruby_inside())
+        return false;
+    if (display.is_internal() && !display.is_table_cell() && !display.is_table_caption())
+        return false;
+    return true;
+}
+
 CSSPixels PaintableBox::available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& metrics) const
 
 {

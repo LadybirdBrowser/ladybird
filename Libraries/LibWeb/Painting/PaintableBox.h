@@ -129,6 +129,8 @@ public:
             || computed_values.scale();
     }
 
+    [[nodiscard]] bool overflow_property_applies() const;
+
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
     {
         if (!m_overflow_data.has_value())
