@@ -146,10 +146,21 @@ public:
     void set_selection_state(SelectionState state) { m_selection_state = state; }
 
     // https://drafts.csswg.org/css-pseudo-4/#highlight-styling
+    struct TextDecorationStyle {
+        Vector<CSS::TextDecorationLine> line;
+        CSS::TextDecorationStyle style;
+        Color color;
+    };
     struct SelectionStyle {
         Color background_color;
         Optional<Color> text_color;
         Optional<Vector<ShadowData>> text_shadow;
+        Optional<TextDecorationStyle> text_decoration;
+
+        bool has_styling() const
+        {
+            return background_color.alpha() > 0 || text_color.has_value() || text_shadow.has_value() || text_decoration.has_value();
+        }
     };
     [[nodiscard]] SelectionStyle selection_style() const;
 
