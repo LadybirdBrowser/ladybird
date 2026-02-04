@@ -435,4 +435,15 @@
     }
 }
 
+- (BOOL)validateMenuItem:(NSMenuItem*)menu
+{
+    SEL action = [menu action];
+
+    if (action == @selector(closeCurrentTab:)) {
+        return [[NSApp keyWindow] isKindOfClass:[Tab class]];
+    }
+
+    return YES;
+}
+
 @end
