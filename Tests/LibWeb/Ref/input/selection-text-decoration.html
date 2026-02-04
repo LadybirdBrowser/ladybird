@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-text-decoration-ref.html">
+<style>
+p {
+    font-size: 20px;
+    margin: 20px;
+}
+
+#underline::selection {
+    background-color: transparent;
+    text-decoration: underline red;
+}
+
+#line-through::selection {
+    background-color: yellow;
+    text-decoration: line-through blue;
+}
+</style>
+
+<p id="underline">Underline decoration</p>
+<p id="line-through">Line-through decoration</p>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("underline"));
+range.setEnd(document.getElementById("line-through").firstChild, document.getElementById("line-through").textContent.length);
+getSelection().addRange(range);
+</script>

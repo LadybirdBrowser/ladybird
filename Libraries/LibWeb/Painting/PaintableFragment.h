@@ -51,6 +51,12 @@ public:
     Optional<SelectionOffsets> selection_offsets() const;
     Optional<SelectionOffsets> selection_range_for_text_control() const;
 
+    struct TextDecorationData {
+        Vector<CSS::TextDecorationLine> line;
+        CSS::TextDecorationStyle style;
+        Color color;
+    };
+
     struct FragmentSpan {
         PaintableFragment const& fragment;
         size_t start_code_unit;
@@ -58,6 +64,7 @@ public:
         Color text_color;
         Color background_color;
         Optional<Vector<ShadowData>> shadow_layers;
+        Optional<TextDecorationData> text_decoration;
     };
 
     CSSPixels width() const { return m_size.width(); }

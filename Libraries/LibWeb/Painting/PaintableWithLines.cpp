@@ -2,7 +2,7 @@
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024-2025, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
- * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2025-2026, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,7 +26,7 @@ namespace Web::Painting {
 
 GC_DEFINE_ALLOCATOR(PaintableWithLines);
 
-static void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
+static void paint_text_decoration(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment::FragmentSpan const&);
 static Gfx::Path build_triangle_wave_path(Gfx::IntPoint from, Gfx::IntPoint to, float amplitude);
 static void paint_cursor_if_needed(DisplayListRecordingContext&, TextPaintable const&, PaintableFragment const&);
 static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
@@ -294,6 +294,8 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .end_code_unit = 0,
             .text_color = Color::Transparent,
             .background_color = Color::Transparent,
+            .shadow_layers = {},
+            .text_decoration = {},
         });
         return;
     }
@@ -312,6 +314,8 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .end_code_unit = fragment.length_in_code_units(),
             .text_color = text_color,
             .background_color = Color::Transparent,
+            .shadow_layers = {},
+            .text_decoration = {},
         });
         return;
     }
@@ -319,6 +323,16 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
     auto [selection_start, selection_end, _] = *selection_offsets;
     auto selection_style = text_paintable->selection_style();
     auto selection_text_color = selection_style.text_color.value_or(text_color);
+
+    // Convert selection text decoration to fragment text decoration data.
+    Optional<PaintableFragment::TextDecorationData> selection_text_decoration;
+    if (selection_style.text_decoration.has_value()) {
+        selection_text_decoration = PaintableFragment::TextDecorationData {
+            .line = move(selection_style.text_decoration->line),
+            .style = selection_style.text_decoration->style,
+            .color = selection_style.text_decoration->color,
+        };
+    }
 
     // Before selection.
     if (selection_start > 0) {
@@ -329,6 +343,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .text_color = text_color,
             .background_color = Color::Transparent,
             .shadow_layers = {},
+            .text_decoration = {},
         });
     }
 
@@ -341,6 +356,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .text_color = selection_text_color,
             .background_color = selection_style.background_color,
             .shadow_layers = move(selection_style.text_shadow),
+            .text_decoration = move(selection_text_decoration),
         });
     }
 
@@ -353,6 +369,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
             .text_color = text_color,
             .background_color = Color::Transparent,
             .shadow_layers = {},
+            .text_decoration = {},
         });
     }
 }
@@ -398,11 +415,11 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
         painter.restore();
     }
 
-    // Paint decoration and cursor once per fragment (when this is the last span).
-    if (span.end_code_unit == fragment.length_in_code_units()) {
-        paint_text_decoration(context, text_paintable, fragment);
+    paint_text_decoration(context, text_paintable, span);
+
+    // Paint cursor once per fragment (when this is the last span).
+    if (span.end_code_unit == fragment.length_in_code_units())
         paint_cursor_if_needed(context, text_paintable, fragment);
-    }
 }
 
 void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
@@ -448,18 +465,38 @@ void paint_cursor_if_needed(DisplayListRecordingContext& context, TextPaintable 
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
 }
 
-void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment const& fragment)
+void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment::FragmentSpan const& span)
 {
+    auto const& fragment = span.fragment;
     auto& recorder = context.display_list_recorder();
     auto& font = fragment.layout_node().first_available_font();
-    auto fragment_box = fragment.absolute_rect();
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
     auto baseline = fragment.baseline();
 
-    auto line_color = paintable.computed_values().text_decoration_color();
-    auto line_style = paintable.computed_values().text_decoration_style();
+    // Use span's text decoration if explicitly set, otherwise use the element's computed values.
+    Color line_color;
+    CSS::TextDecorationStyle line_style;
+    Vector<CSS::TextDecorationLine> text_decoration_lines;
+    if (span.text_decoration.has_value()) {
+        line_color = span.text_decoration->color;
+        line_style = span.text_decoration->style;
+        text_decoration_lines = span.text_decoration->line;
+    } else {
+        line_color = paintable.computed_values().text_decoration_color();
+        line_style = paintable.computed_values().text_decoration_style();
+        text_decoration_lines = paintable.computed_values().text_decoration_line();
+    }
     auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
-    auto text_decoration_lines = paintable.computed_values().text_decoration_line();
+
+    // Compute the decoration box for this span.
+    CSSPixelRect fragment_box;
+    if (span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units()) {
+        fragment_box = fragment.absolute_rect();
+    } else {
+        fragment_box = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
+            fragment.start_offset() + span.start_code_unit,
+            fragment.start_offset() + span.end_code_unit);
+    }
     auto text_underline_offset = paintable.computed_values().text_underline_offset();
     auto text_underline_position = paintable.computed_values().text_underline_position();
     for (auto line : text_decoration_lines) {

@@ -306,11 +306,12 @@ void Paintable::set_needs_paint_only_properties_update(bool needs_update)
 }
 
 // https://drafts.csswg.org/css-pseudo-4/#highlight-styling
-// FIXME: Support additional ::selection properties: text-decoration, stroke-color, fill-color, stroke-width.
+// FIXME: Support additional ::selection properties: text-underline-offset, text-underline-position, stroke-color,
+//        fill-color, stroke-width, and CSS custom properties.
 Paintable::SelectionStyle Paintable::selection_style() const
 {
     auto color_scheme = computed_values().color_scheme();
-    SelectionStyle default_style { CSS::SystemColor::highlight(color_scheme), {}, {} };
+    SelectionStyle default_style { CSS::SystemColor::highlight(color_scheme), {}, {}, {} };
 
     // For text nodes, check the parent element since text nodes don't have computed properties.
     auto node = dom_node();
@@ -349,10 +350,18 @@ Paintable::SelectionStyle Paintable::selection_style() const
             style.text_shadow = move(shadows);
         }
 
-        // Only return a style if there's a meaningful customization (non-transparent background, explicit text color,
-        // or text-shadow). This allows us to continue checking shadow hosts when the current element only has UA
-        // default styles.
-        if (style.background_color.alpha() == 0 && !style.text_color.has_value() && !style.text_shadow.has_value())
+        // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
+        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
+            style.text_decoration = TextDecorationStyle {
+                .line = computed_selection_style->text_decoration_line(),
+                .style = computed_selection_style->text_decoration_style(),
+                .color = computed_selection_style->color_or_fallback(CSS::PropertyID::TextDecorationColor, context, style.text_color.value_or(Color::Black)),
+            };
+        }
+
+        // Only return a style if there's a meaningful customization. This allows us to continue checking shadow hosts
+        // when the current element only has UA default styles.
+        if (!style.has_styling())
             return {};
 
         return style;
