@@ -34,6 +34,20 @@ GlyphRun::GlyphRun(Vector<DrawGlyph>&& glyphs, NonnullRefPtr<Font const> font, T
 
 GlyphRun::~GlyphRun() = default;
 
+NonnullRefPtr<GlyphRun> GlyphRun::slice(size_t start, size_t length) const
+{
+    Vector<DrawGlyph> sliced_glyphs;
+    sliced_glyphs.ensure_capacity(length);
+
+    float width = 0;
+    for (size_t i = start; i < start + length; ++i) {
+        sliced_glyphs.unchecked_append(m_glyphs[i]);
+        width += m_glyphs[i].glyph_width;
+    }
+
+    return adopt_ref(*new GlyphRun(move(sliced_glyphs), m_font, m_text_type, width));
+}
+
 void GlyphRun::ensure_text_blob(float scale) const
 {
     if (m_cached_text_blob && m_cached_text_blob->scale == scale)

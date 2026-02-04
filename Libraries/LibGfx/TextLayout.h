@@ -50,6 +50,8 @@ public:
     [[nodiscard]] bool is_empty() const { return m_glyphs.is_empty(); }
     [[nodiscard]] float width() const { return m_width; }
 
+    [[nodiscard]] NonnullRefPtr<GlyphRun> slice(size_t start, size_t length) const;
+
     void ensure_text_blob(float scale) const;
 
     FloatRect cached_blob_bounds() const;
