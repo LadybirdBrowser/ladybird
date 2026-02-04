@@ -89,7 +89,7 @@ struct TypeErasedParameter {
     {
     }
 
-    template<Signed I>
+    template<SignedIntegral I>
     explicit constexpr TypeErasedParameter(I const& value)
     requires(!IsChar<I> && sizeof(I) <= sizeof(i64))
         : value { .as_signed = value }

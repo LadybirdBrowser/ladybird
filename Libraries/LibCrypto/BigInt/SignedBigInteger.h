@@ -16,7 +16,7 @@ struct SignedDivisionResult;
 
 class SignedBigInteger {
 public:
-    template<Signed T>
+    template<SignedIntegral T>
     SignedBigInteger(T value)
         : SignedBigInteger(static_cast<i64>(value))
     {

@@ -72,7 +72,7 @@ public:
     static constexpr float max_dimension_value = 17895700;
 
     constexpr CSSPixels() = default;
-    template<Signed I>
+    template<SignedIntegral I>
     constexpr CSSPixels(I value)
     {
         if (value > max_integer_value) [[unlikely]]
@@ -317,7 +317,7 @@ public:
     {
     }
 
-    template<Signed I>
+    template<SignedIntegral I>
     constexpr CSSPixelFraction(I numerator, I denominator = 1)
         : m_numerator(numerator)
         , m_denominator(denominator)
@@ -372,7 +372,7 @@ public:
         return 0;
     }
 
-    template<Signed I>
+    template<SignedIntegral I>
     constexpr int operator<=>(I const& other) const
     {
         return *this <=> CSSPixelFraction(other);

@@ -122,7 +122,7 @@ constexpr T gcd(T x, T y)
     return x << shift;
 }
 
-template<Signed T>
+template<SignedIntegral T>
 constexpr T gcd(T x, T y)
 {
     return gcd(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));
@@ -136,7 +136,7 @@ constexpr T lcm(T x, T y)
     return x / gcd(x, y) * y;
 }
 
-template<Signed T>
+template<SignedIntegral T>
 constexpr T lcm(T x, T y)
 {
     return lcm(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));

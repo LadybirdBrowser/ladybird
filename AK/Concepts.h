@@ -31,6 +31,9 @@ template<typename T>
 concept Unsigned = IsUnsigned<T>;
 
 template<typename T>
+concept SignedIntegral = IsSigned<T> && IsIntegral<T>;
+
+template<typename T>
 concept Enum = IsEnum<T>;
 
 template<typename T, typename U>
@@ -192,6 +195,7 @@ using AK::Concepts::OneOfIgnoringCV;
 using AK::Concepts::OneOfIgnoringCVReference;
 using AK::Concepts::SameAs;
 using AK::Concepts::Signed;
+using AK::Concepts::SignedIntegral;
 using AK::Concepts::SpecializationOf;
 using AK::Concepts::Unsigned;
 using AK::Concepts::VoidFunction;

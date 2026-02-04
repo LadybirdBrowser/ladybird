@@ -61,7 +61,7 @@ public:
     }
 
     static ErrorOr<LEB128<ValueType>> read_from_stream(Stream& stream)
-    requires(Signed<ValueType>)
+    requires(SignedIntegral<ValueType>)
     {
         constexpr auto BITS = sizeof(ValueType) * 8;
 
