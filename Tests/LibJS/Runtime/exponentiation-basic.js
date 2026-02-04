@@ -75,3 +75,27 @@ test("unary expression before exponentiation with brackets", () => {
     expect((+5) ** 2).toBe(25);
     expect((-5) ** 2).toBe(25);
 });
+
+test("optimized exponent operations", () => {
+    const square = x => x ** 2;
+    const pow1 = x => x ** 1;
+    const pow0 = x => x ** 0;
+
+    expect(square(0)).toBe(0);
+    expect(square(-0)).toBe(0);
+    expect(square(2)).toBe(4);
+    expect(square(10)).toBe(100);
+    expect(square(NaN)).toBe(NaN);
+
+    expect(pow1(0)).toBe(0);
+    expect(pow1(-0)).toBe(-0);
+    expect(pow1(2)).toBe(2);
+    expect(pow1(10)).toBe(10);
+    expect(pow1(NaN)).toBe(NaN);
+
+    expect(pow0(0)).toBe(1);
+    expect(pow0(-0)).toBe(1);
+    expect(pow0(2)).toBe(1);
+    expect(pow0(10)).toBe(1);
+    expect(pow0(NaN)).toBe(1);
+});

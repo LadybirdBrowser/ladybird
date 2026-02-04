@@ -1587,6 +1587,12 @@ ThrowCompletionOr<Value> unary_plus(VM& vm, Value lhs)
 // UnaryExpression : - UnaryExpression
 ThrowCompletionOr<Value> unary_minus(VM& vm, Value lhs)
 {
+    // OPTIMIZATION: if lhs is an i32, negate and return directly
+    if (lhs.is_int32()) {
+        if (auto i = lhs.as_i32(); i != 0)
+            return Value(-i);
+    }
+
     // 1. Let expr be ? Evaluation of UnaryExpression.
     // NOTE: This is handled in the AST or Bytecode interpreter.
 

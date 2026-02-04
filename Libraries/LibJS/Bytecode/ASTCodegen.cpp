@@ -234,6 +234,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
             return result.release_value();
     }
 
+    Optional<i32> lhs_int;
+    Optional<i32> rhs_int;
+
+    if (auto constant = generator.try_get_constant(lhs); constant.has_value() && constant->is_int32())
+        lhs_int = constant->as_i32();
+    if (auto constant = generator.try_get_constant(rhs); constant.has_value() && constant->is_int32())
+        rhs_int = constant->as_i32();
+
     switch (m_op) {
     case BinaryOp::Addition:
         generator.emit<Bytecode::Op::Add>(dst, lhs, rhs);
@@ -242,16 +250,51 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> BinaryExpression::gener
         generator.emit<Bytecode::Op::Sub>(dst, lhs, rhs);
         break;
     case BinaryOp::Multiplication:
-        generator.emit<Bytecode::Op::Mul>(dst, lhs, rhs);
+        if (lhs_int == -1) {
+            // OPTIMIZATION: -1 * x => -x
+            generator.emit<Bytecode::Op::UnaryMinus>(dst, rhs);
+        } else if (lhs_int == 1) {
+            // OPTIMIZATION: 1 * x => ToNumber(x)
+            generator.emit<Bytecode::Op::ToNumber>(dst, rhs);
+        } else if (rhs_int == -1) {
+            // OPTIMIZATION: x * -1 => -x
+            generator.emit<Bytecode::Op::UnaryMinus>(dst, lhs);
+        } else if (rhs_int == 1) {
+            // OPTIMIZATION: x * 1 => ToNumber(x)
+            generator.emit<Bytecode::Op::ToNumber>(dst, lhs);
+        } else {
+            generator.emit<Bytecode::Op::Mul>(dst, lhs, rhs);
+        }
         break;
     case BinaryOp::Division:
-        generator.emit<Bytecode::Op::Div>(dst, lhs, rhs);
+        if (rhs_int == -1) {
+            // OPTIMIZATION: x / -1 => -x
+            generator.emit<Bytecode::Op::UnaryMinus>(dst, lhs);
+        } else if (rhs_int == 1) {
+            // OPTIMIZATION: x / 1 => ToNumber(x)
+            generator.emit<Bytecode::Op::ToNumber>(dst, lhs);
+        } else {
+            generator.emit<Bytecode::Op::Div>(dst, lhs, rhs);
+        }
         break;
     case BinaryOp::Modulo:
         generator.emit<Bytecode::Op::Mod>(dst, lhs, rhs);
         break;
     case BinaryOp::Exponentiation:
-        generator.emit<Bytecode::Op::Exp>(dst, lhs, rhs);
+        if (rhs_int == 2) {
+            // OPTIMIZATION: x ** 2 => x * x
+            generator.emit<Bytecode::Op::Mul>(dst, lhs, lhs);
+        } else if (rhs_int == 1) {
+            // OPTIMIZATION: x ** 1 => x
+            generator.emit<Bytecode::Op::ToNumber>(dst, lhs);
+        } else if (rhs_int == 0) {
+            // OPTIMIZATION: x ** 0 => 1
+            // Still need to evaluate lhs for side effects
+            generator.emit<Bytecode::Op::ToNumber>(dst, lhs);
+            generator.emit<Bytecode::Op::Mov>(dst, generator.add_constant(Value(1)));
+        } else {
+            generator.emit<Bytecode::Op::Exp>(dst, lhs, rhs);
+        }
         break;
     case BinaryOp::GreaterThan:
         generator.emit<Bytecode::Op::GreaterThan>(dst, lhs, rhs);
