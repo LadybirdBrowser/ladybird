@@ -168,8 +168,24 @@ Optional<String> CounterStyle::generate_an_initial_representation_for_the_counte
                 // Finally, return S.
                 return MUST(String::join(""sv, symbols));
             }
-            case CounterStyleSystem::Symbolic:
-                TODO();
+            case CounterStyleSystem::Symbolic: {
+                // https://drafts.csswg.org/css-counter-styles-3/#symbolic-system
+                // To construct the representation, run the following algorithm:
+
+                // Let N be the length of the list of counter symbols, value initially be the counter value, S initially
+                // be the empty string, and symbol(n) be the nth counter symbol in the list of counter symbols
+                // (0-indexed).
+
+                // 1. Let the chosen symbol be symbol( (value - 1) mod N).
+                auto const& symbol = generic_algorithm.symbol_list[(value - 1) % generic_algorithm.symbol_list.size()];
+
+                // 2. Let the representation length be ceil( value / N ).
+                auto representation_length = (value + generic_algorithm.symbol_list.size() - 1) / generic_algorithm.symbol_list.size();
+
+                // 3. Append the chosen symbol to S a number of times equal to the representation length.
+                // Finally, return S.
+                return MUST(String::repeated(symbol.to_string(), representation_length));
+            }
             case CounterStyleSystem::Additive:
                 // NB: This is handled by AdditiveCounterStyleAlgorithm.
                 VERIFY_NOT_REACHED();
