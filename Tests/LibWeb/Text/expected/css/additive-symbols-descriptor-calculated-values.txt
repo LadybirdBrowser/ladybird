@@ -1,0 +1,3 @@
+@counter-style valid { additive-symbols: calc(1 + sign(1em - 1px)) "A", sign(1em - 1px) "B"; }
+@counter-style invalid { }
+@counter-style valid { additive-symbols: 1 "E", calc(-1) "F"; }

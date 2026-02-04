@@ -1,0 +1,28 @@
+<!doctype html>
+<style>
+    @counter-style valid {
+        additive-symbols:
+            calc(sign(1em - 1px) + 1) "A",
+            calc(sign(1em - 1px)) "B";
+    }
+
+    @counter-style invalid {
+        additive-symbols:
+            calc(sign(1em - 1px)) "C",
+            calc(sign(1em - 1px) + 1) "D";
+    }
+
+    @counter-style valid {
+        additive-symbols:
+            1 "E",
+            calc(-1) "F";
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const rule of document.styleSheets[0].cssRules) {
+            println(rule.cssText);
+        }
+    });
+</script>
