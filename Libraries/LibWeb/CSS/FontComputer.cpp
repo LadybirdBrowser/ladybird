@@ -73,12 +73,8 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
         for (auto const& family_value : key.font_family->as_value_list().values()) {
             if (family_value->is_keyword())
                 hash = pair_int_hash(hash, to_underlying(family_value->as_keyword().keyword()));
-            else if (family_value->is_string())
-                hash = pair_int_hash(hash, family_value->as_string().string_value().hash());
-            else if (family_value->is_custom_ident())
-                hash = pair_int_hash(hash, family_value->as_custom_ident().custom_ident().hash());
             else
-                VERIFY_NOT_REACHED();
+                hash = string_from_style_value(family_value).hash();
         }
 
         hash = pair_int_hash(hash, to_underlying(key.font_optical_sizing));
@@ -492,10 +488,8 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         RefPtr<Gfx::FontCascadeList const> other_font_list;
         if (family->is_keyword()) {
             other_font_list = find_generic_font(family->to_keyword());
-        } else if (family->is_string()) {
-            other_font_list = find_font(family->as_string().string_value());
-        } else if (family->is_custom_ident()) {
-            other_font_list = find_font(family->as_custom_ident().custom_ident());
+        } else {
+            other_font_list = find_font(string_from_style_value(family));
         }
 
         if (other_font_list)
@@ -547,13 +541,10 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
         return false;
 
     for (auto const& item : font_family_value.as_value_list().values()) {
-        FlyString item_family_name;
-        if (item->is_string())
-            item_family_name = item->as_string().string_value();
-        else if (item->is_custom_ident())
-            item_family_name = item->as_custom_ident().custom_ident();
-        else
-            continue; // Skip generic keywords (sans-serif, serif, etc.)
+        if (item->is_keyword())
+            continue; // Skip generic keywords (monospace, serif, etc.)
+
+        FlyString item_family_name = string_from_style_value(*item);
 
         if (item_family_name.equals_ignoring_ascii_case(family_name))
             return true;
