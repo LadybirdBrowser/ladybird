@@ -1,0 +1,10 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+    [2] clip=[8,8 200x200] (PaintableWithLines(BlockContainer(anonymous)))
+      [4] effects=[opacity=0.5] (PaintableWithLines(BlockContainer<DIV>.abspos))
+
+DisplayList:
+SaveLayer@0
+  FillRect@4 rect=[8,8 100x100] color=rgb(0, 0, 0)
+Restore@0
+

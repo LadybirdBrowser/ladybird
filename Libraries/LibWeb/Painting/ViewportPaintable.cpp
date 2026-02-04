@@ -224,6 +224,19 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         return AccumulatedVisualContext::create(allocate_accumulated_visual_context_id(), move(data), parent);
     };
 
+    auto make_effects_data = [](PaintableBox const& box) -> Optional<EffectsData> {
+        auto const& computed_values = box.computed_values();
+        EffectsData effects {
+            computed_values.opacity(),
+            mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+            box.filter(),
+            computed_values.isolation() == CSS::Isolation::Isolate
+        };
+        if (!effects.needs_layer())
+            return {};
+        return effects;
+    };
+
     // Create visual viewport transform as root (if not identity)
     m_visual_viewport_context = nullptr;
     auto transform = document().visual_viewport()->transform();
@@ -248,9 +261,25 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             inherited_state = m_visual_viewport_context;
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
-            // NOTE: transforms/perspectives can't be in intermediates for abspos because they establish
-            //       containing blocks, so no intermediate walk is needed.
-            inherited_state = paintable_box.containing_block()->accumulated_visual_context_for_descendants();
+            auto* containing = paintable_box.containing_block();
+            inherited_state = containing->accumulated_visual_context_for_descendants();
+
+            // Abspos elements escape scroll containers and overflow clips of non-positioned
+            // ancestors, but cannot escape stacking contexts created by intermediate effects
+            // (opacity, mix-blend-mode, isolation). Walk from visual parent to containing
+            // block and collect these intermediate effects.
+            // NOTE: transforms/perspectives/filters establish containing blocks for abspos,
+            //       so they cannot appear as intermediates.
+            Vector<VisualContextData, 4> intermediate_effects;
+            for (Paintable* paintable = visual_parent; paintable && paintable != containing; paintable = paintable->parent()) {
+                auto* ancestor_box = as_if<PaintableBox>(paintable);
+                if (!ancestor_box)
+                    continue;
+                if (auto effects = make_effects_data(*ancestor_box); effects.has_value())
+                    intermediate_effects.append(effects.release_value());
+            }
+            for (auto& effects : intermediate_effects.in_reverse())
+                inherited_state = append_node(inherited_state, move(effects));
         } else {
             // For position: relative/static, use visual parent's state directly.
             // This avoids duplicate transform/perspective allocations that would occur with
@@ -270,15 +299,8 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
 
         auto const& computed_values = paintable_box.computed_values();
 
-        EffectsData effects {
-            computed_values.opacity(),
-            mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
-            paintable_box.filter(),
-            computed_values.isolation() == CSS::Isolation::Isolate
-        };
-
-        if (effects.needs_layer())
-            own_state = append_node(own_state, move(effects));
+        if (auto effects = make_effects_data(paintable_box); effects.has_value())
+            own_state = append_node(own_state, effects.release_value());
 
         if (auto transform_data = compute_transform(paintable_box, computed_values); transform_data.has_value())
             own_state = append_node(own_state, *transform_data);
