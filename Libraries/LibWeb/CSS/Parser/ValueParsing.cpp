@@ -4762,6 +4762,7 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
             },
             [](DescriptorContext const& descriptor_context) -> Optional<CalculationContext> {
                 switch (descriptor_context.descriptor) {
+                case DescriptorID::AdditiveSymbols:
                 case DescriptorID::Pad:
                     return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 0, NumericLimits<float>::max() } } } };
                 default:

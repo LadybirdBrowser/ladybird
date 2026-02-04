@@ -41,6 +41,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
         component_values.append(token);
     }
 
+    Optional<ComputationContext> computation_context = m_document
+        ? ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*m_document) }
+        : Optional<ComputationContext> {};
+
     TokenStream tokens { component_values };
     auto metadata = get_descriptor_metadata(at_rule_id, descriptor_id);
     for (auto const& option : metadata.syntax) {
@@ -82,11 +86,22 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     for (auto const& tuple_style_value : additive_tuples->as_value_list().values()) {
                         auto const& weight = tuple_style_value->as_value_list().value_at(0, false);
 
-                        // FIXME: How are calculated values handled here?
-                        if (weight->is_integer() && weight->as_integer().integer() >= previous_weight)
+                        i64 resolved_weight;
+
+                        if (weight->is_integer()) {
+                            resolved_weight = weight->as_integer().integer();
+                        } else {
+                            // FIXME: How should we actually handle calc() when we have no document to absolutize against
+                            if (!computation_context.has_value())
+                                return nullptr;
+
+                            resolved_weight = weight->absolutized(computation_context.value())->as_calculated().resolve_integer({}).value();
+                        }
+
+                        if (resolved_weight >= previous_weight)
                             return nullptr;
 
-                        previous_weight = weight->as_integer().integer();
+                        previous_weight = resolved_weight;
                     }
 
                     return additive_tuples;
