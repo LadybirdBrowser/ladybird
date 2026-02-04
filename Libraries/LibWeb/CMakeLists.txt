@@ -105,6 +105,7 @@ set(SOURCES
     CSS/ComputedProperties.cpp
     CSS/CustomPropertyData.cpp
     CSS/CountersSet.cpp
+    CSS/CounterStyle.cpp
     CSS/CounterStyleDefinition.cpp
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
