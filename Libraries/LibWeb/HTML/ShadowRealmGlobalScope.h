@@ -46,7 +46,8 @@ public:
 protected:
     explicit ShadowRealmGlobalScope(JS::Realm&);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual bool is_universal_global_scope_mixin() const final { return true; }
+
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

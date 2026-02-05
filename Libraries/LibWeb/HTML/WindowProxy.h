@@ -42,7 +42,7 @@ public:
 private:
     explicit WindowProxy(JS::Realm&);
 
-    virtual bool is_window_or_worker_global_scope_mixin() const final { return true; }
+    virtual bool is_universal_global_scope_mixin() const final { return true; }
 
     virtual bool is_html_window_proxy() const override { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;

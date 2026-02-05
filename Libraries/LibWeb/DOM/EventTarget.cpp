@@ -64,9 +64,9 @@ WebIDL::ExceptionOr<GC::Ref<EventTarget>> EventTarget::construct_impl(JS::Realm&
 
 void EventTarget::initialize(JS::Realm& realm)
 {
-    // FIXME: We can't do this for HTML::Window or HTML::WorkerGlobalScope, as this will run when creating the initial global object.
+    // FIXME: We can't do this for UniversalGlobalScopeMixin classes, as this will run when creating the initial global object.
     //        During this time, the ESO is not setup, so it will cause a nullptr dereference in host_defined_intrinsics.
-    if (!is_window_or_worker_global_scope_mixin())
+    if (!is_universal_global_scope_mixin())
         WEB_SET_PROTOTYPE_FOR_INTERFACE(EventTarget);
 
     Base::initialize(realm);

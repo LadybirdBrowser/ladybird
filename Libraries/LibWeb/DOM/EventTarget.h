@@ -60,7 +60,7 @@ public:
     bool has_event_listener(FlyString const& type) const;
     bool has_event_listeners() const;
 
-    virtual bool is_window_or_worker_global_scope_mixin() const { return false; }
+    virtual bool is_universal_global_scope_mixin() const { return false; }
 
 protected:
     explicit EventTarget(JS::Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
