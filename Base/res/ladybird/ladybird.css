@@ -130,6 +130,7 @@ button.secondary-button:active {
     background-color: var(--secondary-button-active);
 }
 
+input[type="number"],
 input[type="search"],
 input[type="text"],
 input[type="url"],
@@ -142,6 +143,7 @@ select {
     padding: 10px 12px;
 }
 
+input[type="number"]:focus,
 input[type="search"]:focus,
 input[type="text"]:focus,
 input[type="url"]:focus,

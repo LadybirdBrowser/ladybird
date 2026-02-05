@@ -2,6 +2,7 @@ set(SOURCES
     Cache/CacheEntry.cpp
     Cache/CacheIndex.cpp
     Cache/DiskCache.cpp
+    Cache/DiskCacheSettings.cpp
     Cache/MemoryCache.cpp
     Cache/Utilities.cpp
     Cookie/Cookie.cpp
