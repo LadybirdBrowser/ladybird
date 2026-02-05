@@ -26,33 +26,43 @@ public:
 
     FlyString system() const;
     void set_system(FlyString const& system);
+    RefPtr<StyleValue const> const& system_style_value() const { return m_system; }
 
     FlyString negative() const;
     void set_negative(FlyString const& negative);
+    RefPtr<StyleValue const> const& negative_style_value() const { return m_negative; }
 
     FlyString prefix() const;
     void set_prefix(FlyString const& prefix);
+    RefPtr<StyleValue const> const& prefix_style_value() const { return m_prefix; }
 
     FlyString suffix() const;
     void set_suffix(FlyString const& suffix);
+    RefPtr<StyleValue const> const& suffix_style_value() const { return m_suffix; }
 
     FlyString range() const;
     void set_range(FlyString const& range);
+    RefPtr<StyleValue const> const& range_style_value() const { return m_range; }
 
     FlyString pad() const;
     void set_pad(FlyString const& pad);
+    RefPtr<StyleValue const> const& pad_style_value() const { return m_pad; }
 
     FlyString fallback() const;
     void set_fallback(FlyString const& fallback);
+    RefPtr<StyleValue const> const& fallback_style_value() const { return m_fallback; }
 
     FlyString symbols() const;
     void set_symbols(FlyString const& symbols);
+    RefPtr<StyleValue const> const& symbols_style_value() const { return m_symbols; }
 
     FlyString additive_symbols() const;
     void set_additive_symbols(FlyString const& additive_symbols);
+    RefPtr<StyleValue const> const& additive_symbols_style_value() const { return m_additive_symbols; }
 
     FlyString speak_as() const;
     void set_speak_as(FlyString const& speak_as);
+    RefPtr<StyleValue const> const& speak_as_style_value() const { return m_speak_as; }
 
     // https://drafts.csswg.org/css-counter-styles-3/#non-overridable-counter-style-names
     static bool matches_non_overridable_counter_style_name(FlyString const& name)
