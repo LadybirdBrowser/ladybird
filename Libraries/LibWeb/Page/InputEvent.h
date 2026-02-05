@@ -48,6 +48,7 @@ struct WEB_API MouseEvent {
         MouseLeave,
         MouseWheel,
         DoubleClick,
+        TripleClick,
     };
 
     MouseEvent clone_without_browser_data() const;

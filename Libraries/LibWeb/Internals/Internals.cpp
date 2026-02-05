@@ -305,6 +305,9 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
     case 2:
         page.handle_doubleclick(position, position, mouse_button, 0, modifiers);
         break;
+    case 3:
+        page.handle_tripleclick(position, position, mouse_button, 0, modifiers);
+        break;
     default:
         page.handle_mousedown(position, position, mouse_button, 0, modifiers);
         break;

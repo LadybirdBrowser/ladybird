@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -231,6 +232,51 @@ static CSSPixelPoint compute_position_in_nested_navigable(Painting::NavigableCon
     return local_position - paintable.absolute_rect().location();
 }
 
+// Find paragraph boundaries for triple-click selection. A paragraph is delimited by block nodes or <br> elements.
+static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::UnsignedLong offset)
+{
+    GC::Ptr<DOM::Node> start_node = text_node;
+    WebIDL::UnsignedLong start_offset = offset;
+    GC::Ptr<DOM::Node> end_node = text_node;
+    WebIDL::UnsignedLong end_offset = offset;
+
+    // Walk backwards to find the paragraph start (a block boundary point).
+    if (!Editing::is_block_start_point({ *start_node, start_offset })) {
+        do {
+            if (start_offset == 0) {
+                start_offset = start_node->index();
+                start_node = start_node->parent();
+            } else {
+                --start_offset;
+            }
+        } while (start_node && !Editing::is_block_boundary_point({ *start_node, start_offset }));
+    }
+
+    // Walk forwards to find the paragraph end (a block boundary point).
+    if (!Editing::is_block_end_point({ *end_node, end_offset })) {
+        do {
+            if (end_offset == end_node->length()) {
+                end_offset = end_node->index() + 1;
+                end_node = end_node->parent();
+            } else {
+                ++end_offset;
+            }
+        } while (end_node && !Editing::is_block_boundary_point({ *end_node, end_offset }));
+    }
+
+    // Fallback if we couldn't find boundaries.
+    if (!start_node) {
+        start_node = text_node;
+        start_offset = 0;
+    }
+    if (!end_node) {
+        end_node = text_node;
+        end_offset = text_node.length();
+    }
+
+    return DOM::Range::create(*start_node, start_offset, *end_node, end_offset);
+}
+
 // https://drafts.csswg.org/css-ui/#propdef-user-select
 static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
@@ -375,19 +421,20 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
 
     auto& document = *m_navigable->active_document();
     auto& hit_dom_node = *hit->paintable->dom_node();
+    GC::Ref<DOM::Node> focus_node = hit_dom_node;
     size_t focus_index = hit->index_in_node;
     GC::Ptr<DOM::Node> anchor_node;
     Optional<size_t> anchor_offset;
 
     // In word selection mode, extend selection by whole words.
-    if (m_selection_mode == SelectionMode::Word && m_selection_origin && is<DOM::Text>(hit_dom_node)) {
-        auto& segmenter = as<DOM::Text>(hit_dom_node).word_segmenter();
-
+    if (m_selection_mode == SelectionMode::Word && m_selection_origin && is<DOM::Text>(*focus_node)) {
+        auto& hit_text_node = as<DOM::Text>(*focus_node);
+        auto& segmenter = hit_text_node.word_segmenter();
         auto word_start = segmenter.previous_boundary(focus_index, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-        auto word_end = segmenter.next_boundary(focus_index).value_or(hit_dom_node.length());
+        auto word_end = segmenter.next_boundary(focus_index).value_or(focus_node->length());
 
         // Determine cursor position relative to anchor.
-        auto position = m_selection_origin->compare_point(hit_dom_node, focus_index);
+        auto position = m_selection_origin->compare_point(*focus_node, focus_index);
         if (!position.is_error()) {
             if (position.value() < 0) {
                 // Cursor is before anchor: select from anchor end to current word start.
@@ -408,20 +455,56 @@ void EventHandler::update_mouse_selection(CSSPixelPoint visual_viewport_position
         }
     }
 
+    // In paragraph selection mode, extend selection by whole lines/paragraphs.
+    if (m_selection_mode == SelectionMode::Paragraph && m_selection_origin && is<DOM::Text>(*focus_node)) {
+        auto& focus_text_node = as<DOM::Text>(*focus_node);
+
+        // For input/textarea, find line boundaries using newline characters.
+        // For regular content, find paragraph boundaries using block elements.
+        GC::Ref<DOM::Range> paragraph_range = m_mouse_selection_target
+            ? DOM::Range::create(focus_text_node, find_line_start(focus_text_node.data().utf16_view(), focus_index),
+                  focus_text_node, find_line_end(focus_text_node.data().utf16_view(), focus_index))
+            : find_paragraph_range(focus_text_node, focus_index);
+
+        // Determine cursor position relative to origin.
+        auto position = m_selection_origin->compare_point(*focus_node, focus_index);
+        if (!position.is_error()) {
+            if (position.value() < 0) {
+                // Cursor is before origin: select from origin end to current paragraph start.
+                anchor_node = m_selection_origin->end_container();
+                anchor_offset = m_selection_origin->end_offset();
+                focus_node = *paragraph_range->start_container();
+                focus_index = paragraph_range->start_offset();
+            } else if (position.value() > 0) {
+                // Cursor is after origin: select from origin start to current paragraph end.
+                anchor_node = m_selection_origin->start_container();
+                anchor_offset = m_selection_origin->start_offset();
+                focus_node = *paragraph_range->end_container();
+                focus_index = paragraph_range->end_offset();
+            } else {
+                // Cursor is within origin: keep original paragraph selected.
+                anchor_node = m_selection_origin->start_container();
+                anchor_offset = m_selection_origin->start_offset();
+                focus_node = *m_selection_origin->end_container();
+                focus_index = m_selection_origin->end_offset();
+            }
+        }
+    }
+
     if (m_mouse_selection_target) {
         if (anchor_offset.has_value())
-            m_mouse_selection_target->set_selection_anchor(anchor_node ? *anchor_node : hit_dom_node, anchor_offset.value());
-        m_mouse_selection_target->set_selection_focus(hit_dom_node, focus_index);
+            m_mouse_selection_target->set_selection_anchor(anchor_node ? *anchor_node : *focus_node, anchor_offset.value());
+        m_mouse_selection_target->set_selection_focus(*focus_node, focus_index);
     } else {
         if (auto selection = document.get_selection()) {
             auto selection_anchor_node = anchor_node ? anchor_node : selection->anchor_node();
             if (selection_anchor_node) {
-                if (&selection_anchor_node->root() == &hit_dom_node.root()) {
+                if (&selection_anchor_node->root() == &focus_node->root()) {
                     auto selection_anchor_offset = anchor_offset.has_value() ? anchor_offset.value() : selection->anchor_offset();
-                    set_user_selection(*selection_anchor_node, selection_anchor_offset, hit_dom_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+                    set_user_selection(*selection_anchor_node, selection_anchor_offset, *focus_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
                 }
             } else {
-                set_user_selection(hit_dom_node, focus_index, hit_dom_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
+                set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, hit->paintable->layout_node().user_select_used_value());
             }
 
             document.set_needs_display();
@@ -1113,6 +1196,81 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
             } else if (auto selection = node->document().get_selection()) {
                 m_mouse_selection_target = nullptr;
                 set_user_selection(hit_dom_node, previous_boundary, hit_dom_node, next_boundary, selection, hit_paintable.layout_node().user_select_used_value());
+            }
+        }
+    }
+
+    return EventResult::Handled;
+}
+
+EventResult EventHandler::handle_tripleclick(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+{
+    if (should_ignore_device_input_event())
+        return EventResult::Dropped;
+
+    if (!m_navigable->active_document())
+        return EventResult::Dropped;
+    if (!m_navigable->active_document()->is_fully_active())
+        return EventResult::Dropped;
+
+    auto& document = *m_navigable->active_document();
+    document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleTripleClick);
+
+    if (!paint_root())
+        return EventResult::Dropped;
+
+    GC::Ptr<Painting::Paintable> paintable;
+    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
+        paintable = result->paintable;
+    else
+        return EventResult::Dropped;
+
+    auto pointer_events = paintable->computed_values().pointer_events();
+    if (pointer_events == CSS::PointerEvents::None)
+        return EventResult::Cancelled;
+
+    auto node = dom_node_for_event_dispatch(*paintable);
+    if (!node)
+        return EventResult::Dropped;
+
+    if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*node)) {
+        if (auto content_navigable = iframe_element->content_navigable()) {
+            auto position = compute_position_in_nested_navigable(as<Painting::NavigableContainerViewportPaintable>(*paintable), visual_viewport_position);
+            return content_navigable->event_handler().handle_tripleclick(position, screen_position, button, buttons, modifiers);
+        }
+        return EventResult::Dropped;
+    }
+
+    if (button == UIEvents::MouseButton::Primary) {
+        if (auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::TextCursor); hit.has_value()) {
+            if (!hit->paintable->dom_node())
+                return EventResult::Accepted;
+            if (!is<DOM::Text>(*hit->paintable->dom_node()))
+                return EventResult::Accepted;
+
+            auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit->paintable->dom_node()));
+            size_t hit_index = hit->index_in_node;
+
+            // For input/textarea elements, select the current line (delimited by newlines).
+            if (auto* target = document.active_input_events_target(&hit_dom_node)) {
+                auto text = hit_dom_node.data().utf16_view();
+                auto line_start = find_line_start(text, hit_index);
+                auto line_end = find_line_end(text, hit_index);
+
+                m_selection_mode = SelectionMode::Paragraph;
+                m_selection_origin = DOM::Range::create(hit_dom_node, line_start, hit_dom_node, line_end);
+                m_mouse_selection_target = target;
+                target->set_selection_anchor(hit_dom_node, line_start);
+                target->set_selection_focus(hit_dom_node, line_end);
+            } else {
+                // For regular content, find paragraph boundaries within the containing block.
+                m_selection_origin = find_paragraph_range(hit_dom_node, hit_index);
+
+                m_selection_mode = SelectionMode::Paragraph;
+                m_mouse_selection_target = nullptr;
+
+                if (auto selection = document.get_selection())
+                    (void)selection->set_base_and_extent(*m_selection_origin->start_container(), m_selection_origin->start_offset(), *m_selection_origin->end_container(), m_selection_origin->end_offset());
             }
         }
     }
