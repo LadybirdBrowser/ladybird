@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -41,6 +41,10 @@ static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
 static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
 
 static constexpr auto autoplay_key = "autoplay"sv;
+
+static constexpr auto browsing_data_key = "browsingData"sv;
+static constexpr auto disk_cache_key = "diskCache"sv;
+static constexpr auto disk_cache_maximum_size_key = "maxSize"sv;
 
 static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
 
@@ -141,6 +145,9 @@ Settings Settings::create(Badge<Application>)
 
     load_site_setting(settings.m_autoplay, autoplay_key);
 
+    if (auto browsing_data_settings = settings_json.value().get(browsing_data_key); browsing_data_settings.has_value())
+        settings.m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
+
     if (auto global_privacy_control = settings_json.value().get_bool(global_privacy_control_key); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
@@ -215,6 +222,13 @@ JsonValue Settings::serialize_json() const
 
     save_site_setting(m_autoplay, autoplay_key);
 
+    JsonObject disk_cache_settings;
+    disk_cache_settings.set(disk_cache_maximum_size_key, m_browsing_data_settings.disk_cache_settings.maximum_size);
+
+    JsonObject browsing_data;
+    browsing_data.set(disk_cache_key, move(disk_cache_settings));
+    settings.set(browsing_data_key, move(browsing_data));
+
     settings.set(global_privacy_control_key, m_global_privacy_control == GlobalPrivacyControl::Yes);
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
@@ -253,6 +267,7 @@ void Settings::restore_defaults()
     m_custom_search_engines.clear();
     m_autocomplete_engine.clear();
     m_autoplay = SiteSetting {};
+    m_browsing_data_settings = {};
     m_global_privacy_control = GlobalPrivacyControl::No;
     m_dns_settings = SystemDNS {};
 
@@ -265,6 +280,7 @@ void Settings::restore_defaults()
         observer.search_engine_changed();
         observer.autocomplete_engine_changed();
         observer.autoplay_settings_changed();
+        observer.browsing_data_settings_changed();
         observer.global_privacy_control_changed();
         observer.dns_settings_changed();
     }
@@ -436,6 +452,30 @@ void Settings::remove_all_autoplay_site_filters()
 
     for (auto& observer : m_observers)
         observer.autoplay_settings_changed();
+}
+
+BrowsingDataSettings Settings::parse_browsing_data_settings(JsonValue const& settings)
+{
+    if (!settings.is_object())
+        return {};
+
+    BrowsingDataSettings browsing_data_settings;
+
+    if (auto disk_cache_settings = settings.as_object().get_object(disk_cache_key); disk_cache_settings.has_value()) {
+        if (auto maximum_size = disk_cache_settings->get_integer<u64>(disk_cache_maximum_size_key); maximum_size.has_value())
+            browsing_data_settings.disk_cache_settings.maximum_size = *maximum_size;
+    }
+
+    return browsing_data_settings;
+}
+
+void Settings::set_browsing_data_settings(BrowsingDataSettings browsing_data_settings)
+{
+    m_browsing_data_settings = browsing_data_settings;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.browsing_data_settings_changed();
 }
 
 void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_control)

@@ -165,6 +165,12 @@ ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
     return IPC::File::adopt_fd(socket_fds[1]);
 }
 
+void ConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
+{
+    if (g_disk_cache.has_value())
+        g_disk_cache->set_maximum_disk_cache_size(disk_cache_settings.maximum_size);
+}
+
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
     return protocol == "http"sv || protocol == "https"sv;

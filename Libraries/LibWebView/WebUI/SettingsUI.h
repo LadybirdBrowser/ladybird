@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,6 +37,7 @@ private:
     void remove_all_site_setting_filters(JsonValue const&);
 
     void estimate_browsing_data_sizes(JsonValue const&);
+    void set_browsing_data_settings(JsonValue const&);
     void clear_browsing_data(JsonValue const&);
     void set_global_privacy_control(JsonValue const&);
 

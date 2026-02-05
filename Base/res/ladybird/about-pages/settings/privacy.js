@@ -1,4 +1,5 @@
 import { getByteFormatter } from "../../utils.js";
+
 const byteFormatter = getByteFormatter(unit => {
     return {
         unitDisplay: unit === "byte" ? "long" : "short",
@@ -6,20 +7,52 @@ const byteFormatter = getByteFormatter(unit => {
     };
 });
 
-const clearBrowsingData = document.querySelector("#clear-browsing-data");
+const browsingDataSettings = document.querySelector("#browsing-data-settings");
+const browsingDataSettingsClose = document.querySelector("#browsing-data-settings-close");
+const browsingDataSettingsDialog = document.querySelector("#browsing-data-settings-dialog");
+const browsingDataSettingsMaxDiskCacheSize = document.querySelector("#browsing-data-settings-max-disk-cache-size");
+const browsingDataSettingsMaxDiskCacheUnit = document.querySelector("#browsing-data-settings-max-disk-cache-unit");
+const browsingDataTotalSize = document.querySelector("#browsing-data-total-size");
+
 const clearBrowsingDataCachedFiles = document.querySelector("#clear-browsing-data-cached-files");
 const clearBrowsingDataCachedFilesSize = document.querySelector("#clear-browsing-data-cached-files-size");
-const clearBrowsingDataClose = document.querySelector("#clear-browsing-data-close");
-const clearBrowsingDataDialog = document.querySelector("#clear-browsing-data-dialog");
 const clearBrowsingDataRemoveData = document.querySelector("#clear-browsing-data-remove-data");
 const clearBrowsingDataSiteData = document.querySelector("#clear-browsing-data-site-data");
 const clearBrowsingDataSiteDataSize = document.querySelector("#clear-browsing-data-site-data-size");
 const clearBrowsingDataTimeRange = document.querySelector("#clear-browsing-data-time-range");
-const clearBrowsingDataTotalSize = document.querySelector("#clear-browsing-data-total-size");
+
 const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
 
+const MiB = 1024 * 1024;
+const GiB = MiB * 1024;
+
+let BROWSING_DATA = {};
+
 function loadSettings(settings) {
+    BROWSING_DATA = settings.browsingData || {};
+
     globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
+
+    if (browsingDataSettingsDialog.open) {
+        showBrowsingDataSettings();
+    }
+}
+
+function updateBrowsingDataSizes(sizes) {
+    const totalSize = sizes.totalCacheSize + sizes.totalSiteDataSize;
+
+    browsingDataTotalSize.innerText = `Your browsing data is currently using ${byteFormatter.formatBytes(totalSize)} of disk space`;
+
+    clearBrowsingDataCachedFilesSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.cacheSizeSinceRequestedTime)})`;
+    clearBrowsingDataSiteDataSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.siteDataSizeSinceRequestedTime)})`;
+}
+
+function formatDiskCacheSize(bytes) {
+    if (bytes >= GiB && bytes % GiB == 0) {
+        return { value: bytes / GiB, unit: "GiB" };
+    }
+
+    return { value: bytes / MiB, unit: "MiB" };
 }
 
 function computeTimeRange() {
@@ -48,26 +81,62 @@ function estimateBrowsingDataSizes() {
     });
 }
 
-function updateBrowsingDataSizes(sizes) {
-    const totalSize = sizes.totalCacheSize + sizes.totalSiteDataSize;
+function saveBrowsingDataSettings() {
+    browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
+    browsingDataSettingsMaxDiskCacheSize.classList.remove("error");
 
-    clearBrowsingDataTotalSize.innerText = `Your browsing data is currently using ${byteFormatter.formatBytes(totalSize)} of disk space`;
+    if (
+        browsingDataSettingsMaxDiskCacheSize.value.length === 0 ||
+        !browsingDataSettingsMaxDiskCacheSize.checkValidity()
+    ) {
+        browsingDataSettingsMaxDiskCacheSize.classList.add("error");
+        return;
+    }
 
-    clearBrowsingDataCachedFilesSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.cacheSizeSinceRequestedTime)})`;
-    clearBrowsingDataSiteDataSize.innerText = ` (remove ${byteFormatter.formatBytes(sizes.siteDataSizeSinceRequestedTime)})`;
+    BROWSING_DATA.diskCache = {};
+    BROWSING_DATA.diskCache.maxSize =
+        browsingDataSettingsMaxDiskCacheUnit.value === "MiB"
+            ? browsingDataSettingsMaxDiskCacheSize.value * MiB
+            : browsingDataSettingsMaxDiskCacheSize.value * GiB;
+
+    ladybird.sendMessage("setBrowsingDataSettings", BROWSING_DATA);
+    browsingDataSettingsMaxDiskCacheSize.classList.add("success");
+
+    setTimeout(() => {
+        browsingDataSettingsMaxDiskCacheSize.classList.remove("success");
+    }, 1000);
 }
 
-clearBrowsingData.addEventListener("click", () => {
+function showBrowsingDataSettings() {
+    const maxDiskCacheSize = BROWSING_DATA.diskCache?.maxSize || 5 * GiB;
+
+    const { value, unit } = formatDiskCacheSize(maxDiskCacheSize);
+    browsingDataSettingsMaxDiskCacheSize.value = value;
+    browsingDataSettingsMaxDiskCacheUnit.value = unit;
+
+    if (!browsingDataSettingsDialog.open) {
+        browsingDataSettingsDialog.showModal();
+    }
+}
+
+browsingDataSettings.addEventListener("click", () => {
     estimateBrowsingDataSizes();
-    clearBrowsingDataDialog.showModal();
+    showBrowsingDataSettings();
+});
+
+browsingDataSettingsClose.addEventListener("click", () => {
+    browsingDataSettingsDialog.close();
+});
+
+browsingDataSettingsMaxDiskCacheSize.addEventListener("change", () => {
+    saveBrowsingDataSettings();
+});
+browsingDataSettingsMaxDiskCacheUnit.addEventListener("change", () => {
+    saveBrowsingDataSettings();
 });
 
 clearBrowsingDataTimeRange.addEventListener("change", () => {
     estimateBrowsingDataSizes();
-});
-
-clearBrowsingDataClose.addEventListener("click", () => {
-    clearBrowsingDataDialog.close();
 });
 
 function setRemoveDataEnabledState() {
@@ -86,7 +155,7 @@ clearBrowsingDataRemoveData.addEventListener("click", () => {
         siteData: clearBrowsingDataSiteData.checked,
     });
 
-    clearBrowsingDataDialog.close();
+    browsingDataSettingsDialog.close();
 });
 
 globalPrivacyControlToggle.addEventListener("change", () => {

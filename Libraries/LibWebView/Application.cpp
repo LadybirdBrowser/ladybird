@@ -35,6 +35,12 @@ namespace WebView {
 Application* Application::s_the = nullptr;
 
 struct ApplicationSettingsObserver : public SettingsObserver {
+    virtual void browsing_data_settings_changed() override
+    {
+        auto const& browsing_data_settings = Application::settings().browsing_data_settings();
+        Application::request_server_client().async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
+    }
+
     virtual void dns_settings_changed() override
     {
         Application::settings().dns_settings().visit(

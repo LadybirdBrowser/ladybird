@@ -48,6 +48,8 @@ public:
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
 
+    void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
+
 private:
     struct Statements {
         Database::StatementID insert_entry { 0 };
