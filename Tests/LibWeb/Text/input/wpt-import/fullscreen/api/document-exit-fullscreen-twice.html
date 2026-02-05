@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>Document#exitFullscreen() called twice</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async (t) => {
+        const once = { once: true };
+        const div = document.querySelector("div");
+        document.onfullscreenerror = t.unreached_func("fullscreenerror event");
+
+        await Promise.all([
+            fullScreenChange(),
+            trusted_request(div),
+        ]);
+
+        // We are now in fullscreen.
+        assert_equals(document.fullscreenElement, div);
+
+        // Exit fullscreen twice.
+        const firstPromise = document.exitFullscreen();
+        assert_equals(
+            document.fullscreenElement,
+            div,
+            "fullscreenElement after first exitFullscreen()"
+        );
+
+        const secondPromise = document.exitFullscreen();
+        assert_equals(
+            document.fullscreenElement,
+            div,
+            "fullscreenElement after second exitFullscreen()"
+        );
+        const eventChange = new Promise((resolve) => {
+            document.addEventListener("fullscreenchange", () => {
+                document.addEventListener("fullscreenchange", t.unreached_func("second event fired"), once);
+                resolve();
+            }, once);
+        });
+
+        await Promise.all([
+            fullScreenChange,
+            firstPromise,
+            secondPromise,
+            eventChange,
+        ]);
+        assert_equals(document.fullscreenElement, null);
+    });
+</script>

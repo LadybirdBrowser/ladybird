@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>Promises#resolve</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<script>
+    promise_test(async function (t) {
+        const div = document.querySelector("div");
+        await trusted_request(div, document.body);
+        assert_equals(
+            document.fullscreenElement,
+            div,
+            "fullscreenElement before exitFullscreen()"
+        );
+        const p = document.exitFullscreen();
+        assert_equals(
+            document.fullscreenElement,
+            div,
+            "fullscreenElement after exitFullscreen()"
+        );
+        await p;
+        assert_equals(
+            document.fullscreenElement,
+            null,
+            "fullscreenElement after exiting fullscreen"
+        );
+    });
+</script>

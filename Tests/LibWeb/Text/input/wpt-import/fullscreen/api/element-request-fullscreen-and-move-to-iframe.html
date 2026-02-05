@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<title>
+    Element#requestFullscreen() followed by moving the element into an iframe
+</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../trusted-click.js"></script>
+<div id="log"></div>
+<div id="target"></div>
+<iframe allowfullscreen></iframe>
+<script>
+    // rfsPromise will be uncaught
+    setup({ allow_uncaught_exception: true });
+
+    promise_test(async (t) => {
+        const iframe = document.querySelector("iframe");
+        await new Promise((r) => {
+            iframe.onload = r;
+            iframe.src = "about:blank";
+        });
+        const target = document.getElementById("target");
+        const iframeDoc = iframe.contentDocument;
+
+        iframeDoc.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event in iframe"
+        );
+        iframeDoc.onfullscreenerror = t.unreached_func(
+            "fullscreenerror event in iframe"
+        );
+        document.onfullscreenchange = t.unreached_func(
+            "fullscreenchange event"
+        );
+
+        const errorPromise = new Promise(
+            (resolve) => (document.onfullscreenerror = resolve)
+        );
+        await trusted_click(document.body);
+        const rfsPromise = target.requestFullscreen();
+        iframeDoc.body.appendChild(target);
+        const event = await errorPromise;
+        assert_equals(
+            iframeDoc.fullscreenElement,
+            null,
+            "inner fullscreen element"
+        );
+        assert_equals(
+            document.fullscreenElement,
+            null,
+            "outer fullscreen element"
+        );
+        assert_equals(event.target, document, "event target");
+        await promise_rejects_js(
+            t,
+            TypeError,
+            rfsPromise,
+            "requestFullscreen promise"
+        );
+    }, "Element#requestFullscreen() followed by moving the element into an iframe");
+</script>
