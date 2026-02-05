@@ -547,7 +547,7 @@ ErrorOr<void> StringBuilder::try_append_escaped_for_json(StringView string)
             TRY(try_append("\\\\"sv));
             break;
         default:
-            if (ch >= 0 && ch <= 0x1f)
+            if (bit_cast<u8>(ch) <= 0x1f)
                 TRY(try_appendff("\\u{:04x}", ch));
             else
                 TRY(try_append(ch));

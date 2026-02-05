@@ -92,7 +92,6 @@ config("compiler_defaults") {
   cflags += [
     "-fdiagnostics-color",
     "-ffp-contract=off",
-    "-fsigned-char",
   ]
 
   if (use_lld) {
