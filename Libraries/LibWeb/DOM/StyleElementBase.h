@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Preston Taylor <PrestonLeeTaylor@proton.me>
+ * Copyright (c) 2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,22 +8,25 @@
 #pragma once
 
 #include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/DOM/Element.h>
-#include <LibWeb/WebIDL/ObservableArray.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
-class StyleElementUtils {
+class StyleElementBase {
 public:
-    void update_a_style_block(DOM::Element& style_element);
+    virtual ~StyleElementBase() = default;
 
-    CSS::CSSStyleSheet* sheet() { return m_associated_css_style_sheet; }
-    CSS::CSSStyleSheet const* sheet() const { return m_associated_css_style_sheet; }
+    void update_a_style_block();
+
+    CSS::CSSStyleSheet* sheet();
+    CSS::CSSStyleSheet const* sheet() const;
 
     [[nodiscard]] GC::Ptr<CSS::StyleSheetList> style_sheet_list() { return m_style_sheet_list; }
     [[nodiscard]] GC::Ptr<CSS::StyleSheetList const> style_sheet_list() const { return m_style_sheet_list; }
 
-    void visit_edges(JS::Cell::Visitor&);
+    void visit_style_element_edges(JS::Cell::Visitor&);
+
+    virtual Element& as_element() = 0;
 
 private:
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
