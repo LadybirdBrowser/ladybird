@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-polygon-dynamic-attribute-update-ref.html">
+<svg width="200" height="200">
+    <polygon id="polygon" points="0,0 10,0 10,10" fill="black"/>
+</svg>
+<script>
+window.onload = () => {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("polygon").setAttribute("points", "10,10 190,10 190,190 10,190");
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+};
+</script>
+</html>
