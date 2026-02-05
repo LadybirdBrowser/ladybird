@@ -39,6 +39,13 @@ u64 compute_maximum_disk_cache_size(u64 free_bytes)
     return MAXIMUM_DISK_CACHE_SIZE;
 }
 
+u64 compute_maximum_disk_cache_entry_size(u64 maximum_disk_cache_size)
+{
+    static constexpr u64 MAXIMUM_DISK_CACHE_ENTRY_SIZE = 256 * MiB;
+
+    return min(maximum_disk_cache_size / 8, MAXIMUM_DISK_CACHE_ENTRY_SIZE);
+}
+
 String serialize_url_for_cache_storage(URL::URL const& url)
 {
     if (!url.fragment().has_value())
