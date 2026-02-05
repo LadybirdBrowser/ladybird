@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,6 +9,7 @@
 
 #include <AK/Error.h>
 #include <AK/Function.h>
+#include <AK/LexicalPath.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/StringView.h>
@@ -26,6 +27,8 @@ public:
     ~Database();
 
     using OnResult = Function<void(StatementID)>;
+
+    LexicalPath const& database_path() const { return m_database_path; }
 
     ErrorOr<StatementID> prepare_statement(StringView statement);
 
@@ -69,7 +72,7 @@ public:
     ErrorOr<void> set_synchronous_pragma(Synchronous);
 
 private:
-    explicit Database(sqlite3*);
+    Database(LexicalPath, sqlite3*);
 
     void execute_statement_internal(StatementID, OnResult);
 
@@ -84,6 +87,7 @@ private:
         return m_prepared_statements[statement_id];
     }
 
+    LexicalPath m_database_path;
     sqlite3* m_database { nullptr };
     Vector<sqlite3_stmt*> m_prepared_statements;
 };
