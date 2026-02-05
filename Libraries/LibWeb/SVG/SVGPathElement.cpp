@@ -31,8 +31,11 @@ void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> c
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == "d")
+    if (name == "d") {
         m_path = AttributeParser::parse_path_data(value.value_or(String {}));
+        if (layout_node())
+            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+    }
 }
 
 Gfx::Path SVGPathElement::get_path(CSSPixelSize)
