@@ -203,7 +203,13 @@ ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers,
         return result.release_error();
     }
 
-    m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time);
+    if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to flush cache entry for\033[0m {} ({} bytes): {}", m_url, m_cache_footer.data_size, result.error());
+        remove();
+
+        return result.release_error();
+    }
+
     m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);
