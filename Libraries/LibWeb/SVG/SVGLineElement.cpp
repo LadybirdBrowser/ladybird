@@ -7,6 +7,7 @@
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLineElementPrototype.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGLineElement.h>
@@ -38,6 +39,11 @@ void SVGLineElement::attribute_changed(FlyString const& name, Optional<String> c
         m_x2 = AttributeParser::parse_number_percentage(value.value_or(String {}));
     } else if (name == SVG::AttributeNames::y2) {
         m_y2 = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    }
+
+    if (name.is_one_of(SVG::AttributeNames::x1, SVG::AttributeNames::y1, SVG::AttributeNames::x2, SVG::AttributeNames::y2)) {
+        if (layout_node())
+            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }
 
